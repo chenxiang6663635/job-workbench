@@ -30,7 +30,42 @@ import sys
 # Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_PATH = os.path.join(ROOT, "05_投递追踪", "tracker.csv")
+DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
+
+# 由 main() 在解析 --workspace 后赋值；模块级常量仅供被 report.py 导入时兜底
+WORKSPACE = DEFAULT_WORKSPACE
+
+
+def set_workspace(path):
+    """供 report.py 等导入方设置工作区。"""
+    global WORKSPACE
+    WORKSPACE = os.path.abspath(path)
+
+
+def available_directions():
+    """读取工作区装入的领域插件支持的方向 ID。
+
+    读不到时返回空列表——此时调用方应放行而非报错，
+    因为用户可能还没装入插件，或使用了自定义方向。
+    """
+    d = os.path.join(WORKSPACE, "config", "directions")
+    if not os.path.isdir(d):
+        return []
+    return sorted(f[:-3] for f in os.listdir(d) if f.endswith(".md"))
+
+
+def check_direction(value):
+    """校验方向 ID。插件不可用时放行，可用时严格校验。"""
+    valid = available_directions()
+    if not valid:
+        return None
+    if value in valid or value in DIRECTIONS:
+        return None
+    return ["`--direction` 必须是 %s 或 other，实际为 `%s`" % ("/".join(valid), value)]
+
+
+def csv_path():
+    return os.path.join(WORKSPACE, "05_投递追踪", "tracker.csv")
 
 # 输出时保持固定字段顺序
 FIELDS = [
@@ -38,7 +73,9 @@ FIELDS = [
     "当前阶段", "下次动作", "下次动作日期", "简历版本", "评分", "归档目录", "备注",
 ]
 
-DIRECTIONS = ["datacenter", "hvac", "other"]
+# 方向 ID 取决于工作区装入的领域插件，不在脚本里写死。
+# 校验时动态读取 <工作区>/config/directions/*.md，读不到则放行（只记录不拦截）。
+DIRECTIONS = ["other"]
 BATCHES = ["提前批", "正式批", "补录"]
 SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推", "其他"]
 
@@ -53,20 +90,22 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def read_rows():
-    if not os.path.isfile(CSV_PATH):
+    path = csv_path()
+    if not os.path.isfile(path):
         return []
     # utf-8-sig 读取时自动去掉 BOM
-    with io.open(CSV_PATH, "r", encoding="utf-8-sig", newline="") as f:
+    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         return [dict(row) for row in reader]
 
 
 def write_rows(rows):
-    directory = os.path.dirname(CSV_PATH)
+    path = csv_path()
+    directory = os.path.dirname(path)
     if not os.path.isdir(directory):
         os.makedirs(directory)
     # utf-8-sig 写入时加 BOM，Excel 直接打开不乱码
-    with io.open(CSV_PATH, "w", encoding="utf-8-sig", newline="") as f:
+    with io.open(path, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
@@ -100,8 +139,9 @@ def cmd_add(args):
     if not args.role:
         errors.append("`--role` 不能为空")
 
-    if args.direction not in DIRECTIONS:
-        errors.append("`--direction` 必须是 %s 之一，实际为 `%s`" % ("/".join(DIRECTIONS), args.direction))
+    errs = check_direction(args.direction)
+    if errs:
+        errors.extend(errs)
     if args.batch not in BATCHES:
         errors.append("`--batch` 必须是 %s 之一，实际为 `%s`" % ("/".join(BATCHES), args.batch))
     if args.source and args.source not in SOURCES:
@@ -250,6 +290,14 @@ def filter_rows(rows, args):
 
 
 def cmd_list(args):
+    if getattr(args, "direction", None):
+        errs = check_direction(args.direction)
+        if errs:
+            print("## 校验失败\n")
+            for e in errs:
+                print("- %s" % e)
+            return 1
+
     rows = read_rows()
     if not rows:
         print("追踪表为空。用 `tracker.py add` 添加第一条记录。")
@@ -302,12 +350,16 @@ def cmd_show(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(description="投递追踪表增删查改")
+    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
+                        help="工作区目录，默认仓库下的 personal/")
     sub = parser.add_subparsers(dest="cmd")
 
     p_add = sub.add_parser("add", help="新增投递记录")
     p_add.add_argument("--company", required=True, help="公司")
     p_add.add_argument("--role", required=True, help="岗位")
-    p_add.add_argument("--direction", required=True, choices=DIRECTIONS, help="方向")
+    # 不在 argparse 层写死 choices：合法方向取决于工作区装入的插件，
+    # 交给 check_direction() 在运行时校验，才能给出「可用方向」的具体提示
+    p_add.add_argument("--direction", required=True, help="方向 ID，取决于装入的领域插件")
     p_add.add_argument("--batch", required=True, choices=BATCHES, help="批次")
     p_add.add_argument("--source", choices=SOURCES, help="来源")
     p_add.add_argument("--deadline", help="截止日期 YYYY-MM-DD")
@@ -330,9 +382,11 @@ def build_parser():
     p_upd.add_argument("--note", help="备注")
     p_upd.add_argument("--score", type=int, help="评分 0-100")
 
+    # 方向选项取决于工作区装入的插件，此处不在定义时写死，
+    # 改为在 cmd_list 中校验，以便给出「可用方向」的具体提示
     p_list = sub.add_parser("list", help="列出记录")
     p_list.add_argument("--stage", help="按阶段过滤")
-    p_list.add_argument("--direction", choices=DIRECTIONS, help="按方向过滤")
+    p_list.add_argument("--direction", help="按方向过滤")
     p_list.add_argument("--batch", choices=BATCHES, help="按批次过滤")
     p_list.add_argument("--company", help="按公司名模糊过滤")
     p_list.add_argument("--due-within", dest="due_within", type=int,
@@ -347,6 +401,13 @@ def build_parser():
 def main():
     parser = build_parser()
     args = parser.parse_args()
+
+    global WORKSPACE
+    WORKSPACE = os.path.abspath(args.workspace)
+    if not os.path.isdir(WORKSPACE):
+        print("错误：工作区不存在 %s" % WORKSPACE)
+        print("先运行 python tools/init_workspace.py 初始化。")
+        return 1
 
     if not args.cmd:
         parser.print_help()

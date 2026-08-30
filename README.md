@@ -1,26 +1,69 @@
-# 秋招工作台（2027 届）
+# 秋招工作台
 
-用 git 管理的本地秋招工作台。五个模块：JD 解析、简历工坊、面试准备、投递追踪、知识库。
+一个通用的本地求职工作台。用 Markdown 与 CSV 管理从 JD 解析到投递追踪的完整链路，配合 AI CLI 驱动。
 
-设计原则：**判断由 AI 做，脚本只做 IO 与校验**。评分不是代码算出来的，是 AI 读 JD 与候选人档案后填进解析卡的；Python 只校验加总、套阈值、生成 PDF、读写追踪表。改评分标准不用改代码，只改 `config/` 与技能文件。
+不是 SaaS，不联网，不上传任何数据。全部是纯文本文件，git 能 diff，Excel 能直接打开。
 
-无 Web 应用、无数据库、无远程仓库、无云同步。全部是 Markdown 与 CSV，git 可 diff，Excel 可直开。
+---
 
-> 旧版「面试备考库」的 README 见 `99_归档/README_备考库_v0.md`；设计方案见 `docs/specs/2026-08-30-autumn-recruit-workbench-design.md`。
+## 它解决什么问题
+
+求职期的真实困难不是"不知道该怎么做"，而是**信息散落导致无法决策**：
+
+- 这家公司值得投吗？上周看过类似的，当时怎么判断的？
+- 三个月前投这家，用的是哪版简历？当时的 JD 怎么写的？
+- 现在有几家在流程中？哪个明天截止？
+
+工作台把这些变成可查询、可回溯的文件结构。
+
+## 核心设计
+
+**判断由 AI 做，脚本只做 IO 与校验。**
+
+评分不是代码算出来的，是 AI 读 JD 原文与你的档案后填进解析卡的；Python 只校验加总自洽、套阈值出结论、生成 PDF、读写追踪表。改评分标准不用改代码，只改 `template/profiles/` 下的 Markdown。
+
+**四层单向依赖**：skills（领域知识）→ 脚本（IO 与校验）→ 数据（Markdown + CSV）→ git（版本）。脚本互不调用，各自独立可测。
+
+## 三层分离
+
+```
+工具层   tools/ + skills/      领域无关，任何人可用
+领域层   template/profiles/    可插拔插件，内置 hvac-cooling
+用户层   personal/             你的真实数据，从 template 初始化
+```
+
+新增一个领域只需新增一个插件目录，不改任何代码。
 
 ---
 
 ## 快速开始
 
-**第一步，补齐硬门槛事实。** `CODEBUDDY.md` 第三节有 6 个字段未填（最高学历、毕业届数、专业方向、CET-4、CET-6、可接受城市）。不补齐则 `/jd` 的硬门槛过滤会卡住所有 JD——这是设计如此，不允许猜测。
+```bash
+# 1. 初始化工作区（一条命令生成六个模块 + 档案模板 + 领域插件）
+python tools/init_workspace.py --target my_job_hunt --domain hvac-cooling
 
-**第二步，跑通一条完整链路。**
+# 2. 分发 skills 到你的 AI CLI
+python tools/install_skills.py --target user
 
+# 3. 填写 my_job_hunt/AGENTS.md
+#    第三节的硬门槛事实必填——不填则 JD 硬门槛判定会卡住（设计如此，不允许猜测）
 ```
-/jd  <粘贴一份 JD>          # 硬门槛过滤 + 四维度评分 + 结论档位
-/apply <公司> <岗位>         # 选简历版本 → 生成 PDF → ATS 校验 → 归档 → 记入追踪表
-/track list --due-within 7   # 看最近要处理什么
-```
+
+然后直接用自然语言跟你的 AI CLI 说："解析这份 JD"、"投递这个岗位"、"看最近七天要处理什么"。
+
+### 支持的 AI CLI
+
+`tools/install_skills.py` 支持分发到 CodeBuddy（`.codebuddy/skills/`）、Claude Code（`.claude/skills/`）、以及跨运行时的用户级 `~/.agents/skills/`（Codex / Copilot CLI / Gemini CLI 共同识别）。
+
+仓库内的 `skills/` 是单一源，改完重跑安装脚本即可同步到所有位置。
+
+### 环境要求
+
+- Python 3.8+（脚本只用标准库）
+- pypdf（仅 PDF 校验需要）：`pip install pypdf`
+- Chrome 或 Edge（仅 PDF 生成需要）
+
+无 Python 环境也能用——skills 与数据层是纯 Markdown，只是五个脚本跑不了。
 
 ---
 
@@ -28,110 +71,81 @@
 
 | 工作流 | 用途 |
 |---|---|
-| `jd` | 解析 JD：存原文 → 硬门槛过滤 → 四维度评分 → 出档位与下一步 |
-| `apply` | 生成投递包：选简历版本 → 微调 → 生成 PDF → ATS 校验 → 归档 → 记入追踪表 |
+| `jd` | 解析 JD：存原文 → 硬门槛过滤 → 四维度评分 → 出档位 |
+| `apply` | 生成投递包：选简历版本 → 生成 PDF → ATS 校验 → 归档 → 记入追踪表 |
 | `track` | 追踪表查改与漏斗看板 |
-| `resume` | 单独重建 PDF 并校验，用于改简历后的回归 |
+| `resume` | 单独重建 PDF 并校验 |
 
-**调用方式**：直接用自然语言说出意图即可，例如「解析这份 JD」「投递华为这个岗位」「看最近七天要处理什么」。CodeBuddy 会按 `.codebuddy/skills/` 下的描述自动匹配并加载对应工作流。
+## 评分框架
 
-若你的 CodeBuddy 版本支持项目级自定义斜杠命令，也可用 `/jd`、`/apply`、`/track`、`/resume`——`.codebuddy/commands/` 下的同名文件为此保留。**skills 是官方确认支持的机制，commands 是双保险。**
-
-评分标准与诚实红线见 `.codebuddy/skills/recruit-coach/SKILL.md`；项目强制规则见 `.codebuddy/rules/recruit-workbench.md`。
-
-### 评分框架
-
-Eligibility Gate 前置：**学历 → 专业 → 届数 → 英语 → 城市**，任一不过则不打分、不写材料。
+Eligibility Gate 前置：**学历 → 专业 → 届数 → 外语 → 城市**，任一不过则不打分、不写材料。
 
 通过后四维度加权：技术匹配 30、经历匹配 25、方向契合 30、培养与稳定性 15。
 
-| 总分 | 档位 | 动作 |
-|---|---|---|
-| 75–100 | 强烈建议投 | 立即 `/apply` |
-| 60–74 | 建议投 | 进入 `/apply` |
-| 45–59 | 斟酌 | 先看缺口能否一周内补 |
-| 30–44 | 大概率跳过 | 除非有内推等额外信息 |
-| 0–29 | 不投 | 终止 |
+| 总分 | 档位 |
+|---|---|
+| 75–100 | 强烈建议投 |
+| 60–74 | 建议投 |
+| 45–59 | 斟酌 |
+| 30–44 | 大概率跳过 |
+| 0–29 | 不投 |
 
-「HVAC 版」与「数据中心版」不是两条独立流程，是同一套权重下的两个配置（`config/direction_hvac.md`、`config/direction_datacenter.md`），差异只在关键词词典与方向锚点。
+「培养与稳定性」取代了常见的「文化契合」——校招 JD 里的文化表述多为套话，判断可靠度低；而是否有培养体系、是否核心岗、工作形态是否可持续，既可从文本判断，也对决策影响更大。
+
+## 五个脚本
+
+```
+python tools/init_workspace.py --target <名称> --domain <插件>
+python tools/install_skills.py [--target user|codebuddy|claude|...] [--dry-run]
+python tools/jd_score.py <解析卡> [--domain X --direction Y] [--show-profile]
+python tools/tracker.py --workspace <目录> add|update|list|show
+python tools/resume_build.py --workspace <目录> [--version X] [--out DIR]
+python tools/report.py --workspace <目录> [--stdout]
+```
 
 ---
+
+## 领域插件
+
+```
+template/profiles/<domain-id>/
+├── profile.md        插件元信息
+├── lexicon.md        三级词典：Primary / Secondary / Weak
+└── directions/
+    └── <direction-id>.md
+```
+
+内置 `hvac-cooling`（暖通制冷与数据中心冷却），含 `datacenter` 与 `hvac` 两个方向。
+
+**三级分层的判据不是"会不会"，是"能不能经得起追问"**：
+
+- Primary —— 能讲清原理、能推导、能接两层追问
+- Secondary —— 有实操，能支撑但要谨慎表述边界
+- Weak —— 只有知识性了解，没有交付经历
+
+把 Weak 写成 Primary 的代价远大于漏写：面试会露馅。
+
+## 两条不可删除的红线
+
+1. **简历每个动词都要经得起 5–10 分钟追问。** 动词由贡献事实决定，不把「参与」一律升级为「负责」。
+2. **知识缺口用诚实的桥梁回答**，永不编造经历。
+
+这两条对所有人都成立。此外你可以在 `AGENTS.md` 里定义自己的红线——通常是「哪些事不能认领」和「哪些数字必须怎么表述」。
 
 ## 目录
 
 | 目录 | 用途 |
 |---|---|
-| `CODEBUDDY.md` | **候选人档案**：能力分层、硬门槛事实、经验资产、七条诚实红线。AI 每次会话必读 |
-| `00_事实库/` | 唯一事实源，5 份事实卡。独立于五模块，简历动词与经历匹配打分都要回查 |
-| `01_岗位池/` | 每个岗位一个子目录：`JD原文.md` + `解析卡.md` |
-| `02_简历工坊/` | 三份简历 md + HTML 模板 + 生成的 PDF |
-| `03_面试准备/` | 自我介绍 / 项目表达 / 核心题库 / 行为面 / 技术面 / 模拟复盘 |
-| `04_知识库/` | 30 份知识词典。按需查阅，不从此处开始日常训练 |
-| `05_投递追踪/` | `tracker.csv` + 每次投递归档 |
-| `99_归档/` | 历史文件：恢复审计、7 天作战计划、旧 README、旧 PS1 脚本 |
-| `config/` | 两个方向配置 + ATS 关键事实清单 |
-| `tools/` | 5 个 Python 脚本，互不调用、独立可测 |
+| `template/` | 通用骨架：档案模板、空工作区、领域插件 |
+| `skills/` | 四个工作流 + recruit-coach 评分标准，跨运行时单一源 |
+| `tools/` | 六个 Python 脚本 |
+| `personal/` | 当前使用者的真实工作区（含姓名与照片，见下方警告） |
+| `docs/specs/` | 设计文档 |
 
----
+> **分享本仓库前请先移除 `personal/`**——它包含真实姓名、照片与联系方式。
 
-## 五个脚本
+## 相关文档
 
-```
-python tools/fix_links.py [--apply]           # 断链修复，默认演练模式
-python tools/jd_score.py <解析卡路径>          # 校验评分加总并出档位
-python tools/tracker.py add|update|list|show  # 追踪表增删查改
-python tools/resume_build.py [--version]      # 生成 PDF + ATS 校验
-python tools/report.py [--stdout]             # 生成投递漏斗看板
-```
-
-Python 3.8.19（conda）。脚本只用标准库，PDF 校验用已装的 pypdf 5.9.0。**禁用 3.9+ 语法**。
-
----
-
-## 七条诚实红线
-
-写进 `CODEBUDDY.md` 与技能文件，任何命令执行时都必须遵守：
-
-1. 不认领 CNN 前端（前端由团队完成，个人负责后端控制、工况运行与结果分析）
-2. X% 表述为「研究案例显示」，不得表述为工程实测结果
-3. 不包装数据中心工程交付经验
-4. 项目一只讲「已验证结论 vs 探索候选」，不称已部署
-5. 项目二只说仿真与单一阅览室案例及 CO₂ 权衡，不称工程落地
-6. 简历每个动词都要经得起 5–10 分钟追问，不把「参与」一律升级为「负责」
-7. 知识缺口用诚实的桥梁回答，永不编造经历
-
-第 7 条同样约束桥梁话术：只能指向真实可迁移能力，不得生成听起来像经历的表述。
-
----
-
-## 按面试时间复习
-
-| 场景 | 只看什么 |
-|---|---|
-| 面试前 15 分钟 | 对应投递版简历 + 岗位速查卡（见 `03_面试准备/README_面试准备导航.md`） |
-| 初面前 1 小时 | `03_面试准备/自我介绍/selfintro_*.md` + 项目 10 问压缩卡 + 对应专题 10 问 |
-| 专业面前半天 | 对应面试速记 + 水系统/空气侧计算关系 + 项目追问 |
-| 面试后当天 | 追加到 `00_事实库/` 对应事实卡的回填区，不立刻新建专题 |
-
----
-
-## 当前状态与待办
-
-**已完成（一期）**：目录重组与 68 处断链修复、评分框架、四个命令、五个脚本、ATS 关键事实清单（18 项已验证全部命中）、PDF 流水线（v1.2 基线已复现）。
-
-**待办**：
-
-- [ ] 补齐 `CODEBUDDY.md` 第三节 6 项硬门槛事实 —— **阻塞 `/jd`**
-- [ ] `03_面试准备/行为面/缺点失败冲突与现实边界.md` 模块 6「现实边界」8 问需本人填真实底线
-- [ ] 用一份真实 JD 端到端验证 `/jd` → `/apply`
-
-**二期（本期不做）**：`/interview` 命令按 JD 与简历版本自动组装三级复习包；`04_知识库/` 补标签与 `kb_search.py` 检索。
-
----
-
-## 版本说明
-
-- 简历 PDF 当前基线为 **v1.2 色块版**，`_v1.0` 与 `_v1.1` 为历史存档
-- 三份简历 md 文件名沿用 `_v1.0` 编号以免全库断链，文件内已标注实际版本 v1.1
-- `02_简历工坊/项目表达/项目二/项目2贡献矩阵_待填.md` 内容已定稿（17 行），文件名沿用「待填」以免断链，二期统一改名
-- 本地 git，无远程。简历含姓名与照片，若需备份建议用同机另一磁盘的 `git clone --mirror`，不要推到第三方平台
+- `template/AGENTS.example.md` —— 档案模板，含逐项填写说明
+- `template/workspace/README.md` —— 六个模块的用途与填写要求
+- `docs/specs/2026-08-30-general-workbench-design.md` —— 设计方案

@@ -61,6 +61,9 @@ PATH_RE = re.compile(
 # docs/ 下的设计文档描述的是「旧路径 -> 新路径」映射关系，改写会破坏其语义，故排除
 SKIP_DIRS = {".git", "tools", "__pycache__", ".codebuddy", "docs"}
 
+# 归档说明的作用是列出旧目录名并解释「不做改写」的理由，改写会自相矛盾
+SKIP_FILES = {"99_归档/README.md"}
+
 
 def is_markdown(rel_path):
     return rel_path.lower().endswith(".md")
@@ -76,45 +79,32 @@ def iter_markdown_files():
                 yield rel, abs_path
 
 
-def compensate_depth(text, levels):
-    """给以 ../ 或 ./ 开头的路径引用补 levels 层 ../。"""
-    def _add(m):
-        prefix = m.group(0)
-        return prefix + "../" * levels
-    # 只处理紧跟在反引号或行首的相对引用
-    return re.sub(r"(?<=`)(?:\.\./)+", _add, text)
-
-
 def rewrite(text, rel_path):
-    """返回 (新文本, 命中列表)。"""
+    """返回 (新文本, 命中列表)。
+
+    深度补偿只作用于**本次实际替换的引用**，不对文件内所有 ../ 前缀无条件加层——
+    否则重复运行脚本会不断叠加 ../ ，破坏幂等性。
+    """
     hits = []
+    levels = DEPTH_COMPENSATE.get(rel_path, 0)
 
     def _sub(m):
         original = m.group(0)
-        rel_part = original
-        # 分离相对前缀
-        prefix_match = re.match(r"((?:\.\./|\./)*)", rel_part)
+        prefix_match = re.match(r"((?:\.\./|\./)*)", original)
         prefix = prefix_match.group(1)
-        body = rel_part[len(prefix):]
+        body = original[len(prefix):]
 
         for old, new in PATH_MAP:
             # body == old 处理裸目录引用；startswith(old + "/") 处理目录下级路径
             if body == old or body.startswith(old + "/"):
                 new_body = new + body[len(old):]
-                result = prefix + new_body
+                new_prefix = prefix + "../" * levels
+                result = new_prefix + new_body
                 hits.append((original, result))
                 return result
         return original
 
     new_text = PATH_RE.sub(_sub, text)
-
-    levels = DEPTH_COMPENSATE.get(rel_path, 0)
-    if levels:
-        before = new_text
-        new_text = compensate_depth(new_text, levels)
-        if new_text != before:
-            hits.append(("<深度补偿 %d 层>" % levels, "已处理"))
-
     return new_text, hits
 
 
@@ -129,6 +119,9 @@ def main():
     changed = []
 
     for rel, abs_path in iter_markdown_files():
+        if rel in SKIP_FILES:
+            continue
+
         with io.open(abs_path, "r", encoding="utf-8") as f:
             original_text = f.read()
 

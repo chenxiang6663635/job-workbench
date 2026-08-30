@@ -23,6 +23,10 @@ import sys
 
 # Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROFILES = os.path.join(ROOT, "template", "profiles")
+DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
+
 # 维度名 -> 满分。顺序即解析卡中的书写顺序
 DIMENSIONS = [
     ("技术匹配", 30),
@@ -100,11 +104,86 @@ def verdict(total):
     return THRESHOLDS[-1][2], THRESHOLDS[-1][3]
 
 
+def resolve_profile(workspace, domain=None, direction=None):
+    """定位领域插件与方向文件。
+
+    查找顺序：工作区 config/（用户可能有自己的副本） -> template/profiles/<domain>/
+    返回 (插件目录, 方向文件路径, 警告列表)。
+    """
+    warnings = []
+
+    # 确定 domain
+    if not domain:
+        ws_domain = os.path.join(workspace, "config", "profile.md")
+        if os.path.isfile(ws_domain):
+            candidates = [os.path.basename(os.path.dirname(workspace))]
+        else:
+            candidates = sorted(d for d in os.listdir(PROFILES)
+                                if os.path.isdir(os.path.join(PROFILES, d))) \
+                if os.path.isdir(PROFILES) else []
+        if not candidates:
+            warnings.append("未找到任何领域插件，评分缺少词典依据")
+            return None, None, warnings
+        domain = candidates[0]
+        warnings.append("未指定 --domain，回退使用第一个插件 `%s`" % domain)
+
+    # 插件目录：工作区优先，其次 template
+    ws_profile = os.path.join(workspace, "config")
+    profile_dir = ws_profile if os.path.isfile(
+        os.path.join(ws_profile, "profile.md")) else os.path.join(PROFILES, domain)
+
+    if not os.path.isdir(profile_dir):
+        warnings.append("找不到领域插件 `%s`（已查找 %s 与 %s）"
+                        % (domain, ws_profile, os.path.join(PROFILES, domain)))
+        return None, None, warnings
+
+    # 方向文件
+    dir_dir = os.path.join(profile_dir, "directions")
+    if direction:
+        path = os.path.join(dir_dir, "%s.md" % direction)
+        if os.path.isfile(path):
+            return profile_dir, path, warnings
+        warnings.append("方向 `%s` 不存在于插件 `%s`" % (direction, domain))
+
+    if os.path.isdir(dir_dir):
+        available = sorted(f for f in os.listdir(dir_dir) if f.endswith(".md"))
+        if available:
+            fallback = available[0][:-3]
+            if direction:
+                warnings.append("回退使用方向 `%s`，结论仅供参考" % fallback)
+            return profile_dir, os.path.join(dir_dir, available[0]), warnings
+
+    warnings.append("插件 `%s` 下没有找到任何方向配置" % domain)
+    return profile_dir, None, warnings
+
+
 def main():
     parser = argparse.ArgumentParser(description="校验 JD 解析卡评分并输出结论档位")
-    parser.add_argument("card", help="解析卡路径")
-    parser.add_argument("--quiet", action="store_true", help="只输出结论，不输出评分明细")
+    # --show-profile 只查插件路径，不需要解析卡，故设为可选
+    parser.add_argument("card", nargs="?", help="解析卡路径")
+    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
+                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--domain", help="领域插件 ID，如 hvac-cooling")
+    parser.add_argument("--direction", help="方向 ID，如 datacenter / hvac")
+    parser.add_argument("--show-profile", action="store_true",
+                        help="打印命中的插件与方向文件路径后退出")
     args = parser.parse_args()
+
+    workspace = os.path.abspath(args.workspace)
+
+    if not args.card and not args.show_profile:
+        parser.error("需要提供解析卡路径，或使用 --show-profile")
+
+    if args.show_profile:
+        profile_dir, direction_file, warns = resolve_profile(
+            workspace, args.domain, args.direction)
+        print("插件目录：%s" % (profile_dir or "（未找到）"))
+        print("方向文件：%s" % (direction_file or "（未找到）"))
+        print("共用词典：%s" % (os.path.join(profile_dir, "lexicon.md")
+                           if profile_dir else "（未找到）"))
+        for w in warns:
+            print("提示：%s" % w)
+        return 0 if profile_dir and direction_file else 1
 
     path = args.card
     if not os.path.isfile(path):

@@ -32,14 +32,7 @@ import sys
 # Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PDF_DIR = os.path.join(ROOT, "02_简历工坊", "pdf")
-FACTS_FILE = os.path.join(ROOT, "config", "ats_required_facts.txt")
-
-# HTML 源 -> 输出 PDF 文件名（v1.2 色块版为当前基线）
-JOBS = [
-    ("resume_hvac.html", "某用户_简历_空调制冷HVAC_v1.2色块版.pdf", "hvac"),
-    ("resume_datacenter.html", "某用户_简历_数据中心冷却_v1.2色块版.pdf", "datacenter"),
-]
+DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
 
 BROWSER_CANDIDATES = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -49,6 +42,9 @@ BROWSER_CANDIDATES = [
 ]
 
 MIN_TEXT_LENGTH = 800
+
+# 由 main() 在解析 --workspace 后赋值
+VERIFY_FACTS_FILE = ""
 
 
 def find_browser():
@@ -76,11 +72,29 @@ def build_pdf(browser, html_path, pdf_path):
     return os.path.isfile(pdf_path)
 
 
-def load_required_facts():
-    if not os.path.isfile(FACTS_FILE):
+def discover_jobs(pdf_dir):
+    """扫描 pdf 目录下的 resume_*.html。
+
+    不硬编码文件名——不同用户的简历版本命名不同，脚本只约定前缀 resume_。
+    输出名由 HTML 名推导：resume_hvac.html -> 简历_hvac.pdf，
+    若同目录已存在同名 PDF 则沿用它（保持历史版本命名）。
+    """
+    if not os.path.isdir(pdf_dir):
+        return []
+    jobs = []
+    for name in sorted(os.listdir(pdf_dir)):
+        if name.startswith("resume_") and name.lower().endswith(".html"):
+            stem = name[len("resume_"):-len(".html")]
+            pdf = "简历_%s.pdf" % stem
+            jobs.append((name, pdf, stem))
+    return jobs
+
+
+def load_required_facts(facts_file):
+    if not os.path.isfile(facts_file):
         return None
     facts = []
-    with io.open(FACTS_FILE, "r", encoding="utf-8") as f:
+    with io.open(facts_file, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#"):
@@ -116,7 +130,7 @@ def verify_pdf(pdf_path):
     ok_text = len(text) >= MIN_TEXT_LENGTH
     details.append(("可提取文本", "%d 字符（阈值 %d）" % (len(text), MIN_TEXT_LENGTH), ok_text))
 
-    facts = load_required_facts()
+    facts = load_required_facts(VERIFY_FACTS_FILE)
     if facts is None:
         details.append(("关键事实", "跳过：config/ats_required_facts.txt 不存在", None))
     else:
@@ -132,26 +146,50 @@ def verify_pdf(pdf_path):
 
 def main():
     parser = argparse.ArgumentParser(description="生成简历 PDF 并做 ATS 校验")
-    parser.add_argument("--version", choices=["hvac", "datacenter", "all"], default="all",
-                        help="生成哪一版，默认两版都生成")
-    parser.add_argument("--out", help="输出目录，默认为 02_简历工坊/pdf")
+    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
+                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--version", default="all",
+                        help="只生成指定的版本（resume_<版本>.html 的版本名），默认全部")
+    parser.add_argument("--out", help="输出目录，默认工作区下 02_简历工坊/pdf")
     parser.add_argument("--no-verify", action="store_true", help="只生成，不做 ATS 校验")
     args = parser.parse_args()
 
-    out_dir = os.path.abspath(args.out) if args.out else PDF_DIR
+    workspace = os.path.abspath(args.workspace)
+    if not os.path.isdir(workspace):
+        print("错误：工作区不存在 %s" % workspace)
+        print("先运行 python tools/init_workspace.py 初始化。")
+        return 1
+
+    pdf_dir = os.path.join(workspace, "02_简历工坊", "pdf")
+    out_dir = os.path.abspath(args.out) if args.out else pdf_dir
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
+
+    global VERIFY_FACTS_FILE
+    VERIFY_FACTS_FILE = os.path.join(workspace, "config", "ats_required_facts.txt")
+
+    all_jobs = discover_jobs(pdf_dir)
+    if not all_jobs:
+        print("错误：%s 下没有找到 resume_*.html 模板" % pdf_dir)
+        return 1
+
+    if args.version == "all":
+        selected = all_jobs
+    else:
+        selected = [j for j in all_jobs if j[2] == args.version]
+        if not selected:
+            print("错误：找不到版本 `%s`" % args.version)
+            print("可用版本：%s" % "、".join(j[2] for j in all_jobs))
+            return 1
 
     browser = find_browser()
     if not browser:
         print("错误：未找到 Chrome 或 Edge，无法生成 PDF。")
         return 1
 
-    selected = [j for j in JOBS if args.version == "all" or j[2] == args.version]
-
     all_passed = True
     for html_name, pdf_name, _ in selected:
-        html_path = os.path.join(PDF_DIR, html_name)
+        html_path = os.path.join(pdf_dir, html_name)
         pdf_path = os.path.join(out_dir, pdf_name)
 
         if not os.path.isfile(html_path):
@@ -184,9 +222,10 @@ def main():
 
     if not args.no_verify and not all_passed:
         print("## ATS 校验未全部通过，不要归档投递。")
-        print("若 PDF 超过一页，按既定顺序删减：驾驶证 -> 本科 GPA/部分课程 -> "
-              "Profile 压一行 -> 项目1方法细节 -> 标准栏。")
-        print("绝不先删：X% 结果、控制贡献、SCI、硕士课程成绩、工程实践。")
+        print("")
+        print("若 PDF 超过一页，删除原则：**先删装饰性内容，绝不删核心成果与可验证数字。**")
+        print("具体顺序见工作区 AGENTS.md 的自定义红线；未记录时，按「装饰信息 →")
+        print("次要课程/证书 → 排版留白 → 展开的细节描述」的顺序处理。")
         return 1
 
     return 0

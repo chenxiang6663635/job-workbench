@@ -25,10 +25,9 @@ from datetime import date, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from tracker import (  # noqa: E402 - 需先设置 sys.path
-    CSV_PATH, ROOT, STAGES, TERMINAL_STAGES, read_rows,
+    DEFAULT_WORKSPACE, ROOT, STAGES, TERMINAL_STAGES,
+    csv_path, read_rows, set_workspace,
 )
-
-DEFAULT_OUT = os.path.join(ROOT, "05_投递追踪", "看板.md")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # 漏斗顺序：正常流转 + 终态
@@ -175,11 +174,20 @@ def build_report(rows, today):
 
 def main():
     parser = argparse.ArgumentParser(description="生成投递漏斗看板")
-    parser.add_argument("--out", help="输出文件路径，默认 05_投递追踪/看板.md")
+    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
+                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--out", help="输出文件路径，默认工作区下 05_投递追踪/看板.md")
     parser.add_argument("--stdout", action="store_true", help="只打印到标准输出，不写文件")
     args = parser.parse_args()
 
-    if not os.path.isfile(CSV_PATH):
+    workspace = os.path.abspath(args.workspace)
+    if not os.path.isdir(workspace):
+        print("错误：工作区不存在 %s" % workspace)
+        print("先运行 python tools/init_workspace.py 初始化。")
+        return 1
+    set_workspace(workspace)
+
+    if not os.path.isfile(csv_path()):
         print("追踪表尚未创建，无数据可生成看板。")
         print("先用 jd 工作流解析岗位，再用 apply 工作流生成投递包，追踪表会自动建立。")
         return 0
@@ -191,7 +199,8 @@ def main():
         print(content)
         return 0
 
-    out_path = os.path.abspath(args.out) if args.out else DEFAULT_OUT
+    out_path = os.path.abspath(args.out) if args.out else os.path.join(
+        workspace, "05_投递追踪", "看板.md")
     directory = os.path.dirname(out_path)
     if not os.path.isdir(directory):
         os.makedirs(directory)

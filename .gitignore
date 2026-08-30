@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 临时与编辑器文件
+*.tmp
+*.bak
+~$*
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
+
+# 简历 PDF、照片、预览图均为交付物，纳入版本管理，不在此忽略
+# .codebuddy 目录含命令定义、技能文件与工作记忆，纳入版本管理

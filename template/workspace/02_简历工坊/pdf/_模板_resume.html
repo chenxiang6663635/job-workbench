@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>简历模板</title>
+<style>
+  /* A4 一页。中文简历建议字号 10–11pt，过小影响可读性，过大则超页 */
+  @page { size: A4; margin: 12mm 14mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: 10.5pt; line-height: 1.5; color: #1a1a1a;
+  }
+  h1 { font-size: 19pt; letter-spacing: 2px; margin-bottom: 2px; }
+  .contact { font-size: 9pt; color: #555; border-bottom: 2px solid #2c5f8d;
+             padding-bottom: 6px; margin-bottom: 10px; }
+  h2 { font-size: 11.5pt; color: #2c5f8d; margin: 11px 0 4px;
+       border-left: 3px solid #2c5f8d; padding-left: 6px; }
+  .item { margin-bottom: 7px; }
+  .item-head { display: flex; justify-content: space-between;
+               font-weight: bold; font-size: 10pt; }
+  .meta { font-size: 9pt; color: #666; font-style: italic; }
+  ul { margin: 3px 0 0 16px; }
+  li { margin-bottom: 2px; }
+  .skills { font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<!-- ============ 使用说明（生成 PDF 前删除本段注释） ============
+  1. 复制本文件为 resume_<版本>.html，例如 resume_backend.html
+     脚本按 resume_ 前缀扫描，输出为 简历_<版本>.pdf
+  2. 照片：在 h1 后加入 <img class="photo" src="photo.jpg">，
+     并在 CSS 中加 .photo { float: right; width: 24mm; height: 33.6mm; }
+     不需要照片则不加
+  3. 文字必须是真实文本，不要用图片或 canvas 呈现——否则 ATS 抓不到
+  4. 内容过简会导致可提取文本不足（默认阈值 300 字符）而校验失败
+  ============================================================ -->
+
+<h1>你的姓名</h1>
+<div class="contact">
+  求职意向：（按岗位改）　|　电话：　|　邮箱：　|　（城市）
+</div>
+
+<h2>教育背景</h2>
+<div class="item">
+  <div class="item-head"><span>学校 · 专业</span><span>起止年月</span></div>
+  <div class="meta">学历　|　（外语成绩等）</div>
+</div>
+
+<h2>项目经历</h2>
+<!-- 每个项目一段。动词要经得起 5–10 分钟追问，
+     写清「你做了什么」而不是「项目做了什么」 -->
+<div class="item">
+  <div class="item-head"><span>项目名称</span><span>起止年月</span></div>
+  <div class="meta">你的角色（技术栈）</div>
+  <ul>
+    <li>做了什么 + 用什么方法 + 可验证的结果</li>
+    <li>遇到什么问题 + 怎么解决的</li>
+  </ul>
+</div>
+
+<h2>实习经历</h2>
+<div class="item">
+  <div class="item-head"><span>公司 · 岗位</span><span>起止年月</span></div>
+  <ul>
+    <li>职责与成果，同样要写清个人贡献边界</li>
+  </ul>
+</div>
+
+<h2>专业技能</h2>
+<div class="skills">
+  <b>分类一：</b>内容<br>
+  <b>分类二：</b>内容<br>
+  <b>分类三：</b>内容
+</div>
+
+</body>
+</html>

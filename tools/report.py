@@ -180,8 +180,9 @@ def main():
     args = parser.parse_args()
 
     if not os.path.isfile(CSV_PATH):
-        print("错误：找不到追踪表 %s" % CSV_PATH)
-        return 1
+        print("追踪表尚未创建，无数据可生成看板。")
+        print("先用 jd 工作流解析岗位，再用 apply 工作流生成投递包，追踪表会自动建立。")
+        return 0
 
     rows = read_rows()
     content = build_report(rows, date.today())

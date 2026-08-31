@@ -42,21 +42,26 @@ def set_workspace(path):
     WORKSPACE = os.path.abspath(path)
 
 
-def available_directions():
+def resolve_ws(workspace=None):
+    """显式传参优先，缺省回退全局。Web 并发场景必须显式传参。"""
+    return os.path.abspath(workspace) if workspace else WORKSPACE
+
+
+def available_directions(workspace=None):
     """读取工作区装入的领域插件支持的方向 ID。
 
     读不到时返回空列表——此时调用方应放行而非报错，
     因为用户可能还没装入插件，或使用了自定义方向。
     """
-    d = os.path.join(WORKSPACE, "config", "directions")
+    d = os.path.join(resolve_ws(workspace), "config", "directions")
     if not os.path.isdir(d):
         return []
     return sorted(f[:-3] for f in os.listdir(d) if f.endswith(".md"))
 
 
-def check_direction(value):
+def check_direction(value, workspace=None):
     """校验方向 ID。插件不可用时放行，可用时严格校验。"""
-    valid = available_directions()
+    valid = available_directions(workspace)
     if not valid:
         return None
     if value in valid or value in DIRECTIONS:
@@ -64,8 +69,8 @@ def check_direction(value):
     return ["`--direction` 必须是 %s 或 other，实际为 `%s`" % ("/".join(valid), value)]
 
 
-def csv_path():
-    return os.path.join(WORKSPACE, "05_投递追踪", "tracker.csv")
+def csv_path(workspace=None):
+    return os.path.join(resolve_ws(workspace), "05_投递追踪", "tracker.csv")
 
 # 输出时保持固定字段顺序
 FIELDS = [
@@ -89,8 +94,8 @@ UPDATABLE = ["当前阶段", "下次动作", "下次动作日期", "备注", "�
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
-def read_rows():
-    path = csv_path()
+def read_rows(workspace=None):
+    path = csv_path(workspace)
     if not os.path.isfile(path):
         return []
     # utf-8-sig 读取时自动去掉 BOM
@@ -99,8 +104,8 @@ def read_rows():
         return [dict(row) for row in reader]
 
 
-def write_rows(rows):
-    path = csv_path()
+def write_rows(rows, workspace=None):
+    path = csv_path(workspace)
     directory = os.path.dirname(path)
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -289,6 +294,17 @@ def filter_rows(rows, args):
     return result
 
 
+def sort_key(row):
+    """活跃记录在前、终态在后；按下次动作日期升序，空日期排最后。
+
+    提升为模块级函数，供 CLI 与 Web 共用同一排序规则——
+    两处各写一份迟早会不一致。
+    """
+    terminal = 1 if row.get("当前阶段") in TERMINAL_STAGES else 0
+    nd = (row.get("下次动作日期") or "").strip()
+    return (terminal, "9999" if not nd else nd, row.get("id", ""))
+
+
 def cmd_list(args):
     if getattr(args, "direction", None):
         errs = check_direction(args.direction)
@@ -320,12 +336,6 @@ def cmd_list(args):
                         kept.append(r)
                         break
         result = kept
-
-    # 活跃记录在前，终态在后；按下次动作日期升序，空日期排最后
-    def sort_key(r):
-        terminal = 1 if r.get("当前阶段") in TERMINAL_STAGES else 0
-        nd = (r.get("下次动作日期") or "").strip()
-        return (terminal, "9999" if not nd else nd, r.get("id", ""))
 
     result.sort(key=sort_key)
 

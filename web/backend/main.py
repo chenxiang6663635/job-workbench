@@ -19,7 +19,7 @@ TOOLS = os.path.join(ROOT, "tools")
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import applications, dashboard, jobs  # noqa: E402
+from routers import applications, dashboard, jobs, library  # noqa: E402
 
 app = FastAPI(title="秋招工作台", version="0.1.0")
 
@@ -34,6 +34,7 @@ app.add_middleware(
 app.include_router(dashboard.router)
 app.include_router(applications.router)
 app.include_router(jobs.router)
+app.include_router(library.router)
 
 
 @app.get("/api/health")

@@ -55,6 +55,20 @@ export interface JobDetail {
   } | null;
 }
 
+export interface LibraryItem {
+  rel: string;
+  name: string;
+  size: number;
+  mtime: number;
+  kind: "text" | "binary";
+}
+
+export interface LibraryList {
+  section: string;
+  items: LibraryItem[];
+  total: number;
+}
+
 export const STAGES = [
   "待投",
   "已投",
@@ -124,4 +138,15 @@ export const api = {
 
   jobDetail: (dir: string) =>
     request<JobDetail>(`/jobs/${encodeURIComponent(dir)}`),
+
+  libraryList: (section: "facts" | "resumes") =>
+    request<LibraryList>(`/library/${section}`),
+
+  libraryContent: (section: "facts" | "resumes", rel: string) =>
+    request<{ rel: string; type: string; content: string }>(
+      `/library/${section}/content?rel=${encodeURIComponent(rel)}`
+    ),
+
+  libraryFileUrl: (section: "facts" | "resumes", rel: string) =>
+    `/api/library/${section}/file?rel=${encodeURIComponent(rel)}`,
 };

@@ -146,6 +146,15 @@ template/profiles/<domain-id>/
 
 ## 相关文档
 
+- **`docs/README.md`** —— 文档索引，含每份文档的状态（现行 / 已废弃）
 - `template/AGENTS.example.md` —— 档案模板，含逐项填写说明
 - `template/workspace/README.md` —— 六个模块的用途与填写要求
-- `docs/specs/2026-08-30-general-workbench-design.md` —— 设计方案
+- `web/README.md` —— Web 界面启动与使用
+
+设计文档（在 `docs/specs/`）：
+
+| 文档 | 状态 |
+|---|---|
+| `2026-08-30-general-workbench-design.md` | 现行：通用工作台架构（三层分离、领域插件） |
+| `2026-08-30-web-prototype-design.md` | 现行：Web 界面层（API 契约、并发与安全） |
+| `2026-08-30-autumn-recruit-workbench-design.md` | ⚠️ 已废弃：v1.0 个人工具设计，目录结构已失效 |

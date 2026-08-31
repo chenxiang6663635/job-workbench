@@ -1,0 +1,4 @@
+fastapi<0.116
+uvicorn<0.31
+pydantic<2.10
+pypdf>=5.9

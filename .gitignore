@@ -14,5 +14,11 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Web 运行时产物：文件锁、依赖与构建输出
+*.lock
+node_modules/
+dist/
+web/frontend/dist/
+
 # 简历 PDF、照片、预览图均为交付物，纳入版本管理，不在此忽略
 # .codebuddy 目录含命令定义、技能文件与工作记忆，纳入版本管理

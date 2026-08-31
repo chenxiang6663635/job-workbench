@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { Briefcase, FolderOpen, LayoutDashboard } from "lucide-react";
+import { Briefcase, FolderOpen, LayoutDashboard, Library as LibraryIcon } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
 import Jobs from "./pages/Jobs";
+import Library from "./pages/Library";
 import { api } from "./api";
 
-type Tab = "dashboard" | "applications" | "jobs";
+type Tab = "dashboard" | "applications" | "jobs" | "library";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "dashboard", label: "看板", icon: <LayoutDashboard size={16} /> },
   { key: "applications", label: "追踪表", icon: <Briefcase size={16} /> },
   { key: "jobs", label: "岗位池", icon: <FolderOpen size={16} /> },
+  { key: "library", label: "素材库", icon: <LibraryIcon size={16} /> },
 ];
 
 export default function App() {
@@ -92,8 +94,10 @@ export default function App() {
           <Dashboard />
         ) : tab === "applications" ? (
           <Applications />
-        ) : (
+        ) : tab === "jobs" ? (
           <Jobs />
+        ) : (
+          <Library />
         )}
       </main>
     </div>

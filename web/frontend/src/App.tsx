@@ -15,9 +15,29 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "library", label: "素材库", icon: <LibraryIcon size={16} /> },
 ];
 
+function tabFromHash(): Tab {
+  const h = window.location.hash.replace("#", "");
+  return TABS.some((t) => t.key === h) ? (h as Tab) : "dashboard";
+}
+
 export default function App() {
-  const [tab, setTab] = useState<Tab>("dashboard");
+  // hash 路由：刷新保持当前 Tab，且可直接用 #library 等定位页面
+  // （此前用纯 state，刷新总回看板，也无头验证工具无法直达内页）
+  const [tab, setTab] = useState<Tab>(tabFromHash);
   const [online, setOnline] = useState<boolean | null>(null);
+
+  const switchTab = (t: Tab) => {
+    setTab(t);
+    if (window.location.hash !== "#" + t) {
+      window.location.hash = t;
+    }
+  };
+
+  useEffect(() => {
+    const onHash = () => setTab(tabFromHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   useEffect(() => {
     api
@@ -43,7 +63,7 @@ export default function App() {
             {TABS.map((t) => (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => switchTab(t.key)}
                 className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-all duration-200 ${
                   tab === t.key
                     ? "bg-accent/15 text-accent"

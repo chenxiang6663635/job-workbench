@@ -6,8 +6,8 @@
 
 | 文档 | 说明 |
 |---|---|
+| [`usage-guide.md`](usage-guide.md) | **使用手册**：环境准备、一键启动、四个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
 | [`../README.md`](../README.md) | 项目主入口：定位、三层架构、快速开始、目录说明 |
-| [`../web/README.md`](../web/README.md) | Web 界面怎么启动、三个页面、与 CLI 的关系 |
 
 ## 设计文档
 

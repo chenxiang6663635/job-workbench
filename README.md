@@ -146,6 +146,7 @@ template/profiles/<domain-id>/
 
 ## 相关文档
 
+- **`docs/usage-guide.md`** —— 使用手册：启动、四页面详解、AI 工作流、CLI 速查、常见问题
 - **`docs/README.md`** —— 文档索引，含每份文档的状态（现行 / 已废弃）
 - `template/AGENTS.example.md` —— 档案模板，含逐项填写说明
 - `template/workspace/README.md` —— 六个模块的用途与填写要求

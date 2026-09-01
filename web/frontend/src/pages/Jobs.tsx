@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, FileText, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronDown, FileText, Plus, Sparkles } from "lucide-react";
 import { api, type JobDetail, type JobSummary } from "../api";
 
 function levelColor(level: string | null) {
@@ -10,11 +10,36 @@ function levelColor(level: string | null) {
   return "bg-bad/15 text-bad";
 }
 
+// 证据标签徽章颜色：精确=蓝、模糊=琥珀、语义=青
+function evidenceStyle(ev: string | null) {
+  if (ev === "精确") return "bg-sky-500/15 text-sky-300 border-sky-400/30";
+  if (ev === "模糊") return "bg-warn/15 text-warn border-warn/30";
+  if (ev === "语义") return "bg-teal-500/15 text-teal-300 border-teal-400/30";
+  return "";
+}
+
+// 硬门槛三态样式
+function gateStyle(conclusion: string | null) {
+  if (conclusion === "通过") return "bg-good/15 text-good border-good/30";
+  if (conclusion === "不通过")
+    return "bg-bad/15 text-bad border-bad/40";
+  return "bg-warn/15 text-warn border-warn/30";
+}
+
+// 能力分层标签样式
+function levelStyle(level: string | null) {
+  if (level === "Primary") return "bg-accent/15 text-accent";
+  if (level === "Secondary") return "bg-sky-500/15 text-sky-300";
+  if (level === "Weak") return "bg-warn/15 text-warn";
+  return "bg-slate-500/15 text-slate-400";
+}
+
 export default function Jobs() {
   const [items, setItems] = useState<JobSummary[]>([]);
   const [detail, setDetail] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [draft, setDraft] = useState({ 公司: "", 岗位: "", JD文本: "" });
 
   const load = () => {
@@ -56,6 +81,56 @@ export default function Jobs() {
 
         <h2 className="text-lg font-semibold text-white">{detail.dir}</h2>
 
+        {detail.card?.hardGates &&
+          (detail.card.hardGates.items.length > 0 ||
+            detail.card.hardGates.conclusion) && (
+            <div
+              className={`rounded-2xl border p-5 ${gateStyle(
+                detail.card.hardGates.conclusion
+              )}`}
+            >
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-slate-100">
+                  资格硬门槛
+                </span>
+                <span
+                  className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${gateStyle(
+                    detail.card.hardGates.conclusion
+                  )}`}
+                >
+                  {detail.card.hardGates.conclusion ?? "待确认"}
+                </span>
+                {detail.card.hardGates.reason && (
+                  <span className="text-xs text-bad">
+                    原因：{detail.card.hardGates.reason}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {detail.card.hardGates.items.map((it) => (
+                  <span
+                    key={it.key}
+                    className="rounded-lg border border-white/10 bg-ink-950/60 px-2.5 py-1 text-xs text-slate-300"
+                  >
+                    {it.key}: {it.value || "—"}
+                  </span>
+                ))}
+              </div>
+              {detail.card.hardGates.details.length > 0 && (
+                <ul className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+                  {detail.card.hardGates.details.map((d, i) => (
+                    <li
+                      key={i}
+                      className="text-xs leading-relaxed text-slate-400"
+                    >
+                      {d}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200">
@@ -89,19 +164,103 @@ export default function Jobs() {
 
                 <div className="space-y-2">
                   {detail.card.dimensions.map((d) => (
-                    <div key={d.name}>
-                      <div className="mb-1 flex justify-between text-xs">
-                        <span className="text-slate-300">{d.name}</span>
-                        <span className="font-mono text-slate-400">
+                    <div
+                      key={d.name}
+                      className="cursor-pointer rounded-xl border border-white/5 bg-ink-950/40 px-3 py-2 transition-colors hover:border-accent/30"
+                      onClick={() =>
+                        setExpanded(expanded === d.name ? null : d.name)
+                      }
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ChevronDown
+                            size={14}
+                            className={`text-slate-500 transition-transform ${
+                              expanded === d.name ? "rotate-180" : ""
+                            }`}
+                          />
+                          <span className="text-xs text-slate-300">
+                            {d.name}
+                          </span>
+                        </div>
+                        <span className="font-mono text-xs text-slate-400">
                           {d.score} / {d.max}
                         </span>
                       </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/5">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-accent-dim to-accent transition-all duration-700"
                           style={{ width: `${(d.score / d.max) * 100}%` }}
                         />
                       </div>
+
+                      {expanded === d.name && (
+                        <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                          {/* 词典命中列表（带证据标签） */}
+                          {(detail.card.dimensionsDetail[d.name]?.hits ?? [])
+                            .length > 0 && (
+                            <ul className="space-y-1.5">
+                              {detail.card.dimensionsDetail[d.name].hits.map(
+                                (h, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex items-start gap-2 text-xs"
+                                  >
+                                    <span
+                                      className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${levelStyle(
+                                        h.level
+                                      )}`}
+                                    >
+                                      {h.level ?? "明细"}
+                                    </span>
+                                    <span className="flex-1 text-slate-300">
+                                      {h.label}
+                                      {h.note && (
+                                        <span className="text-slate-500">
+                                          {" "}
+                                          — {h.note}
+                                        </span>
+                                      )}
+                                    </span>
+                                    {h.evidence && (
+                                      <span
+                                        className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium ${evidenceStyle(
+                                          h.evidence
+                                        )}`}
+                                      >
+                                        {h.evidence}
+                                      </span>
+                                    )}
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          )}
+
+                          {/* 该维度的逐条说明原文 */}
+                          {(detail.card.dimensionsDetail[d.name]?.raw ?? [])
+                            .length > 0 && (
+                            <ul className="space-y-1.5">
+                              {detail.card.dimensionsDetail[d.name].raw.map(
+                                (r, i) => (
+                                  <li
+                                    key={i}
+                                    className="text-xs leading-relaxed text-slate-500"
+                                  >
+                                    {r}
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          )}
+
+                          {!detail.card.dimensionsDetail[d.name] && (
+                            <p className="text-xs text-slate-500">
+                              暂无该维度的逐条依据
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

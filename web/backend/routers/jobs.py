@@ -48,7 +48,13 @@ def _read(path):
 
 
 def _parse_card(workspace: str, job_dir: str):
-    """解析解析卡的评分小节；缺失或格式错误时返回 None 而非报错——卡片是渐进填写的。"""
+    """解析解析卡的评分小节、硬门槛与分维度明细。
+
+    缺失或格式错误时返回空结构而非报错——卡片是渐进填写的。返回结构：
+    - dimensions/total/level/action/consistent：四维加权评分（原有）
+    - hardGates：资格硬门槛（前置差异化），含 items/conclusion/reason/details
+    - dimensionsDetail：每维的词典命中（含证据标签）与逐条说明 raw
+    """
     card = _read(safe_join(workspace, job_dir, CARD_FILE))
     if card is None:
         return None
@@ -78,8 +84,16 @@ def _parse_card(workspace: str, job_dir: str):
     else:
         ok = False
 
-    return {"dimensions": dims, "total": total, "level": level,
-            "action": action, "consistent": ok}
+    hard_gates = jd_score.parse_hard_gates(card)
+    dim_names = [n for n, _ in jd_score.DIMENSIONS]
+    dim_detail = jd_score.parse_dimension_detail(card, dim_names)
+
+    return {
+        "dimensions": dims, "total": total, "level": level,
+        "action": action, "consistent": ok,
+        "hardGates": hard_gates,
+        "dimensionsDetail": dim_detail,
+    }
 
 
 def _summary(workspace: str, name: str):

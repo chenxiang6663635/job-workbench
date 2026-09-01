@@ -19,11 +19,11 @@ from filelock import file_lock
 
 router = APIRouter(prefix="/api/applications")
 
-# PATCH 允许更新的字段，与 CLI 的 UPDATABLE 保持一致；公司与岗位不可改
-UPDATABLE = ["当前阶段", "下次动作", "下次动作日期", "备注", "评分", "投递日期", "截止日期"]
+# PATCH 允许更新的字段，与 CLI 的 UPDATABLE 保持单一事实源；公司与岗位不可改
+UPDATABLE = tracker.UPDATABLE
 
 STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "offer", "签约"]
-TERMINAL = ["已挂", "已放弃"]
+TERMINAL = tracker.TERMINAL_STAGES
 
 
 class NewApplication(BaseModel):
@@ -35,6 +35,7 @@ class NewApplication(BaseModel):
     截止日期: str = ""
     投递日期: str = ""
     当前阶段: str = "待投"
+    状态原因: str = ""
     下次动作: str = ""
     下次动作日期: str = ""
     简历版本: str = ""
@@ -44,6 +45,7 @@ class NewApplication(BaseModel):
 
 class PatchApplication(BaseModel):
     当前阶段: str = None
+    状态原因: str = None
     下次动作: str = None
     下次动作日期: str = None
     备注: str = None
@@ -70,6 +72,9 @@ def _validate_dates(app: NewApplication):
     if app.当前阶段 not in STAGES + TERMINAL:
         raise HTTPException(status_code=422,
                             detail="当前阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL))
+    errs = tracker.check_reason_required(app.当前阶段, app.状态原因)
+    if errs:
+        raise HTTPException(status_code=422, detail=errs[0])
 
 
 @router.get("")
@@ -105,6 +110,15 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
 
     with file_lock(lock_path):
         rows = tracker.read_rows(ws)
+
+        # canonical 去重：同公司+岗位且既有记录非终态则拒绝（409 并回传既有 id）
+        dup, dup_terminal = tracker.find_duplicate(rows, app.公司, app.岗位)
+        if dup and not dup_terminal:
+            raise HTTPException(
+                status_code=409,
+                detail="已存在相同公司+岗位的记录 `%s`（当前阶段：%s），请勿重复录入"
+                       % (dup.get("id", ""), dup.get("当前阶段", "")))
+
         row = {f: "" for f in tracker.FIELDS}
         row.update({
             "id": tracker.next_id(rows),
@@ -116,6 +130,7 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
             "截止日期": app.截止日期,
             "投递日期": app.投递日期,
             "当前阶段": app.当前阶段,
+            "状态原因": app.状态原因,
             "下次动作": app.下次动作,
             "下次动作日期": app.下次动作日期,
             "简历版本": app.简历版本,
@@ -154,6 +169,23 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
         target = _find(rows, app_id)
         if target is None:
             raise HTTPException(status_code=404, detail="找不到 id 为 %s 的记录" % app_id)
+
+        # 终态不回退：原阶段已是终态时禁止改阶段（基于锁内最新阶段判定）
+        new_stage = updates.get("当前阶段")
+        if new_stage is not None:
+            errs = tracker.check_terminal_transition(target.get("当前阶段", ""), str(new_stage))
+            if errs:
+                raise HTTPException(status_code=422, detail=errs[0])
+
+        # 终态必填原因：按更新后的最终阶段与最终原因判定
+        final_stage = str(new_stage) if new_stage is not None else target.get("当前阶段", "")
+        final_reason = updates.get("状态原因")
+        if final_reason is None:
+            final_reason = target.get("状态原因", "")
+        errs = tracker.check_reason_required(final_stage, str(final_reason))
+        if errs:
+            raise HTTPException(status_code=422, detail=errs[0])
+
         for k, v in updates.items():
             target[k] = str(v)
         tracker.write_rows(rows, ws)

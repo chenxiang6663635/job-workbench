@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
-import { api, BATCHES, STAGES, type Application } from "../api";
+import { api, BATCHES, STAGES, TERMINAL, type Application } from "../api";
 
 const DIRECTIONS = ["datacenter", "hvac", "other"];
 
@@ -222,6 +222,7 @@ export default function Applications() {
                 <th className="px-4 py-3 text-left font-medium">方向</th>
                 <th className="px-4 py-3 text-left font-medium">批次</th>
                 <th className="px-4 py-3 text-left font-medium">当前阶段</th>
+                <th className="px-4 py-3 text-left font-medium">状态原因</th>
                 <th className="px-4 py-3 text-left font-medium">下次动作</th>
                 <th className="px-4 py-3 text-left font-medium">截止</th>
                 <th className="px-4 py-3 text-left font-medium">评分</th>
@@ -244,21 +245,50 @@ export default function Applications() {
                   <td className="px-4 py-3 text-slate-300">{it.方向 || "—"}</td>
                   <td className="px-4 py-3 text-slate-300">{it.批次 || "—"}</td>
                   <td className="px-4 py-3">
-                    <select
-                      value={it.当前阶段}
-                      onChange={(e) =>
-                        patch(it.id, { 当前阶段: e.target.value })
+                    {TERMINAL.includes(it.当前阶段) ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span
+                          className={`rounded-md px-2 py-1 text-xs font-medium ${stageStyle(
+                            it.当前阶段
+                          )}`}
+                        >
+                          {it.当前阶段}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          已终态，不可改阶段
+                        </span>
+                      </div>
+                    ) : (
+                      <select
+                        value={it.当前阶段}
+                        onChange={(e) =>
+                          patch(it.id, { 当前阶段: e.target.value })
+                        }
+                        className={`cursor-pointer rounded-md border-0 px-2 py-1 text-xs font-medium outline-none ${stageStyle(
+                          it.当前阶段
+                        )}`}
+                      >
+                        {STAGES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      defaultValue={it.状态原因}
+                      onBlur={(e) => {
+                        if (e.target.value !== it.状态原因) {
+                          patch(it.id, { 状态原因: e.target.value });
+                        }
+                      }}
+                      placeholder={
+                        TERMINAL.includes(it.当前阶段) ? "必填原因" : "选填"
                       }
-                      className={`cursor-pointer rounded-md border-0 px-2 py-1 text-xs font-medium outline-none ${stageStyle(
-                        it.当前阶段
-                      )}`}
-                    >
-                      {STAGES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1 text-xs text-slate-200 outline-none transition-colors placeholder:text-slate-600 hover:border-white/10 focus:border-accent/50"
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <input

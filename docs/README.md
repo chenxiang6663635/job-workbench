@@ -15,7 +15,15 @@
 |---|---|---|
 | [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射 |
 | [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | **现行** | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录 |
+| [`specs/2026-08-31-job-workbench-productization.md`](specs/2026-08-31-job-workbench-productization.md) | **现行** | 产品化三期路线（差异化点/架构/桌面壳/扩展）+ 一期与 P0+P1 完成记录 |
 | [`specs/2026-08-30-autumn-recruit-workbench-design.md`](specs/2026-08-30-autumn-recruit-workbench-design.md) | ⚠️ **已废弃** | v1.0 个人工具设计。目录结构已失效，**勿据此开发**。保留作评分框架的设计依据追溯 |
+
+## 调研报告
+
+| 文件 | 说明 |
+|---|---|
+| [`research/report_job_search_products.md`](research/report_job_search_products.md) | GitHub 求职类开源产品调研：竞品全景、LLM 接入共识、差异化机会（评分可追溯/硬门槛前置）、产品化借鉴清单 |
+| [`research/plan_job_search_products.md`](research/plan_job_search_products.md) | 上述调研的研究计划（检索词、subagent 分工、并行策略） |
 
 ## 约定文件
 

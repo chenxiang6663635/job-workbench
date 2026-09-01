@@ -42,6 +42,29 @@ export interface JobSummary {
   mtime: number | null;
 }
 
+export type GateConclusion = "通过" | "不通过" | "待确认" | null;
+export type EvidenceLevel = "精确" | "模糊" | "语义" | null;
+export type DictLevel = "Primary" | "Secondary" | "Weak" | null;
+
+export interface HardGates {
+  items: { key: string; value: string }[];
+  conclusion: GateConclusion;
+  reason: string | null;
+  details: string[];
+}
+
+export interface DimHit {
+  level: DictLevel;
+  label: string;
+  evidence: EvidenceLevel;
+  note: string | null;
+}
+
+export interface DimensionDetail {
+  hits: DimHit[];
+  raw: string[];
+}
+
 export interface JobDetail {
   dir: string;
   jd: string | null;
@@ -52,6 +75,8 @@ export interface JobDetail {
     level: string | null;
     action: string | null;
     consistent: boolean;
+    hardGates: HardGates;
+    dimensionsDetail: Record<string, DimensionDetail>;
   } | null;
 }
 
@@ -67,6 +92,24 @@ export interface LibraryList {
   section: string;
   items: LibraryItem[];
   total: number;
+}
+
+export interface WorkspaceItem {
+  name: string;
+  isDefault: boolean;
+}
+
+export interface ProviderConfig {
+  base_url: string;
+  api_key: string;
+  hasKey: boolean;
+}
+
+export interface ProviderTestResult {
+  ok: boolean;
+  status: number;
+  modelCount: number;
+  models: string[];
 }
 
 export const STAGES = [
@@ -85,11 +128,21 @@ export const STAGES = [
 
 export const BATCHES = ["提前批", "正式批", "补录"];
 
+// 全局当前工作区（相对仓库根，如 personal）。空 = 用后端默认。
+export let currentWorkspace = "";
+export function setWorkspace(ws: string) {
+  currentWorkspace = ws;
+}
+
+// 统一在工作区激活时给路径附加 ?ws=。库中 API 在 Web 场景必须显式传 workspace
+// （tools/ 模块级 WORKSPACE 全局在并发下会互相覆盖），因此所有请求都带 ws。
 async function request<T>(
   path: string,
   init?: { method?: string; body?: unknown }
 ): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const sep = path.includes("?") ? "&" : "?";
+  const qs = currentWorkspace ? `${sep}ws=${encodeURIComponent(currentWorkspace)}` : "";
+  const res = await fetch(`/api${path}${qs}`, {
     method: init?.method ?? "GET",
     headers: init?.body ? { "Content-Type": "application/json" } : undefined,
     body: init?.body ? JSON.stringify(init.body) : undefined,
@@ -147,6 +200,22 @@ export const api = {
       `/library/${section}/content?rel=${encodeURIComponent(rel)}`
     ),
 
-  libraryFileUrl: (section: "facts" | "resumes", rel: string) =>
-    `/api/library/${section}/file?rel=${encodeURIComponent(rel)}`,
+  libraryFileUrl: (section: "facts" | "resumes", rel: string) => {
+    const base = `/api/library/${section}/file?rel=${encodeURIComponent(rel)}`;
+    return currentWorkspace
+      ? `${base}&ws=${encodeURIComponent(currentWorkspace)}`
+      : base;
+  },
+
+  listWorkspaces: () =>
+    request<{ items: WorkspaceItem[]; total: number }>("/workspaces"),
+
+  getProvider: () => request<ProviderConfig>("/provider"),
+
+  saveProvider: (body: { base_url: string; api_key: string }) =>
+    request<ProviderConfig>("/provider", { method: "POST", body }),
+
+  testProvider: () => request<ProviderTestResult>("/provider/test", {
+    method: "POST",
+  }),
 };

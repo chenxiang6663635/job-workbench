@@ -19,9 +19,20 @@ TOOLS = os.path.join(ROOT, "tools")
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import applications, dashboard, jobs, library  # noqa: E402
+from routers import applications, dashboard, jobs, library, provider, workspace  # noqa: E402
 
 app = FastAPI(title="秋招工作台", version="0.1.0")
+
+
+def _apply_workspace_env(cli_workspace=None):
+    """让 deps.resolve_default_workspace 的默认值可被 CLI --workspace 覆盖。
+
+    优先级：CLI --workspace > 环境变量 JOBWS_WORKSPACE > personal/。
+    设置环境变量后，deps.workspace_dir 在无 ?ws= 时使用该默认值。
+    """
+    import deps
+    if cli_workspace:
+        os.environ[deps.ENV_WORKSPACE] = cli_workspace.strip()
 
 # 前端 Vite 开发服务器。本地原型，来源限定 localhost
 app.add_middleware(
@@ -35,6 +46,8 @@ app.include_router(dashboard.router)
 app.include_router(applications.router)
 app.include_router(jobs.router)
 app.include_router(library.router)
+app.include_router(workspace.router)
+app.include_router(provider.router)
 
 
 @app.get("/api/health")
@@ -43,6 +56,15 @@ def health():
 
 
 if __name__ == "__main__":
+    import argparse
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8765)
+    parser = argparse.ArgumentParser(description="秋招工作台 Web 后端")
+    parser.add_argument("--workspace", default=None,
+                        help="默认工作区（相对仓库根，如 personal 或 other_workspace）")
+    parser.add_argument("--port", type=int, default=8765, help="监听端口")
+    parser.add_argument("--host", default="127.0.0.1", help="监听地址")
+    args = parser.parse_args()
+
+    _apply_workspace_env(args.workspace)
+    uvicorn.run(app, host=args.host, port=args.port)

@@ -84,12 +84,15 @@ def _parse_card(workspace: str, job_dir: str):
 
 def _summary(workspace: str, name: str):
     d = safe_join(workspace, DIR_JOBS, name)
-    card = _parse_card(workspace, name)
+    # 与 job_detail 调用方式相同，传带 DIR_JOBS 前缀的相对路径
+    card = _parse_card(workspace, os.path.join(DIR_JOBS, name))
+    # 以解析成功为基准，而非文件存在——存在但不通过的卡片不算"已评分"
+    has_card = card is not None and card.get("consistent") and card.get("total") is not None
     return {
         "dir": name,
         "hasJD": _read(os.path.join(d, JD_FILE)) is not None,
-        "hasCard": card is not None,
-        "score": card["total"] if card else None,
+        "hasCard": has_card,
+        "score": card["total"] if has_card else None,
         "level": card["level"] if card else None,
         "mtime": int(os.path.getmtime(d)) if os.path.isdir(d) else None,
     }

@@ -75,7 +75,8 @@ def csv_path(workspace=None):
 # 输出时保持固定字段顺序
 FIELDS = [
     "id", "公司", "岗位", "方向", "批次", "来源", "截止日期", "投递日期",
-    "当前阶段", "下次动作", "下次动作日期", "简历版本", "评分", "归档目录", "备注",
+    "当前阶段", "状态原因", "下次动作", "下次动作日期", "简历版本", "评分",
+    "归档目录", "备注",
 ]
 
 # 方向 ID 取决于工作区装入的领域插件，不在脚本里写死。
@@ -88,8 +89,9 @@ SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业�
 STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "offer", "签约"]
 TERMINAL_STAGES = ["已挂", "已放弃"]
 
-# update 只允许改这五项，公司与岗位不可改（改则需新建记录并作废原记录）
-UPDATABLE = ["当前阶段", "下次动作", "下次动作日期", "备注", "评分", "投递日期", "截止日期"]
+# update 只允许改这些字段，公司与岗位不可改（改则需新建记录并作废原记录）
+UPDATABLE = ["当前阶段", "状态原因", "下次动作", "下次动作日期", "备注", "评分",
+             "投递日期", "截止日期"]
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -110,11 +112,13 @@ def write_rows(rows, workspace=None):
     if not os.path.isdir(directory):
         os.makedirs(directory)
     # utf-8-sig 写入时加 BOM，Excel 直接打开不乱码
+    # restval 保证旧文件（缺新增列）写回时补出空列，避免 None 落盘成 "None"
     with io.open(path, "w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore",
+                                restval="")
         writer.writeheader()
         for row in rows:
-            writer.writerow(row)
+            writer.writerow({k: ("" if v is None else v) for k, v in row.items()})
 
 
 def next_id(rows):
@@ -134,6 +138,43 @@ def check_date(value, label, allow_empty=True):
     if not DATE_RE.match(value):
         return ["`%s: %s` 日期格式错误，应为 YYYY-MM-DD" % (label, value)]
     return None
+
+
+def check_terminal_transition(old_stage, new_stage):
+    """终态不回退：原阶段已是终态时禁止再改阶段。
+
+    终态记录仍可更新备注等其他字段（挂了之后仍想记一句话），
+    但「当前阶段」一旦落入终态即锁定。返回错误列表，空列表表示通过。
+    """
+    if not old_stage or not new_stage:
+        return []
+    if old_stage in TERMINAL_STAGES and new_stage != old_stage:
+        return ["记录已处于终态 `%s`，不能再改阶段（如需重新投递，请新建一条记录）" % old_stage]
+    return []
+
+
+def check_reason_required(stage, reason):
+    """终态必填原因：阶段属终态而原因为空则报错。正常流转阶段选填。"""
+    if stage in TERMINAL_STAGES and not (reason or "").strip():
+        return ["进入终态 `%s` 时必须填写「状态原因」" % stage]
+    return []
+
+
+def find_duplicate(rows, company, role):
+    """canonical 去重：按 (公司, 岗位) trim + 大小写不敏感匹配。
+
+    返回 (既有行, 该行是否终态)；找不到返回 (None, False)。
+    调用方据此决定：非终态则拒绝（409），终态则放行（允许挂了之后再投一次）。
+    """
+    c = (company or "").strip().lower()
+    r = (role or "").strip().lower()
+    if not c or not r:
+        return None, False
+    for row in rows:
+        if ((row.get("公司") or "").strip().lower() == c
+                and (row.get("岗位") or "").strip().lower() == r):
+            return row, (row.get("当前阶段") or "") in TERMINAL_STAGES
+    return None, False
 
 
 def cmd_add(args):
@@ -167,6 +208,17 @@ def cmd_add(args):
         if not (0 <= args.score <= 100):
             errors.append("`--score` 必须在 0–100 之间，实际为 %d" % args.score)
 
+    # 终态必须填原因
+    errors.extend(check_reason_required(args.stage, args.reason))
+
+    rows = read_rows()
+
+    # canonical 去重：同公司+岗位且既有记录非终态则拒绝
+    dup, dup_is_terminal = find_duplicate(rows, args.company, args.role)
+    if dup and not dup_is_terminal:
+        errors.append("已存在相同公司+岗位的记录 `%s`（当前阶段：%s），请勿重复录入"
+                      % (dup.get("id", ""), dup.get("当前阶段", "")))
+
     if errors:
         print("## 校验失败\n")
         for e in errors:
@@ -174,7 +226,6 @@ def cmd_add(args):
         print("\n未写入 CSV。")
         return 1
 
-    rows = read_rows()
     new_id = next_id(rows)
     row = {field: "" for field in FIELDS}
     row.update({
@@ -187,6 +238,7 @@ def cmd_add(args):
         "截止日期": args.deadline or "",
         "投递日期": args.applied or "",
         "当前阶段": args.stage,
+        "状态原因": args.reason or "",
         "下次动作": args.next or "",
         "下次动作日期": args.next_date or "",
         "简历版本": args.resume or "",
@@ -231,6 +283,15 @@ def cmd_update(args):
         if errs:
             errors.extend(errs)
 
+    # 终态不回退：原阶段已是终态时不可再改阶段
+    if args.stage:
+        errors.extend(check_terminal_transition(target.get("当前阶段", ""), args.stage))
+
+    # 终态必填原因：按更新后的最终阶段与最终原因判定
+    final_stage = args.stage or target.get("当前阶段", "")
+    final_reason = args.reason if args.reason is not None else target.get("状态原因", "")
+    errors.extend(check_reason_required(final_stage, final_reason))
+
     if errors:
         print("## 校验失败\n")
         for e in errors:
@@ -240,7 +301,7 @@ def cmd_update(args):
 
     changes = []
     mapping = [
-        ("当前阶段", args.stage), ("下次动作", args.next),
+        ("当前阶段", args.stage), ("状态原因", args.reason), ("下次动作", args.next),
         ("下次动作日期", args.next_date), ("备注", args.note),
         ("投递日期", args.applied), ("截止日期", args.deadline),
     ]
@@ -375,6 +436,7 @@ def build_parser():
     p_add.add_argument("--deadline", help="截止日期 YYYY-MM-DD")
     p_add.add_argument("--applied", help="投递日期 YYYY-MM-DD")
     p_add.add_argument("--stage", default="待投", help="当前阶段")
+    p_add.add_argument("--reason", help="状态原因（阶段为已挂/已放弃时必填）")
     p_add.add_argument("--next", dest="next", help="下次动作")
     p_add.add_argument("--next-date", dest="next_date", help="下次动作日期 YYYY-MM-DD")
     p_add.add_argument("--resume", help="简历版本")
@@ -385,6 +447,7 @@ def build_parser():
     p_upd = sub.add_parser("update", help="更新记录")
     p_upd.add_argument("--id", required=True, help="记录 id，如 A001")
     p_upd.add_argument("--stage", help="当前阶段")
+    p_upd.add_argument("--reason", help="状态原因（阶段为已挂/已放弃时必填）")
     p_upd.add_argument("--next", dest="next", help="下次动作")
     p_upd.add_argument("--next-date", dest="next_date", help="下次动作日期 YYYY-MM-DD")
     p_upd.add_argument("--applied", help="投递日期 YYYY-MM-DD")

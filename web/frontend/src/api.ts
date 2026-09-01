@@ -25,6 +25,7 @@ export interface Application {
   截止日期: string;
   投递日期: string;
   当前阶段: string;
+  状态原因: string;
   下次动作: string;
   下次动作日期: string;
   简历版本: string;
@@ -125,6 +126,9 @@ export const STAGES = [
   "已挂",
   "已放弃",
 ];
+
+// 终态阶段：进入后「当前阶段」锁定，不可回退；与后端 tracker.TERMINAL_STAGES 一致
+export const TERMINAL = ["已挂", "已放弃"];
 
 export const BATCHES = ["提前批", "正式批", "补录"];
 

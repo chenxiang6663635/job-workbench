@@ -117,3 +117,34 @@
 3. workspace 判定用 `config/profile.md` 标记，与 `jd_score.resolve_profile` 单一事实源一致。
 
 **遗留**：测试工作区 test_ws 已删、测试 provider.json 已删、截图已清。工作区切换下拉是完整可用的（切工作区 reload 后各页面按新 ws 拉数据）。
+
+---
+
+## P0+P1+P2 完成（2026-09-01）：名称统一 + 追踪硬化 + Electron 桌面壳
+
+用户确认：①名称统一为「求职工作台」；②追踪硬化"约束+原因码字段"；③P2 改 Electron（不装 Rust）。改动文件：
+
+| 文件 | 改动 |
+|---|---|
+| `README.md`、`App.tsx`、`start.ps1`、`main.py`、`personal/AGENTS.md`、`docs/usage-guide.md`、`AGENTS.md` | 「秋招工作台」→「求职工作台」（历史归档 spec 不改） |
+| `tools/tracker.py` | FIELDS 新增「状态原因」列（紧随当前阶段）；UPDATABLE 加入该字段；write_rows 设 restval=""；新增 `check_terminal_transition`/`check_reason_required`/`find_duplicate`；CLI add/update 加 --reason |
+| `personal/05_投递追踪/tracker.csv` | 迁移：补「状态原因」列（2 条记录空值，其余无变化） |
+| `web/backend/routers/applications.py` | UPDATABLE/TERMINAL 复用 tracker 常量；pydantic 模型加状态原因；add 接 canonical 去重(409)+终态原因必填；update 接终态不回退+原因必填 |
+| `web/frontend/src/api.ts` | Application 加状态原因；新增 TERMINAL 常量 |
+| `web/frontend/src/pages/Applications.tsx` | 表格加「状态原因」列（就地编辑）；终态显示"不可改阶段"、下拉禁改 |
+| `web/frontend/src/pages/Jobs.tsx` | 修复 `detail.card` 可能为 null 的 TS 错误（build 时暴露） |
+| `web/electron/main.js` | [NEW] 主进程：Python 探测（JOBWS_PYTHON→PATH）→ spawn 后端 → 轮询 health → 开窗 loadURL → 退出 kill；后端日志转发 |
+| `web/electron/package.json` | [NEW] electron + electron-builder，build 配置（extraResources 打包 dist） |
+
+**验证（全部实测通过）**：
+- CLI：终态不回退（已挂→一面拒绝，已挂→已挂放行）、原因必填（已挂无原因拒绝，一面选填）、去重（非终态拒绝/终态放行）。
+- API：去重 409 回传既有 id `A001`；终态原因必填 422 人话。
+- 前端：Playwright 截图确认导航栏「求职工作台」、追踪表「状态原因」列、TS exit=0、read_lints 全零。
+- **Electron 双击即用主链路**：`JOBWS_PYTHON` 探测 → spawn uvicorn（"Uvicorn running on 127.0.0.1:8765"）→ health 200 → 开窗 `GET /` 200 + 静态资源 304 → 前端同源 `GET /api/workspaces` + `GET /api/dashboard` 200。
+
+**关键排错（重要经验）**：
+1. **`StaticFiles` 挂载判断用 `os.path.isfile(dist/index.html)`**，不是 `os.path.isdir(join(dist, index.html))`——后者对文件恒 False，导致同源托管不生效。
+2. **Electron spawn 后端测试要用独立进程**（Start-Process），不要用 Start-Job + 过早 Stop-Job 强杀，否则后端来不及起且被连带杀，误判为失败。
+3. `tsc -b`（build mode）比 `npx tsc --noEmit` 更严格，一期的 Jobs.tsx `detail.card` null 隐患在 build 时暴露，已修复。
+
+**遗留/边界**：PyInstaller 免环境打包列为后续 P2b（本机已有 conda Python 可完整验证主链路）；简历版本外键校验未做；Electron 未做正式 `npm run dist` 安装包打包（仅验证主进程链路，需真实桌面会话看窗口）。

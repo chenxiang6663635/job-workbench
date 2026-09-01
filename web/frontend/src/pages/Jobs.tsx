@@ -194,7 +194,7 @@ export default function Jobs() {
                         />
                       </div>
 
-                      {expanded === d.name && (
+                      {expanded === d.name && detail.card && (
                         <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
                           {/* 词典命中列表（带证据标签） */}
                           {(detail.card.dimensionsDetail[d.name]?.hits ?? [])

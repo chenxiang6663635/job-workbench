@@ -1,0 +1,35 @@
+{
+  "name": "job-workbench",
+  "version": "0.1.0",
+  "description": "求职工作台桌面端",
+  "main": "main.js",
+  "author": "job-workbench",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.jobworkbench.app",
+    "productName": "求职工作台",
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "app/dist",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

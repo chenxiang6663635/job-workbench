@@ -1,4 +1,4 @@
-# 秋招工作台 Web 一键启动脚本
+# 求职工作台 Web 一键启动脚本
 #
 # 用法（PowerShell）：
 #   cd <仓库目录>\web
@@ -53,7 +53,7 @@ if (-not (Test-Path (Join-Path $backend "main.py"))) {
     exit 1
 }
 
-Write-Host "=== 秋招工作台 Web 启动 ===" -ForegroundColor Cyan
+Write-Host "=== 求职工作台 Web 启动 ===" -ForegroundColor Cyan
 
 # 端口若已占用则先释放，避免"Address already in use"
 foreach ($port in 8765, 5173) {

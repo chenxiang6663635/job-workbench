@@ -60,10 +60,31 @@ foreach ($port in 8765, 5173) {
     $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     foreach ($c in $conns) {
         Write-Host "  释放端口 $port (PID $($c.OwningProcess))" -ForegroundColor Yellow
-        Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+        try {
+            Stop-Process -Id $c.OwningProcess -Force -ErrorAction Stop
+        } catch {
+            Write-Host "  无法释放端口 $port：$($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "  端口可能被其他程序占用。请关闭占用该端口的程序后重试，或修改端口配置。" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 Start-Sleep -Seconds 1
+
+# 依赖预检：后端需 python，前端需 node/npm。缺失时给出明确提示而非裸报错。
+Write-Host "检查运行依赖..." -ForegroundColor Cyan
+if (-not (Get-Command "python" -ErrorAction SilentlyContinue)) {
+    Write-Host "错误：未找到 python。请安装 Python 3.8+ 并加入 PATH。" -ForegroundColor Red
+    exit 1
+}
+if (-not (Get-Command "node" -ErrorAction SilentlyContinue)) {
+    Write-Host "错误：未找到 node。前端（Vite）依赖 Node.js，请先安装 Node.js 18+。" -ForegroundColor Red
+    exit 1
+}
+if (-not (Get-Command "npm.cmd" -ErrorAction SilentlyContinue) -and -not (Get-Command "npm" -ErrorAction SilentlyContinue)) {
+    Write-Host "错误：未找到 npm。前端依赖 npm 启动，请确认 Node.js 安装完整。" -ForegroundColor Red
+    exit 1
+}
 
 # 启动后端
 Write-Host "启动后端 FastAPI (8765)..." -ForegroundColor Cyan
@@ -89,17 +110,39 @@ for ($i = 0; $i -lt 30; $i++) {
 }
 
 if (-not $ready) {
-    Write-Host "后端启动失败，请手动检查：cd web\backend && python -m uvicorn main:app --port 8765" -ForegroundColor Red
+    Write-Host "错误：后端（FastAPI 8765）启动失败或超时。" -ForegroundColor Red
+    # 检查端口是否又被占用
+    $occ = Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue
+    if ($occ) {
+        Write-Host "  端口 8765 被占用（PID $($occ.OwningProcess)）。若被其他服务占用，请先关闭它再重试。" -ForegroundColor Red
+    }
+    Write-Host "  手动排查：cd web\backend && python -m uvicorn main:app --port 8765" -ForegroundColor Yellow
     exit 1
 }
 
 # 等待前端就绪
+$frontendReady = $false
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 1
     try {
         $r = Invoke-WebRequest "http://127.0.0.1:5173/" -TimeoutSec 2 -UseBasicParsing
-        if ($r.StatusCode -eq 200) { break }
+        if ($r.StatusCode -eq 200) { $frontendReady = $true; break }
     } catch {}
+}
+
+if (-not $frontendReady) {
+    Write-Host "错误：前端（Vite 5173）启动失败或超时。" -ForegroundColor Red
+    # 区分失败原因
+    $occF = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
+    if ($occF) {
+        Write-Host "  端口 5173 被占用（PID $($occF.OwningProcess)）。请关闭占用该端口的程序后重试。" -ForegroundColor Red
+    } else {
+        Write-Host "  端口 5173 未监听。可能原因：" -ForegroundColor Yellow
+        Write-Host "    1) npm install 未执行（首次运行需在 web/frontend 下执行 npm install）" -ForegroundColor Yellow
+        Write-Host "    2) Vite 编译报错（切换到 web/frontend 手动运行 npm run dev 查看错误）" -ForegroundColor Yellow
+        Write-Host "    3) node 版本过低（需 Node.js 18+）" -ForegroundColor Yellow
+    }
+    exit 1
 }
 
 Write-Host ""

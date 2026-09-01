@@ -13,21 +13,37 @@ import os
 from fastapi import HTTPException, Query
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
+DEFAULT_WORKSPACE_NAME = "personal"
 
 # 各模块在工作区下的固定相对位置（与 CLI 约定一致）
 DIR_JOBS = "01_岗位池"
 DIR_TRACKING = "05_投递追踪"
 
+# 默认工作区环境变量。CLI --workspace 会优先覆盖它，其次回退 personal/。
+ENV_WORKSPACE = "JOBWS_WORKSPACE"
+
+
+def resolve_default_workspace(root=None):
+    """解析默认工作区绝对路径。
+
+    优先级：环境变量 JOBWS_WORKSPACE（相对仓库根路径）→ 回退 personal/。
+    main.py 会在解析 --workspace 后写入该环境变量，实现 CLI 优先。
+    返回绝对路径（可能指向不存在的目录，调用方负责判断）。
+    """
+    if root is None:
+        root = ROOT
+    name = os.environ.get(ENV_WORKSPACE, "").strip() or DEFAULT_WORKSPACE_NAME
+    return os.path.normpath(os.path.join(root, name))
+
 
 def workspace_dir(ws: str = Query(default=None, description="工作区相对仓库根的路径")) -> str:
-    """解析工作区绝对路径。缺省 personal/。
+    """解析工作区绝对路径。缺省用可配置的默认工作区（personal/）。
 
-    接受相对仓库根的路径（供未来多工作区切换），拒绝绝对路径——
+    接受相对仓库根的路径（供多工作区切换），拒绝绝对路径——
     后端只服务仓库内的目录，不允许任意位置读写。
     """
     if not ws:
-        return DEFAULT_WORKSPACE
+        return resolve_default_workspace()
 
     if os.path.isabs(ws):
         raise HTTPException(status_code=400, detail="workspace 必须是相对路径")

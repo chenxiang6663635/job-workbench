@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
-import { Briefcase, FolderOpen, LayoutDashboard, Library as LibraryIcon } from "lucide-react";
+import { Briefcase, FolderOpen, LayoutDashboard, Library as LibraryIcon, Settings as SettingsIcon } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
 import Jobs from "./pages/Jobs";
 import Library from "./pages/Library";
-import { api } from "./api";
+import Settings from "./pages/Settings";
+import { api, setWorkspace, type WorkspaceItem } from "./api";
 
-type Tab = "dashboard" | "applications" | "jobs" | "library";
+type Tab = "dashboard" | "applications" | "jobs" | "library" | "settings";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "dashboard", label: "看板", icon: <LayoutDashboard size={16} /> },
   { key: "applications", label: "追踪表", icon: <Briefcase size={16} /> },
   { key: "jobs", label: "岗位池", icon: <FolderOpen size={16} /> },
   { key: "library", label: "素材库", icon: <LibraryIcon size={16} /> },
+  { key: "settings", label: "设置", icon: <SettingsIcon size={16} /> },
 ];
 
 function tabFromHash(): Tab {
@@ -25,6 +27,11 @@ export default function App() {
   // （此前用纯 state，刷新总回看板，也无头验证工具无法直达内页）
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [online, setOnline] = useState<boolean | null>(null);
+  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
+  const [currentWs, setCurrentWs] = useState<string>(() => {
+    // 初始值：从后端默认工作区推断。真正值在加载列表后回填。
+    return "";
+  });
 
   const switchTab = (t: Tab) => {
     setTab(t);
@@ -45,6 +52,29 @@ export default function App() {
       .then(() => setOnline(true))
       .catch(() => setOnline(false));
   }, []);
+
+  // 加载可用工作区，并把默认工作区设为当前选中
+  useEffect(() => {
+    api
+      .listWorkspaces()
+      .then((r) => {
+        setWorkspaces(r.items);
+        const def = r.items.find((w) => w.isDefault);
+        if (def) {
+          setCurrentWs(def.name);
+          setWorkspace(def.name);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // 切换工作区：更新全局并刷新页面（各页面在 mount 时按 currentWorkspace 拉数据）
+  const switchWorkspace = (name: string) => {
+    if (name === currentWs) return;
+    setWorkspace(name);
+    setCurrentWs(name);
+    window.location.reload();
+  };
 
   return (
     <div className="min-h-screen bg-ink-950 text-slate-200">
@@ -76,7 +106,23 @@ export default function App() {
             ))}
           </div>
 
-          <div className="ml-auto flex items-center gap-2 text-xs">
+          <div className="ml-auto flex items-center gap-3 text-xs">
+            {workspaces.length > 0 && (
+              <select
+                value={currentWs}
+                onChange={(e) => switchWorkspace(e.target.value)}
+                className="cursor-pointer rounded-lg border border-white/10 bg-ink-900 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-accent/50"
+                title="切换工作区"
+              >
+                {workspaces.map((w) => (
+                  <option key={w.name} value={w.name}>
+                    {w.name}
+                    {w.isDefault ? "（默认）" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+
             <span
               className={`h-2 w-2 rounded-full ${
                 online === null
@@ -116,8 +162,10 @@ export default function App() {
           <Applications />
         ) : tab === "jobs" ? (
           <Jobs />
-        ) : (
+        ) : tab === "library" ? (
           <Library />
+        ) : (
+          <Settings />
         )}
       </main>
     </div>

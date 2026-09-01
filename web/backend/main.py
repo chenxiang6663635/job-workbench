@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""秋招工作台 Web 后端入口。
+"""求职工作台 Web 后端入口。
 
 本地原型，仅监听 localhost。数据层是 personal/ 下的 Markdown 与 CSV，
 后端不复制数据，直接读写文件——与 CLI 共享同一份数据源。
@@ -21,7 +21,7 @@ if TOOLS not in sys.path:
 
 from routers import applications, dashboard, jobs, library, provider, workspace  # noqa: E402
 
-app = FastAPI(title="秋招工作台", version="0.1.0")
+app = FastAPI(title="求职工作台", version="0.1.0")
 
 
 def _apply_workspace_env(cli_workspace=None):
@@ -55,11 +55,22 @@ def health():
     return {"status": "ok"}
 
 
+# ---- 前端静态产物同源托管（Electron 桌面壳）----
+# 若 web/frontend/dist 存在，则挂载为静态站点：`/` 返回 index.html，
+# API 仍在 /api。这样 Electron 页面与 API 同源，无 CORS 问题，
+# 前端 api.ts 的相对路径 /api/... 在 dev（走 vite proxy）与生产（同源）都无需改动。
+# 必须放在所有 API 路由注册之后，保证 /api 优先匹配。
+DIST_DIR = os.path.join(ROOT, "web", "frontend", "dist")
+if os.path.isfile(os.path.join(DIST_DIR, "index.html")):
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")
+
+
 if __name__ == "__main__":
     import argparse
     import uvicorn
 
-    parser = argparse.ArgumentParser(description="秋招工作台 Web 后端")
+    parser = argparse.ArgumentParser(description="求职工作台 Web 后端")
     parser.add_argument("--workspace", default=None,
                         help="默认工作区（相对仓库根，如 personal 或 other_workspace）")
     parser.add_argument("--port", type=int, default=8765, help="监听端口")

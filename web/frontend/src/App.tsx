@@ -85,7 +85,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-accent to-accent-dim" />
             <span className="text-sm font-semibold tracking-wide text-white">
-              秋招工作台
+              求职工作台
             </span>
           </div>
 

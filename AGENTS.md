@@ -1,4 +1,4 @@
-# 秋招工作台 · AI 约定
+# 求职工作台 · AI 约定
 
 本文件是 AI 在本仓库工作的约定入口（CodeBuddy / Claude Code / Codex / Gemini CLI 都会读取）。
 

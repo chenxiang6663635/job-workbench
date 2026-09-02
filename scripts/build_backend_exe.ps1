@@ -1,4 +1,4 @@
-# 一键构建求职工作台后端 exe（PyInstaller onedir）
+﻿# 一键构建求职工作台后端 exe（PyInstaller onedir）
 # 产出：web/backend/dist/job-workbench-backend/
 #   job-workbench-backend.exe   后端入口（免 Python）
 #   tools/                      后端 import 的脚本（随包，兼容 CLI 探测）
@@ -13,7 +13,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+# scripts/ 的上一级即仓库根
+$root = Split-Path -Parent $PSScriptRoot
 $backend = Join-Path $root "web\backend"
 $frontend = Join-Path $root "web\frontend"
 

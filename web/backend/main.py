@@ -73,6 +73,41 @@ if os.path.isfile(os.path.join(DIST_DIR, "index.html")):
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")
 
 
+def _pause_if_frozen():
+    """打包成 exe 双击运行时，出错若立即退出窗口会一闪而过，用户只看到"没反应"。
+    保持控制台打开等人按回车；源码模式终端本来就不会闪退，无需等待。"""
+    if getattr(sys, "frozen", False):
+        try:
+            input("\n按回车键关闭窗口...")
+        except (EOFError, KeyboardInterrupt):
+            pass
+
+
+def _port_in_use(port):
+    """端口是否已有进程监听。"""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def _is_our_service(port):
+    """端口上的服务是否为本工作台（health 探测）。"""
+    import urllib.request
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d/api/health" % port, timeout=2) as r:
+            return b"ok" in r.read()
+    except Exception:
+        return False
+
+
+def _open_browser_later(url, delay=1.5):
+    """服务就绪前预约打开浏览器（uvicorn.run 会阻塞主线程，用定时器异步开）。"""
+    import threading
+    import webbrowser
+    threading.Timer(delay, lambda: webbrowser.open(url)).start()
+
+
 if __name__ == "__main__":
     import argparse
     import uvicorn
@@ -85,4 +120,26 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     _apply_workspace_env(args.workspace)
-    uvicorn.run(app, host=args.host, port=args.port)
+    url = "http://127.0.0.1:%d" % args.port
+
+    try:
+        if _port_in_use(args.port):
+            if _is_our_service(args.port):
+                # 已有本工作台服务在跑（可能是 dev 后端或另一个实例）：直接复用，开界面即可
+                print("检测到服务已在运行，直接打开界面：%s" % url)
+                import webbrowser
+                webbrowser.open(url)
+                _pause_if_frozen()
+                sys.exit(0)
+            print("错误：端口 %d 已被其他程序占用，无法启动。" % args.port)
+            print("请关闭占用该端口的程序后重试（或改用 --port 指定其他端口）。")
+            _pause_if_frozen()
+            sys.exit(1)
+
+        # 双击 exe 场景：启动成功后自动打开浏览器界面
+        _open_browser_later(url)
+        uvicorn.run(app, host=args.host, port=args.port)
+    except Exception as e:  # noqa: BLE001 —— 双击场景必须给人话而非闪退
+        print("后端启动失败：%s" % e)
+        _pause_if_frozen()
+        raise

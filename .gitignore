@@ -18,7 +18,10 @@ Thumbs.db
 *.lock
 node_modules/
 dist/
+build/
 web/frontend/dist/
+web/backend/dist/
+web/backend/build/
 
 # 简历 PDF、照片、预览图均为交付物，纳入版本管理，不在此忽略
 # .codebuddy 目录含命令定义、技能文件与工作记忆，纳入版本管理

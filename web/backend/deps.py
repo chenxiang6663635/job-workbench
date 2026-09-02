@@ -9,10 +9,15 @@
 from __future__ import annotations
 
 import os
+import sys
 
 from fastapi import HTTPException, Query
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pathres  # noqa: E402
+
+# 应用根（只读资源）。打包后 exe 同级，解包为仓库根。
+ROOT = pathres.resolve_root()
 DEFAULT_WORKSPACE_NAME = "personal"
 
 # 各模块在工作区下的固定相对位置（与 CLI 约定一致）
@@ -23,24 +28,44 @@ DIR_TRACKING = "05_投递追踪"
 ENV_WORKSPACE = "JOBWS_WORKSPACE"
 
 
+def data_root():
+    """可写的数据根目录（personal/ 的父目录）。
+
+    打包后若 exe 装在不可写位置（如 Program Files），会回退到系统用户目录，
+    故工作区可能不在 ROOT 内。见 pathres.resolve_workspace_root。
+    """
+    return pathres.resolve_workspace_root(ROOT)[0]
+
+
+def allowed_roots():
+    """允许作为工作区父目录的根：应用根 + 可写数据根（去重）。"""
+    roots = [ROOT, data_root()]
+    out = []
+    for r in roots:
+        r = os.path.normpath(r)
+        if r not in out:
+            out.append(r)
+    return out
+
+
 def resolve_default_workspace(root=None):
     """解析默认工作区绝对路径。
 
-    优先级：环境变量 JOBWS_WORKSPACE（相对仓库根路径）→ 回退 personal/。
-    main.py 会在解析 --workspace 后写入该环境变量，实现 CLI 优先。
+    基于可写数据根目录（而非应用根），保证打包后数据落在可写位置。
+    优先级：环境变量 JOBWS_WORKSPACE（相对路径）→ 数据根下的 personal/。
     返回绝对路径（可能指向不存在的目录，调用方负责判断）。
     """
     if root is None:
-        root = ROOT
+        root = data_root()
     name = os.environ.get(ENV_WORKSPACE, "").strip() or DEFAULT_WORKSPACE_NAME
     return os.path.normpath(os.path.join(root, name))
 
 
-def workspace_dir(ws: str = Query(default=None, description="工作区相对仓库根的路径")) -> str:
+def workspace_dir(ws: str = Query(default=None, description="工作区相对路径")) -> str:
     """解析工作区绝对路径。缺省用可配置的默认工作区（personal/）。
 
-    接受相对仓库根的路径（供多工作区切换），拒绝绝对路径——
-    后端只服务仓库内的目录，不允许任意位置读写。
+    接受相对路径（供多工作区切换），拒绝绝对路径——后端只服务
+    应用根或数据根之下的目录，不允许任意位置读写。
     """
     if not ws:
         return resolve_default_workspace()
@@ -49,8 +74,9 @@ def workspace_dir(ws: str = Query(default=None, description="工作区相对仓�
         raise HTTPException(status_code=400, detail="workspace 必须是相对路径")
 
     full = os.path.normpath(os.path.join(ROOT, ws))
-    if not full.startswith(ROOT + os.sep):
-        raise HTTPException(status_code=400, detail="workspace 越出仓库范围")
+    # 打包后工作区可能落在系统用户目录（数据根），故两个根都允许
+    if not any(full.startswith(r + os.sep) for r in allowed_roots()):
+        raise HTTPException(status_code=400, detail="workspace 越出允许范围")
 
     if not os.path.isdir(full):
         raise HTTPException(status_code=404, detail="工作区不存在: %s（先运行 tools/init_workspace.py）" % ws)

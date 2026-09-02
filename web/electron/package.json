@@ -23,8 +23,8 @@
     ],
     "extraResources": [
       {
-        "from": "../frontend/dist",
-        "to": "app/dist",
+        "from": "../backend/dist/job-workbench-backend",
+        "to": "backend",
         "filter": ["**/*"]
       }
     ],

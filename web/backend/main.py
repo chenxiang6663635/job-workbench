@@ -13,9 +13,16 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# 让 web/backend 能 import tools/ 下的现有脚本（tracker、jd_score、report 等）
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TOOLS = os.path.join(ROOT, "tools")
+# 让 web/backend 能 import pathres 与 tools/ 下的现有脚本（tracker、jd_score、report 等）
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+
+import pathres  # noqa: E402
+
+# 路径经 pathres 解析：打包（onedir）指向 exe 同级，解包指向仓库根
+ROOT = pathres.resolve_root()
+TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
@@ -60,7 +67,7 @@ def health():
 # API 仍在 /api。这样 Electron 页面与 API 同源，无 CORS 问题，
 # 前端 api.ts 的相对路径 /api/... 在 dev（走 vite proxy）与生产（同源）都无需改动。
 # 必须放在所有 API 路由注册之后，保证 /api 优先匹配。
-DIST_DIR = os.path.join(ROOT, "web", "frontend", "dist")
+DIST_DIR = pathres.resolve_dist_dir(ROOT)
 if os.path.isfile(os.path.join(DIST_DIR, "index.html")):
     from fastapi.staticfiles import StaticFiles
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")

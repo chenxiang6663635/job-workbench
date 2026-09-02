@@ -1,0 +1,4 @@
+# 本仓库当前仅本地 git、无远程讨论区，故不设 contact_links。
+# 远程仓库建立后，在此追加 contact_links：功能请求与使用问题分别指向讨论区，
+# 并保持 bug_report.md 为唯一 issue 模板（功能请求不占用 issue 队列，见 CONTRIBUTING.md 四道门）。
+blank_issues_enabled: true

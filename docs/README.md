@@ -22,8 +22,20 @@
 
 | 文件 | 说明 |
 |---|---|
-| [`research/report_job_search_products.md`](research/report_job_search_products.md) | GitHub 求职类开源产品调研：竞品全景、LLM 接入共识、差异化机会（评分可追溯/硬门槛前置）、产品化借鉴清单 |
+| [`research/report_job_search_products.md`](research/report_job_search_products.md) | GitHub 求职类开源产品调研（**产品功能层**）：竞品全景、LLM 接入共识、差异化机会（评分可追溯/硬门槛前置）、产品化借鉴清单 |
 | [`research/plan_job_search_products.md`](research/plan_job_search_products.md) | 上述调研的研究计划（检索词、subagent 分工、并行策略） |
+| [`research/report_dev_setup_benchmark.md`](research/report_dev_setup_benchmark.md) | 本地优先桌面应用开发设置基准（**工程配置层**）：打包分发（PyInstaller onedir/onefile）、用户数据目录策略、工程设置（CI/锁文件/日志）亮点与空白 |
+| [`research/plan_dev_setup_benchmark.md`](research/plan_dev_setup_benchmark.md) | 上述调研的研究计划（工程配置层三路分工） |
+| [`research/report_dev_workflow.md`](research/report_dev_workflow.md) | 相似项目的**开发流程**（迭代节奏、分支与发布、需求管理、**自用与产品化平衡**）及本项目可执行流程建议 |
+| [`research/plan_dev_workflow.md`](research/plan_dev_workflow.md) | 上述调研的研究计划（开发流程层三路分工） |
+
+## 开发流程
+
+| 文件 | 说明 |
+|---|---|
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **开发流程规范**：新需求四道门、分支策略、提交与版本规则、手动发布流程、可持续性约定 |
+| [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（Keep a Changelog 格式）；版本号唯一来源为 `web/electron/package.json` |
+| [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Issue 模板：bug 报告专用；功能请求走 CONTRIBUTING 四道门 |
 
 ## 约定文件
 

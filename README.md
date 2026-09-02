@@ -148,6 +148,8 @@ template/profiles/<domain-id>/
 
 - **`docs/usage-guide.md`** —— 使用手册：启动、四页面详解、AI 工作流、CLI 速查、常见问题
 - **`docs/README.md`** —— 文档索引，含每份文档的状态（现行 / 已废弃）
+- **`CONTRIBUTING.md`** —— 开发流程规范：新需求四道门、分支策略、发布流程、可持续性约定
+- **`CHANGELOG.md`** —— 变更记录
 - `template/AGENTS.example.md` —— 档案模板，含逐项填写说明
 - `template/workspace/README.md` —— 六个模块的用途与填写要求
 - `web/README.md` —— Web 界面启动与使用

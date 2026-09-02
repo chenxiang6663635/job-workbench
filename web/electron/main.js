@@ -108,22 +108,46 @@ function waitBackendReady(cb) {
   poll();
 }
 
-// ---- 启动后端 ----
+// ---- 启动后端：优先用打包的 exe，回退 python -m uvicorn ----
+function findBackendExe() {
+  // 打包（electron-builder extraResources 或 onedir 旁）: exe 同级的 backend exe
+  const candidates = [
+    // onedir 形态：exe 同级（仓库内构建时）
+    path.join(__dirname, "job-workbench-backend.exe"),
+    // electron-builder extraResources：resources 下的 backend 目录
+    path.join(process.resourcesPath, "backend", "job-workbench-backend.exe"),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
 function startBackend() {
   if (backendProcess) return;
 
-  const python = detectPython();
-  if (!python) {
-    log("未找到可用的 Python（需含 FastAPI/uvicorn）。可用 JOBWS_PYTHON 环境变量指定。");
-    app.quit();
-    return;
+  const exe = findBackendExe();
+  if (exe) {
+    log(`使用打包后端: ${exe}`);
+    backendProcess = spawn(exe, [], {
+      cwd: path.dirname(exe),
+      stdio: "pipe",
+      detached: false,
+    });
+  } else {
+    const python = detectPython();
+    if (!python) {
+      log("未找到打包后端，也未找到可用的 Python（需含 FastAPI/uvicorn）。可用 JOBWS_PYTHON 环境变量指定。");
+      app.quit();
+      return;
+    }
+    log(`使用 python 后端: ${python}`);
+    backendProcess = spawn(python, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", String(BACKEND_PORT)], {
+      cwd: BACKEND_DIR,
+      stdio: "pipe",
+      detached: false,
+    });
   }
-
-  backendProcess = spawn(python, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", String(BACKEND_PORT)], {
-    cwd: BACKEND_DIR,
-    stdio: "pipe",
-    detached: false,
-  });
 
   // 转发后端日志到主进程控制台，便于诊断后端启动失败
   backendProcess.stdout.on("data", (d) => log(`[backend] ${d}`));
@@ -141,14 +165,25 @@ function startBackend() {
 }
 
 function stopBackend() {
-  if (backendProcess) {
-    try {
-      backendProcess.kill();
-    } catch (e) {
-      log(`结束后端失败: ${e.message}`);
+  if (!backendProcess) return;
+  const pid = backendProcess.pid;
+  try {
+    if (process.platform === "win32") {
+      // taskkill /t 杀进程树，避免 uvicorn/exe 的孙进程变成孤儿（调研确认的坑）
+      const { execSync } = require("child_process");
+      execSync(`taskkill /pid ${pid} /f /t`, { stdio: "ignore" });
+    } else {
+      // POSIX：杀进程组
+      try {
+        process.kill(-pid, "SIGTERM");
+      } catch (e) {
+        backendProcess.kill("SIGTERM");
+      }
     }
-    backendProcess = null;
+  } catch (e) {
+    log(`结束后端失败: ${e.message}`);
   }
+  backendProcess = null;
 }
 
 // ---- 创建窗口 ----

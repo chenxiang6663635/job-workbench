@@ -23,6 +23,7 @@ DEFAULT_WORKSPACE_NAME = "personal"
 # 各模块在工作区下的固定相对位置（与 CLI 约定一致）
 DIR_JOBS = "01_岗位池"
 DIR_TRACKING = "05_投递追踪"
+DIR_RESUME = "02_简历工坊"
 
 # 默认工作区环境变量。CLI --workspace 会优先覆盖它，其次回退 personal/。
 ENV_WORKSPACE = "JOBWS_WORKSPACE"

@@ -13,15 +13,29 @@ description: Use when 用户改完简历内容后需要重新生成 PDF、校验
 python tools/resume_build.py                      # 全部版本都生成并校验
 python tools/resume_build.py --version hvac       # 只生成指定版本
 python tools/resume_build.py --no-verify          # 只生成不校验
+
+# 数据驱动「标准版式」：JSON + 内置模板（不经过手写 HTML）
+python tools/resume_build.py render                          # 全部 JSON 版本
+python tools/resume_build.py render --version hvac           # 只生成指定 JSON 版本
+python tools/resume_build.py render --version hvac --no-verify
 ```
 
 省略 `--workspace` 时默认使用 `personal/`。
 
 ## 前提
 
-**生成源是 HTML 模板**（`02_简历工坊/pdf/resume_<版本>.html`），不是 Markdown。改简历内容必须同步更新 HTML，否则 PDF 不反映改动。
+**两条路径并存，先确认走哪条：**
 
-脚本按 `resume_` 前缀扫描模板，输出名为 `简历_<版本>.pdf`。新增一个简历版本 = 新增一个 `resume_<版本>.html`，无需改任何代码。
+| 路径 | 生成源 | 命令 | 适用 |
+|---|---|---|---|
+| 高级模板 | 手写 HTML `02_简历工坊/pdf/resume_<版本>.html` | 无子命令 | 精排版式（如 v1.2 色彩版） |
+| 标准版式 | JSON 数据 `02_简历工坊/source/resume_<版本>.json` | `render` 子命令 | 可复用、按 JD 裁剪、Web 编辑 |
+
+手写 HTML 路径：**生成源是 HTML 模板**，不是 Markdown。改简历内容必须同步更新 HTML，否则 PDF 不反映改动。
+
+脚本按 `resume_` 前缀扫描，输出名为 `简历_<版本>.pdf`。新增一个简历版本 = 新增一个 `resume_<版本>.html`（或标准版式下新增 `source/resume_<版本>.json`），无需改任何代码。
+
+标准版式（`render`）额外断言 PDF 第一页为 A4：内置模板必须显式声明 `@page { size: A4 }`，否则 Chrome 默认 Letter（612×792pt）会破坏一页判定。
 
 照片：覆盖 `02_简历工坊/pdf/photo.jpg`。不需要照片时删除 HTML 中的 `<img class="photo" ...>` 一行。
 

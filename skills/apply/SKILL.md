@@ -37,6 +37,12 @@ description: Use when 用户已确认要投递某个岗位，要求生成投递�
 python tools/resume_build.py --workspace <工作区> --version <版本>
 ```
 
+走数据驱动「标准版式」时（生成源是 `source/resume_<版本>.json`）：
+
+```
+python tools/resume_build.py render --workspace <工作区> --version <版本>
+```
+
 三项全过才算成功：
 
 1. 页数为 1

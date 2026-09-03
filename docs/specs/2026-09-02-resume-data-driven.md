@@ -77,16 +77,28 @@ python tools/resume_build.py render --workspace <WS> --version <版本> [--out D
   新增 render 时**只追加不删除**，老命令示例保留
 - `discover_jobs` 输出名规则 `简历_<stem>.pdf`；render 输出名沿用 `简历_<版本>.pdf`（写 source/ 同 slug 目录下的 pdf/ 同侧，避免与手写 HTML 同名冲突时覆盖既有 v1.2）
 
-## 五、Web 编辑（已随本批完成）
+## 五、Web 编辑（已随本批完成；信息架构 2026-09-03 调整）
 
-简历工坊页（Web）也已随本批落地，不只打通后端管线：
+简历工坊页（Web）已随本批落地，并在用户反馈同名混淆后做了信息架构调整（方案 3，双模式页面）：
+
 - 后端 `web/backend/routers/resume.py`：`GET/PUT /{version}`、`GET /{version}/html`（预览）、
   `POST /{version}/build`（生成 + ATS 三项 + A4 纸型）。复用 `resume_build` 的函数，
   `verify_pdf` 通过显式 `facts_file` 参数规避模块级全局在 Web 并发下互相覆盖的问题。
-- 前端 `pages/Resume.tsx` + `components/ResumeForm.tsx`：左结构化表单、右 A4 实时预览
-  （iframe srcDoc + ResizeObserver 测 794×1123 溢出）；编辑即时写回 JSON（防抖 400ms）；
-  超一页时琥珀色提示 + 禁用生成；生成后回显纸型/页数/文本/关键事实四项；诚实红线常驻提示。
-- 界面只面向**标准版式**（source/*.json）；高级模板（手写 HTML）在素材库里只读浏览（现有 Library 覆盖）。
+- **双模式页面**（顶部切换，`pages/Resume.tsx`）：
+  - **标准版式**：数据驱动编辑——左结构化表单（`components/ResumeForm.tsx`）、右 A4 实时预览
+    （ResizeObserver 测 794×1123 溢出）；超一页时琥珀色提示 + 禁用生成；生成后回显
+    纸型/页数/文本/关键事实四项；诚实红线常驻提示。支持**页面上直接新建版本**
+    （输入版本名 → 后端写空模板 JSON → 进入编辑），不再要求用户手工去文件系统放 JSON。
+  - **高级模板**：手写 HTML 精排版的**只读浏览与一键生成**（`components/ResumeTemplates.tsx`）。
+    文件浏览能力自素材库迁入（`/api/resume/templates`、`/templates/content`、
+    `/templates/file/{rel:path}`——路径式端点使 iframe 内 HTML 的相对资源 photo.jpg 可解析；
+    `/templates/{version}/build` 复用 build_pdf/verify_pdf）。编辑仍走手写 HTML / CLI。
+- **素材库只保留事实库**：`library.py` 删除 resumes 分支（404），`Library.tsx` 移除入口并提示
+  "简历文件已迁往简历工坊"。此前素材库的「简历工坊」分类与新 Tab 同名异物，是用户困惑的根源。
+- **路由顺序注意**：`GET /templates` 等具体路由必须注册在 `GET /{version}` 之前，
+  否则动态参数路由会把 "templates" 抢先匹配成 version。
+- **编辑写回安全**：预览 effect 以 `dirty` 标记区分「刚加载」与「用户已编辑」，仅编辑后才自动
+  保存（防止加载即写回覆盖用户数据，schema 演进时未表达字段会被写丢）。
 - 标准版式内置模板实际实现为 `template/workspace/02_简历工坊/templates/std_resume.html`，
   渲染函数为 `resume_build.render_block` / `_profile_block` 等系列，schema 各字段一一对应。
 

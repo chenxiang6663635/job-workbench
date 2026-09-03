@@ -63,7 +63,7 @@ python tools/install_skills.py --target user
 - pypdf（仅 PDF 校验需要）：`pip install pypdf`
 - Chrome 或 Edge（仅 PDF 生成需要）
 
-无 Python 环境也能用——skills 与数据层是纯 Markdown，只是五个脚本跑不了。
+无 Python 环境也能用——skills 与数据层是纯 Markdown，只是六个脚本跑不了。
 
 ---
 
@@ -92,16 +92,24 @@ Eligibility Gate 前置：**学历 → 专业 → 届数 → 外语 → 城市**
 
 「培养与稳定性」取代了常见的「文化契合」——校招 JD 里的文化表述多为套话，判断可靠度低；而是否有培养体系、是否核心岗、工作形态是否可持续，既可从文本判断，也对决策影响更大。
 
-## 五个脚本
+## 六个脚本
 
 ```
 python tools/init_workspace.py --target <名称> --domain <插件>
 python tools/install_skills.py [--target user|codebuddy|claude|...] [--dry-run]
 python tools/jd_score.py <解析卡> [--domain X --direction Y] [--show-profile]
-python tools/tracker.py --workspace <目录> add|update|list|show
+python tools/tracker.py --workspace <目录> add|update|list|show [--reason 原因]
 python tools/resume_build.py --workspace <目录> [--version X] [--out DIR]
+python tools/resume_build.py render --workspace <目录> [--version X]  # 数据驱动标准版式
+python tools/tracker.py --workspace <目录> history [--id A001] [--limit N]
 python tools/report.py --workspace <目录> [--stdout]
 ```
+
+> tracker 进入终态（已挂/已放弃）须填 `--reason`；终态不可回退、同公司+岗位自动去重。
+> 每次字段变更会入账 `05_投递追踪/history.csv`，`tracker.py history` 可查变更时间线。
+
+简历有两条路径：无子命令直接打手写 HTML（精排版式）；`render` 子命令由
+`02_简历工坊/source/resume_<版本>.json` + 内置模板生成（标准版式，可复用、可在网页编辑）。
 
 ---
 
@@ -160,4 +168,5 @@ template/profiles/<domain-id>/
 |---|---|
 | `2026-08-30-general-workbench-design.md` | 现行：通用工作台架构（三层分离、领域插件） |
 | `2026-08-30-web-prototype-design.md` | 现行：Web 界面层（API 契约、并发与安全） |
+| `2026-08-31-job-workbench-productization.md` | 现行：产品化路线（差异化点、workspace/BYOK、Electron、PyInstaller 打包） |
 | `2026-08-30-autumn-recruit-workbench-design.md` | ⚠️ 已废弃：v1.0 个人工具设计，目录结构已失效 |

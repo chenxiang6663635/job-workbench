@@ -42,3 +42,11 @@ graphify-out/
 .claude/
 .codex/
 .codebuddy/plans/
+
+# 真实简历不进版本管理（隐私护栏）
+# personal/ 是「分层但同仓」设计（AGENTS 约定：分享仓库前需移除），但简历与数据驱动源
+# 集中承载真实身份信息（姓名 / 电话 / 邮箱 / 照片），靠手工记得删不可靠——这里直接忽略。
+# 忽略只影响 git，本机照样编辑与生成；模板里的空样例在 template/ 下，不受影响。
+personal/02_简历工坊/source/*.json
+personal/02_简历工坊/pdf/*.pdf
+personal/02_简历工坊/pdf/photo.jpg

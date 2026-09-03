@@ -2,20 +2,30 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   FileCheck,
+  FilePlus2,
   FileText,
+  LayoutTemplate,
   Loader2,
+  PenLine,
   Save,
   ShieldAlert,
   X,
 } from "lucide-react";
 import { api, type ResumeBuildResult, type ResumeVersion } from "../api";
 import ResumeForm from "../components/ResumeForm";
+import ResumeTemplates from "../components/ResumeTemplates";
 
 // A4 @96dpi 的像素尺寸。预览区按此比例渲染，超出即触发防超页护栏
 const A4_WIDTH = 794;
 const A4_HEIGHT = 1123;
 
 type ResumeData = Record<string, unknown>;
+
+// 两种工作对象：数据驱动「标准版式」与手写 HTML「高级模板」
+type Mode = "std" | "advanced";
+
+// 与后端 _check_version 一致：只允许字母数字-_
+const VERSION_RE = /^[A-Za-z0-9_-]+$/;
 
 function emptyData(): ResumeData {
   return {
@@ -44,6 +54,11 @@ export default function Resume() {
   // 否则页面一打开就把前端表单规范化后的数据覆盖回去，schema 演进时
   // 表单未表达的字段会被写丢，等于静默损坏用户简历数据。
   const [dirty, setDirty] = useState(false);
+  // 工作对象：数据驱动「标准版式」编辑，还是手写「高级模板」浏览
+  const [mode, setMode] = useState<Mode>("std");
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creatingBusy, setCreatingBusy] = useState(false);
 
   // 载入版本列表
   useEffect(() => {
@@ -108,6 +123,28 @@ export default function Resume() {
     setDirty(true);
   };
 
+  // 在页面上直接新建标准版式版本（不再要求用户手工去文件系统放 JSON）
+  const createVersion = () => {
+    const name = newName.trim();
+    if (!VERSION_RE.test(name)) {
+      setError("版本名只能含字母、数字、-、_");
+      return;
+    }
+    setCreatingBusy(true);
+    api
+      .saveResume(name, emptyData())
+      .then(() => api.listResumeVersions())
+      .then((r) => {
+        setVersions(r.items);
+        setVersion(name);
+        setCreating(false);
+        setNewName("");
+        setError(null);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setCreatingBusy(false));
+  };
+
   const save = () => {
     if (!version || !data) return;
     setSaving(true);
@@ -133,31 +170,103 @@ export default function Resume() {
 
   const inputCls =
     "rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-slate-200 outline-none transition-colors focus:border-accent/60";
+  const modeActive =
+    "flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm bg-accent/15 text-accent";
+  const modeIdle =
+    "flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200";
+
+  const errorBanner = error ? (
+    <div className="flex items-center justify-between rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
+      <span>{error}</span>
+      <button onClick={() => setError(null)} className="cursor-pointer">
+        <X size={14} />
+      </button>
+    </div>
+  ) : null;
+
+  // 模式切换条 + 标准版式的新建版本入口（两种模式共用顶栏）
+  const modeBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <button onClick={() => setMode("std")} className={mode === "std" ? modeActive : modeIdle}>
+        <PenLine size={16} /> 标准版式
+      </button>
+      <button onClick={() => setMode("advanced")} className={mode === "advanced" ? modeActive : modeIdle}>
+        <LayoutTemplate size={16} /> 高级模板
+      </button>
+
+      {mode === "std" && !creating && (
+        <button
+          onClick={() => setCreating(true)}
+          className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
+        >
+          <FilePlus2 size={15} /> 新建版本
+        </button>
+      )}
+      {mode === "std" && creating && (
+        <div className="ml-auto flex items-center gap-2">
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") createVersion();
+            }}
+            placeholder="版本名，如 hvac / datacenter"
+            className={`${inputCls} w-56`}
+          />
+          <button
+            onClick={createVersion}
+            disabled={creatingBusy}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft disabled:opacity-40"
+          >
+            {creatingBusy ? <Loader2 size={14} className="animate-spin" /> : null}
+            {creatingBusy ? "创建中…" : "创建"}
+          </button>
+          <button
+            onClick={() => {
+              setCreating(false);
+              setNewName("");
+            }}
+            className="cursor-pointer text-sm text-slate-400 transition-colors hover:text-slate-200"
+          >
+            取消
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  if (mode === "advanced") {
+    return (
+      <div className="space-y-4">
+        {errorBanner}
+        {modeBar}
+        <ResumeTemplates />
+      </div>
+    );
+  }
 
   if (!version) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/15 bg-ink-900/50 p-10 text-center">
-        <FileText size={28} className="mx-auto mb-3 text-slate-500" />
-        <p className="text-base font-medium text-slate-200">还没有标准版式简历数据</p>
-        <p className="mt-2 text-sm text-slate-400">
-          在 <code className="rounded bg-ink-950 px-1.5 py-0.5">02_简历工坊/source/</code>{" "}
-          下放一份 <code className="rounded bg-ink-950 px-1.5 py-0.5">resume_&lt;版本&gt;.json</code>{" "}
-          即可开始编辑。现有手写 HTML 的精排版本不受影响，仍在素材库中浏览。
-        </p>
+      <div className="space-y-4">
+        {errorBanner}
+        {modeBar}
+        <div className="rounded-2xl border border-dashed border-white/15 bg-ink-900/50 p-10 text-center">
+          <FileText size={28} className="mx-auto mb-3 text-slate-500" />
+          <p className="text-base font-medium text-slate-200">还没有标准版式简历数据</p>
+          <p className="mt-2 text-sm text-slate-400">
+            点右上角「新建版本」直接开始编辑，不用手工去文件系统放 JSON。
+            手写 HTML 的精排版在「高级模板」里浏览与生成。
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="flex items-center justify-between rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="cursor-pointer">
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      {errorBanner}
+      {modeBar}
 
       <div className="flex flex-wrap items-center gap-3">
         <select

@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, FileText, FileImage, FolderOpen, FileCode2 } from "lucide-react";
+import { ArrowLeft, FileText, FileImage, FileCode2 } from "lucide-react";
 import { api, type LibraryItem } from "../api";
 
-type Section = "resumes" | "facts";
-
-const SECTIONS: { key: Section; label: string }[] = [
-  { key: "resumes", label: "简历工坊" },
-  { key: "facts", label: "事实库" },
-];
+// 简历文件（手写 HTML / 生成 PDF）已于 2026-09-03 迁往「简历工坊」页浏览，
+// 素材库只保留事实库，避免与简历工坊同名混淆
+const SECTION = "facts" as const;
 
 function fileIcon(item: LibraryItem) {
   if (item.kind === "text") return <FileCode2 size={16} className="text-accent" />;
@@ -23,7 +20,6 @@ function fmtSize(n: number) {
 }
 
 export default function Library() {
-  const [section, setSection] = useState<Section>("resumes");
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<{
@@ -35,19 +31,19 @@ export default function Library() {
 
   useEffect(() => {
     api
-      .libraryList(section)
+      .libraryList(SECTION)
       .then((r) => setItems(r.items))
       .catch((e: Error) => setError(e.message));
-  }, [section]);
+  }, []);
 
   const open = (item: LibraryItem) => {
     setError(null);
     if (item.kind === "binary") {
-      setView({ rel: item.rel, fileUrl: api.libraryFileUrl(section, item.rel), isBinary: true });
+      setView({ rel: item.rel, fileUrl: api.libraryFileUrl(SECTION, item.rel), isBinary: true });
       return;
     }
     api
-      .libraryContent(section, item.rel)
+      .libraryContent(SECTION, item.rel)
       .then((r) => setView({ rel: item.rel, text: r.content, isBinary: false }))
       .catch((e: Error) => setError(e.message));
   };
@@ -85,20 +81,10 @@ export default function Library() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setSection(s.key)}
-            className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-all duration-200 ${
-              section === s.key
-                ? "bg-accent/15 text-accent"
-                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-            }`}
-          >
-            <FolderOpen size={16} />
-            {s.label}
-          </button>
-        ))}
+        <span className="text-sm font-medium text-slate-200">事实库</span>
+        <span className="text-xs text-slate-500">
+          简历文件已迁往「简历工坊」页浏览
+        </span>
         <span className="ml-auto text-sm text-slate-500">{items.length} 个文件</span>
       </div>
 
@@ -110,9 +96,7 @@ export default function Library() {
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 bg-ink-900/50 p-10 text-center">
-          <p className="text-sm text-slate-400">
-            {section === "resumes" ? "简历工坊暂无文件" : "事实库暂无事实卡"}
-          </p>
+          <p className="text-sm text-slate-400">事实库暂无事实卡</p>
         </div>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

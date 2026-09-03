@@ -144,6 +144,15 @@ export interface ResumeBuildResult {
   passed: boolean;
 }
 
+// 高级模板（手写 HTML 精排版）的文件条目，与 LibraryItem 同构但归简历域
+export interface ResumeTemplateItem {
+  rel: string;
+  name: string;
+  size: number;
+  mtime: number;
+  kind: "text" | "binary";
+}
+
 export interface ProviderConfig {
   base_url: string;
   api_key: string;
@@ -249,15 +258,15 @@ export const api = {
   jobDetail: (dir: string) =>
     request<JobDetail>(`/jobs/${encodeURIComponent(dir)}`),
 
-  libraryList: (section: "facts" | "resumes") =>
+  libraryList: (section: "facts") =>
     request<LibraryList>(`/library/${section}`),
 
-  libraryContent: (section: "facts" | "resumes", rel: string) =>
+  libraryContent: (section: "facts", rel: string) =>
     request<{ rel: string; type: string; content: string }>(
       `/library/${section}/content?rel=${encodeURIComponent(rel)}`
     ),
 
-  libraryFileUrl: (section: "facts" | "resumes", rel: string) => {
+  libraryFileUrl: (section: "facts", rel: string) => {
     const base = `/api/library/${section}/file?rel=${encodeURIComponent(rel)}`;
     return currentWorkspace
       ? `${base}&ws=${encodeURIComponent(currentWorkspace)}`
@@ -289,6 +298,31 @@ export const api = {
   buildResume: (version: string) =>
     request<ResumeBuildResult>(
       `/resume/${encodeURIComponent(version)}/build`,
+      { method: "POST" }
+    ),
+
+  // 高级模板（手写 HTML）：只读浏览与生成，文件能力自素材库迁入
+  listResumeTemplates: () =>
+    request<{ items: ResumeTemplateItem[]; total: number }>("/resume/templates"),
+
+  resumeTemplateContent: (rel: string) =>
+    request<{ rel: string; type: string; content: string }>(
+      `/resume/templates/content?rel=${encodeURIComponent(rel)}`
+    ),
+
+  resumeTemplateFileUrl: (rel: string) => {
+    const base = `/api/resume/templates/file/${rel
+      .split("/")
+      .map((p) => encodeURIComponent(p))
+      .join("/")}`;
+    return currentWorkspace
+      ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
+      : base;
+  },
+
+  buildResumeTemplate: (version: string) =>
+    request<ResumeBuildResult>(
+      `/resume/templates/${encodeURIComponent(version)}/build`,
       { method: "POST" }
     ),
 

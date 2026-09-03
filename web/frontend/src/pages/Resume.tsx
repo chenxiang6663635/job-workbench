@@ -40,6 +40,10 @@ export default function Resume() {
   const [overflowPx, setOverflowPx] = useState(0);
   const previewRef = useRef<HTMLDivElement>(null);
   const [html, setHtml] = useState("");
+  // 区分「刚加载」与「用户已编辑」。只有编辑过才自动写回文件——
+  // 否则页面一打开就把前端表单规范化后的数据覆盖回去，schema 演进时
+  // 表单未表达的字段会被写丢，等于静默损坏用户简历数据。
+  const [dirty, setDirty] = useState(false);
 
   // 载入版本列表
   useEffect(() => {
@@ -56,24 +60,30 @@ export default function Resume() {
   useEffect(() => {
     if (!version) return;
     setResult(null);
+    setDirty(false); // 加载不算编辑，避免打开页面就写回
     api
       .getResume(version)
       .then((r) => setData((r.data ?? emptyData()) as ResumeData))
       .catch((e: Error) => setError(e.message));
   }, [version]);
 
-  // 预览 HTML：数据变化后重新渲染（输入即时反映）
+  // 预览 HTML：编辑后防抖保存再重取预览；仅加载时只取预览不写回
   useEffect(() => {
     if (!version || !data) return;
-    const timer = setTimeout(() => {
-      api
-        .saveResume(version, data)
-        .then(() => api.resumeHtml(version))
-        .then((r) => setHtml(r.html))
-        .catch((e: Error) => setError(e.message));
-    }, 400);
+    const timer = setTimeout(
+      () => {
+        const saved = dirty
+          ? api.saveResume(version, data)
+          : Promise.resolve<unknown>(null);
+        saved
+          .then(() => api.resumeHtml(version))
+          .then((r) => setHtml(r.html))
+          .catch((e: Error) => setError(e.message));
+      },
+      dirty ? 400 : 0
+    );
     return () => clearTimeout(timer);
-  }, [data, version]);
+  }, [data, version, dirty]);
 
   // 防超页护栏：测量预览内容的实际高度
   useEffect(() => {
@@ -92,6 +102,12 @@ export default function Resume() {
     [overflowPx]
   );
 
+  // 用户主动编辑：标记 dirty，触发自动保存与预览刷新
+  const edit = (next: ResumeData) => {
+    setData(next);
+    setDirty(true);
+  };
+
   const save = () => {
     if (!version || !data) return;
     setSaving(true);
@@ -99,6 +115,7 @@ export default function Resume() {
       .saveResume(version, data)
       .then(() => api.listResumeVersions())
       .then((r) => setVersions(r.items))
+      .then(() => setDirty(false))
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
   };
@@ -185,7 +202,7 @@ export default function Resume() {
             </p>
           </div>
           {data ? (
-            <ResumeForm data={data} onChange={setData} />
+            <ResumeForm data={data} onChange={edit} />
           ) : (
             <p className="text-sm text-slate-500">载入中…</p>
           )}

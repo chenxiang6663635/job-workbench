@@ -18,17 +18,18 @@ Web 不是另一套数据，而是同一份文件的另一个视图。这一条�
 
 由此推出一条硬约束：**Web 层不得引入缓存**。缓存会让 Web 与 CLI 看到不同的数据，直接违背"同一数据源"的前提，且这类不一致极难排查。
 
-### 本期做
+### 已交付范围
 
-看板、追踪表、岗位池三个页面，能读写真实文件并持久化。
+原始三页（看板、追踪表、岗位池）已扩展为**五页**（看板 / 追踪表 / 岗位池 / 素材库 / 设置），能读写真实文件并持久化，且在此之上完成了产品化前置（workspace、BYOK、评分下钻、硬门槛前置）。
 
-### 本期不做
+> 状态更新（2026-09）：文档创建时定位"三页原型，暂不打包"，后续已演进——见 `2026-08-31-job-workbench-productization.md` 与 `docs/research/report_dev_setup_benchmark.md`。
+
+### 边界（当前）
 
 | 边界 | 原因 |
 |---|---|
-| 打包与分发 | 用户明确"先原型验证价值，确认好用再决定形态" |
-| 登录、多用户、用户隔离 | 属于分发形态决策之后的事 |
-| JD 解析评分网页化 | 本地 AI CLI 运行在 IDE 里，无法从网页触发；接 LLM API 需 key，留待后续 |
+| 登录、多用户、用户隔离 | 属于分发形态决策之后的事；当前以 workspace 目录隔离代替账号 |
+| JD 解析评分网页化 | 本地 AI CLI 运行在 IDE 里，无法从网页触发；接 LLM API 为 BYOK 增强入口，评分判断仍由 AI/用户 |
 | 简历 PDF 页面 | CLI 已解决，留作后续批次 |
 | 改数据层格式 | Markdown + CSV 刻意保留：git 可 diff、AI 可直接读、Excel 可打开、不锁定用户 |
 
@@ -75,12 +76,16 @@ personal/  Markdown + CSV
 
 | 文件 | 职责 |
 |---|---|
-| `main.py` | FastAPI 入口、CORS、路由挂载、`sys.path` 接入 `tools/` |
-| `deps.py` | `workspace_dir()` 依赖注入、`safe_join()` 路径安全、目录常量 |
+| `main.py` | FastAPI 入口、CORS、路由挂载、`sys.path` 接入 `tools/`；挂载前端 `dist` 静态站点（同源托管）；双击 exe 的三态启动逻辑 |
+| `deps.py` | `workspace_dir()` 依赖注入、`safe_join()` 路径安全、目录常量、默认工作区解析（数据根） |
+| `pathres.py` | 路径解析：解包三层向上 / 打包 `sys.frozen` 双模式；可写数据目录三级 fallback（env→便携→系统用户目录） |
 | `filelock.py` | 跨平台文件锁（Windows `msvcrt` / Unix `fcntl`） |
 | `routers/dashboard.py` | 看板统计 |
-| `routers/applications.py` | 追踪表增删改查 |
+| `routers/applications.py` | 追踪表增删改查（含终态校验、去重、原因必填） |
 | `routers/jobs.py` | 岗位池列表、新建、详情 |
+| `routers/library.py` | 素材库：事实库与简历工坊文件浏览、PDF/图片内联预览 |
+| `routers/provider.py` | BYOK Provider 配置读写（key 脱敏）+ 连通性测试 |
+| `routers/workspace.py` | 列出可用工作区（扫描含 `config/profile.md` 的目录） |
 
 ### 3.2 三个并发与安全问题
 
@@ -133,14 +138,21 @@ def safe_join(workspace, *parts):
 | GET | `/api/dashboard` | 漏斗、方向/批次统计、近七天待办、过期提醒 |
 | GET | `/api/applications` | 列表，支持 `?stage=&direction=&batch=` |
 | POST | `/api/applications` | 新增投递 |
-| PATCH | `/api/applications/{id}` | 更新（仅阶段、下次动作、日期、备注、评分、投递日期、截止日期） |
+| PATCH | `/api/applications/{id}` | 更新（仅阶段、状态原因、下次动作、日期、备注、评分、投递日期、截止日期） |
 | GET | `/api/jobs` | 岗位列表 |
 | POST | `/api/jobs` | 新建岗位（公司、岗位、JD 文本） |
-| GET | `/api/jobs/{job_id}` | 详情（JD 原文 + 解析卡解析结果） |
+| GET | `/api/jobs/{job_id}` | 详情（JD 原文 + 解析卡解析结果，含 `hardGates` 与 `dimensionsDetail`） |
+| GET | `/api/library/facts`、`/api/library/resumes` | 素材库列表（按类型） |
+| GET | `/api/library/{section}/file` | 素材文件（PDF/图片内联预览用相对路径定位） |
+| GET | `/api/workspaces` | 列出可用工作区（含默认标记） |
+| GET/POST | `/api/provider` | Provider 配置读（key 脱敏）/ 写 |
+| POST | `/api/provider/test` | Provider 连通性测试（调 `{base_url}/models`，超时控制） |
 
-`PATCH` 可更新字段与 CLI 的 `UPDATABLE` 保持一致——**公司与岗位不可改**，需改则新建记录并把旧的标为已放弃。
+`PATCH` 可更新字段与 CLI 的 `UPDATABLE` 保持一致——**公司与岗位不可改**，需改则新建记录并把旧的标为已放弃。此外应用层有两条约束（见 5.1）：终态不回退、同公司+岗位去重、进入终态必填状态原因。
 
 服务启动后另有自动生成的交互式文档：`http://localhost:8765/docs`（FastAPI 自带 OpenAPI）。
+
+**同源托管（Electron/打包）**：后端若检测到 `web/frontend/dist/index.html` 存在，则 `app.mount("/", StaticFiles(...))` 托管前端静态产物——页面与 API 同源，无 CORS 问题。这使打包 exe 或 Electron 壳直接 `loadURL('http://127.0.0.1:8765')` 即可。
 
 ### 3.4 dashboard 的实现边界
 
@@ -158,18 +170,22 @@ React + TypeScript + Vite + Tailwind + recharts。
 
 | 文件 | 职责 |
 |---|---|
-| `api.ts` | 类型定义与 API 客户端（统一 `request()` 封装） |
-| `App.tsx` | 导航壳、后端连接状态指示、Tab 切换 |
+| `api.ts` | 类型定义与 API 客户端（统一 `request()` 封装；全局工作区状态驱动 `?ws=` 拼参；Provider/Workspace 类型） |
+| `App.tsx` | 导航壳、后端连接状态指示、**工作区切换下拉**、5 个 Tab |
 | `pages/Dashboard.tsx` | 统计卡片、recharts 漏斗、方向/批次、待办、过期提醒 |
-| `pages/Applications.tsx` | 筛选、表格、行内编辑、新增表单 |
-| `pages/Jobs.tsx` | 卡片列表、建岗表单、详情分栏 |
+| `pages/Applications.tsx` | 筛选、表格、行内编辑（含「状态原因」列）、新增表单 |
+| `pages/Jobs.tsx` | 卡片列表、建岗表单、详情分栏（硬门槛置顶 + 评分四维下钻） |
+| `pages/Library.tsx` | 素材库：事实库 / 简历工坊双 Tab 浏览，PDF/图片内联预览 |
+| `pages/Settings.tsx` | Provider 设置（base_url/key 脱敏/测试连接） |
 | `index.css` | Tailwind 入口 + 深色主题全局样式 |
+
+新增文件：`ErrorBoundary.tsx`（页面兜底防白屏）。
 
 ### 4.2 设计约束
 
 **样式用 Tailwind**，深色主题（ink 色阶 + accent 青蓝），卡片 hover 上浮与光晕微动效，状态色区分（good/warn/bad）。
 
-**空态必须优雅**。`personal/` 初始无数据，三个页面都要显示引导文案而非白屏。空态是真实的第一印象，不是边缘情况。
+**空态必须优雅**。`personal/` 初始无数据，所有数据页都要显示引导文案而非白屏。空态是真实的第一印象，不是边缘情况。
 
 **输入用原生标签**。`input` / `select` / `button`，不用 div 模拟，保证可访问性与表单语义。
 
@@ -183,13 +199,18 @@ React + TypeScript + Vite + Tailwind + recharts。
 
 ### 5.1 追踪表 `personal/05_投递追踪/tracker.csv`
 
-15 字段，UTF-8 **带 BOM**（`utf-8-sig`），Excel 直接打开中文不乱码。
+16 字段，UTF-8 **带 BOM**（`utf-8-sig`），Excel 直接打开中文不乱码。
 
-`id, 公司, 岗位, 方向, 批次, 来源, 截止日期, 投递日期, 当前阶段, 下次动作, 下次动作日期, 简历版本, 评分, 归档目录, 备注`
+`id, 公司, 岗位, 方向, 批次, 来源, 截止日期, 投递日期, 当前阶段, 状态原因, 下次动作, 下次动作日期, 简历版本, 评分, 归档目录, 备注`
 
 阶段枚举：`待投 → 已投 → 笔试 → 一面 → 二面 → 三面 → HR面 → offer → 签约`，终态 `已挂` / `已放弃`。
 
 方向 ID 取决于工作区装入的领域插件（`config/directions/*.md`），**不在前端或后端写死**。
+
+**追踪硬化约束**（`tools/tracker.py` 为单一事实源，CLI/Web 同源）：
+- **终态不回退**：已挂 / 已放弃后「当前阶段」锁定（可补状态原因与备注）
+- **同公司+岗位去重**：重复录入拦截并提示既有记录 id（已有记录为终态时放行，允许挂后再投）
+- **进入终态必填「状态原因」**
 
 ### 5.2 岗位目录
 
@@ -213,6 +234,12 @@ React + TypeScript + Vite + Tailwind + recharts。
 ```
 
 后端解析后返回结构化数据（四维度 + 总分 + 档位 + 加总是否自洽）。未评分或格式不完整时返回 `null`，前端显示"尚未生成解析卡"并说明如何生成——**不报错**。
+
+**一期扩展（差异化点）**，`_parse_card` 额外解析并返回：
+- `hardGates`：资格硬门槛（`## 硬门槛` 区块），含 items/conclusion（通过/不通过/待确认三态）/reason/details，详情页置顶展示于分数之上
+- `dimensionsDetail`：每维度的逐条命中明细（`### 技术匹配 22/30` 等），每条含能力分层（Primary/Secondary/Weak）+ 证据标签（精确/模糊/语义徽章）+ note，实现"总分→四维→逐条"三级下钻
+
+评分判断仍由 AI CLI 写入解析卡，Web 只读展示与下钻，不做评分。
 
 ---
 
@@ -274,4 +301,6 @@ chrome --headless --disable-gpu --virtual-time-budget=8000 \
 1. **提取 dashboard 统计逻辑**：把 upcoming/overdue 判定从 `report.build_report` 中抽出为返回结构化数据的函数，让 CLI 与 Web 共用（避免两处逻辑漂移）
 2. **简历 PDF 页面**：后端已具备能力（`resume_build`），只差前端入口
 3. **JD 评分网页化**：需先决定接入 LLM API 的隐私取舍
-4. **分发形态**：确认好用后再决定桌面应用 / 自托管 / 云端。若走云端，数据层需重新评估（文件存储在多用户场景下不合适）
+4. **免费环境打包落地**：PyInstaller 打包后端 exe 已完成（onedir），Electron 壳整合完成（headless 验证），尚需真实桌面会话验证完整窗口与安装包
+
+> 分发形态决策已落地（桌面壳 Electron + PyInstaller 免环境打包），相关演进见 `docs/specs/2026-08-31-job-workbench-productization.md`。

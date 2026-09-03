@@ -8,7 +8,7 @@
 
 ## 1. 定位变更
 
-v1.0 建的是「某用户的秋招工作台」。用户明确更正：项目目标是**开发一个通用的工作台**，不是只给自己用。
+v1.0 建的是"某位使用者的秋招工作台"。使用者明确更正：项目目标是**开发一个通用的工作台**，不是只给单个使用者用。本项目作为使用者的自用工具，同时要能被泛化复用。
 
 三个决策（用户已定）：
 
@@ -115,7 +115,7 @@ v1.0 脚本硬编码了仓库内的固定路径。v2.0 改为：
 - `resume_build.py` 改为**扫描 `02_简历工坊/pdf/` 下的 `resume_*.html`**，不再硬编码文件名
 - `jd_score.py` 与 `report.py` 本就无硬编码，只需接 `--workspace`
 
-脚本数量维持 5 个：`fix_links.py` 是个人重组的一次性工具，移入 `docs/deprecated/`；新增 `init_workspace.py` 与 `install_skills.py`，净增 1 个，但这两个是通用工具的必要组成（新人上手第一步 + 跨运行时分发）。
+脚本数量维持 **6 个**：`fix_links.py` 是个人重组的一次性工具，移入 `docs/deprecated/`；新增 `init_workspace.py` 与 `install_skills.py`，净增 1 个，但这两个是通用工具的必要组成（新人上手第一步 + 跨运行时分发）。当前 `tools/` 下共 6 个脚本：`init_workspace.py`、`install_skills.py`、`jd_score.py`、`resume_build.py`、`report.py`、`tracker.py`。
 
 ## 7. 跨运行时兼容
 

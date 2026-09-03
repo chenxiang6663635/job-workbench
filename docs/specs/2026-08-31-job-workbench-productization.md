@@ -147,4 +147,38 @@
 2. **Electron spawn 后端测试要用独立进程**（Start-Process），不要用 Start-Job + 过早 Stop-Job 强杀，否则后端来不及起且被连带杀，误判为失败。
 3. `tsc -b`（build mode）比 `npx tsc --noEmit` 更严格，一期的 Jobs.tsx `detail.card` null 隐患在 build 时暴露，已修复。
 
-**遗留/边界**：PyInstaller 免环境打包列为后续 P2b（本机已有 conda Python 可完整验证主链路）；简历版本外键校验未做；Electron 未做正式 `npm run dist` 安装包打包（仅验证主进程链路，需真实桌面会话看窗口）。
+**遗留/边界**：简历版本外键校验未做；Electron 未做正式 `npm run dist` 安装包打包（仅验证主进程链路，需真实桌面会话看窗口）。
+
+---
+
+## P2b 完成（2026-09-01）：PyInstaller 免环境打包 + 双击体验修复
+
+用户确认 a+b 都做、按 `report_dev_setup_benchmark.md` 调研调整方案。改动文件：
+
+| 文件 | 改动 |
+|---|---|
+| `web/backend/pathres.py` | [NEW] 共享路径解析：`resolve_root()`（sys.frozen 双模式：打包=exe 同级/源码=仓库根）、`resolve_dist_dir()`、`resolve_tools_dir()`（_MEIPASS 回退）、`resolve_workspace_root()`（可写数据目录三级 fallback：环境变量→便携模式→系统用户目录，规避 Program Files 不可写） |
+| `web/backend/pyinstaller.spec` | [NEW] onedir 输出（非 onefile，规避解压开销与杀软误报）；uvicorn 全套 hidden imports；tools/ 随包 |
+| `web/backend/main.py` | ROOT/TOOLS/DIST 改走 pathres；`__main__` 加双击三态（端口空闲自动开浏览器 / 复用已有服务 / 被占则人话提示且 `_pause_if_frozen` 防闪退） |
+| `web/backend/deps.py` | ROOT 走 pathres；新增 `data_root()`/`allowed_roots()`（工作区可能落在系统用户目录，越界校验需放行数据根） |
+| `web/backend/routers/workspace.py` | 列表扫描改为双根（ROOT + 数据根） |
+| `web/electron/main.js` | `findBackendExe()` 优先探测打包 exe，回退 python；退出改 `taskkill /f /t` 杀进程树（修孤儿进程） |
+| `web/electron/package.json` | extraResources 改打后端 onedir 到 resources/backend |
+| `scripts/build_backend_exe.ps1` | [NEW] 一键构建（前端 build→PyInstaller→拷 dist→便携标记），补 UTF-8 BOM |
+| `web/start.ps1` | 补 UTF-8 BOM（Windows PowerShell 5.1 对无 BOM 的 UTF-8 按 GBK 误解码破坏中文语法） |
+| `web/frontend/index.html` | 标题「求职工作台」+ lang zh-CN + 移除失效 vite.svg |
+| `docs/usage-guide.md` | 补方式三（exe 运行）、追踪状态原因+终态约束、岗位池硬门槛+评分下钻、设置页、FAQ 4 条；移除违规的个人红线章节 |
+
+**验证（全部实测通过）**：
+- PyInstaller onedir exe 27.5MB；health ok / 静态托管 200 / 便携模式数据隔离（exe 旁 personal 空→jobs 0，符合分发预期）。
+- 回归：dev 流程未破坏（jobs 4/apps 2/dashboard 7/静态 200 全通）。
+- Electron `findBackendExe` Node 单测命中 resources/backend。
+- 双击三态两场景实测：端口被占→复用开浏览器不抢端口；端口空闲→独立启动+自动开浏览器。
+- 用户桌面首验：标签页标题修复、个人数据隔离说明（exe 为干净分发物，自用走 start.ps1）。
+
+**关键排错**：
+1. PyInstaller 6.x 把数据放 `_internal/` → `resolve_tools_dir` 需 `sys._MEIPASS` 回退分支。
+2. spec 里 `SPECPATH` 不可靠 → 用 `os.getcwd()` 计算（打包时 cwd=web/backend）。
+3. `resolve_workspace_root()` 必须返回 personal 的**父目录**，否则拼出 `personal/personal`（曾致 workspaces isDefault 恒 false）。
+4. ps1 含中文必须 UTF-8 BOM（PowerShell 5.1 GBK 误解码）。
+5. 双击失败须 `_pause_if_frozen()` 保持控制台，否则黑窗一闪看不出原因。

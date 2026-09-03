@@ -1,3 +1,13 @@
+export interface StaleItem {
+  id: string;
+  公司: string;
+  岗位: string;
+  当前阶段: string;
+  days: number;
+  since: string;
+  说明: string;
+}
+
 export interface DashboardData {
   total: number;
   active: number;
@@ -13,6 +23,8 @@ export interface DashboardData {
     说明: string;
   }[];
   overdue: { id: string; 公司: string; 岗位: string; 截止日期: string }[];
+  stale: StaleItem[];
+  staleDays: number;
 }
 
 export interface Application {
@@ -32,6 +44,16 @@ export interface Application {
   评分: string;
   归档目录: string;
   备注: string;
+  // 当前阶段已停留天数；无基准日时后端返回空串
+  stageDays?: number | "";
+}
+
+export interface HistoryEntry {
+  时间: string;
+  id: string;
+  字段: string;
+  原值: string;
+  新值: string;
 }
 
 export interface JobSummary {
@@ -100,6 +122,28 @@ export interface WorkspaceItem {
   isDefault: boolean;
 }
 
+export interface ResumeVersion {
+  version: string;
+  size: number;
+  mtime: number;
+  hasPdf: boolean;
+}
+
+export interface ResumeCheck {
+  label: string;
+  value: string;
+  ok: boolean | null;
+}
+
+export interface ResumeBuildResult {
+  version: string;
+  pdf: string;
+  size: number;
+  a4: { ok: boolean; message: string };
+  checks: ResumeCheck[];
+  passed: boolean;
+}
+
 export interface ProviderConfig {
   base_url: string;
   api_key: string;
@@ -165,16 +209,25 @@ export const api = {
     stage?: string;
     direction?: string;
     batch?: string;
+    q?: string;
+    sort?: string;
   }) => {
     const q = new URLSearchParams();
     if (params.stage) q.set("stage", params.stage);
     if (params.direction) q.set("direction", params.direction);
     if (params.batch) q.set("batch", params.batch);
+    if (params.q) q.set("q", params.q);
+    if (params.sort && params.sort !== "default") q.set("sort", params.sort);
     const qs = q.toString();
     return request<{ items: Application[]; total: number }>(
       `/applications${qs ? `?${qs}` : ""}`
     );
   },
+
+  applicationHistory: (id: string) =>
+    request<{ id: string; items: HistoryEntry[]; total: number }>(
+      `/applications/${encodeURIComponent(id)}/history`
+    ),
 
   addApplication: (body: Partial<Application>) =>
     request<{ id: string; item: Application }>("/applications", {
@@ -213,6 +266,31 @@ export const api = {
 
   listWorkspaces: () =>
     request<{ items: WorkspaceItem[]; total: number }>("/workspaces"),
+
+  listResumeVersions: () =>
+    request<{ items: ResumeVersion[]; total: number }>("/resume"),
+
+  getResume: (version: string) =>
+    request<{ version: string; data: Record<string, unknown> }>(
+      `/resume/${encodeURIComponent(version)}`
+    ),
+
+  saveResume: (version: string, data: Record<string, unknown>) =>
+    request<{ version: string; saved: boolean }>(
+      `/resume/${encodeURIComponent(version)}`,
+      { method: "PUT", body: { data } }
+    ),
+
+  resumeHtml: (version: string) =>
+    request<{ version: string; html: string }>(
+      `/resume/${encodeURIComponent(version)}/html`
+    ),
+
+  buildResume: (version: string) =>
+    request<ResumeBuildResult>(
+      `/resume/${encodeURIComponent(version)}/build`,
+      { method: "POST" }
+    ),
 
   getProvider: () => request<ProviderConfig>("/provider"),
 

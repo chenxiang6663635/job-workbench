@@ -18,13 +18,15 @@ from report import count_by, parse_date  # noqa: E402 - report 与 tracker 同�
 
 router = APIRouter(prefix="/api/dashboard")
 
-STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "offer", "签约"]
-TERMINAL = ["已挂", "已放弃"]
+# 阶段枚举以 tracker.py 为单一事实源，此处不复制第二份
+STAGES = tracker.STAGES
+TERMINAL = tracker.TERMINAL_STAGES
 
 
 @router.get("")
-def dashboard(ws: str = Depends(workspace_dir)):
+def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_DAYS):
     rows = tracker.read_rows(ws)
+    history = tracker.read_history(ws)
     total = len(rows)
     today = date.today()
 
@@ -64,6 +66,25 @@ def dashboard(ws: str = Depends(workspace_dir)):
             })
     overdue.sort(key=lambda x: x["截止日期"])
 
+    # 静默提醒（已读不回）：非终态记录里，距最后一次推进超过阈值的
+    # 基准日由 tracker.stage_base_date 决定（阶段变更 → 任意变更 → 投递日期），
+    # 取不到基准日的记录不参与判定——没有依据就不该报警。
+    stale = []
+    for row in rows:
+        if row.get("当前阶段") in TERMINAL:
+            continue
+        days = tracker.stale_days(row, history, today)
+        if days is None or days < stale_days:
+            continue
+        base = tracker.stage_base_date(row, history)
+        stale.append({
+            "id": row.get("id", ""), "公司": row.get("公司", ""),
+            "岗位": row.get("岗位", ""), "当前阶段": row.get("当前阶段", ""),
+            "days": days, "since": base.isoformat() if base else "",
+            "说明": row.get("下次动作", "") or "",
+        })
+    stale.sort(key=lambda x: -x["days"])
+
     return {
         "total": total,
         "active": active,
@@ -72,4 +93,6 @@ def dashboard(ws: str = Depends(workspace_dir)):
         "byBatch": by_batch,
         "upcoming": upcoming,
         "overdue": overdue,
+        "stale": stale,
+        "staleDays": stale_days,
     }

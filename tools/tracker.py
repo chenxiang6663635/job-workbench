@@ -14,6 +14,11 @@
                                  [--batch 提前批] [--due-within 7]
     python tools/tracker.py show --id A001
     python tools/tracker.py update --id A001 --stage 一面 --next "准备项目二口述"
+    python tools/tracker.py history [--id A001] [--limit 20]
+
+变更时间线：每次 add/update 会把字段级差异追加到
+<工作区>/05_投递追踪/history.csv（时间, id, 字段, 原值, 新值），
+供停留天数统计与前端时间线展示使用。
 
 退出码：0 成功，1 失败。
 """
@@ -28,6 +33,7 @@ import re
 import sys
 
 # Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
+from datetime import date, datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
@@ -94,6 +100,141 @@ UPDATABLE = ["当前阶段", "状态原因", "下次动作", "下次动作日期
              "投递日期", "截止日期"]
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# 变更时间线：独立 CSV，主表保持「一行一岗位」的当前状态快照
+HISTORY_FILE = "history.csv"
+HISTORY_FIELDS = ["时间", "id", "字段", "原值", "新值"]
+# 记入时间线的字段。公司与岗位不可改，故不在其中。
+HISTORY_TRACKED = ["当前阶段", "状态原因", "下次动作", "下次动作日期",
+                   "投递日期", "截止日期", "评分", "备注"]
+
+# 静默提醒默认阈值：非终态记录距最后一次推进超过该天数即提示
+STALE_DAYS = 14
+
+
+def parse_iso_date(value):
+    """解析 YYYY-MM-DD，非法返回 None。与 report.parse_date 同规则，
+    但 tracker 不 import report（脚本互不调用，report 才导入 tracker）。
+    """
+    raw = (value or "").strip()
+    if not DATE_RE.match(raw):
+        return None
+    y, m, d = (int(x) for x in raw.split("-"))
+    try:
+        return date(y, m, d)
+    except ValueError:
+        return None
+
+
+def history_path(workspace=None):
+    return os.path.join(resolve_ws(workspace), "05_投递追踪", HISTORY_FILE)
+
+
+def read_history(workspace=None, app_id=None):
+    """读取时间线。按写入顺序（时间升序）返回，app_id 非空时只返回该记录。"""
+    path = history_path(workspace)
+    if not os.path.isfile(path):
+        return []
+    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
+        rows = [dict(row) for row in csv.DictReader(f)]
+    if app_id:
+        rows = [r for r in rows if (r.get("id") or "").strip() == app_id]
+    return rows
+
+
+def append_history(entries, workspace=None):
+    """追加变更条目。entries 为字典列表，键为 id / 字段 / 原值 / 新值。
+
+    新建文件用 utf-8-sig 补 BOM（与主表一致，Excel 中文不乱码）；
+    已有文件改用 utf-8 追加——utf-8-sig 每次 open 都会写 BOM，
+    在追加场景下会把 BOM 插进文件中间。
+    """
+    if not entries:
+        return 0
+    path = history_path(workspace)
+    directory = os.path.dirname(path)
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+
+    is_new = not os.path.isfile(path) or os.path.getsize(path) == 0
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with io.open(path, "w" if is_new else "a",
+                 encoding="utf-8-sig" if is_new else "utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=HISTORY_FIELDS,
+                                extrasaction="ignore", restval="")
+        if is_new:
+            writer.writeheader()
+        for entry in entries:
+            row = {"时间": now, "id": entry.get("id", ""), "字段": entry.get("字段", ""),
+                   "原值": entry.get("原值", ""), "新值": entry.get("新值", "")}
+            writer.writerow(row)
+    return len(entries)
+
+
+def diff_entries(app_id, old_row, new_row, fields=None):
+    """对比两行，返回有变化的字段条目列表（空列表表示无变化）。"""
+    out = []
+    for field in (fields or HISTORY_TRACKED):
+        before = ((old_row or {}).get(field) or "").strip()
+        after = ((new_row or {}).get(field) or "").strip()
+        if before != after:
+            out.append({"id": app_id, "字段": field, "原值": before, "新值": after})
+    return out
+
+
+def _history_date(entries, app_id, field=None):
+    """取某记录最后一次变更（或最后一次指定字段变更）的日期。"""
+    best = None
+    for entry in entries:
+        if (entry.get("id") or "").strip() != app_id:
+            continue
+        if field and (entry.get("字段") or "").strip() != field:
+            continue
+        when = parse_iso_date((entry.get("时间") or "")[:10])
+        if when and (best is None or when > best):
+            best = when
+    return best
+
+
+def last_stage_change_date(app_id, entries):
+    """最后一次「当前阶段」变更日期，无则 None。"""
+    return _history_date(entries, app_id, "当前阶段")
+
+
+def last_activity_date(app_id, entries):
+    """最后一次任意变更日期（含创建），无则 None。"""
+    return _history_date(entries, app_id)
+
+
+def stage_base_date(row, entries, app_id=None):
+    """停留天数的基准日，按优先级回退。
+
+    最后一次阶段变更 → 投递日期 → 最后一次任意变更 → None。
+
+    投递日期排在「任意变更」之前：投递日期是用户声明的流程起点，
+    而「任意变更」里包含记录录入时间——补录一条一个月前投的岗位时，
+    若以录入时间为准就永远不会触发静默提醒，与语义相反。
+    「任意变更」只在既无阶段变更、又没填投递日期时兜底。
+
+    旧数据没有 history.csv 时自动退到投递日期，不需要迁移。
+    """
+    app_id = app_id or (row.get("id") or "").strip()
+    when = last_stage_change_date(app_id, entries)
+    if when:
+        return when
+    when = parse_iso_date(row.get("投递日期"))
+    if when:
+        return when
+    return last_activity_date(app_id, entries)
+
+
+def stale_days(row, entries, today=None):
+    """当前阶段已停留天数。无基准日返回 None（不参与静默判定）。"""
+    base = stage_base_date(row, entries)
+    if base is None:
+        return None
+    today = today or date.today()
+    return (today - base).days
 
 
 def read_rows(workspace=None):
@@ -248,6 +389,9 @@ def cmd_add(args):
     })
     rows.append(row)
     write_rows(rows)
+    # 时间线：新建也入账，作为停留天数与首次活动的基准
+    append_history([{"id": new_id, "字段": "创建", "原值": "",
+                     "新值": "%s %s（%s）" % (args.company, args.role, args.stage)}])
 
     print("## 已写入\n")
     print("| 字段 | 值 |")
@@ -300,6 +444,7 @@ def cmd_update(args):
         return 1
 
     changes = []
+    before = dict(target)
     mapping = [
         ("当前阶段", args.stage), ("状态原因", args.reason), ("下次动作", args.next),
         ("下次动作日期", args.next_date), ("备注", args.note),
@@ -320,6 +465,7 @@ def cmd_update(args):
         return 1
 
     write_rows(rows)
+    append_history(diff_entries(args.id, before, target))
     print("## 已更新 %s（%s %s）\n" % (args.id, target.get("公司", ""), target.get("岗位", "")))
     print("| 字段 | 原值 | 新值 |")
     print("|---|---|---|")
@@ -419,6 +565,27 @@ def cmd_show(args):
     return 1
 
 
+def cmd_history(args):
+    entries = read_history(app_id=args.id)
+    if not entries:
+        print("（暂无变更记录%s）" % ("：%s" % args.id if args.id else ""))
+        return 0
+
+    # 倒序展示：最近的变更在最上面
+    entries = list(reversed(entries))
+    if args.limit and args.limit > 0:
+        entries = entries[:args.limit]
+
+    print("## 变更时间线（共 %d 条）\n" % len(entries))
+    print("| 时间 | id | 字段 | 原值 | 新值 |")
+    print("|---|---|---|---|---|")
+    for e in entries:
+        print("| %s | %s | %s | %s | %s |" % (
+            e.get("时间", ""), e.get("id", ""), e.get("字段", ""),
+            e.get("原值", "") or "（空）", e.get("新值", "") or "（空）"))
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description="投递追踪表增删查改")
     parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
@@ -468,6 +635,10 @@ def build_parser():
     p_show = sub.add_parser("show", help="查看单条记录")
     p_show.add_argument("--id", required=True, help="记录 id")
 
+    p_hist = sub.add_parser("history", help="查看变更时间线")
+    p_hist.add_argument("--id", help="只看某条记录，省略则看全部")
+    p_hist.add_argument("--limit", type=int, help="只显示最近 N 条")
+
     return parser
 
 
@@ -491,6 +662,7 @@ def main():
         "update": cmd_update,
         "list": cmd_list,
         "show": cmd_show,
+        "history": cmd_history,
     }
     return handlers[args.cmd](args)
 

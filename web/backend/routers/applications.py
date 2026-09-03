@@ -4,11 +4,15 @@
 复用 tools/tracker.py 的读写与校验函数（read_rows/write_rows/check_date/
 check_direction/next_id/sort_key），Web 层只做 HTTP 编排与文件锁。
 写操作全部持锁——write_rows 是全量重读重写，并发会互相覆盖。
+
+变更时间线：写操作在锁内调用 tracker.append_history 落 history.csv，
+时间线的读写与停留天数计算全部由 tracker.py 提供，此处不重复实现。
 """
 
 from __future__ import annotations
 
 import os
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -24,6 +28,9 @@ UPDATABLE = tracker.UPDATABLE
 
 STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "offer", "签约"]
 TERMINAL = tracker.TERMINAL_STAGES
+
+# 排序键。default 与 CLI 的 list 一致（终态沉底、按下次动作日期升序）
+SORTS = ["default", "next", "score", "stale"]
 
 
 class NewApplication(BaseModel):
@@ -61,6 +68,57 @@ def _find(rows, app_id):
     return None
 
 
+def _score(row):
+    """评分在 CSV 里是字符串，转 int 失败按 0 处理（比让排序崩溃好）。"""
+    try:
+        return int(str(row.get("评分") or "").strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def _match_keyword(row, keyword):
+    if not keyword:
+        return True
+    k = keyword.strip().lower()
+    if not k:
+        return True
+    for field in ("公司", "岗位", "备注"):
+        if k in (row.get(field) or "").lower():
+            return True
+    return False
+
+
+def _with_stage_days(rows, ws):
+    """给每行附加 stageDays（当前阶段停留天数）。
+
+    构造新 dict 返回，不写到行对象上——rows 会原样传回 write_rows，
+    附加字段混进去虽会被 extrasaction 忽略，但让它根本不出现更安全。
+    """
+    entries = tracker.read_history(ws)
+    out = []
+    for row in rows:
+        item = dict(row)
+        days = tracker.stale_days(row, entries)
+        item["stageDays"] = days if days is not None else ""
+        out.append(item)
+    return out
+
+
+def _sort_items(items, sort):
+    if sort == "score":
+        items.sort(key=lambda r: (-_score(r), r.get("id", "")))
+    elif sort == "stale":
+        # 无基准日（空串）排在最后
+        items.sort(key=lambda r: (-(r["stageDays"] if isinstance(r["stageDays"], int) else -1),
+                                  r.get("id", "")))
+    elif sort == "next":
+        items.sort(key=lambda r: (0 if (r.get("下次动作日期") or "").strip() else 1,
+                                  (r.get("下次动作日期") or ""), r.get("id", "")))
+    else:
+        items.sort(key=tracker.sort_key)
+    return items
+
+
 def _validate_dates(app: NewApplication):
     for value, label in ((app.截止日期, "截止日期"), (app.投递日期, "投递日期"),
                          (app.下次动作日期, "下次动作日期")):
@@ -82,6 +140,11 @@ def list_applications(
     stage: str = None,
     direction: str = None,
     batch: str = None,
+    q: str = None,
+    sort: str = "default",
+    active: str = None,
+    due_within: int = None,
+    overdue: str = None,
     ws: str = Depends(workspace_dir),
 ):
     rows = tracker.read_rows(ws)
@@ -91,9 +154,50 @@ def list_applications(
         rows = [r for r in rows if r.get("方向") == direction]
     if batch:
         rows = [r for r in rows if r.get("批次") == batch]
-    # 终态沉底，其余按下次动作日期升序（与 CLI list 一致）
-    rows.sort(key=tracker.sort_key)
-    return {"items": rows, "total": len(rows)}
+    if q and q.strip():
+        rows = [r for r in rows if _match_keyword(r, q)]
+
+    # 看板下钻用的三种筛选。与 dashboard 的统计口径保持一致：
+    # active = 非终态；overdue = 待投且已过截止日；due_within = 未来 N 天内到期
+    if active and active.lower() in ("1", "true"):
+        rows = [r for r in rows if r.get("当前阶段") not in TERMINAL]
+    if overdue and overdue.lower() in ("1", "true"):
+        today = date.today()
+        rows = [r for r in rows
+                if r.get("当前阶段") == "待投"
+                and tracker.parse_iso_date(r.get("截止日期"))
+                and tracker.parse_iso_date(r.get("截止日期")) < today]
+    if due_within is not None and due_within >= 0:
+        today = date.today()
+        limit = today + timedelta(days=due_within)
+        kept = []
+        for r in rows:
+            for field in ("下次动作日期", "截止日期"):
+                when = tracker.parse_iso_date(r.get(field))
+                if when and today <= when <= limit:
+                    kept.append(r)
+                    break
+        rows = kept
+
+    items = _with_stage_days(rows, ws)
+    # 未知排序键回退默认，不报错——前端传参可能来自 URL，容错比严格更好
+    items = _sort_items(items, sort if sort in SORTS else "default")
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/{app_id}/history")
+def application_history(app_id: str, limit: int = 50,
+                        ws: str = Depends(workspace_dir)):
+    """某条记录的变更时间线，倒序返回（最新在前）。"""
+    rows = tracker.read_rows(ws)
+    if _find(rows, app_id) is None:
+        raise HTTPException(status_code=404, detail="找不到 id 为 %s 的记录" % app_id)
+
+    entries = tracker.read_history(ws, app_id=app_id)
+    entries = list(reversed(entries))
+    if limit and limit > 0:
+        entries = entries[:limit]
+    return {"id": app_id, "items": entries, "total": len(entries)}
 
 
 @router.post("")
@@ -139,6 +243,11 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
         })
         rows.append(row)
         tracker.write_rows(rows, ws)
+        # 与 CLI 的 add 保持一致：新建也入账，作为停留天数与首次活动的基准
+        tracker.append_history([{
+            "id": row["id"], "字段": "创建", "原值": "",
+            "新值": "%s %s（%s）" % (row["公司"], row["岗位"], row["当前阶段"]),
+        }], ws)
 
     return {"id": row["id"], "item": row}
 
@@ -186,8 +295,10 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
         if errs:
             raise HTTPException(status_code=422, detail=errs[0])
 
+        before = dict(target)
         for k, v in updates.items():
             target[k] = str(v)
         tracker.write_rows(rows, ws)
+        tracker.append_history(tracker.diff_entries(app_id, before, target), ws)
 
     return {"item": target}

@@ -25,3 +25,20 @@ web/backend/build/
 
 # 简历 PDF、照片、预览图均为交付物，纳入版本管理，不在此忽略
 # .codebuddy 目录含命令定义、技能文件与工作记忆，纳入版本管理
+
+# 本地验证用的临时工作区（fake 数据），不进版本管理；personal 才是真实工作区
+test_ws/
+
+# 开发辅助工具的本地索引产物（运行时生成，clone 后跑 scripts/index_dev_tools.ps1 重建）
+# 均可能含数十 MB 解析缓存，不进版本管理；另注意：这些目录索引的是本机个人工作区的代码，
+# 别把包含 personal/ 的整份 .gitnexus/.codegraph 随意分享
+.gitnexus/
+.codegraph/
+graphify-out/
+
+# install_skills.py 分发到各 AI CLI 的 skill 副本（单一源在 skills/，.codebuddy/skills 随仓库）
+# 以及 AI 计划工具的临时产物——都是运行生成，进 git 只会制造 untracked 噪音
+.agents/
+.claude/
+.codex/
+.codebuddy/plans/

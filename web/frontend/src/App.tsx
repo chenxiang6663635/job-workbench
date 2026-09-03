@@ -1,21 +1,34 @@
 import { useEffect, useState } from "react";
-import { Briefcase, FolderOpen, LayoutDashboard, Library as LibraryIcon, Settings as SettingsIcon } from "lucide-react";
+import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, Settings as SettingsIcon } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
 import Jobs from "./pages/Jobs";
 import Library from "./pages/Library";
+import Resume from "./pages/Resume";
 import Settings from "./pages/Settings";
 import { api, setWorkspace, type WorkspaceItem } from "./api";
 
-type Tab = "dashboard" | "applications" | "jobs" | "library" | "settings";
+type Tab = "dashboard" | "applications" | "jobs" | "resume" | "library" | "settings";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "dashboard", label: "看板", icon: <LayoutDashboard size={16} /> },
   { key: "applications", label: "追踪表", icon: <Briefcase size={16} /> },
   { key: "jobs", label: "岗位池", icon: <FolderOpen size={16} /> },
+  { key: "resume", label: "简历工坊", icon: <FileText size={16} /> },
   { key: "library", label: "素材库", icon: <LibraryIcon size={16} /> },
   { key: "settings", label: "设置", icon: <SettingsIcon size={16} /> },
 ];
+
+const WS_STORAGE_KEY = "jobws_selected_workspace";
+
+// 上次选中的工作区持久化到 localStorage。没有记录时用空串（= 后端默认）
+function readSavedWorkspace(): string {
+  try {
+    return localStorage.getItem(WS_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
 
 function tabFromHash(): Tab {
   const h = window.location.hash.replace("#", "");
@@ -28,10 +41,9 @@ export default function App() {
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [online, setOnline] = useState<boolean | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
-  const [currentWs, setCurrentWs] = useState<string>(() => {
-    // 初始值：从后端默认工作区推断。真正值在加载列表后回填。
-    return "";
-  });
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  // 初始值：优先上次选中的工作区（localStorage），否则空串待列表加载后回填
+  const [currentWs, setCurrentWs] = useState<string>(readSavedWorkspace);
 
   const switchTab = (t: Tab) => {
     setTab(t);
@@ -53,26 +65,44 @@ export default function App() {
       .catch(() => setOnline(false));
   }, []);
 
-  // 加载可用工作区，并把默认工作区设为当前选中
+  // 加载可用工作区，并把当前选中的工作区设为激活态（同步 api.ts 全局）。
+  // 完成后置 workspaceReady=true 才渲染内容区，消除首屏用空 ws 拉默认数据的竞态。
+  // 优先 localStorage 里上次的选择；无效或无记录时回退默认工作区。
   useEffect(() => {
     api
       .listWorkspaces()
       .then((r) => {
         setWorkspaces(r.items);
-        const def = r.items.find((w) => w.isDefault);
-        if (def) {
-          setCurrentWs(def.name);
-          setWorkspace(def.name);
+        const saved = readSavedWorkspace();
+        const match = r.items.find((w) => w.name === saved);
+        if (match) {
+          setCurrentWs(match.name);
+          setWorkspace(match.name);
+        } else {
+          const def = r.items.find((w) => w.isDefault);
+          if (def) {
+            setCurrentWs(def.name);
+            setWorkspace(def.name);
+          }
         }
+        setWorkspaceReady(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        setWorkspaceReady(true); // 即便列工作区失败也放行，避免永久卡在加载中
+      });
   }, []);
 
-  // 切换工作区：更新全局并刷新页面（各页面在 mount 时按 currentWorkspace 拉数据）
+  // 切换工作区：持久化选择并刷新页面（各页面在 mount 时按 currentWorkspace 拉数据）。
+  // reload 后从 localStorage 恢复，避免丢回默认工作区。
   const switchWorkspace = (name: string) => {
     if (name === currentWs) return;
     setWorkspace(name);
     setCurrentWs(name);
+    try {
+      localStorage.setItem(WS_STORAGE_KEY, name);
+    } catch {
+      // localStorage 不可用时退化为仅本次会话有效
+    }
     window.location.reload();
   };
 
@@ -156,16 +186,22 @@ export default function App() {
               </code>
             </p>
           </div>
+        ) : !workspaceReady ? (
+          // 工作区尚未激活（listWorkspaces 返回前）：避免首屏用空 ws 拉默认数据，
+          // 否则切到非默认工作区 reload 后会先渲染一次默认工作区数据，产生闪烁
+          <div className="text-sm text-slate-400">正在定位工作区…</div>
         ) : tab === "dashboard" ? (
-          <Dashboard />
+          <Dashboard key={currentWs} />
         ) : tab === "applications" ? (
-          <Applications />
+          <Applications key={currentWs} />
         ) : tab === "jobs" ? (
-          <Jobs />
+          <Jobs key={currentWs} />
+        ) : tab === "resume" ? (
+          <Resume key={currentWs} />
         ) : tab === "library" ? (
-          <Library />
+          <Library key={currentWs} />
         ) : (
-          <Settings />
+          <Settings key={currentWs} />
         )}
       </main>
     </div>

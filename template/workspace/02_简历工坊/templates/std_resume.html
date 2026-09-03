@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>求职简历</title>
+<style>
+  /* A4 一页。实测：必须显式声明 @page size:A4，否则默认 Letter(612×792)，
+     破坏一页判定。此文件是「标准版式」数据驱动模板，区块由 JSON 字段驱动。 */
+  @page { size: A4; margin: 10mm 13mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "微软雅黑", "SimSun", sans-serif;
+    font-size: 9.6pt; line-height: 1.38; color: #1a1a1a;
+  }
+  .header { border-bottom: 2px solid #2c5f8d; padding-bottom: 6px; margin-bottom: 9px; }
+  h1 { font-size: 18pt; letter-spacing: 2px; }
+  .contact { font-size: 8.6pt; color: #555; margin-top: 3px; }
+  .intent { margin: 5px 0 0; font-size: 9.6pt; color: #2c5f8d; font-weight: 600; }
+  h2 { font-size: 10.5pt; color: #2c5f8d; margin: 8px 0 4px; border-left: 3px solid #2c5f8d;
+       padding-left: 6px; }
+  .item { margin-bottom: 6px; }
+  .item-head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; }
+  .meta { font-size: 8.6pt; color: #555; margin-top: 1px; }
+  .role { font-size: 8.6pt; color: #555; font-style: italic; }
+  ul { margin: 3px 0 0 16px; }
+  li { margin-bottom: 2px; text-align: justify; }
+  .skills div { margin-bottom: 2px; }
+  .label { font-weight: 700; }
+  .awards { font-size: 9.6pt; line-height: 1.5; }
+  .profile { font-size: 9.4pt; line-height: 1.4; text-align: justify; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>{{basics.name}}</h1>
+  <div class="contact">{{basics.phone}}{{contact_sep}}{{basics.email}}{{contact_sep2}}{{basics.location}}</div>
+  {{intent_block}}
+</div>
+
+{{profile_block}}
+
+{{education_block}}
+
+{{projects_block}}
+
+{{work_block}}
+
+{{skills_block}}
+
+{{extras_block}}
+
+</body>
+</html>

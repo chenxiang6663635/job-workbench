@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-"""素材库：简历工坊与事实库的文件列表与内容查看。
+"""素材库：事实库的文件列表与内容查看。
 
-只读——简历 md、事实卡 md、PDF、HTML 都由 CLI / AI 生成，
-Web 只负责展示，不做编辑。保持"判断由 AI 做，脚本只做 IO"的边界。
+只读——事实卡 md 由 CLI / AI 生成，Web 只负责展示，不做编辑。
+保持"判断由 AI 做，脚本只做 IO"的边界。
+
+简历相关文件（手写 HTML / 生成 PDF / 数据驱动 JSON）已于 2026-09-03
+整体迁往简历工坊（/api/resume/templates），素材库不再重复展示。
 """
 
 from __future__ import annotations
@@ -16,7 +19,6 @@ from deps import safe_join, workspace_dir
 router = APIRouter(prefix="/api/library")
 
 FACT_DIR = "00_事实库"
-RESUME_DIR = "02_简历工坊"
 
 # md 之外可查看的文本类文件
 TEXT_EXT = {".md", ".txt", ".html"}
@@ -49,25 +51,18 @@ def _list_files(base, recursive):
 
 @router.get("/{section}")
 def list_library(section: str, ws: str = Depends(workspace_dir)):
-    if section == "facts":
-        base = safe_join(ws, FACT_DIR)
-    elif section == "resumes":
-        base = safe_join(ws, RESUME_DIR)
-    else:
+    if section != "facts":
         raise HTTPException(status_code=404, detail="未知素材库分类: %s" % section)
-
+    base = safe_join(ws, FACT_DIR)
     items = _list_files(base, recursive=True)
     return {"section": section, "items": items, "total": len(items)}
 
 
 @router.get("/{section}/content")
 def library_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
-    if section == "facts":
-        base_rel = FACT_DIR
-    elif section == "resumes":
-        base_rel = RESUME_DIR
-    else:
+    if section != "facts":
         raise HTTPException(status_code=404, detail="未知素材库分类: %s" % section)
+    base_rel = FACT_DIR
 
     full = safe_join(ws, base_rel, rel)
     if not os.path.isfile(full):
@@ -88,12 +83,9 @@ def library_file(section: str, rel: str, ws: str = Depends(workspace_dir)):
 
     通过 /api/library/{section}/file?rel=... 提供原始字节。
     """
-    if section == "facts":
-        base_rel = FACT_DIR
-    elif section == "resumes":
-        base_rel = RESUME_DIR
-    else:
+    if section != "facts":
         raise HTTPException(status_code=404, detail="未知素材库分类: %s" % section)
+    base_rel = FACT_DIR
 
     full = safe_join(ws, base_rel, rel)
     if not os.path.isfile(full):

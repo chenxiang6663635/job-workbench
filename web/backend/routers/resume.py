@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""简历工坊：标准版式的数据读写、预览与生成。
+"""简历工坊：标准版式编辑 + 高级模板只读浏览。
 
-路线 A：数据驱动只服务一份「标准版式」，现有手写 HTML 的精排版本
-（高级模板）不由此接管，仍在素材库里只读浏览、由 CLI 生成。
+双职责（2026-09-03 信息架构调整，简历相关能力全部收拢到此路由）：
+- 标准版式：resume_<版本>.json 的读写、预览与生成（数据驱动）
+- 高级模板：手写 HTML 精排版的文件浏览（只读）与生成——原在素材库，
+  现迁入此处；编辑仍走手写 HTML / CLI，Web 不提供编辑。
 
 复用 tools/resume_build.py 的 render_block / build_pdf / verify_pdf，
 此处只做 HTTP 编排与文件锁，不重写渲染与校验逻辑。
@@ -14,7 +16,7 @@ import io
 import json
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 import resume_build
@@ -26,6 +28,9 @@ router = APIRouter(prefix="/api/resume")
 # 数据驱动文件所在子目录；PDF 输出沿用现有 pdf/ 目录
 DIR_SOURCE = "source"
 DIR_PDF = "pdf"
+
+# 高级模板浏览：md/html 之外按二进制（PDF/图片）处理
+TEMPLATE_TEXT_EXT = {".md", ".txt", ".html"}
 
 
 class ResumeData(BaseModel):
@@ -80,6 +85,120 @@ def list_versions(ws: str = Depends(workspace_dir)):
                 "hasPdf": os.path.isfile(pdf_path),
             })
     return {"items": items, "total": len(items)}
+
+
+# ---------------------------------------------------------------------------
+# 高级模板（手写 HTML 精排版）：只读浏览 + 生成。
+# 原为素材库的「简历工坊」分类，2026-09-03 收拢到简历域（/api/resume/templates）。
+# 编辑仍走手写 HTML / CLI，Web 不提供编辑入口。
+# 注意：这些具体路由必须注册在 /{version} 之前，否则 GET /templates 会被
+# 动态参数路由抢先匹配成 version="templates"。
+# ---------------------------------------------------------------------------
+
+
+def _resume_dir(ws):
+    return safe_join(ws, DIR_RESUME)
+
+
+def _list_template_files(base):
+    if not os.path.isdir(base):
+        return []
+    out = []
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if not d.startswith("__")]
+        for name in sorted(files):
+            if name.startswith("."):
+                continue
+            # source/ 是标准版式的数据（编辑器管），不进高级模板浏览
+            rel = os.path.relpath(os.path.join(root, name), base)
+            if rel.split(os.sep)[0] == DIR_SOURCE or name.endswith(".lock"):
+                continue
+            full = os.path.join(root, name)
+            out.append({
+                "rel": rel.replace("\\", "/"),
+                "name": name,
+                "size": os.path.getsize(full),
+                "mtime": int(os.path.getmtime(full)),
+                "kind": "text" if os.path.splitext(name)[1].lower() in TEMPLATE_TEXT_EXT else "binary",
+            })
+    out.sort(key=lambda x: x["rel"])
+    return out
+
+
+@router.get("/templates")
+def list_templates(ws: str = Depends(workspace_dir)):
+    items = _list_template_files(_resume_dir(ws))
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/templates/content")
+def template_content(rel: str, ws: str = Depends(workspace_dir)):
+    full = safe_join(ws, DIR_RESUME, rel)
+    if not os.path.isfile(full):
+        raise HTTPException(status_code=404, detail="文件不存在: %s" % rel)
+    if os.path.splitext(rel)[1].lower() not in TEMPLATE_TEXT_EXT:
+        return {"rel": rel, "type": "binary"}
+    with io.open(full, "r", encoding="utf-8") as f:
+        return {"rel": rel, "type": "text", "content": f.read()}
+
+
+@router.get("/templates/file/{rel:path}")
+def template_file(rel: str, ws: str = Depends(workspace_dir)):
+    """文件原始字节。用路径参数而非 query——iframe 里 HTML 的相对资源
+    （如 photo.jpg）由浏览器按同路径解析，路径式端点才能命中。
+    """
+    full = safe_join(ws, DIR_RESUME, rel)
+    if not os.path.isfile(full):
+        raise HTTPException(status_code=404, detail="文件不存在: %s" % rel)
+
+    ext = os.path.splitext(rel)[1].lower()
+    if ext == ".pdf":
+        media_type = "application/pdf"
+    elif ext in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+        media_type = "image/%s" % ext.lstrip(".")
+    elif ext == ".html":
+        media_type = "text/html"
+    else:
+        media_type = "application/octet-stream"
+
+    with open(full, "rb") as f:
+        data = f.read()
+    # 不设 Content-Disposition：中文文件名放 header 会触发 latin-1 编码异常，
+    # 这里是内联预览（iframe / img），浏览器用 URL 定位即可
+    return Response(content=data, media_type=media_type)
+
+
+@router.post("/templates/{version}/build")
+def build_template(version: str, ws: str = Depends(workspace_dir)):
+    """手写 HTML 高级模板 → PDF + ATS 校验（与 CLI 无子命令路径同源）。"""
+    _check_version(version)
+    browser = resume_build.find_browser()
+    if not browser:
+        raise HTTPException(status_code=500, detail="未找到 Chrome 或 Edge，无法生成 PDF")
+
+    pdf_dir = _pdf_dir(ws)
+    html_path = os.path.join(pdf_dir, "resume_%s.html" % version)
+    if not os.path.isfile(html_path):
+        raise HTTPException(status_code=404, detail="找不到手写模板: resume_%s.html" % version)
+
+    with file_lock(_lock_path(ws)):
+        pdf_path = os.path.join(pdf_dir, "简历_%s.pdf" % version)
+        ok = resume_build.build_pdf(browser, html_path, pdf_path)
+        if not ok:
+            raise HTTPException(status_code=500, detail="PDF 未生成（浏览器打印失败或超时）")
+
+        a4_ok, a4_msg = resume_build.check_a4_mediabox(pdf_path)
+        facts_file = os.path.join(ws, "config", "ats_required_facts.txt")
+        passed, details = resume_build.verify_pdf(pdf_path, facts_file=facts_file)
+
+        return {
+            "version": version,
+            "pdf": os.path.relpath(pdf_path, ws).replace("\\", "/"),
+            "size": os.path.getsize(pdf_path),
+            "a4": {"ok": a4_ok, "message": a4_msg},
+            "checks": [{"label": l, "value": v, "ok": o} for l, v, o in details],
+            "passed": bool(passed and a4_ok),
+        }
 
 
 @router.get("/{version}")

@@ -1,0 +1,30 @@
+{
+  "_comment": "求职工作台开发辅助工具（MCP）配置样板。这些是「开发期」工具（代码图谱/影响面分析/UI 验证），不是产品运行时依赖——终端用户不需要。要启用，复制本文件内容到你用户级 ~/.codebuddy/mcp.json（Windows: C:\\Users\\<你>\\.codebuddy\\mcp.json）的 mcpServers 下，并把含 <你> 的路径改成你的真实路径。",
+  "mcpServers": {
+    "GitNexus": {
+      "_comment": "代码图谱 MCP。对每个仓库各生成一份 .gitnexus/ 索引（本仓库已建，可用 scripts/index_dev_tools.ps1 重建）。入口 run.cjs 是某个已索引仓库里的 MCP 启动器，它会读全局注册表，故可服务多个仓库。首次索引：gitnexus analyze <仓库> --index-only",
+      "timeout": 60000,
+      "command": "node",
+      "args": ["<你的某个已索引仓库绝对路径>/.gitnexus/run.cjs", "mcp"],
+      "type": "stdio",
+      "disabled": false
+    },
+    "CodeGraph": {
+      "_comment": "代码智能图 MCP。全局装 @colbymchenry/codegraph 后，在仓库内 codegraph init 建 .codegraph/ 索引。",
+      "timeout": 60000,
+      "command": "codegraph",
+      "args": ["serve", "--mcp"],
+      "type": "stdio",
+      "disabled": false
+    },
+    "Playwright MCP Server": {
+      "_comment": "浏览器 UI 自动化（开发时点页面做验证用）。按需 npx 拉取，无需预装。",
+      "timeout": 60000,
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"],
+      "type": "stdio",
+      "disabled": false
+    }
+  },
+  "_privacy": "这些索引会含本机个人工作区的代码结构（含 personal/ 下的部分文件名）。.gitnexus/ .codegraph/ 已 gitignore，分享仓库前无需担心；但别把这两个索引目录本体外发。"
+}

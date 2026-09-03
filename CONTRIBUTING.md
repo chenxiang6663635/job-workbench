@@ -78,6 +78,30 @@
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
 
+## 开发辅助工具（MCP / 代码图谱，开发者与 AI 用，非产品）
+
+项目区分**产品运行时依赖**（终端用户跑起来需要：浏览器 + Chrome + `tools/` 脚本 + Web 层）
+与**开发辅助**（开发者在写代码时借力的工具：GitNexus 影响面分析、CodeGraph 代码图、
+Playwright 点页面验证）。前者在仓库里、随项目交付；后者是**开发者个人环境**的工具，
+不进产品链路。因此"CONTRIBUTING 提到 GitNexus/Playwright"与"产品不含它们"不矛盾。
+
+若要在本仓库开发时用上代码图谱工具，索引是**按仓库生成**的运行时产物，已被 `.gitignore`
+排除（`.gitnexus/`、`.codegraph/`），clone / 换机后跑一次重建：
+
+```
+powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
+```
+
+前提是全局装好 `gitnexus` 与 `@colbymchenry/codegraph`（`npm i -g ...`）。MCP 声明样板见
+`.codebuddy/mcp.example.json`——复制到用户级 `~/.codebuddy/mcp.json` 并替换其中的路径占位符。
+
+**隐私提醒**：本仓库含 `personal/`（真实简历、联系方式）。代码图谱索引会把部分文件名/符号
+记进 `.gitnexus/`/`.codegraph/`（本机缓存）。这两个目录已 gitignore 不会进仓库，但**别把它们
+本体外发**；索引进展用 `gitnexus list`、`codegraph status` 查看。
+
+注意：产品侧 `CONTRIBUTING` 明确不做 Playwright **E2E 测试**（见下节），那是"把 UI 自动化
+写进 CI/测试套件"的取舍；开发时**用 Playwright 手动点一次页面做验证**不属此列，不受限。
+
 ## 明确不做（过度工程）
 
 `develop`/`release`/`hotfix` 分支、CI、分支保护、PR 自审、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、Playwright E2E、代码签名。

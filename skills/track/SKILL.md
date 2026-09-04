@@ -31,6 +31,23 @@ python tools/report.py --stdout                   # 只打印不写文件
 正常流转：`待投 → 已投 → 笔试 → 一面 → 二面 → 三面 → HR面 → offer → 签约`
 终态：`已挂` / `已放弃`
 
+## 面试记录
+
+面试与岗位是一对多，存独立文件 `05_投递追踪/interviews.csv`（`面试id` 从 I001 起，`关联记录` 外键指回 tracker.csv），**不改主表结构**。记录面试会自动在主表时间线入账一条「面试」变更。
+
+```
+python tools/tracker.py interview add --app A001 --round 一面 --when "2026-09-08 14:00" --form 视频 --interviewer 张工 --questions "..." --answers "..." --retro "..."
+python tools/tracker.py interview add --company 某内推公司 --role 热力仿真 --round 笔试   # 未投递的面试也可记录
+python tools/tracker.py interview list                    # 时间倒序
+python tools/tracker.py interview list --app A001         # 只看某岗位的面试
+python tools/tracker.py interview show --id I001
+python tools/tracker.py interview update --id I001 --result 通过 --retro "..."
+```
+
+- 轮次：笔试 / 一面 / 二面 / 三面 / HR面 / 终面 / 其他；形式：现场 / 视频 / 电话 / 其他；结果：待定 / 通过 / 未通过 / 取消
+- 关联了记录时公司/岗位自动从主表带出，不必重复输入
+- Web 端「进展」页可录入面试并导出 `.ics` 日程（提前 1 小时提醒）
+
 ## 字段约束
 
 | 字段 | 取值 |

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 
 import tracker
 from deps import workspace_dir
-from report import count_by, parse_date  # noqa: E402 - report 与 tracker 同目录
+from report import count_by, parse_date, retrospective  # noqa: E402 - report 与 tracker 同目录
 
 router = APIRouter(prefix="/api/dashboard")
 
@@ -95,4 +95,7 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         "overdue": overdue,
         "stale": stale,
         "staleDays": stale_days,
+        # 周期复盘：真实转化率（从时间线重建）、停留分布、失败归因。
+        # 「我拒绝的 offer」单独统计，不算失败
+        "retrospective": retrospective(rows, history, today),
     }

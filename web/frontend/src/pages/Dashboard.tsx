@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { api, type DashboardData, type StaleItem } from "../api";
+import RetrospectivePanel from "../components/RetrospectivePanel";
 
 const STAGE_COLORS: Record<string, string> = {
   待投: "#64748b",
@@ -418,6 +419,13 @@ export default function Dashboard() {
           </div>
 
           <StaleList stale={data.stale} staleDays={data.staleDays} />
+
+          {/* 周期复盘（P3）：转化率 / 停留 / 归因——数据越攒越值钱 */}
+          {data.retrospective && (
+            <div className="rounded-2xl border border-white/10 bg-ink-900/40 p-5">
+              <RetrospectivePanel data={data.retrospective} />
+            </div>
+          )}
         </>
       )}
     </div>

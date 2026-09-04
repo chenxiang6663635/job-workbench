@@ -26,16 +26,17 @@ npm run dev
 
 **双击 exe（免环境）**：构建产物在 `web/backend/dist/job-workbench-backend/`，双击 `job-workbench-backend.exe` 自动起服务并开浏览器。exe 是**干净分发物**（数据在 exe 旁空工作区），自用请走上面开发模式。重新构建：`scripts/build_backend_exe.ps1`。
 
-## 六个页面
+## 七个页面
 
 | 页面 | 内容 |
 |---|---|
-| 看板 | 投递漏斗、按方向/批次统计、近七天待办（可一键顺延 7 天）、已过截止日提醒、静默提醒（长期无进展）。统计卡与漏斗/方向/批次均可点击下钻到追踪表 |
-| 追踪表 | 投递记录列表，按阶段/方向/批次筛选 + 关键字搜索 + 排序，行内改阶段与「状态原因」，新增投递（含终态不回退/去重/原因必填约束），行展开查看变更时间线与停留天数 |
-| 岗位池 | 岗位卡片（含评分与档位）、新建岗位粘贴 JD、详情页（资格硬门槛置顶 + 评分四维下钻 + 证据标签） |
-| 简历工坊 | **双模式**：「标准版式」= 数据驱动编辑（左结构化表单、右 A4 实时预览、生成 PDF + ATS 校验、防超页护栏，页面上直接新建版本）；「高级模板」= 手写 HTML 精排版的只读浏览与一键生成（原素材库能力迁入） |
+| 看板 | 投递漏斗、按方向/批次统计、近七天待办（可一键顺延 7 天）、已过截止日提醒、静默提醒（长期无进展）、**周期复盘**（阶段转化率 / 停留中位天数 / 失败归因，转化率从时间线重建）。统计卡与漏斗/方向/批次均可点击下钻到追踪表 |
+| 追踪表 | 投递记录列表，按阶段/方向/批次筛选 + 关键字搜索 + 排序，行内改阶段与「状态原因」，新增投递（含终态不回退/去重/原因必填约束，「我拒绝的 offer」为双向选择终态），行展开查看变更时间线与停留天数 |
+| 岗位池 | 岗位卡片（含评分与档位）、新建岗位粘贴 JD、详情页（资格硬门槛置顶 + 评分四维下钻 + 证据标签 + **简历差距面板**：可召回 / 真实缺口二分） |
+| 简历工坊 | **双模式**：「标准版式」= 数据驱动编辑（左结构化表单、右 A4 实时预览、生成 PDF + ATS 校验、防超页护栏，页面上直接新建版本）+ **AI 改写建议**（反编造校验不过不能采用）；「高级模板」= 手写 HTML 精排版的只读浏览与一键生成；底部**版本谱系**（该版本投了哪些岗位） |
+| 进展 | 投递之后的主战场，三个子 Tab：**面试**（三段式复盘记录 + 导出 `.ics` 日程）、**联系人**（跟进节奏管理，超期琥珀提醒）、**Offer 对比**（只并排已知事实，绝不给建议） |
 | 素材库 | 事实库浏览（简历文件已迁往简历工坊，避免同名混淆） |
-| 设置 | Provider（BYOK）：base_url/key（脱敏）/ 测试连接 |
+| 设置 | Provider（BYOK）：base_url/key（脱敏）/ 测试连接；**数据与隐私**：整包导出 zip / 立即快照备份 / 打开数据目录 / 无遥测声明 |
 
 导航栏可切换工作区（默认 personal），选择会记住（localStorage），各请求携带工作区参数。
 
@@ -64,16 +65,21 @@ web/
 │   ├── pathres.py            路径解析：解包/打包双模式、可写数据目录 fallback
 │   ├── deps.py               工作区解析、safe_join 路径安全、数据根
 │   ├── filelock.py           跨平台文件锁（防并发写丢数据）
+│   ├── atomicio.py           原子写：tmp + os.replace，.jobws_tmp_ 前缀
+│   ├── icsutil.py            RFC 5545 日程导出（纯标准库手写）
+│   ├── resume_guard.py       反编造条款 + 改写校验器（测试锁死）
 │   ├── pyinstaller.spec      PyInstaller onedir 打包配置
-│   └── routers/              dashboard / applications / jobs / resume / library / provider / workspace
+│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / workspace
 ├── electron/                 Electron 桌面壳（探测打包 exe → spawn → 开窗 → 退出杀进程树）
 └── frontend/
     └── src/
         ├── api.ts            API 客户端与类型（全局工作区状态）
         ├── App.tsx           导航壳、后端连接状态、工作区切换下拉
-        ├── components/       ResumeForm（简历结构化表单）
-        └── pages/            Dashboard / Applications / Jobs / Resume / Library / Settings
+        ├── components/       InterviewList / ContactList / OfferCompare / GapPanel / RewritePanel / VersionLineage / RetrospectivePanel / ResumeForm / ResumeTemplates / InterviewForm / OfferForm
+        └── pages/            Dashboard / Applications / Jobs / Resume / Progress / Library / Settings
 ```
+
+仓库根 `tests/test_prompt_guardrails.py` 锁死 AI 改写的反编造条款——删句即测试失败。
 
 ## 已知边界
 

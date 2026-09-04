@@ -25,6 +25,24 @@ export interface DashboardData {
   overdue: { id: string; 公司: string; 岗位: string; 截止日期: string }[];
   stale: StaleItem[];
   staleDays: number;
+  retrospective: Retrospective;
+}
+
+// 周期复盘（P3）：转化率由时间线重建「到达过」而非当前存量
+export interface Retrospective {
+  total: number;
+  conversion: { stage: string; reached: number; advanced: number; rate: number | null }[];
+  stay: { stage: string; n: number; median: number; avg: number }[];
+  failure: { reason: string; count: number }[];
+  declined: { reason: string; count: number }[];
+}
+
+export interface SchemaCheckResult {
+  ok: boolean;
+  version: number;
+  versionNote: string | null;
+  files: { file: string; ok: boolean; issues: string[]; note: string }[];
+  quarantined: { file: string; error: string; moved_to: string }[];
 }
 
 export interface Application {
@@ -145,6 +163,25 @@ export interface ResumeBuildResult {
 }
 
 // 高级模板（手写 HTML 精排版）的文件条目，与 LibraryItem 同构但归简历域
+export interface SystemPaths {
+  workspace: string;
+  snapshotDir: string;
+  snapshotCount: number;
+  lastBackup: string | null;
+  telemetry: boolean;
+  note: string;
+}
+
+export interface BackupResult {
+  ok: boolean;
+  path: string;
+  files: number;
+  size: number;
+  kept: number;
+  removed: number;
+  snapshotDir: string;
+}
+
 export interface ResumeTemplateItem {
   rel: string;
   name: string;
@@ -166,6 +203,90 @@ export interface ProviderTestResult {
   models: string[];
 }
 
+export interface Interview {
+  面试id: string;
+  关联记录: string;
+  公司: string;
+  岗位: string;
+  轮次: string;
+  面试时间: string;
+  形式: string;
+  面试官: string;
+  问题记录: string;
+  我的回答要点: string;
+  复盘与改进: string;
+  结果: string;
+}
+
+export interface GapTerm {
+  term: string;
+  level: string;
+}
+
+export interface GapResult {
+  jd: string;
+  resume: string;
+  lexicon: string | null;
+  matched: GapTerm[];
+  injectable: string[];
+  missing: string[];
+  matchedDetail: GapTerm[];
+  injectableDetail: GapTerm[];
+  missingDetail: GapTerm[];
+  counts: { matched: number; injectable: number; missing: number };
+  resumeVersion: string;
+  warnings: string[];
+}
+
+export interface Contact {
+  联系人id: string;
+  关联记录: string;
+  姓名: string;
+  角色: string;
+  公司: string;
+  联系方式: string;
+  来源: string;
+  最近联系: string;
+  下次跟进: string;
+  备注: string;
+}
+
+export interface Offer {
+  offer_id: string;
+  关联记录: string;
+  公司: string;
+  岗位: string;
+  薪资构成: string;
+  月薪: string;
+  年终: string;
+  签字费: string;
+  股票期权: string;
+  工作地点: string;
+  答复截止日: string;
+  其他条件: string;
+  备注: string;
+}
+
+export interface LineageItem {
+  version: string;
+  total: number;
+  applications: {
+    id: string;
+    公司: string;
+    岗位: string;
+    当前阶段: string;
+    投递日期: string;
+  }[];
+}
+
+export interface SuggestResult {
+  version: string;
+  ok: boolean;
+  issues: string[];
+  suggestion: Record<string, unknown>;
+  model: string;
+}
+
 export const STAGES = [
   "待投",
   "已投",
@@ -178,12 +299,21 @@ export const STAGES = [
   "签约",
   "已挂",
   "已放弃",
+  "我拒绝的 offer",
 ];
 
-// 终态阶段：进入后「当前阶段」锁定，不可回退；与后端 tracker.TERMINAL_STAGES 一致
-export const TERMINAL = ["已挂", "已放弃"];
+// 终态阶段：进入后「当前阶段」锁定，不可回退；与后端 tracker.TERMINAL_STAGES 一致。
+// 「我拒绝的 offer」是双向选择不是失败——复盘归因里单独统计
+export const TERMINAL = ["已挂", "已放弃", "我拒绝的 offer"];
+// 失败类终态（红色徽章用）；拒绝的 offer 用中性色
+export const FAIL_TERMINAL = ["已挂", "已放弃"];
 
 export const BATCHES = ["提前批", "正式批", "补录"];
+
+// 面试记录枚举，与后端 tracker.INTERVIEW_* 一致（单一事实源在 tools/tracker.py）
+export const INTERVIEW_ROUNDS = ["笔试", "一面", "二面", "三面", "HR面", "终面", "其他"];
+export const INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"];
+export const INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"];
 
 // 全局当前工作区（相对仓库根，如 personal）。空 = 用后端默认。
 export let currentWorkspace = "";
@@ -252,6 +382,70 @@ export const api = {
 
   listJobs: () => request<{ items: JobSummary[]; total: number }>("/jobs"),
 
+  jobGap: (dir: string, resume?: string) => {
+    const q = resume ? `?resume=${encodeURIComponent(resume)}` : "";
+    return request<GapResult>(
+      `/jobs/${encodeURIComponent(dir)}/gap${q}`
+    );
+  },
+
+  listInterviews: (params?: { app?: string; result?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.app) q.set("app", params.app);
+    if (params?.result) q.set("result", params.result);
+    const qs = q.toString();
+    return request<{ rows: Interview[]; total: number }>(
+      `/progress/interviews${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  createInterview: (body: Partial<Interview>) =>
+    request<Interview>("/progress/interviews", { method: "POST", body }),
+
+  updateInterview: (id: string, body: Partial<Interview>) =>
+    request<Interview & { _changed?: string[] }>(
+      `/progress/interviews/${encodeURIComponent(id)}`,
+      { method: "PATCH", body }
+    ),
+
+  interviewIcsUrl: () => {
+    const base = "/api/progress/interviews.ics";
+    return currentWorkspace
+      ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
+      : base;
+  },
+
+  listContacts: (app?: string) =>
+    request<{ rows: Contact[]; total: number }>(
+      `/progress/contacts${app ? `?app=${encodeURIComponent(app)}` : ""}`
+    ),
+
+  createContact: (body: Partial<Contact>) =>
+    request<Contact>("/progress/contacts", { method: "POST", body }),
+
+  updateContact: (id: string, body: Partial<Contact>) =>
+    request<Contact & { _changed?: string[] }>(
+      `/progress/contacts/${encodeURIComponent(id)}`,
+      { method: "PATCH", body }
+    ),
+
+  listOffers: (app?: string) =>
+    request<{ rows: Offer[]; total: number }>(
+      `/progress/offers${app ? `?app=${encodeURIComponent(app)}` : ""}`
+    ),
+
+  createOffer: (body: Partial<Offer>) =>
+    request<Offer>("/progress/offers", { method: "POST", body }),
+
+  updateOffer: (id: string, body: Partial<Offer>) =>
+    request<Offer & { _changed?: string[] }>(
+      `/progress/offers/${encodeURIComponent(id)}`,
+      { method: "PATCH", body }
+    ),
+
+  lineage: () =>
+    request<{ items: LineageItem[]; total: number }>("/progress/lineage"),
+
   createJob: (body: { 公司: string; 岗位: string; JD文本: string }) =>
     request<JobSummary>("/jobs", { method: "POST", body }),
 
@@ -301,6 +495,15 @@ export const api = {
       { method: "POST" }
     ),
 
+  suggestRewrite: (
+    version: string,
+    body: { instruction: string; model: string }
+  ) =>
+    request<SuggestResult>(`/resume/${encodeURIComponent(version)}/suggest`, {
+      method: "POST",
+      body,
+    }),
+
   // 高级模板（手写 HTML）：只读浏览与生成，文件能力自素材库迁入
   listResumeTemplates: () =>
     request<{ items: ResumeTemplateItem[]; total: number }>("/resume/templates"),
@@ -315,6 +518,26 @@ export const api = {
       .split("/")
       .map((p) => encodeURIComponent(p))
       .join("/")}`;
+    return currentWorkspace
+      ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
+      : base;
+  },
+
+  systemPaths: () => request<SystemPaths>("/system/paths"),
+
+  systemCheck: () => request<SchemaCheckResult>("/system/check"),
+
+  backupWorkspace: () =>
+    request<BackupResult>("/system/backup", { method: "POST" }),
+
+  openFolder: (which: "workspace" | "snapshots") =>
+    request<{ ok: boolean; path: string }>("/system/open-folder", {
+      method: "POST",
+      body: { path: which },
+    }),
+
+  exportUrl: () => {
+    const base = "/api/system/export";
     return currentWorkspace
       ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
       : base;

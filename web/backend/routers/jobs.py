@@ -172,3 +172,38 @@ def job_detail(job_id: str, ws: str = Depends(workspace_dir)):
         "cardRaw": card_raw,
         "card": _parse_card(ws, os.path.join(DIR_JOBS, job_id)),
     }
+
+
+@router.get("/{job_id}/gap")
+def job_gap(job_id: str, ws: str = Depends(workspace_dir), resume: str = None):
+    """JD↔简历差距清单（missing / injectable 二分）。
+
+    复用 jd_score.gap_analysis，不重写词典解析与匹配逻辑。
+    resume 缺省时取简历工坊里最新的版本（用户通常想看"当前版"的差距）。
+    """
+    job_dir = safe_join(ws, DIR_JOBS, job_id)
+    if not os.path.isdir(job_dir):
+        raise HTTPException(status_code=404, detail="岗位不存在: %s" % job_id)
+
+    # 差距分析只依赖 JD 原文（gap_analysis 用其目录定位），解析卡不必须——
+    # 新建岗位尚无解析卡时也应能看差距
+    card = os.path.join(job_dir, CARD_FILE)
+
+    version = (resume or "").strip()
+    if not version:
+        source_dir = safe_join(ws, "02_简历工坊", "source")
+        versions = [
+            f[len("resume_"):-len(".json")]
+            for f in sorted(os.listdir(source_dir))
+            if f.startswith("resume_") and f.endswith(".json")
+        ] if os.path.isdir(source_dir) else []
+        if not versions:
+            raise HTTPException(
+                status_code=404,
+                detail="简历工坊里还没有任何版本，先在简历工坊创建一个")
+        version = versions[-1]
+
+    result, errors = jd_score.gap_analysis(ws, card, version)
+    if result is None:
+        raise HTTPException(status_code=422, detail="；".join(errors))
+    return dict(result, resumeVersion=version, warnings=errors)

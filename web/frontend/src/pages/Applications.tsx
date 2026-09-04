@@ -47,6 +47,8 @@ function readDrill(): Drill {
 function stageStyle(stage: string) {
   if (stage === "已挂") return "bg-bad/15 text-bad";
   if (stage === "已放弃") return "bg-slate-500/15 text-slate-400";
+  // 我拒绝的 offer 是双向选择，不是失败——用中性偏绿，区别于失败红
+  if (stage === "我拒绝的 offer") return "bg-good/10 text-good/80";
   if (stage === "offer" || stage === "签约")
     return "bg-good/15 text-good";
   return "bg-accent/15 text-accent";

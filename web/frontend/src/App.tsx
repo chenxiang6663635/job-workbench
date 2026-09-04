@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
-import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, Settings as SettingsIcon } from "lucide-react";
+import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, Settings as SettingsIcon, TrendingUp } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
 import Jobs from "./pages/Jobs";
 import Library from "./pages/Library";
+import Progress from "./pages/Progress";
 import Resume from "./pages/Resume";
 import Settings from "./pages/Settings";
 import { api, setWorkspace, type WorkspaceItem } from "./api";
 
-type Tab = "dashboard" | "applications" | "jobs" | "resume" | "library" | "settings";
+type Tab = "dashboard" | "applications" | "jobs" | "resume" | "progress" | "library" | "settings";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "dashboard", label: "看板", icon: <LayoutDashboard size={16} /> },
   { key: "applications", label: "追踪表", icon: <Briefcase size={16} /> },
   { key: "jobs", label: "岗位池", icon: <FolderOpen size={16} /> },
   { key: "resume", label: "简历工坊", icon: <FileText size={16} /> },
+  { key: "progress", label: "进展", icon: <TrendingUp size={16} /> },
   { key: "library", label: "素材库", icon: <LibraryIcon size={16} /> },
   { key: "settings", label: "设置", icon: <SettingsIcon size={16} /> },
 ];
@@ -198,6 +200,8 @@ export default function App() {
           <Jobs key={currentWs} />
         ) : tab === "resume" ? (
           <Resume key={currentWs} />
+        ) : tab === "progress" ? (
+          <Progress key={currentWs} />
         ) : tab === "library" ? (
           <Library key={currentWs} />
         ) : (

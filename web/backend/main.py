@@ -26,7 +26,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import applications, dashboard, jobs, library, provider, resume, workspace  # noqa: E402
+from routers import applications, dashboard, jobs, library, progress, provider, resume, system, workspace  # noqa: E402
 
 app = FastAPI(title="求职工作台", version="0.1.0")
 
@@ -52,10 +52,12 @@ app.add_middleware(
 app.include_router(dashboard.router)
 app.include_router(applications.router)
 app.include_router(jobs.router)
+app.include_router(progress.router)
 app.include_router(library.router)
 app.include_router(workspace.router)
 app.include_router(provider.router)
 app.include_router(resume.router)
+app.include_router(system.router)
 
 
 @app.get("/api/health")

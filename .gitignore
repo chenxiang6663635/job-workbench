@@ -24,7 +24,8 @@ web/backend/dist/
 web/backend/build/
 
 # 简历 PDF、照片、预览图均为交付物，纳入版本管理，不在此忽略
-# .codebuddy 目录含命令定义、技能文件与工作记忆，纳入版本管理
+# .codebuddy 目录：命令定义与技能文件纳入版本管理；
+# 工作记忆（memory/，AI 跨会话笔记）、团队/自动化运行时产物、真实 MCP 配置除外
 
 # 本地验证用的临时工作区（fake 数据），不进版本管理；personal 才是真实工作区
 test_ws/
@@ -42,6 +43,39 @@ graphify-out/
 .claude/
 .codex/
 .codebuddy/plans/
+# AI 工作记忆：跨会话笔记，个人向、频繁变更，不入库
+.codebuddy/memory/
+# 团队协作与定时任务的本地运行时状态
+.codebuddy/teams/
+.codebuddy/automations/
+# 真实 MCP 配置可能含密钥；入库的是 mcp.example.json
+.codebuddy/mcp.json
+
+# 功能差距分析报告：一次性研究产物，结论已沉淀进 docs/specs/ 与 CHANGELOG
+research_*.md
+
+# pytest 运行缓存
+.pytest_cache/
+# 测试覆盖率产物
+.coverage
+htmlcov/
+coverage/
+
+# 原子写异常中断的残留临时文件（正常流程用完即删）
+.jobws_tmp_*
+# PDF 生成用临时 HTML（用完即删）
+__preview_*.html
+
+# 坏文件隔离区：损坏数据无入库价值，恢复靠快照备份
+personal/05_投递追踪/quarantine/
+
+# Electron 打包输出（electron-builder）
+web/electron/release/
+web/electron/out/
+
+# 前端依赖安装与构建的本地日志
+npm-debug.log*
+yarn-error.log*
 
 # 真实简历不进版本管理（隐私护栏）
 # personal/ 是「分层但同仓」设计（AGENTS 约定：分享仓库前需移除），但简历与数据驱动源

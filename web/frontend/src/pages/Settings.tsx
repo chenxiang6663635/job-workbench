@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
-import { KeyRound, PlugZap, Save } from "lucide-react";
-import { api, type ProviderConfig, type ProviderTestResult } from "../api";
+import {
+  Archive,
+  Download,
+  FolderOpen,
+  KeyRound,
+  PlugZap,
+  Save,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  api,
+  type ProviderConfig,
+  type ProviderTestResult,
+  type SystemPaths,
+} from "../api";
 
 export default function Settings() {
   const [cfg, setCfg] = useState<ProviderConfig | null>(null);
@@ -11,6 +24,9 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<ProviderTestResult | null>(null);
+  const [paths, setPaths] = useState<SystemPaths | null>(null);
+  const [backing, setBacking] = useState(false);
+  const [backupInfo, setBackupInfo] = useState<string | null>(null);
 
   const load = () => {
     api
@@ -23,6 +39,27 @@ export default function Settings() {
   };
 
   useEffect(load, []);
+
+  useEffect(() => {
+    api.systemPaths().then(setPaths).catch(() => {});
+  }, []);
+
+  const backup = () => {
+    setError(null);
+    setBackupInfo(null);
+    setBacking(true);
+    api
+      .backupWorkspace()
+      .then((r) => {
+        setBackupInfo(
+          `已备份 ${r.files} 个文件（${(r.size / 1024).toFixed(0)} KB），保留 ${r.kept} 份、淘汰 ${r.removed} 份`
+        );
+        return api.systemPaths();
+      })
+      .then(setPaths)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBacking(false));
+  };
 
   const save = () => {
     setError(null);
@@ -121,6 +158,61 @@ export default function Settings() {
           >
             <PlugZap size={15} /> {testing ? "测试中..." : "测试连接"}
           </button>
+        </div>
+      </div>
+
+      <div className="space-y-4 rounded-2xl border border-white/10 bg-ink-900/60 p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+          <ShieldCheck size={16} className="text-good" /> 数据与隐私
+        </div>
+
+        <p className="text-xs leading-relaxed text-slate-400">
+          全部数据只存在你这台机器，无遥测、无上传。文件就是数据库——
+          你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={api.exportUrl()}
+            onClick={() =>
+              setBackupInfo("导出包含你的真实简历与个人信息，请妥善保管导出的 zip。")
+            }
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft active:scale-95"
+          >
+            <Download size={15} /> 导出整包 zip
+          </a>
+          <button
+            onClick={backup}
+            disabled={backing}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Archive size={15} /> {backing ? "备份中..." : "立即备份"}
+          </button>
+          <button
+            onClick={() => api.openFolder("workspace").catch((e: Error) => setError(e.message))}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5"
+          >
+            <FolderOpen size={15} /> 打开数据目录
+          </button>
+        </div>
+
+        {backupInfo && (
+          <p className="rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-xs text-slate-300">
+            {backupInfo}
+          </p>
+        )}
+
+        <div className="space-y-1 border-t border-white/10 pt-3 text-[11px] text-slate-500">
+          <p>
+            上次备份：{paths?.lastBackup ?? "从未备份"}
+            {paths ? `（共 ${paths.snapshotCount} 份快照）` : ""}
+          </p>
+          <p className="break-all">快照位置：{paths?.snapshotDir ?? "—"}</p>
+          <p className="break-all">工作区：{paths?.workspace ?? "—"}</p>
+          <p className="pt-1 text-slate-600">
+            快照刻意存放在工作区之外——与源数据同盘同目录的备份会被误删、被
+            git、被同步工具一并波及。导出包含简历与个人信息，不含应用外的快照。
+          </p>
         </div>
       </div>
 

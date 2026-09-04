@@ -65,6 +65,14 @@ def _mask_key(key):
     return "*" * (len(key) - 4) + key[-4:]
 
 
+def read_config(ws):
+    """供其他路由读取完整 Provider 配置（BYOK 调用前）。
+
+    返回含完整 api_key 的字典——调用方不得把 key 写进日志或响应。
+    """
+    return _read_config(_config_path(ws))
+
+
 @router.get("")
 def get_provider(ws: str = Depends(workspace_dir)):
     """读当前工作区的 Provider 配置，key 脱敏。"""

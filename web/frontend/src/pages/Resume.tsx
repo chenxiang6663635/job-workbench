@@ -14,6 +14,8 @@ import {
 import { api, type ResumeBuildResult, type ResumeVersion } from "../api";
 import ResumeForm from "../components/ResumeForm";
 import ResumeTemplates from "../components/ResumeTemplates";
+import RewritePanel from "../components/RewritePanel";
+import VersionLineage from "../components/VersionLineage";
 
 // A4 @96dpi 的像素尺寸。预览区按此比例渲染，超出即触发防超页护栏
 const A4_WIDTH = 794;
@@ -48,6 +50,7 @@ export default function Resume() {
   const [building, setBuilding] = useState(false);
   const [result, setResult] = useState<ResumeBuildResult | null>(null);
   const [overflowPx, setOverflowPx] = useState(0);
+  const [showRewrite, setShowRewrite] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const [html, setHtml] = useState("");
   // 区分「刚加载」与「用户已编辑」。只有编辑过才自动写回文件——
@@ -298,6 +301,14 @@ export default function Resume() {
           {building ? <Loader2 size={15} className="animate-spin" /> : <FileCheck size={15} />}
           {building ? "生成中…" : "生成 PDF"}
         </button>
+
+        <button
+          onClick={() => setShowRewrite(true)}
+          title="AI 只改写既有事实的表述，反编造校验不过不能采用"
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 px-3 py-2 text-sm text-accent transition-colors hover:bg-accent/10"
+        >
+          <PenLine size={15} /> AI 改写
+        </button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,820px)]">
@@ -396,6 +407,21 @@ export default function Resume() {
           )}
         </div>
       </div>
+
+      {/* 版本谱系：该版本投了哪些岗位、各处于什么阶段（只读） */}
+      <VersionLineage />
+
+      {showRewrite && data && (
+        <RewritePanel
+          version={version}
+          original={data}
+          onClose={() => setShowRewrite(false)}
+          onApply={(suggestion) => {
+            setData(suggestion as ResumeData);
+            setShowRewrite(false);
+          }}
+        />
+      )}
     </div>
   );
 }

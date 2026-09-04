@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronDown, FileText, Plus, Sparkles } from "lucide-react";
+import GapPanel from "../components/GapPanel";
 import { api, type JobDetail, type JobSummary } from "../api";
 
 function levelColor(level: string | null) {
@@ -281,6 +282,12 @@ export default function Jobs() {
                 </p>
               </div>
             )}
+
+            {/* JD↔简历差距清单：只依赖 JD，未评分的岗位也能看——
+                往往正是"还没评分但想先知道差在哪"的时刻 */}
+            <div className="rounded-xl border border-white/10 bg-ink-950/40 p-4">
+              <GapPanel dir={detail.dir} />
+            </div>
           </div>
         </div>
       </div>

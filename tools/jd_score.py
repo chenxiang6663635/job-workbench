@@ -17,6 +17,7 @@ from __future__ import print_function
 
 import argparse
 import io
+import json
 import os
 import re
 import sys
@@ -365,6 +366,189 @@ def resolve_profile(workspace, domain=None, direction=None):
     return profile_dir, None, warnings
 
 
+# ---------------------------------------------------------------------------
+# JD↔简历差距清单
+#
+# 设计要点：把「补关键词」拆成两类，这是服务诚实红线的关键——
+#   injectable：母版里有、这一版没用上 —— 从既有事实召回，不构成编造
+#   missing   ：JD 有而简历与母版都没有 —— 真实缺口，只能靠补经历，不能靠改词
+# 二者的措辞差异，把"补关键词"框定为"召回"而非"编造"。
+# ---------------------------------------------------------------------------
+
+# 词典三级标题（顺序即优先级）
+LEXICON_LEVELS = ["Primary", "Secondary", "Weak"]
+
+# 母版来源：简历主版 + 事实库。它们是"你真实拥有的全部事实"，
+# 出现在母版里的词才算可召回。
+MASTER_FILES = ["简历_主版_v1.0.md"]
+FACT_DIR = "00_事实库"
+RESUME_DIR = "02_简历工坊"
+SOURCE_DIR = "source"
+JD_FILENAME = "JD原文.md"
+
+
+def parse_lexicon(path):
+    """解析词典，返回 [(词条, 分层)]。
+
+    格式：`## Primary（3 分/项）` 之下的每行是用顿号分隔的词条。
+    领域术语来自数据文件，本函数不内含任何领域词（脚本保持领域无关）。
+    """
+    if not path or not os.path.isfile(path):
+        return []
+    with io.open(path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    out = []
+    level = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("##"):
+            head = stripped.lstrip("#").strip()
+            level = None
+            for name in LEXICON_LEVELS:
+                if head.startswith(name):
+                    level = name
+                    break
+            continue
+        if not level or stripped.startswith("#") or stripped.startswith(">"):
+            continue
+        for term in stripped.split("、"):
+            term = term.strip()
+            if term:
+                out.append((term, level))
+    return out
+
+
+def _read_text(path):
+    if not os.path.isfile(path):
+        return ""
+    with io.open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _collect_master_text(workspace):
+    """汇总母版文本：简历主版 + 事实库全部 md。
+
+    这是"你真实拥有的事实全集"。某个词只要出现在这里，就说明召回它
+    不构成编造——它本来就是你的。
+    """
+    parts = []
+    for name in MASTER_FILES:
+        parts.append(_read_text(os.path.join(workspace, RESUME_DIR, name)))
+
+    fact_dir = os.path.join(workspace, FACT_DIR)
+    if os.path.isdir(fact_dir):
+        for root, dirs, files in os.walk(fact_dir):
+            dirs[:] = [d for d in dirs if not d.startswith("__")]
+            for name in sorted(files):
+                if name.startswith("."):
+                    continue
+                if not name.lower().endswith((".md", ".txt")):
+                    continue
+                parts.append(_read_text(os.path.join(root, name)))
+    return "\n".join(parts)
+
+
+def _resume_text(workspace, version):
+    """简历 JSON → 纯文本（用于关键词比对）。"""
+    path = os.path.join(workspace, RESUME_DIR, SOURCE_DIR,
+                        "resume_%s.json" % version)
+    if not os.path.isfile(path):
+        return None
+    raw = _read_text(path)
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+
+    parts = []
+
+    def walk(node):
+        if isinstance(node, str):
+            parts.append(node)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+
+    walk(data)
+    return "\n".join(parts)
+
+
+def _contains(haystack, needle):
+    """子串匹配。英文统一小写比较（EnergyPlus vs energyplus）。"""
+    if not needle:
+        return False
+    h = haystack.lower()
+    n = needle.lower()
+    return n in h
+
+
+def gap_analysis(workspace, card_path, resume_version, domain=None, direction=None):
+    """JD↔简历差距分析。
+
+    返回 (结果字典, 错误列表)。结果含 matched / injectable / missing 三组，
+    以及来源说明，便于前端展示时解释"凭什么这么分"。
+    """
+    errors = []
+
+    # JD 原文与解析卡同目录（01_岗位池/<公司>_<岗位>/）
+    jd_path = os.path.join(os.path.dirname(os.path.abspath(card_path)), JD_FILENAME)
+    jd_text = _read_text(jd_path)
+    if not jd_text:
+        errors.append("找不到 JD 原文（应与解析卡同目录）：%s" % JD_FILENAME)
+
+    resume = _resume_text(workspace, resume_version)
+    if resume is None:
+        errors.append("找不到简历数据或 JSON 解析失败：source/resume_%s.json"
+                      % resume_version)
+
+    profile_dir, _direction_file, warns = resolve_profile(workspace, domain, direction)
+    lexicon = parse_lexicon(os.path.join(profile_dir, "lexicon.md")) if profile_dir else []
+    if not lexicon:
+        errors.append("词典为空或未找到，差距分析缺少词条依据")
+
+    if errors:
+        return None, errors + warns
+
+    master = _collect_master_text(workspace)
+
+    matched, injectable, missing = [], [], []
+    seen = set()
+    for term, level in lexicon:
+        if term in seen:
+            continue
+        if not _contains(jd_text, term):
+            continue          # JD 没提这个词，不参与比对
+        seen.add(term)
+        if _contains(resume, term):
+            matched.append({"term": term, "level": level})
+        elif _contains(master, term):
+            injectable.append({"term": term, "level": level})
+        else:
+            missing.append({"term": term, "level": level})
+
+    return {
+        "jd": os.path.relpath(jd_path, workspace).replace("\\", "/"),
+        "resume": "source/resume_%s.json" % resume_version,
+        "lexicon": os.path.relpath(os.path.join(profile_dir, "lexicon.md"),
+                                   workspace).replace("\\", "/") if profile_dir else None,
+        "matched": matched,
+        "injectable": [item["term"] for item in injectable],
+        "missing": [item["term"] for item in missing],
+        "matchedDetail": matched,
+        "injectableDetail": injectable,
+        "missingDetail": missing,
+        "counts": {
+            "matched": len(matched),
+            "injectable": len(injectable),
+            "missing": len(missing),
+        },
+    }, warns
+
+
 def main():
     parser = argparse.ArgumentParser(description="校验 JD 解析卡评分并输出结论档位")
     # --show-profile 只查插件路径，不需要解析卡，故设为可选
@@ -375,6 +559,9 @@ def main():
     parser.add_argument("--direction", help="方向 ID，如 datacenter / hvac")
     parser.add_argument("--show-profile", action="store_true",
                         help="打印命中的插件与方向文件路径后退出")
+    parser.add_argument("--gap", action="store_true",
+                        help="输出 JD↔简历差距清单（需配合 --resume）")
+    parser.add_argument("--resume", help="简历版本（source/resume_<版本>.json 的版本名）")
     args = parser.parse_args()
 
     workspace = os.path.abspath(args.workspace)
@@ -397,6 +584,33 @@ def main():
     if not os.path.isfile(path):
         print("错误：找不到解析卡 `%s`" % path)
         return 1
+
+    if args.gap:
+        if not args.resume:
+            print("错误：--gap 需要配合 --resume <版本>")
+            return 1
+        result, errs = gap_analysis(workspace, path, args.resume,
+                                    args.domain, args.direction)
+        for e in errs:
+            print("提示：%s" % e)
+        if result is None:
+            return 1
+        print("JD：%s" % result["jd"])
+        print("简历：%s" % result["resume"])
+        print("词典：%s" % result["lexicon"])
+        print("")
+        print("## 已覆盖（%d）" % result["counts"]["matched"])
+        for item in result["matchedDetail"]:
+            print("  - %s（%s）" % (item["term"], item["level"]))
+        print("")
+        print("## 可召回（%d）—— 母版里有，这一版没用上" % result["counts"]["injectable"])
+        for item in result["injectableDetail"]:
+            print("  - %s（%s）" % (item["term"], item["level"]))
+        print("")
+        print("## 真实缺口（%d）—— 简历与母版都没有，需评估是否补经历" % result["counts"]["missing"])
+        for item in result["missingDetail"]:
+            print("  - %s（%s）" % (item["term"], item["level"]))
+        return 0
 
     with io.open(path, "r", encoding="utf-8") as f:
         text = f.read()

@@ -122,3 +122,19 @@ def resolve_workspace_root(root=None):
 
     # 3. 应用根不可写（Program Files 等）→ 系统用户目录
     return _user_data_dir(), "userdata"
+
+
+def snapshot_root():
+    """快照备份根目录——**必须落在工作区之外**。
+
+    与源数据同盘同目录的备份等于没备份：会被误删、被 git、被同步工具一并波及。
+    Obsidian 的成熟做法就是把快照放 vault 之外的系统目录。
+
+    Windows: %APPDATA%\\job-workbench\\snapshots
+    macOS:   ~/Library/Application Support/job-workbench/snapshots
+    Linux:   ~/.local/share/job-workbench/snapshots
+
+    注意：有意**不**跟随 resolve_workspace_root 的便携模式。便携模式的语义是
+    "数据放 exe 旁"，若快照也放 exe 旁，就退化成了同盘同目录。
+    """
+    return os.path.join(_user_data_dir(), "snapshots")

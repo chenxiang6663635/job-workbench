@@ -98,18 +98,40 @@ Eligibility Gate 前置：**学历 → 专业 → 届数 → 外语 → 城市**
 python tools/init_workspace.py --target <名称> --domain <插件>
 python tools/install_skills.py [--target user|codebuddy|claude|...] [--dry-run]
 python tools/jd_score.py <解析卡> [--domain X --direction Y] [--show-profile]
+python tools/jd_score.py --gap --resume <版本> <解析卡>   # JD↔简历差距（可召回/真实缺口）
 python tools/tracker.py --workspace <目录> add|update|list|show [--reason 原因]
+python tools/tracker.py --workspace <目录> history [--id A001] [--limit N]
+python tools/tracker.py --workspace <目录> interview add|list|show|update   # 面试记录
+python tools/tracker.py --workspace <目录> contact add|list|show|update     # 招聘方联系人
+python tools/tracker.py --workspace <目录> offer add|list|show|update       # Offer 事实
+python tools/tracker.py --workspace <目录> check                            # schema 自检
 python tools/resume_build.py --workspace <目录> [--version X] [--out DIR]
 python tools/resume_build.py render --workspace <目录> [--version X]  # 数据驱动标准版式
-python tools/tracker.py --workspace <目录> history [--id A001] [--limit N]
-python tools/report.py --workspace <目录> [--stdout]
+python tools/report.py --workspace <目录> [--stdout]   # 漏斗看板 + 周期复盘
 ```
 
-> tracker 进入终态（已挂/已放弃）须填 `--reason`；终态不可回退、同公司+岗位自动去重。
-> 每次字段变更会入账 `05_投递追踪/history.csv`，`tracker.py history` 可查变更时间线。
+> tracker 进入终态（已挂 / 已放弃 / 我拒绝的 offer）须填 `--reason`；终态不可回退、同公司+岗位自动去重。
+> 每次字段变更（含面试与 offer）会入账 `05_投递追踪/history.csv`，`tracker.py history` 可查变更时间线。
+> 「我拒绝的 offer」是双向选择不算失败，复盘归因里与「已挂/已放弃」分开统计。
+> 面试 / 联系人 / Offer 是独立 CSV（外键关联追踪表），绝不加主表列——主表保持「一行一岗位」。
 
 简历有两条路径：无子命令直接打手写 HTML（精排版式）；`render` 子命令由
 `02_简历工坊/source/resume_<版本>.json` + 内置模板生成（标准版式，可复用、可在网页编辑）。
+
+---
+
+## 投递之后的闭环
+
+投递只是开始。工作台把「投递后到入职之间」也纳入同一份数据：
+
+- **面试记录**：每场的提问、回答、复盘入 `interviews.csv`——复盘是唯一能复利的部分；Web 一键导出 `.ics` 日程（提前 1 小时提醒）
+- **招聘方联系人**：谁、聊到哪、下次何时跟进，超期自动琥珀提醒
+- **Offer 对比**：多个 offer 的已知事实并排展示，**只并排、不推荐**——选择是你自己的
+- **版本谱系**：哪版简历投了哪些岗位、各走到哪一步
+- **周期复盘**：阶段转化率（从时间线重建，不是存量冒充）、停留中位天数、失败归因；「我拒绝的 offer」单独统计
+- **数据安全**：全部写操作原子化（半成品文件不会出现）；一键快照备份到系统用户目录（工作区之外）；schema 自检发现坏文件自动隔离而非静默丢弃；整包导出随时可带走
+
+详见 `docs/specs/2026-09-03-p0-p3-roadmap.md`。
 
 ---
 

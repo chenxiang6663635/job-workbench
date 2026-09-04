@@ -19,6 +19,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
+import atomicio
 import resume_build
 from deps import DIR_RESUME, safe_join, workspace_dir
 from filelock import file_lock
@@ -223,8 +224,10 @@ def save_resume(version: str, body: ResumeData, ws: str = Depends(workspace_dir)
     with file_lock(_lock_path(ws)):
         if not os.path.isdir(source_dir):
             os.makedirs(source_dir)
-        with io.open(path, "w", encoding="utf-8") as f:
-            json.dump(body.data, f, ensure_ascii=False, indent=2)
+        # 原子写：简历 JSON 是用户唯一的数据源，写到一半被中断会留下半截文件。
+        # 注意必须先序列化再落盘——若边序列化边写，序列化中途异常会写出残缺 JSON。
+        content = json.dumps(body.data, ensure_ascii=False, indent=2)
+        atomicio.atomic_write_text(path, content, encoding="utf-8")
     return {"version": version, "saved": True}
 
 
@@ -304,3 +307,106 @@ def build_resume(version: str, ws: str = Depends(workspace_dir)):
             "checks": [{"label": l, "value": v, "ok": o} for l, v, o in details],
             "passed": bool(passed and a4_ok),
         }
+
+
+# ---------------------------------------------------------------------------
+# diff 式改写建议（BYOK）+ 反编造护栏
+#
+# 流程：读简历 JSON → 拼带反编造条款的提示词 → 调 OpenAI 兼容端点 →
+# 解析回 JSON → 本地校验器五项检查 → 返回建议与检查结果。
+# 关键约束：本端点绝不落盘。建议必须由用户看过 diff 并显式确认后，
+# 才通过既有的 PUT /{version} 保存——校验未通过的改动不允许静默接受。
+# 条款与校验器被 tests/test_prompt_guardrails.py 锁死，删句即测试失败。
+# ---------------------------------------------------------------------------
+
+import re  # noqa: E402
+import urllib.error  # noqa: E402
+import urllib.request  # noqa: E402
+
+import resume_guard  # noqa: E402
+from routers import provider  # noqa: E402
+
+LLM_TIMEOUT = 90
+
+
+class SuggestRequest(BaseModel):
+    instruction: str
+    model: str = ""
+
+
+def _extract_json(content):
+    """从模型回复中抠出 JSON。兼容 ```json 包裹与前后废话。"""
+    text = (content or "").strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        raise ValueError("回复中没有 JSON 对象")
+    return json.loads(text[start:end + 1])
+
+
+def _call_llm(cfg, prompt, model):
+    """调 OpenAI 兼容 /chat/completions。标准库 urllib，不引入依赖。"""
+    url = cfg["base_url"].rstrip("/") + "/chat/completions"
+    body = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        # 低温度：改写事实表述不是创意写作，越稳越好
+        "temperature": 0.3,
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + cfg["api_key"],
+    })
+    with urllib.request.urlopen(req, timeout=LLM_TIMEOUT) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+    try:
+        return payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise ValueError("模型响应格式异常")
+
+
+@router.post("/{version}/suggest")
+def suggest_rewrite(version: str, item: SuggestRequest,
+                    ws: str = Depends(workspace_dir)):
+    _check_version(version)
+    if not item.instruction.strip():
+        raise HTTPException(status_code=422, detail="改写方向不能为空")
+
+    cfg = provider.read_config(ws)
+    if not cfg.get("base_url") or not cfg.get("api_key"):
+        raise HTTPException(
+            status_code=400,
+            detail="先在「设置」配置 Provider（BYOK）：base_url 与 api_key")
+    model = (item.model or "").strip()
+    if not model:
+        raise HTTPException(status_code=422, detail="请填写模型名（如 deepseek-chat）")
+
+    path = _data_path(ws, version)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="找不到简历数据: resume_%s.json" % version)
+    try:
+        with io.open(path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="JSON 解析失败：%s" % exc)
+
+    prompt = resume_guard.build_rewrite_prompt(data, item.instruction)
+    try:
+        content = _call_llm(cfg, prompt, model)
+        suggestion = _extract_json(content)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:200]
+        raise HTTPException(status_code=502,
+                            detail="模型端点返回 %s：%s" % (exc.code, detail))
+    except (ValueError, KeyError, OSError) as exc:
+        raise HTTPException(status_code=502, detail="模型调用失败：%s" % exc)
+
+    # 五项护栏：空改动 / 结构漂移 / 身份字段 / 字数爆炸 / 新增数字
+    ok, issues = resume_guard.validate_rewrite(data, suggestion)
+    return {
+        "version": version,
+        "ok": ok,
+        "issues": issues,
+        "suggestion": suggestion,
+        "model": model,
+    }

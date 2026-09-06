@@ -13,8 +13,10 @@
   5. 新增数字      —— 建议里出现原文没有的数字/百分比，编造数据的典型特征
 """
 
+import io
 import os
 import sys
+import zipfile
 
 import pytest
 
@@ -23,6 +25,25 @@ BACKEND = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, BACKEND)
 
 import resume_guard  # noqa: E402
+import resume_import  # noqa: E402
+
+# 造最小 docx 的 XML 骨架（docx 本质是 zip + word/document.xml）
+DOCX_XML = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+    '<w:body>'
+    '<w:p><w:r><w:t>张三</w:t></w:r></w:p>'
+    '<w:p><w:r><w:t>某大学 人工环境工程 硕士</w:t></w:r></w:p>'
+    '</w:body></w:document>'
+)
+
+
+@pytest.fixture
+def docx_path(tmp_path):
+    p = tmp_path / "sample.docx"
+    with zipfile.ZipFile(str(p), "w") as z:
+        z.writestr("word/document.xml", DOCX_XML)
+    return str(p)
 
 
 # ---------------------------------------------------------------------------
@@ -150,3 +171,97 @@ def test_accepts_reordering_words_only():
     sugg["skills"][0]["items"] = "CFD、EnergyPlus"  # 只调顺序
     ok, issues = resume_guard.validate_rewrite(orig, sugg)
     assert ok, "纯排序调整不应被拦：" + "；".join(issues)
+
+
+# ---------------------------------------------------------------------------
+# 简历一键导入护栏（第一批）
+#
+# 与改写场景的根本差别：导入是「抽取」不是「生成」。模型只允许把文件里
+# 已有的文字搬进字段，缺失留空，绝不补全。可溯源校验就是这条红线的执行者：
+# 每个字段值都必须能在原文里找到，否则标为疑似补全交由用户核对。
+# ---------------------------------------------------------------------------
+
+SOURCE_TEXT = (
+    "张三\n"
+    "电话：13800000000　邮箱：zhangsan@example.com\n"
+    "某大学　人工环境工程　硕士　2024.09 — 至今\n"
+    "项目：制冷循环分析。围绕蒸气压缩循环分析蒸发器与冷凝器，效率提升 12%\n"
+)
+
+
+def test_import_clause_exists():
+    assert resume_import.IMPORT_CLAUSE and resume_import.IMPORT_CLAUSE.strip()
+
+
+def test_import_clause_forbids_completion():
+    clause = resume_import.IMPORT_CLAUSE
+    # 条款必须同时说清：只抽取、缺失留空、禁止补全推测美化数字
+    assert "抽取" in clause, "条款必须限定为「抽取」"
+    assert "留空" in clause, "条款必须要求缺失字段留空"
+    assert "补全" in clause or "推测" in clause, "条款必须禁止补全与推测"
+    assert "数字" in clause, "条款必须点名禁止美化数字"
+
+
+def test_import_prompt_contains_clause():
+    prompt = resume_import.build_import_prompt(SOURCE_TEXT)
+    assert resume_import.IMPORT_CLAUSE in prompt
+
+
+def test_traceable_accepts_values_found_in_source():
+    data = {
+        "basics": {"name": "张三", "phone": "13800000000"},
+        "projects": [{"points": ["围绕蒸气压缩循环分析蒸发器与冷凝器"]}],
+    }
+    issues = resume_import.traceable_issues(SOURCE_TEXT, data)
+    assert issues == [], "原文里都有的值不应被标：" + "；".join(issues)
+
+
+def test_traceable_flags_value_missing_from_source():
+    data = {"projects": [{"points": ["主导了整个数据中心冷却系统的改造"]}]}
+    issues = resume_import.traceable_issues(SOURCE_TEXT, data)
+    assert issues, "原文没有的内容必须被标出"
+    assert any("未在原文" in i or "补全" in i for i in issues)
+
+
+def test_traceable_flags_number_not_in_source():
+    # 原文只有 12%，写 30% 就是编数字
+    data = {"projects": [{"points": ["效率提升 30%"]}]}
+    issues = resume_import.traceable_issues(SOURCE_TEXT, data)
+    assert issues, "原文没有的数字必须被标出"
+
+
+def test_traceable_tolerates_whitespace_and_punctuation():
+    # 全角/半角与空白差异应被归一化掉，否则会误报
+    data = {"basics": {"email": "zhangsan@example.com"}}
+    issues = resume_import.traceable_issues(
+        SOURCE_TEXT.replace("：", ":").replace("　", " "), data)
+    assert issues == [], "标点与空白差异不应误报：" + "；".join(issues)
+
+
+def test_traceable_ignores_empty_values():
+    # 留空是合规的（正是条款要求的），不该被当成问题
+    data = {"basics": {"name": "张三", "location": ""}}
+    issues = resume_import.traceable_issues(SOURCE_TEXT, data)
+    assert issues == []
+
+
+def test_extract_text_reads_docx(docx_path):
+    text = resume_import.extract_text(docx_path, ".docx")
+    assert "张三" in text
+    assert "人工环境工程" in text
+
+
+def test_extract_text_reads_plain_text(tmp_path):
+    p = tmp_path / "resume.txt"
+    with io.open(str(p), "w", encoding="utf-8") as f:
+        f.write(SOURCE_TEXT)
+    text = resume_import.extract_text(str(p), ".txt")
+    assert "张三" in text
+
+
+def test_extract_text_rejects_unknown_ext(tmp_path):
+    p = tmp_path / "a.bin"
+    with io.open(str(p), "wb") as f:
+        f.write(b"\x00\x01")
+    with pytest.raises(ValueError):
+        resume_import.extract_text(str(p), ".bin")

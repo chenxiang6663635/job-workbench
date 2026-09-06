@@ -200,6 +200,51 @@ def application_history(app_id: str, limit: int = 50,
     return {"id": app_id, "items": entries, "total": len(entries)}
 
 
+# ---------------------------------------------------------------------------
+# CSV 批量导入（第一批）：两阶段 —— preview 只读预校验，commit 才写入。
+# 解析与校验全部复用 tracker 的共用函数（CLI import 子命令同一套），
+# 此处只做 HTTP 编排与文件锁。提交持锁并基于锁内最新数据重校验，
+# 任何冲突整批拒绝，绝不半批写入。
+# ---------------------------------------------------------------------------
+
+class ImportRequest(BaseModel):
+    csv: str
+    mode: str = "preview"  # preview | commit
+
+
+@router.post("/import")
+def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
+    try:
+        csv_rows, unknown = tracker.parse_import_csv(item.csv)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    if not csv_rows:
+        raise HTTPException(status_code=422, detail="CSV 里没有数据行")
+
+    preview = tracker.preview_import(csv_rows, workspace=ws)
+    counts = {k: len(v) for k, v in preview.items()}
+
+    if item.mode != "commit":
+        # preview：不动数据，把差异表交回前端分色展示
+        return {"mode": "preview", "unknown": unknown, "counts": counts, **preview}
+
+    if preview["error"]:
+        raise HTTPException(status_code=422,
+                            detail="存在 %d 个错误行，修正后才能提交" % counts["error"])
+
+    lock_path = os.path.join(ws, DIR_TRACKING)
+    os.makedirs(lock_path, exist_ok=True)
+    lock_path = os.path.join(lock_path, "tracker.lock")
+
+    with file_lock(lock_path):
+        written = tracker.commit_import(preview, workspace=ws)
+    if written < 0:
+        # 预览后主表又变了（比如用户在别的标签页加过记录）：整批拒绝，重新预览
+        raise HTTPException(status_code=409,
+                            detail="预览后追踪表有变化，出现新的重复；请重新预览后再提交")
+    return {"mode": "commit", "written": written, "skipped": counts["duplicate"]}
+
+
 @router.post("")
 def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
     _validate_dates(app)

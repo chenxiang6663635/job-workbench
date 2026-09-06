@@ -12,17 +12,23 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import os
+import shutil
+import tempfile
+import urllib.parse
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 import atomicio
 import resume_build
+import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
 from filelock import file_lock
+from routers import provider
 
 router = APIRouter(prefix="/api/resume")
 
@@ -130,6 +136,83 @@ def _list_template_files(base):
 def list_templates(ws: str = Depends(workspace_dir)):
     items = _list_template_files(_resume_dir(ws))
     return {"items": items, "total": len(items)}
+
+
+# ---------------------------------------------------------------------------
+# 简历一键导入（第一批）
+#
+# 上传 PDF/docx/MD/TXT → 抽取文本 → BYOK 结构化 → 可溯源校验 → 返回核对数据。
+# 本端点**绝不落盘**：结果必须经前端核对页逐段确认后，再走既有 PUT 保存。
+# 上传文件只在本机临时目录短暂驻留，用完即删，不进工作区（也就不会进快照/git）。
+# 注意：具体路由必须注册在 /{version} 之前，否则会被动态参数路由抢先匹配。
+# ---------------------------------------------------------------------------
+
+class ImportRequest(BaseModel):
+    """简历导入请求。文件以 base64 随 JSON 提交（避免引入 multipart 依赖）。"""
+    filename: str
+    content_base64: str
+    model: str = ""
+
+
+@router.post("/import")
+def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
+    cfg = provider.read_config(ws)
+    if not cfg.get("base_url") or not cfg.get("api_key"):
+        raise HTTPException(
+            status_code=400,
+            detail="先在「设置」配置 Provider（BYOK）：base_url 与 api_key")
+    if not (item.model or "").strip():
+        raise HTTPException(status_code=422, detail="请填写模型名（如 deepseek-chat）")
+
+    # 前端把文件读成 base64 随 JSON 提交——multipart 需要额外依赖
+    # python-multipart，而本项目不引入任何新运行时依赖
+    try:
+        content = base64.b64decode(item.content_base64 or "", validate=True)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="文件内容解码失败")
+
+    filename = item.filename or ""
+    tmp_dir = tempfile.mkdtemp(prefix="jobws_import_")
+    try:
+        try:
+            path, ext = resume_import.save_upload(content, filename, tmp_dir)
+            text = resume_import.extract_text(path, ext)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
+        prompt = resume_import.build_import_prompt(text)
+        try:
+            raw = _call_llm(cfg, prompt, item.model.strip())
+            data = _extract_json(raw)
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")[:200]
+            raise HTTPException(status_code=502,
+                                detail="模型端点返回 %s：%s" % (exc.code, body))
+        except urllib.error.URLError as exc:
+            # 连不上端点（被墙/DNS/端口错），不要 500，降级成可理解的错误
+            raise HTTPException(status_code=502,
+                                detail="连不上模型端点：%s" % exc.reason)
+        except (ValueError, KeyError, OSError) as exc:
+            raise HTTPException(status_code=502, detail="模型调用失败：%s" % exc)
+
+        if not isinstance(data, dict):
+            raise HTTPException(status_code=502,
+                                detail="模型返回不是 JSON 对象，请重试或换个模型")
+
+        return {
+            "file": filename,
+            "characters": len(text),
+            "text": text,
+            "data": data,
+            # 可溯源校验：值/数字对不上原文的要标红，由用户核对
+            "issues": resume_import.traceable_issues(text, data),
+            # 未抽取到的关键字段标黄，提示补填（留空本身合规）
+            "unfilled": resume_import.unfilled_fields(data),
+            "model": item.model.strip(),
+        }
+    finally:
+        # 上传内容用完即删：不留在磁盘上
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @router.get("/templates/content")
@@ -248,6 +331,50 @@ def preview_html(version: str, ws: str = Depends(workspace_dir)):
         return {"version": version, "html": resume_build.render_block(tpl, data)}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail="渲染失败：%s" % exc)
+
+
+@router.get("/{version}/doc")
+def export_doc(version: str, ws: str = Depends(workspace_dir)):
+    """零依赖导出 Word（.doc）：复用 PDF 同一条渲染链路产出 HTML，
+    补 Word 能识别的 HTML 头后以 application/msword 返回。
+
+    定位是「文本搬运」：网申系统要求粘贴文本时从 Word 里复制最方便。
+    排版以 PDF 为准——HTML 另存 .doc 的格式还原度有限，这一点必须
+    在前端按钮旁向用户明示，绝不让用户误以为 .doc 是正式交付物。
+    """
+    _check_version(version)
+    path = _data_path(ws, version)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="找不到简历数据: resume_%s.json" % version)
+    try:
+        with io.open(path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="JSON 解析失败：%s" % exc)
+    try:
+        tpl = resume_build.load_template()
+        body = resume_build.render_block(tpl, data)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail="渲染失败：%s" % exc)
+
+    # Word 的 HTML 兼容头：显式 charset（否则中文按系统默认码页解码会乱码）
+    doc_html = (
+        '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+        'xmlns:w="urn:schemas-microsoft-com:office:word">'
+        '<head><meta charset="utf-8">'
+        '<title>resume_%s</title></head>'
+        "<body>%s</body></html>" % (version, body)
+    )
+
+    # Content-Disposition 的文件名含中文：header 只允许 latin-1，
+    # 用 RFC 5987 的 filename* 携带 UTF-8 名字，ASCII 名做降级兜底
+    quoted = urllib.parse.quote("简历_%s.doc" % version)
+    headers = {
+        "Content-Disposition": 'attachment; filename="resume_%s.doc"; '
+                               "filename*=UTF-8''%s" % (version, quoted)
+    }
+    return Response(content=doc_html.encode("utf-8"),
+                    media_type="application/msword", headers=headers)
 
 
 @router.post("/{version}/build")

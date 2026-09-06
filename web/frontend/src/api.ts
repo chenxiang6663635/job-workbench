@@ -74,6 +74,30 @@ export interface HistoryEntry {
   新值: string;
 }
 
+// CSV 批量导入（第一批）：preview 的差异表条目
+export interface ImportRowIssue {
+  line: number;
+  row: Record<string, string>;
+  errors: string[];
+}
+
+// CSV 批量导入：preview 结果（新增/重复/错误分色展示，不动数据）
+export interface ImportPreviewResult {
+  mode: "preview";
+  unknown: string[];
+  counts: { ok: number; duplicate: number; error: number };
+  ok: ImportRowIssue[];
+  duplicate: ImportRowIssue[];
+  error: ImportRowIssue[];
+}
+
+// CSV 批量导入：commit 结果
+export interface ImportCommitResult {
+  mode: "commit";
+  written: number;
+  skipped: number;
+}
+
 export interface JobSummary {
   dir: string;
   hasJD: boolean;
@@ -287,6 +311,17 @@ export interface SuggestResult {
   model: string;
 }
 
+// 简历一键导入（第一批）：抽取 + BYOK 结构化 + 可溯源校验的结果，绝不落盘
+export interface ImportResult {
+  file: string;
+  characters: number;
+  text: string; // 抽取到的原文，供用户逐段核对
+  data: Record<string, unknown>; // 结构化简历（与标准版式 schema 同构）
+  issues: string[]; // 可溯源校验未过：值/数字对不上原文，标红「疑似模型补全」
+  unfilled: string[]; // 模型未抽到的关键字段，标黄提示补填
+  model: string;
+}
+
 export const STAGES = [
   "待投",
   "已投",
@@ -378,6 +413,16 @@ export const api = {
     request<{ item: Application }>(`/applications/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body,
+    }),
+
+  // CSV 批量导入（第一批）：两阶段。preview 返回差异表不动数据；commit 才写入
+  importApplications: (
+    csv: string,
+    mode: "preview" | "commit" = "preview"
+  ) =>
+    request<ImportPreviewResult | ImportCommitResult>("/applications/import", {
+      method: "POST",
+      body: { csv, mode },
     }),
 
   listJobs: () => request<{ items: JobSummary[]; total: number }>("/jobs"),
@@ -503,6 +548,19 @@ export const api = {
       method: "POST",
       body,
     }),
+
+  // 简历一键导入：上传文件（base64）→ 抽取 → 结构化 → 可溯源校验。
+  // 本接口只返回核对数据，不落盘；确认后由调用方走 saveResume 保存。
+  importResume: (body: { filename: string; content_base64: string; model: string }) =>
+    request<ImportResult>("/resume/import", { method: "POST", body }),
+
+  // Word 导出（.doc）：浏览器直接下载，链接需带 ws 与其他 GET 一致
+  resumeDocUrl: (version: string) => {
+    const base = `/api/resume/${encodeURIComponent(version)}/doc`;
+    return currentWorkspace
+      ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
+      : base;
+  },
 
   // 高级模板（手写 HTML）：只读浏览与生成，文件能力自素材库迁入
   listResumeTemplates: () =>

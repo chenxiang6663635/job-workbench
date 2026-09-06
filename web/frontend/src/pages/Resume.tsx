@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   FileCheck,
+  FileDown,
   FilePlus2,
   FileText,
+  FileUp,
   LayoutTemplate,
   Loader2,
   PenLine,
@@ -14,6 +16,7 @@ import {
 import { api, type ResumeBuildResult, type ResumeVersion } from "../api";
 import ResumeForm from "../components/ResumeForm";
 import ResumeTemplates from "../components/ResumeTemplates";
+import ResumeImportDialog from "../components/ResumeImportDialog";
 import RewritePanel from "../components/RewritePanel";
 import VersionLineage from "../components/VersionLineage";
 
@@ -50,8 +53,11 @@ export default function Resume() {
   const [building, setBuilding] = useState(false);
   const [result, setResult] = useState<ResumeBuildResult | null>(null);
   const [overflowPx, setOverflowPx] = useState(0);
+  // 预览等比缩放：容器比 A4 窄时整体缩小（1:1 渲染会在窄屏显得字大且右侧被裁）
+  const [scale, setScale] = useState(1);
   const [showRewrite, setShowRewrite] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const scaleWrapRef = useRef<HTMLDivElement>(null);
   const [html, setHtml] = useState("");
   // 区分「刚加载」与「用户已编辑」。只有编辑过才自动写回文件——
   // 否则页面一打开就把前端表单规范化后的数据覆盖回去，schema 演进时
@@ -62,6 +68,26 @@ export default function Resume() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [creatingBusy, setCreatingBusy] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+
+  // 导入核对弹窗：空状态与主视图两条 return 都要挂，否则无简历版本时空状态
+  // 提前 return，点开按钮后弹窗根本不渲染。抽成共享节点两处复用。
+  const importDialog = showImport && (
+    <ResumeImportDialog
+      currentVersion={version}
+      onClose={() => setShowImport(false)}
+      onImported={(name) => {
+        setShowImport(false);
+        api
+          .listResumeVersions()
+          .then((r) => {
+            setVersions(r.items);
+            setVersion(name);
+          })
+          .catch((e: Error) => setError(e.message));
+      }}
+    />
+  );
 
   // 载入版本列表
   useEffect(() => {
@@ -103,22 +129,43 @@ export default function Resume() {
     return () => clearTimeout(timer);
   }, [data, version, dirty]);
 
-  // 防超页护栏：测量预览内容的实际高度
-  useEffect(() => {
-    const el = previewRef.current;
-    if (!el) return;
-    const measure = () => setOverflowPx(Math.max(0, el.scrollHeight - A4_HEIGHT));
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [html]);
+  // 防超页护栏：测量 iframe 内文档的真实内容高度。
+  // 不能靠 addEventListener("load")——useEffect 在 iframe 入 DOM 之后才跑，
+  // srcDoc 加载很快时 load 事件已经错过了，量到的永远是空文档高度。
+  // 改用 iframe 元素的 onLoad 属性（React 在插入 DOM 前注册），并在字体
+  // 与布局稳定后再补量一次。
+  const measureOverflow = useCallback(() => {
+    const doc = previewRef.current?.querySelector("iframe")?.contentDocument;
+    if (!doc) return;
+    const h = doc.documentElement?.scrollHeight ?? A4_HEIGHT;
+    setOverflowPx(Math.max(0, h - A4_HEIGHT));
+  }, []);
+
+  const onPreviewLoad = () => {
+    measureOverflow();
+    // 字体/图片加载会改变高度，稳定后再量一次
+    setTimeout(measureOverflow, 250);
+  };
 
   // 溢出换算成"约几行"（按正文行高 21px 估算）
   const overflowLines = useMemo(
     () => (overflowPx > 0 ? Math.ceil(overflowPx / 21) : 0),
     [overflowPx]
   );
+
+  // 缩放比 = 容器宽 / A4 宽。注意 iframe 布局仍按 1:1（794px）渲染，只缩小显示，
+  // 这样换行位置与最终 PDF 完全一致；内容真实高度（含超页）用 A4 高 + overflowPx 推导
+  const contentH = A4_HEIGHT + overflowPx;
+  useEffect(() => {
+    const el = scaleWrapRef.current;
+    if (!el) return;
+    const fit = () =>
+      setScale(Math.min(1, el.clientWidth / A4_WIDTH));
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [html]);
 
   // 用户主动编辑：标记 dirty，触发自动保存与预览刷新
   const edit = (next: ResumeData) => {
@@ -198,12 +245,20 @@ export default function Resume() {
       </button>
 
       {mode === "std" && !creating && (
-        <button
-          onClick={() => setCreating(true)}
-          className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
-        >
-          <FilePlus2 size={15} /> 新建版本
-        </button>
+        <>
+          <button
+            onClick={() => setShowImport(true)}
+            className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
+          >
+            <FileUp size={15} /> 导入简历
+          </button>
+          <button
+            onClick={() => setCreating(true)}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
+          >
+            <FilePlus2 size={15} /> 新建版本
+          </button>
+        </>
       )}
       {mode === "std" && creating && (
         <div className="ml-auto flex items-center gap-2">
@@ -262,6 +317,7 @@ export default function Resume() {
             手写 HTML 的精排版在「高级模板」里浏览与生成。
           </p>
         </div>
+        {importDialog}
       </div>
     );
   }
@@ -309,9 +365,24 @@ export default function Resume() {
         >
           <PenLine size={15} /> AI 改写
         </button>
+
+        {/* Word 版定位是「文本搬运」：方便网申系统粘贴。零依赖 .doc，
+            排版还原度有限——这一句必须在按钮旁说清，不让用户误当正式交付物 */}
+        <a
+          href={api.resumeDocUrl(version)}
+          download
+          title="Word 版只保证文本可复制，排版以 PDF 为准"
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5"
+        >
+          <FileDown size={15} /> 导出 Word
+        </a>
+        <span className="text-[11px] text-slate-600">
+          Word 版只保证文本可复制，排版以 PDF 为准
+        </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,820px)]">
+      {/* 左右等分：右列固定上限时窗口稍窄会把表单挤成一细条（1fr 无下限被吃光） */}
+      <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-warn/25 bg-warn/10 px-3 py-2">
             <ShieldAlert size={15} className="mt-0.5 shrink-0 text-warn" />
@@ -328,7 +399,8 @@ export default function Resume() {
           )}
         </div>
 
-        <div className="space-y-3">
+        {/* 预览列 sticky：左侧表单很长，滚动编辑时预览始终留在视野里 */}
+        <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
           {overflowLines > 0 && (
             <div className="flex items-center gap-2 rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
               <AlertTriangle size={14} />
@@ -336,29 +408,47 @@ export default function Resume() {
             </div>
           )}
 
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-950/60 p-4">
+          {/* 留白稍大：纸张若正好铺满容器会显得内容贴边、像被裁 */}
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-950/60 p-6">
+            {/* 缩放壳量可用宽度；内层按 1:1 渲染再等比缩小，换行与 PDF 一致且永不裁剪 */}
             <div
-              className="mx-auto origin-top bg-white"
-              style={{ width: A4_WIDTH, maxWidth: "100%" }}
+              ref={scaleWrapRef}
+              className="mx-auto overflow-hidden"
+              style={{ height: contentH * scale }}
             >
-              <div ref={previewRef}>
-                {html ? (
-                  <iframe
-                    title="简历预览"
-                    srcDoc={html}
-                    className="w-full border-0"
-                    style={{ height: A4_HEIGHT }}
-                  />
-                ) : (
-                  <div
-                    className="flex items-center justify-center text-sm text-slate-500"
-                    style={{ height: A4_HEIGHT }}
-                  >
-                    预览生成中…
-                  </div>
-                )}
+              <div
+                className="origin-top-left bg-white"
+                style={{
+                  width: A4_WIDTH,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <div ref={previewRef}>
+                  {html ? (
+                    <iframe
+                      title="简历预览"
+                      srcDoc={html}
+                      onLoad={onPreviewLoad}
+                      className="w-full border-0"
+                      style={{ height: contentH }}
+                    />
+                  ) : (
+                    <div
+                      className="flex items-center justify-center text-sm text-slate-500"
+                      style={{ height: A4_HEIGHT }}
+                    >
+                      预览生成中…
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+            {scale < 1 && (
+              <p className="mt-2 text-center text-[11px] text-slate-600">
+                预览已缩放至 {Math.round(scale * 100)}%（布局与生成 PDF 一致）
+              </p>
+            )}
           </div>
 
           {result && (
@@ -422,6 +512,8 @@ export default function Resume() {
           }}
         />
       )}
+
+      {importDialog}
     </div>
   );
 }

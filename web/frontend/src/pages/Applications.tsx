@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
+  FileUp,
   Plus,
   Search,
   X,
@@ -15,6 +16,7 @@ import {
   type Application,
   type HistoryEntry,
 } from "../api";
+import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 
 const DIRECTIONS = ["datacenter", "hvac", "other"];
 
@@ -112,6 +114,7 @@ export default function Applications() {
   });
   const [sort, setSort] = useState<SortKey>("next");
   const [creating, setCreating] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [timelines, setTimelines] = useState<Record<string, HistoryEntry[]>>({});
   const [draft, setDraft] = useState({
@@ -264,12 +267,26 @@ export default function Applications() {
         </select>
 
         <button
+          onClick={() => setShowImport(true)}
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
+        >
+          <FileUp size={15} /> 批量导入
+        </button>
+
+        <button
           onClick={() => setCreating(true)}
           className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft active:scale-95"
         >
           <Plus size={16} /> 新增投递
         </button>
       </div>
+
+      {showImport && (
+        <ImportApplicationsDialog
+          onClose={() => setShowImport(false)}
+          onImported={load}
+        />
+      )}
 
       {creating && (
         <div className="rounded-2xl border border-accent/30 bg-ink-900/70 p-5">

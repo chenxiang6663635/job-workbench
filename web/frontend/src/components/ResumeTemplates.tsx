@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   FileCode2,
@@ -30,6 +30,71 @@ function fmtSize(n: number) {
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
   return (n / 1024 / 1024).toFixed(1) + " MB";
+}
+
+// A4 @96dpi。手写模板按 A4 宽渲染再等比缩小——全宽渲染会让行宽达到真实的
+// 1.6 倍（1214px vs 696px），字显小、行长难读，且与导出的 PDF 完全不是一回事
+const A4_WIDTH = 794;
+
+/**
+ * 手写 HTML 模板的预览 iframe。
+ * 两件事：① 高度按内容真实高度展开（写死高度会截断内容，只能靠 iframe 内部
+ * 滚动，用户往往不知道下面还有）；② 按 A4 宽渲染并等比缩小，预览即所得。
+ */
+function TemplatePreview({ src, title }: { src: string; title: string }) {
+  const [contentH, setContentH] = useState(1123);
+  const [scale, setScale] = useState(1);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const fitHeight = (frame: HTMLIFrameElement) => {
+    const h = frame.contentDocument?.documentElement?.scrollHeight;
+    if (h && h > 0) setContentH(h + 24);
+  };
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const fit = () => setScale(Math.min(1, el.clientWidth / A4_WIDTH));
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [src]);
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-4">
+      <div
+        ref={wrapRef}
+        className="mx-auto overflow-hidden"
+        style={{ height: contentH * scale }}
+      >
+        <div
+          style={{
+            width: A4_WIDTH,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        >
+          <iframe
+            src={src}
+            title={title}
+            className="w-full rounded-xl border-0 bg-white"
+            style={{ height: contentH }}
+            onLoad={(e) => {
+              fitHeight(e.currentTarget);
+              // 图片/字体后加载会改变高度，稳定后再量一次
+              setTimeout(() => fitHeight(e.currentTarget), 300);
+            }}
+          />
+        </div>
+      </div>
+      {scale < 1 && (
+        <p className="mt-2 text-center text-[11px] text-slate-600">
+          预览已缩放至 {Math.round(scale * 100)}%（与导出 PDF 同版式）
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function ResumeTemplates() {
@@ -148,25 +213,13 @@ export default function ResumeTemplates() {
 
         {isHtml ? (
           // 手写模板带相对资源（photo.jpg 等），用文件 URL 的 iframe 保真展示
-          <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-2">
-            <iframe
-              src={fileUrl}
-              title={selected.rel}
-              className="h-[75vh] w-full rounded-xl border-0 bg-white"
-            />
-          </div>
+          <TemplatePreview src={fileUrl} title={selected.rel} />
         ) : textContent !== null ? (
           <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-ink-950 p-5 font-mono text-xs leading-relaxed text-slate-300">
             {textContent}
           </pre>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-2">
-            <iframe
-              src={fileUrl}
-              title={selected.rel}
-              className="h-[75vh] w-full rounded-xl border-0 bg-white"
-            />
-          </div>
+          <TemplatePreview src={fileUrl} title={selected.rel} />
         )}
       </div>
     );

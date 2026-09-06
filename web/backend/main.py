@@ -73,6 +73,20 @@ def health():
 DIST_DIR = pathres.resolve_dist_dir(ROOT)
 if os.path.isfile(os.path.join(DIST_DIR, "index.html")):
     from fastapi.staticfiles import StaticFiles
+
+    # index.html 无 Cache-Control 时浏览器按启发式缓存旧文件，
+    # 用户会一直加载旧 JS——表现为"改了功能但界面没变化"。故 HTML 强制
+    # 协商缓存（no-cache：每次校验 ETag）；带内容 hash 的 assets 可长缓存。
+    @app.middleware("http")
+    async def _cache_policy(request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path == "/" or path.endswith(".html"):
+            response.headers["Cache-Control"] = "no-cache"
+        elif "/assets/" in path:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")
 
 

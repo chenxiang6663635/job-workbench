@@ -7,6 +7,19 @@
   /* A4 一页。实测：必须显式声明 @page size:A4，否则默认 Letter(612×792)，
      破坏一页判定。此文件是「标准版式」数据驱动模板，区块由 JSON 字段驱动。 */
   @page { size: A4; margin: 10mm 13mm; }
+  /* @page 只在打印/导出 PDF 时生效，屏幕预览里完全不起作用——
+     所以预览时要用 @media screen 补上等价留白，否则内容贴在纸张最边缘，
+     看着像左右被裁掉，且与最终 PDF 的观感不一致。
+     10mm≈38px、13mm≈49px（96dpi）：补完后预览内容区 = 794-98 = 696px，
+     与 A4 减去页边距的内容宽（210-26=184mm≈696px）一致，
+     预览的换行位置才真正等于 PDF 的换行位置；打印时留白交给 @page，
+     若这里也加会出现双倍页边距。 */
+  @media screen {
+    body { padding: 38px 49px; }
+  }
+  @media print {
+    body { padding: 0; }
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: "Microsoft YaHei", "微软雅黑", "SimSun", sans-serif;

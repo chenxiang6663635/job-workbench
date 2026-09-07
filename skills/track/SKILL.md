@@ -20,9 +20,16 @@ python tools/tracker.py list --batch 提前批       # 按批次
 python tools/tracker.py list --company 华为       # 公司名模糊匹配
 python tools/tracker.py show --id A001
 python tools/tracker.py update --id A001 --stage 一面 --next "准备项目口述" --next-date 2026-09-10
+python tools/tracker.py import --file 待导入.csv               # CSV 批量导入（写入前先出差异预览）
+python tools/tracker.py import --file 待导入.csv --dry-run     # 只预览不写入
 python tools/report.py                            # 生成 05_投递追踪/看板.md
 python tools/report.py --stdout                   # 只打印不写文件
 ```
+
+看板第六节「周期复盘」含**失败原因聚类**：按 `<工作区>/config/failure_keywords.txt`
+（每行「类别=关键词1,关键词2」，改完重跑 report 即生效）把失败原因归成几类；
+文件不存在时退化为按「状态原因」原文频次统计；失败记录少于 3 条时明确
+「样本太少，暂不展示」——不要在数据不足时硬凑归因。
 
 `list --due-within N` 按下次动作日期升序，已挂与已放弃排在最后。
 

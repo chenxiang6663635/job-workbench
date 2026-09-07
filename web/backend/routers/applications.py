@@ -30,7 +30,10 @@ STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "
 TERMINAL = tracker.TERMINAL_STAGES
 
 # 排序键。default 与 CLI 的 list 一致（终态沉底、按下次动作日期升序）
-SORTS = ["default", "next", "score", "stale"]
+SORTS = ["default", "next", "score", "stale", "health"]
+
+# 健康度排序优先级：越靠前越该先处理；None（终态）与 ok 沉底
+HEALTH_ORDER = {"urgent": 0, "overdue": 1, "stale": 2, "ok": 3}
 
 
 class NewApplication(BaseModel):
@@ -89,7 +92,7 @@ def _match_keyword(row, keyword):
 
 
 def _with_stage_days(rows, ws):
-    """给每行附加 stageDays（当前阶段停留天数）。
+    """给每行附加 stageDays（当前阶段停留天数）与 health（健康度）。
 
     构造新 dict 返回，不写到行对象上——rows 会原样传回 write_rows，
     附加字段混进去虽会被 extrasaction 忽略，但让它根本不出现更安全。
@@ -100,11 +103,20 @@ def _with_stage_days(rows, ws):
         item = dict(row)
         days = tracker.stale_days(row, entries)
         item["stageDays"] = days if days is not None else ""
+        # 健康度与健康度理由：给理由不给黑箱分数，前端逐条照抄展示
+        item["health"] = tracker.health_score(row, entries)
         out.append(item)
     return out
 
 
 def _sort_items(items, sort):
+    if sort == "health":
+        # 严重度优先，同级里停留久的在前（越拖越该处理）
+        items.sort(key=lambda r: (
+            HEALTH_ORDER.get((r.get("health") or {}).get("level"), 3),
+            -(r["stageDays"] if isinstance(r.get("stageDays"), int) else -1),
+            r.get("id", "")))
+        return items
     if sort == "score":
         items.sort(key=lambda r: (-_score(r), r.get("id", "")))
     elif sort == "stale":

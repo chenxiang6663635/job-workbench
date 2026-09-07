@@ -125,12 +125,116 @@ def _stage_durations(history_rows, today):
     return durations
 
 
-def retrospective(rows, history_rows, today):
-    """复盘数据：真实转化率、停留分布、失败归因。
+# 失败原因聚类（第三批）：回答「到底败在哪一类」而不是「哪句话出现过几次」。
+# 关键词表放在工作区 config/ 下由用户维护，代码不写死分类——不同行业、
+# 不同方向的失败原因千差万别，写死就等于替用户下结论。
+FAILURE_KEYWORDS_FILE = os.path.join("config", "failure_keywords.txt")
+# 样本下限：低于此数不展示聚类。三个样本以下谈「高频原因」是自欺欺人
+MIN_CLUSTER_SAMPLES = 3
+# 兜底分类：关键词表里没命中的失败原因归入此项（占大头时说明该改关键词表了）
+OTHER_CATEGORY = "其他/未归类"
+
+
+def load_failure_keywords(workspace=None):
+    """读取失败原因关键词表。每行「类别=关键词1,关键词2」，# 开头为注释。
+
+    返回 [(类别, [关键词...]), ...]；文件不存在时返回空列表（调用方退化为
+    按「状态原因」原文频次统计——宁可粗一点，也不编造分类）。
+    """
+    ws = workspace or DEFAULT_WORKSPACE
+    path = os.path.join(ws, FAILURE_KEYWORDS_FILE)
+    if not os.path.isfile(path):
+        return []
+    groups = []
+    try:
+        with io.open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                text = line.strip()
+                if not text or text.startswith("#") or "=" not in text:
+                    continue
+                category, keywords = text.split("=", 1)
+                words = [w.strip() for w in re.split(r"[,，]", keywords) if w.strip()]
+                if category.strip() and words:
+                    groups.append((category.strip(), words))
+    except (OSError, UnicodeDecodeError):
+        return []
+    return groups
+
+
+def cluster_failures(rows, workspace=None):
+    """把失败记录（已挂/已放弃）按关键词表聚成几类，返回聚类结果。
+
+    返回 {shown, note, clusters, minSamples, source}：
+    - source="keywords"：用了工作区的关键词表；"reason"：退化为状态原因频次
+    - 样本少于 MIN_CLUSTER_SAMPLES 时 shown=False，note 明确说明"样本太少，
+      暂不展示"——**不硬凑分类**是这个功能的底线（凑出来的归因比没有更害人）
+    """
+    fails = []
+    for row in rows:
+        if (row.get("当前阶段") or "").strip() not in FAIL_STAGES:
+            continue
+        reason = (row.get("状态原因") or "").strip() or "（未填原因）"
+        fails.append(((row.get("公司") or "").strip(), reason))
+
+    total = len(fails)
+    if total < MIN_CLUSTER_SAMPLES:
+        return {
+            "shown": False,
+            "note": "样本太少，暂不展示（失败记录 %d 条，至少需要 %d 条才能谈「高频」）"
+                    % (total, MIN_CLUSTER_SAMPLES),
+            "clusters": [],
+            "total": total,
+            "minSamples": MIN_CLUSTER_SAMPLES,
+            "source": "none",
+        }
+
+    groups = load_failure_keywords(workspace)
+    if groups:
+        buckets = {}
+        for company, reason in fails:
+            hit = None
+            for category, words in groups:
+                if any(word in reason for word in words):
+                    hit = category
+                    break
+            hit = hit or OTHER_CATEGORY
+            bucket = buckets.setdefault(hit, {"count": 0, "examples": []})
+            bucket["count"] += 1
+            text = ("%s：%s" % (company, reason)) if company else reason
+            if len(bucket["examples"]) < 3 and text not in bucket["examples"]:
+                bucket["examples"].append(text)
+        clusters = [{"category": name, "count": b["count"], "examples": b["examples"]}
+                    for name, b in buckets.items()]
+        clusters.sort(key=lambda c: -c["count"])
+        source = "keywords"
+    else:
+        # 退化：没有关键词表时按「状态原因」原文计数——等于现有失败归因，
+        # 但一样能看出最频繁的那几条，且绝不虚构分类名
+        counts = {}
+        for company, reason in fails:
+            counts[reason] = counts.get(reason, 0) + 1
+        clusters = [{"category": reason, "count": n, "examples": []}
+                    for reason, n in sorted(counts.items(), key=lambda kv: -kv[1])]
+        source = "reason"
+
+    return {
+        "shown": True,
+        "note": "" if source == "keywords" else
+                "未配置 config/failure_keywords.txt，当前按「状态原因」原文频次统计",
+        "clusters": clusters,
+        "total": total,
+        "minSamples": MIN_CLUSTER_SAMPLES,
+        "source": source,
+    }
+
+
+def retrospective(rows, history_rows, today, workspace=None):
+    """复盘数据：真实转化率、停留分布、失败归因与失败聚类。
 
     设计要点：「我拒绝的 offer」是双向选择，单独统计，绝不混进失败——
     拒绝一个 offer 可能意味着拿到了更好的，把它算成失败会歪曲复盘。
     返回纯数据 dict（Web 直接透出；CLI 自己渲染成 Markdown）。
+    workspace 用于读取关键词表；Web 场景必须显式传入（并发下全局不可靠）。
     """
     reached = _reached_stages(rows, history_rows)
     total_ids = len(reached)
@@ -188,10 +292,12 @@ def retrospective(rows, history_rows, today):
         "stay": stay,
         "failure": [{"reason": k, "count": v} for k, v in fail],
         "declined": [{"reason": k, "count": v} for k, v in declined],
+        # 失败原因聚类（第三批）：回答「到底败在哪一类」
+        "failureClusters": cluster_failures(rows, workspace),
     }
 
 
-def build_report(rows, today):
+def build_report(rows, today, workspace=None):
     lines = []
     total = len(rows)
 
@@ -307,7 +413,7 @@ def build_report(rows, today):
 
     # 六、周期复盘：转化率、停留、归因。这是长期资产——数据越攒越值钱
     history_rows = read_history()
-    retro = retrospective(rows, history_rows, today)
+    retro = retrospective(rows, history_rows, today, workspace)
     lines.append("## 六、周期复盘")
     lines.append("")
 
@@ -342,6 +448,27 @@ def build_report(rows, today):
             lines.append("| %s | %d |" % (item["reason"], item["count"]))
         lines.append("")
 
+    # 失败聚类：回答「到底败在哪一类」。样本不足时明确说"暂不展示"，不硬凑
+    clusters = retro["failureClusters"]
+    lines.append("### 失败原因聚类")
+    lines.append("")
+    if not clusters["shown"]:
+        lines.append("> %s" % clusters["note"])
+    else:
+        if clusters["note"]:
+            lines.append("> %s" % clusters["note"])
+            lines.append("")
+        lines.append("| 类别 | 次数 | 占比 |")
+        lines.append("|---|---:|---:|")
+        for c in clusters["clusters"]:
+            share = "%d%%" % round(c["count"] * 100.0 / clusters["total"])
+            lines.append("| %s | %d | %s |" % (c["category"], c["count"], share))
+        lines.append("")
+        for c in clusters["clusters"]:
+            if c["examples"]:
+                lines.append("- **%s**：%s" % (c["category"], "；".join(c["examples"])))
+    lines.append("")
+
     if retro["declined"]:
         lines.append("### 我拒绝的 offer（双向选择，不计失败）")
         lines.append("")
@@ -375,7 +502,7 @@ def main():
         return 0
 
     rows = read_rows()
-    content = build_report(rows, date.today())
+    content = build_report(rows, date.today(), workspace)
 
     if args.stdout:
         print(content)

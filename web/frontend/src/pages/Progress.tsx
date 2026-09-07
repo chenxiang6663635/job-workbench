@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { CalendarClock, Scale, Users } from "lucide-react";
+import { BookOpen, CalendarClock, Scale, Users } from "lucide-react";
 import ContactList from "../components/ContactList";
 import InterviewList from "../components/InterviewList";
 import OfferCompare from "../components/OfferCompare";
+import QuestionBank from "../components/QuestionBank";
 
-type SubTab = "interviews" | "contacts" | "offers";
+type SubTab = "interviews" | "contacts" | "offers" | "questions";
 
 const SUBTABS: { key: SubTab; label: string; icon: React.ReactNode }[] = [
   { key: "interviews", label: "面试", icon: <CalendarClock size={15} /> },
+  { key: "questions", label: "题库", icon: <BookOpen size={15} /> },
   { key: "contacts", label: "联系人", icon: <Users size={15} /> },
   { key: "offers", label: "Offer 对比", icon: <Scale size={15} /> },
 ];
@@ -42,6 +44,7 @@ export default function Progress() {
       </div>
 
       {sub === "interviews" && <InterviewList />}
+      {sub === "questions" && <QuestionBank />}
       {sub === "contacts" && <ContactList />}
       {sub === "offers" && <OfferCompare />}
     </div>

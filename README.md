@@ -104,6 +104,7 @@ python tools/tracker.py --workspace <目录> history [--id A001] [--limit N]
 python tools/tracker.py --workspace <目录> interview add|list|show|update   # 面试记录
 python tools/tracker.py --workspace <目录> contact add|list|show|update     # 招聘方联系人
 python tools/tracker.py --workspace <目录> offer add|list|show|update       # Offer 事实
+python tools/tracker.py --workspace <目录> import --file x.csv [--dry-run]  # CSV 批量导入（先预览差异）
 python tools/tracker.py --workspace <目录> check                            # schema 自检
 python tools/resume_build.py --workspace <目录> [--version X] [--out DIR]
 python tools/resume_build.py render --workspace <目录> [--version X]  # 数据驱动标准版式
@@ -129,6 +130,9 @@ python tools/report.py --workspace <目录> [--stdout]   # 漏斗看板 + 周期
 - **Offer 对比**：多个 offer 的已知事实并排展示，**只并排、不推荐**——选择是你自己的
 - **版本谱系**：哪版简历投了哪些岗位、各走到哪一步
 - **周期复盘**：阶段转化率（从时间线重建，不是存量冒充）、停留中位天数、失败归因；「我拒绝的 offer」单独统计
+- **失败原因聚类**：按 `config/failure_keywords.txt` 把失败归成几类，回答「到底败在哪一类」；样本少于 3 条时明确「样本太少，暂不展示」，不硬凑分类
+- **面试题库**：面过的问题与自己的回答要点按公司归集，面试前先过一遍（Web「进展」页）
+- **投递健康度**：紧急 / 逾期 / 停滞 / 正常四态，每条给出**具体理由**而非黑箱分数（Web 追踪表与看板）
 - **数据安全**：全部写操作原子化（半成品文件不会出现）；一键快照备份到系统用户目录（工作区之外）；schema 自检发现坏文件自动隔离而非静默丢弃；整包导出随时可带走
 
 详见 `docs/specs/2026-09-03-p0-p3-roadmap.md`。

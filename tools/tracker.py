@@ -456,6 +456,64 @@ def stale_days(row, entries, today=None):
     return (today - base).days
 
 
+# 健康度判定（第二批）。**给理由，不给黑箱分数**——本项目所有判断都要能
+# 被人核对，一个算出来的 0–100 分说不清为什么，和编造没区别。
+# 终态记录不参与判定（已结束的岗位谈不上"待推进"）。
+HEALTH_LEVELS = ["urgent", "overdue", "stale", "ok"]
+URGENT_DAYS = 3  # 距截止日不超过该天数仍未投 → 最紧急
+
+
+def health_score(row, entries, today=None):
+    """合成投递健康度：返回 {"level": ..., "reasons": [...]}。
+
+    - urgent：非终态且距截止日 ≤3 天仍未投（含已过截止）
+    - overdue：有下次动作日期且已过期
+    - stale：当前阶段停留超过 STALE_DAYS
+    - ok：以上皆无
+    - 终态（已挂/已放弃/我拒绝的 offer）返回 level=None，不参与判定
+
+    reasons 收集**所有命中**的理由（不止最高级那一条），level 取最严重的一级。
+    """
+    stage = (row.get("当前阶段") or "").strip()
+    if stage in TERMINAL_STAGES:
+        return {"level": None, "reasons": []}
+
+    today = today or date.today()
+    reasons = []
+    levels = []
+
+    deadline = parse_iso_date(row.get("截止日期"))
+    if deadline and stage == "待投":
+        left = (deadline - today).days
+        if left <= URGENT_DAYS:
+            levels.append("urgent")
+            if left < 0:
+                reasons.append("已过截止日 %d 天仍未投" % (-left))
+            elif left == 0:
+                reasons.append("今天就是截止日，仍未投")
+            else:
+                reasons.append("距截止日 %d 天仍未投" % left)
+
+    next_date = parse_iso_date(row.get("下次动作日期"))
+    if next_date and next_date < today:
+        levels.append("overdue")
+        action = (row.get("下次动作") or "").strip()
+        reasons.append("下次动作已逾期 %d 天：%s"
+                       % ((today - next_date).days, action or "（未写动作）"))
+
+    days = stale_days(row, entries, today=today)
+    if days is not None and days > STALE_DAYS:
+        levels.append("stale")
+        reasons.append("已在「%s」停留 %d 天" % (stage or "未填阶段", days))
+
+    level = "ok"
+    for candidate in HEALTH_LEVELS:
+        if candidate in levels:
+            level = candidate
+            break
+    return {"level": level, "reasons": reasons}
+
+
 def read_rows(workspace=None):
     path = csv_path(workspace)
     if not os.path.isfile(path):

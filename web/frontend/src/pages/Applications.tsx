@@ -23,7 +23,15 @@ const DIRECTIONS = ["datacenter", "hvac", "other"];
 // 静默阈值与后端 tracker.STALE_DAYS 一致；停留超过该值高亮
 const STALE_DAYS = 14;
 
-type SortKey = "next" | "score" | "stale";
+type SortKey = "next" | "score" | "stale" | "health";
+
+// 健康度四态：颜色即严重度，具体理由放在 hover 的 title 里（给理由不给黑箱分数）
+const HEALTH_META: Record<string, { label: string; cls: string }> = {
+  urgent: { label: "紧急", cls: "bg-bad/15 text-bad" },
+  overdue: { label: "逾期", cls: "bg-warn/15 text-warn" },
+  stale: { label: "停滞", cls: "bg-accent/15 text-accent" },
+  ok: { label: "正常", cls: "bg-white/5 text-slate-400" },
+};
 
 type Drill = {
   stage?: string;
@@ -32,6 +40,7 @@ type Drill = {
   active?: boolean;
   overdue?: boolean;
   dueWithin?: number;
+  sort?: "health";
   focusId?: string;
 };
 
@@ -60,6 +69,7 @@ const SORT_LABELS: Record<SortKey, string> = {
   next: "下次动作日期",
   score: "评分",
   stale: "停留",
+  health: "健康度",
 };
 
 function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
@@ -112,7 +122,7 @@ export default function Applications() {
     batch: drill.batch ?? "",
     q: "",
   });
-  const [sort, setSort] = useState<SortKey>("next");
+  const [sort, setSort] = useState<SortKey>(drill.sort ?? "next");
   const [creating, setCreating] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -395,6 +405,11 @@ export default function Applications() {
                     {sortBtn("stale")}
                   </span>
                 </th>
+                <th className="px-4 py-3 text-left font-medium">
+                  <span className="inline-flex items-center gap-1">
+                    {sortBtn("health")}
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -515,11 +530,28 @@ export default function Applications() {
                           <span className="text-xs text-slate-600">—</span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const h = it.health;
+                          if (!h || !h.level) {
+                            return <span className="text-xs text-slate-600">—</span>;
+                          }
+                          const meta = HEALTH_META[h.level];
+                          return (
+                            <span
+                              title={h.reasons.join("；") || "暂无异常"}
+                              className={`cursor-help rounded-md px-2 py-1 text-xs font-medium ${meta.cls}`}
+                            >
+                              {meta.label}
+                            </span>
+                          );
+                        })()}
+                      </td>
                     </tr>
                     {isExpanded && (
                       <tr className="bg-ink-950/60">
                         <td
-                          colSpan={9}
+                          colSpan={10}
                           className="border-l-2 border-accent/30 px-6 py-4"
                         >
                           <HistoryTimeline entries={timelines[it.id] ?? []} />

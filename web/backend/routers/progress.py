@@ -188,6 +188,67 @@ def export_ics(ws: str = Depends(workspace_dir), app: str = None):
 
 
 # ---------------------------------------------------------------------------
+# 面试题库（第二批）：把 interviews.csv 里已经答过的问题归集成库
+#
+# 面试记录一旦记下就是资产，但躺在 CSV 里等于没有——面试前想「这家公司以前
+# 问过我什么」却翻不出来。这里按「公司 + 岗位」把问题记录、回答要点与复盘
+# 聚合出来，支持关键词检索，纯只读（无新数据文件），不做语义聚类（YAGNI）。
+# ---------------------------------------------------------------------------
+
+
+@router.get("/question-bank")
+def question_bank(ws: str = Depends(workspace_dir), q: str = None):
+    """按公司+岗位聚合被问过的问题。q 为关键词，跨问题/回答/复盘/面试官匹配。
+
+    只收有「问题记录」的面试——没记问题的面试对题库没有贡献，
+    混进来只会稀释真正可复用的内容。
+    """
+    rows = tracker.read_interviews(ws)
+    keyword = (q or "").strip().lower()
+
+    groups = {}
+    for row in rows:
+        question = (row.get("问题记录") or "").strip()
+        if not question:
+            continue
+        item = {
+            "id": (row.get("面试id") or "").strip(),
+            "轮次": (row.get("轮次") or "").strip(),
+            "面试时间": (row.get("面试时间") or "").strip(),
+            "面试官": (row.get("面试官") or "").strip(),
+            "结果": (row.get("结果") or "").strip(),
+            "问题记录": question,
+            "我的回答要点": (row.get("我的回答要点") or "").strip(),
+            "复盘与改进": (row.get("复盘与改进") or "").strip(),
+        }
+        if keyword:
+            haystack = " ".join([item["问题记录"], item["我的回答要点"],
+                                 item["复盘与改进"], item["面试官"],
+                                 item["轮次"]]).lower()
+            if keyword not in haystack:
+                continue
+        key = ((row.get("公司") or "").strip() or "（未填公司）",
+               (row.get("岗位") or "").strip())
+        groups.setdefault(key, []).append(item)
+
+    items = []
+    total = 0
+    for (company, role), entries in groups.items():
+        # 组内按面试时间倒序：同一岗位最近一次面经在最上面
+        entries.sort(key=lambda r: r["面试时间"], reverse=True)
+        items.append({
+            "公司": company,
+            "岗位": role,
+            "items": entries,
+            "total": len(entries),
+        })
+        total += len(entries)
+    # 问题多的公司排在前面——面试前最该先过它的题库
+    items.sort(key=lambda g: (-g["total"], g["公司"]))
+    return {"groups": items, "total": total, "keyword": (q or "").strip()}
+
+
+# ---------------------------------------------------------------------------
 # 联系人
 # ---------------------------------------------------------------------------
 

@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, FileUp, Loader2, X } from "lucide-react";
 import {
   api,
-  type ImportCommitResult,
   type ImportPreviewResult,
   type ImportRowIssue,
 } from "../api";
@@ -111,11 +110,10 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
     setError(null);
     api
       .importApplications(text, "commit")
-      .then((r) => {
-        const c = r as ImportCommitResult;
+      .then(() => {
+        // written 必然 ≥1：canCommit 已保证存在 ok 行且无错误行
         onImported();
         onClose();
-        if (c.written === 0) setError("没有可写入的行");
       })
       .catch((e: Error) => {
         setError(e.message);

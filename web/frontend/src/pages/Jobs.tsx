@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronDown, FileText, Plus, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  FileText,
+  Link2,
+  Loader2,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import GapPanel from "../components/GapPanel";
 import { api, type JobDetail, type JobSummary } from "../api";
 
@@ -42,6 +50,9 @@ export default function Jobs() {
   const [creating, setCreating] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [draft, setDraft] = useState({ 公司: "", 岗位: "", JD文本: "" });
+  // JD 链接抓取（第三批）：尽力而为，失败即明确降级提示手动粘贴
+  const [jdUrl, setJdUrl] = useState("");
+  const [fetching, setFetching] = useState(false);
 
   const load = () => {
     api
@@ -57,6 +68,31 @@ export default function Jobs() {
       .jobDetail(dir)
       .then(setDetail)
       .catch((e: Error) => setError(e.message));
+  };
+
+  // 抓取成功后后端已写入 JD原文.md，直接打开详情让用户核对原文——
+  // 抓取只是省掉复制粘贴，内容仍必须由用户过目（不做任何改写或摘要）
+  const fetchJd = () => {
+    if (!draft.公司.trim() || !draft.岗位.trim()) {
+      setError("抓取前先填公司与岗位（决定 JD 存在哪个岗位目录）");
+      return;
+    }
+    setFetching(true);
+    setError(null);
+    api
+      .fetchJd({ url: jdUrl.trim(), 公司: draft.公司.trim(), 岗位: draft.岗位.trim() })
+      .then((r) => {
+        setFetching(false);
+        setCreating(false);
+        setJdUrl("");
+        setDraft({ 公司: "", 岗位: "", JD文本: "" });
+        load();
+        open(r.dir);
+      })
+      .catch((e: Error) => {
+        setError(e.message);
+        setFetching(false);
+      });
   };
 
   const submit = () => {
@@ -333,6 +369,30 @@ export default function Jobs() {
               onChange={(e) => setDraft({ ...draft, 岗位: e.target.value })}
             />
           </div>
+          {/* JD 链接抓取：省掉复制粘贴，但抓不到会直说，不假装成功 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              className={`${inputCls} flex-1`}
+              placeholder="JD 网页链接（选填）：https://… 抓取成功后自动存为 JD原文.md"
+              value={jdUrl}
+              onChange={(e) => setJdUrl(e.target.value)}
+            />
+            <button
+              onClick={fetchJd}
+              disabled={
+                fetching || !jdUrl.trim() || !draft.公司.trim() || !draft.岗位.trim()
+              }
+              title={!draft.公司.trim() || !draft.岗位.trim() ? "先填公司与岗位" : "抓取网页正文"}
+              className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-accent/40 px-3 py-2 text-sm text-accent transition-colors hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {fetching ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
+              {fetching ? "抓取中…" : "从链接抓取"}
+            </button>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            只取网页正文，不做改写或摘要。需登录、有反爬或纯 JS 渲染的页面抓不到，
+            会明确提示你手动粘贴——不会把半截内容当成抓取成功。
+          </p>
           <textarea
             className={`${inputCls} min-h-[12rem] resize-y font-mono text-xs leading-relaxed`}
             placeholder="粘贴完整的 JD 原文（含岗位职责与任职要求）。原文会被完整保存，不做改写或摘要。"

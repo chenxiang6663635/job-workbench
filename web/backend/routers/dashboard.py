@@ -85,6 +85,21 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         })
     stale.sort(key=lambda x: -x["days"])
 
+    # 待推进（第二批）：健康度非 ok 且非终态的记录，按严重度排序。
+    # 与追踪表 health 排序同源（tracker.health_score），看板只做搬运——
+    # 两处各写一套判据迟早会给出互相矛盾的结论。
+    pending = []
+    for row in rows:
+        health = tracker.health_score(row, history, today)
+        if health["level"] in (None, "ok"):
+            continue
+        pending.append({
+            "id": row.get("id", ""), "公司": row.get("公司", ""),
+            "岗位": row.get("岗位", ""), "当前阶段": row.get("当前阶段", ""),
+            "level": health["level"], "reasons": health["reasons"],
+        })
+    pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
+
     return {
         "total": total,
         "active": active,
@@ -94,8 +109,10 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         "upcoming": upcoming,
         "overdue": overdue,
         "stale": stale,
+        "pending": pending,
         "staleDays": stale_days,
         # 周期复盘：真实转化率（从时间线重建）、停留分布、失败归因。
         # 「我拒绝的 offer」单独统计，不算失败
-        "retrospective": retrospective(rows, history, today),
+        # 显式传 workspace：关键词表按工作区读取，并发下不能依赖全局
+        "retrospective": retrospective(rows, history, today, ws),
     }

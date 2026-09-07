@@ -13,10 +13,16 @@ import {
   Briefcase,
   CalendarClock,
   ChevronRight,
+  Flame,
   Hourglass,
   TrendingUp,
 } from "lucide-react";
-import { api, type DashboardData, type StaleItem } from "../api";
+import {
+  api,
+  type DashboardData,
+  type PendingItem,
+  type StaleItem,
+} from "../api";
 import RetrospectivePanel from "../components/RetrospectivePanel";
 
 const STAGE_COLORS: Record<string, string> = {
@@ -41,6 +47,7 @@ type Drill = {
   active?: boolean;
   overdue?: boolean;
   dueWithin?: number;
+  sort?: "health";
   focusId?: string;
 };
 
@@ -175,6 +182,62 @@ function StaleList({
               </span>
             </li>
           ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// 健康度四态与追踪表同色同文案：颜色即严重度，理由整条列出（可核对优先）
+const LEVEL_META: Record<string, { label: string; cls: string }> = {
+  urgent: { label: "紧急", cls: "bg-bad/15 text-bad" },
+  overdue: { label: "逾期", cls: "bg-warn/15 text-warn" },
+  stale: { label: "停滞", cls: "bg-accent/15 text-accent" },
+};
+
+function PendingList({ pending }: { pending: PendingItem[] }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <Flame size={15} className="text-bad" />
+        <h2 className="text-sm font-semibold text-slate-200">待推进</h2>
+        <span className="ml-auto text-[10px] text-slate-500">
+          健康度异常的活跃岗位
+        </span>
+      </div>
+      {pending.length === 0 ? (
+        <p className="text-sm text-slate-500">
+          没有待推进的记录——节奏很稳，继续保持。
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {pending.map((p) => {
+            const meta = LEVEL_META[p.level] || LEVEL_META.stale;
+            return (
+              <li key={p.id}>
+                <button
+                  onClick={() => drillTo({ sort: "health", focusId: p.id })}
+                  title="点击下钻到追踪表（按健康度排序）"
+                  className="group w-full cursor-pointer rounded-lg bg-white/5 px-3 py-2 text-left transition-colors hover:bg-white/10"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm text-slate-200 transition-colors group-hover:text-accent">
+                      {p.公司} · {p.岗位}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${meta.cls}`}
+                    >
+                      {meta.label}
+                    </span>
+                  </div>
+                  {/* 理由整条亮出来：为什么该推进它，一目了然 */}
+                  <p className="mt-1 truncate text-xs text-slate-500">
+                    {p.reasons.join("；")}
+                  </p>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -418,7 +481,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <StaleList stale={data.stale} staleDays={data.staleDays} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <PendingList pending={data.pending} />
+            <StaleList stale={data.stale} staleDays={data.staleDays} />
+          </div>
 
           {/* 周期复盘（P3）：转化率 / 停留 / 归因——数据越攒越值钱 */}
           {data.retrospective && (

@@ -8,6 +8,16 @@ export interface StaleItem {
   说明: string;
 }
 
+// 待推进（第二批）：健康度非 ok 且非终态的记录，与追踪表 health 排序同源
+export interface PendingItem {
+  id: string;
+  公司: string;
+  岗位: string;
+  当前阶段: string;
+  level: "urgent" | "overdue" | "stale";
+  reasons: string[];
+}
+
 export interface DashboardData {
   total: number;
   active: number;
@@ -24,17 +34,35 @@ export interface DashboardData {
   }[];
   overdue: { id: string; 公司: string; 岗位: string; 截止日期: string }[];
   stale: StaleItem[];
+  pending: PendingItem[];
   staleDays: number;
   retrospective: Retrospective;
 }
 
 // 周期复盘（P3）：转化率由时间线重建「到达过」而非当前存量
+export interface FailureCluster {
+  category: string;
+  count: number;
+  examples: string[];
+}
+
+// 失败原因聚类（第三批）：样本不足时 shown=false，note 说明"样本太少，暂不展示"
+export interface FailureClusters {
+  shown: boolean;
+  note: string;
+  clusters: FailureCluster[];
+  total: number;
+  minSamples: number;
+  source: "keywords" | "reason" | "none";
+}
+
 export interface Retrospective {
   total: number;
   conversion: { stage: string; reached: number; advanced: number; rate: number | null }[];
   stay: { stage: string; n: number; median: number; avg: number }[];
   failure: { reason: string; count: number }[];
   declined: { reason: string; count: number }[];
+  failureClusters: FailureClusters;
 }
 
 export interface SchemaCheckResult {
@@ -64,6 +92,8 @@ export interface Application {
   备注: string;
   // 当前阶段已停留天数；无基准日时后端返回空串
   stageDays?: number | "";
+  // 健康度（第二批）：level 为 null 表示终态不参与判定；reasons 给人看
+  health?: { level: "urgent" | "overdue" | "stale" | "ok" | null; reasons: string[] };
 }
 
 export interface HistoryEntry {
@@ -96,6 +126,25 @@ export interface ImportCommitResult {
   mode: "commit";
   written: number;
   skipped: number;
+}
+
+// 面试题库（第二批）：按公司+岗位归集被问过的问题（只读聚合，无新数据文件）
+export interface QuestionItem {
+  id: string;
+  轮次: string;
+  面试时间: string;
+  面试官: string;
+  结果: string;
+  问题记录: string;
+  我的回答要点: string;
+  复盘与改进: string;
+}
+
+export interface QuestionGroup {
+  公司: string;
+  岗位: string;
+  items: QuestionItem[];
+  total: number;
 }
 
 export interface JobSummary {
@@ -370,10 +419,35 @@ async function request<T>(
     body: init?.body ? JSON.stringify(init.body) : undefined,
   });
   if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || `请求失败 ${res.status}`);
+    throw new Error(humanizeError(await res.text(), res.status));
   }
   return res.json() as Promise<T>;
+}
+
+// 后端错误统一是 {"detail": "..."}；直接把原始 JSON 抛给 UI 会显示一坨花括号
+// （端到端验证时就出现过 {"detail":"Method Not Allowed"}），这里抽成人话。
+// 校验错误（422）的 detail 是数组，逐条拼接；非 JSON（纯文本 404 等）按原文返回。
+function humanizeError(raw: string, status: number): string {
+  const fallback = `请求失败 ${status}`;
+  if (!raw.trim()) return fallback;
+  try {
+    const parsed = JSON.parse(raw) as { detail?: unknown };
+    const detail = parsed?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail.length) {
+      const parts = detail
+        .map((item) => {
+          const e = item as { msg?: string; loc?: unknown[] };
+          const field = Array.isArray(e.loc) ? e.loc.slice(1).join(".") : "";
+          return field && e.msg ? `${field}: ${e.msg}` : e.msg || JSON.stringify(item);
+        })
+        .filter(Boolean);
+      if (parts.length) return parts.join("；");
+    }
+  } catch {
+    // 不是 JSON：按原文返回
+  }
+  return raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
 }
 
 export const api = {
@@ -447,6 +521,12 @@ export const api = {
   createInterview: (body: Partial<Interview>) =>
     request<Interview>("/progress/interviews", { method: "POST", body }),
 
+  // 面试题库：按公司+岗位归集已答过的问题，q 为关键词（跨问题/回答/复盘匹配）
+  questionBank: (q?: string) =>
+    request<{ groups: QuestionGroup[]; total: number; keyword: string }>(
+      `/progress/question-bank${q ? `?q=${encodeURIComponent(q)}` : ""}`
+    ),
+
   updateInterview: (id: string, body: Partial<Interview>) =>
     request<Interview & { _changed?: string[] }>(
       `/progress/interviews/${encodeURIComponent(id)}`,
@@ -493,6 +573,13 @@ export const api = {
 
   createJob: (body: { 公司: string; 岗位: string; JD文本: string }) =>
     request<JobSummary>("/jobs", { method: "POST", body }),
+
+  // JD 链接抓取（第三批）：抓取失败或正文过短由后端 502/422 明确降级，前端照抄提示
+  fetchJd: (body: { url: string; 公司: string; 岗位: string }) =>
+    request<JobSummary & { characters: number; url: string }>("/jobs/fetch-jd", {
+      method: "POST",
+      body,
+    }),
 
   jobDetail: (dir: string) =>
     request<JobDetail>(`/jobs/${encodeURIComponent(dir)}`),

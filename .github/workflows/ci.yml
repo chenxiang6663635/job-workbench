@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: 后端测试（pytest）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+          cache: pip
+
+      - name: 安装依赖
+        run: pip install -r web/backend/requirements.txt
+
+      - name: 运行测试
+        run: python -m pytest tests/ -q
+
+  frontend:
+    name: 前端构建（tsc + vite）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+
+      - name: 安装依赖
+        working-directory: web/frontend
+        run: npm ci
+
+      - name: 构建
+        working-directory: web/frontend
+        run: npm run build

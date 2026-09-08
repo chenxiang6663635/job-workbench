@@ -22,7 +22,7 @@
 | `.github/` | 仅 ISSUE_TEMPLATE | 缺 LICENSE、CI、PR 模板、行为准则 |
 | 版本/tag | 未打 tag | CHANGELOG 全部归 Unreleased；版本号来源 `web/electron/package.json` |
 | 依赖许可证 | 宽松 | FastAPI(MIT)、pypdf(BSD)、recharts(MIT)、lucide(ISC)、Electron(MIT)，无 GPL 传染 |
-| 后端监听地址 | 待复核 | 本地服务无鉴权，必须只绑 `127.0.0.1` |
+| 后端监听地址 | ✅ 已复核 | `main.py` 默认 `--host 127.0.0.1`、CORS 限 localhost，已写入文档 |
 
 ## 二、决策
 

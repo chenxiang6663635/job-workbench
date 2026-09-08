@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "求职工作台桌面端",
   "main": "main.js",
-  "author": "job-workbench",
-  "license": "UNLICENSED",
+  "author": "job-workbench contributors",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "start": "electron .",

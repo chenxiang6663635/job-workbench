@@ -2,22 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    /* 深色即默认主题。语义 token 用 HSL 三元组，供 tailwind 的 hsl(var(--x)) 取用。
+       取值沿用本项目既有色阶：ink-950 #0a0f1a、ink-850 #131c30、ink-700 #24314d。
+       注意：Shadcn 语义里的 accent（hover 背景）在本项目由 secondary/muted 承担，
+       因为 accent 已被占用为冷青蓝主色（现有代码大量依赖 text-accent / bg-accent）。 */
+    --background: 221 44% 7%;
+    --foreground: 213 31% 91%;
+
+    --card: 221 43% 13%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 220 46% 10%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 198 93% 60%;
+    --primary-foreground: 221 44% 7%;
+
+    --secondary: 220 37% 16%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted: 220 37% 16%;
+    --muted-foreground: 215 20% 65%;
+
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 221 44% 7%;
+
+    /* 项目语义扩展：健康度与结论的正/警示色 */
+    --success: 160 84% 60%;
+    --warning: 43 96% 56%;
+
+    --border: 219 34% 22%;
+    --input: 219 34% 22%;
+    --ring: 198 93% 60%;
+
+    --radius: 0.625rem;
+  }
+}
+
 html,
 body,
 #root {
   min-height: 100%;
-  background-color: #0a0f1a;
+  background-color: hsl(var(--background));
 }
 
 body {
   margin: 0;
+  color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
 }
 
-/* 深色主题下原生 select 的弹出层默认是浅色，需显式指定 */
+/* 深色主题下原生 select 的弹出层默认是浅色，需显式指定。
+   迁移到 ui/select（Radix）后不再需要，此条为尚未迁移的原生 select 保留 */
 select option {
-  background-color: #131c30;
-  color: #e2e8f0;
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
 }
 
 ::-webkit-scrollbar {
@@ -30,10 +71,10 @@ select option {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #24314d;
+  background: hsl(var(--border));
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #32426a;
+  background: hsl(223 36% 31%);
 }

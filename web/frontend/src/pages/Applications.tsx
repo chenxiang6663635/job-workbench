@@ -4,6 +4,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   FileUp,
+  Inbox,
   Plus,
   Search,
   X,
@@ -17,8 +18,21 @@ import {
   type HistoryEntry,
 } from "../api";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { Skeleton } from "../components/ui/skeleton";
 
 const DIRECTIONS = ["datacenter", "hvac", "other"];
+
+// Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
+const ALL = "__all__";
 
 // 静默阈值与后端 tracker.STALE_DAYS 一致；停留超过该值高亮
 const STALE_DAYS = 14;
@@ -124,6 +138,7 @@ export default function Applications() {
   });
   const [sort, setSort] = useState<SortKey>(drill.sort ?? "next");
   const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [timelines, setTimelines] = useState<Record<string, HistoryEntry[]>>({});
@@ -138,16 +153,20 @@ export default function Applications() {
   });
 
   const load = () => {
+    setLoading(true);
     api
       .listApplications({ ...filter, sort })
-      .then((r) => {
-        setItems(r.items);
-        // 若下钻带 focusId，自动展开并滚动到该行
-        if (drill.focusId) {
-          setExpanded((prev) => ({ ...prev, [drill.focusId!]: true }));
-        }
-      })
-      .catch((e: Error) => setError(e.message));
+      .then(
+        (r) => {
+          setItems(r.items);
+          // 若下钻带 focusId，自动展开并滚动到该行
+          if (drill.focusId) {
+            setExpanded((prev) => ({ ...prev, [drill.focusId!]: true }));
+          }
+        },
+        (e: Error) => setError(e.message)
+      )
+      .then(() => setLoading(false));
   };
 
   useEffect(load, [filter, sort]);
@@ -194,9 +213,6 @@ export default function Applications() {
     }
   };
 
-  const inputCls =
-    "w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-accent/60 focus:ring-1 focus:ring-accent/30";
-
   const sortBtn = (key: SortKey) => {
     const active = sort === key;
     return (
@@ -216,7 +232,7 @@ export default function Applications() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="flex items-center justify-between rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
+        <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="cursor-pointer">
             <X size={14} />
@@ -225,70 +241,84 @@ export default function Applications() {
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-ink-900 px-3">
-          <Search size={14} className="text-slate-500" />
-          <input
+        <div className="relative w-56">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
             value={filter.q}
             onChange={(e) => setFilter({ ...filter, q: e.target.value })}
             placeholder="搜索公司、岗位或备注…"
-            className="w-40 bg-transparent py-2 text-sm text-slate-200 outline-none placeholder:text-slate-600"
+            className="pl-8"
           />
         </div>
 
-        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-ink-900 px-3">
-          <select
-            value={filter.stage}
-            onChange={(e) => setFilter({ ...filter, stage: e.target.value })}
-            className="cursor-pointer bg-transparent py-2 text-sm text-slate-200 outline-none"
-          >
-            <option value="">全部阶段</option>
+        {/* Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达 */}
+        <Select
+          value={filter.stage || ALL}
+          onValueChange={(v) =>
+            setFilter({ ...filter, stage: v === ALL ? "" : v })
+          }
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="全部阶段" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>全部阶段</SelectItem>
             {STAGES.map((s) => (
-              <option key={s} value={s}>
+              <SelectItem key={s} value={s}>
                 {s}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-        </div>
+          </SelectContent>
+        </Select>
 
-        <select
-          value={filter.direction}
-          onChange={(e) => setFilter({ ...filter, direction: e.target.value })}
-          className="cursor-pointer rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-slate-200 outline-none"
+        <Select
+          value={filter.direction || ALL}
+          onValueChange={(v) =>
+            setFilter({ ...filter, direction: v === ALL ? "" : v })
+          }
         >
-          <option value="">全部方向</option>
-          {DIRECTIONS.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="全部方向" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>全部方向</SelectItem>
+            {DIRECTIONS.map((d) => (
+              <SelectItem key={d} value={d}>
+                {d}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <select
-          value={filter.batch}
-          onChange={(e) => setFilter({ ...filter, batch: e.target.value })}
-          className="cursor-pointer rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-slate-200 outline-none"
+        <Select
+          value={filter.batch || ALL}
+          onValueChange={(v) =>
+            setFilter({ ...filter, batch: v === ALL ? "" : v })
+          }
         >
-          <option value="">全部批次</option>
-          {BATCHES.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="全部批次" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>全部批次</SelectItem>
+            {BATCHES.map((b) => (
+              <SelectItem key={b} value={b}>
+                {b}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <button
-          onClick={() => setShowImport(true)}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
-        >
+        <Button variant="outline" onClick={() => setShowImport(true)}>
           <FileUp size={15} /> 批量导入
-        </button>
+        </Button>
 
-        <button
-          onClick={() => setCreating(true)}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft active:scale-95"
-        >
+        <Button onClick={() => setCreating(true)}>
           <Plus size={16} /> 新增投递
-        </button>
+        </Button>
       </div>
 
       {showImport && (
@@ -299,50 +329,54 @@ export default function Applications() {
       )}
 
       {creating && (
-        <div className="rounded-2xl border border-accent/30 bg-ink-900/70 p-5">
+        <div className="rounded-2xl border border-primary/30 bg-card/70 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <input
-              className={inputCls}
+            <Input
               placeholder="公司名称"
               value={draft.公司}
               onChange={(e) => setDraft({ ...draft, 公司: e.target.value })}
             />
-            <input
-              className={inputCls}
+            <Input
               placeholder="岗位名称"
               value={draft.岗位}
               onChange={(e) => setDraft({ ...draft, 岗位: e.target.value })}
             />
-            <select
-              className={inputCls}
+            <Select
               value={draft.方向}
-              onChange={(e) => setDraft({ ...draft, 方向: e.target.value })}
+              onValueChange={(v) => setDraft({ ...draft, 方向: v })}
             >
-              {DIRECTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-            <select
-              className={inputCls}
+              <SelectTrigger>
+                <SelectValue placeholder="方向" />
+              </SelectTrigger>
+              <SelectContent>
+                {DIRECTIONS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={draft.批次}
-              onChange={(e) => setDraft({ ...draft, 批次: e.target.value })}
+              onValueChange={(v) => setDraft({ ...draft, 批次: v })}
             >
-              {BATCHES.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-            <input
-              className={inputCls}
+              <SelectTrigger>
+                <SelectValue placeholder="批次" />
+              </SelectTrigger>
+              <SelectContent>
+                {BATCHES.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {b}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
               type="date"
               value={draft.截止日期}
               onChange={(e) => setDraft({ ...draft, 截止日期: e.target.value })}
             />
-            <input
-              className={inputCls}
+            <Input
               type="number"
               min={0}
               max={100}
@@ -353,36 +387,37 @@ export default function Applications() {
             />
           </div>
           <div className="mt-4 flex gap-2">
-            <button
+            <Button
               onClick={submit}
               disabled={!draft.公司.trim() || !draft.岗位.trim()}
-              className="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               保存
-            </button>
-            <button
-              onClick={() => setCreating(false)}
-              className="cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5"
-            >
+            </Button>
+            <Button variant="ghost" onClick={() => setCreating(false)}>
               取消
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-ink-900/50 p-10 text-center">
-          <p className="text-base font-medium text-slate-200">
-            没有匹配的投递记录
-          </p>
-          <p className="mt-2 text-sm text-slate-400">
+      {loading ? (
+        <div className="space-y-2 rounded-2xl border border-border p-4">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+          <Inbox size={28} className="text-muted-foreground" />
+          <p className="text-base font-medium">没有匹配的投递记录</p>
+          <p className="text-sm text-muted-foreground">
             调整筛选条件，或点击右上角「新增投递」记录第一家公司。
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-white/10">
+        <div className="overflow-x-auto rounded-2xl border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-ink-850 text-xs uppercase tracking-wider text-slate-400">
+            <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">公司 / 岗位</th>
                 <th className="px-4 py-3 text-left font-medium">方向</th>
@@ -421,7 +456,7 @@ export default function Applications() {
                   <Fragment key={it.id}>
                     <tr
                       id={`row-${it.id}`}
-                      className="bg-ink-900/40 transition-colors hover:bg-ink-850"
+                      className="bg-card/40 transition-colors hover:bg-secondary"
                     >
                       <td className="px-4 py-3">
                         <button
@@ -549,7 +584,7 @@ export default function Applications() {
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr className="bg-ink-950/60">
+                      <tr className="bg-background/60">
                         <td
                           colSpan={10}
                           className="border-l-2 border-accent/30 px-6 py-4"

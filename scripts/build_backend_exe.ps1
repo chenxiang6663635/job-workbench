@@ -7,8 +7,10 @@
 #   portable.txt                便携标记（允许用 exe 旁目录存数据）
 #
 # 用法：powershell -ExecutionPolicy Bypass -File scripts/build_backend_exe.ps1
+#      需要指定 Python 时用 -Py "D:\path\to\python.exe"
 
 param(
+    # 默认用 PATH 上的 python；本机若用 conda 环境，用 -Py 显式指定
     [string]$Py = "python"
 )
 

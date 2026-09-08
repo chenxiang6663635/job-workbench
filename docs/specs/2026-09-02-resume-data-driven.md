@@ -37,7 +37,7 @@
   "skills": [ { "group": "暖通 / 制冷", "items": "制冷循环与 COP、…" } ],
   "extras": {
     "research": ["已发表（SCI…）：…", "…"],
-    "awards": "2025 硕士国家奖学金；…",
+    "awards": "某年度国家奖学金；…",
     "certificates": "CET-4；…"
   }
 }

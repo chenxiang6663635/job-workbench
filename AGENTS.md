@@ -35,7 +35,10 @@
 - 脚本互不调用（除 `report.py` 导入 `tracker.py` 的读写函数），各自独立可测
 - CSV 一律 `utf-8-sig` 读写，保证 Excel 打开中文不乱码
 - **脚本数量控制在 6 个以内**。新需求优先改成 skills 里的工作流步骤，只有"必须可复现、可批量重算、或涉及二进制处理"才新增脚本
-- **不得自动 `git commit`**——仓库含个人姓名与照片，生成提交信息交用户确认
+- **不得自动 `git commit`**——生成提交信息交用户确认后再提交
+- **隐私约定**：工作区 `personal/` 含真实数据且已整体 gitignore（历史已清洗），**禁止提交或外泄其内容**；细则见 `CONTRIBUTING.md` 隐私约定节
+- **验证链**：`python -m pytest tests/ -q`（33 项基线：护栏 + 健康度）+ 前端 `npm run build`；push / PR 由 GitHub Actions 跑同款门禁
+- **Web 层铁律**：后端直接复用 `tools/` 函数并显式传 `workspace`（模块级全局并发下会互相覆盖）；写操作持 `filelock`；路径过 `safe_join`；不加缓存
 
 ## 目录约定
 

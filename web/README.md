@@ -75,14 +75,14 @@ web/
     └── src/
         ├── api.ts            API 客户端与类型（全局工作区状态）
         ├── App.tsx           导航壳、后端连接状态、工作区切换下拉
-        ├── components/       InterviewList / ContactList / OfferCompare / GapPanel / RewritePanel / VersionLineage / RetrospectivePanel / ResumeForm / ResumeTemplates / InterviewForm / OfferForm
+        ├── components/       InterviewList / QuestionBank / ContactList / OfferCompare / GapPanel / RewritePanel / VersionLineage / RetrospectivePanel / ResumeForm / ResumeTemplates / ResumeImportDialog / ImportApplicationsDialog / InterviewForm / OfferForm
         └── pages/            Dashboard / Applications / Jobs / Resume / Progress / Library / Settings
 ```
 
-仓库根 `tests/test_prompt_guardrails.py` 锁死 AI 改写的反编造条款——删句即测试失败。
+仓库根 `tests/` 共 33 项测试（反编造护栏 + 健康度语义）由 CI（`.github/workflows/ci.yml`）与本地 `python -m pytest tests/ -q` 把关；后端依赖见 `backend/requirements-dev.txt`。
 
 ## 已知边界
 
 - 仅本地单用户（无账号登录），以 workspace 目录隔离代替用户隔离
-- 自动更新不可用（需公开远程仓库 + macOS 签名），分发走手动安装包
-- 简历 PDF 生成页面未纳入当前批次
+- 自动更新不做（剩余阻碍是 macOS 代码签名），分发走手动安装包
+- 简历的可视化在线编辑未纳入：结构化字段用表单改，精排版仍走手写 HTML

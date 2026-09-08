@@ -42,7 +42,7 @@ python tools/resume_build.py render --version hvac --no-verify
 ## ATS 校验三项
 
 1. PDF 页数为 1
-2. pypdf 可提取文本 ≥ 800 字符
+2. pypdf 可提取文本 ≥ 300 字符（可用 `--min-text-length` 调整）
 3. `config/ats_required_facts.txt` 中的关键事实全部命中（文件不存在时跳过第三项）
 
 三项全过才算成功。失败退出码 1，此时**不得归档投递**。

@@ -69,7 +69,7 @@ python tools/tracker.py interview update --id I001 --result 通过 --retro "..."
 
 ## 看板内容
 
-`tools/report.py` 输出五部分：投递漏斗（含占比条）、按方向统计、按批次统计、近 7 天待办、已过截止日提醒。
+`tools/report.py` 输出六部分：投递漏斗（含占比条）、按方向统计、按批次统计、近 7 天待办、已过截止日提醒、周期复盘（转化率 / 停留 / 失败归因与聚类）。
 
 ## 输出要求
 

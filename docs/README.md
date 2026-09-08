@@ -6,7 +6,7 @@
 
 | 文档 | 说明 |
 |---|---|
-| [`usage-guide.md`](usage-guide.md) | **使用手册**：环境准备、一键启动、四个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
+| [`usage-guide.md`](usage-guide.md) | **使用手册**：环境准备、一键启动、七个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
 | [`../README.md`](../README.md) | 项目主入口：定位、三层架构、快速开始、目录说明 |
 
 ## 设计文档
@@ -16,6 +16,12 @@
 | [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射 |
 | [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | **现行** | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录 |
 | [`specs/2026-08-31-job-workbench-productization.md`](specs/2026-08-31-job-workbench-productization.md) | **现行** | 产品化三期路线（差异化点/架构/桌面壳/扩展）+ 一期与 P0+P1 完成记录 |
+| [`specs/2026-09-02-tracking-enhancement.md`](specs/2026-09-02-tracking-enhancement.md) | **现行** | 投递追踪增强：面试/联系人/Offer 独立 CSV、反编造护栏、时间线 |
+| [`specs/2026-09-02-resume-data-driven.md`](specs/2026-09-02-resume-data-driven.md) | **现行** | 简历数据驱动「标准版式」：JSON + 内置模板渲染 PDF + ATS 校验 |
+| [`specs/2026-09-02-resume-probe.md`](specs/2026-09-02-resume-probe.md) | 已完成 | 简历 PDF 文本抽取探针（ATS 阈值定的依据） |
+| [`specs/2026-09-03-p0-p3-roadmap.md`](specs/2026-09-03-p0-p3-roadmap.md) | **现行** | P0–P3 四批：工程底座、投递后闭环、增强、长期资产（含验收记录） |
+| [`specs/2026-09-05-batch1-3-roadmap.md`](specs/2026-09-05-batch1-3-roadmap.md) | **现行** | 第一~三批：导入导出闭环、题库与健康度、失败聚类与 JD 抓取（含验收记录） |
+| [`specs/2026-09-07-open-source-release.md`](specs/2026-09-07-open-source-release.md) | **现行** | 开源发布：隐私清洗、MIT、治理入口、CI 与发布流程 |
 | [`specs/2026-08-30-autumn-recruit-workbench-design.md`](specs/2026-08-30-autumn-recruit-workbench-design.md) | ⚠️ **已废弃** | v1.0 个人工具设计。目录结构已失效，**勿据此开发**。保留作评分框架的设计依据追溯 |
 
 ## 调研报告
@@ -33,7 +39,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **开发流程规范**：新需求四道门、分支策略、提交与版本规则、手动发布流程、可持续性约定 |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **开发流程规范**：新需求四道门、分支策略、提交与版本规则、发布流程、可持续性约定、隐私约定与 CI 验证链 |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（Keep a Changelog 格式）；版本号唯一来源为 `web/electron/package.json` |
 | [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Issue 模板：bug 报告专用；功能请求走 CONTRIBUTING 四道门 |
 

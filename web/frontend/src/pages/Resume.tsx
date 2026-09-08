@@ -14,6 +14,16 @@ import {
   X,
 } from "lucide-react";
 import { api, type ResumeBuildResult, type ResumeVersion } from "../api";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { Skeleton } from "../components/ui/skeleton";
 import ResumeForm from "../components/ResumeForm";
 import ResumeTemplates from "../components/ResumeTemplates";
 import ResumeImportDialog from "../components/ResumeImportDialog";
@@ -218,15 +228,13 @@ export default function Resume() {
       .finally(() => setBuilding(false));
   };
 
-  const inputCls =
-    "rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-slate-200 outline-none transition-colors focus:border-accent/60";
   const modeActive =
     "flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm bg-accent/15 text-accent";
   const modeIdle =
-    "flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200";
+    "flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground";
 
   const errorBanner = error ? (
-    <div className="flex items-center justify-between rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
+    <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
       <span>{error}</span>
       <button onClick={() => setError(null)} className="cursor-pointer">
         <X size={14} />
@@ -246,23 +254,25 @@ export default function Resume() {
 
       {mode === "std" && !creating && (
         <>
-          <button
+          <Button
+            variant="outline"
             onClick={() => setShowImport(true)}
-            className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
+            className="ml-auto border-dashed"
           >
             <FileUp size={15} /> 导入简历
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setCreating(true)}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
+            className="border-dashed"
           >
             <FilePlus2 size={15} /> 新建版本
-          </button>
+          </Button>
         </>
       )}
       {mode === "std" && creating && (
         <div className="ml-auto flex items-center gap-2">
-          <input
+          <Input
             autoFocus
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -270,22 +280,18 @@ export default function Resume() {
               if (e.key === "Enter") createVersion();
             }}
             placeholder="版本名，如 hvac / datacenter"
-            className={`${inputCls} w-56`}
+            className="w-56"
           />
-          <button
-            onClick={createVersion}
-            disabled={creatingBusy}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft disabled:opacity-40"
-          >
+          <Button onClick={createVersion} disabled={creatingBusy}>
             {creatingBusy ? <Loader2 size={14} className="animate-spin" /> : null}
             {creatingBusy ? "创建中…" : "创建"}
-          </button>
+          </Button>
           <button
             onClick={() => {
               setCreating(false);
               setNewName("");
             }}
-            className="cursor-pointer text-sm text-slate-400 transition-colors hover:text-slate-200"
+            className="cursor-pointer text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             取消
           </button>
@@ -309,10 +315,10 @@ export default function Resume() {
       <div className="space-y-4">
         {errorBanner}
         {modeBar}
-        <div className="rounded-2xl border border-dashed border-white/15 bg-ink-900/50 p-10 text-center">
-          <FileText size={28} className="mx-auto mb-3 text-slate-500" />
-          <p className="text-base font-medium text-slate-200">还没有标准版式简历数据</p>
-          <p className="mt-2 text-sm text-slate-400">
+        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
+          <FileText size={28} className="mx-auto mb-3 text-muted-foreground" />
+          <p className="text-base font-medium text-foreground">还没有标准版式简历数据</p>
+          <p className="mt-2 text-sm text-muted-foreground">
             点右上角「新建版本」直接开始编辑，不用手工去文件系统放 JSON。
             手写 HTML 的精排版在「高级模板」里浏览与生成。
           </p>
@@ -328,65 +334,62 @@ export default function Resume() {
       {modeBar}
 
       <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={version}
-          onChange={(e) => setVersion(e.target.value)}
-          className={`${inputCls} cursor-pointer`}
-        >
-          {versions.map((v) => (
-            <option key={v.version} value={v.version}>
-              {v.version}
-            </option>
-          ))}
-        </select>
+        <Select value={version} onValueChange={setVersion}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="选择版本" />
+          </SelectTrigger>
+          <SelectContent>
+            {versions.map((v) => (
+              <SelectItem key={v.version} value={v.version}>
+                {v.version}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <button
-          onClick={save}
-          disabled={saving}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5 disabled:opacity-40"
-        >
+        <Button variant="outline" onClick={save} disabled={saving}>
           <Save size={15} /> {saving ? "保存中…" : "保存"}
-        </button>
+        </Button>
 
-        <button
+        <Button
           onClick={build}
           disabled={building || overflowLines > 0}
           title={overflowLines > 0 ? "内容超出一页，先精简再生成" : "生成 PDF 并校验"}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {building ? <Loader2 size={15} className="animate-spin" /> : <FileCheck size={15} />}
           {building ? "生成中…" : "生成 PDF"}
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="outline"
           onClick={() => setShowRewrite(true)}
           title="AI 只改写既有事实的表述，反编造校验不过不能采用"
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-accent/40 px-3 py-2 text-sm text-accent transition-colors hover:bg-accent/10"
         >
           <PenLine size={15} /> AI 改写
-        </button>
+        </Button>
 
         {/* Word 版定位是「文本搬运」：方便网申系统粘贴。零依赖 .doc，
             排版还原度有限——这一句必须在按钮旁说清，不让用户误当正式交付物 */}
-        <a
-          href={api.resumeDocUrl(version)}
-          download
-          title="Word 版只保证文本可复制，排版以 PDF 为准"
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5"
-        >
-          <FileDown size={15} /> 导出 Word
-        </a>
-        <span className="text-[11px] text-slate-600">
+        <Button variant="outline" asChild>
+          <a
+            href={api.resumeDocUrl(version)}
+            download
+            title="Word 版只保证文本可复制，排版以 PDF 为准"
+          >
+            <FileDown size={15} /> 导出 Word
+          </a>
+        </Button>
+        <span className="text-[11px] text-muted-foreground/70">
           Word 版只保证文本可复制，排版以 PDF 为准
         </span>
       </div>
 
       {/* 左右等分：右列固定上限时窗口稍窄会把表单挤成一细条（1fr 无下限被吃光） */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
+        <div className="rounded-lg border border-border bg-card p-5">
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-warn/25 bg-warn/10 px-3 py-2">
             <ShieldAlert size={15} className="mt-0.5 shrink-0 text-warn" />
-            <p className="text-xs leading-relaxed text-slate-300">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               内容来自事实库。改动只限于求职方向、概况、技能顺序与项目表述，
               <span className="text-warn">项目事实一个字都不要改</span>——
               每个动词都要经得起五到十分钟的追问。此处不提供一键美化。
@@ -395,7 +398,11 @@ export default function Resume() {
           {data ? (
             <ResumeForm data={data} onChange={edit} />
           ) : (
-            <p className="text-sm text-slate-500">载入中…</p>
+            <div className="space-y-3">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
           )}
         </div>
 
@@ -409,7 +416,7 @@ export default function Resume() {
           )}
 
           {/* 留白稍大：纸张若正好铺满容器会显得内容贴边、像被裁 */}
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-950/60 p-6">
+          <div className="overflow-hidden rounded-lg border border-border bg-background/60 p-6">
             {/* 缩放壳量可用宽度；内层按 1:1 渲染再等比缩小，换行与 PDF 一致且永不裁剪 */}
             <div
               ref={scaleWrapRef}
@@ -435,7 +442,7 @@ export default function Resume() {
                     />
                   ) : (
                     <div
-                      className="flex items-center justify-center text-sm text-slate-500"
+                      className="flex items-center justify-center text-sm text-muted-foreground"
                       style={{ height: A4_HEIGHT }}
                     >
                       预览生成中…
@@ -445,7 +452,7 @@ export default function Resume() {
               </div>
             </div>
             {scale < 1 && (
-              <p className="mt-2 text-center text-[11px] text-slate-600">
+              <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
                 预览已缩放至 {Math.round(scale * 100)}%（布局与生成 PDF 一致）
               </p>
             )}
@@ -453,33 +460,33 @@ export default function Resume() {
 
           {result && (
             <div
-              className={`rounded-2xl border p-5 ${
+              className={`rounded-lg border p-5 ${
                 result.passed
                   ? "border-good/30 bg-good/10"
-                  : "border-bad/30 bg-bad/10"
+                  : "border-destructive/30 bg-destructive/10"
               }`}
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-200">
+                <span className="text-sm font-semibold text-foreground">
                   {result.passed ? "生成成功，ATS 校验通过" : "生成完成，校验未通过"}
                 </span>
-                <span className="font-mono text-xs text-slate-400">
+                <span className="font-mono text-xs text-muted-foreground">
                   {(result.size / 1024).toFixed(1)} KB
                 </span>
               </div>
               <ul className="space-y-1 text-xs">
                 <li className="flex items-center justify-between">
-                  <span className="text-slate-400">纸型</span>
-                  <span className={result.a4.ok ? "text-good" : "text-bad"}>
+                  <span className="text-muted-foreground">纸型</span>
+                  <span className={result.a4.ok ? "text-good" : "text-destructive"}>
                     {result.a4.message}
                   </span>
                 </li>
                 {result.checks.map((c) => (
                   <li key={c.label} className="flex items-center justify-between">
-                    <span className="text-slate-400">{c.label}</span>
+                    <span className="text-muted-foreground">{c.label}</span>
                     <span
                       className={
-                        c.ok === null ? "text-slate-500" : c.ok ? "text-good" : "text-bad"
+                        c.ok === null ? "text-muted-foreground" : c.ok ? "text-good" : "text-destructive"
                       }
                     >
                       {c.value}
@@ -488,7 +495,7 @@ export default function Resume() {
                 ))}
               </ul>
               {!result.passed && (
-                <p className="mt-3 text-xs text-slate-400">
+                <p className="mt-3 text-xs text-muted-foreground">
                   未通过时不要归档投递。删减原则：先删装饰性内容，
                   绝不删核心成果与可验证数字。
                 </p>

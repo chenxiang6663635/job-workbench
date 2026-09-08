@@ -19,7 +19,7 @@ jobs:
           cache: pip
 
       - name: 安装依赖
-        run: pip install -r web/backend/requirements.txt
+        run: pip install -r web/backend/requirements-dev.txt
 
       - name: 运行测试
         run: python -m pytest tests/ -q

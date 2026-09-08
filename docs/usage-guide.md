@@ -92,25 +92,30 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 
 ---
 
-## 三、Web 界面四个页面
+## 三、Web 界面七个页面
 
 ### 看板（首页）
 
 打开就是它。回答三个问题：投了几家、几家还在流程中、接下来七天该干什么。
 
-- 顶部四张统计卡：投递总数 / 流程中 / 近七天待办 / 已过截止
-- 投递漏斗：每个阶段多少人（待投→已投→笔试→…→签约）
-- 近七天待办：下次动作日期或截止日期落在未来 7 天的记录
+- 顶部四张统计卡：投递总数 / 流程中 / 近七天待办 / 已过截止（点击可下钻到追踪表）
+- 投递漏斗：每个阶段多少人（待投→已投→笔试→…→签约），点柱子按阶段下钻
+- **待推进**：健康度异常（紧急/逾期/停滞）的活跃岗位清单，每条带具体理由，点击下钻
+- 近七天待办：下次动作日期或截止日期落在未来 7 天的记录（可一键顺延 7 天）
 - 已过截止提醒：还停在「待投」但截止日期已过的记录（红色）
+- 静默提醒：长期无进展的活跃岗位（默认超 14 天）
+- **周期复盘**：阶段转化率（从时间线重建）、停留中位天数、失败归因与**失败原因聚类**
 
 ### 追踪表
 
-所有投递记录的表格。四件事：
+所有投递记录的表格。六件事：
 
-- **筛选**：顶部按阶段 / 方向 / 批次过滤
+- **筛选与搜索**：按阶段 / 方向 / 批次过滤，关键字搜公司、岗位或备注
+- **排序**：下次动作日期 / 评分 / 停留天数 / **健康度**（紧急 > 逾期 > 停滞 > 正常，徽章悬停显示理由）
 - **改状态**：点某行的「当前阶段」下拉框直接改（待投→已投→笔试…），改完自动保存
-- **新增**：右上「新增投递」，填公司与岗位（必填）、方向、批次、评分等
-- **状态原因**：每行中间有一列「状态原因」就地编辑；**进入「已挂 / 已放弃」必须填原因**，且这两态一旦进入就不可再改阶段（想重新投要新建一条）
+- **新增与批量导入**：右上「新增投递」逐条录入；「批量导入」粘贴或上传 CSV，先出差异预览（新增/重复/错误分色，带行号与原因），有错误行时禁提交
+- **状态原因**：每行就地编辑；**进入「已挂 / 已放弃」必须填原因**，且这两态一旦进入就不可再改阶段（想重新投要新建一条）
+- **行展开**：查看该记录的变更时间线与当前阶段停留天数
 
 **两条约束（CLI 与网页同源，自动拦）：**
 1. **终态不回退**：已挂 / 已放弃后「当前阶段」锁定，只可补状态原因与备注
@@ -122,21 +127,38 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 
 管理你看过的岗位。每张卡片显示公司_岗位、评分、档位。
 
-- **新建岗位**：粘贴完整 JD 原文（职责+任职要求），系统原样存档
+- **新建岗位**：粘贴完整 JD 原文（职责+任职要求）系统原样存档；或粘贴**网页链接自动抓取正文**（需登录 / 反爬 / 纯 JS 渲染的页面会明确提示手动粘贴，不假装成功）
 - **点开详情**：左边 JD 原文，右边解析卡
 - **资格硬门槛（置顶优先）**：解析卡顶部的「资格硬门槛」卡片先于分数展示——通过（绿）/ 不通过（红）/ 待确认（琥珀）三态。**不通过时明确标红置顶**，这时分数是次要信息（说明资格不够，别投）
 - **评分下钻**：四维（技术/经历/方向/培养）每条可点开，展开逐条命中明细——每条带能力分层（Primary/Secondary/Weak）+ **证据标签**（精确/模糊/语义徽章）+ 命中说明。想知道"为什么得这个分"点开看
+- **简历差距面板**：该 JD 与你简历的差距清单，区分「可召回」（母版里有）与「真实缺口」（只能补经历）
 - **解析卡**：评分由 AI 在 CodeBuddy 里完成后写入 `解析卡.md`，这里自动显示四维度进度条 + 总分 + 档位
 - 还没评分的岗位显示"尚未生成解析卡"及操作指引——**网页不做评分**，评分是 AI 的工作
 
+### 简历工坊
+
+**双模式**：
+
+- **标准版式**（数据驱动）：左结构化表单、右 A4 实时预览；页面直接新建版本；生成 PDF 后回显 ATS 校验与纸型检查；含防超页护栏
+  - **一键导入**：上传 PDF / Word(.docx) / Markdown / 纯文本 → 抽取成结构化字段。**抽取而非生成**：模型未抽到的字段标黄、疑似补全的标红，核对页逐段确认后才落盘
+  - **AI 改写建议**：BYOK 模型只改写既有事实的表述，反编造护栏不过不能采用
+  - **导出 Word**：零依赖 `.doc`，方便往网申系统粘贴文本（排版以 PDF 为准）
+- **高级模板**（手写 HTML 精排版）：只读浏览与一键生成
+
+底部还有**版本谱系**：哪版简历投了哪些岗位、各走到哪一步。
+
+### 进展
+
+投递之后的主战场，四个子 Tab：
+
+- **面试**：三段式记录（问题 → 回答要点 → 复盘），48 小时内待定的琥珀高亮，一键导出 `.ics` 日历
+- **题库**：面过的问题按公司+岗位归集，关键词检索——面试前先过一遍这家公司问过你什么
+- **联系人**：招聘方联系人跟进节奏，超期琥珀提醒，一键「已联系」
+- **Offer 对比**：多个 offer 的已知事实并排，**只并排、不推荐**
+
 ### 素材库
 
-查看你自己的资产文件，两个分栏：
-
-- **简历工坊**：简历 md 原文、生成的 PDF（内联预览）、照片
-- **事实库**：5 张事实卡原文
-
-只读——这些文件由 CLI/AI 生成维护，网页只负责看。
+查看你自己的资产文件（只读，由 CLI/AI 生成维护）：事实卡原文、简历相关文件内联预览。
 
 ### 设置（Provider）
 
@@ -145,8 +167,9 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 - **Base URL**：OpenAI 兼容端点（含 `/v1`，如 `https://api.orcarouter.ai/v1`）
 - **API Key**：只存本地，界面只显示脱敏后的末尾 4 位
 - **测试连接**：调 `{base_url}/models` 验证 key 有效并列出模型
+- **数据与隐私**：整包导出 zip、快照备份到系统用户目录、打开数据目录、无遥测声明
 
-> 本工作台的 AI 判断默认由 AI CLI（CodeBuddy 等）完成，Provider 是可选的 BYOK 增强入口。
+> 本工作台的 AI 判断默认由 AI CLI（CodeBuddy 等）完成，Provider 是可选的 BYOK 增强入口（简历导入 / AI 改写用）。
 
 ---
 
@@ -194,16 +217,25 @@ python tools/tracker.py list --due-within 7         # 未来 7 天到期
 python tools/tracker.py list --stage 笔试           # 按阶段筛
 python tools/tracker.py add --company "某公司" --role "岗位" --direction hvac --batch 正式批 ...
 python tools/tracker.py update --id A001 --stage 一面 --next "准备口述" --next-date 2026-09-10
+python tools/tracker.py history --id A001           # 变更时间线
+python tools/tracker.py import --file 待导入.csv --dry-run   # CSV 批量导入（只预览差异）
+python tools/tracker.py import --file 待导入.csv             # 预览通过后写入
+python tools/tracker.py interview add --app A001 --round 一面 --questions "..."   # 面试记录
+python tools/tracker.py contact add --name "张工" --app A001   # 招聘方联系人
+python tools/tracker.py offer add --company "某公司" --monthly "..."  # Offer 事实
+python tools/tracker.py check                       # schema 自检（坏文件隔离）
 
-# 投递漏斗看板（Markdown）
+# 投递漏斗看板（Markdown，含周期复盘与失败原因聚类）
 python tools/report.py --stdout
 
 # 简历 PDF + ATS 校验
 python tools/resume_build.py --workspace personal            # 全部版本
 python tools/resume_build.py --version hvac                  # 指定版本
+python tools/resume_build.py render --workspace personal     # 数据驱动标准版式
 
 # JD 解析卡评分校验
 python tools/jd_score.py "personal/01_岗位池/<目录>/解析卡.md" --domain hvac-cooling --direction hvac
+python tools/jd_score.py --gap --resume hvac "personal/01_岗位池/<目录>/解析卡.md"   # JD↔简历差距
 ```
 
 ---
@@ -219,17 +251,15 @@ python tools/jd_score.py "personal/01_岗位池/<目录>/解析卡.md" --domain 
 | `02_简历工坊/` | 简历 md + HTML 模板 + 生成的 PDF + 照片 |
 | `03_面试准备/` | 自我介绍、项目表达、题库、行为面、复盘 |
 | `04_知识库/` | 30 份知识词典 |
-| `05_投递追踪/` | tracker.csv + 每次投递归档 |
+| `05_投递追踪/` | tracker.csv + history.csv（变更时间线）+ interviews / contacts / offers.csv |
 | `AGENTS.md` | 你的档案：硬门槛事实、诚实红线 |
 
-**备份**：本地 git 已追踪全部文件，每次提交都是一个快照。想再稳一点：
+**备份（重要）**：`personal/` 已整体 gitignore——**git 不追踪你的数据**，仓库镜像克隆不会带走它们。主备份方式：
 
-```bash
-# 在另一块磁盘/目录做镜像（不含工作目录改动）
-git clone --mirror <仓库目录> d:\backup\autumn-recruit.git
-```
+1. **设置页「立即备份」**：快照到系统用户目录（工作区之外，推荐，一键完成）
+2. **设置页「整包导出 zip」**：随时可带走的完整工作区
 
-> ⚠️ 分享仓库给任何人之前，先确认 `personal/` 的处置（含姓名、照片、联系方式）。
+> ⚠️ 分享仓库给任何人之前无需担心数据——`personal/` 不在仓库里；但**不要把 `personal/` 目录本身发给别人**（含姓名、照片、联系方式）。
 
 ---
 
@@ -294,5 +324,5 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 |---|---|
 | 整体架构（三层分离、领域插件） | `docs/specs/2026-08-30-general-workbench-design.md` |
 | Web 层设计（API 契约、并发与安全） | `docs/specs/2026-08-30-web-prototype-design.md` |
-| AI 工作流定义 | `.codebuddy/skills/` 下五个 SKILL.md |
+| AI 工作流定义 | 根 `skills/` 下五个 SKILL.md（`tools/install_skills.py` 分发到各 AI CLI） |
 | 文档总索引 | `docs/README.md` |

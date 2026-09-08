@@ -56,13 +56,13 @@
 - 版本号唯一来源：`web/electron/package.json` 的 `version` 字段。
 - `feat` → `0.x.0`；`fix` → `0.x.y+1`；破坏性变更 → 新增 `0.x` 段并写入 CHANGELOG。
 - 升 `1.0.0` 的时机：**自用稳定 + 承诺本地数据向后兼容**。不要用 major 号表达"功能变多"。
-- 当前阶段：**0.1.0 尚未打 tag**。首次正式发布时执行 `npm version minor`（或手动改）产生第一个版本。
+- 当前版本：**0.1.0（2026-09-08 已打 tag `v0.1.0`）**。后续按规则 bump 并打新 tag。
 
-## 发布流程（手动，仅本地 git）
+## 发布流程（手动归档）
 
 从 `main` 打 tag，不从分支发：
 
-1. **冒烟验证**（无自动化测试，这一步不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开四个页面各操作一遍。
+1. **冒烟验证**（CI 已跑 33 项自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开七个页面各操作一遍。
 2. bump 版本号（`web/electron/package.json`）。
 3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为版本号 + ISO 日期。
 4. `git tag -a v0.1.0 -m "..."` 并提交。
@@ -71,7 +71,7 @@
 **hotfix**：fix-forward——在 `main` 上修复后打新 patch tag。**不**从旧 tag 拉 hotfix 分支。
 **撤回坏版本**：递增到更高版本号重发；重发同名版本无效。
 
-**自动更新不可用**：自动更新要求公开远程仓库（且 macOS 需签名）。在本项目公开化之前，分发只走手动安装包。公开化前必须先解决 `personal/` 隐私剥离。
+**自动更新不做**：仓库已公开（2026-09-08 推送），剩余阻碍是代码签名（macOS 必需）；分发仍走手动安装包。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
 
 ## 可持续性约定
 
@@ -85,6 +85,7 @@
 - 本文件与 [AGENTS.md](AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（33 项基线）→ 前端 `npm run build`（Windows 用 `npm.cmd`）。
 
 ## 开发辅助工具（MCP / 代码图谱，开发者与 AI 用，非产品）
 
@@ -112,5 +113,5 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 
 ## 明确不做（过度工程）
 
-`develop`/`release`/`hotfix` 分支、CI、分支保护、PR 自审、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、Playwright E2E、代码签名。
-（依据：`docs/research/report_dev_workflow.md` —— 单人维护项目的最小可行取舍。）
+`develop`/`release`/`hotfix` 分支、分支保护、PR 自审、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、Playwright E2E、代码签名。
+（依据：`docs/research/report_dev_workflow.md` —— 单人维护项目的最小可行取舍。例外：最小 CI——后端 pytest + 前端构建已于 2026-09-08 上线，作为开源质量门。）

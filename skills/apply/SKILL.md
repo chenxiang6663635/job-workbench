@@ -46,7 +46,7 @@ python tools/resume_build.py render --workspace <工作区> --version <版本>
 三项全过才算成功：
 
 1. 页数为 1
-2. 可提取文本 ≥ 800 字符
+2. 可提取文本 ≥ 300 字符（可用 `--min-text-length` 调整）
 3. `config/ats_required_facts.txt` 中的关键事实全部命中（该文件不存在时跳过第三项）
 
 **任一项不通过 → 中止，不归档、不写追踪表**，报告具体失败项。

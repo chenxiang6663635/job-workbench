@@ -29,6 +29,8 @@ web/backend/build/
 
 # 本地验证用的临时工作区（fake 数据），不进版本管理；personal 才是真实工作区
 test_ws/
+# README 截图用的 demo 数据工作区（假公司占位数据）；P2 将沉淀为 init_workspace.py --demo
+demo-shots/
 
 # 开发辅助工具的本地索引产物（运行时生成，clone 后跑 scripts/index_dev_tools.ps1 重建）
 # 均可能含数十 MB 解析缓存，不进版本管理；另注意：这些目录索引的是本机个人工作区的代码，

@@ -1,6 +1,6 @@
 # 贡献与开发流程
 
-本文定义本仓库的开发流程约束。适用对象：维护者本人（第一用户）与 AI 协作者。
+本文定义本仓库的开发流程约束。适用对象：维护者本人（第一用户）、AI 协作者与外部贡献者。
 数据分层与领域约定见 [AGENTS.md](AGENTS.md)；文档索引见 [docs/README.md](docs/README.md)。
 
 ## 项目定位（先读这个）
@@ -32,13 +32,25 @@
 
 **结构性保险**：每周固定留 1 条"产品化任务"（配置化 / 文档 / 测试），与自用任务分开推进。没有这条，自用优先会让产品化无限延后。
 
-## 分支策略（trunk-based）
+## 分支策略（分级 PR + trunk-based）
 
-- `main` 是唯一主干，日常直接提交。
-- 只在三种情况开短命分支（完成即合即删，存活 ≤ 1-2 天）：
-  1. 可能放弃的实验
-  2. 半天以上完不成的重构
-  3. 会临时破坏"当前可用状态"的改动
+- `main` 是唯一主干。按**改动是否影响运行时行为**分级，不搞一刀切：
+
+**必须走 PR**（影响运行时行为的改动）：
+
+- `tools/`、`web/backend/`、`web/frontend/` 的代码修改，`tests/` 用例
+- 依赖变更（`requirements*.txt` / `package.json`）；CI / workflows 配置
+- 数据模型 / schema 变更；触碰 [AGENTS.md](AGENTS.md) 诚实红线的内容
+- PR 门槛：CI 绿（pytest 33 项 + 前端 build 两 check 全过——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + 以 reviewer 视角通读 diff（重点看隐私与四道门）；Squash and merge，合后删分支
+
+**可直推 main**（不影响运行时的纯文本与资料类）：
+
+- 文档（README / `docs/` / CHANGELOG / CONTRIBUTING / 注释）、截图与 demo 产物、typo 与链接修复
+- 前提：不破坏构建与数据安全；**拿不准 → 一律按 PR 处理**（宁走 PR，不冒险）
+
+- 分支命名（PR 路径）：`feat/<issue号>-<slug>`、`fix/<issue号>-<slug>`、`docs/<slug>`；存活 ≤ 1–2 天，合完即删。
+- 兜底（出错了怎么办）：数据快照备份 + `git revert`——squash 提交可整体回滚，不污染主干历史。
+- 只在三种情况考虑分支而非直推：可能放弃的实验 / 半天以上完不成的重构 / 会临时破坏"当前可用状态"的改动。
 - **不设** `develop` / `release` / `hotfix` 分支。
 
 ## 提交规范（Conventional Commits）
@@ -68,7 +80,7 @@
 4. `git tag -a v0.1.0 -m "..."` 并提交。
 5. 构建产物按版本归档到仓库外目录（产物已被 .gitignore 排除）。
 
-**hotfix**：fix-forward——在 `main` 上修复后打新 patch tag。**不**从旧 tag 拉 hotfix 分支。
+**hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再打新 patch tag。**不**从旧 tag 拉 hotfix 分支。
 **撤回坏版本**：递增到更高版本号重发；重发同名版本无效。
 
 **自动更新不做**：仓库已公开（2026-09-08 推送），剩余阻碍是代码签名（macOS 必需）；分发仍走手动安装包。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
@@ -104,7 +116,7 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 前提是全局装好 `gitnexus` 与 `@colbymchenry/codegraph`（`npm i -g ...`）。MCP 声明样板见
 `.codebuddy/mcp.example.json`——复制到用户级 `~/.codebuddy/mcp.json` 并替换其中的路径占位符。
 
-**隐私提醒**：本仓库含 `personal/`（真实简历、联系方式）。代码图谱索引会把部分文件名/符号
+**隐私提醒**：`personal/` 已随开源清洗出仓库，但本机工作区 `personal/` 仍是真实数据（简历、联系方式）。代码图谱索引会把部分文件名/符号
 记进 `.gitnexus/`/`.codegraph/`（本机缓存）。这两个目录已 gitignore 不会进仓库，但**别把它们
 本体外发**；索引进展用 `gitnexus list`、`codegraph status` 查看。
 
@@ -113,5 +125,5 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 
 ## 明确不做（过度工程）
 
-`develop`/`release`/`hotfix` 分支、分支保护、PR 自审、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、Playwright E2E、代码签名。
-（依据：`docs/research/report_dev_workflow.md` —— 单人维护项目的最小可行取舍。例外：最小 CI——后端 pytest + 前端构建已于 2026-09-08 上线，作为开源质量门。）
+`develop`/`release`/`hotfix` 分支、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、Playwright E2E、代码签名。
+（依据：`docs/research/report_dev_workflow.md` —— 单人维护项目的最小可行取舍。例外：最小 CI（2026-09-08 上线，pytest + 前端构建）；**分支保护（2026-09-08 起启用）**——线性历史 + 禁 force push（含 admin）。GitHub 分支保护无法按路径区分"代码 vs 文档"（required checks 会连带禁止一切直推），故分级靠"分支策略"节的规则自律执行，出错靠 revert 兜底。）

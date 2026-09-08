@@ -49,6 +49,18 @@ python tools/install_skills.py --target user
 
 环境要求：Python 3.8+（脚本只用标准库）；pypdf 仅 PDF 校验需要；Chrome 或 Edge 仅 PDF 生成需要；Web 界面（可选）见 [`web/README.md`](web/README.md)。
 
+## 界面预览
+
+七页面由 demo 数据生成（`init_workspace.py --domain software-backend`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。
+
+![看板](docs/screenshots/01-dashboard.png)
+![追踪表](docs/screenshots/02-applications.png)
+![岗位池](docs/screenshots/03-jobs.png)
+![简历工坊](docs/screenshots/04-resume.png)
+![进展](docs/screenshots/05-progress.png)
+![素材库](docs/screenshots/06-library.png)
+![设置](docs/screenshots/07-settings.png)
+
 ## 隐私
 
 本仓库不含任何真实个人数据。`personal/` 是用你自己的真实数据（姓名、照片、联系方式、投递记录、事实卡）填充的工作区，已整体排除在版本管理之外——克隆本仓库后它是空的，用上面的初始化命令生成你自己的。也就是说：**可以放心公开 fork，但不要把 `personal/` 里的内容贴进 issue、PR 或讨论区。**

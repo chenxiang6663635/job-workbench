@@ -19,5 +19,6 @@ A living document. Each item links to a tracking issue; finished items move to t
 ## Later
 
 - Third-party domain profiles: document the contribution contract so new industries plug in without touching core code
+- English UI (i18n): the interface is Chinese-first today; an English locale for international users lands here
 - Richer maintainer automation (release-note drafting, changelog assembly) — only where it pays for itself
 - Accessibility and localization beyond zh-CN / en

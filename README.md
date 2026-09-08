@@ -43,6 +43,8 @@ The workbench turns all of that into queryable, traceable files.
 
 ## UI Preview
 
+> **Note**: the UI is currently Chinese-first — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); until then the screens below are the real interface.
+
 All pages below run on generated demo data (`init_workspace.py --domain software-backend`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
 
 ![Tracker](docs/screenshots/02-applications.png)

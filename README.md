@@ -173,10 +173,12 @@ template/profiles/<domain-id>/
 | `template/` | 通用骨架：档案模板、空工作区、领域插件 |
 | `skills/` | 四个工作流 + recruit-coach 评分标准，跨运行时单一源 |
 | `tools/` | 六个 Python 脚本 |
-| `personal/` | 当前使用者的真实工作区（含姓名与照片，见下方警告） |
+| `personal/` | 使用者的真实工作区（**已整体 gitignore，仓库内不含任何真实数据**） |
 | `docs/specs/` | 设计文档 |
 
-> **分享本仓库前请先移除 `personal/`**——它包含真实姓名、照片与联系方式。
+> **隐私**：本仓库不含任何真实个人数据。`personal/` 是用你自己的真实数据（姓名、照片、联系方式、投递记录、事实卡）填充的工作区，
+> 已整体排除在版本管理之外——克隆本仓库后它是空的，用 `python tools/init_workspace.py --target personal --domain <插件>` 生成你自己的。
+> 也就是说：**你可以放心公开 fork，但不要把 `personal/` 里的内容贴进 issue、PR 或讨论区。**
 
 ## 相关文档
 

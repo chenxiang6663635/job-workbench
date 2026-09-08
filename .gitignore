@@ -77,10 +77,9 @@ web/electron/out/
 npm-debug.log*
 yarn-error.log*
 
-# 真实简历不进版本管理（隐私护栏）
-# personal/ 是「分层但同仓」设计（AGENTS 约定：分享仓库前需移除），但简历与数据驱动源
-# 集中承载真实身份信息（姓名 / 电话 / 邮箱 / 照片），靠手工记得删不可靠——这里直接忽略。
-# 忽略只影响 git，本机照样编辑与生成；模板里的空样例在 template/ 下，不受影响。
-personal/02_简历工坊/source/*.json
-personal/02_简历工坊/pdf/*.pdf
-personal/02_简历工坊/pdf/photo.jpg
+# 真实工作区整体不进版本管理（隐私护栏）
+# 2026-09-07 决策：仓库要开源，personal/ 下的姓名 / 电话 / 邮箱 / 照片 / 投递记录 /
+# 事实卡 / 岗位池全是真实数据，逐条忽略容易漏——整体忽略。
+# 忽略只影响 git，本机照样编辑与生成（工作区发现只扫仓库根，所以必须留在原位）；
+# 模板里的空样例在 template/ 下，不受影响。历史中的 personal/ 已用 filter-repo 清除。
+personal/

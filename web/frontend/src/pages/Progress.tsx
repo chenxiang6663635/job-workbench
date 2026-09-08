@@ -20,8 +20,8 @@ export default function Progress() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">进展</h1>
-        <p className="mt-1 text-xs text-slate-500">
+        <h1 className="text-lg font-semibold text-foreground">进展</h1>
+        <p className="mt-1 text-xs text-muted-foreground">
           投递之后才是真正的博弈——面试、联系人、Offer，都记在这里
         </p>
       </div>
@@ -34,7 +34,7 @@ export default function Progress() {
             className={`flex cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-all duration-200 ${
               sub === t.key
                 ? "bg-accent/15 text-accent"
-                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             }`}
           >
             {t.icon}

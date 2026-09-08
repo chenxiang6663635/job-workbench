@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Flame,
   Hourglass,
+  Inbox,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -24,7 +25,11 @@ import {
   type StaleItem,
 } from "../api";
 import RetrospectivePanel from "../components/RetrospectivePanel";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Skeleton } from "../components/ui/skeleton";
 
+// 数据可视化色板：阶段语义色，独立于主题 token（换主题不改图表语义）
 const STAGE_COLORS: Record<string, string> = {
   待投: "#64748b",
   已投: "#38bdf8",
@@ -88,13 +93,13 @@ function StatCard({
   onClick?: () => void;
 }) {
   const cls = onClick
-    ? "cursor-pointer hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10"
+    ? "cursor-pointer hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
     : "";
   return (
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-ink-850 to-ink-900 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
+      className={`group relative overflow-hidden rounded-lg border border-border bg-card p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
     >
       <div
         className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-20 blur-2xl transition-opacity duration-300 group-hover:opacity-40"
@@ -102,11 +107,11 @@ function StatCard({
       />
       <div className="relative flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </p>
-          <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
-          <p className="mt-1 text-xs text-slate-500">{hint}</p>
+          <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>
         <div
           className="flex h-10 w-10 items-center justify-center rounded-xl"
@@ -153,16 +158,16 @@ function StaleList({
   staleDays: number;
 }) {
   return (
-    <div className="rounded-2xl border border-warn/25 bg-ink-900/60 p-5">
+    <div className="rounded-lg border border-warning/25 bg-card p-5">
       <div className="mb-3 flex items-center gap-2">
         <Hourglass size={15} className="text-warn" />
-        <h2 className="text-sm font-semibold text-slate-200">静默提醒</h2>
-        <span className="ml-auto text-[10px] text-slate-500">
+        <h2 className="text-sm font-semibold text-foreground">静默提醒</h2>
+        <span className="ml-auto text-[10px] text-muted-foreground">
           停留超过 {staleDays} 天无进展
         </span>
       </div>
       {stale.length === 0 ? (
-        <p className="text-sm text-slate-500">没有长期无进展的活跃岗位。</p>
+        <p className="text-sm text-muted-foreground">没有长期无进展的活跃岗位。</p>
       ) : (
         <ul className="space-y-2">
           {stale.map((s) => (
@@ -172,13 +177,13 @@ function StaleList({
             >
               <span className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-warn" />
-                <span className="text-slate-200">
+                <span className="text-foreground">
                   {s.公司} · {s.岗位}
                 </span>
               </span>
               <span className="flex items-center gap-3 text-xs">
                 <span className="font-mono text-warn">{s.days} 天</span>
-                <span className="text-slate-500">{s.当前阶段}</span>
+                <span className="text-muted-foreground">{s.当前阶段}</span>
               </span>
             </li>
           ))}
@@ -189,24 +194,27 @@ function StaleList({
 }
 
 // 健康度四态与追踪表同色同文案：颜色即严重度，理由整条列出（可核对优先）
-const LEVEL_META: Record<string, { label: string; cls: string }> = {
-  urgent: { label: "紧急", cls: "bg-bad/15 text-bad" },
-  overdue: { label: "逾期", cls: "bg-warn/15 text-warn" },
-  stale: { label: "停滞", cls: "bg-accent/15 text-accent" },
+const LEVEL_META: Record<
+  string,
+  { label: string; variant: "destructive" | "warning" | "default" }
+> = {
+  urgent: { label: "紧急", variant: "destructive" },
+  overdue: { label: "逾期", variant: "warning" },
+  stale: { label: "停滞", variant: "default" },
 };
 
 function PendingList({ pending }: { pending: PendingItem[] }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
+    <div className="rounded-lg border border-border bg-card p-5">
       <div className="mb-3 flex items-center gap-2">
-        <Flame size={15} className="text-bad" />
-        <h2 className="text-sm font-semibold text-slate-200">待推进</h2>
-        <span className="ml-auto text-[10px] text-slate-500">
+        <Flame size={15} className="text-destructive" />
+        <h2 className="text-sm font-semibold text-foreground">待推进</h2>
+        <span className="ml-auto text-[10px] text-muted-foreground">
           健康度异常的活跃岗位
         </span>
       </div>
       {pending.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           没有待推进的记录——节奏很稳，继续保持。
         </p>
       ) : (
@@ -218,20 +226,18 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
                 <button
                   onClick={() => drillTo({ sort: "health", focusId: p.id })}
                   title="点击下钻到追踪表（按健康度排序）"
-                  className="group w-full cursor-pointer rounded-lg bg-white/5 px-3 py-2 text-left transition-colors hover:bg-white/10"
+                  className="group w-full cursor-pointer rounded-lg bg-secondary/60 px-3 py-2 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm text-slate-200 transition-colors group-hover:text-accent">
+                    <span className="truncate text-sm text-foreground transition-colors group-hover:text-accent">
                       {p.公司} · {p.岗位}
                     </span>
-                    <span
-                      className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${meta.cls}`}
-                    >
+                    <Badge variant={meta.variant} className="shrink-0">
                       {meta.label}
-                    </span>
+                    </Badge>
                   </div>
                   {/* 理由整条亮出来：为什么该推进它，一目了然 */}
-                  <p className="mt-1 truncate text-xs text-slate-500">
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {p.reasons.join("；")}
                   </p>
                 </button>
@@ -267,14 +273,24 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-bad/30 bg-bad/10 p-4 text-sm text-bad">
+      <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <AlertTriangle size={16} />
         加载看板失败：{error}
       </div>
     );
   }
 
   if (!data) {
-    return <div className="text-sm text-slate-400">正在读取投递数据…</div>;
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28 w-full" />
+          ))}
+        </div>
+        <Skeleton className="h-72 w-full" />
+      </div>
+    );
   }
 
   const maxFunnel = Math.max(1, ...data.funnel.map((f) => f.count));
@@ -317,19 +333,20 @@ export default function Dashboard() {
       </div>
 
       {data.total === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-ink-900/50 p-10 text-center">
-          <p className="text-base font-medium text-slate-200">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card p-10 text-center">
+          <Inbox size={28} className="text-muted-foreground" />
+          <p className="text-base font-medium text-foreground">
             还没有任何投递记录
           </p>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             去「追踪表」添加第一家公司的投递记录，看板就会自动统计漏斗、待办与到期提醒。
           </p>
         </div>
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5 lg:col-span-2">
-              <h2 className="mb-4 text-sm font-semibold text-slate-200">
+            <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
+              <h2 className="mb-4 text-sm font-semibold text-foreground">
                 投递漏斗（点击柱子查看该阶段岗位）
               </h2>
               <ResponsiveContainer width="100%" height={240}>
@@ -343,17 +360,17 @@ export default function Dashboard() {
                     type="category"
                     dataKey="stage"
                     width={56}
-                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip
-                    cursor={{ fill: "#ffffff08" }}
+                    cursor={{ fill: "hsl(var(--foreground) / 0.06)" }}
                     contentStyle={{
-                      background: "#131c30",
-                      border: "1px solid #ffffff1a",
+                      background: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
                       borderRadius: 12,
-                      color: "#e2e8f0",
+                      color: "hsl(var(--foreground))",
                       fontSize: 12,
                     }}
                   />
@@ -370,7 +387,7 @@ export default function Dashboard() {
                     {data.funnel.map((f) => (
                       <Cell
                         key={f.stage}
-                        fill={STAGE_COLORS[f.stage] ?? "#38bdf8"}
+                        fill={STAGE_COLORS[f.stage] ?? "hsl(var(--primary))"}
                       />
                     ))}
                   </Bar>
@@ -379,8 +396,8 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
-                <h2 className="mb-3 text-sm font-semibold text-slate-200">
+              <div className="rounded-lg border border-border bg-card p-5">
+                <h2 className="mb-3 text-sm font-semibold text-foreground">
                   按方向（点击查看该方向岗位）
                 </h2>
                 <div className="space-y-2">
@@ -389,21 +406,21 @@ export default function Dashboard() {
                       key={d.key}
                       onClick={() => drillTo({ direction: d.key })}
                     >
-                      <span className="text-slate-300">{d.key}</span>
+                      <span className="text-muted-foreground">{d.key}</span>
                       <span className="font-mono text-accent">{d.count}</span>
                     </ClickRow>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
-                <h2 className="mb-3 text-sm font-semibold text-slate-200">
+              <div className="rounded-lg border border-border bg-card p-5">
+                <h2 className="mb-3 text-sm font-semibold text-foreground">
                   按批次（点击查看该批次岗位）
                 </h2>
                 <div className="space-y-2">
                   {data.byBatch.map((b) => (
                     <ClickRow key={b.key} onClick={() => drillTo({ batch: b.key })}>
-                      <span className="text-slate-300">{b.key}</span>
+                      <span className="text-muted-foreground">{b.key}</span>
                       <span className="font-mono text-accent">{b.count}</span>
                     </ClickRow>
                   ))}
@@ -413,37 +430,39 @@ export default function Dashboard() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
-              <h2 className="mb-3 text-sm font-semibold text-slate-200">
+            <div className="rounded-lg border border-border bg-card p-5">
+              <h2 className="mb-3 text-sm font-semibold text-foreground">
                 近七天待办
               </h2>
               {data.upcoming.length === 0 ? (
-                <p className="text-sm text-slate-500">未来七天没有到期事项。</p>
+                <p className="text-sm text-muted-foreground">未来七天没有到期事项。</p>
               ) : (
                 <ul className="space-y-2">
                   {data.upcoming.map((u) => (
                     <li
                       key={u.id + u.reason}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-sm"
                     >
                       <button
                         onClick={() => drillTo({ focusId: u.id })}
-                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-slate-200 transition-colors hover:text-accent"
+                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-foreground transition-colors hover:text-accent"
                         title="查看该记录"
                       >
                         {u.公司} · {u.岗位}
                       </button>
                       <span className="flex shrink-0 items-center gap-2 text-xs">
-                        <span className="text-slate-500">{u.reason}</span>
+                        <span className="text-muted-foreground">{u.reason}</span>
                         <span className="font-mono text-warn">{u.date}</span>
                         {u.reason === "下次动作" && (
-                          <button
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => snooze(u.id, u.date)}
                             title="顺延 7 天"
-                            className="cursor-pointer rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-slate-400 transition-colors hover:border-accent/40 hover:text-accent"
+                            className="h-6 px-1.5 text-[10px]"
                           >
                             顺延 7 天
-                          </button>
+                          </Button>
                         )}
                       </span>
                     </li>
@@ -452,12 +471,12 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-5">
-              <h2 className="mb-3 text-sm font-semibold text-slate-200">
+            <div className="rounded-lg border border-border bg-card p-5">
+              <h2 className="mb-3 text-sm font-semibold text-foreground">
                 已过截止日提醒
               </h2>
               {data.overdue.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   没有已过截止日且未投递的记录。
                 </p>
               ) : (
@@ -466,12 +485,12 @@ export default function Dashboard() {
                     <li
                       key={o.id}
                       onClick={() => drillTo({ focusId: o.id })}
-                      className="flex cursor-pointer items-center justify-between rounded-lg bg-bad/10 px-3 py-2 text-sm"
+                      className="flex cursor-pointer items-center justify-between rounded-lg bg-destructive/10 px-3 py-2 text-sm"
                     >
-                      <span className="text-slate-200">
+                      <span className="text-foreground">
                         {o.公司} · {o.岗位}
                       </span>
-                      <span className="font-mono text-xs text-bad">
+                      <span className="font-mono text-xs text-destructive">
                         {o.截止日期}
                       </span>
                     </li>
@@ -488,7 +507,7 @@ export default function Dashboard() {
 
           {/* 周期复盘（P3）：转化率 / 停留 / 归因——数据越攒越值钱 */}
           {data.retrospective && (
-            <div className="rounded-2xl border border-white/10 bg-ink-900/40 p-5">
+            <div className="rounded-lg border border-border bg-card/40 p-5">
               <RetrospectivePanel data={data.retrospective} />
             </div>
           )}

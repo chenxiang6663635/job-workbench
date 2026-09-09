@@ -16,6 +16,9 @@
   },
   "build": {
     "appId": "com.jobworkbench.app",
+    "directories": {
+      "output": "release"
+    },
     "productName": "求职工作台",
     "files": [
       "main.js",
@@ -25,7 +28,7 @@
       {
         "from": "../backend/dist/job-workbench-backend",
         "to": "backend",
-        "filter": ["**/*"]
+        "filter": ["**/*", "!personal/**", "!portable.txt"]
       }
     ],
     "win": {

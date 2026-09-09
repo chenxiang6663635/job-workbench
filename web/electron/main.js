@@ -85,19 +85,24 @@ function findOnPath(name) {
 }
 
 // ---- 后端健康检查 ----
+// cb 用 done 门保护：timeout 与 error 存在竞态（destroy 后理论可能双触发），
+// 双回调会让 waitBackendReady 双轮询、后端就绪时 createWindow 两次 → 双窗口
 function checkHealth(cb) {
+  let done = false;
+  const once = (ok) => {
+    if (done) return;
+    done = true;
+    cb(ok);
+  };
   const req = http.get(HEALTH_URL, { timeout: 1000 }, (res) => {
     let body = "";
     res.on("data", (d) => (body += d));
-    res.on("end", () => {
-      const ok = res.statusCode === 200 && body.includes("ok");
-      cb(ok);
-    });
+    res.on("end", () => once(res.statusCode === 200 && body.includes("ok")));
   });
-  req.on("error", () => cb(false));
+  req.on("error", () => once(false));
   req.on("timeout", () => {
     req.destroy();
-    cb(false);
+    once(false);
   });
 }
 
@@ -112,7 +117,7 @@ function waitBackendReady(cb) {
         return;
       }
       if (Date.now() - start > HEARTBEAT_TIMEOUT) {
-        log("后端启动超时，请检查 Python/FastAPI 环境");
+        log("后端启动超时。打包版请查看本日志上方 [backend-err] 的退出原因；源码版请检查 Python/FastAPI 环境");
         app.quit();
         return;
       }
@@ -124,17 +129,11 @@ function waitBackendReady(cb) {
 
 // ---- 启动后端：优先用打包的 exe，回退 python -m uvicorn ----
 function findBackendExe() {
-  // 打包（electron-builder extraResources 或 onedir 旁）: exe 同级的 backend exe
-  const candidates = [
-    // onedir 形态：exe 同级（仓库内构建时）
-    path.join(__dirname, "job-workbench-backend.exe"),
-    // electron-builder extraResources：resources 下的 backend 目录
-    path.join(process.resourcesPath, "backend", "job-workbench-backend.exe"),
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-  return null;
+  // 打包形态：electron-builder extraResources 的 resources/backend/。
+  // （asar 内不可能有 exe；仓库内构建的 exe 在 web/backend/dist/ 下——
+  //   仓库形态本就走 detectPython 回退，此函数只服务打包形态）
+  const candidate = path.join(process.resourcesPath, "backend", "job-workbench-backend.exe");
+  return fs.existsSync(candidate) ? candidate : null;
 }
 
 function startBackend() {

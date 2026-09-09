@@ -1,4 +1,4 @@
-# 一键构建 Windows 桌面安装包（求职工作台 Setup *.exe）
+﻿# 一键构建 Windows 桌面安装包（求职工作台 Setup *.exe）
 # 链路：前端 dist → PyInstaller 后端 exe（含前端同源托管组装）→ electron-builder NSIS
 # 产物：web/electron/dist/求职工作台 Setup <版本>.exe（+ blockmap）
 # 前置：目标 Python 环境需含 fastapi/uvicorn/PyInstaller（探测逻辑同 build_backend_exe.ps1）
@@ -34,5 +34,5 @@ if ($code -ne 0) {
 
 # 3. 产物清单
 Write-Host "=== 桌面安装包构建完成 ===" -ForegroundColor Green
-Get-ChildItem (Join-Path $root "web\electron\dist") -Filter "*.exe" |
+Get-ChildItem (Join-Path $root "web\electron\release") -Filter "*.exe" |
     ForEach-Object { Write-Host ("  {0}  ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB)) }

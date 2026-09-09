@@ -33,9 +33,22 @@ if (-not $Py) {
 }
 Write-Host "使用解释器: $Py" -ForegroundColor DarkGray
 
-# 构建前校验关键模块，缺依赖给人话提示，而不是 PyInstaller 中途炸
-& $Py -c "import fastapi, uvicorn, PyInstaller" 2>$null
-if ($LASTEXITCODE -ne 0) {
+# -Py 显式路径校验：写错时给定位提示，而不是裸 CommandNotFoundException
+if ($Py -ne "python" -and -not (Test-Path $Py)) {
+    Write-Host "指定的解释器不存在: $Py" -ForegroundColor Red
+    exit 1
+}
+
+# 构建前校验关键模块，缺依赖给人话提示，而不是 PyInstaller 中途炸。
+# 注意：PS 5.1 下 EAP=Stop + 2>$null 会让任何 stderr 行以 NativeCommandError 直接
+# 终止脚本（python 的 ImportError 恰好走 stderr）——人话提示永远走不到。
+# 故校验段局部降为 Continue，只认 $LASTEXITCODE。
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+& $Py -c "import fastapi, uvicorn, pydantic, filelock, PyInstaller" 2>$null
+$checkCode = $LASTEXITCODE
+$ErrorActionPreference = $prevEap
+if ($checkCode -ne 0) {
     Write-Host "当前解释器缺少依赖（fastapi / uvicorn / PyInstaller）。" -ForegroundColor Red
     Write-Host "请在目标环境执行: $Py -m pip install -r web/backend/requirements.txt -r web/backend/requirements-dev.txt" -ForegroundColor Yellow
     exit 1

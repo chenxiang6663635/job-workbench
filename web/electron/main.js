@@ -24,7 +24,21 @@ const BACKEND_DIR = path.join(REPO_ROOT, "web", "backend");
 const DIST_DIR = path.join(REPO_ROOT, "web", "frontend", "dist");
 
 function log(msg) {
-  console.log(`[job-workbench] ${msg}`);
+  const line = `[job-workbench] ${new Date().toISOString()} ${msg}`;
+  console.log(line);
+  // GUI 模式下 console.log 不可见——落盘到 userData 供用户侧诊断（冒烟实测痛点）
+  // 超过 1MB 轮转为 .old，避免无限增长
+  try {
+    const dir = app.getPath("userData");
+    fs.mkdirSync(dir, { recursive: true });
+    const lp = path.join(dir, "main.log");
+    if (fs.existsSync(lp) && fs.statSync(lp).size > 1024 * 1024) {
+      fs.renameSync(lp, `${lp}.old`);
+    }
+    fs.appendFileSync(lp, `${line}\n`);
+  } catch (e) {
+    // 日志失败不影响主流程
+  }
 }
 
 // ---- Python 探测（优先级：JOBWS_PYTHON 环境变量 → PATH 中 python → python3）----

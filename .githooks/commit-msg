@@ -1,0 +1,3 @@
+#!/bin/sh
+# sh launcher / 启动器：真实逻辑在 commit_msg.py（跨平台）
+exec python "$(git rev-parse --show-toplevel)/.githooks/commit_msg.py" "$@"

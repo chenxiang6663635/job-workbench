@@ -1,0 +1,4 @@
+#!/bin/sh
+# sh launcher / 启动器：Git for Windows 内置 sh 必可 spawn；python 从 PATH 解析
+# 真实逻辑在 pre_commit.py（跨平台）。启用：git config core.hooksPath .githooks
+exec python "$(git rev-parse --show-toplevel)/.githooks/pre_commit.py" "$@"

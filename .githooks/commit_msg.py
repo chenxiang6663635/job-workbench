@@ -13,8 +13,11 @@ from __future__ import annotations
 import re
 import sys
 
-TYPES = {"feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"}
-HEADER_PATTERN = re.compile(r"^(?P<type>[a-z]+)(?:\((?P<scope>[a-z0-9][a-z0-9_/-]*)\))?: (?P<subject>\S.*)$")
+TYPES = {"feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert", "data", "job"}
+# `!` 后缀 = 破坏性变更（CONTRIBUTING 提交规范要求支持 feat!/fix(x)!）
+HEADER_PATTERN = re.compile(
+    r"^(?P<type>[a-z]+)(?:\((?P<scope>[a-z0-9][a-z0-9_/-]*)\))?(?P<bang>!)?: (?P<subject>\S.*)$"
+)
 
 
 def first_meaningful_line(path: str) -> str:
@@ -38,7 +41,7 @@ def main(argv: list[str]) -> int:
     if not message:
         print("[commit-msg][FAIL] commit message is empty")
         return 1
-    if message.startswith(("Merge ", "Revert ", "Initial commit")):
+    if message.startswith(("Merge ", "Revert ", "Initial commit", "fixup!", "Squashed commit")):
         return 0
 
     match = HEADER_PATTERN.match(message)

@@ -51,7 +51,11 @@ def staged_files() -> list[str]:
 
 
 def check_privacy(files: list[str]) -> str | None:
-    """personal/ 路径与真实联系方式模式一律不得进提交。"""
+    """personal/ 路径与真实联系方式模式一律不得进提交。
+
+    只扫新增行（+）：删除/修正真实号码的「清理类提交」不应被自己的护栏拦死
+    （独立审查抓出的自缚场景）。
+    """
     for path in files:
         if PERSONAL_PATH_PATTERN.search(path):
             return f"staged file lives under personal/: {path}"
@@ -63,12 +67,13 @@ def check_privacy(files: list[str]) -> str | None:
         errors="replace",
         check=True,
     ).stdout
-    for m in PHONE_PATTERN.finditer(diff):
+    added = "\n".join(line for line in diff.splitlines() if line.startswith("+"))
+    for m in PHONE_PATTERN.finditer(added):
         number = m.group(0)
         if number in PLACEHOLDER_NUMBERS or len(set(number[3:])) == 1:
             continue  # 占位号（如 13800000000），非真实号码
         return f"possible real phone number in staged diff: {number} (use 13800000000-style placeholders)"
-    for m in EMAIL_PATTERN.finditer(diff):
+    for m in EMAIL_PATTERN.finditer(added):
         return f"possible real email in staged diff: {m.group(0)} (use sample@example.com)"
     return None
 
@@ -104,8 +109,9 @@ def check_tests() -> str | None:
     if result.returncode == 0:
         print("pytest: PASS")
         return None
-    if "No module named pytest" in (result.stderr or ""):
-        print("pytest: SKIP (not installed in this interpreter - CI will cover it)")
+    # 4 = 用法/路径错误，5 = 收集到 0 项：环境问题而非测试失败，降级提示（CI 兜底）
+    if "No module named pytest" in (result.stderr or "") or result.returncode in (4, 5):
+        print(f"pytest: SKIP (rc={result.returncode}: environment/collection issue - CI will cover it)")
         return None
     tail = (result.stdout or result.stderr or "").strip().splitlines()[-3:]
     return "pytest failed:\n  " + "\n  ".join(tail)

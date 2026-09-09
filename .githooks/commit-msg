@@ -1,3 +1,14 @@
 #!/bin/sh
-# sh launcher / 启动器：真实逻辑在 commit_msg.py（跨平台）
-exec python "$(git rev-parse --show-toplevel)/.githooks/commit_msg.py" "$@"
+# sh launcher / 启动器：python 解析回退链同 pre-commit；真实逻辑在 commit_msg.py
+ROOT="$(git rev-parse --show-toplevel)"
+if command -v python >/dev/null 2>&1; then
+    PY=python
+elif command -v python3 >/dev/null 2>&1; then
+    PY=python3
+else
+    echo "[githooks][FAIL] python not found in PATH - cannot run commit-msg check." >&2
+    echo "  fix: install python, add it to PATH, or temporarily disable hooks with:" >&2
+    echo "       git config --unset core.hooksPath" >&2
+    exit 1
+fi
+exec "$PY" "$ROOT/.githooks/commit_msg.py" "$@"

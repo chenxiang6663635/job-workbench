@@ -116,11 +116,17 @@ def resolve_workspace_root(root=None):
     if env_dir:
         return os.path.abspath(env_dir), "env"
 
-    # 2. 应用根可写 → 便携模式（personal/ 在应用根下）
+    # 2. 便携模式（personal/ 在应用根下）。判定分形态：
+    #    - 源码/解包形态（非 frozen）：维持历史行为——可写即便携，数据在仓库根 personal/
+    #    - 打包形态（frozen）：必须有 portable.txt 标记才便携。光可写不够——NSIS 安装版
+    #      落在 %LOCALAPPDATA%\Programs（可写），按可写性判定会让用户数据进安装目录、
+    #      卸载即被连带删除（独立审查抓出的组合缺陷）。portable.txt 仅由
+    #      build_backend_exe.ps1 生成（绿色 onedir 形态）；NSIS 安装包排除它，必走 userdata。
     if _writable(os.path.join(root, "personal")):
-        return root, "portable"
+        if not is_frozen() or os.path.isfile(os.path.join(root, PORTABLE_MARKER)):
+            return root, "portable"
 
-    # 3. 应用根不可写（Program Files 等）→ 系统用户目录
+    # 3. 非便携（NSIS 安装版、Program Files 等）→ 系统用户目录
     return _user_data_dir(), "userdata"
 
 

@@ -110,7 +110,7 @@ export default function Settings() {
         </div>
       )}
 
-      <div className="space-y-4 rounded-lg border border-border bg-card p-5">
+      <div className="space-y-4 rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <KeyRound size={16} className="text-accent" /> Provider
         </div>
@@ -151,7 +151,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="space-y-4 rounded-lg border border-border bg-card p-5">
+      <div className="space-y-4 rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <ShieldCheck size={16} className="text-success" /> 数据与隐私
         </div>

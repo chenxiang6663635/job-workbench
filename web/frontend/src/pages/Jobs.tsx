@@ -178,7 +178,7 @@ export default function Jobs() {
           )}
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-lg border border-border bg-card p-5">
+          <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
               <FileText size={16} className="text-accent" /> JD 原文
             </div>
@@ -187,7 +187,7 @@ export default function Jobs() {
             </pre>
           </div>
 
-          <div className="rounded-lg border border-border bg-card p-5">
+          <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
               <Sparkles size={16} className="text-accent" /> 解析卡
             </div>
@@ -357,7 +357,7 @@ export default function Jobs() {
       </div>
 
       {creating && (
-        <div className="space-y-3 rounded-lg border border-accent/30 bg-card/70 p-5">
+        <div className="space-y-3 rounded-lg border border-accent/30 bg-card/70 shadow-card ring-1 ring-white/5 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
               placeholder="公司名称"
@@ -423,7 +423,7 @@ export default function Jobs() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium text-foreground">岗位池还是空的</p>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -436,7 +436,7 @@ export default function Jobs() {
             <button
               key={job.dir}
               onClick={() => open(job.dir)}
-              className="group cursor-pointer rounded-lg border border-border bg-card p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10"
+              className="group cursor-pointer rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10"
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold leading-snug text-foreground">

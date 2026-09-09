@@ -1,0 +1,15 @@
+#!/bin/sh
+# sh launcher / 启动器：Git for Windows 内置 sh 必可 spawn；python 从 PATH 解析（python3 回退）
+# 真实逻辑在 pre_commit.py（跨平台）。启用：git config core.hooksPath .githooks
+ROOT="$(git rev-parse --show-toplevel)"
+if command -v python >/dev/null 2>&1; then
+    PY=python
+elif command -v python3 >/dev/null 2>&1; then
+    PY=python3
+else
+    echo "[githooks][FAIL] python not found in PATH - cannot run pre-commit guardrail." >&2
+    echo "  fix: install python, add it to PATH, or temporarily disable hooks with:" >&2
+    echo "       git config --unset core.hooksPath" >&2
+    exit 1
+fi
+exec "$PY" "$ROOT/.githooks/pre_commit.py" "$@"

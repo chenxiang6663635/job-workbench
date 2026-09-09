@@ -1,0 +1,3 @@
+# githooks 必须保持 LF：CRLF 检出会让 sh 包装器的 exec 行尾粘 \r，
+# 导致 python 打不开脚本、每次提交失败（独立审查抓出的跨平台缺陷）
+.githooks/* text eol=lf

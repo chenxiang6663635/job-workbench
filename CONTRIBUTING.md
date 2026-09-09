@@ -41,7 +41,10 @@
 - `tools/`、`web/backend/`、`web/frontend/` 的代码修改，`tests/` 用例
 - 依赖变更（`requirements*.txt` / `package.json`）；CI / workflows 配置
 - 数据模型 / schema 变更；触碰 [AGENTS.md](AGENTS.md) 诚实红线的内容
-- PR 门槛：CI 绿（pytest 33 项 + 前端 build 两 check 全过——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + **合并前的显式审查记录**：以 reviewer 视角逐文件通读 `gh pr diff`（重点：隐私与四道门、API 消费面、改动是否纯增量），审查结论（含发现的问题与处理决定）必须用 `gh pr comment` 落进 PR——单人开发也要让 PR 页面可追溯「改了什么、审出了什么、为什么这么定」；发现问题当场修（追加 commit）或记入后续 PR，不许静默合并；Squash and merge，合后删分支
+- PR 门槛：CI 绿（pytest 33 项 + 前端 build 两 check 全过——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + **双轨审查（两轮均可定位，借鉴 branch closeout 的 Review Intake 条款）**：
+  1. **作者自审**：逐文件通读 `gh pr diff`（重点：隐私与四道门、API 消费面、改动是否纯增量），结论用 `gh pr comment` 落进 PR；
+  2. **独立审查**：派一个**全新上下文**的子代理以陌生 reviewer 视角逐文件审同一 diff（不带入作者意图，只看代码本身）；
+  两轮结论（含发现的问题与处理决定）都必须留在 PR 页面——单人开发也要让 PR 可追溯「改了什么、两轮各审出了什么、为什么这么定」；**不得将作者自审标称为独立审查，不得伪造审查身份**；独立审发现 MAJOR 级及以上问题当场修（追加 commit）或记入后续 PR，不许静默合并（实证：PR #13 独立审抓出自审完全漏掉的 3 个 MAJOR）；Squash and merge，合后删分支
 
 **可直推 main**（不影响运行时的纯文本与资料类）：
 
@@ -49,6 +52,7 @@
 - 前提：不破坏构建与数据安全；**拿不准 → 一律按 PR 处理**（宁走 PR，不冒险）
 
 - **先开分支，再动手**：分支要在敲第一行代码前建好（`git switch -c feat/xxx`），不要先在 `main` 写完再 checkout——那样虽然未提交改动会被带到新分支、`main` 仍干净，但流程易混淆，一旦中途忘记开分支，提交就直接落进 `main`。
+- **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、subject 中文可用、≤100 字符），豁免 Merge/Revert。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
 - **PR 的粒度是「一个可独立验收的批次」，不是「一次提交」**：分支内可以多次小步提交，全部完成且 `npm run build` / 测试绿之后再开一次 PR。例：P1 的三批页面迁移 = 三个 PR。
 - 分支命名（PR 路径）：`feat/<issue号>-<slug>`、`fix/<issue号>-<slug>`、`docs/<slug>`；存活 ≤ 1–2 天，合完即删。
 - 兜底（出错了怎么办）：数据快照备份 + `git revert`——squash 提交可整体回滚，不污染主干历史。
@@ -124,6 +128,17 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 
 注意：产品侧 `CONTRIBUTING` 明确不做 Playwright **E2E 测试**（见下节），那是"把 UI 自动化
 写进 CI/测试套件"的取舍；开发时**用 Playwright 手动点一次页面做验证**不属此列，不受限。
+
+## 代码卫生（借鉴反屎山清单，精简为四人条款）
+
+写代码时自查，PR 自审时复核：
+
+1. **规模预算**：单文件目标 ≤300 行（超过即考虑按职责拆分）；单函数 ≤60 行、超 80 必拆为「编排函数 + ≥2 个 helper」；嵌套 ≤3 层。
+2. **提取时机（rule of three）**：同一逻辑第 2 次出现时考虑提取，第 3 次必须提取到公共模块；新增第 3 个 `if/elif` 分支且每分支 >10 行时提取 dispatch。
+3. **禁静默吞错**：`except Exception: pass` 与空 `catch {}` 一律不许——至少记日志（`logger.warning` / `console.error`）。
+4. **单一真值源**：同一枚举/映射/常量只允许在一个模块定义，其他位置引用它——发现第 2 处内联副本即收敛回注册处。
+
+> 来源：借鉴 thermal_comfort_code 的 anti-shit-mountain 清单，按本仓库规模精简（不搬其双阈值过渡制与 L1/L2/L3 分级）。
 
 ## 明确不做（过度工程）
 

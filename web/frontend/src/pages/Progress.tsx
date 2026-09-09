@@ -4,6 +4,7 @@ import ContactList from "../components/ContactList";
 import InterviewList from "../components/InterviewList";
 import OfferCompare from "../components/OfferCompare";
 import QuestionBank from "../components/QuestionBank";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 type SubTab = "interviews" | "contacts" | "offers" | "questions";
 
@@ -26,27 +27,28 @@ export default function Progress() {
         </p>
       </div>
 
-      <div className="flex items-center gap-1">
-        {SUBTABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setSub(t.key)}
-            className={`flex cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-all duration-200 ${
-              sub === t.key
-                ? "bg-accent/15 text-accent"
-                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            {t.icon}
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {sub === "interviews" && <InterviewList />}
-      {sub === "questions" && <QuestionBank />}
-      {sub === "contacts" && <ContactList />}
-      {sub === "offers" && <OfferCompare />}
+      <Tabs value={sub} onValueChange={(v) => setSub(v as SubTab)}>
+        <TabsList>
+          {SUBTABS.map((t) => (
+            <TabsTrigger key={t.key} value={t.key} className="gap-1.5">
+              {t.icon}
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="interviews">
+          <InterviewList />
+        </TabsContent>
+        <TabsContent value="questions">
+          <QuestionBank />
+        </TabsContent>
+        <TabsContent value="contacts">
+          <ContactList />
+        </TabsContent>
+        <TabsContent value="offers">
+          <OfferCompare />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

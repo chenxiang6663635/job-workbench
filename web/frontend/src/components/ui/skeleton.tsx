@@ -7,9 +7,12 @@ function Skeleton({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-md bg-gradient-to-r from-secondary/60 via-muted to-secondary/60 animate-pulse", className)}
+      className={cn("relative overflow-hidden rounded-md bg-secondary/60", className)}
       {...props}
-    />
+    >
+      {/* shimmer 横扫光带：比 opacity 脉冲更有「加载中」的方向感 */}
+      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+    </div>
   );
 }
 

@@ -456,12 +456,12 @@ export default function Applications() {
                   <Fragment key={it.id}>
                     <tr
                       id={`row-${it.id}`}
-                      className="bg-card/40 shadow-card ring-1 ring-white/5 transition-colors hover:bg-secondary"
+                      className="group bg-card/40 shadow-card ring-1 ring-white/5 transition-colors hover:bg-secondary"
                     >
-                      <td className="px-4 py-3">
+                      <td className="border-l-2 border-transparent px-4 py-3 transition-colors group-hover:border-primary">
                         <button
                           onClick={() => toggleTimeline(it.id)}
-                          className="mr-2 inline-flex cursor-pointer align-middle text-slate-500 transition-colors hover:text-accent"
+                          className="mr-2 inline-flex cursor-pointer align-middle text-muted-foreground transition-colors hover:text-primary"
                           title={isExpanded ? "收起时间线" : "展开时间线"}
                         >
                           {isExpanded ? (

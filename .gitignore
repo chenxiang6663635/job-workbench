@@ -11,7 +11,8 @@ venv/
 ~$*
 Thumbs.db
 .DS_Store
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 
 # Web 运行时产物：文件锁、依赖与构建输出

@@ -24,7 +24,21 @@ const BACKEND_DIR = path.join(REPO_ROOT, "web", "backend");
 const DIST_DIR = path.join(REPO_ROOT, "web", "frontend", "dist");
 
 function log(msg) {
-  console.log(`[job-workbench] ${msg}`);
+  const line = `[job-workbench] ${new Date().toISOString()} ${msg}`;
+  console.log(line);
+  // GUI 模式下 console.log 不可见——落盘到 userData 供用户侧诊断（冒烟实测痛点）
+  // 超过 1MB 轮转为 .old，避免无限增长
+  try {
+    const dir = app.getPath("userData");
+    fs.mkdirSync(dir, { recursive: true });
+    const lp = path.join(dir, "main.log");
+    if (fs.existsSync(lp) && fs.statSync(lp).size > 1024 * 1024) {
+      fs.renameSync(lp, `${lp}.old`);
+    }
+    fs.appendFileSync(lp, `${line}\n`);
+  } catch (e) {
+    // 日志失败不影响主流程
+  }
 }
 
 // ---- Python 探测（优先级：JOBWS_PYTHON 环境变量 → PATH 中 python → python3）----
@@ -71,19 +85,24 @@ function findOnPath(name) {
 }
 
 // ---- 后端健康检查 ----
+// cb 用 done 门保护：timeout 与 error 存在竞态（destroy 后理论可能双触发），
+// 双回调会让 waitBackendReady 双轮询、后端就绪时 createWindow 两次 → 双窗口
 function checkHealth(cb) {
+  let done = false;
+  const once = (ok) => {
+    if (done) return;
+    done = true;
+    cb(ok);
+  };
   const req = http.get(HEALTH_URL, { timeout: 1000 }, (res) => {
     let body = "";
     res.on("data", (d) => (body += d));
-    res.on("end", () => {
-      const ok = res.statusCode === 200 && body.includes("ok");
-      cb(ok);
-    });
+    res.on("end", () => once(res.statusCode === 200 && body.includes("ok")));
   });
-  req.on("error", () => cb(false));
+  req.on("error", () => once(false));
   req.on("timeout", () => {
     req.destroy();
-    cb(false);
+    once(false);
   });
 }
 
@@ -98,7 +117,7 @@ function waitBackendReady(cb) {
         return;
       }
       if (Date.now() - start > HEARTBEAT_TIMEOUT) {
-        log("后端启动超时，请检查 Python/FastAPI 环境");
+        log("后端启动超时。打包版请查看本日志上方 [backend-err] 的退出原因；源码版请检查 Python/FastAPI 环境");
         app.quit();
         return;
       }
@@ -110,17 +129,11 @@ function waitBackendReady(cb) {
 
 // ---- 启动后端：优先用打包的 exe，回退 python -m uvicorn ----
 function findBackendExe() {
-  // 打包（electron-builder extraResources 或 onedir 旁）: exe 同级的 backend exe
-  const candidates = [
-    // onedir 形态：exe 同级（仓库内构建时）
-    path.join(__dirname, "job-workbench-backend.exe"),
-    // electron-builder extraResources：resources 下的 backend 目录
-    path.join(process.resourcesPath, "backend", "job-workbench-backend.exe"),
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-  return null;
+  // 打包形态：electron-builder extraResources 的 resources/backend/。
+  // （asar 内不可能有 exe；仓库内构建的 exe 在 web/backend/dist/ 下——
+  //   仓库形态本就走 detectPython 回退，此函数只服务打包形态）
+  const candidate = path.join(process.resourcesPath, "backend", "job-workbench-backend.exe");
+  return fs.existsSync(candidate) ? candidate : null;
 }
 
 function startBackend() {
@@ -187,9 +200,19 @@ function stopBackend() {
 }
 
 // ---- 创建窗口 ----
+// 前端 dist 探测：打包形态下 extraResources 把前端 dist 放进了 resources/backend/dist
+// （后端同源托管），仓库形态才是 web/frontend/dist。冒烟实测：只认仓库路径会让打包
+// 应用「后端就绪后找不到界面」自退（exit 0）。
+function findFrontendDist() {
+  const packaged = path.join(process.resourcesPath, "backend", "dist");
+  if (fs.existsSync(path.join(packaged, "index.html"))) return packaged;
+  return DIST_DIR;
+}
+
 function createWindow() {
-  if (!fs.existsSync(path.join(DIST_DIR, "index.html"))) {
-    log(`未找到前端构建产物 ${DIST_DIR}/index.html`);
+  const distDir = findFrontendDist();
+  if (!fs.existsSync(path.join(distDir, "index.html"))) {
+    log(`未找到前端构建产物 ${distDir}/index.html`);
     log("请先在 web/frontend 下执行 npm run build");
     app.quit();
     return;

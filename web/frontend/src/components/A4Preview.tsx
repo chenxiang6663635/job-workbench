@@ -38,9 +38,9 @@ export function A4Preview({
   const measure = (frame: HTMLIFrameElement) => {
     const h = frame.contentDocument?.documentElement?.scrollHeight;
     if (h && h > 0) {
-      const next = h + 24;
-      setContentH(next);
-      onHeight?.(next);
+      // 内部按 h+24 留白展示；对外回传原始高度，避免调用方的防超页护栏多算
+      setContentH(h + 24);
+      onHeight?.(h);
     }
   };
 

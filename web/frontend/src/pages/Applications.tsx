@@ -329,7 +329,7 @@ export default function Applications() {
       )}
 
       {creating && (
-        <div className="rounded-2xl border border-primary/30 bg-card/70 p-5">
+        <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-white/5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input
               placeholder="公司名称"
@@ -407,7 +407,7 @@ export default function Applications() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium">没有匹配的投递记录</p>
           <p className="text-sm text-muted-foreground">
@@ -456,7 +456,7 @@ export default function Applications() {
                   <Fragment key={it.id}>
                     <tr
                       id={`row-${it.id}`}
-                      className="bg-card/40 transition-colors hover:bg-secondary"
+                      className="bg-card/40 shadow-card ring-1 ring-white/5 transition-colors hover:bg-secondary"
                     >
                       <td className="px-4 py-3">
                         <button

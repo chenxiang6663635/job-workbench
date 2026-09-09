@@ -99,7 +99,7 @@ function StatCard({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`group relative overflow-hidden rounded-lg border border-border bg-card p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
+      className={`group relative overflow-hidden rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
     >
       <div
         className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-20 blur-2xl transition-opacity duration-300 group-hover:opacity-40"
@@ -110,7 +110,9 @@ function StatCard({
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
+          <p className="mt-2 bg-gradient-to-b from-white to-primary/70 bg-clip-text text-3xl font-semibold text-transparent">
+            {value}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>
         <div
@@ -158,7 +160,7 @@ function StaleList({
   staleDays: number;
 }) {
   return (
-    <div className="rounded-lg border border-warning/25 bg-card p-5">
+    <div className="rounded-lg border border-warning/25 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Hourglass size={15} className="text-warn" />
         <h2 className="text-sm font-semibold text-foreground">静默提醒</h2>
@@ -205,7 +207,7 @@ const LEVEL_META: Record<
 
 function PendingList({ pending }: { pending: PendingItem[] }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Flame size={15} className="text-destructive" />
         <h2 className="text-sm font-semibold text-foreground">待推进</h2>
@@ -333,7 +335,7 @@ export default function Dashboard() {
       </div>
 
       {data.total === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium text-foreground">
             还没有任何投递记录
@@ -345,7 +347,7 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5 lg:col-span-2">
               <h2 className="mb-4 text-sm font-semibold text-foreground">
                 投递漏斗（点击柱子查看该阶段岗位）
               </h2>
@@ -396,7 +398,7 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-card p-5">
+              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
                 <h2 className="mb-3 text-sm font-semibold text-foreground">
                   按方向（点击查看该方向岗位）
                 </h2>
@@ -413,7 +415,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-card p-5">
+              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
                 <h2 className="mb-3 text-sm font-semibold text-foreground">
                   按批次（点击查看该批次岗位）
                 </h2>
@@ -430,7 +432,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
                 近七天待办
               </h2>
@@ -471,7 +473,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
                 已过截止日提醒
               </h2>
@@ -507,7 +509,7 @@ export default function Dashboard() {
 
           {/* 周期复盘（P3）：转化率 / 停留 / 归因——数据越攒越值钱 */}
           {data.retrospective && (
-            <div className="rounded-lg border border-border bg-card/40 p-5">
+            <div className="rounded-lg border border-border bg-card/40 shadow-card ring-1 ring-white/5 p-5">
               <RetrospectivePanel data={data.retrospective} />
             </div>
           )}

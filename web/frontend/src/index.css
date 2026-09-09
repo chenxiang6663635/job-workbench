@@ -5,39 +5,57 @@
 @layer base {
   :root {
     /* 深色即默认主题。语义 token 用 HSL 三元组，供 tailwind 的 hsl(var(--x)) 取用。
-       取值沿用本项目既有色阶：ink-950 #0a0f1a、ink-850 #131c30、ink-700 #24314d。
+       2026-09-09 视觉升级：背景更深邃、卡片与背景拉开层次、前景提亮提高可读性，
+       并新增阴影 / 发光 / 渐变变量——此前卡片与背景几乎同色，是界面显得"平"的主因。
        注意：Shadcn 语义里的 accent（hover 背景）在本项目由 secondary/muted 承担，
        因为 accent 已被占用为冷青蓝主色（现有代码大量依赖 text-accent / bg-accent）。 */
-    --background: 221 44% 7%;
-    --foreground: 213 31% 91%;
+    --background: 222 47% 5%;
+    --foreground: 210 40% 96%;
 
-    --card: 221 43% 13%;
-    --card-foreground: 213 31% 91%;
+    --card: 222 44% 11%;
+    --card-foreground: 210 40% 96%;
 
-    --popover: 220 46% 10%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 222 45% 8%;
+    --popover-foreground: 210 40% 96%;
 
-    --primary: 198 93% 60%;
-    --primary-foreground: 221 44% 7%;
+    --primary: 199 89% 58%;
+    --primary-foreground: 222 47% 6%;
 
-    --secondary: 220 37% 16%;
-    --secondary-foreground: 213 31% 91%;
+    --secondary: 220 39% 16%;
+    --secondary-foreground: 210 40% 96%;
 
-    --muted: 220 37% 16%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 39% 16%;
+    --muted-foreground: 215 25% 70%;
 
-    --destructive: 0 91% 71%;
-    --destructive-foreground: 221 44% 7%;
+    --destructive: 0 84% 66%;
+    --destructive-foreground: 210 40% 96%;
 
     /* 项目语义扩展：健康度与结论的正/警示色 */
-    --success: 160 84% 60%;
-    --warning: 43 96% 56%;
+    --success: 158 84% 55%;
+    --warning: 43 96% 58%;
 
-    --border: 219 34% 22%;
-    --input: 219 34% 22%;
-    --ring: 198 93% 60%;
+    /* 边框分两档：常规划线 --border，悬浮/强调用 --border-strong */
+    --border: 219 32% 20%;
+    --border-strong: 219 30% 28%;
+    --input: 219 32% 22%;
+    --ring: 199 89% 58%;
 
-    --radius: 0.625rem;
+    /* 视觉增强变量：发光主色、卡片阴影、浮起阴影、卡片渐变、页面顶部光晕 */
+    --glow-primary: 199 89% 58%;
+    --shadow-card: 0 1px 2px hsl(222 47% 2% / 0.6), 0 8px 24px -8px hsl(222 47% 2% / 0.7);
+    --shadow-elevated: 0 2px 4px hsl(222 47% 2% / 0.5), 0 16px 40px -12px hsl(199 89% 30% / 0.35);
+    --card-gradient: linear-gradient(
+      180deg,
+      hsl(222 44% 13%) 0%,
+      hsl(222 45% 10%) 100%
+    );
+    --hero-glow: radial-gradient(
+      60rem 28rem at 50% -6rem,
+      hsl(199 89% 58% / 0.1) 0%,
+      transparent 70%
+    );
+
+    --radius: 0.75rem;
   }
 }
 
@@ -76,5 +94,16 @@ select option {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(223 36% 31%);
+  background: hsl(var(--border-strong));
+}
+
+/* 尊重系统的"减少动态效果"设置：关闭过渡与动画，功能不受影响 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

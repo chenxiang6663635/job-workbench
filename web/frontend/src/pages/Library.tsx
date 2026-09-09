@@ -67,7 +67,7 @@ export default function Library() {
         </div>
 
         {view.isBinary ? (
-          <div className="rounded-lg border border-border bg-card p-2">
+          <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-2">
             <iframe
               src={view.fileUrl}
               title={view.rel}
@@ -106,7 +106,7 @@ export default function Library() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-sm text-muted-foreground">事实库暂无事实卡</p>
         </div>
@@ -116,7 +116,7 @@ export default function Library() {
             <button
               key={item.rel}
               onClick={() => open(item)}
-              className="group flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-secondary"
+              className="group flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-secondary"
             >
               {fileIcon(item)}
               <div className="min-w-0 flex-1">

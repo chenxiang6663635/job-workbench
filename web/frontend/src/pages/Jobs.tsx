@@ -443,7 +443,7 @@ export default function Jobs() {
                   {job.dir}
                 </h3>
                 {job.score !== null && (
-                  <span className="font-mono text-lg font-semibold text-accent">
+                  <span className="bg-gradient-to-b from-white to-primary/70 bg-clip-text font-mono text-lg font-semibold text-transparent">
                     {job.score}
                   </span>
                 )}

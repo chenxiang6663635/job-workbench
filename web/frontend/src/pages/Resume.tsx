@@ -424,7 +424,7 @@ export default function Resume() {
               style={{ height: contentH * scale }}
             >
               <div
-                className="origin-top-left bg-white"
+                className="origin-top-left bg-white shadow-elevated"
                 style={{
                   width: A4_WIDTH,
                   transform: `scale(${scale})`,

@@ -1,21 +1,29 @@
-<!-- 提交前请确认以下事项。带 * 的为必答 -->
+<!-- Confirm before submitting. Items marked * are required. -->
 
-## 这个 PR 做什么*
+## What does this PR do? *
 
-<!-- 一两句话说清目的。关联 issue 用 Fixes #编号 -->
+<!-- One or two sentences. Link issues with Fixes #N -->
 
-## 自查清单
+## Self-check
 
-- [ ] `pytest tests/` 通过（本地或 CI）
-- [ ] 前端改动已跑 `npm run build`
-- [ ] **未包含任何真实个人数据**：`personal/` 内容、真实公司/岗位/姓名/电话/邮箱/学校一律不得出现在 diff、截图或示例中（用 `示例公司A`、`sample@example.com` 占位）
-- [ ] 未触碰诚实红线（简历动词可追问、知识缺口不编造），触碰需在描述中说明依据
-- [ ] 涉及 `tools/` 的改动保持了领域无关（领域知识进插件，个人事实进 personal/）
+- [ ] `pytest tests/` passes (locally or via CI)
+- [ ] Frontend changes: `npm run build` green
+- [ ] **No real personal data**: nothing from `personal/`, no real companies/jobs/names/phones/emails/schools in the diff, screenshots or examples (use `Sample Corp A`, `sample@example.com`)
+- [ ] Honest red lines untouched (resume verbs may be questioned; knowledge gaps are never fabricated) - if touched, justify in the description
+- [ ] `tools/` changes stayed domain-agnostic (domain knowledge goes into profiles, personal facts stay in `personal/`)
 
-## 验证方式*
+## Dual-track review *
 
-<!-- 贴出关键命令与输出摘要，让评审者能复现 -->
+<!-- Both rounds must be recorded as PR comments before merge. Do NOT label self-review as independent review. -->
 
-## 补充说明
+- [ ] **Round 1 - author self-review**: file-by-file pass over `gh pr diff`, verdict posted as a PR comment
+- [ ] **Round 2 - independent review**: a fresh-context reviewer (zero prior context) reviews the same diff, verdict posted as a PR comment
+- [ ] MAJOR+ findings from either round are fixed (extra commit) or explicitly deferred to a tracked issue
 
-<!-- 截图（注意脱敏）、权衡取舍、已知限制 -->
+## Verification *
+
+<!-- Key commands and output excerpts so a reviewer can reproduce -->
+
+## Notes
+
+<!-- Screenshots (sanitized), trade-offs, known limitations, follow-ups -->

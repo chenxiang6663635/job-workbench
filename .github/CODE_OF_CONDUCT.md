@@ -1,25 +1,41 @@
-# 行为准则
+# Code of Conduct
 
-## 我们的承诺
+## Our pledge
 
-为营造开放友好的环境，无论身份、背景、技术水平如何，参与本项目的每个人都应受到尊重。
+We as members, contributors, and leaders pledge to make participation in this
+project a harassment-free experience for everyone, regardless of age, body
+size, visible or invisible disability, ethnicity, sex characteristics, gender
+identity and expression, level of experience, education, socio-economic status,
+nationality, personal appearance, race, religion, or sexual identity and
+orientation.
 
-## 具体要求
+## Our standards
 
-- **对事不对人**：批评代码与方案，不评判个人
-- **尊重差异**：求职处境、技术路线、行业方向各不相同，不以自己的标准贬低他人的选择
-- **诚实讨论**：指出问题时给出依据；不确定时明说不确定，不装懂
-- **保护隐私**：不张贴他人的真实简历、投递记录或任何个人身份信息；发现泄露请按 CONTRIBUTING 中的流程报告
+**Positive behavior includes:**
 
-## 不被容忍的行为
+- Using welcoming and inclusive language
+- Being respectful of differing viewpoints and experiences
+- Gracefully accepting constructive criticism
+- Focusing on what is best for the community
+- Showing empathy towards other community members
 
-- 人身攻击、侮辱、骚扰
-- 公开或私下发布他人的私人信息（doxxing）
-- 在讨论区张贴含真实个人数据的简历、tracker 记录等
-- 其他专业社区公认的不当行为
+**Unacceptable behavior includes:**
 
-## 处理
+- Sexualized language or imagery, and sexual attention or advances of any kind
+- Trolling, insulting or derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information (such as an email or address) without consent
+- Other conduct which could reasonably be considered inappropriate in a professional setting
 
-违反者由维护者视情节警告、删帖直至封禁。有申诉可私下联系维护者。
+## Enforcement
 
-本准则改编自 [Contributor Covenant](https://www.contributor-covenant.org/) 2.1 版。
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported to the maintainer via a GitHub issue tagged `conduct` (or a direct
+email if privacy matters). All complaints will be reviewed and investigated
+promptly and fairly. The maintainer is obligated to respect the privacy and
+security of the reporter of any incident.
+
+## Attribution
+
+This Code of Conduct is adapted from the
+[Contributor Covenant](https://www.contributor-covenant.org), version 2.1.

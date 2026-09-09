@@ -90,6 +90,18 @@ npm.cmd run dev
 powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 ```
 
+### 桌面安装包（Electron 壳，v0.1.1 起）
+
+不想配环境可以用 [Release](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里的 `job-workbench-setup-*.exe`（Electron 窗口 + 打包好的后端，双击装完即用）。数据目录：安装版在 `%APPDATA%\job-workbench\personal\`，绿色版（backend exe 旁有 `portable.txt`）在 exe 旁 `personal\`——**卸载安装版不影响 %APPDATA% 里的数据**。
+
+一键重建安装包（前端 dist → PyInstaller 后端 exe → NSIS）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
+```
+
+产物在 `web/electron/release/求职工作台 Setup <版本>.exe`。冒烟：`Setup.exe /S /D=<目录>` 静默安装后启动，验证 `http://127.0.0.1:8765`。
+
 ---
 
 ## 三、Web 界面七个页面

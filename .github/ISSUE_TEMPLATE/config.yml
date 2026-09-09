@@ -1,4 +1,4 @@
-# 功能请求不占用 issue 队列：请先读 CONTRIBUTING.md 的「新需求四道门」，
-# 大的行为变更请先开 issue 说明动机与泛化代价。
-# bug_report.md 仍是唯一模板；contact_links 待 Discussions 开启后再追加。
+# Feature requests do not occupy the issue queue by default: read CONTRIBUTING.md first.
+# Large behavior changes: open an issue describing motivation and generalization cost first.
+# English or Chinese are both fine - pick whichever you write best.
 blank_issues_enabled: true

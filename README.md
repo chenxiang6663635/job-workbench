@@ -90,6 +90,14 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |
 | `.github/` | CI workflow, issue / PR templates, code of conduct, Copilot instructions |
 
+## Download
+
+A packaged Windows desktop app (no Python/Node needed) is attached to the
+latest release — grab `job-workbench-setup-*.exe` from
+[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest),
+install, launch, done. Data lives in `%APPDATA%\job-workbench\` and never leaves
+your machine. Prefer source? Skip to [Quick start](#quick-start).
+
 ## Docs
 
 - [Roadmap](ROADMAP.md) — Now / Next / Later, each item linked to a tracking issue

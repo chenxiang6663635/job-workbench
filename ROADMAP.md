@@ -12,8 +12,8 @@ A living document. Each item links to a tracking issue; finished items move to t
 
 ## Next
 
+- [x] Reproducible desktop packaging (PyInstaller backend exe → Electron NSIS) — shipped as `job-workbench-setup-0.1.1-win64.exe` on the v0.1.1 release; one-command rebuild via `scripts/build_desktop.ps1`
 - [ ] [#3](https://github.com/chenxiang6663635/job-workbench/issues/3) — One-command demo workspace (`init_workspace.py --demo`) so a fresh clone shows a fully populated workbench in 30 seconds
-- [ ] Reproducible desktop packaging (PyInstaller / Electron); ship a release asset once it is repeatable and clean
 - [ ] [#4](https://github.com/chenxiang6663635/job-workbench/issues/4) — Expand privacy & anti-fabrication regression coverage as the Web surface grows
 
 ## Later

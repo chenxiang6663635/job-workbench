@@ -1,29 +1,29 @@
 ---
-name: Bug 报告
-about: 报告可复现的错误行为
-title: "[Bug] 一句话概括"
+name: Bug report
+about: Report a reproducible problem
+title: "[Bug] One-line summary"
 labels: ["bug"]
 assignees: ""
 ---
 
-<!-- 本模板只收**可复现的错误行为**。功能想法请勿使用本模板，见 config.yml 的引导。 -->
+<!-- This template only accepts reproducible problems. For feature ideas use the feature request template. -->
 
-**问题表现**
+**What happens**
 
-一段话说明：期望发生什么，实际发生了什么。
+Expected behavior vs actual behavior, in a couple of sentences.
 
-**复现步骤**
+**Steps to reproduce**
 
-1. 前置状态（用了哪个页面 / 哪条命令 / 什么数据）
-2. 做了什么操作
-3. 看到了什么
+1. Starting state (which page / which command / what data)
+2. What you did
+3. What you saw
 
-**环境信息**
+**Environment**
 
-- 运行方式：源码（python -m uvicorn）还是打包 exe
-- 后端日志中的报错（如有；终端里 `[backend-err]` 开头的行）
-- 操作系统
+- How you run it: from source (`python -m uvicorn`) or the packaged exe
+- Backend log errors if any (lines starting with `[backend-err]` in the terminal, or `%APPDATA%\job-workbench\main.log` for the desktop app)
+- OS
 
-**其他**
+**Anything else**
 
-截图 / 相关文件路径 / 复现概率（必现还是偶发）。
+Screenshots / related file paths / whether it reproduces every time.

@@ -56,6 +56,32 @@ export default {
         warn: "#fbbf24",
         bad: "#f87171",
       },
+      /* 视觉升级：阴影、渐变与动画。全部走 CSS 变量，零运行时开销 */
+      boxShadow: {
+        card: "var(--shadow-card)",
+        elevated: "var(--shadow-elevated)",
+        "glow-primary": "0 0 0 1px hsl(var(--glow-primary) / 0.35), 0 6px 20px -6px hsl(var(--glow-primary) / 0.5)",
+      },
+      backgroundImage: {
+        "card-gradient": "var(--card-gradient)",
+        "hero-glow": "var(--hero-glow)",
+      },
+      keyframes: {
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        shimmer: "shimmer 1.6s infinite",
+        "fade-in-up": "fade-in-up 0.25s ease-out",
+      },
+      transitionTimingFunction: {
+        premium: "cubic-bezier(0.22, 1, 0.36, 1)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

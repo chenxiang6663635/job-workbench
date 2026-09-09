@@ -315,7 +315,7 @@ export default function Resume() {
       <div className="space-y-4">
         {errorBanner}
         {modeBar}
-        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
+        <div className="rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
           <FileText size={28} className="mx-auto mb-3 text-muted-foreground" />
           <p className="text-base font-medium text-foreground">还没有标准版式简历数据</p>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -386,7 +386,7 @@ export default function Resume() {
 
       {/* 左右等分：右列固定上限时窗口稍窄会把表单挤成一细条（1fr 无下限被吃光） */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-5">
+        <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-warn/25 bg-warn/10 px-3 py-2">
             <ShieldAlert size={15} className="mt-0.5 shrink-0 text-warn" />
             <p className="text-xs leading-relaxed text-muted-foreground">

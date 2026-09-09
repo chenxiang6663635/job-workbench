@@ -109,10 +109,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-ink-950 text-slate-200">
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-gradient-to-b from-accent/10 to-transparent" />
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-hero-glow" />
 
-      <nav className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-ink-950/80 backdrop-blur-xl">
+      <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-accent to-accent-dim" />
@@ -126,10 +126,10 @@ export default function App() {
               <button
                 key={t.key}
                 onClick={() => switchTab(t.key)}
-                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-all duration-200 ${
+                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-all duration-200 ease-premium ${
                   tab === t.key
-                    ? "bg-accent/15 text-accent"
-                    : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                    ? "bg-primary/15 text-primary shadow-glow-primary"
+                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
               >
                 {t.icon}
@@ -143,7 +143,7 @@ export default function App() {
               <select
                 value={currentWs}
                 onChange={(e) => switchWorkspace(e.target.value)}
-                className="cursor-pointer rounded-lg border border-white/10 bg-ink-900 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-accent/50"
+                className="cursor-pointer rounded-lg border border-border bg-secondary px-2 py-1.5 text-xs text-foreground outline-none transition-colors hover:border-primary/40 focus:border-primary"
                 title="切换工作区"
               >
                 {workspaces.map((w) => (
@@ -158,13 +158,13 @@ export default function App() {
             <span
               className={`h-2 w-2 rounded-full ${
                 online === null
-                  ? "bg-slate-500"
+                  ? "bg-muted-foreground/50"
                   : online
-                  ? "bg-good"
-                  : "bg-bad"
+                  ? "bg-success ring-2 ring-success/30"
+                  : "bg-destructive ring-2 ring-destructive/30"
               }`}
             />
-            <span className="text-slate-500">
+            <span className="text-muted-foreground">
               {online === null
                 ? "连接中"
                 : online

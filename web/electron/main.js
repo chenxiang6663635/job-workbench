@@ -187,9 +187,19 @@ function stopBackend() {
 }
 
 // ---- 创建窗口 ----
+// 前端 dist 探测：打包形态下 extraResources 把前端 dist 放进了 resources/backend/dist
+// （后端同源托管），仓库形态才是 web/frontend/dist。冒烟实测：只认仓库路径会让打包
+// 应用「后端就绪后找不到界面」自退（exit 0）。
+function findFrontendDist() {
+  const packaged = path.join(process.resourcesPath, "backend", "dist");
+  if (fs.existsSync(path.join(packaged, "index.html"))) return packaged;
+  return DIST_DIR;
+}
+
 function createWindow() {
-  if (!fs.existsSync(path.join(DIST_DIR, "index.html"))) {
-    log(`未找到前端构建产物 ${DIST_DIR}/index.html`);
+  const distDir = findFrontendDist();
+  if (!fs.existsSync(path.join(distDir, "index.html"))) {
+    log(`未找到前端构建产物 ${distDir}/index.html`);
     log("请先在 web/frontend 下执行 npm run build");
     app.quit();
     return;

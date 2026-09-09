@@ -12,6 +12,20 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-09
+
+### Changed
+
+- 全站视觉升级（PR #9 / #10 / #11）：设计 token 层重做——背景更深邃、卡片层次拉开并「浮起」（柔和阴影 + 1px 内高光）、前景文字提亮；新增阴影 / 主色光晕 / 渐变 / 径向光晕视觉变量与 `ease-premium` 缓动。全部为 CSS 变量与 Tailwind 类，零运行时开销，尊重 `prefers-reduced-motion`。
+- UI 原语外观增强：按钮主色渐变 + 光晕 + hover 抬升，卡片渐变底 + 内高光，徽章字重与间距饱满化，输入框聚焦光晕（边框转主色 + 半透明光环），弹窗与下拉浮层加深层阴影与遮罩，Tab 活动态渐变高亮，骨架屏由透明度脉冲改为 shimmer 横扫。
+- 页面级增强：看板统计卡数字改白→主色渐变文字；导航活动项主色光晕指示、顶部径向光晕；追踪表行 hover 左侧主色条（占位边框实现，无布局位移）；进展页子 Tab 由自绘按钮换 Radix Tabs（键盘可达、焦点环）；岗位池评分数字渐变突出；简历工坊 A4 预览加纸张阴影；README 七张截图全量更新为升级后界面。
+
+### Infrastructure（贡献者可见）
+
+- CONTRIBUTING PR 门槛加入「合并前的显式审查记录」：逐文件通读 `gh pr diff`（重点：隐私与四道门、API 消费面、改动是否纯增量），审查结论（含发现的问题与处理决定）必须以评论落进 PR，发现问题当场修或记入后续，不许静默合并——单人开发也让 PR 页面可追溯「审出了什么」。
+- 新增 [docs/maintenance.md](docs/maintenance.md)：发布节奏、issue 首响 48h 承诺、极简 labels（bug/feature/docs）、关闭必留结论、每周 1–2 个自然 PR 的维护节奏。
+- 审查实践样例：PR #11 审查抓出 `hover:border-border-strong` 静默失效（tailwind colors 缺 `border-strong` 变体映射，类不生成 CSS 且构建不报错），当场修复并以构建产物 grep 验证。
+
 ## [0.1.0] - 2026-09-08
 
 ### Added
@@ -77,4 +91,6 @@
 - 静态资源缓存策略缺失导致「改了功能界面没变化」（浏览器按启发式缓存旧 index.html/JS）：HTML 强制协商缓存（`no-cache`），带内容 hash 的 assets 长缓存 `immutable`。
 - 高级模板预览版式失真：改为按 A4 宽（794px）渲染再等比缩小（原先全宽渲染行宽达真实的 1.6 倍），高度按 iframe 内容真实高度展开（原先写死高度会截断内容）。
 
-[Unreleased]: https://keepachangelog.com/zh-CN/1.1.0/
+[Unreleased]: https://github.com/chenxiang6663635/job-workbench/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/chenxiang6663635/job-workbench/compare/v0.1.0...v0.1.1
+[0.1.0]: https://keepachangelog.com/zh-CN/1.1.0/

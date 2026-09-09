@@ -41,7 +41,7 @@
 - `tools/`、`web/backend/`、`web/frontend/` 的代码修改，`tests/` 用例
 - 依赖变更（`requirements*.txt` / `package.json`）；CI / workflows 配置
 - 数据模型 / schema 变更；触碰 [AGENTS.md](AGENTS.md) 诚实红线的内容
-- PR 门槛：CI 绿（pytest 33 项 + 前端 build 两 check 全过——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + 以 reviewer 视角通读 diff（重点看隐私与四道门）；Squash and merge，合后删分支
+- PR 门槛：CI 绿（pytest 33 项 + 前端 build 两 check 全过——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + **合并前的显式审查记录**：以 reviewer 视角逐文件通读 `gh pr diff`（重点：隐私与四道门、API 消费面、改动是否纯增量），审查结论（含发现的问题与处理决定）必须用 `gh pr comment` 落进 PR——单人开发也要让 PR 页面可追溯「改了什么、审出了什么、为什么这么定」；发现问题当场修（追加 commit）或记入后续 PR，不许静默合并；Squash and merge，合后删分支
 
 **可直推 main**（不影响运行时的纯文本与资料类）：
 

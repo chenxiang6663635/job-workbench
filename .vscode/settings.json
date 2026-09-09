@@ -1,0 +1,18 @@
+{
+  // 构建产物不进监视/搜索：VS Code 的文件监视器会持有 electron 打包产物（app.asar）
+  // 的句柄，导致 electron-builder 重建 win-unpacked 时报 "being used by another
+  // process"（实测踩坑：Code.exe 锁 dist\win-unpacked\resources\app.asar）。
+  // 故 builder 输出目录已改为 web/electron/release，且两处均在排除之列。
+  "files.watcherExclude": {
+    "**/web/electron/{dist,release}/**": true,
+    "**/web/backend/dist/**": true,
+    "**/web/frontend/dist/**": true,
+    "**/personal/**": true
+  },
+  "search.exclude": {
+    "**/web/electron/{dist,release}": true,
+    "**/web/backend/dist": true,
+    "**/web/frontend/dist": true,
+    "**/personal": true
+  }
+}

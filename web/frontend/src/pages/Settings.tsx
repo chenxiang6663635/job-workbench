@@ -48,15 +48,22 @@ export default function Settings() {
 
   useEffect(load, []);
 
-  useEffect(() => {
-    // 之前是空 catch：失败后页面永远停在骨架上，且错误被静默吞掉（违反「禁静默吞错」）
+  // 路径加载：成功要清掉上一次的错误，否则一次失败会永久盖住后来成功加载的数据
+  const loadPaths = () =>
     api
       .systemPaths()
-      .then(setPaths)
+      .then((r) => {
+        setPaths(r);
+        setPathsError(null);
+      })
       .catch((e: Error) => {
         console.error("读取系统路径失败", e);
         setPathsError(e.message);
       });
+
+  useEffect(() => {
+    // 之前是空 catch：失败后页面永远停在骨架上，且错误被静默吞掉（违反「禁静默吞错」）
+    loadPaths();
   }, []);
 
   const backup = () => {
@@ -69,9 +76,8 @@ export default function Settings() {
         setBackupInfo(
           `已备份 ${r.files} 个文件（${(r.size / 1024).toFixed(0)} KB），保留 ${r.kept} 份、淘汰 ${r.removed} 份`
         );
-        return api.systemPaths();
+        return loadPaths();
       })
-      .then(setPaths)
       .catch((e: Error) => setError(e.message))
       .finally(() => setBacking(false));
   };

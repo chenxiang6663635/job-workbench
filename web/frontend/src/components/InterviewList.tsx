@@ -115,10 +115,11 @@ export default function InterviewList() {
       <div className="grid grid-cols-12 gap-4">
         {/* 左：列表 */}
         <div className="col-span-5 space-y-2">
-          {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条 */}
-          {!loaded ? (
+          {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条。
+              失败时不再同时显示骨架——两张脸同屏比只说失败更糟 */}
+          {!loaded && !error ? (
             [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
-          ) : visible.length === 0 ? (
+          ) : loaded && !error && visible.length === 0 ? (
             <Card className="flex flex-col items-center rounded-2xl border-dashed p-8 text-center">
               <CalendarClock size={28} className="mb-3 text-muted-foreground/70" />
               <p className="text-sm text-muted-foreground">还没有面试记录</p>
@@ -196,7 +197,7 @@ export default function InterviewList() {
                   value={current.结果}
                   onValueChange={(v) => quickSetResult(current.面试id, v)}
                 >
-                  <SelectTrigger className="w-24 shrink-0">
+                  <SelectTrigger className="w-28 shrink-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

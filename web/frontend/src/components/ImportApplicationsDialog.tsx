@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
@@ -181,11 +182,13 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
-          <p className="text-sm text-muted-foreground">
+          <DialogDescription className="text-sm">
             粘贴或上传 CSV（Excel「另存为 CSV UTF-8」即可）。表头与追踪表字段同名，
             允许缺列（缺的留空）、未知列忽略。
-            预览确认后才会写入，重复与错误行会标色说明原因。
-          </p>
+            <span className="text-muted-foreground">
+              预览确认后才会写入，重复与错误行会标色说明原因。
+            </span>
+          </DialogDescription>
 
           <div className="flex items-start gap-3">
             <Textarea

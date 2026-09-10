@@ -34,10 +34,11 @@ export function A4Preview({
   const [contentH, setContentH] = useState(A4_HEIGHT);
   const [scale, setScale] = useState(1);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const remeasureTimer = useRef<number | null>(null);
 
   const measure = (frame: HTMLIFrameElement | null) => {
     const doc = frame?.contentDocument;
-    // 卸载后 contentDocument 为 null——延后测量会走到这里，直接跳过
+    // contentDocument 为空（卸载中/跨域）时直接跳过
     if (!frame || !doc) return;
     // 先把 iframe 高度压到 0 再量：否则读到的是自己刚写进去的高度
     // （scrollHeight >= 视口高），形成「每次 +24、永不回缩」的反馈环——
@@ -54,6 +55,14 @@ export function A4Preview({
     }
     frame.style.height = prevHeight;
   };
+
+  // 卸载时清掉待执行的二次测量：否则它会用旧文档的高度回调父组件，污染防超页护栏
+  useEffect(
+    () => () => {
+      if (remeasureTimer.current !== null) window.clearTimeout(remeasureTimer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -89,7 +98,7 @@ export function A4Preview({
               const frame = e.currentTarget;
               measure(frame);
               // 图片/字体后加载会改变高度，稳定后再量一次
-              window.setTimeout(() => measure(frame), 300);
+              remeasureTimer.current = window.setTimeout(() => measure(frame), 300);
             }}
           />
         </div>

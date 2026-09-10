@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
@@ -166,9 +167,9 @@ export default function OfferForm({
         <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0">
           <div>
             <DialogTitle>记录 Offer 事实</DialogTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <DialogDescription className="mt-0.5">
               只录你已知的事实。怎么选，由你看完所有事实后自己决定
-            </p>
+            </DialogDescription>
           </div>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">

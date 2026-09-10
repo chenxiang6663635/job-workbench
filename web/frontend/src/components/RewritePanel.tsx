@@ -186,10 +186,10 @@ export default function RewritePanel({
                 {diffs.map((d, idx) => (
                   <div
                     key={idx}
-                    className="rounded-xl border border-border bg-ink-950/40 p-3 text-xs"
+                    className="rounded-xl border border-border bg-background/60 p-3 text-xs"
                   >
-                    <p className="mb-1 font-mono text-[10px] text-slate-600">{d.path}</p>
-                    <p className="leading-relaxed text-muted-foreground line-through decoration-bad/60">
+                    <p className="mb-1 font-mono text-[10px] text-muted-foreground/70">{d.path}</p>
+                    <p className="leading-relaxed text-muted-foreground line-through decoration-destructive/60">
                       {d.oldText || "（空）"}
                     </p>
                     <p className="mt-1 leading-relaxed text-foreground">{d.newText}</p>

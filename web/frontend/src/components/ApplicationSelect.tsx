@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type Application } from "../api";
 import {
   Select,
@@ -37,6 +37,12 @@ export function ApplicationSelect({
       .then((r) => setApps(r.items))
       .catch((e: Error) => console.error("加载投递记录失败", e));
   };
+
+  // 非空初值（编辑既有记录）时也要能显示「id · 公司 岗位」，而不是裸 id
+  useEffect(() => {
+    if (value) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Select

@@ -112,14 +112,15 @@ export default function QuestionBank() {
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
-      {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条 */}
-      {loading && groups.length === 0 ? (
+      {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条。
+          失败时不再同时显示骨架——两张脸同屏比只说失败更糟 */}
+      {loading && !error && groups.length === 0 ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-24 w-full rounded-2xl" />
           ))}
         </div>
-      ) : groups.length === 0 ? (
+      ) : !loading && !error && groups.length === 0 ? (
         <Card className="flex flex-col items-center border-dashed p-10 text-center">
           <BookOpen size={28} className="mb-3 text-muted-foreground" />
           <p className="text-base font-medium text-foreground">
@@ -131,7 +132,7 @@ export default function QuestionBank() {
               : "面过之后在面试记录里填上「问题记录」，这里会攒下你被问过的问题——下次面试前可以照着过一遍。"}
           </p>
         </Card>
-      ) : (
+      ) : groups.length === 0 ? null : (
         <div className="space-y-4">
           {groups.map((g) => (
             <Card key={`${g.公司}__${g.岗位}`} className="rounded-2xl p-4">

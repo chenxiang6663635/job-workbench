@@ -125,14 +125,15 @@ export default function ContactList() {
       {showForm && form}
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
-      {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条 */}
-      {!loaded ? (
+      {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条。
+          失败时不再同时显示骨架——两张脸同屏比只说失败更糟 */}
+      {!loaded && !error ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-32 w-full rounded-xl" />
           ))}
         </div>
-      ) : rows.length === 0 ? (
+      ) : loaded && !error && rows.length === 0 ? (
         <Card className="flex flex-col items-center rounded-2xl border-dashed p-8 text-center">
           <UserRound size={28} className="mb-3 text-muted-foreground/70" />
           <p className="text-sm text-muted-foreground">还没有联系人记录</p>

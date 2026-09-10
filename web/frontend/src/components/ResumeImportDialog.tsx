@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState } from "react";
-import { FileUp, Loader2, ShieldAlert, ShieldCheck, X } from "lucide-react";
+import { FileUp, Loader2, ShieldCheck, X } from "lucide-react";
 import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
@@ -155,11 +156,11 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
 
         {!result ? (
           <div className="flex-1 space-y-5 overflow-y-auto p-5">
-            <p className="text-sm text-muted-foreground">
+            <DialogDescription className="text-sm">
               上传 PDF / Word / Markdown / 纯文本简历 → 抽取文字 → 你的模型结构化为字段。
               <span className="text-warning"> 模型只做「搬运」不做「写作」</span>：
               原文没有的内容会留空，疑似补全的会标红，请你逐段核对后才落盘。
-            </p>
+            </DialogDescription>
             <div className="flex items-center gap-3">
               <input
                 type="file"

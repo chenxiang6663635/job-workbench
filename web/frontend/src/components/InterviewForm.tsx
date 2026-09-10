@@ -12,6 +12,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
@@ -206,7 +207,13 @@ export default function InterviewForm({
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6">
         <DialogHeader className="mb-5 flex-row items-center justify-between space-y-0">
-          <DialogTitle>记录一场面试</DialogTitle>
+          <div>
+            <DialogTitle>记录一场面试</DialogTitle>
+            {/* Radix 要求 DialogContent 有可读描述，否则开发态会告警 */}
+            <DialogDescription className="mt-0.5">
+              问题、回答、复盘三段分开记——复盘是唯一能复利的部分
+            </DialogDescription>
+          </div>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
               <X size={16} />

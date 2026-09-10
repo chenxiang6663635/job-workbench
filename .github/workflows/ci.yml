@@ -25,7 +25,7 @@ jobs:
         run: python -m pytest tests/ -q
 
   frontend:
-    name: 前端构建（tsc + vite）
+    name: 前端构建（lint + tsc + vite）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,13 @@ jobs:
       - name: 安装依赖
         working-directory: web/frontend
         run: npm ci
+
+      # tsconfig 的 noUnusedLocals 是关的，未使用的 import/变量不会被 build 抓到。
+      # 2026-09-10 的独立审查发现 6 处这类死代码（batch B 遗留）已在仓库里通过 CI，
+      # 故把 eslint 加进门槛：warnings 不拦，errors 必拦。
+      - name: Lint
+        working-directory: web/frontend
+        run: npm run lint
 
       - name: 构建
         working-directory: web/frontend

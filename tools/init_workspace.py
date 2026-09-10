@@ -27,6 +27,7 @@ demo 数据的「方向」字段用的是 software-backend 插件的 direction i
 from __future__ import print_function
 
 import argparse
+import io
 import os
 import shutil
 import sys
@@ -106,17 +107,60 @@ def install_domain(target, domain):
     return 0
 
 
+def demo_counts():
+    """按 demo 骨架里的实际数据统计，而不是把数字写死在提示里。
+
+    写死的话，往 template/demo/ 加一条数据、提示就会开始撒谎——而「提示说的和实际
+    不一致」正是这个仓库最忌讳的那类问题。所以这里数一遍。
+    """
+    def rows(rel):
+        path = os.path.join(DEMO, rel)
+        if not os.path.isfile(path):
+            return 0
+        with io.open(path, "r", encoding="utf-8-sig") as fh:
+            lines = [ln for ln in fh.read().splitlines() if ln.strip()]
+        return max(0, len(lines) - 1)  # 减掉表头
+
+    def dirs(rel, suffix=None):
+        path = os.path.join(DEMO, rel)
+        if not os.path.isdir(path):
+            return 0
+        items = os.listdir(path)
+        if suffix:
+            items = [i for i in items if i.endswith(suffix)]
+        return len([i for i in items if os.path.isdir(os.path.join(path, i))
+                    or os.path.isfile(os.path.join(path, i))])
+
+    return {
+        "tracker": rows("05_投递追踪/tracker.csv"),
+        "interviews": rows("05_投递追踪/interviews.csv"),
+        "contacts": rows("05_投递追踪/contacts.csv"),
+        "offers": rows("05_投递追踪/offers.csv"),
+        "jobs": dirs("01_岗位池"),
+        "resumes": dirs("02_简历工坊/source", suffix=".json"),
+    }
+
+
 def install_demo(target, domain):
-    """把 template/demo/ 的占位数据铺到目标工作区（覆盖空骨架）。"""
+    """把 template/demo/ 的占位数据铺到目标工作区。
+
+    全新初始化时这些文件都是**新建**的：模板里没有 tracker.csv（只有 `_示例_tracker.csv`），
+    所以正常情况下一个都不会被覆盖。只有在已有工作区上重跑 `--demo --force` 时才会覆盖，
+    那时把被覆盖的文件逐条报出来。
+    """
     if not os.path.isdir(DEMO):
         print("错误：找不到 demo 数据骨架 %s" % DEMO)
         return 1
     if domain != DEMO_DEFAULT_DOMAIN:
         print("注意：demo 数据是配 %s 写的，当前装入的是 %s，" % (DEMO_DEFAULT_DOMAIN, domain))
-        print("      「方向」列可能通不过 tracker check（可改 tracker.csv 或换插件）。")
+        print("      「方向」列可能与插件不符（可改 tracker.csv 或换插件）。")
+        print("      注：tracker check 不校验方向，校验它的是 tracker add 与 list --direction。")
     replaced = copy_tree(DEMO, target, overwrite=True)
+    counts = demo_counts()
     print("已装入 demo 数据（全部为占位信息，可放心截图）")
-    print("  8 条投递 / 3 场面试 / 2 位联系人 / 1 个 Offer / 2 张解析卡 / 1 份简历")
+    print("  已装入：%d 条投递 / %d 场面试 / %d 位联系人 / %d 个 Offer / %d 张解析卡 / %d 份简历"
+          % (counts["tracker"], counts["interviews"], counts["contacts"],
+             counts["offers"], counts["jobs"], counts["resumes"]))
     if replaced:
         print("")
         print("注意：以下 %d 个文件本来已存在，已被 demo 数据覆盖：" % len(replaced))

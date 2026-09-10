@@ -89,7 +89,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `skills/` | The four workflows + the recruit-coach scoring standard, single source across AI runtimes |
 | `tools/` | Six Python scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (seven pages), same data files as the CLI |
-| `tests/` | 33 tests (anti-fabrication guards + health semantics), the CI gate |
+| `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |
 | `personal/` | Your real workspace (**fully git-ignored; the repo ships zero real data**) |
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |
 | `.github/` | CI workflow, issue / PR templates, code of conduct, Copilot instructions |
@@ -112,7 +112,7 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 
 ## Contributing
 
-Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). Code changes go through a PR with green CI (33-test baseline + frontend build); doc fixes can go straight to `main`.
+Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). Code changes go through a PR with green CI (pytest + frontend lint/build + PR-title check); doc fixes can go straight to `main`.
 
 ## License
 

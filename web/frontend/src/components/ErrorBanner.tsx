@@ -13,20 +13,19 @@ export function ErrorBanner({
 }: {
   message: string;
   onClose?: () => void;
-  tone?: "error" | "warning";
+  tone?: "error" | "warning" | "success";
   className?: string;
 }) {
   const isError = tone === "error";
+  const toneCls = isError
+    ? "border-destructive/30 bg-destructive/10 text-destructive"
+    : tone === "warning"
+    ? "border-warning/30 bg-warning/10 text-warning"
+    : "border-success/30 bg-success/10 text-success";
   return (
     <div
       role={isError ? "alert" : "status"}
-      className={cn(
-        "flex items-start gap-2 rounded-lg border px-4 py-2 text-sm",
-        isError
-          ? "border-destructive/30 bg-destructive/10 text-destructive"
-          : "border-warning/30 bg-warning/10 text-warning",
-        className
-      )}
+      className={cn("flex items-start gap-2 rounded-lg border px-4 py-2 text-sm", toneCls, className)}
     >
       <AlertTriangle size={16} className="mt-0.5 shrink-0" />
       <span className="flex-1 leading-relaxed">{message}</span>

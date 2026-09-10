@@ -45,7 +45,7 @@ The workbench turns all of that into queryable, traceable files.
 
 > **Note**: the UI is currently Chinese-first — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); until then the screens below are the real interface.
 
-All pages below run on generated demo data (`init_workspace.py --domain software-backend`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
+All pages below run on generated demo data (`init_workspace.py --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
 
 ![Tracker](docs/screenshots/02-applications.png)
 ![Jobs](docs/screenshots/03-jobs.png)
@@ -57,6 +57,10 @@ All pages below run on generated demo data (`init_workspace.py --domain software
 ## Quick start
 
 ```bash
+# 0. Just want to look around first? One command gives you a filled demo workspace
+#    (8 applications / 3 interviews / 2 contacts / 1 offer, all placeholder data)
+python tools/init_workspace.py --target demo --demo
+
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
 python tools/init_workspace.py --target my_job_hunt --domain software-backend
 

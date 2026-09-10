@@ -30,7 +30,10 @@ web/backend/build/
 
 # 本地验证用的临时工作区（fake 数据），不进版本管理；personal 才是真实工作区
 test_ws/
-# README 截图用的 demo 数据工作区（假公司占位数据）；P2 将沉淀为 init_workspace.py --demo
+# README 截图用的 demo 数据工作区（假公司占位数据）。
+# 配方已沉淀为 `python tools/init_workspace.py --target demo-shots --demo`
+# （数据骨架在 template/demo/），任何需要 demo 工作区的流程都应跑这条命令重建，
+# 不要手工攒数据——手工产物与命令产物一旦分叉，截图就不再代表首次体验。
 demo-shots/
 
 # 开发辅助工具的本地索引产物（运行时生成，clone 后跑 scripts/index_dev_tools.ps1 重建）

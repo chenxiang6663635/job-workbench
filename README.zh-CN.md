@@ -34,14 +34,14 @@
 
 ## 功能一览
 
-- **四个 CLI 工作流**：`jwb-jd`（JD 解析评分）、`jwb-apply`（投递包）、`jwb-track`（追踪看板）、`jwb-resume`（PDF 重建校验）——六个脚本的全部命令见[使用手册 CLI 命令速查](docs/usage-guide.md)
+- **四个 CLI 工作流**：`jwb-jd`（JD 解析评分）、`jwb-apply`（投递包）、`jwb-track`（追踪看板）、`jwb-resume`（PDF 重建校验）——六个脚本的全部命令见[使用手册 CLI 命令速查](docs/usage-guide.zh-CN.md)
 - **Web 界面**（`web/`）：七个页面与 CLI 共享同一份数据——看板、追踪表、简历工坊（一键导入**抽取而非生成** + AI 改写反编造护栏 + 导出 Word）、进展（面试题库）、复盘等，详见 [`web/README.md`](web/README.md)
 - **投递之后的闭环**：面试记录（一键导出 .ics）、招聘方联系人跟进提醒、Offer 并排对比（**只并排事实，绝不给建议**）、版本谱系、周期复盘、失败聚类、投递健康度四态——每条给具体理由而非黑箱分数
 - **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市，任一不过不打分），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 
 ## 界面预览
 
-以下页面全部由 demo 数据生成（`init_workspace.py --domain software-backend`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。
+以下页面全部由 demo 数据生成（`init_workspace.py --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。
 
 ![看板](docs/screenshots/01-dashboard.png)
 ![追踪表](docs/screenshots/02-applications.png)
@@ -90,7 +90,7 @@ python tools/install_skills.py --target user
 
 - [Roadmap](ROADMAP.md)——Now / Next / Later，每项都链接到跟踪 issue
 - [文档索引](docs/README.md)——每份文档的状态（现行 / 已废弃）
-- [使用手册](docs/usage-guide.md)——启动、七页面详解、AI 工作流、CLI 命令速查、常见问题
+- [使用手册](docs/usage-guide.zh-CN.md)——启动、七页面详解、AI 工作流、CLI 命令速查、常见问题（英文主版：[usage-guide.md](docs/usage-guide.md)）
 - [设计文档](docs/specs/)——架构、Web 契约、产品化路线、开源发布
 - [变更记录](CHANGELOG.md)
 

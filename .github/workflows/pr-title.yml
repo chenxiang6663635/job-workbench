@@ -1,0 +1,42 @@
+name: PR 标题
+
+# 单独成一个 workflow 而不是塞进 ci.yml，关键在 types 里的 edited：
+# pull_request 默认只触发 opened / synchronize / reopened——**编辑标题不会重跑**，
+# 于是「按提示改标题」这个既定修法清不掉红叉（2026-09-10 实测：改完标题后
+# 运行列表里仍然只有那一次 failure）。必须显式加 edited。
+# 而一旦把 edited 加进 ci.yml，改正文、加标签都会连带重跑 pytest 与前端构建；
+# 标题校验只要 6 秒，让它自己按 edited 频繁重跑、重活只在代码变更时跑，更划算。
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+# 只需要读代码，不需要任何写权限
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    # 注意：这个 name 会被分支保护当作 required check 的标识。改名的瞬间
+    # 旧名字就再也不会被上报，main 上所有 PR 会卡在「Expected — Waiting」而无法合并。
+    # 要改就同一天把分支保护里的必需检查一起改。
+    name: PR 标题（Conventional + 中文）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 与后端 job 一致地钉住解释器版本。runner 上确实有 python（这个 job 跑通过），
+      # 但「恰好有」不等于「保证有」——闸门不该依赖镜像的隐式行为。
+      - name: 安装 Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      # 本地 pre-commit / commit-msg 只在开发者自己敲 git commit 时运行，而
+      # squash 合并的提交 subject 是 GitHub 用 PR 标题现场生成的——本地钩子
+      # 结构性地看不到它。2026-09-10 实证：两条英文 PR 标题以 53e7b04 /
+      # b774cce 落进 main，夹在中文提交之间。这一刀只能由 CI 补。
+      # 标题走环境变量而非插进 run：PR 标题是外部可控输入，拼进 shell 等于开后门。
+      - name: 校验 PR 标题
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: python tools/check_pr_title.py

@@ -122,3 +122,39 @@ def test_describe_renders_problems_and_ok(tmp_path):
 
 def test_empty_root_returns_empty_list(tmp_path):
     assert inspect_skills(str(tmp_path)) == []
+
+
+def test_name_without_prefix_is_reported(tmp_path):
+    """前缀规则：唯一性只保证仓库内不重名，兑现「不撞车」的是命名空间。"""
+    _make(tmp_path, "stray", body=(
+        "---\nname: stray\ndescription: x\ncompatibility: ok\n---\n"))
+    item = inspect_skills(str(tmp_path))[0]
+    assert any("jwb- 前缀" in p for p in item["problems"])
+
+
+def test_legacy_generic_name_is_rejected(tmp_path):
+    """旧通用名即便「name == 目录名」也必须被拦下——否则改名会被悄悄退回去。"""
+    _make(tmp_path, "apply")
+    item = inspect_skills(str(tmp_path))[0]
+    assert any("jwb- 前缀" in p for p in item["problems"])
+
+
+def test_block_scalar_description_is_rejected(tmp_path):
+    """`description: |` 会被单行解析器读成 "|"，从而绕过长度上限。"""
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: |\n  这里可以写八百字\ncompatibility: ok\n---\n"))
+    item = inspect_skills(str(tmp_path))[0]
+    assert any("块标量" in p for p in item["problems"])
+
+
+def test_repo_skills_are_compliant():
+    """真实 skills/ 必须合规。
+
+    合成目录全绿、真仓库却红，是这类测试最大的盲区：贡献者把目录改名却忘了
+    改 frontmatter 的 name，本地一片绿，只有推到 CI 才红。
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.join(os.path.dirname(here), "skills")
+    results = inspect_skills(root)
+    assert results, "skills/ 下应当有技能目录"
+    assert all(r["problems"] == [] for r in results), describe(results)

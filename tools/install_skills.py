@@ -40,7 +40,7 @@ import sys
 # 同目录的 check_skills 是校验的唯一实现：这里不重写一套规则
 # （两份实现迟早分叉，而分叉掉的那一半正好就是没拦住的那一半）
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from check_skills import describe, inspect_skills  # noqa: E402
+from check_skills import LEGACY_NAMES, describe, inspect_skills  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKILLS_SRC = os.path.join(ROOT, "skills")
@@ -74,16 +74,30 @@ def copy_tree(src, dst):
             shutil.copy2(s, d)
 
 
-def find_stale(target_dir, skill_names):
-    """目标目录里存在、但源码里已没有的技能目录（改名的残留）。
+def is_inside_repo(path):
+    """目标是否真的落在本仓库内。
 
-    这些残留会被宿主照样加载，与新的 `jwb-*` 并存——不清理等于改名没生效。
+    --prune 承诺只对**项目级**目标生效，而「项目级」是按 TARGETS 表里的 kind
+    静态判断的。若 .claude / .agents 是指向用户目录的符号链接或 junction（很常见
+    的配置共享做法），kind 仍然是 project，那道保护就失效了。删之前用 realpath
+    确认它确实在仓库里。
+    """
+    repo = os.path.realpath(ROOT)
+    target = os.path.realpath(path)
+    return target == repo or target.startswith(repo + os.sep)
+
+
+def find_legacy(target_dir):
+    """目标目录里**改名前的旧名**目录（apply / jd / resume / track / recruit-coach）。
+
+    只认这五个已知旧名。早先的实现是「凡不在源码名单里的目录都算陈旧」，
+    那会把用户自己装的第三方技能（比如从教程里装的 pdf-fill）一起删掉，
+    没有确认、没有备份。要清理的是这五个名字，不是「一切陌生目录」。
     """
     if not os.path.isdir(target_dir):
         return []
     return sorted(d for d in os.listdir(target_dir)
-                  if os.path.isdir(os.path.join(target_dir, d))
-                  and d not in skill_names)
+                  if d in LEGACY_NAMES and os.path.isdir(os.path.join(target_dir, d)))
 
 
 def main():
@@ -138,19 +152,30 @@ def main():
                 continue
 
         # 改名后残留的旧名目录：宿主照样会加载它们，与新名并存
-        stale = find_stale(path, skill_names)
-        if stale:
-            print("      源码已不存在的旧技能目录：%s" % "、".join(stale))
+        legacy = find_legacy(path)
+        if legacy and kind != "project":
+            # 用户级共享目录：不列"陈旧"（会把别人装的技能也算进来），只提示
+            print("      发现旧名目录：%s" % "、".join(legacy))
+            print("      这是多项目共享位置，判断不了归属，请人工确认后删除")
+        elif legacy:
+            print("      发现旧名目录：%s" % "、".join(legacy))
             if not args.prune:
-                print("      它们不会被更新；加 --prune 删除（仅项目级目标生效）")
-            elif kind != "project":
-                print("      --prune 不作用于用户级目录（多项目共享，判断不了归属），请手工删除")
+                print("      加 --prune 删除它们（旧名会被宿主照样加载，与新名并存）")
             elif args.dry_run:
                 print("      --prune 会删除它们（演练，未删除）")
+            elif not is_inside_repo(path):
+                print("      目标不在本仓库内（符号链接？），拒绝删除：%s" % path)
             else:
-                for name in stale:
-                    shutil.rmtree(os.path.join(path, name))
-                print("      --prune：已删除 %s" % "、".join(stale))
+                removed = []
+                for name in legacy:
+                    # rmtree 遇到符号链接会抛 OSError；不接住的话前面已删的回不来
+                    try:
+                        shutil.rmtree(os.path.join(path, name))
+                        removed.append(name)
+                    except OSError as exc:
+                        print("      删除 %s 失败：%s" % (name, exc))
+                if removed:
+                    print("      --prune：已删除 %s" % "、".join(removed))
         print("")
 
     if args.dry_run:

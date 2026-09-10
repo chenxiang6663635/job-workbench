@@ -31,10 +31,21 @@ from __future__ import print_function
 
 import argparse
 import os
+import re
 import sys
 
 DESC_MAX = 300
 REQUIRED = ["name", "description", "compatibility"]
+
+# 本仓库技能的命名空间。用户级 ~/.agents/skills/ 是与别人共用的同一个目录，
+# 通用名（apply / resume / track …）撞车概率高，而撞车的结果是**静默覆盖**。
+# 注意：下面的「name 唯一」只能保证仓库内不重名，兑现不了「不撞车」——
+# 真正兑现它的是这条前缀规则。独立审查指出原实现漏了它，故补上。
+NAME_RE = re.compile(r"^jwb-[a-z0-9]+(-[a-z0-9]+)*$")
+
+# 改名前的旧目录名。分发脚本清理残留时**只认这五个**，而不是
+# 「凡不在源码里的目录都删」——后者会把用户自己装的第三方技能一并删掉。
+LEGACY_NAMES = {"apply", "jd", "resume", "track", "recruit-coach"}
 
 
 def _parse_frontmatter(text):
@@ -87,8 +98,17 @@ def inspect_skills(skills_root):
             results.append(item)
             continue
 
-        with open(skill_md, encoding="utf-8") as handle:
-            text = handle.read()
+        # utf-8-sig：Windows 上记事本 / PowerShell 重定向产出的文件带 BOM，
+        #   而 str.strip() 不剥离 \ufeff，会让首行判不出 `---` 而误报。
+        # errors="replace"：宁可把坏字节换成占位符继续校验，也不要让校验器
+        #   （以及依赖它的分发脚本）以 traceback 崩掉。
+        try:
+            with open(skill_md, encoding="utf-8-sig", errors="replace") as handle:
+                text = handle.read()
+        except OSError as exc:
+            item["problems"].append("读取失败：%s" % exc)
+            results.append(item)
+            continue
         fields, error = _parse_frontmatter(text)
         if error:
             item["problems"].append(error)
@@ -99,17 +119,26 @@ def inspect_skills(skills_root):
         item["name"] = name
         if not name:
             item["problems"].append("frontmatter 缺 name")
-        elif name != entry:
-            item["problems"].append(
-                "name 与目录名不一致：name=%s，目录=%s（技能身份要求两者相同）"
-                % (name, entry))
+        else:
+            if name != entry:
+                item["problems"].append(
+                    "name 与目录名不一致：name=%s，目录=%s（技能身份要求两者相同）"
+                    % (name, entry))
+            if not NAME_RE.match(name):
+                item["problems"].append(
+                    "name 必须带 jwb- 前缀（当前：%s）——通用名装到用户级目录时会"
+                    "与别人已装的同名技能冲突，宿主**静默覆盖**" % name)
 
         for key in REQUIRED:
             if key != "name" and not fields.get(key):
                 item["problems"].append("frontmatter 缺 %s" % key)
 
         desc = fields.get("description")
-        if desc and len(desc) > DESC_MAX:
+        if desc in ("|", ">"):
+            # 本解析器只认单行值；块标量会被读成 "|" 从而绕过长度校验
+            item["problems"].append(
+                "frontmatter 不支持块标量写法（description: %s），请改成单行" % desc)
+        elif desc and len(desc) > DESC_MAX:
             item["problems"].append(
                 "description 过长（%d 字符，上限 %d）" % (len(desc), DESC_MAX))
 

@@ -16,7 +16,7 @@
 
 - **破坏性变更 · 五个技能统一加 `jwb-` 前缀**（PR #25）：`apply → jwb-apply`、`jd → jwb-jd`、`recruit-coach → jwb-recruit-coach`、`resume → jwb-resume`、`track → jwb-track`。
   - **为什么改**：技能身份 = **目录名 = frontmatter `name`**，同名会被宿主**静默覆盖**（不报错）。原名 `apply / jd / resume / track / recruit-coach` 全是高概率通用词，装到用户级 `~/.agents/skills/` 等于拿五个通用词去跟别人已装的技能抢位置——谁被覆盖、覆盖的是谁，都不会有任何提示。
-  - **升级后需要你做一件事**：删掉宿主目录里残留的旧名副本，否则旧技能仍在被加载、与新名并存（改名等于没生效）。项目级目录可用 `python tools/install_skills.py --prune --target codebuddy`（`--prune` 只作用于项目级目标）；用户级 `~/.agents/skills/` 是**多项目共享位置**，脚本判断不了归属，请手工删除 `apply/`、`jd/`、`recruit-coach/`、`resume/`、`track/` 五个目录，再重跑 `python tools/install_skills.py --target user`。
+  - **升级后需要你做一件事**：删掉宿主目录里残留的旧名副本，否则旧技能仍在被加载、与新名并存（改名等于没生效）。项目级目录用 `python tools/install_skills.py --prune --target all`（`--prune` 只清理这五个已知旧名、且只作用于**项目级**目标——codebuddy / claude / agents / codex 四处都会处理）；用户级 `~/.agents/skills/` 是**多项目共享位置**，脚本判断不了归属，请手工删除 `apply/`、`jd/`、`recruit-coach/`、`resume/`、`track/` 五个目录，再重跑 `python tools/install_skills.py --target user`。
   - 技能描述同步补了**英文触发词**（原描述只有中文场景，英文请求不会激活对应工作流），并补齐 `compatibility` 环境声明。
 
 ### Infrastructure（贡献者可见）

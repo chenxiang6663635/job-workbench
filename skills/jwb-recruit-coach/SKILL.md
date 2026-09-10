@@ -1,6 +1,7 @@
 ---
-name: recruit-coach
-description: Use when 解析 JD、给岗位打分、改写简历或生成投递材料时，需要按本工作台的评分框架、硬门槛过滤与诚实红线行事。触发场景包括执行 jd、apply、track、resume 工作流，或用户粘贴岗位描述要求判断是否值得投递。
+name: jwb-recruit-coach
+description: Use when 解析 JD、给岗位打分、改写简历或生成投递材料时，需要按本工作台的评分框架、硬门槛过滤与诚实红线行事。触发场景包括执行 jwb-jd、jwb-apply、jwb-track、jwb-resume 工作流，或用户粘贴岗位描述要求判断是否值得投递。English triggers: scoring framework, eligibility gate, hard filters, honesty red lines, rewrite resume, application materials.
+compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
 ---
 
 # 岗位评估与材料纪律

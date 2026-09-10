@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { abilityBadgeVariant, evidenceBadgeVariant } from "./JobCard";
@@ -5,7 +6,8 @@ import type { JobDetail } from "../api";
 
 /**
  * 解析卡的单个维度行（可展开看逐条命中依据）。
- * 此前是 div + onClick 的假按钮（无 aria-expanded、键盘不可达）——改为真 <button>。
+ * 此前是 div + onClick 的假按钮（无 aria-expanded、键盘不可达）——改为真 button；
+ * 展开区必须放在 button **外面**（button 内嵌列表属无效 HTML，且会吞掉内容语义）。
  */
 export default function DimensionRow({
   dimension,
@@ -18,37 +20,41 @@ export default function DimensionRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const panelId = useId();
   const hits = detail?.dimensionsDetail[dimension.name]?.hits ?? [];
   const raw = detail?.dimensionsDetail[dimension.name]?.raw ?? [];
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={expanded}
-      className="w-full cursor-pointer rounded-xl border border-border/60 bg-background/40 px-3 py-2 text-left transition-colors hover:border-primary/30"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ChevronDown
-            size={14}
-            className={`text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
-          />
-          <span className="text-xs text-muted-foreground">{dimension.name}</span>
+    <div className="rounded-xl border border-border/60 bg-background/40 transition-colors hover:border-primary/30">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        className="w-full cursor-pointer px-3 py-2 text-left"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ChevronDown
+              size={14}
+              className={`text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+            />
+            <span className="text-xs text-muted-foreground">{dimension.name}</span>
+          </div>
+          <span className="font-mono text-xs text-muted-foreground">
+            {dimension.score} / {dimension.max}
+          </span>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">
-          {dimension.score} / {dimension.max}
-        </span>
-      </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary/60">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-700"
-          style={{ width: `${(dimension.score / dimension.max) * 100}%` }}
-        />
-      </div>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary/60">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-700"
+            style={{ width: `${(dimension.score / dimension.max) * 100}%` }}
+          />
+        </div>
+      </button>
 
       {expanded && (
-        <div className="mt-3 space-y-2 border-t border-border pt-3">
+        <div id={panelId} className="space-y-2 border-t border-border px-3 py-3">
           {hits.length > 0 && (
             <ul className="space-y-1.5">
               {hits.map((h, i) => (
@@ -83,6 +89,6 @@ export default function DimensionRow({
           )}
         </div>
       )}
-    </button>
+    </div>
   );
 }

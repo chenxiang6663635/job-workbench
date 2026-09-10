@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   FileCheck,
   FileDown,
   FilePlus2,
@@ -371,10 +370,10 @@ export default function Resume() {
         {/* 预览列 sticky：左侧表单很长，滚动编辑时预览始终留在视野里 */}
         <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
           {overflowLines > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-              <AlertTriangle size={14} />
-              已超出约 {overflowLines} 行，请先精简内容再生成 PDF
-            </div>
+            <ErrorBanner
+              tone="warning"
+              message={`已超出约 ${overflowLines} 行，请先精简内容再生成 PDF`}
+            />
           )}
 
           {/* A4 预览：此前内联实现与 ResumeTemplates 的 TemplatePreview 重复，

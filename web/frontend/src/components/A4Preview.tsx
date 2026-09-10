@@ -36,12 +36,18 @@ export function A4Preview({
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const measure = (frame: HTMLIFrameElement) => {
-    const h = frame.contentDocument?.documentElement?.scrollHeight;
-    if (h && h > 0) {
-      // 内部按 h+24 留白展示；对外回传原始高度，避免调用方的防超页护栏多算
-      setContentH(h + 24);
-      onHeight?.(h);
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    // 先把 iframe 高度压到 0 再量：否则读到的是自己刚写进去的高度
+    // （scrollHeight >= 视口高），形成「每次 +24、永不回缩」的反馈环——
+    // 会让调用方的防超页护栏误报并禁用生成按钮（独立审查抓出的 BLOCKER）。
+    frame.style.height = "0px";
+    const h = doc.body?.scrollHeight || doc.documentElement?.scrollHeight || 0;
+    if (h > 0) {
+      setContentH(h);
+      onHeight?.(h); // 对外回传纯内容高度，不含任何展示留白
     }
+    frame.style.height = ""; // 交回 React 的 style 控制
   };
 
   useEffect(() => {

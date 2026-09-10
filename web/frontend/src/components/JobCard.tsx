@@ -40,12 +40,14 @@ export default function JobCard({
       <button
         type="button"
         onClick={onOpen}
+        aria-label={`${job.dir}，匹配度 ${job.score ?? "未评分"}`}
         className="w-full cursor-pointer p-5 text-left"
       >
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold leading-snug text-foreground">
+          {/* 卡片即按钮：内部不放 h3（heading 语义会被按钮吞掉），改由 aria-label 提供完整名称 */}
+          <span className="text-sm font-semibold leading-snug text-foreground">
             {job.dir}
-          </h3>
+          </span>
           {job.score !== null && (
             <span className="bg-gradient-to-b from-white to-primary/70 bg-clip-text font-mono text-lg font-semibold text-transparent">
               {job.score}

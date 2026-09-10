@@ -25,15 +25,13 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Card } from "../components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { ErrorBanner } from "../components/ErrorBanner";
-import { A4Preview } from "../components/A4Preview";
+// A4_HEIGHT 是防超页护栏的基准，宽高常量统一由 A4Preview 定义（单一真值源）
+import { A4Preview, A4_HEIGHT } from "../components/A4Preview";
 import ResumeForm from "../components/ResumeForm";
 import ResumeTemplates from "../components/ResumeTemplates";
 import ResumeImportDialog from "../components/ResumeImportDialog";
 import RewritePanel from "../components/RewritePanel";
 import VersionLineage from "../components/VersionLineage";
-
-// A4 @96dpi 页高：防超页护栏的基准（宽度与缩放由 A4Preview 公共组件负责）
-const A4_HEIGHT = 1123;
 
 type ResumeData = Record<string, unknown>;
 

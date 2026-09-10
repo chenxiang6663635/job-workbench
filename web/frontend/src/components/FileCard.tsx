@@ -24,13 +24,18 @@ export function FileCard({
   kind,
   size,
   meta,
+  badge,
   onClick,
   className,
 }: {
+  /** 展示名（短名） */
   name: string;
   kind?: string;
   size?: number;
+  /** 无 size 时的替代信息 */
   meta?: string;
+  /** 右侧尾标（如「预览」） */
+  badge?: React.ReactNode;
   onClick: () => void;
   className?: string;
 }) {
@@ -38,6 +43,7 @@ export function FileCard({
     <button
       type="button"
       onClick={onClick}
+      title={name}
       className={cn(
         "group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card-gradient p-4 text-left shadow-card ring-1 ring-white/5 transition-all duration-200 ease-premium hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10",
         className
@@ -50,6 +56,7 @@ export function FileCard({
           {size !== undefined ? fmtSize(size) : meta}
         </span>
       </span>
+      {badge}
     </button>
   );
 }

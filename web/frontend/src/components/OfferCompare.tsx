@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Plus, Scale } from "lucide-react";
 import { api, type Offer } from "../api";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Skeleton } from "./ui/skeleton";
+import { ErrorBanner } from "./ErrorBanner";
 import OfferForm from "./OfferForm";
 
 // 并排对比的字段清单：逐行对齐，方便扫读。只列事实字段，
@@ -41,33 +46,49 @@ export default function OfferCompare() {
 
   useEffect(reload, []);
 
-  if (loaded && rows.length === 0) {
+  const form = showForm && (
+    <OfferForm
+      onClose={() => setShowForm(false)}
+      onSaved={() => {
+        setShowForm(false);
+        reload();
+      }}
+    />
+  );
+
+  // 三态齐全：loading 骨架 / empty 空态 / error 错误条
+  if (!loaded) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-8 text-center">
-          <Scale size={28} className="mx-auto mb-3 text-slate-600" />
-          <p className="text-sm text-slate-400">还没有 Offer 记录</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+        {error ? (
+          <ErrorBanner message={error} onClose={() => setError(null)} />
+        ) : (
+          <div className="flex gap-4">
+            {[0, 1].map((i) => (
+              <Skeleton key={i} className="h-64 w-64 shrink-0 rounded-2xl" />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Card className="flex flex-col items-center border-dashed p-8 text-center">
+          <Scale size={28} className="mb-3 text-muted-foreground/70" />
+          <p className="text-sm text-muted-foreground">还没有 Offer 记录</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
             拿到 offer 后把已知事实录进来，多个 offer 会并排在这里——
             <br />
             数字放在一张表里，选择依然是你自己的
           </p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-4 cursor-pointer rounded-lg bg-gradient-to-r from-accent to-accent-dim px-4 py-2 text-xs font-medium text-white transition-all hover:opacity-90"
-          >
+          <Button className="mt-4" onClick={() => setShowForm(true)}>
             录入第一个 Offer
-          </button>
-        </div>
-        {showForm && (
-          <OfferForm
-            onClose={() => setShowForm(false)}
-            onSaved={() => {
-              setShowForm(false);
-              reload();
-            }}
-          />
-        )}
+          </Button>
+        </Card>
+        {form}
       </div>
     );
   }
@@ -75,36 +96,29 @@ export default function OfferCompare() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           {rows.length} 个 offer · 按答复截止日排列（越先要答复的越靠左）
         </p>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-dim px-3.5 py-2 text-xs font-medium text-white transition-all hover:opacity-90"
-        >
+        <Button onClick={() => setShowForm(true)}>
           <Plus size={14} /> 录入 Offer
-        </button>
+        </Button>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-xs text-bad">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
       {/* 横向并排：字段逐行对齐。offer 多时横向滚动，保持逐行可比 */}
       <div className="overflow-x-auto pb-2">
         <div className="flex gap-4" style={{ minWidth: "min-content" }}>
           {rows.map((o) => (
-            <div
+            <Card
               key={o.offer_id}
-              className="w-64 shrink-0 rounded-2xl border border-white/10 bg-ink-900/60 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20"
+              className="w-64 shrink-0 rounded-2xl p-4 hover:-translate-y-0.5 hover:border-primary/30"
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-white">{o.公司}</p>
-                <span className="rounded-md border border-white/10 bg-ink-950/60 px-1.5 py-0.5 text-[10px] text-slate-500">
+                <p className="text-sm font-semibold text-foreground">{o.公司}</p>
+                <Badge variant="outline" className="rounded-md px-1.5 py-0 font-mono text-[10px]">
                   {o.offer_id}
-                </span>
+                </Badge>
               </div>
 
               <div className="mt-3 space-y-2">
@@ -113,13 +127,11 @@ export default function OfferCompare() {
                   const soon = f.key === "答复截止日" && deadlineSoon(value);
                   return (
                     <div key={f.key} className="flex items-start justify-between gap-2 text-xs">
-                      <span className="shrink-0 text-slate-500">{f.label}</span>
+                      <span className="shrink-0 text-muted-foreground">{f.label}</span>
                       <span
-                        className={`text-right ${
-                          soon ? "font-medium text-warn" : "text-slate-200"
-                        }`}
+                        className={`text-right ${soon ? "font-medium text-warning" : "text-foreground"}`}
                       >
-                        {value || <span className="text-slate-600">—</span>}
+                        {value || <span className="text-muted-foreground/70">—</span>}
                       </span>
                     </div>
                   );
@@ -127,31 +139,23 @@ export default function OfferCompare() {
               </div>
 
               {(o.薪资构成 || o.备注 || o.关联记录) && (
-                <div className="mt-3 space-y-1.5 border-t border-white/5 pt-2.5 text-[11px] leading-relaxed text-slate-500">
+                <div className="mt-3 space-y-1.5 border-t border-border pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
                   {o.薪资构成 && <p>构成：{o.薪资构成}</p>}
                   {o.备注 && <p>{o.备注}</p>}
-                  {o.关联记录 && <p className="text-slate-600">关联 {o.关联记录}</p>}
+                  {o.关联记录 && <p className="text-muted-foreground/70">关联 {o.关联记录}</p>}
                 </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       </div>
 
       {/* 固定页脚：产品的伦理边界，永远不替用户做选择 */}
-      <p className="rounded-xl border border-white/5 bg-ink-950/40 px-4 py-3 text-center text-xs text-slate-500">
+      <p className="rounded-xl border border-border bg-background/60 px-4 py-3 text-center text-xs text-muted-foreground">
         这里只并排展示你录入的已知事实，最终选择由你决定。
       </p>
 
-      {showForm && (
-        <OfferForm
-          onClose={() => setShowForm(false)}
-          onSaved={() => {
-            setShowForm(false);
-            reload();
-          }}
-        />
-      )}
+      {form}
     </div>
   );
 }

@@ -1,18 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  FileCode2,
-  FileText,
-  FileImage,
-  Loader2,
-  Printer,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import {
   api,
   type ResumeBuildResult,
   type ResumeTemplateItem,
 } from "../api";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";

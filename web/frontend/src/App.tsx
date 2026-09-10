@@ -115,7 +115,7 @@ export default function App() {
       <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-accent to-accent-dim" />
+            <img src="/favicon.png" alt="求职工作台" className="h-7 w-7 rounded-lg" />
             <span className="text-sm font-semibold tracking-wide text-white">
               求职工作台
             </span>

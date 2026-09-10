@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Input, Textarea } from "./ui/input";
+import { Label } from "./ui/label";
+import { Button } from "./ui/button";
 
 type ResumeData = Record<string, unknown>;
 
@@ -7,9 +10,6 @@ interface Props {
   data: ResumeData;
   onChange: (next: ResumeData) => void;
 }
-
-const inputCls =
-  "w-full rounded border border-white/10 bg-ink-950 px-2 py-1.5 text-xs text-slate-200 outline-none transition-colors placeholder:text-slate-600 focus:border-accent/50";
 
 function Section({
   title,
@@ -22,17 +22,17 @@ function Section({
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="border-t border-white/5 pt-3 first:border-0 first:pt-0">
+    <div className="border-t border-border pt-3 first:border-0 first:pt-0">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full cursor-pointer items-center gap-1.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-200"
+        className="flex w-full cursor-pointer items-center gap-1.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
       >
         {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
         {title}
       </button>
       {open && (
         <div className="mt-2 space-y-2">
-          {hint && <p className="text-[11px] leading-relaxed text-slate-500">{hint}</p>}
+          {hint && <p className="text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
           {children}
         </div>
       )}
@@ -52,15 +52,14 @@ function Row({
   placeholder?: string;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] text-slate-500">{label}</span>
-      <input
-        className={inputCls}
+    <div>
+      <Label className="mb-1 block text-[11px] text-muted-foreground">{label}</Label>
+      <Input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
-    </label>
+    </div>
   );
 }
 
@@ -100,15 +99,15 @@ export default function ResumeForm({ data, onChange }: Props) {
           onChange={(v) => patchIn("meta", { intent: v })}
           placeholder="按岗位改，如：空调制冷 / HVAC 系统工程"
         />
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-slate-500">个人概况</span>
-          <textarea
-            className={`${inputCls} min-h-[70px] resize-y leading-relaxed`}
+        <div>
+          <Label className="mb-1 block text-[11px] text-muted-foreground">个人概况</Label>
+          <Textarea
+            className="min-h-[70px] resize-y leading-relaxed"
             value={meta.profile ?? ""}
             onChange={(e) => patchIn("meta", { profile: e.target.value })}
             placeholder="两三句话概括方向与能力，留空则该区块不出现在 PDF 中"
           />
-        </label>
+        </div>
       </Section>
 
       <Section title="基本信息">
@@ -122,15 +121,18 @@ export default function ResumeForm({ data, onChange }: Props) {
 
       <Section title="教育经历">
         {education.map((e, i) => (
-          <div key={i} className="space-y-2 rounded-lg bg-white/5 p-2">
+          <div key={i} className="space-y-2 rounded-lg bg-secondary/40 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">第 {i + 1} 条</span>
-              <button
+              <span className="text-[11px] text-muted-foreground">第 {i + 1} 条</span>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => delItem("education", i)}
-                className="cursor-pointer text-slate-500 transition-colors hover:text-bad"
-              >
-                <Trash2 size={13} />
-              </button>
+                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                title="删除该条"
+                >
+                  <Trash2 size={13} />
+                </Button>
             </div>
             <Row label="学校" value={e.school ?? ""} onChange={(v) => patchItem("education", i, { school: v })} />
             <Row label="专业" value={e.major ?? ""} onChange={(v) => patchItem("education", i, { major: v })} />
@@ -139,12 +141,14 @@ export default function ResumeForm({ data, onChange }: Props) {
             <Row label="补充说明" value={e.note ?? ""} onChange={(v) => patchItem("education", i, { note: v })} />
           </div>
         ))}
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => addItem("education", { school: "", major: "", degree: "", period: "", note: "" })}
-          className="flex cursor-pointer items-center gap-1 text-[11px] text-accent transition-colors hover:text-accent-soft"
-        >
+          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          >
           <Plus size={12} /> 添加教育经历
-        </button>
+          </Button>
       </Section>
 
       <Section
@@ -152,22 +156,25 @@ export default function ResumeForm({ data, onChange }: Props) {
         hint="每个要点写清「你做了什么 + 用什么方法 + 可验证的结果」。事实来自 00_事实库，改动需回查。"
       >
         {projects.map((p, i) => (
-          <div key={i} className="space-y-2 rounded-lg bg-white/5 p-2">
+          <div key={i} className="space-y-2 rounded-lg bg-secondary/40 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">项目 {i + 1}</span>
-              <button
+              <span className="text-[11px] text-muted-foreground">项目 {i + 1}</span>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => delItem("projects", i)}
-                className="cursor-pointer text-slate-500 transition-colors hover:text-bad"
-              >
-                <Trash2 size={13} />
-              </button>
+                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                title="删除该条"
+                >
+                  <Trash2 size={13} />
+                </Button>
             </div>
             <Row label="项目名称" value={(p.title as string) ?? ""} onChange={(v) => patchItem("projects", i, { title: v })} />
             <Row label="标签" value={(p.tag as string) ?? ""} onChange={(v) => patchItem("projects", i, { tag: v })} placeholder="（如 SCI 二区 · 第二作者）" />
             <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-500">要点（每行一条）</span>
-              <textarea
-                className={`${inputCls} min-h-[90px] resize-y leading-relaxed`}
+              <span className="mb-1 block text-[11px] text-muted-foreground">要点（每行一条）</span>
+              <Textarea
+                className="min-h-[90px] resize-y leading-relaxed"
                 value={((p.points as string[]) ?? []).join("\n")}
                 onChange={(e) =>
                   patchItem("projects", i, { points: e.target.value.split("\n") })
@@ -176,45 +183,52 @@ export default function ResumeForm({ data, onChange }: Props) {
             </label>
           </div>
         ))}
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => addItem("projects", { title: "", tag: "", points: [""] })}
-          className="flex cursor-pointer items-center gap-1 text-[11px] text-accent transition-colors hover:text-accent-soft"
-        >
+          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          >
           <Plus size={12} /> 添加项目
-        </button>
+          </Button>
       </Section>
 
       <Section title="实习 / 工作经历">
         {work.map((w, i) => (
-          <div key={i} className="space-y-2 rounded-lg bg-white/5 p-2">
+          <div key={i} className="space-y-2 rounded-lg bg-secondary/40 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">第 {i + 1} 段</span>
-              <button
+              <span className="text-[11px] text-muted-foreground">第 {i + 1} 段</span>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => delItem("work", i)}
-                className="cursor-pointer text-slate-500 transition-colors hover:text-bad"
-              >
-                <Trash2 size={13} />
-              </button>
+                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                title="删除该条"
+                >
+                  <Trash2 size={13} />
+                </Button>
             </div>
             <Row label="单位" value={(w.org as string) ?? ""} onChange={(v) => patchItem("work", i, { org: v })} />
             <Row label="岗位" value={(w.role as string) ?? ""} onChange={(v) => patchItem("work", i, { role: v })} />
             <Row label="起止" value={(w.period as string) ?? ""} onChange={(v) => patchItem("work", i, { period: v })} />
             <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-500">要点（每行一条）</span>
-              <textarea
-                className={`${inputCls} min-h-[70px] resize-y leading-relaxed`}
+              <span className="mb-1 block text-[11px] text-muted-foreground">要点（每行一条）</span>
+              <Textarea
+                className="min-h-[70px] resize-y leading-relaxed"
                 value={((w.points as string[]) ?? []).join("\n")}
                 onChange={(e) => patchItem("work", i, { points: e.target.value.split("\n") })}
               />
             </label>
           </div>
         ))}
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => addItem("work", { org: "", role: "", period: "", points: [""] })}
-          className="flex cursor-pointer items-center gap-1 text-[11px] text-accent transition-colors hover:text-accent-soft"
-        >
+          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          >
           <Plus size={12} /> 添加经历
-        </button>
+          </Button>
       </Section>
 
       <Section title="专业技能">
@@ -226,25 +240,27 @@ export default function ResumeForm({ data, onChange }: Props) {
             </div>
             <button
               onClick={() => delItem("skills", i)}
-              className="mt-5 cursor-pointer text-slate-500 transition-colors hover:text-bad"
+              className="mt-5 cursor-pointer text-muted-foreground transition-colors hover:text-destructive"
             >
               <Trash2 size={13} />
             </button>
           </div>
         ))}
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => addItem("skills", { group: "", items: "" })}
-          className="flex cursor-pointer items-center gap-1 text-[11px] text-accent transition-colors hover:text-accent-soft"
-        >
+          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          >
           <Plus size={12} /> 添加技能分类
-        </button>
+          </Button>
       </Section>
 
       <Section title="科研成果 / 奖项 / 证书">
         <label className="block">
-          <span className="mb-1 block text-[11px] text-slate-500">科研成果（每行一条）</span>
-          <textarea
-            className={`${inputCls} min-h-[60px] resize-y leading-relaxed`}
+          <span className="mb-1 block text-[11px] text-muted-foreground">科研成果（每行一条）</span>
+          <Textarea
+            className="min-h-[60px] resize-y leading-relaxed"
             value={((extras.research as string[]) ?? []).join("\n")}
             onChange={(e) => patchIn("extras", { research: e.target.value.split("\n") })}
           />

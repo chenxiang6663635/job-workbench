@@ -12,89 +12,18 @@ import {
   type ResumeBuildResult,
   type ResumeTemplateItem,
 } from "../api";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Skeleton } from "./ui/skeleton";
+import { ErrorBanner } from "./ErrorBanner";
+import { A4Preview } from "./A4Preview";
+import { FileCard, fmtSize } from "./FileCard";
 
 // 从文件列表里挑出手写模板（resume_<版本>.html），供「生成 PDF」按钮使用
 function templateVersion(rel: string): string | null {
   const m = /resume_([A-Za-z0-9_-]+)\.html$/.exec(rel);
   return m ? m[1] : null;
-}
-
-function fileIcon(item: ResumeTemplateItem) {
-  if (item.kind === "text") return <FileCode2 size={15} className="text-accent" />;
-  const ext = item.name.split(".").pop()?.toLowerCase();
-  if (ext === "pdf") return <FileText size={15} className="text-bad" />;
-  return <FileImage size={15} className="text-warn" />;
-}
-
-function fmtSize(n: number) {
-  if (n < 1024) return n + " B";
-  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
-  return (n / 1024 / 1024).toFixed(1) + " MB";
-}
-
-// A4 @96dpi。手写模板按 A4 宽渲染再等比缩小——全宽渲染会让行宽达到真实的
-// 1.6 倍（1214px vs 696px），字显小、行长难读，且与导出的 PDF 完全不是一回事
-const A4_WIDTH = 794;
-
-/**
- * 手写 HTML 模板的预览 iframe。
- * 两件事：① 高度按内容真实高度展开（写死高度会截断内容，只能靠 iframe 内部
- * 滚动，用户往往不知道下面还有）；② 按 A4 宽渲染并等比缩小，预览即所得。
- */
-function TemplatePreview({ src, title }: { src: string; title: string }) {
-  const [contentH, setContentH] = useState(1123);
-  const [scale, setScale] = useState(1);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  const fitHeight = (frame: HTMLIFrameElement) => {
-    const h = frame.contentDocument?.documentElement?.scrollHeight;
-    if (h && h > 0) setContentH(h + 24);
-  };
-
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const fit = () => setScale(Math.min(1, el.clientWidth / A4_WIDTH));
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [src]);
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-4">
-      <div
-        ref={wrapRef}
-        className="mx-auto overflow-hidden"
-        style={{ height: contentH * scale }}
-      >
-        <div
-          style={{
-            width: A4_WIDTH,
-            transform: `scale(${scale})`,
-            transformOrigin: "top left",
-          }}
-        >
-          <iframe
-            src={src}
-            title={title}
-            className="w-full rounded-xl border-0 bg-white"
-            style={{ height: contentH }}
-            onLoad={(e) => {
-              fitHeight(e.currentTarget);
-              // 图片/字体后加载会改变高度，稳定后再量一次
-              setTimeout(() => fitHeight(e.currentTarget), 300);
-            }}
-          />
-        </div>
-      </div>
-      {scale < 1 && (
-        <p className="mt-2 text-center text-[11px] text-slate-600">
-          预览已缩放至 {Math.round(scale * 100)}%（与导出 PDF 同版式）
-        </p>
-      )}
-    </div>
-  );
 }
 
 export default function ResumeTemplates() {
@@ -104,12 +33,14 @@ export default function ResumeTemplates() {
   const [textContent, setTextContent] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
   const [result, setResult] = useState<ResumeBuildResult | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
       .listResumeTemplates()
       .then((r) => setItems(r.items))
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   // 选中文件后：文本类拉内容，二进制直接用文件 URL
@@ -146,61 +77,53 @@ export default function ResumeTemplates() {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               setSelected(null);
               setTextContent(null);
               setResult(null);
             }}
-            className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-accent"
+            className="-ml-2"
           >
             <ArrowLeft size={16} /> 返回列表
-          </button>
-          <span className="text-sm font-medium text-slate-200">{selected.rel}</span>
-          <span className="text-xs text-slate-500">{fmtSize(selected.size)}</span>
+          </Button>
+          <span className="text-sm font-medium text-foreground">{selected.rel}</span>
+          <span className="text-xs text-muted-foreground">{fmtSize(selected.size)}</span>
           {buildable && (
-            <button
-              onClick={build}
-              disabled={building}
-              className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft active:scale-95 disabled:opacity-40"
-            >
-              {building ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <Printer size={15} />
-              )}
+            <Button onClick={build} disabled={building} className="ml-auto">
+              {building ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
               {building ? "生成中…" : `生成 ${buildable} 的 PDF`}
-            </button>
+            </Button>
           )}
         </div>
 
         {error && (
-          <div className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
-            {error}
-          </div>
+          <ErrorBanner message={error} />
         )}
 
         {result && (
-          <div
-            className={`rounded-2xl border p-4 ${
-              result.passed ? "border-good/30 bg-good/10" : "border-bad/30 bg-bad/10"
+          <Card
+            className={`p-4 ${
+              result.passed ? "border-success/30 bg-success/10" : "border-destructive/30 bg-destructive/10"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-200">
+              <span className="text-sm font-semibold text-foreground">
                 {result.passed ? "生成成功，校验通过" : "生成完成，校验未通过"}
               </span>
-              <span className="font-mono text-xs text-slate-400">
+              <span className="font-mono text-xs text-muted-foreground">
                 {(result.size / 1024).toFixed(1)} KB · {result.a4.message}
               </span>
             </div>
             <ul className="mt-1 space-y-0.5 text-xs">
               {result.checks.map((c) => (
                 <li key={c.label} className="flex items-center justify-between">
-                  <span className="text-slate-400">{c.label}</span>
+                  <span className="text-muted-foreground">{c.label}</span>
                   <span
                     className={
-                      c.ok === null ? "text-slate-500" : c.ok ? "text-good" : "text-bad"
+                      c.ok === null ? "text-muted-foreground" : c.ok ? "text-success" : "text-destructive"
                     }
                   >
                     {c.value}
@@ -208,18 +131,18 @@ export default function ResumeTemplates() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
         )}
 
         {isHtml ? (
           // 手写模板带相对资源（photo.jpg 等），用文件 URL 的 iframe 保真展示
-          <TemplatePreview src={fileUrl} title={selected.rel} />
+          <A4Preview src={fileUrl} title={selected.rel} />
         ) : textContent !== null ? (
-          <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-ink-950 p-5 font-mono text-xs leading-relaxed text-slate-300">
+          <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-2xl border border-border bg-background p-5 font-mono text-xs leading-relaxed text-foreground">
             {textContent}
           </pre>
         ) : (
-          <TemplatePreview src={fileUrl} title={selected.rel} />
+          <A4Preview src={fileUrl} title={selected.rel} />
         )}
       </div>
     );
@@ -227,41 +150,36 @@ export default function ResumeTemplates() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-muted-foreground">
         手写 HTML 的精排版（高级模板）。只读浏览与生成；编辑仍走手写 HTML，改动后回到这里刷新预览。
       </p>
 
       {error && (
-        <div className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
-          {error}
-        </div>
+        <ErrorBanner message={error} />
       )}
 
-      {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-ink-900/50 p-10 text-center">
-          <p className="text-sm text-slate-400">
+      {loading ? (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <Card className="border-dashed p-10 text-center">
+          <p className="text-sm text-muted-foreground">
             02_简历工坊/ 下暂无文件。手写模板放 pdf/resume_&lt;版本&gt;.html。
           </p>
-        </div>
+        </Card>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <button
+            <FileCard
               key={item.rel}
+              name={item.rel}
+              kind={item.kind}
+              size={item.size}
               onClick={() => setSelected(item)}
-              className="group flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-ink-900/50 p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-ink-850"
-            >
-              {fileIcon(item)}
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm text-slate-200" title={item.rel}>
-                  {item.rel}
-                </div>
-                <div className="mt-0.5 text-xs text-slate-500">{fmtSize(item.size)}</div>
-              </div>
-              {templateVersion(item.rel) && (
-                <span className="text-[10px] text-accent/70">可生成</span>
-              )}
-            </button>
+            />
           ))}
         </div>
       )}

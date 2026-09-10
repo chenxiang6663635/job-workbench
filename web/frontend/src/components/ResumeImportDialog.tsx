@@ -1,5 +1,16 @@
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, FileUp, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AlertTriangle, FileUp, Loader2, ShieldAlert, ShieldCheck, X } from "lucide-react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Input, Textarea } from "./ui/input";
+import { Label } from "./ui/label";
 import { api, type ImportResult } from "../api";
 
 const ALLOWED = [".pdf", ".docx", ".md", ".markdown", ".txt"];
@@ -127,23 +138,25 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex h-[88vh] w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-ink-950 shadow-2xl">
-        {/* 顶栏 */}
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
-            <FileUp size={16} className="text-accent" /> 简历一键导入 · 核对页
-          </div>
-          <button onClick={onClose} className="cursor-pointer text-slate-400 hover:text-slate-200">
-            ✕
-          </button>
-        </div>
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="flex h-[88vh] w-full max-w-5xl flex-col gap-0 p-0">
+        {/* 顶栏：Dialog 自带 focus trap / Esc / aria-modal，此前手写遮罩都没有 */}
+        <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-3">
+          <DialogTitle className="flex items-center gap-2 text-sm font-medium">
+            <FileUp size={16} className="text-primary" /> 简历一键导入 · 核对页
+          </DialogTitle>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
+              <X size={16} />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
 
         {!result ? (
           <div className="flex-1 space-y-5 overflow-y-auto p-5">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               上传 PDF / Word / Markdown / 纯文本简历 → 抽取文字 → 你的模型结构化为字段。
-              <span className="text-amber-400"> 模型只做「搬运」不做「写作」</span>：
+              <span className="text-warning"> 模型只做「搬运」不做「写作」</span>：
               原文没有的内容会留空，疑似补全的会标红，请你逐段核对后才落盘。
             </p>
             <div className="flex items-center gap-3">
@@ -154,33 +167,26 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                 accept={ALLOWED.join(",")}
                 onChange={(e) => pickFile(e.target.files?.[0] || null)}
               />
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-white/20 px-4 py-2 text-sm text-slate-200 hover:border-accent/50 hover:text-accent"
-              >
+              <Button variant="outline" onClick={() => fileRef.current?.click()} className="border-dashed">
                 <FileUp size={15} /> 选择文件
-              </button>
-              <span className="text-sm text-slate-400">{file ? file.name : "未选择（≤10MB）"}</span>
+              </Button>
+              <span className="text-sm text-muted-foreground">{file ? file.name : "未选择（≤10MB）"}</span>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm text-slate-400">模型</label>
-              <input
+              <Label className="text-sm text-muted-foreground">模型</Label>
+              <Input
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="deepseek-chat"
-                className="w-56 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-accent/60"
+                className="w-56"
               />
-              <button
-                onClick={runImport}
-                disabled={!file || busy}
-                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink-950 hover:bg-accent-soft disabled:opacity-40"
-              >
+              <Button onClick={runImport} disabled={!file || busy}>
                 {busy ? <Loader2 size={14} className="animate-spin" /> : null}
                 {busy ? "识别中…" : "识别并抽取"}
-              </button>
+              </Button>
             </div>
             {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
+              <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
                 <AlertTriangle size={14} /> {error}
               </div>
             )}
@@ -188,11 +194,11 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
         ) : (
           <div className="flex flex-1 overflow-hidden">
             {/* 左：原文，供对照 */}
-            <div className="w-1/2 overflow-y-auto border-r border-white/10 p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <div className="w-1/2 overflow-y-auto border-r border-border p-4">
+              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 抽取到的原文（{result.characters} 字）· 请逐段对照
               </div>
-              <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-slate-300">
+              <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-foreground">
                 {result.text}
               </pre>
             </div>
@@ -201,22 +207,16 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               {/* 摘要 */}
               <div className="flex flex-wrap gap-2 text-xs">
                 {unfilled.length > 0 && (
-                  <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-amber-400">
-                    ⚠ 待补填：{unfilled.join("、")}
-                  </span>
+                  <Badge variant="warning">⚠ 待补填：{unfilled.join("、")}</Badge>
                 )}
                 {issues.length > 0 ? (
-                  <span className="rounded-full bg-bad/15 px-2.5 py-1 text-bad">
-                    ⛔ 疑似补全 {issues.length} 处，请核对
-                  </span>
+                  <Badge variant="destructive">⛔ 疑似补全 {issues.length} 处，请核对</Badge>
                 ) : (
-                  <span className="rounded-full bg-good/15 px-2.5 py-1 text-good">
-                    ✓ 字段全部可在原文中找到
-                  </span>
+                  <Badge variant="success">✓ 字段全部可在原文中找到</Badge>
                 )}
               </div>
               {issues.length > 0 && (
-                <ul className="space-y-1 rounded-lg border border-bad/20 bg-bad/5 p-2 text-[12px] text-bad">
+                <ul className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-[12px] text-destructive">
                   {issues.map((i, idx) => (
                     <li key={idx}>· {i}</li>
                   ))}
@@ -228,17 +228,17 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                   const red = basicsRed(key);
                   const yellow = amber && unfilled.includes(amber);
                   const border = red
-                    ? "border-bad ring-1 ring-bad/40"
+                    ? "border-destructive ring-1 ring-destructive/40"
                     : yellow
-                    ? "border-amber-400 ring-1 ring-amber-400/40"
-                    : "border-white/10";
+                    ? "border-warning ring-1 ring-warning/40"
+                    : "border-border";
                   return (
                     <div key={key}>
-                      <label className="text-[11px] text-slate-500">{label}</label>
-                      <input
+                      <Label className="text-[11px] text-muted-foreground">{label}</Label>
+                      <Input
                         value={basics[key] || ""}
                         onChange={(e) => setBasics((b) => ({ ...b, [key]: e.target.value }))}
-                        className={`w-full rounded-lg border bg-ink-900 px-2.5 py-1.5 text-sm text-slate-200 outline-none ${border}`}
+                        className={border}
                       />
                     </div>
                   );
@@ -246,17 +246,15 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               </div>
               {/* 其余结构（教育/项目/工作/技能/其他） */}
               <div>
-                <label className="text-[11px] text-slate-500">其余结构（教育/项目/工作/技能/其他）</label>
-                <textarea
+                <Label className="text-[11px] text-muted-foreground">其余结构（教育/项目/工作/技能/其他）</Label>
+                <Textarea
                   value={restJson}
                   onChange={(e) => setRestJson(e.target.value)}
                   rows={16}
                   spellCheck={false}
-                  className={`w-full rounded-lg border bg-ink-900 px-3 py-2 font-mono text-[12px] text-slate-200 outline-none ${
-                    restOk ? "border-white/10" : "border-bad ring-1 ring-bad/40"
-                  }`}
+                  className={`font-mono text-[12px] ${restOk ? "" : "border-destructive ring-1 ring-destructive/40"}`}
                 />
-                {!restOk && <p className="mt-1 text-[12px] text-bad">JSON 解析失败，请检查格式</p>}
+                {!restOk && <p className="mt-1 text-[12px] text-destructive">JSON 解析失败，请检查格式</p>}
               </div>
             </div>
           </div>
@@ -264,30 +262,26 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
 
         {/* 底栏：确认门禁 */}
         {result && (
-          <div className="flex items-center justify-between border-t border-white/10 px-5 py-3">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+          <div className="flex items-center justify-between border-t border-border px-5 py-3">
+            <Label className="flex items-center gap-2 text-sm text-foreground">
               <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
               我已逐段核对，原文中没有的内容已删除或改写
-            </label>
+            </Label>
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 placeholder="目标版本名"
-                className="w-40 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-accent/60"
+                className="w-40"
               />
-              <button
-                onClick={save}
-                disabled={!canSave || busy}
-                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink-950 hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
-              >
+              <Button onClick={save} disabled={!canSave || busy}>
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
                 确认无误，写入简历
-              </button>
+              </Button>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

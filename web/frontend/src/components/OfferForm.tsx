@@ -1,19 +1,112 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { api, type Application, type Offer } from "../api";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { FormField } from "./FormField";
+import { ApplicationSelect } from "./ApplicationSelect";
 
-const inputCls =
-  "w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-slate-600 focus:border-accent/50";
-const labelCls = "mb-1 block text-xs font-medium text-muted-foreground";
+/** 表单草稿：12 个字段收成一个对象，避免 12 组 useState + setter 散在组件里 */
+type Draft = {
+  link: string;
+  company: string;
+  role: string;
+  salary: string;
+  monthly: string;
+  bonus: string;
+  signon: string;
+  equity: string;
+  location: string;
+  deadline: string;
+  conditions: string;
+  note: string;
+};
+
+const EMPTY: Draft = {
+  link: "",
+  company: "",
+  role: "",
+  salary: "",
+  monthly: "",
+  bonus: "",
+  signon: "",
+  equity: "",
+  location: "",
+  deadline: "",
+  conditions: "",
+  note: "",
+};
+
+function OfferFields({
+  d,
+  set,
+  onPick,
+}: {
+  d: Draft;
+  set: <K extends keyof Draft>(k: K, v: Draft[K]) => void;
+  onPick: (app: Application | null) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <FormField label="关联投递记录（可选）" className="col-span-2">
+        <ApplicationSelect value={d.link} onPick={onPick} />
+      </FormField>
+
+      <FormField label={`公司${d.link ? "" : " *"}`}>
+        <Input value={d.company} onChange={(e) => set("company", e.target.value)} />
+      </FormField>
+      <FormField label="岗位">
+        <Input value={d.role} onChange={(e) => set("role", e.target.value)} />
+      </FormField>
+      <FormField label="薪资构成" className="col-span-2">
+        <Input
+          value={d.salary}
+          onChange={(e) => set("salary", e.target.value)}
+          placeholder="如：月薪 x14 + 年终 x2"
+        />
+      </FormField>
+      <FormField label="月薪">
+        <Input value={d.monthly} onChange={(e) => set("monthly", e.target.value)} placeholder="如：11k" />
+      </FormField>
+      <FormField label="年终">
+        <Input value={d.bonus} onChange={(e) => set("bonus", e.target.value)} placeholder="如：2 个月" />
+      </FormField>
+      <FormField label="签字费">
+        <Input value={d.signon} onChange={(e) => set("signon", e.target.value)} placeholder="如：1w（一次性）" />
+      </FormField>
+      <FormField label="股票期权">
+        <Input value={d.equity} onChange={(e) => set("equity", e.target.value)} placeholder="如：无 / 若干 RSU" />
+      </FormField>
+      <FormField label="工作地点">
+        <Input value={d.location} onChange={(e) => set("location", e.target.value)} />
+      </FormField>
+      <FormField label="答复截止日">
+        <Input type="date" value={d.deadline} onChange={(e) => set("deadline", e.target.value)} />
+      </FormField>
+      <FormField label="其他条件" className="col-span-2">
+        <Input
+          value={d.conditions}
+          onChange={(e) => set("conditions", e.target.value)}
+          placeholder="如：税前；试用期 80%；竞业条款待确认"
+        />
+      </FormField>
+      <FormField label="备注" className="col-span-2">
+        <Input
+          value={d.note}
+          onChange={(e) => set("note", e.target.value)}
+          placeholder="如：口头 offer，等书面"
+        />
+      </FormField>
+    </div>
+  );
+}
 
 export default function OfferForm({
   onClose,
@@ -22,41 +115,24 @@ export default function OfferForm({
   onClose: () => void;
   onSaved: (row: Offer) => void;
 }) {
-  const [apps, setApps] = useState<Application[]>([]);
-  const [link, setLink] = useState("");
-  const [company, setCompany] = useState("");
-  const [role, setRole] = useState("");
-  const [salary, setSalary] = useState("");
-  const [monthly, setMonthly] = useState("");
-  const [bonus, setBonus] = useState("");
-  const [signon, setSignon] = useState("");
-  const [equity, setEquity] = useState("");
-  const [location, setLocation] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [conditions, setConditions] = useState("");
-  const [note, setNote] = useState("");
+  const [d, setD] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadApps = () => {
-    if (apps.length > 0) return;
-    api
-      .listApplications({})
-      .then((r) => setApps(r.items))
-      .catch(() => setApps([]));
-  };
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) =>
+    setD((p) => ({ ...p, [k]: v }));
 
-  const pickApp = (id: string) => {
-    setLink(id);
-    const hit = apps.find((a) => a.id === id);
-    if (hit) {
-      setCompany(hit.公司);
-      setRole(hit.岗位);
-    }
-  };
+  // 选中关联记录时带出公司与岗位；取消关联则保留已填写的内容
+  const pickApp = (app: Application | null) =>
+    setD((p) => ({
+      ...p,
+      link: app?.id ?? "",
+      company: app?.公司 ?? p.company,
+      role: app?.岗位 ?? p.role,
+    }));
 
   const submit = () => {
-    if (!link && !company.trim()) {
+    if (!d.link && !d.company.trim()) {
       setError("未关联投递记录时，公司必填");
       return;
     }
@@ -64,18 +140,18 @@ export default function OfferForm({
     setError(null);
     api
       .createOffer({
-        关联记录: link,
-        公司: company,
-        岗位: role,
-        薪资构成: salary,
-        月薪: monthly,
-        年终: bonus,
-        签字费: signon,
-        股票期权: equity,
-        工作地点: location,
-        答复截止日: deadline,
-        其他条件: conditions,
-        备注: note,
+        关联记录: d.link,
+        公司: d.company,
+        岗位: d.role,
+        薪资构成: d.salary,
+        月薪: d.monthly,
+        年终: d.bonus,
+        签字费: d.signon,
+        股票期权: d.equity,
+        工作地点: d.location,
+        答复截止日: d.deadline,
+        其他条件: d.conditions,
+        备注: d.note,
       })
       .then((row) => onSaved(row))
       .catch((e: Error) => {
@@ -86,101 +162,32 @@ export default function OfferForm({
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-popover p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between">
+      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6">
+        <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0">
           <div>
-            <h3 className="text-base font-semibold text-foreground">记录 Offer 事实</h3>
+            <DialogTitle>记录 Offer 事实</DialogTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">
               只录你已知的事实。怎么选，由你看完所有事实后自己决定
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-          >
-            <X size={18} />
-          </button>
-        </div>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
+              <X size={16} />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <Label className="mb-1 block text-[11px] text-muted-foreground">关联投递记录（可选）</Label>
-            <select
-              value={link}
-              onChange={(e) => pickApp(e.target.value)}
-              onFocus={loadApps}
-              className={`${inputCls} cursor-pointer`}
-            >
-              <option value="">不关联</option>
-              {apps.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.id} · {a.公司} {a.岗位}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">公司{!link && " *"}</Label>
-            <Input value={company} onChange={(e) => setCompany(e.target.value)}  />
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">岗位</Label>
-            <Input value={role} onChange={(e) => setRole(e.target.value)}  />
-          </div>
-          <div className="col-span-2">
-            <Label className="mb-1 block text-[11px] text-muted-foreground">薪资构成</Label>
-            <Input value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="如：月薪 x14 + 年终 x2"  />
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">月薪</Label>
-            <Input value={monthly} onChange={(e) => setMonthly(e.target.value)} placeholder="如：11k"  />
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">年终</Label>
-            <Input value={bonus} onChange={(e) => setBonus(e.target.value)} placeholder="如：2 个月"  />
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">签字费</Label>
-            <Input value={signon} onChange={(e) => setSignon(e.target.value)} placeholder="如：1w（一次性）"  />
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">股票期权</Label>
-            <Input value={equity} onChange={(e) => setEquity(e.target.value)} placeholder="如：无 / 若干 RSU"  />
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">工作地点</Label>
-            <Input value={location} onChange={(e) => setLocation(e.target.value)}  />
-          </div>
-          <div>
-            <Label className="mb-1 block text-[11px] text-muted-foreground">答复截止日</Label>
-            <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)}  />
-          </div>
-          <div className="col-span-2">
-            <Label className="mb-1 block text-[11px] text-muted-foreground">其他条件</Label>
-            <Input value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder="如：税前；试用期 80%；竞业条款待确认"  />
-          </div>
-          <div className="col-span-2">
-            <Label className="mb-1 block text-[11px] text-muted-foreground">备注</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="如：口头 offer，等书面"  />
-          </div>
-        </div>
+        <OfferFields d={d} set={set} onPick={pickApp} />
 
         {error && <p className="mt-4 text-xs text-destructive">{error}</p>}
 
         <div className="mt-6 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/40"
-          >
+          <Button variant="outline" onClick={onClose}>
             取消
-          </button>
-          <button
-            onClick={submit}
-            disabled={saving}
-            className="cursor-pointer rounded-lg bg-gradient-to-r from-accent to-accent-dim px-5 py-2 text-sm font-medium text-foreground transition-all hover:opacity-90 disabled:opacity-50"
-          >
+          </Button>
+          <Button onClick={submit} disabled={saving}>
             {saving ? "保存中…" : "保存"}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

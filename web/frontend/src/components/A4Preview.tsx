@@ -35,19 +35,24 @@ export function A4Preview({
   const [scale, setScale] = useState(1);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const measure = (frame: HTMLIFrameElement) => {
-    const doc = frame.contentDocument;
-    if (!doc) return;
+  const measure = (frame: HTMLIFrameElement | null) => {
+    const doc = frame?.contentDocument;
+    // 卸载后 contentDocument 为 null——延后测量会走到这里，直接跳过
+    if (!frame || !doc) return;
     // 先把 iframe 高度压到 0 再量：否则读到的是自己刚写进去的高度
     // （scrollHeight >= 视口高），形成「每次 +24、永不回缩」的反馈环——
     // 会让调用方的防超页护栏误报并禁用生成按钮（独立审查抓出的 BLOCKER）。
+    // 量完必须把「量之前的内联高度」原样写回：直接置空等于交给 React，
+    // 而 React 只在该 prop 值变化时才写 DOM——高度没变的那次（第二次及以后）
+    // 会留下空高度，iframe 退化成默认 150px，简历被裁掉大半。
+    const prevHeight = frame.style.height;
     frame.style.height = "0px";
     const h = doc.body?.scrollHeight || doc.documentElement?.scrollHeight || 0;
     if (h > 0) {
       setContentH(h);
       onHeight?.(h); // 对外回传纯内容高度，不含任何展示留白
     }
-    frame.style.height = ""; // 交回 React 的 style 控制
+    frame.style.height = prevHeight;
   };
 
   useEffect(() => {
@@ -78,9 +83,13 @@ export function A4Preview({
             className="w-full border-0"
             style={{ height: contentH }}
             onLoad={(e) => {
-              measure(e.currentTarget);
+              // 必须把 frame 先存进闭包：React 在事件处理结束后会把 currentTarget 置空，
+              // 延后 300ms 再读 e.currentTarget 会拿到 null 并抛异常
+              //（原先的写法等于「稳定后再量一次」从未生效，且每次加载都报错）
+              const frame = e.currentTarget;
+              measure(frame);
               // 图片/字体后加载会改变高度，稳定后再量一次
-              setTimeout(() => measure(e.currentTarget), 300);
+              window.setTimeout(() => measure(frame), 300);
             }}
           />
         </div>

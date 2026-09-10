@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, FileUp, Loader2, ShieldAlert, ShieldCheck, X } from "lucide-react";
+import { FileUp, Loader2, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -11,6 +11,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input, Textarea } from "./ui/input";
 import { Label } from "./ui/label";
+import { ErrorBanner } from "./ErrorBanner";
 import { api, type ImportResult } from "../api";
 
 const ALLOWED = [".pdf", ".docx", ".md", ".markdown", ".txt"];
@@ -185,11 +186,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                 {busy ? "识别中…" : "识别并抽取"}
               </Button>
             </div>
-            {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-                <AlertTriangle size={14} /> {error}
-              </div>
-            )}
+            {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">

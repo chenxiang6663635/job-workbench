@@ -18,9 +18,9 @@ import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { FormField } from "../components/FormField";
 
 export default function Settings() {
   const [cfg, setCfg] = useState<ProviderConfig | null>(null);
@@ -32,6 +32,7 @@ export default function Settings() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<ProviderTestResult | null>(null);
   const [paths, setPaths] = useState<SystemPaths | null>(null);
+  const [pathsError, setPathsError] = useState<string | null>(null);
   const [backing, setBacking] = useState(false);
   const [backupInfo, setBackupInfo] = useState<string | null>(null);
 
@@ -48,7 +49,14 @@ export default function Settings() {
   useEffect(load, []);
 
   useEffect(() => {
-    api.systemPaths().then(setPaths).catch(() => {});
+    // 之前是空 catch：失败后页面永远停在骨架上，且错误被静默吞掉（违反「禁静默吞错」）
+    api
+      .systemPaths()
+      .then(setPaths)
+      .catch((e: Error) => {
+        console.error("读取系统路径失败", e);
+        setPathsError(e.message);
+      });
   }, []);
 
   const backup = () => {
@@ -115,21 +123,15 @@ export default function Settings() {
         </CardHeader>
 
         <div className="space-y-3">
-          <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">
-              Base URL（OpenAI 兼容，含 /v1，如 https://api.orcarouter.ai/v1）
-            </Label>
+          <FormField label="Base URL（OpenAI 兼容，含 /v1，如 https://api.orcarouter.ai/v1）">
             <Input
               placeholder="https://api.xxx.ai/v1"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">
-              API Key（留空则保留已保存的 key）
-            </Label>
+          <FormField label="API Key（留空则保留已保存的 key）">
             <Input
               className="font-mono"
               type="password"
@@ -137,7 +139,7 @@ export default function Settings() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
-          </div>
+          </FormField>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
@@ -191,8 +193,10 @@ export default function Settings() {
         )}
 
         <div className="space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
-          {/* 路径未加载时补骨架：此前直接显示「—」，看起来像没数据 */}
-          {!paths ? (
+          {/* 三态齐全：加载中骨架 / 读取失败可定位 / 就绪显示真实路径 */}
+          {pathsError ? (
+            <p className="text-destructive">路径信息读取失败：{pathsError}</p>
+          ) : !paths ? (
             <Skeleton className="h-14 w-full" />
           ) : (
             <>

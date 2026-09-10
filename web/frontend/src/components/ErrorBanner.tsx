@@ -1,9 +1,17 @@
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { cn } from "../lib/utils";
 
+/** 三种语气的样式与图标。成功态必须用对勾——此前固定用警告三角，语义反了 */
+const TONES = {
+  error: { cls: "border-destructive/30 bg-destructive/10 text-destructive", Icon: AlertTriangle, role: "alert" },
+  warning: { cls: "border-warning/30 bg-warning/10 text-warning", Icon: Info, role: "status" },
+  success: { cls: "border-success/30 bg-success/10 text-success", Icon: CheckCircle2, role: "status" },
+} as const;
+
 /**
- * 统一错误/警示条。此前五个页面各写一份（Jobs:345 / Library:97 / Settings:103 /
- * Resume:237 / ResumeTemplates:178,234），写法与色板都不一致——按 rule of three 收敛。
+ * 统一错误/警示/成功提示条。此前五个页面各写一份（Jobs:345 / Library:97 /
+ * Settings:103 / Resume:237 / ResumeTemplates:178,234），写法与色板都不一致
+ * ——按 rule of three 收敛。
  */
 export function ErrorBanner({
   message,
@@ -16,18 +24,13 @@ export function ErrorBanner({
   tone?: "error" | "warning" | "success";
   className?: string;
 }) {
-  const isError = tone === "error";
-  const toneCls = isError
-    ? "border-destructive/30 bg-destructive/10 text-destructive"
-    : tone === "warning"
-    ? "border-warning/30 bg-warning/10 text-warning"
-    : "border-success/30 bg-success/10 text-success";
+  const { cls, Icon, role } = TONES[tone];
   return (
     <div
-      role={isError ? "alert" : "status"}
-      className={cn("flex items-start gap-2 rounded-lg border px-4 py-2 text-sm", toneCls, className)}
+      role={role}
+      className={cn("flex items-start gap-2 rounded-lg border px-4 py-2 text-sm", cls, className)}
     >
-      <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+      <Icon size={16} className="mt-0.5 shrink-0" />
       <span className="flex-1 leading-relaxed">{message}</span>
       {onClose && (
         <button

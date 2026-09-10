@@ -84,7 +84,7 @@ npm.cmd run dev
 
 > The frontend proxies `/api` to 8765, so your browser only ever talks to 5173.
 
-### Option 3: double-click the exe (no environment needed; good for showing someone)
+### Option 3: double-click the exe (no environment needed; good for handing to someone or a quick look)
 
 The build output lives in `web/backend/dist/job-workbench-backend/` — double-click `job-workbench-backend.exe` inside it:
 
@@ -191,7 +191,7 @@ The "Settings" page in the nav configures your AI provider (BYOK, bring your own
 - **Test connection**: calls `{base_url}/models` to verify the key and list models
 - **Data and privacy**: export everything as a zip, snapshot backup to the system user directory, open the data directory, no-telemetry statement
 
-> By default the AI judgement in this workbench is done by your AI CLI (CodeBuddy and friends); the provider is an optional BYOK entry point (used for resume import and AI rewrite).
+> By default the AI judgement in this workbench is done by your AI CLI (CodeBuddy and friends); the provider is an optional BYOK enhancement (used for resume import and AI rewrite).
 
 ---
 
@@ -260,7 +260,7 @@ python tools/jd_score.py "personal/01_岗位池/<dir>/解析卡.md" --domain hva
 python tools/jd_score.py --gap --resume hvac "personal/01_岗位池/<dir>/解析卡.md"   # JD↔resume gaps
 ```
 
-> The stage names above (`笔试`, `一面`, …) are the actual values stored in the data files, which is why they appear in Chinese. They come from your workspace, not from the code.
+> The stage names above (`笔试`, `一面`, …) are the actual values written into your data files, which is why they appear in Chinese. They are validated against a fixed list (`STAGES` in `tools/tracker.py`), so they cannot simply be renamed to English.
 
 ---
 
@@ -334,7 +334,7 @@ With `console=True`, a black window that flashes past means **it failed at start
 
 ### The page title says "Vite + React + TS"
 
-That is a stale artifact from an older build or a cached bundle. Force-reload with `Ctrl+F5`; if it persists, rebuild the frontend (`cd web/frontend && npm.cmd run build`) and restart the backend. The correct title is 「求职工作台」.
+That is a stale artifact from an older build or a cached bundle. Force-reload with `Ctrl+F5`; if it persists, rebuild the frontend (`cd web/frontend && npm.cmd run build`) and restart the backend. The **new** correct title is 「求职工作台」.
 
 ### .ps1 scripts throw ParserError / mojibake
 

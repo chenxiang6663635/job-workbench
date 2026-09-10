@@ -96,7 +96,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 
 ## Download
 
-> **Note**: **the UI is currently Chinese-first** — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); today the interface you get is the one in the screenshots below. The CLI, the data format and this README are fully English.
+> **Note**: **the UI is currently Chinese-first** — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); today the interface you get is the one in the screenshots above. The code, the comments, this README and the [usage guide](docs/usage-guide.md) are in English — but the interface labels and the values stored in your CSV/Markdown files (stage names, column headers) are Chinese, and so is the CLI's built-in help.
 
 A packaged Windows desktop app (no Python/Node needed) is attached to the
 latest release — grab `job-workbench-setup-*.exe` from

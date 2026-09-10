@@ -41,7 +41,7 @@
 
 ## 界面预览
 
-以下页面全部由 demo 数据生成（`init_workspace.py --domain software-backend`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。
+以下页面全部由 demo 数据生成（`init_workspace.py --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。
 
 ![看板](docs/screenshots/01-dashboard.png)
 ![追踪表](docs/screenshots/02-applications.png)

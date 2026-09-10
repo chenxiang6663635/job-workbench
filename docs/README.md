@@ -34,6 +34,9 @@
 | [`research/plan_dev_setup_benchmark.md`](research/plan_dev_setup_benchmark.md) | 上述调研的研究计划（工程配置层三路分工） |
 | [`research/report_dev_workflow.md`](research/report_dev_workflow.md) | 相似项目的**开发流程**（迭代节奏、分支与发布、需求管理、**自用与产品化平衡**）及本项目可执行流程建议 |
 | [`research/plan_dev_workflow.md`](research/plan_dev_workflow.md) | 上述调研的研究计划（开发流程层三路分工） |
+| [`research/report_next_features.md`](research/report_next_features.md) | 下一步**功能级差距分析**：四域检索（其中一路中断）后的功能清单与借鉴优先级（与上表的产品化定位调研分工不同——那份答「做成什么」，这份答「还缺什么」）。注意：第四路检索中断，但结论不依赖该路，缺失部分在文首列明 |
+| [`research/plan_next_features.md`](research/plan_next_features.md) | 上述调研的研究计划（四个互不重叠功能域的检索分工） |
+| [`research/report_agent-integration.md`](research/report_agent-integration.md) | **定位与宿主集成**调研整合（决策级）：agent 插件/工具这条路的成本与反面证据、dsh 插件解剖、agent-first 分层、Python 工具的 agent 暴露方式。**这是「AI 助手是一等宿主、界面是可选查看器」这一方向判断的依据**。性质是结论整合（子代理报告被调度器截断），未能确认的部分集中列在文末「未确认清单」，不要当完整调研用 |
 
 ## 开发流程
 

@@ -59,8 +59,14 @@ graphify-out/
 # 真实 MCP 配置可能含密钥；入库的是 mcp.example.json
 .codebuddy/mcp.json
 
-# 功能差距分析报告：一次性研究产物，结论已沉淀进 docs/specs/ 与 CHANGELOG
+# 根目录的研究草稿区：本地工作区，不进仓库。
+# 成品按 plan_*/report_* 命名进 docs/research/（那里的文件是真源，不是这里的副本）。
 research_*.md
+
+# 会话内工作笔记（自审、PR 正文草稿、临时 diff 等）。
+# 注意 untracked **不等于**被忽略：没有这条规则时，一次 git add -A
+# 就会把这些内部笔记一起提交进公开仓库。
+/tmp_*
 
 # pytest 运行缓存
 .pytest_cache/

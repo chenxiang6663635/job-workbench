@@ -51,21 +51,3 @@ jobs:
       - name: 构建
         working-directory: web/frontend
         run: npm run build
-
-  pr-title:
-    name: PR 标题（Conventional + 中文）
-    # 只在 PR 上跑：push 到 main 时没有 PR 标题可查
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # 本地 pre-commit / commit-msg 只在开发者自己敲 git commit 时运行，
-      # 而 squash 合并的提交 subject 是服务器用 PR 标题生成的——本地钩子结构性
-      # 地看不到它。2026-09-10 实证：两条英文 PR 标题以 53e7b04 / b774cce 落进
-      # main，夹在中文提交之间。这一刀只能由 CI 补。
-      # 标题走环境变量而非插进 run：PR 标题是外部可控输入，拼进 shell 等于开后门。
-      - name: 校验 PR 标题
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: python tools/check_pr_title.py

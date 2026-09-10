@@ -41,7 +41,7 @@
 - `tools/`、`web/backend/`、`web/frontend/` 的代码修改，`tests/` 用例
 - 依赖变更（`requirements*.txt` / `package.json`）；CI / workflows 配置
 - 数据模型 / schema 变更；触碰 [AGENTS.md](AGENTS.md) 诚实红线的内容
-- PR 门槛：CI 绿（pytest 33 项 + 前端 build 两 check 全过——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + **双轨审查（两轮均可定位，借鉴 branch closeout 的 Review Intake 条款）**：
+- PR 门槛：CI 绿（后端 pytest、前端 lint + build、PR 标题校验**三个 check 全过**——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + **双轨审查（两轮均可定位，借鉴 branch closeout 的 Review Intake 条款）**：
   1. **作者自审**：逐文件通读 `gh pr diff`（重点：隐私与四道门、API 消费面、改动是否纯增量），结论用 `gh pr comment` 落进 PR；
   2. **独立审查**：派一个**全新上下文**的子代理以陌生 reviewer 视角逐文件审同一 diff（不带入作者意图，只看代码本身）；
   两轮结论（含发现的问题与处理决定）都必须留在 PR 页面——单人开发也要让 PR 可追溯「改了什么、两轮各审出了什么、为什么这么定」；**不得将作者自审标称为独立审查，不得伪造审查身份**；独立审发现 MAJOR 级及以上问题当场修（追加 commit）或记入后续 PR，不许静默合并（实证：PR #13 独立审抓出自审完全漏掉的 3 个 MAJOR）；Squash and merge，合后删分支
@@ -52,7 +52,8 @@
 - 前提：不破坏构建与数据安全；**拿不准 → 一律按 PR 处理**（宁走 PR，不冒险）
 
 - **先开分支，再动手**：分支要在敲第一行代码前建好（`git switch -c feat/xxx`），不要先在 `main` 写完再 checkout——那样虽然未提交改动会被带到新分支、`main` 仍干净，但流程易混淆，一旦中途忘记开分支，提交就直接落进 `main`。
-- **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、subject 中文可用、≤100 字符），豁免 Merge/Revert。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
+- **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、**subject 必须含中文**、≤100 字符），豁免 Merge/Revert。判定逻辑在 `tools/commit_header.py`，与 CI 的 PR 标题校验同源。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
+- **PR 标题也被校验（CI workflow `pr-title`）**：本地钩子只在你自己敲 `git commit` 时运行，而 PR 标题是 GitHub 在合并时用来生成提交 subject 的，**本地钩子结构上看不到它**——这一步只能由 CI 做（语言规则见 §提交规范）。`tools/check_pr_title.py` 经 `PR_TITLE` 环境变量取标题，不拼进 `run:`：PR 标题是外部可控输入，拼进 shell 等于开后门。违规时 CI 红，`gh pr edit <编号> --title "feat(scope): 中文说明"` 即可——这个 workflow 单独一份并显式订阅了 `edited`，因为 `pull_request` 默认只触发 opened / synchronize / reopened，**改标题默认不会重跑**，那样「按提示改标题」就清不掉红叉（2026-09-10 实测踩到）。
 - **PR 的粒度是「一个可独立验收的批次」，不是「一次提交」**：分支内可以多次小步提交，全部完成且 `npm run build` / 测试绿之后再开一次 PR。例：P1 的三批页面迁移 = 三个 PR。
 - 分支命名（PR 路径）：`feat/<issue号>-<slug>`、`fix/<issue号>-<slug>`、`docs/<slug>`；存活 ≤ 1–2 天，合完即删。
 - 兜底（出错了怎么办）：数据快照备份 + `git revert`——squash 提交可整体回滚，不污染主干历史。
@@ -68,6 +69,11 @@
 - `docs` / `chore` / `refactor` / `data` / `job`：不触发版本号
 - 破坏性变更：`!` 后缀或正文 `BREAKING CHANGE:` 段
 - **数据操作与代码分开提交**：往工作区录入数据的提交用 `data:` / `job:` 前缀，不与功能提交混合
+- **语言：提交 subject 与 PR 标题一律中文，正文也用中文**。PR 标题在 squash 合并后会**直接成为主干上的提交 subject**，所以这两处是同一条规则的两半——只约定提交信息而漏掉 PR 标题，就会出现「作者本地提交是中文、合并进主干却变成英文」的混排（实证：PR #15 / #16 的英文标题以 `53e7b04` / `b774cce` 落进 main，夹在前后中文提交之间）。subject 与标题由钩子 + CI 机检（见 §提交流程）；**PR 正文不机检**——正文里必然有代码块、type 枚举与英文术语，机器判定只会做出一个被绕过或被抱怨的噪音闸，这部分靠双轨审查。issue / PR 模板里的英文表头是给外部反馈者的**填空提示**，不是正文语言要求；面向英文读者的 README / docs 英文版另论。
+- **合并方式**：`main` 开了 `required_linear_history`，所以只有 squash 与 rebase 两条路。**用 squash**——rebase 会把分支里每条提交的原始 subject 原样铺进主干，PR 标题那道闸就完全绕过了（本地 commit-msg 闸此时是唯一拦截点）。
+- **这道闸拦不到的两条路（已知缺口，别把它当万能）**：
+    1. **在 squash 对话框里手动改掉最终的提交信息**：那既不改 PR 标题、也不触发 `edited`，校验不会重跑——英文 subject 照样落进 main。机制上拦不住（`pull_request` 事件看不到你合并时手填的那段），所以规矩是**合的时候不要动默认的提交信息**。
+    2. **校验脚本与被校验对象同源同 PR**：workflow 与 `tools/*.py` 都取自 PR 自己的分支，所以一个 PR 可以顺手把判定放宽（把 CJK 正则改成 `.*`）而 CI 依旧全绿。单人仓库没有第二个审批人，实际防线是 `tests/` 里钉住的行为——放宽正则会让那批用例立刻红。**改判定规则时必须同步改测试并写明理由**，这就是这条防线起作用的唯一方式。
 
 ## 版本规则（0.x 简化 semver）
 
@@ -80,7 +86,7 @@
 
 从 `main` 打 tag，不从分支发：
 
-1. **冒烟验证**（CI 已跑 33 项自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开七个页面各操作一遍。
+1. **冒烟验证**（CI 已跑全量自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开七个页面各操作一遍。
 2. bump 版本号（`web/electron/package.json`）。
 3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为版本号 + ISO 日期。
 4. `git tag -a v0.1.0 -m "..."` 并提交。
@@ -103,7 +109,7 @@
 - 本文件与 [AGENTS.md](AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
-- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（33 项基线）→ 前端 `npm run build`（Windows 用 `npm.cmd`）。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）。
 
 ## 开发辅助工具（MCP / 代码图谱，开发者与 AI 用，非产品）
 

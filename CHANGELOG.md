@@ -12,6 +12,19 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **破坏性变更 · 五个技能统一加 `jwb-` 前缀**（PR #25）：`apply → jwb-apply`、`jd → jwb-jd`、`recruit-coach → jwb-recruit-coach`、`resume → jwb-resume`、`track → jwb-track`。
+  - **为什么改**：技能身份 = **目录名 = frontmatter `name`**，同名会被宿主**静默覆盖**（不报错）。原名 `apply / jd / resume / track / recruit-coach` 全是高概率通用词，装到用户级 `~/.agents/skills/` 等于拿五个通用词去跟别人已装的技能抢位置——谁被覆盖、覆盖的是谁，都不会有任何提示。
+  - **升级后需要你做一件事**：删掉宿主目录里残留的旧名副本，否则旧技能仍在被加载、与新名并存（改名等于没生效）。项目级目录可用 `python tools/install_skills.py --prune --target codebuddy`（`--prune` 只作用于项目级目标）；用户级 `~/.agents/skills/` 是**多项目共享位置**，脚本判断不了归属，请手工删除 `apply/`、`jd/`、`recruit-coach/`、`resume/`、`track/` 五个目录，再重跑 `python tools/install_skills.py --target user`。
+  - 技能描述同步补了**英文触发词**（原描述只有中文场景，英文请求不会激活对应工作流），并补齐 `compatibility` 环境声明。
+
+### Infrastructure（贡献者可见）
+
+- 新增技能校验的**唯一实现** `tools/check_skills.py`：frontmatter 是否闭合、`name` 是否等于目录名、`description`/`compatibility` 是否齐全、**全局 `name` 是否唯一**。CI（backend job）与 `tools/install_skills.py` **共用这一个实现**——规则写两处迟早分叉，而分叉掉的那一半正好就是没拦住的那一半（本仓库在提交信息治理上已经吃过这个亏）。
+- `tools/install_skills.py` 改为「先校验、再分发」：不合规或重名**直接拒绝分发**并给出可读原因。坏技能装到宿主侧只有两种下场——被跳过，或被静默覆盖，两种都不报错，所以装之前是唯一能拦住它的时机。演练模式（--dry-run）同样先校验。新增 `--prune`：清理改名后残留的旧名目录（仅项目级目标生效，共享的用户级目录不自动删）。
+- `.codebuddy/skills/` 出库：它是分发脚本的生成物，入库即第二份真源——改 `skills/` 忘了同步它，漂移就产生了。（`.claude/` `.agents/` `.codex/` 三份副本本就被 gitignore，不受影响。）
+
 ## [0.1.1] - 2026-09-09
 
 ### Changed

@@ -24,6 +24,12 @@ jobs:
       - name: 运行测试
         run: python -m pytest tests/ -q
 
+      # 技能合规与重名校验：与 tools/install_skills.py **共用同一个实现**。
+      # 不合规或重名的技能装到宿主侧只有两种下场（被跳过 / 被静默覆盖），
+      # 两种都不报错，所以必须在 CI 这一头拦住。
+      - name: 校验 skills（合规 + 无重名）
+        run: python tools/check_skills.py
+
   frontend:
     name: 前端构建（lint + tsc + vite）
     runs-on: ubuntu-latest

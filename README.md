@@ -43,7 +43,7 @@ The workbench turns all of that into queryable, traceable files.
 
 ## UI Preview
 
-> **Note**: the UI is currently Chinese-first — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); until then the screens below are the real interface.
+> **Note**: the UI is currently Chinese-first — read the note under [Download](#download) before you install. The screenshots below are the real interface.
 
 All pages below run on generated demo data (`init_workspace.py --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
 
@@ -95,6 +95,8 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `.github/` | CI workflow, issue / PR templates, code of conduct, Copilot instructions |
 
 ## Download
+
+> **Note**: **the UI is currently Chinese-first** — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); today the interface you get is the one in the screenshots below. The CLI, the data format and this README are fully English.
 
 A packaged Windows desktop app (no Python/Node needed) is attached to the
 latest release — grab `job-workbench-setup-*.exe` from

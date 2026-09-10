@@ -45,7 +45,11 @@ if ($Py -ne "python" -and -not (Test-Path $Py)) {
 # 故校验段局部降为 Continue，只认 $LASTEXITCODE。
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-& $Py -c "import fastapi, uvicorn, pydantic, filelock, PyInstaller" 2>$null
+# 注意：这里**不要**探测 filelock。它是仓内模块（web/backend/filelock.py），不是 pip 依赖；
+# 从仓库根执行 `import filelock` 会去命中同名的 PyPI 包——本机恰好装了它就通过，
+# 干净环境（CI / 新机器）没装就误报「缺少依赖 fastapi / uvicorn / PyInstaller」，
+# 而那句话是假的，会把排查引到错误方向。第三方的同名包反而可能遮蔽仓内模块。
+& $Py -c "import fastapi, uvicorn, pydantic, PyInstaller" 2>$null
 $checkCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ($checkCode -ne 0) {

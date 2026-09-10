@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Puzzle, Sparkles, TriangleAlert } from "lucide-react";
 import { api, type GapResult } from "../api";
+import { Badge } from "./ui/badge";
+import { Card } from "./ui/card";
+import { Skeleton } from "./ui/skeleton";
+import { ErrorBanner } from "./ErrorBanner";
 
 /**
  * JD↔简历差距面板。
@@ -12,10 +16,41 @@ import { api, type GapResult } from "../api";
  */
 
 const LEVEL_CLS: Record<string, string> = {
-  Primary: "text-good",
-  Secondary: "text-accent",
-  Weak: "text-slate-500",
+  Primary: "text-success",
+  Secondary: "text-primary",
+  Weak: "text-muted-foreground",
 };
+
+/* 三段各自的语义色：徽章语气 + 卡片描边 + 图标色 */
+const SECTIONS = [
+  {
+    key: "matched",
+    icon: CheckCircle2,
+    title: "已覆盖",
+    hint: "简历里能直接证明的词",
+    variant: "success",
+    iconCls: "text-success",
+    cardCls: "border-success/25 bg-success/5",
+  },
+  {
+    key: "injectable",
+    icon: Sparkles,
+    title: "可召回",
+    hint: "母版里有、这一版没用上——召回即可，不构成编造",
+    variant: "default",
+    iconCls: "text-primary",
+    cardCls: "border-primary/25 bg-primary/5",
+  },
+  {
+    key: "missing",
+    icon: TriangleAlert,
+    title: "真实缺口",
+    hint: "简历与母版都没有——需要评估是否补经历，而不是改词",
+    variant: "warning",
+    iconCls: "text-warning",
+    cardCls: "border-warning/25 bg-warning/5",
+  },
+] as const;
 
 export default function GapPanel({ dir }: { dir: string }) {
   const [gap, setGap] = useState<GapResult | null>(null);
@@ -33,88 +68,49 @@ export default function GapPanel({ dir }: { dir: string }) {
       .finally(() => setLoading(false));
   }, [dir]);
 
-  if (loading) {
-    return (
-      <div className="rounded-xl border border-white/10 bg-ink-950/40 p-5 text-xs text-slate-500">
-        正在比对词典与简历…
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-xl border border-warn/30 bg-warn/5 p-5">
-        <p className="text-xs text-warn">差距分析暂不可用</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">{error}</p>
-      </div>
-    );
-  }
-
+  if (loading) return <Skeleton className="h-32 w-full rounded-xl" />;
+  // 差距分析失败不该是红色报错级：调性上属"这一段暂不可用"，其余页面照常用
+  if (error) return <ErrorBanner tone="warning" message={`差距分析暂不可用：${error}`} />;
   if (!gap) return null;
 
-  const sections = [
-    {
-      key: "matched",
-      icon: <CheckCircle2 size={14} className="text-good" />,
-      title: "已覆盖",
-      hint: "简历里能直接证明的词",
-      cls: "border-good/25 bg-good/5",
-      chip: "bg-good/10 text-good border-good/25",
-    },
-    {
-      key: "injectable",
-      icon: <Sparkles size={14} className="text-accent" />,
-      title: "可召回",
-      hint: "母版里有、这一版没用上——召回即可，不构成编造",
-      cls: "border-accent/25 bg-accent/5",
-      chip: "bg-accent/10 text-accent border-accent/25",
-    },
-    {
-      key: "missing",
-      icon: <TriangleAlert size={14} className="text-warn" />,
-      title: "真实缺口",
-      hint: "简历与母版都没有——需要评估是否补经历，而不是改词",
-      cls: "border-warn/25 bg-warn/5",
-      chip: "bg-warn/10 text-warn border-warn/25",
-    },
-  ] as const;
+  const itemsOf = (key: string) =>
+    key === "matched"
+      ? gap.matchedDetail
+      : key === "injectable"
+      ? gap.injectableDetail
+      : gap.missingDetail;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Puzzle size={15} className="text-accent" />
-          <h4 className="text-sm font-medium text-slate-200">简历差距</h4>
+          <Puzzle size={15} className="text-primary" />
+          <h4 className="text-sm font-medium text-foreground">简历差距</h4>
         </div>
-        <span className="text-[11px] text-slate-600">
+        <span className="text-[11px] text-muted-foreground/70">
           简历版本 {gap.resumeVersion} · 词典比对
         </span>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        {sections.map((s) => {
-          const count = gap.counts[s.key];
-          const items =
-            s.key === "matched"
-              ? gap.matchedDetail
-              : s.key === "injectable"
-              ? gap.injectableDetail
-              : gap.missingDetail;
+        {SECTIONS.map((s) => {
+          const Icon = s.icon;
+          const items = itemsOf(s.key);
           return (
-            <div key={s.key} className={`rounded-xl border p-3.5 ${s.cls}`}>
+            <Card key={s.key} className={`rounded-xl p-3.5 ${s.cardCls}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  {s.icon}
-                  <span className="text-xs font-medium text-slate-200">{s.title}</span>
+                  <Icon size={14} className={s.iconCls} />
+                  <span className="text-xs font-medium text-foreground">{s.title}</span>
                 </div>
-                <span className={`rounded-md border px-1.5 py-0.5 text-[11px] ${s.chip}`}>
-                  {count}
-                </span>
+                <Badge variant={s.variant} className="rounded-md px-1.5 py-0 text-[11px]">
+                  {gap.counts[s.key]}
+                </Badge>
               </div>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">{s.hint}</p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{s.hint}</p>
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {items.length === 0 && (
-                  <span className="text-[11px] text-slate-600">无</span>
+                  <span className="text-[11px] text-muted-foreground/70">无</span>
                 )}
                 {items.map((item) => {
                   const term = typeof item === "string" ? item : item.term;
@@ -122,14 +118,12 @@ export default function GapPanel({ dir }: { dir: string }) {
                   return (
                     <span
                       key={term}
-                      className={`rounded-md border border-white/10 bg-ink-950/60 px-2 py-1 text-[11px] text-slate-300 ${
-                        s.key === "matched" ? "border-good/20" : ""
-                      }`}
+                      className="rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-foreground"
                       title={level ? `能力分层：${level}` : undefined}
                     >
                       {term}
                       {level && (
-                        <span className={`ml-1 text-[10px] ${LEVEL_CLS[level] ?? ""}`}>
+                        <span className={`ml-1 text-[10px] ${LEVEL_CLS[level] ?? "text-muted-foreground"}`}>
                           {level}
                         </span>
                       )}
@@ -137,12 +131,12 @@ export default function GapPanel({ dir }: { dir: string }) {
                   );
                 })}
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-slate-600">
+      <p className="text-[11px] leading-relaxed text-muted-foreground/70">
         「可召回」的词来自你的母版事实，放进简历不构成编造；「真实缺口」的词
         母版里也没有，只能靠补真实经历——别硬写。
       </p>

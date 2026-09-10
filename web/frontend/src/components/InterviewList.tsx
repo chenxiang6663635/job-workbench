@@ -1,29 +1,40 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, CalendarPlus, Download, Plus } from "lucide-react";
+import { CalendarClock, Download, Plus } from "lucide-react";
 import {
   api,
   INTERVIEW_RESULTS,
   type Interview,
 } from "../api";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Skeleton } from "./ui/skeleton";
+import { ErrorBanner } from "./ErrorBanner";
 import InterviewForm from "./InterviewForm";
 
 // 结果徽章配色：通过=绿、未通过=红、取消=灰、待定=琥珀
-const RESULT_CLS: Record<string, string> = {
-  通过: "bg-good/15 text-good border-good/30",
-  未通过: "bg-bad/15 text-bad border-bad/30",
-  取消: "bg-white/5 text-slate-500 border-white/10",
-  待定: "bg-warn/15 text-warn border-warn/30",
+const RESULT_VARIANT: Record<string, "success" | "destructive" | "secondary" | "warning"> = {
+  通过: "success",
+  未通过: "destructive",
+  取消: "secondary",
+  待定: "warning",
 };
 
 function ResultBadge({ value }: { value: string }) {
   return (
-    <span
-      className={`rounded-md border px-1.5 py-0.5 text-[11px] ${
-        RESULT_CLS[value] ?? RESULT_CLS["待定"]
-      }`}
+    <Badge
+      variant={RESULT_VARIANT[value] ?? "warning"}
+      className="rounded-md px-1.5 py-0 text-[11px]"
     >
       {value}
-    </span>
+    </Badge>
   );
 }
 
@@ -75,93 +86,92 @@ export default function InterviewList() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           {["", ...INTERVIEW_RESULTS].map((r) => (
-            <button
+            <Button
               key={r || "all"}
+              variant={filter === r ? "secondary" : "ghost"}
+              size="sm"
               onClick={() => setFilter(r)}
-              className={`cursor-pointer rounded-full px-3 py-1.5 text-xs transition-colors ${
-                filter === r
-                  ? "bg-accent/15 text-accent"
-                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-              }`}
+              className={`rounded-full ${filter === r ? "text-primary" : "text-muted-foreground"}`}
             >
               {r || "全部"}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <a
-            href={api.interviewIcsUrl()}
-            title="把面试日程导入手机/电脑日历，提前 1 小时提醒"
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 transition-colors hover:border-accent/40 hover:text-accent"
-          >
-            <Download size={14} /> 导出日程 .ics
-          </a>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-dim px-3.5 py-2 text-xs font-medium text-white transition-all hover:opacity-90"
-          >
+          <Button asChild variant="outline" size="sm">
+            <a href={api.interviewIcsUrl()} title="把面试日程导入手机/电脑日历，提前 1 小时提醒">
+              <Download size={14} /> 导出日程 .ics
+            </a>
+          </Button>
+          <Button onClick={() => setShowForm(true)}>
             <Plus size={14} /> 记录面试
-          </button>
+          </Button>
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-xs text-bad">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
       <div className="grid grid-cols-12 gap-4">
         {/* 左：列表 */}
         <div className="col-span-5 space-y-2">
-          {loaded && visible.length === 0 && (
-            <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-8 text-center">
-              <CalendarClock size={28} className="mx-auto mb-3 text-slate-600" />
-              <p className="text-sm text-slate-400">还没有面试记录</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+          {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条 */}
+          {!loaded ? (
+            [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
+          ) : visible.length === 0 ? (
+            <Card className="flex flex-col items-center rounded-2xl border-dashed p-8 text-center">
+              <CalendarClock size={28} className="mb-3 text-muted-foreground/70" />
+              <p className="text-sm text-muted-foreground">还没有面试记录</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
                 每一场面试都值得记下来——问题、回答、复盘，
                 <br />
                 复盘是唯一能复利的部分
               </p>
-            </div>
-          )}
+            </Card>
+          ) : null}
           {visible.map((r) => {
             const hrs = hoursUntil(r.面试时间);
             const upcoming = hrs !== null && hrs > 0 && hrs < 48 && r.结果 === "待定";
+            const active = selected === r.面试id;
             return (
-              <button
+              <Card
                 key={r.面试id}
-                onClick={() => setSelected(r.面试id)}
-                className={`w-full cursor-pointer rounded-xl border p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 ${
-                  selected === r.面试id
-                    ? "border-accent/50 bg-accent/10"
-                    : "border-white/10 bg-ink-900/60 hover:border-white/20"
-                } ${upcoming ? "ring-1 ring-warn/40" : ""}`}
+                className={`rounded-xl transition-all duration-200 hover:-translate-y-0.5 ${
+                  active ? "border-primary/50 bg-primary/10" : "hover:border-border-strong"
+                } ${upcoming ? "ring-1 ring-warning/40" : ""}`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-slate-100">
-                    {r.公司 || "（未填公司）"}
-                  </span>
-                  <ResultBadge value={r.结果} />
-                </div>
-                <div className="mt-1 truncate text-xs text-slate-500">
-                  {r.岗位}
-                  {r.轮次 && ` · ${r.轮次}`}
-                  {r.形式 && ` · ${r.形式}`}
-                </div>
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs">
-                  <CalendarClock size={12} className={upcoming ? "text-warn" : "text-slate-600"} />
-                  <span className={upcoming ? "text-warn" : "text-slate-500"}>
-                    {r.面试时间 || "时间待定"}
-                  </span>
-                  {upcoming && (
-                    <span className="text-warn/80">
-                      {hrs < 24 ? `· ${Math.max(1, Math.round(hrs))} 小时后` : "· 明后两天"}
+                <button
+                  type="button"
+                  onClick={() => setSelected(r.面试id)}
+                  className="w-full cursor-pointer p-3.5 text-left"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {r.公司 || "（未填公司）"}
                     </span>
-                  )}
-                </div>
-              </button>
+                    <ResultBadge value={r.结果} />
+                  </div>
+                  <div className="mt-1 truncate text-xs text-muted-foreground">
+                    {r.岗位}
+                    {r.轮次 && ` · ${r.轮次}`}
+                    {r.形式 && ` · ${r.形式}`}
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                    <CalendarClock
+                      size={12}
+                      className={upcoming ? "text-warning" : "text-muted-foreground/70"}
+                    />
+                    <span className={upcoming ? "text-warning" : "text-muted-foreground"}>
+                      {r.面试时间 || "时间待定"}
+                    </span>
+                    {upcoming && (
+                      <span className="text-warning/80">
+                        {hrs < 24 ? `· ${Math.max(1, Math.round(hrs))} 小时后` : "· 明后两天"}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </Card>
             );
           })}
         </div>
@@ -169,28 +179,34 @@ export default function InterviewList() {
         {/* 右：详情（三段式：问题 / 回答 / 复盘） */}
         <div className="col-span-7">
           {current ? (
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-ink-900/60 p-5">
+            <Card className="space-y-4 rounded-2xl p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-semibold text-white">
+                  <h3 className="text-base font-semibold text-foreground">
                     {current.公司} · {current.轮次 || "面试"}
                   </h3>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     {current.岗位}
                     {current.关联记录 && ` · 关联 ${current.关联记录}`}
                     {current.面试时间 && ` · ${current.面试时间}`}
                     {current.面试官 && ` · 面试官 ${current.面试官}`}
                   </p>
                 </div>
-                <select
+                <Select
                   value={current.结果}
-                  onChange={(e) => quickSetResult(current.面试id, e.target.value)}
-                  className="cursor-pointer rounded-lg border border-white/10 bg-ink-950/60 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-accent/50"
+                  onValueChange={(v) => quickSetResult(current.面试id, v)}
                 >
-                  {INTERVIEW_RESULTS.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-24 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTERVIEW_RESULTS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {(
@@ -200,18 +216,18 @@ export default function InterviewList() {
                   ["复盘与改进", current.复盘与改进],
                 ] as const
               ).map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-white/5 bg-ink-950/40 p-4">
-                  <p className="mb-1.5 text-xs font-medium text-accent/80">{label}</p>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
-                    {value || <span className="text-slate-600">（未记录）</span>}
+                <Card key={label} className="rounded-xl p-4">
+                  <p className="mb-1.5 text-xs font-medium text-primary">{label}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {value || <span className="text-muted-foreground/70">（未记录）</span>}
                   </p>
-                </div>
+                </Card>
               ))}
-            </div>
+            </Card>
           ) : (
-            <div className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-dashed border-white/10 text-xs text-slate-600">
+            <Card className="flex h-full min-h-48 items-center justify-center rounded-2xl border-dashed text-xs text-muted-foreground/70">
               从左侧选择一场面试查看记录
-            </div>
+            </Card>
           )}
         </div>
       </div>

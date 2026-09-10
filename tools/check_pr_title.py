@@ -40,7 +40,7 @@ def main(argv=None):
         print("%s[FAIL] 没拿到 PR 标题（--title 或环境变量 PR_TITLE 都没有）" % TAG)
         return 2
 
-    problems = commit_header.validate(title)
+    problems = commit_header.validate(title, source=commit_header.SOURCE_PR_TITLE)
     if problems:
         for problem in problems:
             print("%s[FAIL] %s" % (TAG, problem))

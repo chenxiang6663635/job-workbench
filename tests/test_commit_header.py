@@ -105,6 +105,35 @@ def test_git_generated_headers_are_exempt(message):
     assert _errors(message) == []
 
 
+def test_pr_title_does_not_get_commit_exemptions():
+    """PR 标题永远是人工写的，不该享受 git 生成头的豁免。
+
+    否则把标题写成「Merge xxx」（纯英文）就能整条绕过语言闸——豁免白名单
+    直接变成旁路。
+    """
+    title = 'Merge branch "cleanup" into main'
+    assert commit_header.validate(title, source=commit_header.SOURCE_COMMIT) == []
+    errors = commit_header.validate(title, source=commit_header.SOURCE_PR_TITLE)
+    assert errors, "PR 标题不该继承提交信息的豁免"
+
+
+@pytest.mark.parametrize("subject", [
+    "設定を変更",          # 日文：汉字 + 假名
+    "設定変更を行った",     # 日文：汉字 + 假名
+    "설정을 변경",          # 韩文：谚文
+])
+def test_japanese_and_korean_are_not_accepted_as_chinese(subject):
+    """汉字区与日文汉字共享码位，逐字无法区分，故用假名/谚文排除。"""
+    errors = _errors("feat(ui): " + subject)
+    assert errors, "日文/韩文不该被当作中文放行：%s" % subject
+    assert any("假名" in e or "谚文" in e for e in errors)
+
+
+def test_pure_han_japanese_is_a_known_gap():
+    """纯汉字书写的日文无法与中文区分——这是已知缺口，钉住它是为了别再假装能拦。"""
+    assert _errors("feat(ui): 設定変更") == []
+
+
 # --- CI 入口：PR 标题校验 -------------------------------------------------
 
 def test_pr_title_reads_env(monkeypatch, capsys):

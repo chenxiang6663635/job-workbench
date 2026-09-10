@@ -81,10 +81,43 @@ def test_missing_shared_module_degrades_without_traceback(hook, tmp_path, monkey
     assert "CI" in out  # 说清兜底在哪，避免「跳过」被理解成「没人管」
 
 
-def test_hook_wiring_points_at_shared_module(hook):
-    """把钩子与工具库同源这件事钉住：钩子目录下不该再有一份自己的正则。"""
-    with open(HOOK_PATH, encoding="utf-8") as fh:
-        source = fh.read()
-    assert "import commit_header" in source
-    assert "HEADER_PATTERN" not in source
-    assert "TYPES" not in source
+def test_hook_delegates_to_shared_module(hook, tmp_path, monkeypatch):
+    """钩子必须真的调用共享判定，而不是自带一份规则。
+
+    断言「源码里不出现 TYPES」太脆（注释里提一句就误报），改成行为断言：
+    换掉共享模块的实现，看钩子是否走它、传的是哪条信息。
+    """
+    calls = []
+
+    class Stub(object):
+        @staticmethod
+        def validate(message, source="commit"):
+            calls.append((message, source))
+            return []
+
+    monkeypatch.setattr(hook, "commit_header", Stub)
+    assert hook.main([_write(tmp_path, "feat(ui): 任意中文")]) == 0
+    assert len(calls) == 1
+    assert calls[0][0] == "feat(ui): 任意中文"
+
+
+def test_gbk_encoded_message_is_decoded_not_mangled(hook, tmp_path):
+    """GBK 保存的提交信息要能正确解码。
+
+    原实现 `errors="replace"` 会把中文换成 U+FFFD，于是钩子报「subject 必须含
+    中文」——作者明明写了中文却被指没写，而且根因（编码）完全不提示。
+    """
+    path = tmp_path / "gbk.txt"
+    path.write_bytes("feat(ui): 迁移到新原语".encode("gbk"))
+    assert hook.main([str(path)]) == 0
+
+
+def test_undecodable_message_reports_encoding_not_language(hook, tmp_path, capsys):
+    """解不开的文件要报编码问题，不能报成语言问题。"""
+    path = tmp_path / "broken.txt"
+    path.write_bytes(b"\xff\xff\xff\xff")
+    assert hook.main([str(path)]) == 1
+    out = capsys.readouterr().out
+    assert "编码" in out
+    assert "必须含中文" not in out
+    assert "UTF-8" in out  # 给出可执行的修法

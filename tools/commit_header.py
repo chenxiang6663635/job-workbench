@@ -34,19 +34,33 @@ HEADER_PATTERN = re.compile(
 
 # 中日韩统一表意文字 + 扩展A + 兼容表意文字。只认汉字，不把全角标点算作中文
 # ——「feat: 修复 bug。（只有标点是全角）」这种半英文不该混过去。
+#
+# 已知边界：汉字区与**日文汉字**共享同一段码位，逐字无法区分（「設定」既是日文
+# 也是中文）。所以用假名/谚文做排除：日文句子几乎必含假名、韩文必含谚文，而中文
+# 技术文案里出现假名或谚文的概率极低。残余缺口是「纯汉字书写的日文」（如
+# 「設定変更」）会被放行——这一点无法可靠区分，只能接受并写在文档里。
 CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+KANA_HANGUL_PATTERN = re.compile(r"[\u3040-\u30ff\uac00-\ud7af]")
 
 MAX_HEADER_LEN = 100
 
 # git 自动生成或工具生成的 header，不适用人工规范
 EXEMPT_PREFIXES = ("Merge ", "Revert ", "Initial commit", "fixup!", "Squashed commit")
 
+# 校验来源：两者共用同一套格式/长度规则，但豁免范围不同。
+# 提交信息可能由 git 自己生成（Merge/Revert/fixup），PR 标题永远是人工写的
+# ——所以标题不该享受豁免，否则把标题写成「Merge xxx」就能整条绕过语言闸。
+SOURCE_COMMIT = "commit"
+SOURCE_PR_TITLE = "pr_title"
 
-def is_exempt(message: str) -> bool:
+
+def is_exempt(message: str, source: str = SOURCE_COMMIT) -> bool:
+    if source == SOURCE_PR_TITLE:
+        return False
     return message.startswith(EXEMPT_PREFIXES)
 
 
-def validate(message: str) -> list:
+def validate(message: str, source: str = SOURCE_COMMIT) -> list:
     """校验一条 header（提交 subject 或 PR 标题）。
 
     返回人类可读的问题列表，空列表表示通过。调用方负责加自己的前缀与退出码，
@@ -61,7 +75,7 @@ def validate(message: str) -> list:
         return ["提交信息为空"]
 
     message = message.strip()
-    if is_exempt(message):
+    if is_exempt(message, source):
         return []
 
     match = HEADER_PATTERN.match(message)
@@ -78,7 +92,12 @@ def validate(message: str) -> list:
                         % (MAX_HEADER_LEN, len(message)))
 
     subject = match.group("subject")
-    if not CJK_PATTERN.search(subject):
+    # 先判假名/谚文，再判「有没有汉字」：顺序反了的话，纯谚文的韩文会被报成
+    # 「必须含中文」——结论没错但没指出真正的原因，人会一脸问号。
+    if KANA_HANGUL_PATTERN.search(subject):
+        problems.append("subject 含假名或谚文，看起来不是中文\n"
+                        "  当前 subject：%s" % subject)
+    elif not CJK_PATTERN.search(subject):
         problems.append("subject 必须含中文（本仓库提交信息与 PR 标题一律中文）\n"
                         "  当前 subject：%s\n"
                         "  改写示例：%s" % (subject, _suggest(match)))

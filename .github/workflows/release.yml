@@ -1,0 +1,271 @@
+name: Release
+
+# 打 tag 即产出安装包并挂到该 Release。
+#
+# 为什么要有这个 workflow（不是"顺手自动化一下"）：
+# v0.1.1 的安装包是 batch B/C 之前构建的，之后主干还换过图标——下载页上那份 exe
+# 已经不代表当前代码，而且**没有任何机制会发现这件事**。让 tag 触发构建之后，
+# 资产与 tag 同源，「安装包与代码脱节」在结构上不再可能发生。
+#
+# 三道闸都不通过就拒绝发布，且每条都给出可照做的修法：
+#   1. tag 与 web/electron/package.json 的版本号必须一致（否则资产名会说谎）
+#   2. CHANGELOG.md 里必须有该版本的条目（否则等于发布了没人知道的东西）
+#   3. 必须真的产出 .exe（否则不许静默成功）
+#
+# 拆成两个 job 的原因：**权限不能下沉到 step，只能下沉到 job**。构建链里跑了
+# npm ci（任意依赖的 postinstall）与 pip install，若让写权限覆盖整条链，任何一个
+# 被投毒的依赖都可能拿到可写 token。所以构建只给读权限，另一个 job 才拿写权限。
+on:
+  push:
+    tags:
+      - "v*"
+  # 手动触发用于演练：dry_run=true 只构建 + 校验 + 存成 workflow artifact，不碰 Release。
+  # 这是唯一能在不打 tag 的情况下验证这条链路的方式。
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只构建与校验，不创建 Release"
+        type: boolean
+        default: true
+
+# 默认最小权限。publish job 单独提权。
+permissions:
+  contents: read
+
+# 同 ref 的发布串行：并发的两次运行会双双判定「Release 不存在」然后抢着创建。
+# cancel-in-progress=false —— 已经开始的发布不该被后一次打断在半路。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 构建 Windows 安装包
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      asset: ${{ steps.artifact.outputs.asset }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 默认会把 GITHUB_TOKEN 写进 .git/config 的 extraheader，之后 npm/pip
+          # 拉的任何代码都能拿它直接 push。构建链不需要凭证，一律不带。
+          persist-credentials: false
+
+      # 版本号唯一来源是 web/electron/package.json（CONTRIBUTING 的规定）。
+      # tag 与它不一致时直接停下：资产名 job-workbench-setup-<ver>-win64.exe 里的 ver
+      # 取自 package.json，若两者不同，用户下载到的东西名字与实际版本就对不上。
+      - name: 读取版本号并校验 tag 一致
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = (Get-Content web/electron/package.json -Raw -Encoding UTF8 | ConvertFrom-Json).version
+          if (-not $version) { throw "读不到 web/electron/package.json 的 version" }
+          Write-Host "package.json version = $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+          # 用 $env:GITHUB_REF 而不是把 ${{ github.ref }} 拼进脚本：外部可控的值
+          # 经 shell 文本传递等于给它一次解释机会（本仓库 CONTRIBUTING 有此规定）。
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF -replace "^refs/tags/", ""
+            Write-Host "tag = $tag"
+            if ($tag -ne "v$version") {
+              throw "tag 与 package.json 版本不一致：tag=$tag，package.json=$version。先 bump 版本号再打 tag。"
+            }
+          } else {
+            Write-Host "手动触发（非 tag），跳过 tag 一致性校验"
+          }
+
+      # CHANGELOG 是「使用者可见变更」的唯一台账（CONTRIBUTING 的规定）。缺条目就拒绝
+      # 发布——这正是本批次要修的那类漂移：v0.1.1 之后 5 个 feat 一条都没记。
+      - name: 校验 CHANGELOG 有该版本条目并抽出发布说明
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $lines = Get-Content CHANGELOG.md -Encoding UTF8
+          $start = ($lines | Select-String -Pattern "^## \[$([regex]::Escape($env:VERSION))\]" | Select-Object -First 1)
+          if (-not $start) {
+            throw "CHANGELOG.md 里没有 [$($env:VERSION)] 段。把它从 [Unreleased] 落成 [$($env:VERSION)] 再打 tag。"
+          }
+
+          # 抽出该版本段落作为 Release 说明，避免发布时再手抄一遍
+          $rest = $lines[($start.LineNumber - 1)..($lines.Count - 1)]
+          $end = ($rest | Select-Object -Skip 1 | Select-String -Pattern "^## \[" | Select-Object -First 1)
+
+          # 下限必须显式夹到 0：下一条 ## 若与段头之间没有空行，LineNumber-2 会等于 -1，
+          # 而 PowerShell 的 $a[0..-1] 不是"取不到"，是**头一行 + 最后一行**（反向取值），
+          # 会把发布说明写成垃圾——不报错，只是内容错了。
+          $last = if ($end) { [Math]::Max(0, $end.LineNumber - 2) } else { $rest.Count - 1 }
+          $body = $rest[0..$last]
+
+          # 放在工作区根而不是 RUNNER_TEMP：这个文件要随 artifact 传到 publish job，
+          # 两个路径必须同源同层级，否则 artifact 内部路径不可预测。
+          $body | Set-Content release-notes.md -Encoding UTF8
+          Write-Host "已抽出 $($body.Count) 行作为 Release 说明"
+
+      - name: 安装 Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      # PyInstaller 不在 requirements.txt 里（它只是构建期依赖，不该打给终端用户）。
+      # 上限按本仓库既有惯例（fastapi<0.116 那样）钉到主版本，不钉死小版本：
+      # 具体小版本与 Python 3.8 的兼容性耦合，钉死了反而会在 runner 上装不上。
+      # 解析到的实际版本由下一步打印进日志——不可复现时至少有据可查。
+      # 注意不要在探测清单里加 filelock：它是仓内模块，不是 pip 依赖。
+      - name: 安装后端依赖与 PyInstaller
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m pip install --upgrade pip
+          pip install -r web/backend/requirements.txt "pyinstaller<7"
+          if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（exit $LASTEXITCODE）" }
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 记录工具链实际版本，便于日后复现或对比
+      - name: 记录工具链版本
+        shell: pwsh
+        run: |
+          python --version
+          python -m PyInstaller --version
+          node --version
+          npm --version
+
+      # 两个 package-lock.json 都在仓库里，用 npm ci 保证与锁文件一致
+      - name: 安装前端与 electron 依赖
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm ci --prefix web/frontend
+          if ($LASTEXITCODE -ne 0) { throw "前端依赖安装失败（exit $LASTEXITCODE）" }
+          npm ci --prefix web/electron
+          if ($LASTEXITCODE -ne 0) { throw "electron 依赖安装失败（exit $LASTEXITCODE）" }
+
+      # 走与本地完全相同的那条链路：build_desktop.ps1 → build_backend_exe.ps1（前端 dist →
+      # PyInstaller onedir）→ electron-builder NSIS。显式把解释器传给 -Py，避免脚本内的
+      # 探测在这台机器上落到别的 Python。
+      # runner 具备管理员权限，历史上本地踩过的 winCodeSign 符号链接解压问题在这里不会出现。
+      - name: 构建安装包
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $py = (Get-Command python).Source
+          Write-Host "使用解释器: $py"
+          & powershell -ExecutionPolicy Bypass -File scripts/build_desktop.ps1 -Py "$py"
+          if ($LASTEXITCODE -ne 0) { throw "打包失败（exit $LASTEXITCODE）" }
+
+      - name: 定位并改名产物
+        id: artifact
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $found = Get-ChildItem web/electron/release -Filter *.exe -ErrorAction SilentlyContinue
+          if (-not $found) {
+            # 不许静默成功：没产物就是失败，并说清去哪找线索
+            throw "构建结束但 web/electron/release 下没有 .exe。看上一步输出里 electron-builder 的报错。"
+          }
+          $found | ForEach-Object { Write-Host ("找到产物: {0}  ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB)) }
+          if ($found.Count -gt 1) {
+            # 不猜该发哪个。本地 v0.1.1 全量构建出来恰好 1 个 exe，所以这里若被触发
+            # 说明产出形态变了，需要人看一眼再决定。
+            throw "web/electron/release 下有多个 .exe，无法判断该发布哪个：$($found.Name -join ', ')"
+          }
+
+          # Release 资产统一用 ASCII 名（与 v0.1.1 的 job-workbench-setup-0.1.1-win64.exe 一致）：
+          # 下载链接、脚本引用都不该依赖中文产品名。
+          $asset = "job-workbench-setup-$($env:VERSION)-win64.exe"
+          Copy-Item $found[0].FullName $asset -Force
+          Write-Host "资产名: $asset"
+          "asset=$asset" >> $env:GITHUB_OUTPUT
+
+      # 演练模式：只构建 + 校验 + 存成 workflow artifact，不碰 Release
+      - name: 演练产物留存
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: |
+            ${{ steps.artifact.outputs.asset }}
+            release-notes.md
+          retention-days: 7
+          if-no-files-found: error
+
+      # 正式发布也走 artifact 传给 publish job——写权限不能留在这一步
+      - name: 传递产物给发布 job
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-payload
+          path: |
+            ${{ steps.artifact.outputs.asset }}
+            release-notes.md
+          retention-days: 3
+          if-no-files-found: error
+
+  publish:
+    name: 创建 Release 并挂载安装包
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    # 发布只能从 tag 发起。**不能**写成"手动触发且非 dry_run 就发布"：手动触发时
+    # github.ref_name 是**分支名**（如 ci/release-automation），那样
+    # `gh release create <分支名>` 会以分支名建出一个真的 tag 与 Release。
+    # tag push 时 inputs.dry_run 为 null，`!= true` 成立，行为不变。
+    if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-payload
+
+      # 用 gh（runner 预装、第一方）而不是第三方 release action：少一个供应链依赖。
+      # --clobber 让同一 tag 可以重跑；Release 已存在时只更新说明与资产，不重复创建。
+      #
+      # 每条 gh 后面都必须显式判 $LASTEXITCODE：GitHub 的 pwsh 包装器只在**脚本末尾**
+      # 检查一次退出码，而 $ErrorActionPreference="Stop" 对原生命令不生效。漏判的后果
+      # 很具体——`gh release upload` 失败后脚本继续跑，最后一条 `gh release view` 成功，
+      # 于是步骤变绿而 Release 上根本没有安装包。那正好拆掉了"必须真的产出 exe"这道闸。
+      - name: 创建或更新 Release 并上传资产
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          ASSET: ${{ needs.build.outputs.asset }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $asset = $env:ASSET
+          if (-not (Test-Path $asset)) { throw "artifact 里没有找到 $asset" }
+
+          # 这条失败属正常分支（Release 尚不存在），单独放宽，不看退出码
+          $null = gh release view $env:TAG 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Release $($env:TAG) 不存在，创建"
+            gh release create $env:TAG --title $env:TAG --notes-file release-notes.md
+            if ($LASTEXITCODE -ne 0) { throw "创建 Release 失败（exit $LASTEXITCODE）" }
+          } else {
+            Write-Host "Release $($env:TAG) 已存在，更新说明"
+            gh release edit $env:TAG --notes-file release-notes.md
+            if ($LASTEXITCODE -ne 0) { throw "更新 Release 说明失败（exit $LASTEXITCODE）" }
+          }
+
+          gh release upload $env:TAG $asset --clobber
+          if ($LASTEXITCODE -ne 0) { throw "上传安装包失败（exit $LASTEXITCODE）——发布未完成，不要当成成功" }
+
+          # 上传之后再核一遍：以 Release 上真实存在的资产为准，而不是以退出码为依据
+          $assets = gh release view $env:TAG --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw "读取 Release 资产列表失败（exit $LASTEXITCODE）" }
+          if ($assets -notcontains $asset) {
+            throw "上传命令返回 0，但 Release 资产列表里没有 $asset。实际列表：$($assets -join ', ')"
+          }
+          Write-Host "已发布：$($env:TAG) / $asset"

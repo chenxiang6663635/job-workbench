@@ -45,7 +45,7 @@ The workbench turns all of that into queryable, traceable files.
 
 > **Note**: the UI is currently Chinese-first — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); until then the screens below are the real interface.
 
-All pages below run on generated demo data (`init_workspace.py --domain software-backend`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
+All pages below run on generated demo data (`init_workspace.py --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
 
 ![Tracker](docs/screenshots/02-applications.png)
 ![Jobs](docs/screenshots/03-jobs.png)
@@ -57,6 +57,10 @@ All pages below run on generated demo data (`init_workspace.py --domain software
 ## Quick start
 
 ```bash
+# 0. Just want to look around first? One command gives you a filled demo workspace
+#    (8 applications / 3 interviews / 2 contacts / 1 offer, all placeholder data)
+python tools/init_workspace.py --target demo --demo
+
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
 python tools/init_workspace.py --target my_job_hunt --domain software-backend
 
@@ -85,7 +89,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `skills/` | The four workflows + the recruit-coach scoring standard, single source across AI runtimes |
 | `tools/` | Six Python scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (seven pages), same data files as the CLI |
-| `tests/` | 33 tests (anti-fabrication guards + health semantics), the CI gate |
+| `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |
 | `personal/` | Your real workspace (**fully git-ignored; the repo ships zero real data**) |
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |
 | `.github/` | CI workflow, issue / PR templates, code of conduct, Copilot instructions |
@@ -108,7 +112,7 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 
 ## Contributing
 
-Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). Code changes go through a PR with green CI (33-test baseline + frontend build); doc fixes can go straight to `main`.
+Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). Code changes go through a PR with green CI (pytest + frontend lint/build + PR-title check); doc fixes can go straight to `main`.
 
 ## License
 

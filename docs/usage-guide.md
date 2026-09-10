@@ -36,6 +36,17 @@ npm install
 python tools/init_workspace.py --target personal --domain hvac-cooling
 ```
 
+只想先看看界面长什么样、不想先填任何真实信息的话，用 `--demo`：
+
+```bash
+python tools/init_workspace.py --target demo --demo
+```
+
+它会额外铺一份占位数据（8 条投递 / 3 场面试 / 2 位联系人 / 1 个 Offer /
+2 张解析卡 / 1 份简历），公司与人名全是假的，可以直接上手体验或截图；
+同时会默认装入 software-backend 插件（demo 数据的方向字段依赖它）。
+启动后在右上角工作区下拉里选 `demo` 即可。
+
 ---
 
 ## 二、日常启动：Web 界面

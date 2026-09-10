@@ -147,8 +147,13 @@ jobs:
 
       # 用 gh（runner 预装、第一方）而不是第三方 release action：少一个供应链依赖。
       # --clobber 让同一 tag 可以重跑；Release 已存在时只更新资产与说明，不重复创建。
+      #
+      # 条件只看 ref 是不是 tag，**不能**写成"手动触发且非 dry_run 就发布"：
+      # 手动触发时 github.ref_name 是**分支名**（如 ci/release-automation），
+      # 那样 `gh release create <分支名>` 会以分支名建出一个真的 tag 与 Release。
+      # 发布只能从 tag 发起。tag push 时 inputs.dry_run 为 null，`!= true` 成立。
       - name: 创建或更新 Release 并上传资产
-        if: github.event_name == 'push' || !inputs.dry_run
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

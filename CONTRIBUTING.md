@@ -52,7 +52,8 @@
 - 前提：不破坏构建与数据安全；**拿不准 → 一律按 PR 处理**（宁走 PR，不冒险）
 
 - **先开分支，再动手**：分支要在敲第一行代码前建好（`git switch -c feat/xxx`），不要先在 `main` 写完再 checkout——那样虽然未提交改动会被带到新分支、`main` 仍干净，但流程易混淆，一旦中途忘记开分支，提交就直接落进 `main`。
-- **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、subject 中文可用、≤100 字符），豁免 Merge/Revert。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
+- **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、**subject 必须含中文**、≤100 字符），豁免 Merge/Revert。判定逻辑在 `tools/commit_header.py`，与 CI 的 PR 标题校验同源。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
+- **PR 标题也被校验（CI 的 `pr-title` job）**：本地钩子只在你自己敲 `git commit` 时运行，而 PR 标题是 GitHub 在合并时用来生成提交 subject 的，**本地钩子结构上看不到它**——这一步只能由 CI 做（语言规则见 §提交规范）。`tools/check_pr_title.py` 经 `PR_TITLE` 环境变量取标题，不拼进 `run:`：PR 标题是外部可控输入，拼进 shell 等于开后门。违规时 CI 红，`gh pr edit <编号> --title "feat(scope): 中文说明"` 即可。
 - **PR 的粒度是「一个可独立验收的批次」，不是「一次提交」**：分支内可以多次小步提交，全部完成且 `npm run build` / 测试绿之后再开一次 PR。例：P1 的三批页面迁移 = 三个 PR。
 - 分支命名（PR 路径）：`feat/<issue号>-<slug>`、`fix/<issue号>-<slug>`、`docs/<slug>`；存活 ≤ 1–2 天，合完即删。
 - 兜底（出错了怎么办）：数据快照备份 + `git revert`——squash 提交可整体回滚，不污染主干历史。
@@ -68,6 +69,8 @@
 - `docs` / `chore` / `refactor` / `data` / `job`：不触发版本号
 - 破坏性变更：`!` 后缀或正文 `BREAKING CHANGE:` 段
 - **数据操作与代码分开提交**：往工作区录入数据的提交用 `data:` / `job:` 前缀，不与功能提交混合
+- **语言：提交 subject 与 PR 标题一律中文，正文也用中文**。PR 标题在 squash 合并后会**直接成为主干上的提交 subject**，所以这两处是同一条规则的两半——只约定提交信息而漏掉 PR 标题，就会出现「作者本地提交是中文、合并进主干却变成英文」的混排（实证：PR #15 / #16 的英文标题以 `53e7b04` / `b774cce` 落进 main，夹在前后中文提交之间）。subject 与标题由钩子 + CI 机检（见 §提交流程）；**PR 正文不机检**——正文里必然有代码块、type 枚举与英文术语，机器判定只会做出一个被绕过或被抱怨的噪音闸，这部分靠双轨审查。issue / PR 模板里的英文表头是给外部反馈者的**填空提示**，不是正文语言要求；面向英文读者的 README / docs 英文版另论。
+- **合并方式**：`main` 开了 `required_linear_history`，所以只有 squash 与 rebase 两条路。**用 squash**——rebase 会把分支里每条提交的原始 subject 原样铺进主干，PR 标题那道闸就完全绕过了（本地 commit-msg 闸此时是唯一拦截点）。
 
 ## 版本规则（0.x 简化 semver）
 

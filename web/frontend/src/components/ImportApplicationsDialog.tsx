@@ -5,6 +5,15 @@ import {
   type ImportPreviewResult,
   type ImportRowIssue,
 } from "../api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 interface Props {
   onClose: () => void;
@@ -24,9 +33,9 @@ const PREVIEW_COLS: { key: string; label: string }[] = [
 
 // 差异分色：新增绿 / 重复琥珀 / 错误红——颜色即结论，理由在最后一列
 const STATUS_META: Record<string, { label: string; badge: string; icon: typeof CheckCircle2 }> = {
-  ok: { label: "新增", badge: "bg-good/15 text-good", icon: CheckCircle2 },
-  duplicate: { label: "重复", badge: "bg-warn/15 text-warn", icon: Clock },
-  error: { label: "错误", badge: "bg-bad/15 text-bad", icon: AlertTriangle },
+  ok: { label: "新增", badge: "bg-success/15 text-success", icon: CheckCircle2 },
+  duplicate: { label: "重复", badge: "bg-warning/15 text-warning", icon: Clock },
+  error: { label: "错误", badge: "bg-destructive/15 text-destructive", icon: AlertTriangle },
 };
 
 function RowBlock({ status, items }: { status: string; items: ImportRowIssue[] }) {
@@ -38,7 +47,7 @@ function RowBlock({ status, items }: { status: string; items: ImportRowIssue[] }
       {items.map((it) => (
         <div
           key={it.line}
-          className="flex items-start gap-2 rounded-lg border border-white/5 bg-ink-950/60 px-3 py-2"
+          className="flex items-start gap-2 rounded-lg border border-border bg-background/60 px-3 py-2"
         >
           <span
             className={`mt-0.5 inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${meta.badge}`}
@@ -46,19 +55,19 @@ function RowBlock({ status, items }: { status: string; items: ImportRowIssue[] }
             <Icon size={10} /> {meta.label}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-200">
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-foreground">
               {PREVIEW_COLS.map(({ key, label }) => {
                 const v = (it.row[key] || "").trim();
                 if (!v) return null;
                 return (
                   <span key={key}>
-                    <span className="text-slate-500">{label}</span> {v}
+                    <span className="text-muted-foreground">{label}</span> {v}
                   </span>
                 );
               })}
             </div>
             {it.errors.length > 0 && (
-              <p className="mt-1 text-[11px] leading-relaxed text-bad">
+              <p className="mt-1 text-[11px] leading-relaxed text-destructive">
                 第 {it.line} 行：{it.errors.join("；")}
               </p>
             )}
@@ -124,22 +133,22 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
   const canCommit = !!preview && preview.counts.error === 0 && preview.counts.ok > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex h-[88vh] w-full max-w-4xl flex-col rounded-2xl border border-white/10 bg-ink-950 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
-            <FileUp size={16} className="text-accent" /> 批量导入投递记录（CSV）
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="flex h-[88vh] w-full max-w-4xl flex-col rounded-2xl border border-border bg-background shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <FileUp size={16} className="text-primary" /> 批量导入投递记录（CSV）
           </div>
-          <button onClick={onClose} className="cursor-pointer text-slate-400 hover:text-slate-200">
+          <button onClick={onClose} className="cursor-pointer text-muted-foreground hover:text-foreground">
             <X size={16} />
           </button>
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted-foreground">
             粘贴或上传 CSV（Excel「另存为 CSV UTF-8」即可）。表头与追踪表字段同名，
             允许缺列（缺的留空）、未知列忽略。
-            <span className="text-slate-500">
+            <span className="text-muted-foreground">
               预览确认后才会写入，重复与错误行会标色说明原因。
             </span>
           </p>
@@ -154,7 +163,7 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
               rows={6}
               spellCheck={false}
               placeholder={"公司,岗位,方向,批次,当前阶段,截止日期,评分\n某某科技,热管理工程师,hvac,正式批,待投,2026-09-30,72"}
-              className="flex-1 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 font-mono text-[12px] text-slate-200 outline-none placeholder:text-slate-600 focus:border-accent/60"
+              className="flex-1 rounded-lg border border-border bg-popover px-3 py-2 font-mono text-[12px] text-foreground outline-none placeholder:text-slate-600 focus:border-accent/60"
             />
             <div className="flex flex-col gap-2">
               <input
@@ -166,24 +175,24 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
               />
               <button
                 onClick={() => fileRef.current?.click()}
-                className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-accent/50 hover:text-accent"
+                className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed border-white/20 px-3 py-2 text-sm text-foreground transition-colors hover:border-accent/50 hover:text-primary"
               >
                 <FileUp size={14} /> 选择 CSV 文件
               </button>
               <button
                 onClick={runPreview}
                 disabled={busy}
-                className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft disabled:opacity-40"
+                className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-primary-soft disabled:opacity-40"
               >
                 {busy ? <Loader2 size={14} className="animate-spin" /> : null}
                 预览校验
               </button>
             </div>
           </div>
-          {fileName && <p className="text-xs text-slate-500">已载入文件：{fileName}</p>}
+          {fileName && <p className="text-xs text-muted-foreground">已载入文件：{fileName}</p>}
 
           {error && (
-            <div className="flex items-center gap-2 rounded-xl border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">
+            <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
               <AlertTriangle size={14} /> {error}
             </div>
           )}
@@ -191,23 +200,23 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
           {preview && (
             <div className="space-y-3">
               {preview.unknown.length > 0 && (
-                <p className="text-xs text-warn">
+                <p className="text-xs text-warning">
                   忽略未知列：{preview.unknown.join("、")}
                 </p>
               )}
               <div className="flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-good/15 px-2.5 py-1 text-good">
+                <span className="rounded-full bg-success/15 px-2.5 py-1 text-success">
                   将新增 {preview.counts.ok} 条
                 </span>
-                <span className="rounded-full bg-warn/15 px-2.5 py-1 text-warn">
+                <span className="rounded-full bg-warning/15 px-2.5 py-1 text-warning">
                   重复跳过 {preview.counts.duplicate} 条
                 </span>
-                <span className="rounded-full bg-bad/15 px-2.5 py-1 text-bad">
+                <span className="rounded-full bg-destructive/15 px-2.5 py-1 text-destructive">
                   错误 {preview.counts.error} 条
                 </span>
               </div>
               {preview.counts.ok + preview.counts.duplicate + preview.counts.error === 0 ? (
-                <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-center text-sm text-slate-500">
+                <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-center text-sm text-muted-foreground">
                   没有识别到数据行，请检查 CSV 格式（表头 + 至少一行数据）。
                 </p>
               ) : (
@@ -221,8 +230,8 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-white/10 px-5 py-3">
-          <p className="text-xs text-slate-500">
+        <div className="flex items-center justify-between border-t border-border px-5 py-3">
+          <p className="text-xs text-muted-foreground">
             {preview
               ? canCommit
                 ? `确认后将新增 ${preview.counts.ok} 条，并逐条记入变更时间线`
@@ -232,7 +241,7 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5"
+              className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/40"
             >
               取消
             </button>
@@ -240,14 +249,14 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
               onClick={commit}
               disabled={!canCommit || busy}
               title={canCommit ? "" : "有错误行或没有可新增的行"}
-              className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-ink-950 transition-all hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
               确认导入
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

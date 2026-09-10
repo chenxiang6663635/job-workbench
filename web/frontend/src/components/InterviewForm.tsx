@@ -8,10 +8,19 @@ import {
   type Application,
   type Interview,
 } from "../api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 const inputCls =
-  "w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-600 focus:border-accent/50";
-const labelCls = "mb-1 block text-xs font-medium text-slate-400";
+  "w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-slate-600 focus:border-accent/50";
+const labelCls = "mb-1 block text-xs font-medium text-muted-foreground";
 
 export default function InterviewForm({
   onClose,
@@ -83,13 +92,13 @@ export default function InterviewForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl">
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-popover p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">记录一场面试</h3>
+          <h3 className="text-base font-semibold text-foreground">记录一场面试</h3>
           <button
             onClick={onClose}
-            className="cursor-pointer rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-200"
+            className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
           >
             <X size={18} />
           </button>
@@ -97,7 +106,7 @@ export default function InterviewForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className={labelCls}>关联投递记录（可选）</label>
+            <Label className="mb-1 block text-[11px] text-muted-foreground">关联投递记录（可选）</Label>
             <select
               value={link}
               onChange={(e) => pickApp(e.target.value)}
@@ -114,15 +123,15 @@ export default function InterviewForm({
           </div>
 
           <div>
-            <label className={labelCls}>公司{!link && " *"}（选关联后自动带出）</label>
-            <input value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
+            <Label className="mb-1 block text-[11px] text-muted-foreground">公司{!link && " *"}（选关联后自动带出）</Label>
+            <Input value={company} onChange={(e) => setCompany(e.target.value)}  />
           </div>
           <div>
-            <label className={labelCls}>岗位</label>
-            <input value={role} onChange={(e) => setRole(e.target.value)} className={inputCls} />
+            <Label className="mb-1 block text-[11px] text-muted-foreground">岗位</Label>
+            <Input value={role} onChange={(e) => setRole(e.target.value)}  />
           </div>
           <div>
-            <label className={labelCls}>轮次</label>
+            <Label className="mb-1 block text-[11px] text-muted-foreground">轮次</Label>
             <select value={round} onChange={(e) => setRound(e.target.value)} className={`${inputCls} cursor-pointer`}>
               {INTERVIEW_ROUNDS.map((r) => (
                 <option key={r}>{r}</option>
@@ -130,11 +139,11 @@ export default function InterviewForm({
             </select>
           </div>
           <div>
-            <label className={labelCls}>面试时间</label>
-            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={inputCls} />
+            <Label className="mb-1 block text-[11px] text-muted-foreground">面试时间</Label>
+            <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)}  />
           </div>
           <div>
-            <label className={labelCls}>形式</label>
+            <Label className="mb-1 block text-[11px] text-muted-foreground">形式</Label>
             <select value={form} onChange={(e) => setForm(e.target.value)} className={`${inputCls} cursor-pointer`}>
               {INTERVIEW_FORMS.map((f) => (
                 <option key={f}>{f}</option>
@@ -142,7 +151,7 @@ export default function InterviewForm({
             </select>
           </div>
           <div>
-            <label className={labelCls}>结果</label>
+            <Label className="mb-1 block text-[11px] text-muted-foreground">结果</Label>
             <select value={result} onChange={(e) => setResult(e.target.value)} className={`${inputCls} cursor-pointer`}>
               {INTERVIEW_RESULTS.map((r) => (
                 <option key={r}>{r}</option>
@@ -150,11 +159,11 @@ export default function InterviewForm({
             </select>
           </div>
           <div className="col-span-2">
-            <label className={labelCls}>面试官</label>
-            <input value={interviewer} onChange={(e) => setInterviewer(e.target.value)} className={inputCls} />
+            <Label className="mb-1 block text-[11px] text-muted-foreground">面试官</Label>
+            <Input value={interviewer} onChange={(e) => setInterviewer(e.target.value)}  />
           </div>
           <div className="col-span-2">
-            <label className={labelCls}>问题记录</label>
+            <Label className="mb-1 block text-[11px] text-muted-foreground">问题记录</Label>
             <textarea
               value={questions}
               onChange={(e) => setQuestions(e.target.value)}
@@ -164,7 +173,7 @@ export default function InterviewForm({
             />
           </div>
           <div className="col-span-2">
-            <label className={labelCls}>我的回答要点</label>
+            <Label className="mb-1 block text-[11px] text-muted-foreground">我的回答要点</Label>
             <textarea
               value={answers}
               onChange={(e) => setAnswers(e.target.value)}
@@ -174,7 +183,7 @@ export default function InterviewForm({
             />
           </div>
           <div className="col-span-2">
-            <label className={labelCls}>复盘与改进</label>
+            <Label className="mb-1 block text-[11px] text-muted-foreground">复盘与改进</Label>
             <textarea
               value={retro}
               onChange={(e) => setRetro(e.target.value)}
@@ -185,24 +194,24 @@ export default function InterviewForm({
           </div>
         </div>
 
-        {error && <p className="mt-4 text-xs text-bad">{error}</p>}
+        {error && <p className="mt-4 text-xs text-destructive">{error}</p>}
 
         <div className="mt-6 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5"
+            className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/40"
           >
             取消
           </button>
           <button
             onClick={submit}
             disabled={saving}
-            className="cursor-pointer rounded-lg bg-gradient-to-r from-accent to-accent-dim px-5 py-2 text-sm font-medium text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-lg bg-gradient-to-r from-accent to-accent-dim px-5 py-2 text-sm font-medium text-foreground transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "保存中…" : "保存"}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

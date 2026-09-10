@@ -63,11 +63,11 @@ autumn-recruit-workbench/
 │       ├── 04_知识库/
 │       └── 05_投递追踪/
 ├── skills/                      【跨运行时技能】单一源
-│   ├── recruit-coach/           评分标准 + 通用红线
-│   ├── jd/
-│   ├── apply/
-│   ├── track/
-│   └── resume/
+│   ├── jwb-recruit-coach/       评分标准 + 通用红线
+│   ├── jwb-jd/
+│   ├── jwb-apply/
+│   ├── jwb-track/
+│   └── jwb-resume/
 ├── tools/                       【通用脚本】Python 3.8，零第三方依赖
 │   ├── init_workspace.py        从 template 初始化 personal/
 │   ├── install_skills.py        skills 分发到各家 CLI 目录

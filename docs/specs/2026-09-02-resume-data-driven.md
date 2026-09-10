@@ -73,7 +73,7 @@ python tools/resume_build.py render --workspace <WS> --version <版本> [--out D
 
 - `resume_build.py` **无任何程序化 import**（code-explorer 全量检索确认），全是 CLI 文档引用，
   加 `render` 子命令不破坏现有调用
-- 文档引用 7 处（README:102、usage-guide:180-203、skills/resume、skills/apply + .codebuddy 副本）：
+- 文档引用 7 处（README:102、usage-guide:180-203、skills/jwb-resume、skills/jwb-apply + .codebuddy 副本）：
   新增 render 时**只追加不删除**，老命令示例保留
 - `discover_jobs` 输出名规则 `简历_<stem>.pdf`；render 输出名沿用 `简历_<版本>.pdf`（写 source/ 同 slug 目录下的 pdf/ 同侧，避免与手写 HTML 同名冲突时覆盖既有 v1.2）
 

@@ -34,10 +34,10 @@
 
 ## 功能一览
 
-- **四个 CLI 工作流**：`jd`（JD 解析评分）、`apply`（投递包）、`track`（追踪看板）、`resume`（PDF 重建校验）——六个脚本的全部命令见[使用手册 CLI 命令速查](docs/usage-guide.md)
+- **四个 CLI 工作流**：`jwb-jd`（JD 解析评分）、`jwb-apply`（投递包）、`jwb-track`（追踪看板）、`jwb-resume`（PDF 重建校验）——六个脚本的全部命令见[使用手册 CLI 命令速查](docs/usage-guide.md)
 - **Web 界面**（`web/`）：七个页面与 CLI 共享同一份数据——看板、追踪表、简历工坊（一键导入**抽取而非生成** + AI 改写反编造护栏 + 导出 Word）、进展（面试题库）、复盘等，详见 [`web/README.md`](web/README.md)
 - **投递之后的闭环**：面试记录（一键导出 .ics）、招聘方联系人跟进提醒、Offer 并排对比（**只并排事实，绝不给建议**）、版本谱系、周期复盘、失败聚类、投递健康度四态——每条给具体理由而非黑箱分数
-- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市，任一不过不打分），四维度加权五档位，完整标准见 [`skills/recruit-coach/SKILL.md`](skills/recruit-coach/SKILL.md)
+- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市，任一不过不打分），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 
 ## 界面预览
 
@@ -78,7 +78,7 @@ python tools/install_skills.py --target user
 | 目录 | 用途 |
 |---|---|
 | `template/` | 通用骨架：档案模板、空工作区、领域插件 |
-| `skills/` | 四个工作流 + recruit-coach 评分标准，跨运行时单一源 |
+| `skills/` | 四个工作流 + jwb-recruit-coach 评分标准，跨运行时单一源 |
 | `tools/` | 六个 Python 脚本 |
 | `web/` | Web 界面：FastAPI 后端 + React 前端（七个页面），与 CLI 共享同一份数据 |
 | `tests/` | 33 项测试（反编造护栏 + 健康度语义），CI 质量门 |

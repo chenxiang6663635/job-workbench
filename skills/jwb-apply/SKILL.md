@@ -1,11 +1,13 @@
 ---
-name: apply
-description: Use when 用户已确认要投递某个岗位，要求生成投递包、按 JD 改简历、生成简历 PDF、归档投递材料或把投递记入追踪表时。
+name: jwb-apply
+description: Use when 用户已确认要投递某个岗位，要求生成投递包、按 JD 改简历、生成简历 PDF、归档投递材料或把投递记入追踪表时。English triggers: apply to a job, tailor resume to a JD, generate resume PDF, archive application materials, record an application in the tracker.
+# 环境声明：宿主据此判断能否挂载（不是装饰字段）
+compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
 ---
 
 # 生成投递包
 
-**执行前必读**：工作区的 `AGENTS.md`（经验资产、自定义红线、简历版本）与 `skills/recruit-coach/SKILL.md`。
+**执行前必读**：工作区的 `AGENTS.md`（经验资产、自定义红线、简历版本）与 `skills/jwb-recruit-coach/SKILL.md`。
 
 ## 前置检查
 
@@ -46,7 +48,7 @@ python tools/resume_build.py render --workspace <工作区> --version <版本>
 三项全过才算成功：
 
 1. 页数为 1
-2. 可提取文本 ≥ 800 字符
+2. 可提取文本 ≥ 300 字符（可用 `--min-text-length` 调整）
 3. `config/ats_required_facts.txt` 中的关键事实全部命中（该文件不存在时跳过第三项）
 
 **任一项不通过 → 中止，不归档、不写追踪表**，报告具体失败项。

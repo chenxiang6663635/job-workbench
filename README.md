@@ -36,10 +36,10 @@ The workbench turns all of that into queryable, traceable files.
 
 ## Features at a glance
 
-- **Four CLI workflows**: `jd` (JD parsing & scoring), `apply` (application package), `track` (tracker & funnel), `resume` (PDF rebuild & validation) — full command reference in the [usage guide](docs/usage-guide.md)
+- **Four CLI workflows**: `jwb-jd` (JD parsing & scoring), `jwb-apply` (application package), `jwb-track` (tracker & funnel), `jwb-resume` (PDF rebuild & validation) — full command reference in the [usage guide](docs/usage-guide.md)
 - **Web UI** (`web/`): seven pages sharing the very same data files — dashboard, tracker, resume workshop (one-click import that *extracts rather than generates* + guarded AI rewrite + Word export), progress (interview question bank), retrospectives; see [`web/README.md`](web/README.md)
 - **Post-application loop**: interview records (one-click `.ics` export), recruiter contact follow-ups, offer comparison (**side-by-side facts, never a recommendation**), resume version lineage, stage-conversion retros, failure clustering, application health in four states — each with concrete reasons instead of a black-box score
-- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; any fail means no scoring), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/recruit-coach/SKILL.md`](skills/recruit-coach/SKILL.md)
+- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; any fail means no scoring), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 
 ## UI Preview
 
@@ -86,7 +86,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | Path | Purpose |
 |---|---|
 | `template/` | Generic skeleton: profile templates, empty workspace, domain plugins |
-| `skills/` | The four workflows + the recruit-coach scoring standard, single source across AI runtimes |
+| `skills/` | The four workflows + the jwb-recruit-coach scoring standard, single source across AI runtimes |
 | `tools/` | Six Python scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (seven pages), same data files as the CLI |
 | `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |

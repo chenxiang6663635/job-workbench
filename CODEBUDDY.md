@@ -5,7 +5,7 @@
 > **精简适配层。** 共享规则（诚实红线、三层分离、工程约定）由 `AGENTS.md` 提供（canonical）；
 > 本文件只保留进入仓库后必须立即遵守的最小上下文。与 `AGENTS.md` 冲突时，以 `AGENTS.md` 为准。
 >
-> - 共享规则与工作流知识 -> `AGENTS.md` + `.codebuddy/skills/`（单一源在 `skills/`）
+> - 共享规则与工作流知识 -> `AGENTS.md` + `skills/`（单一源在 `skills/`）
 > - 开发流程 -> `CONTRIBUTING.md`；隐私条款见其「隐私约定」节
 
 ## 立即约束

@@ -196,11 +196,11 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 
 ---
 
-## 四、让 AI 干活：jd / apply 工作流
+## 四、让 AI 干活：jwb-jd / jwb-apply 工作流
 
 网页负责看和记，**判断类的工作交给 AI**。在 CodeBuddy 里用自然语言：
 
-### 解析一个岗位（jd 工作流）
+### 解析一个岗位（jwb-jd 工作流）
 
 把 JD 原文贴给我，或者说"解析这份 JD"。AI 会：
 
@@ -211,15 +211,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 
 **硬门槛不过会直接拦下**，不打分不写材料。比如对外语有硬性要求的岗位会被你的外语红线拦住。
 
-### 生成投递包（apply 工作流）
+### 生成投递包（jwb-apply 工作流）
 
 说"给 XX 岗位生成投递包"。AI 会：选对应方向的简历版本 → 按需微调四处（项目事实不动）→ 生成 PDF → ATS 校验（页数/文本层/关键事实）→ 归档到 `05_投递追踪/applications/` → 写入追踪表 → 列出改动清单交你确认后 git 提交。
 
-### 更新进展（track）
+### 更新进展（jwb-track）
 
 面试完说"把 XX 更新到一面"，或直接在网页追踪表里点下拉框。
 
-### 改简历后重新出 PDF（resume 工作流）
+### 改简历后重新出 PDF（jwb-resume 工作流）
 
 说"重建简历 PDF"，或命令行：
 

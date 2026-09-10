@@ -17,7 +17,7 @@
 ## 执行任何任务前
 
 - 操作用户数据时，先读工作区的 `AGENTS.md`（默认 `personal/AGENTS.md`）——档案、硬门槛事实、自定义红线
-- 评分标准与流程见 `skills/recruit-coach/SKILL.md`
+- 评分标准与流程见 `skills/jwb-recruit-coach/SKILL.md`
 - 硬门槛事实为 `[待填]` 时按 **fail** 处理并提示补齐，禁止猜测
 
 ## 两条通用诚实红线

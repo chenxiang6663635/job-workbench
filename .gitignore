@@ -45,11 +45,15 @@ demo-shots/
 .codegraph/
 graphify-out/
 
-# install_skills.py 分发到各 AI CLI 的 skill 副本（单一源在 skills/，.codebuddy/skills 随仓库）
-# 以及 AI 计划工具的临时产物——都是运行生成，进 git 只会制造 untracked 噪音
+# install_skills.py 分发到各 AI CLI 的 skill 副本（单一源在 skills/，其余都是生成物）
+# 以及 AI 计划工具的临时产物——都是运行生成，进 git 只会制造 untracked 噪音。
+# 注意 .codebuddy/skills/ 也在此列：它曾入库，2026-09-10 出库后不再随仓库——
+# 不加这一行，任何人跑一次 install_skills.py 它就会以 untracked 出现，
+# 一次 git add -A 又把"第二份真源"原样提交回来。
 .agents/
 .claude/
 .codex/
+.codebuddy/skills/
 .codebuddy/plans/
 # AI 工作记忆：跨会话笔记，个人向、频繁变更，不入库
 .codebuddy/memory/

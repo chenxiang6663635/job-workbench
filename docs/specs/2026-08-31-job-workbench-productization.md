@@ -75,7 +75,7 @@
 | `web/backend/routers/jobs.py` | `_parse_card` 返回 `hardGates` + `dimensionsDetail`；`_summary` 契约不受影响 |
 | `web/frontend/src/api.ts` | `JobDetail.card` 类型加 `hardGates`、`dimensionsDetail`（含 `EvidenceLevel`/`DictLevel` 类型） |
 | `web/frontend/src/pages/Jobs.tsx` | 硬门槛卡片置顶（三态色）；评分四维可点击下钻（逐条命中 + 证据徽章 + raw 原文） |
-| `skills/jd/SKILL.md` | 第 4 步加证据标签规范（精确/模糊/语义定义 + 写法示例） |
+| `skills/jwb-jd/SKILL.md` | 第 4 步加证据标签规范（精确/模糊/语义定义 + 写法示例） |
 | `personal/01_岗位池/_模板_解析卡.md` | 补硬门槛逐条依据 + 分维度明细 + 证据标签示例 |
 
 **验证结果**：

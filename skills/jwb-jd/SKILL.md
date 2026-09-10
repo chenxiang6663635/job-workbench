@@ -1,11 +1,12 @@
 ---
-name: jd
-description: Use when 用户粘贴或提供岗位 JD、招聘信息、职位描述，要求判断是否值得投递、评估岗位匹配度、给岗位打分或比较多个 offer 方向时。
+name: jwb-jd
+description: Use when 用户粘贴或提供岗位 JD、招聘信息、职位描述，要求判断是否值得投递、评估岗位匹配度、给岗位打分或比较多个 offer 方向时。English triggers: job description, paste a JD, is this job worth applying for, evaluate job fit, score a position, compare offer directions.
+compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
 ---
 
 # 解析 JD 并判定是否值得投递
 
-**执行前必读**：工作区的 `AGENTS.md`（档案、硬门槛事实、自定义红线）与 `skills/recruit-coach/SKILL.md`（评分标准）。不读这两份不得开始评分。
+**执行前必读**：工作区的 `AGENTS.md`（档案、硬门槛事实、自定义红线）与 `skills/jwb-recruit-coach/SKILL.md`（评分标准）。不读这两份不得开始评分。
 
 ## 流程
 
@@ -53,7 +54,7 @@ python tools/jd_score.py --show-profile --domain <X> --direction <Y>
 - **技术匹配 30**：比对插件词典。Primary 3 分/项、Secondary 1.5 分/项。命中 Weak 不扣分，但必须登记并触发风险提示。
 - **经历匹配 25**：逐条比对档案中的经验资产与 JD 职责，对上核心职责 8–10 分、侧面支撑 3–5 分、无关 0 分。**必须回查 `00_事实库/`**，不得以概述为准。
 - **方向契合 30**：按方向锚点表取值。岗位名与职责不一致时以职责为准并说明依据。
-- **培养与稳定性 15**：按 recruit-coach 的四分档判据。
+- **培养与稳定性 15**：按 jwb-recruit-coach 的四分档判据。
 
 评分依据要引用 JD 原文措辞与 `00_事实库/` 具体条目，不写空泛理由。
 

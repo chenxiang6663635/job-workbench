@@ -65,7 +65,7 @@
 
 ## 技能文件（工作流定义）
 
-`../skills/` 下五个：`recruit-coach`（评分标准与红线）、`jd`、`apply`、`track`、`resume`。
+`../skills/` 下五个：`jwb-recruit-coach`（评分标准与红线）、`jwb-jd`、`jwb-apply`、`jwb-track`、`jwb-resume`。
 
 这些既是 AI 可加载的技能，也是各工作流的规格说明——读它们等于读流程定义。
 

@@ -1,6 +1,7 @@
 ---
-name: resume
-description: Use when 用户改完简历内容后需要重新生成 PDF、校验简历页数与文本层、排查 ATS 抓取问题，或要更换简历照片时。
+name: jwb-resume
+description: Use when 用户改完简历内容后需要重新生成 PDF、校验简历页数与文本层、排查 ATS 抓取问题，或要更换简历照片时。English triggers: rebuild resume PDF, verify resume page count, ATS text layer, resume parsing, change resume photo.
+compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
 ---
 
 # 重建简历 PDF 并校验
@@ -42,7 +43,7 @@ python tools/resume_build.py render --version hvac --no-verify
 ## ATS 校验三项
 
 1. PDF 页数为 1
-2. pypdf 可提取文本 ≥ 800 字符
+2. pypdf 可提取文本 ≥ 300 字符（可用 `--min-text-length` 调整）
 3. `config/ats_required_facts.txt` 中的关键事实全部命中（文件不存在时跳过第三项）
 
 三项全过才算成功。失败退出码 1，此时**不得归档投递**。

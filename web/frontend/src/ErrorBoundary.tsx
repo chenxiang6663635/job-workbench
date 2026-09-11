@@ -25,7 +25,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6">
           <p className="text-sm font-semibold text-destructive">页面渲染出错</p>
-          <p className="mt-2 font-mono text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-2 font-mono text-xs leading-relaxed text-foreground">
             {this.state.error.message}
           </p>
           <div className="mt-4 flex gap-2">
@@ -37,7 +37,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             </button>
             <button
               onClick={() => window.location.reload()}
-              className="cursor-pointer rounded-lg border border-border-strong px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/60"
+              className="cursor-pointer rounded-lg border border-border-strong px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary/60"
             >
               强制刷新（清除缓存）
             </button>

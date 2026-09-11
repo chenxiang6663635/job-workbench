@@ -117,7 +117,7 @@ export default function App() {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
           <div className="flex items-center gap-2">
             <img src="/favicon.png" alt="求职工作台" className="h-7 w-7 rounded-lg" />
-            <span className="text-sm font-semibold tracking-wide text-white">
+            <span className="text-sm font-semibold tracking-wide text-foreground">
               求职工作台
             </span>
           </div>
@@ -143,7 +143,7 @@ export default function App() {
             {workspaces.length > 0 && (
               <Select value={currentWs} onValueChange={switchWorkspace}>
                 <SelectTrigger className="h-7 w-36 px-2 py-1 text-xs" title="切换工作区">
-                  <SelectValue />
+                  <SelectValue placeholder="选择工作区" />
                 </SelectTrigger>
                 <SelectContent>
                   {workspaces.map((w) => (
@@ -184,7 +184,7 @@ export default function App() {
             </p>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               请在仓库根目录运行：
-              <code className="mx-1 rounded bg-background px-1.5 py-0.5 text-muted-foreground">
+              <code className="mx-1 rounded bg-background px-1.5 py-0.5 text-foreground">
                 cd web/backend &amp;&amp; python -m uvicorn main:app --port 8765
               </code>
             </p>

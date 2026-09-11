@@ -146,7 +146,7 @@ function ClickRow({
       {children}
       <ChevronRight
         size={14}
-        className="text-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+        className="text-muted-foreground/50 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
       />
     </button>
   );

@@ -88,7 +88,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
   if (entries.length === 0) {
-    return <p className="text-xs text-muted-foreground">该记录暂无变更记录。</p>;
+    return <p className="text-xs text-muted-foreground/70">该记录暂无变更记录。</p>;
   }
   return (
     <div className="space-y-0">
@@ -473,7 +473,7 @@ export default function Applications() {
                         <span className="font-medium text-foreground">
                           {it.公司 || "—"}
                         </span>
-                        <div className="pl-6 text-xs text-muted-foreground">
+                        <div className="pl-6 text-xs text-muted-foreground/70">
                           {it.岗位 || "未填岗位"}
                         </div>
                       </td>
@@ -489,7 +489,7 @@ export default function Applications() {
                             >
                               {it.当前阶段}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[10px] text-muted-foreground/70">
                               已终态，不可改阶段
                             </span>
                           </div>
@@ -541,7 +541,7 @@ export default function Applications() {
                           title="下次动作日期"
                           className="w-36 rounded border border-transparent bg-transparent px-2 py-1 font-mono text-xs text-foreground outline-none transition-colors hover:border-border-strong focus:border-primary/50"
                         />
-                        <div className="pl-2 text-xs text-muted-foreground">
+                        <div className="pl-2 text-xs text-muted-foreground/70">
                           {it.下次动作 || "—"}
                         </div>
                       </td>
@@ -566,14 +566,14 @@ export default function Applications() {
                             {staleDays} 天
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground/50">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {(() => {
                           const h = it.health;
                           if (!h || !h.level) {
-                            return <span className="text-xs text-muted-foreground">—</span>;
+                            return <span className="text-xs text-muted-foreground/50">—</span>;
                           }
                           const meta = HEALTH_META[h.level];
                           return (

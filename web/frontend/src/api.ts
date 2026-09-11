@@ -421,6 +421,15 @@ async function request<T>(
   if (!res.ok) {
     throw new Error(humanizeError(await res.text(), res.status));
   }
+  // 工作区自检（issue #22）：后端会回显本次实际服务的工作区。若与所选不一致就报错，
+  // 而不是把别的工作区的数据当成你的数据展示出来——静默错位的后果比报错严重得多。
+  // 两端都有值才比较：缺头（旧后端 / 跨源未暴露）时不误报。
+  const served = res.headers.get("X-Jobws-Workspace");
+  if (currentWorkspace && served && served !== currentWorkspace) {
+    throw new Error(
+      `工作区不一致：请求的是 ${currentWorkspace}，服务端实际返回 ${served}。已阻止展示，避免张冠李戴。`
+    );
+  }
   return res.json() as Promise<T>;
 }
 

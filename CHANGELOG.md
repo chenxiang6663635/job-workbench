@@ -19,6 +19,13 @@
   - **升级后需要你做一件事**：删掉宿主目录里残留的旧名副本，否则旧技能仍在被加载、与新名并存（改名等于没生效）。项目级目录用 `python tools/install_skills.py --prune --target all`（`--prune` 只清理这五个已知旧名、且只作用于**项目级**目标——codebuddy / claude / agents / codex 四处都会处理）；用户级 `~/.agents/skills/` 是**多项目共享位置**，脚本判断不了归属，请手工删除 `apply/`、`jd/`、`recruit-coach/`、`resume/`、`track/` 五个目录，再重跑 `python tools/install_skills.py --target user`。
   - 技能描述同步补了**英文触发词**（原描述只有中文场景，英文请求不会激活对应工作流），并补齐 `compatibility` 环境声明。
 
+### Fixed
+
+- **未知/错拼的工作区参数不再静默回退到默认工作区**（[#22](https://github.com/chenxiang6663635/job-workbench/issues/22)）：`?workspace=demo` 这类写法此前被 FastAPI **静默忽略**（未知查询参数不报错）→ 回退默认工作区 `personal/` → 返回 200 **以及真实数据**。最隐蔽的一点是：错误请求与正确请求返回的**行数恰好相同**，只看条数会「验证通过」。
+  - 现在 `ws` 的近名错拼（`workspace` / `ws_` / `wks`）被**明确拒绝**（400，并在消息里点明正确参数名）；
+  - 每个响应都通过 `X-Jobws-Workspace` 回显**本次实际服务的工作区**，前端校验到不一致时**阻止展示并报错**——把「静默错位」变成「一读就能察觉」。
+  - 既有的校验一条都没放松（绝对路径 400 / 越出允许根 400 / 工作区不存在 404）。
+
 ### Infrastructure（贡献者可见）
 
 - 新增技能校验的**唯一实现** `tools/check_skills.py`：frontmatter 是否闭合、`name` 是否等于目录名、`description`/`compatibility` 是否齐全、**全局 `name` 是否唯一**。CI（backend job）与 `tools/install_skills.py` **共用这一个实现**——规则写两处迟早分叉，而分叉掉的那一半正好就是没拦住的那一半（本仓库在提交信息治理上已经吃过这个亏）。

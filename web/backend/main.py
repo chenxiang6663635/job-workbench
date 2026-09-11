@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 # 让 web/backend 能 import pathres 与 tools/ 下的现有脚本（tracker、jd_score、report 等）
@@ -19,6 +19,7 @@ if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 import pathres  # noqa: E402
+from deps import WORKSPACE_HEADER  # noqa: E402
 
 # 路径经 pathres 解析：打包（onedir）指向 exe 同级，解包指向仓库根
 ROOT = pathres.resolve_root()
@@ -47,7 +48,27 @@ app.add_middleware(
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
+    # allow_headers 只管请求头；前端要**读取**响应头必须在这里显式暴露，
+    # 否则 dev（5173 → 8765 跨源）下 api.ts 读到的是 null，自检会失效。
+    expose_headers=[WORKSPACE_HEADER],
 )
+
+# ---- 工作区回显（issue #22）----
+# 在响应上回显本次实际服务的工作区，把「静默错误」变成「一读就能察觉」。
+# 近名错拼的**拒绝**不在这里，而在 deps.workspace_dir —— 中间件是后注册的在最外层，
+# 在这里直接 return 会绕过 CORSMiddleware：浏览器读不到那个 400 的正文，只会看到
+# 网络错误（tests/test_ws_param_guard.py::test_rejection_carries_cors_header 盯着这点）。
+# 注意本中间件注册在 `if index.html 存在` 的静态托管块**之外**——那个块里的缓存中间件
+# 在没有前端 dist 时（CI、纯 API 场景）根本不会注册。
+@app.middleware("http")
+async def _workspace_guard(request: Request, call_next):
+    response = await call_next(request)
+    # 依赖解析在路由内部完成，故回显要等 call_next 之后读 request.state
+    served = getattr(request.state, "workspace", None)
+    if served:
+        response.headers[WORKSPACE_HEADER] = served
+    return response
+
 
 app.include_router(dashboard.router)
 app.include_router(applications.router)

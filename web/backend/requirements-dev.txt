@@ -1,3 +1,6 @@
 # 开发/测试依赖：CI 与本地跑测试用（运行时依赖见 requirements.txt）
 -r requirements.txt
 pytest
+# httpx 是 fastapi.testclient 的必需依赖。此前测试只覆盖纯函数模块，故未装；
+# tests/test_ws_param_guard.py 起的是真实 HTTP 客户端，缺它会在 CI 直接 ImportError。
+httpx<0.28

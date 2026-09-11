@@ -41,10 +41,10 @@ type SortKey = "next" | "score" | "stale" | "health";
 
 // 健康度四态：颜色即严重度，具体理由放在 hover 的 title 里（给理由不给黑箱分数）
 const HEALTH_META: Record<string, { label: string; cls: string }> = {
-  urgent: { label: "紧急", cls: "bg-bad/15 text-bad" },
-  overdue: { label: "逾期", cls: "bg-warn/15 text-warn" },
-  stale: { label: "停滞", cls: "bg-accent/15 text-accent" },
-  ok: { label: "正常", cls: "bg-white/5 text-slate-400" },
+  urgent: { label: "紧急", cls: "bg-destructive/15 text-destructive" },
+  overdue: { label: "逾期", cls: "bg-warning/15 text-warning" },
+  stale: { label: "停滞", cls: "bg-primary/15 text-primary" },
+  ok: { label: "正常", cls: "bg-secondary/60 text-muted-foreground" },
 };
 
 type Drill = {
@@ -70,13 +70,13 @@ function readDrill(): Drill {
 }
 
 function stageStyle(stage: string) {
-  if (stage === "已挂") return "bg-bad/15 text-bad";
-  if (stage === "已放弃") return "bg-slate-500/15 text-slate-400";
-  // 我拒绝的 offer 是双向选择，不是失败——用中性偏绿，区别于失败红
-  if (stage === "我拒绝的 offer") return "bg-good/10 text-good/80";
+  if (stage === "已挂") return "bg-destructive/15 text-destructive";
+  if (stage === "已放弃") return "bg-secondary/60 text-muted-foreground";
+  // 我拒绝的 offer 是双向选择，不是失败——用成功色，区别于失败红
+  if (stage === "我拒绝的 offer") return "bg-success/10 text-success/80";
   if (stage === "offer" || stage === "签约")
-    return "bg-good/15 text-good";
-  return "bg-accent/15 text-accent";
+    return "bg-success/15 text-success";
+  return "bg-primary/15 text-primary";
 }
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -88,7 +88,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
   if (entries.length === 0) {
-    return <p className="text-xs text-slate-500">该记录暂无变更记录。</p>;
+    return <p className="text-xs text-muted-foreground/70">该记录暂无变更记录。</p>;
   }
   return (
     <div className="space-y-0">
@@ -99,23 +99,23 @@ function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
             <div className="flex flex-col items-center">
               <span
                 className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                  isStage ? "bg-accent" : "bg-slate-600"
+                  isStage ? "bg-primary" : "bg-muted-foreground/50"
                 }`}
               />
               {i !== entries.length - 1 && (
-                <span className="w-px flex-1 bg-white/5" />
+                <span className="w-px flex-1 bg-border" />
               )}
             </div>
             <div className="pb-3">
               <div className="flex items-center gap-2 text-xs">
-                <span className="font-mono text-slate-400">{e.时间}</span>
-                <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-slate-400">
+                <span className="font-mono text-muted-foreground">{e.时间}</span>
+                <span className="rounded bg-secondary/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                   {e.字段}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-slate-300">
-                <span className="text-slate-500">{e.原值 || "（空）"}</span>
-                <span className="mx-1 text-slate-600">→</span>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="text-muted-foreground/70">{e.原值 || "（空）"}</span>
+                <span className="mx-1 text-muted-foreground/50">→</span>
                 {e.新值 || "（空）"}
               </p>
             </div>
@@ -219,7 +219,7 @@ export default function Applications() {
       <button
         onClick={() => setSort(active ? "next" : key)}
         className={`flex cursor-pointer items-center gap-1 font-medium transition-colors ${
-          active ? "text-accent" : "text-slate-400 hover:text-slate-200"
+          active ? "text-primary" : "text-muted-foreground hover:text-foreground"
         }`}
         title={`按${SORT_LABELS[key]}排序`}
       >
@@ -447,7 +447,7 @@ export default function Applications() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-border">
               {items.map((it) => {
                 const isExpanded = expanded[it.id];
                 const staleDays = typeof it.stageDays === "number" ? it.stageDays : null;
@@ -470,15 +470,15 @@ export default function Applications() {
                             <ChevronRight size={14} />
                           )}
                         </button>
-                        <span className="font-medium text-slate-100">
+                        <span className="font-medium text-foreground">
                           {it.公司 || "—"}
                         </span>
-                        <div className="pl-6 text-xs text-slate-500">
+                        <div className="pl-6 text-xs text-muted-foreground/70">
                           {it.岗位 || "未填岗位"}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-300">{it.方向 || "—"}</td>
-                      <td className="px-4 py-3 text-slate-300">{it.批次 || "—"}</td>
+                      <td className="px-4 py-3 text-foreground">{it.方向 || "—"}</td>
+                      <td className="px-4 py-3 text-foreground">{it.批次 || "—"}</td>
                       <td className="px-4 py-3">
                         {TERMINAL.includes(it.当前阶段) ? (
                           <div className="flex flex-col gap-0.5">
@@ -489,26 +489,30 @@ export default function Applications() {
                             >
                               {it.当前阶段}
                             </span>
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-[10px] text-muted-foreground/70">
                               已终态，不可改阶段
                             </span>
                           </div>
                         ) : (
-                          <select
+                          <Select
                             value={it.当前阶段}
-                            onChange={(e) =>
-                              patch(it.id, { 当前阶段: e.target.value })
-                            }
-                            className={`cursor-pointer rounded-md border-0 px-2 py-1 text-xs font-medium outline-none ${stageStyle(
-                              it.当前阶段
-                            )}`}
+                            onValueChange={(v) => patch(it.id, { 当前阶段: v })}
                           >
-                            {STAGES.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger
+                              className={`h-auto w-auto cursor-pointer gap-2 rounded-md border-0 px-2 py-1 text-xs font-medium shadow-none ${stageStyle(
+                                it.当前阶段
+                              )}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STAGES.map((s) => (
+                                <SelectItem key={s} value={s} className="text-xs">
+                                  {s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -522,7 +526,7 @@ export default function Applications() {
                           placeholder={
                             TERMINAL.includes(it.当前阶段) ? "必填原因" : "选填"
                           }
-                          className="w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1 text-xs text-slate-200 outline-none transition-colors placeholder:text-slate-600 hover:border-white/10 focus:border-accent/50"
+                          className="w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground hover:border-border-strong focus:border-primary/50"
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -535,17 +539,17 @@ export default function Applications() {
                           }}
                           type="date"
                           title="下次动作日期"
-                          className="w-36 rounded border border-transparent bg-transparent px-2 py-1 font-mono text-xs text-slate-300 outline-none transition-colors hover:border-white/10 focus:border-accent/50"
+                          className="w-36 rounded border border-transparent bg-transparent px-2 py-1 font-mono text-xs text-foreground outline-none transition-colors hover:border-border-strong focus:border-primary/50"
                         />
-                        <div className="pl-2 text-xs text-slate-500">
+                        <div className="pl-2 text-xs text-muted-foreground/70">
                           {it.下次动作 || "—"}
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                         {it.截止日期 || "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-mono text-xs text-accent">
+                        <span className="font-mono text-xs text-primary">
                           {it.评分 || "—"}
                         </span>
                       </td>
@@ -553,23 +557,23 @@ export default function Applications() {
                         {staleDays !== null ? (
                           <span
                             className={`inline-flex items-center gap-1 font-mono text-xs ${
-                              isStale ? "text-warn" : "text-slate-400"
+                              isStale ? "text-warning" : "text-muted-foreground"
                             }`}
                           >
                             {isStale && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-warn" />
+                              <span className="h-1.5 w-1.5 rounded-full bg-warning" />
                             )}
                             {staleDays} 天
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-600">—</span>
+                          <span className="text-xs text-muted-foreground/50">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {(() => {
                           const h = it.health;
                           if (!h || !h.level) {
-                            return <span className="text-xs text-slate-600">—</span>;
+                            return <span className="text-xs text-muted-foreground/50">—</span>;
                           }
                           const meta = HEALTH_META[h.level];
                           return (
@@ -587,7 +591,7 @@ export default function Applications() {
                       <tr className="bg-background/60">
                         <td
                           colSpan={10}
-                          className="border-l-2 border-accent/30 px-6 py-4"
+                          className="border-l-2 border-primary/30 px-6 py-4"
                         >
                           <HistoryTimeline entries={timelines[it.id] ?? []} />
                         </td>

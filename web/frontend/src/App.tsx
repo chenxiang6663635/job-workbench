@@ -8,6 +8,7 @@ import Progress from "./pages/Progress";
 import Resume from "./pages/Resume";
 import Settings from "./pages/Settings";
 import { api, setWorkspace, type WorkspaceItem } from "./api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 
 type Tab = "dashboard" | "applications" | "jobs" | "resume" | "progress" | "library" | "settings";
 
@@ -116,7 +117,7 @@ export default function App() {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
           <div className="flex items-center gap-2">
             <img src="/favicon.png" alt="求职工作台" className="h-7 w-7 rounded-lg" />
-            <span className="text-sm font-semibold tracking-wide text-white">
+            <span className="text-sm font-semibold tracking-wide text-foreground">
               求职工作台
             </span>
           </div>
@@ -140,19 +141,19 @@ export default function App() {
 
           <div className="ml-auto flex items-center gap-3 text-xs">
             {workspaces.length > 0 && (
-              <select
-                value={currentWs}
-                onChange={(e) => switchWorkspace(e.target.value)}
-                className="cursor-pointer rounded-lg border border-border bg-secondary px-2 py-1.5 text-xs text-foreground outline-none transition-colors hover:border-primary/40 focus:border-primary"
-                title="切换工作区"
-              >
-                {workspaces.map((w) => (
-                  <option key={w.name} value={w.name}>
-                    {w.name}
-                    {w.isDefault ? "（默认）" : ""}
-                  </option>
-                ))}
-              </select>
+              <Select value={currentWs} onValueChange={switchWorkspace}>
+                <SelectTrigger className="h-7 w-36 px-2 py-1 text-xs" title="切换工作区">
+                  <SelectValue placeholder="选择工作区" />
+                </SelectTrigger>
+                <SelectContent>
+                  {workspaces.map((w) => (
+                    <SelectItem key={w.name} value={w.name} className="text-xs">
+                      {w.name}
+                      {w.isDefault ? "（默认）" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
 
             <span
@@ -177,13 +178,13 @@ export default function App() {
 
       <main className="relative mx-auto max-w-7xl px-6 pb-16 pt-24">
         {online === false ? (
-          <div className="rounded-2xl border border-bad/30 bg-bad/10 p-6">
-            <p className="text-sm font-medium text-bad">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
+            <p className="text-sm font-medium text-destructive">
               无法连接到后端（localhost:8765）
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               请在仓库根目录运行：
-              <code className="mx-1 rounded bg-ink-950 px-1.5 py-0.5 text-slate-300">
+              <code className="mx-1 rounded bg-background px-1.5 py-0.5 text-foreground">
                 cd web/backend &amp;&amp; python -m uvicorn main:app --port 8765
               </code>
             </p>
@@ -191,7 +192,7 @@ export default function App() {
         ) : !workspaceReady ? (
           // 工作区尚未激活（listWorkspaces 返回前）：避免首屏用空 ws 拉默认数据，
           // 否则切到非默认工作区 reload 后会先渲染一次默认工作区数据，产生闪烁
-          <div className="text-sm text-slate-400">正在定位工作区…</div>
+          <div className="text-sm text-muted-foreground">正在定位工作区…</div>
         ) : tab === "dashboard" ? (
           <Dashboard key={currentWs} />
         ) : tab === "applications" ? (

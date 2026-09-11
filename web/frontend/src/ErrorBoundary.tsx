@@ -23,21 +23,21 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className="rounded-2xl border border-bad/40 bg-bad/10 p-6">
-          <p className="text-sm font-semibold text-bad">页面渲染出错</p>
-          <p className="mt-2 font-mono text-xs leading-relaxed text-slate-300">
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6">
+          <p className="text-sm font-semibold text-destructive">页面渲染出错</p>
+          <p className="mt-2 font-mono text-xs leading-relaxed text-muted-foreground">
             {this.state.error.message}
           </p>
           <div className="mt-4 flex gap-2">
             <button
               onClick={() => this.setState({ error: null })}
-              className="cursor-pointer rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-ink-950 transition-colors hover:bg-accent-soft"
+              className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               重试
             </button>
             <button
               onClick={() => window.location.reload()}
-              className="cursor-pointer rounded-lg border border-white/15 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:bg-white/5"
+              className="cursor-pointer rounded-lg border border-border-strong px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/60"
             >
               强制刷新（清除缓存）
             </button>

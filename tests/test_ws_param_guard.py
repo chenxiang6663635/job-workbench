@@ -88,6 +88,41 @@ def test_rejection_carries_cors_header(client):
         "缺 CORS 头：前端读不到这条可读的 400"
 
 
+def test_case_variant_and_plural_are_rejected(client):
+    """近名比对必须大小写不敏感，且要覆盖复数形式。
+
+    查询参数名大小写敏感（HTTP 语义）：`?Workspace=` 不在小写清单里就会被
+    FastAPI 当未知参数丢掉——**复现与 #22 一字不差的静默回退**。
+    大小写变体（PascalCase 的脚本作者、Swagger 生成的代码）与
+    `workspaces`（受 /api/workspaces 端点名诱导）是同等常见的错拼来源。
+    """
+    for bad in ("Workspace", "WS", "WORKSPACE", "workspaces"):
+        resp = client.get("/api/system/paths", params={bad: "ws-ok"})
+        assert resp.status_code == 400, f"`{bad}` 必须被拒绝而不是静默回退默认工作区"
+
+
+def test_empty_ws_value_is_rejected(client):
+    """`?ws=`（显式空值）也不得静默回退默认工作区。
+
+    前端只在选中工作区时才拼 ws，所以空值只可能来自拼模板串的第三方脚本——
+    它拿到的是「没点名的工作区」+ 200，与「静默回退即危险」的立场冲突。
+    """
+    resp = client.get("/api/system/paths", params={"ws": ""})
+    assert resp.status_code == 400
+
+
+def test_echo_is_the_normalized_workspace_name(client):
+    """回显的应是归一化后的工作区名，而不是原始输入串。
+
+    `?ws=./personal` 实际服务的就是 personal；回显原始串 `./personal`
+    会让按期望值比对的客户端误报不一致（fail-closed，无安全洞，只是噪音）。
+    顺带记录：`?ws=personal/../` 会 normpath 到仓库根本身 → 400（fail-closed）。
+    """
+    resp = client.get("/api/system/paths", params={"ws": "./personal"})
+    assert resp.status_code == 200
+    assert resp.headers.get(HEADER) == "personal"
+
+
 def test_unknown_workspace_still_404(client):
     """既有校验不放松：工作区不存在仍是 404（不是回退默认）。"""
     resp = client.get("/api/system/paths", params={"ws": "definitely-not-here"})

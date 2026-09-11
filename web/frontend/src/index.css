@@ -7,8 +7,8 @@
     /* 深色即默认主题。语义 token 用 HSL 三元组，供 tailwind 的 hsl(var(--x)) 取用。
        2026-09-09 视觉升级：背景更深邃、卡片与背景拉开层次、前景提亮提高可读性，
        并新增阴影 / 发光 / 渐变变量——此前卡片与背景几乎同色，是界面显得"平"的主因。
-       注意：Shadcn 语义里的 accent（hover 背景）在本项目由 secondary/muted 承担，
-       因为 accent 已被占用为冷青蓝主色（现有代码大量依赖 text-accent / bg-accent）。 */
+       注意：Shadcn 语义里的 accent（hover 背景）在本项目由 secondary/muted 承担——
+       主色统一走 primary（2026-09-11：旧色板清理后 accent 键已从 tailwind.config 移除）。 */
     --background: 222 47% 5%;
     --foreground: 210 40% 96%;
 
@@ -70,13 +70,6 @@ body {
   margin: 0;
   color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
-}
-
-/* 深色主题下原生 select 的弹出层默认是浅色，需显式指定。
-   迁移到 ui/select（Radix）后不再需要，此条为尚未迁移的原生 select 保留 */
-select option {
-  background-color: hsl(var(--card));
-  color: hsl(var(--foreground));
 }
 
 ::-webkit-scrollbar {

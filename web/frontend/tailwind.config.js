@@ -6,7 +6,7 @@ export default {
     extend: {
       colors: {
         /* Shadcn 语义 token。深色为默认，浅色主题未来在 .dark 之外再加一组变量即可。
-           注意 accent 语义（hover 背景）此处不定义——accent 已被占用为冷青蓝主色 */
+           注意 accent 语义（hover 背景）此处不定义——由 secondary/muted 承担，主色统一走 primary */
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -41,23 +41,6 @@ export default {
         },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        // 深色主题主色：冷青蓝，贴合"数据看板"气质
-        ink: {
-          950: "#0a0f1a",
-          900: "#0e1526",
-          850: "#131c30",
-          800: "#1a2438",
-          700: "#24314d",
-          600: "#32426a",
-        },
-        accent: {
-          DEFAULT: "#38bdf8",
-          soft: "#7dd3fc",
-          dim: "#0ea5e9",
-        },
-        good: "#34d399",
-        warn: "#fbbf24",
-        bad: "#f87171",
       },
       /* 视觉升级：阴影、渐变与动画。全部走 CSS 变量，零运行时开销 */
       boxShadow: {

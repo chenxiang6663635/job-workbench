@@ -141,12 +141,12 @@ function ClickRow({
   return (
     <button
       onClick={onClick}
-      className="group flex w-full cursor-pointer items-center justify-between text-left text-sm transition-colors hover:text-accent"
+      className="group flex w-full cursor-pointer items-center justify-between text-left text-sm transition-colors hover:text-primary"
     >
       {children}
       <ChevronRight
         size={14}
-        className="text-slate-600 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+        className="text-muted-foreground/50 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
       />
     </button>
   );
@@ -162,7 +162,7 @@ function StaleList({
   return (
     <div className="rounded-lg border border-warning/25 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
       <div className="mb-3 flex items-center gap-2">
-        <Hourglass size={15} className="text-warn" />
+        <Hourglass size={15} className="text-warning" />
         <h2 className="text-sm font-semibold text-foreground">静默提醒</h2>
         <span className="ml-auto text-[10px] text-muted-foreground">
           停留超过 {staleDays} 天无进展
@@ -175,16 +175,16 @@ function StaleList({
           {stale.map((s) => (
             <li
               key={s.id}
-              className="flex items-center justify-between rounded-lg bg-warn/10 px-3 py-2 text-sm"
+              className="flex items-center justify-between rounded-lg bg-warning/10 px-3 py-2 text-sm"
             >
               <span className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-warn" />
+                <span className="h-1.5 w-1.5 rounded-full bg-warning" />
                 <span className="text-foreground">
                   {s.公司} · {s.岗位}
                 </span>
               </span>
               <span className="flex items-center gap-3 text-xs">
-                <span className="font-mono text-warn">{s.days} 天</span>
+                <span className="font-mono text-warning">{s.days} 天</span>
                 <span className="text-muted-foreground">{s.当前阶段}</span>
               </span>
             </li>
@@ -231,7 +231,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
                   className="group w-full cursor-pointer rounded-lg bg-secondary/60 px-3 py-2 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm text-foreground transition-colors group-hover:text-accent">
+                    <span className="truncate text-sm text-foreground transition-colors group-hover:text-primary">
                       {p.公司} · {p.岗位}
                     </span>
                     <Badge variant={meta.variant} className="shrink-0">
@@ -409,7 +409,7 @@ export default function Dashboard() {
                       onClick={() => drillTo({ direction: d.key })}
                     >
                       <span className="text-muted-foreground">{d.key}</span>
-                      <span className="font-mono text-accent">{d.count}</span>
+                      <span className="font-mono text-primary">{d.count}</span>
                     </ClickRow>
                   ))}
                 </div>
@@ -423,7 +423,7 @@ export default function Dashboard() {
                   {data.byBatch.map((b) => (
                     <ClickRow key={b.key} onClick={() => drillTo({ batch: b.key })}>
                       <span className="text-muted-foreground">{b.key}</span>
-                      <span className="font-mono text-accent">{b.count}</span>
+                      <span className="font-mono text-primary">{b.count}</span>
                     </ClickRow>
                   ))}
                 </div>
@@ -447,14 +447,14 @@ export default function Dashboard() {
                     >
                       <button
                         onClick={() => drillTo({ focusId: u.id })}
-                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-foreground transition-colors hover:text-accent"
+                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-foreground transition-colors hover:text-primary"
                         title="查看该记录"
                       >
                         {u.公司} · {u.岗位}
                       </button>
                       <span className="flex shrink-0 items-center gap-2 text-xs">
                         <span className="text-muted-foreground">{u.reason}</span>
-                        <span className="font-mono text-warn">{u.date}</span>
+                        <span className="font-mono text-warning">{u.date}</span>
                         {u.reason === "下次动作" && (
                           <Button
                             variant="outline"

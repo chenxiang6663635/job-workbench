@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import {
   Archive,
   Download,
+  ExternalLink,
   FolderOpen,
   KeyRound,
   PlugZap,
   Save,
   ShieldCheck,
 } from "lucide-react";
+import { PROVIDER_REFERRAL } from "../lib/partner";
 import {
   api,
   type ProviderConfig,
@@ -35,6 +37,11 @@ export default function Settings() {
   const [pathsError, setPathsError] = useState<string | null>(null);
   const [backing, setBacking] = useState(false);
   const [backupInfo, setBackupInfo] = useState<string | null>(null);
+
+  // 推广入口先摊平成三个非空值：TS 在回调闭包里不做窄化，逐个判空只会更吵
+  const refName = PROVIDER_REFERRAL?.name ?? "";
+  const refUrl = PROVIDER_REFERRAL?.url ?? "";
+  const refPreset = PROVIDER_REFERRAL?.presetBaseUrl ?? "";
 
   const load = () => {
     api
@@ -147,6 +154,45 @@ export default function Settings() {
             />
           </FormField>
         </div>
+
+        {/* 推广入口：放在「正好要填 key」的位置，且必须写明它是推广链接。
+            藏在一个像官网链接的按钮后面就是欺骗，与本项目的诚实红线冲突。 */}
+        {/* 只在「还没存过 key」时出现：已经配好的人不需要这个入口，
+            顺带也免掉 cfg 加载完成前的闪一下（cfg 为 null 时不渲染）。 */}
+        {cfg && !cfg.hasKey && refUrl && (
+          <div className="space-y-1.5 rounded-lg border border-border bg-background/40 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                还没有 API Key？
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 端点一键填入：合作方的 Base URL 是固定的 OpenAI 兼容地址，
+                    手抄容易错，且错了只会在「测试连接」时才暴露 */}
+                {refPreset && refPreset !== baseUrl && (
+                  <Button
+                    variant="ghost"
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => {
+                      setBaseUrl(refPreset);
+                      setInfo(`已填入 ${refName} 的 Base URL，填好 Key 后记得保存`);
+                    }}
+                  >
+                    填入 {refName} 端点
+                  </Button>
+                )}
+                <Button asChild variant="outline" className="h-7 px-2.5 text-xs">
+                  <a href={refUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink size={12} /> 去 {refName} 注册
+                  </a>
+                </Button>
+              </div>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+              这是推广链接：通过它注册，本项目作者会获得返佣，你的价格与权益不受影响。
+              点击只是打开网页——本应用不会因此发送或回传任何数据。
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <Button onClick={save} disabled={saving}>

@@ -193,6 +193,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 - **API Key**：只存本地，界面只显示脱敏后的末尾 4 位
 - **测试连接**：调 `{base_url}/models` 验证 key 有效并列出模型
 - **数据与隐私**：整包导出 zip、快照备份到系统用户目录、打开数据目录、无遥测声明
+- **还没有 API Key？**：未存 key 时，页面会给出一个推荐 Provider 的注册入口，以及一个「一键填入该 Provider 端点」的按钮（预设值只在源码里定义一处）。这个入口在界面上明确标注为推广链接——通过它注册会给本项目作者返佣，你的价格与权益不受影响；点击只是打开网页，不会有任何数据从本应用发出。
 
 > 本工作台的 AI 判断默认由 AI CLI（CodeBuddy 等）完成，Provider 是可选的 BYOK 增强入口（简历导入 / AI 改写用）。
 

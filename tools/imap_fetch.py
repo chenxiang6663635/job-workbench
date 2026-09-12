@@ -352,16 +352,35 @@ def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDE
             raise ImapFetchError("检索邮件失败：%s" % (data,))
 
         uids = data[0].split() if data and data[0] else []
-        messages = []
-        for uid in reversed(uids[-limit:]):
-            try:
-                # UID FETCH + BODY.PEEK[]：按稳定 UID 读取，且不置 \Seen
-                typ, fetched = conn.uid("FETCH", uid, "(BODY.PEEK[])")
-            except imaplib.IMAP4.error as exc:
-                raise ImapFetchError("读取邮件失败：%s" % exc)
-            if typ != "OK" or not fetched or not isinstance(fetched[0], tuple):
+        recent = uids[-limit:]  # 升序（旧→新）
+        if not recent:
+            return []
+
+        # 批量 FETCH：一条命令取回全部。逐封 FETCH 要 N 个网络来回，
+        # 在真实邮箱（50 封）上就是「点一下等半分钟」的主因。
+        # 显式请求 UID 而不是靠响应顺序对齐——顺序对齐依赖服务器实现。
+        seq = ",".join(uid.decode("ascii", errors="replace") for uid in recent)
+        try:
+            typ, fetched = conn.uid("FETCH", seq, "(UID BODY.PEEK[])")
+        except imaplib.IMAP4.error as exc:
+            raise ImapFetchError("读取邮件失败：%s" % exc)
+        if typ != "OK":
+            raise ImapFetchError("读取邮件失败：%s" % (fetched,))
+
+        raw_by_uid = {}
+        for item in fetched:
+            if not isinstance(item, tuple) or len(item) < 2:
                 continue
-            msg = message_from_bytes(fetched[0][1])
+            match = re.search(rb"UID (\d+)", item[0])
+            if match:
+                raw_by_uid[match.group(1).decode("ascii")] = item[1]
+
+        messages = []
+        for uid in reversed(recent):  # 最新在前
+            raw = raw_by_uid.get(uid.decode("ascii", errors="replace"))
+            if raw is None:
+                continue
+            msg = message_from_bytes(raw)
             messages.append({
                 "uid": uid.decode("ascii", errors="replace"),
                 "subject": _decode_mime_header(msg.get("Subject")),

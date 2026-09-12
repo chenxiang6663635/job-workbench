@@ -112,8 +112,14 @@ class FakeConn:
         if command == "SEARCH":
             return ("OK", [b" ".join(self.uids)])
         if command == "FETCH":
-            raw = b"Subject: t\nFrom: hr@example.com\n\nbody-" + args[0]
-            return ("OK", [(b"1 (BODY[])", raw)])
+            # 支持批量集（"1,2,3"）：每个 uid 返回一条 (header, raw) tuple，
+            # header 以 "UID <n>" 开头（模拟真实服务器的响应形状）
+            seq = args[0] if isinstance(args[0], bytes) else str(args[0]).encode("ascii")
+            items = []
+            for part in seq.split(b","):
+                body = b"Subject: t\nFrom: hr@example.com\n\nbody-" + part
+                items.append((b"1 (UID " + part + b" BODY[] {%d}" % len(body), body))
+            return ("OK", items)
         return ("OK", [b""])
 
     def logout(self):
@@ -142,8 +148,9 @@ def test_fetch_selects_readonly_and_uses_peek(fake):
     searches = [c for c in fake.calls if c[0] == "uid:search"]
     assert searches and searches[0][1] == "SINCE", "默认按时间窗检索（UID SEARCH）"
     assert re.match(r"^\d{2}-[A-Z][a-z]{2}-\d{4}$", searches[0][2]), "SINCE 日期必须是不受 locale 影响的 ASCII 格式"
-    specs = [c[2] for c in fake.calls if c[0] == "uid:fetch"]
-    assert specs and all("PEEK" in s for s in specs), "读取必须用 UID FETCH + BODY.PEEK"
+    fetches = [c for c in fake.calls if c[0] == "uid:fetch"]
+    assert len(fetches) == 1, "必须批量 FETCH（一次取全部）——逐封拉是「卡半天」的主因"
+    assert "PEEK" in fetches[0][2], "读取必须用 BODY.PEEK，不置已读"
     forbidden = ("store", "copy", "expunge", "append", "create", "delete", "rename")
     assert not [c for c in fake.calls if any(w in c[0] for w in forbidden)], "会话里不许出现写类命令"
     assert fake.logged_out, "结束必须登出"

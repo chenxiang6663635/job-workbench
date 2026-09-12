@@ -65,13 +65,23 @@ type Drill = {
   focusDir?: string;
 };
 
+// 存储不可用时（隐私模式 / 禁用存储）setItem 会抛异常——不兜住的话连后面的
+// 跳转都不执行，用户看到的是「点了没反应」。兜住后至少还能跳到目标页。
+function writeDrill(filter: Drill) {
+  try {
+    sessionStorage.setItem("jobws_drill", JSON.stringify(filter));
+  } catch {
+    // 存储不可用：退化为不带下钻信息的跳转
+  }
+}
+
 function drillTo(filter: Drill) {
-  sessionStorage.setItem("jobws_drill", JSON.stringify(filter));
+  writeDrill(filter);
   window.location.hash = "applications";
 }
 
 function drillToJob(dir: string) {
-  sessionStorage.setItem("jobws_drill", JSON.stringify({ focusDir: dir }));
+  writeDrill({ focusDir: dir });
   window.location.hash = "jobs";
 }
 
@@ -422,7 +432,7 @@ export default function Dashboard() {
                   <YAxis
                     type="category"
                     dataKey="tier"
-                    width={72}
+                    width={84}
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}

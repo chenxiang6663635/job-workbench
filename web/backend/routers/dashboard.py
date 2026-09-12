@@ -27,20 +27,27 @@ TERMINAL = tracker.TERMINAL_STAGES
 
 # 「高分」的档位下界**派生自** jd_score.THRESHOLDS，不是这里新发明的数字：
 # 取「建议投」这一档的下界（含）以上。改档位只需改 jd_score 一处，这里跟着变。
+#
+# 兜底不是防御性编程：档位名一旦被改，`_HIGH_BOUNDS` 就是空序列，min() 抛
+# ValueError，而看板的 import 在 main 的 router 列表里靠前——整个后端起不来。
+# 宁可退化成「第二档下界」这种错得不离谱的值，也不要让全站打不开。
 _HIGH_TIERS = ("强烈建议投", "建议投")
-HIGH_SCORE_FLOOR = min(lo for lo, _hi, tier, _a in jd_score.THRESHOLDS
-                       if tier in _HIGH_TIERS)
+_HIGH_BOUNDS = [lo for lo, _hi, tier, _a in jd_score.THRESHOLDS
+                if tier in _HIGH_TIERS]
+if _HIGH_BOUNDS:
+    HIGH_SCORE_FLOOR = min(_HIGH_BOUNDS)
+elif len(jd_score.THRESHOLDS) > 1:
+    HIGH_SCORE_FLOOR = jd_score.THRESHOLDS[1][0]
+else:
+    HIGH_SCORE_FLOOR = jd_score.THRESHOLDS[0][0]
 
 # 投递状态 → 输出键（前端图表用）
 _STATE_KEY = {"未投递": "unapplied", "流程中": "active", "已终态": "terminal"}
 
 
 def tier_of(score):
-    """评分 → 档位名。边界的唯一定义在 jd_score.THRESHOLDS。"""
-    for lo, hi, tier, _action in jd_score.THRESHOLDS:
-        if lo <= score <= hi:
-            return tier
-    return None
+    """评分 → 档位名。直接复用 `jd_score.verdict`：边界与越界回退都只有一处定义。"""
+    return jd_score.verdict(score)[0]
 
 
 def job_pool_overview(ws):
@@ -71,8 +78,6 @@ def job_pool_overview(ws):
         company, role = jobs_router._split_dir(name)
         state = jobs_router._apply_state(index.get(tracker.dedup_key(company, role)))
         tier = tier_of(card["total"])
-        if tier is None:
-            continue
         dist[tier][_STATE_KEY[state]] += 1
         if state == "未投递" and card["total"] >= HIGH_SCORE_FLOOR:
             display_company, display_role = jobs_router._job_company_role(ws, name)

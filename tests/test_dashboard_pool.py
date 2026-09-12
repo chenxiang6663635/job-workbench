@@ -116,6 +116,17 @@ def test_unscored_jobs_are_not_counted_into_any_tier(client, tmp_path):
     assert tiers["不投"] == {"tier": "不投", "unapplied": 0, "active": 0, "terminal": 0}
 
 
+def test_score_by_state_follows_threshold_order(client, tmp_path):
+    """数组顺序 = THRESHOLDS 顺序：前端按该顺序画 Y 轴，顺序一改图表就错位。
+
+    仅断言计数钉不住这条隐式契约，所以单独设一条。
+    """
+    _job(tmp_path, "公司A_岗位甲", _card(80, (24, 20, 24, 12)))
+    data = client.get("/api/dashboard", params={"ws": WS}).json()
+    assert [t["tier"] for t in data["scoreByState"]] == [
+        tier for _lo, _hi, tier, _a in jd_score.THRESHOLDS]
+
+
 def test_terminal_jobs_count_as_terminal_not_unapplied(client, tmp_path):
     """挂掉了也算「投过」：分布图里进已终态桶，不该再当成未投递去提醒。"""
     _job(tmp_path, "公司A_岗位甲", _card(80, (24, 20, 24, 12)))

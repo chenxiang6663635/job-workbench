@@ -190,6 +190,7 @@ The "Settings" page in the nav configures your AI provider (BYOK, bring your own
 - **API Key**: stored locally only; the UI shows just the masked last 4 characters
 - **Test connection**: calls `{base_url}/models` to verify the key and list models
 - **Data and privacy**: export everything as a zip, snapshot backup to the system user directory, open the data directory, no-telemetry statement
+- **No API key yet?**: while no key is stored, the page shows a sign-up entry for a recommended provider, plus a button that fills in that provider's Base URL for you (the preset lives in one place in the source). The entry is labelled on screen as a referral link — signing up through it credits the project author; your pricing is unaffected, and clicking it only opens a web page (no data leaves the app).
 
 > By default the AI judgement in this workbench is done by your AI CLI (CodeBuddy and friends); the provider is an optional BYOK enhancement (used for resume import and AI rewrite).
 

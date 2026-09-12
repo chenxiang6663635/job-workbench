@@ -147,6 +147,14 @@ export interface QuestionGroup {
   total: number;
 }
 
+// 岗位池 ↔ 投递追踪联动（后端 B1 / 前端 B2）
+// company / role **只用于展示**（解析卡「基本信息」优先，读不到回退目录名拆分）。
+// 关联匹配键一律是目录名——解析卡里填的常是给人看的详细描述，当键会与追踪表系统性失配。
+export type ApplyState = "未投递" | "流程中" | "已终态";
+// 四排序与状态筛选：取值与后端 jobs.py 的 JOB_SORTS / JOB_STATUS 白名单一致
+export type JobSort = "dir" | "score" | "state" | "recent";
+export type JobStatus = "" | "unapplied" | "active" | "terminal";
+
 export interface JobSummary {
   dir: string;
   hasJD: boolean;
@@ -154,6 +162,11 @@ export interface JobSummary {
   score: number | null;
   level: string | null;
   mtime: number | null;
+  company: string;
+  role: string;
+  applyState: ApplyState;
+  stage: string | null;
+  applicationId: string | null;
 }
 
 export type GateConclusion = "通过" | "不通过" | "待确认" | null;
@@ -393,6 +406,10 @@ export const TERMINAL = ["已挂", "已放弃", "我拒绝的 offer"];
 export const FAIL_TERMINAL = ["已挂", "已放弃"];
 
 export const BATCHES = ["提前批", "正式批", "补录"];
+// 方向 ID 取决于工作区装入的领域插件（后端 available_directions 动态读
+// <工作区>/config/directions/*.md）。此处是前端可选项的默认清单，与 Applications 页共用一份，
+// 避免两页各写一份后漂移；后端在插件不可用时对未知方向放行。
+export const DIRECTIONS = ["datacenter", "hvac", "other"];
 
 // 面试记录枚举，与后端 tracker.INTERVIEW_* 一致（单一事实源在 tools/tracker.py）
 export const INTERVIEW_ROUNDS = ["笔试", "一面", "二面", "三面", "HR面", "终面", "其他"];
@@ -508,7 +525,16 @@ export const api = {
       body: { csv, mode },
     }),
 
-  listJobs: () => request<{ items: JobSummary[]; total: number }>("/jobs"),
+  // 列表参数与 applications 同一范式：非默认值才传，白名单外的键由后端静默回退
+  listJobs: (params?: { sort?: JobSort; status?: JobStatus }) => {
+    const q = new URLSearchParams();
+    if (params?.sort && params.sort !== "dir") q.set("sort", params.sort);
+    if (params?.status) q.set("status", params.status);
+    const qs = q.toString();
+    return request<{ items: JobSummary[]; total: number }>(
+      `/jobs${qs ? `?${qs}` : ""}`
+    );
+  },
 
   jobGap: (dir: string, resume?: string) => {
     const q = resume ? `?resume=${encodeURIComponent(resume)}` : "";

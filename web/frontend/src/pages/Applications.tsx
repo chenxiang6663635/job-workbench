@@ -12,6 +12,7 @@ import {
 import {
   api,
   BATCHES,
+  DIRECTIONS,
   STAGES,
   TERMINAL,
   type Application,
@@ -28,8 +29,6 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Skeleton } from "../components/ui/skeleton";
-
-const DIRECTIONS = ["datacenter", "hvac", "other"];
 
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
 const ALL = "__all__";

@@ -49,7 +49,9 @@ class NewApplication(BaseModel):
     下次动作: str = ""
     下次动作日期: str = ""
     简历版本: str = ""
-    评分: int = 0
+    # 未评分留空（None → 空串）。此前默认 0 会把「还没评分」写成「0 分」——
+    # 0 分是一个具体判断，不是「没有判断」，两者在追踪表里不能混为一谈。
+    评分: int = None
     备注: str = ""
 
 
@@ -137,7 +139,8 @@ def _validate_dates(app: NewApplication):
         errs = tracker.check_date(value or "", label)
         if errs:
             raise HTTPException(status_code=422, detail=errs[0])
-    if not (0 <= app.评分 <= 100):
+    # 评分为 None 表示「还没评分」——跳过区间校验并留空；只有真填了才要求落在 0–100
+    if app.评分 is not None and not (0 <= app.评分 <= 100):
         raise HTTPException(status_code=422, detail="评分必须在 0–100 之间")
     if app.当前阶段 not in STAGES + TERMINAL:
         raise HTTPException(status_code=422,
@@ -295,7 +298,7 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
             "下次动作": app.下次动作,
             "下次动作日期": app.下次动作日期,
             "简历版本": app.简历版本,
-            "评分": str(app.评分),
+            "评分": "" if app.评分 is None else str(app.评分),
             "备注": app.备注,
         })
         rows.append(row)

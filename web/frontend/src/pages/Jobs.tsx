@@ -52,10 +52,19 @@ function today(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** 目录名 → (公司, 岗位)，与后端 `_split_dir` 同一口径：取首个下划线 */
+/**
+ * 目录名 → (公司, 岗位)。这是后端 `_split_dir`（`web/backend/routers/jobs.py`）
+ * 的镜像实现：取首个下划线、两端 trim。
+ *
+ * 同一口径存在两份（TS 与 Python）是已知的张力——pytest 打不到这份 TS 实现。
+ * 真正的收敛方式是把拆分下沉到后端（前端直接传目录名），放到后续批次做；
+ * 在那之前，**改后端 `_split_dir` 必须同步改这里**，否则匹配键两边会漂。
+ */
 function splitDir(dir: string): [string, string] {
   const i = dir.indexOf("_");
-  return i < 0 ? [dir, ""] : [dir.slice(0, i), dir.slice(i + 1)];
+  return i < 0
+    ? [dir.trim(), ""]
+    : [dir.slice(0, i).trim(), dir.slice(i + 1).trim()];
 }
 
 export default function Jobs() {
@@ -172,10 +181,12 @@ export default function Jobs() {
 
   const startApply = (job: JobSummary) => {
     if (applying) return; // 已有投递在飞行中，先等它落地
-    const [, role] = splitDir(job.dir);
-    if (!role) {
+    const [company, role] = splitDir(job.dir);
+    // 公司与岗位都要非空：只查 role 时，目录名以「_」开头会写出一条空公司的记录，
+    // 而后端建索引会跳过空键 → 追踪表里有记录、岗位池永远显示「未投递」
+    if (!company || !role) {
       setError(
-        `目录「${job.dir}」里没有下划线，拆不出公司与岗位，请到追踪表手动新增（关联键 = 目录名）`
+        `目录「${job.dir}」拆不出完整的公司与岗位（关联键 = 目录名，按首个下划线拆分），请到追踪表手动新增`
       );
       return;
     }

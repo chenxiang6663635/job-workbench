@@ -98,6 +98,11 @@ def test_split_dir_takes_first_underscore():
     assert jobs_router._split_dir("单独一段") == ("单独一段", "")
 
 
+def test_split_dir_trims_both_sides():
+    # 两端 trim。前端 `Jobs.tsx` 的 splitDir 是这份实现的镜像，必须同步这个行为
+    assert jobs_router._split_dir("  A公司 _ 甲岗位  ") == ("A公司", "甲岗位")
+
+
 def test_dedup_key_is_trim_and_case_insensitive():
     rows = [{"id": "A001", "公司": "ACME", "岗位": "Engineer", "当前阶段": "一面"}]
     dup, terminal = tracker.find_duplicate(rows, "  acme ", " ENGINEER ")
@@ -290,18 +295,44 @@ def _written_rows(tmp_path):
         return list(csv.DictReader(f))
 
 
-def test_apply_from_job_pool_is_matched_back_by_dir_name(client, tmp_path):
-    """一键投递写进去的记录，必须能被岗位池的匹配逻辑命中。
+def test_apply_writes_dir_name_key_while_display_comes_from_card(client, tmp_path):
+    """一键投递写的是**目录名拆分值**，卡片展示名只用于展示。
 
-    写入值与匹配键都取目录名拆分（`_split_dir`），两边同源；写卡片展示名会导致
-    「投过了却显示未投递」——这是 B1 独立审查抓出的真问题，此处钉住闭环。
+    这条测试必须能区分两种实现，所以 fixture 里两者故意不相等：卡片「基本信息」
+    写「展示用公司 / 展示用岗位」，目录名是「A公司_甲岗位」。此前用的是无卡 fixture，
+    展示名会回退到目录名拆分、两者相等，于是「写目录名」与「写展示名」都能判绿
+    ——绿了但没钉住（独立审查抓出的正是这条）。
+
+    写入值走 jobs 路由的 `_split_dir`，与前端 `splitDir` 同一口径（首个下划线）。
+    注：前端那份是 TS 镜像，pytest 打不到；要真正收敛得把拆分下沉到后端。
     """
-    _make_job(tmp_path, "A公司_甲岗位")
-    r = _apply(client)
+    _make_job(tmp_path, "A公司_甲岗位",
+              card_text=_basic_info_card("展示用公司", "展示用岗位"))
+    company, role = jobs_router._split_dir("A公司_甲岗位")
+    assert (company, role) == ("A公司", "甲岗位")
+
+    r = _apply(client, 公司=company, 岗位=role)
     assert r.status_code == 200, r.text
+    # 落库的是目录名口径的值
+    rows = _written_rows(tmp_path)
+    assert (rows[0]["公司"], rows[0]["岗位"]) == ("A公司", "甲岗位")
+    # 展示仍取卡片值；两者可以不同，但只有目录名那份参与匹配
     item = _items(client)[0]
+    assert (item["company"], item["role"]) == ("展示用公司", "展示用岗位")
     assert item["applyState"] == "流程中"
     assert item["applicationId"] == r.json()["id"]
+
+
+def test_writing_display_name_would_not_match_back(client, tmp_path):
+    """反面用例：写卡片展示名会让记录匹配不上——这就是必须用目录名的原因。
+
+    没有这条，前一条测试只是「我传什么就写什么」，证不出「不这么写会怎样」。
+    """
+    _make_job(tmp_path, "A公司_甲岗位",
+              card_text=_basic_info_card("展示用公司", "展示用岗位"))
+    r = _apply(client, 公司="展示用公司", 岗位="展示用岗位")
+    assert r.status_code == 200, r.text
+    assert _items(client)[0]["applyState"] == "未投递"
 
 
 def test_apply_without_score_leaves_score_blank(client, tmp_path):

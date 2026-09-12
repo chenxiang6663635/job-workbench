@@ -1,6 +1,6 @@
 {
   "name": "job-workbench",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "求职工作台桌面端",
   "main": "main.js",
   "author": "job-workbench contributors",

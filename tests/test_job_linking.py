@@ -335,6 +335,35 @@ def test_writing_display_name_would_not_match_back(client, tmp_path):
     assert _items(client)[0]["applyState"] == "未投递"
 
 
+def test_apply_by_dir_name_ignores_client_side_company_and_role(client, tmp_path):
+    """给了目录名就以目录名为准：客户端自己算的公司/岗位一律不作数。
+
+    这是「拆分只有一处实现」的兑现方式——前端即使传了错的值，
+    落库的仍是后端按目录名拆出来的那对。
+    """
+    _make_job(tmp_path, "A公司_甲岗位")
+    r = _apply(client, 岗位目录="A公司_甲岗位", 公司="错的", 岗位="也是错的")
+    assert r.status_code == 200, r.text
+    rows = _written_rows(tmp_path)
+    assert (rows[0]["公司"], rows[0]["岗位"]) == ("A公司", "甲岗位")
+
+
+def test_apply_with_unsplittable_dir_is_rejected(client, tmp_path):
+    """目录名里没有下划线、拆不出岗位 → 422，而不是写一条「岗位为空」的记录。"""
+    _make_job(tmp_path, "没有下划线的目录名")
+    r = _apply(client, 岗位目录="没有下划线的目录名")
+    assert r.status_code == 422
+    assert "拆不出" in r.text
+
+
+@pytest.mark.parametrize("given, expected", [(87.5, "88"), (87.4, "87"), (60.0, "60")])
+def test_score_is_rounded_server_side(client, tmp_path, given, expected):
+    """取整在后端做：解析卡的维度分可能带小数，客户端不必各自实现一遍。"""
+    _make_job(tmp_path, "A公司_甲岗位")
+    assert _apply(client, 评分=given).status_code == 200
+    assert _written_rows(tmp_path)[0]["评分"] == expected
+
+
 def test_apply_without_score_leaves_score_blank(client, tmp_path):
     """未评分不写 0：0 分是一个具体判断，「还没评分」不是。"""
     _make_job(tmp_path, "A公司_甲岗位")

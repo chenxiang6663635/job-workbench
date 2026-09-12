@@ -356,12 +356,26 @@ def test_apply_with_unsplittable_dir_is_rejected(client, tmp_path):
     assert "拆不出" in r.text
 
 
-@pytest.mark.parametrize("given, expected", [(87.5, "88"), (87.4, "87"), (60.0, "60")])
-def test_score_is_rounded_server_side(client, tmp_path, given, expected):
+@pytest.mark.parametrize("given, expected", [
+    (87.5, "88"),
+    (87.4, "87"),
+    (60.0, "60"),
+    # 关键的一条：Python 的内置 round() 是银行家舍入，round(86.5) 得 86。
+    # 用户预期的是四舍五入——没有这条断言，用 round() 实现也能全绿。
+    (86.5, "87"),
+])
+def test_score_is_rounded_half_up_server_side(client, tmp_path, given, expected):
     """取整在后端做：解析卡的维度分可能带小数，客户端不必各自实现一遍。"""
     _make_job(tmp_path, "A公司_甲岗位")
     assert _apply(client, 评分=given).status_code == 200
     assert _written_rows(tmp_path)[0]["评分"] == expected
+
+
+def test_apply_with_only_company_is_rejected(client, tmp_path):
+    """只给公司不给岗位 → 422：两种合法写法（目录名 / 公司+岗位）之外的组合都拦掉。"""
+    _make_job(tmp_path, "A公司_甲岗位")
+    r = _apply(client, 公司="只有公司", 岗位="")
+    assert r.status_code == 422
 
 
 def test_apply_without_score_leaves_score_blank(client, tmp_path):

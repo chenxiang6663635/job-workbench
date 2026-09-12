@@ -11,6 +11,7 @@ check_direction/next_id/sort_key），Web 层只做 HTTP 编排与文件锁。
 
 from __future__ import annotations
 
+import math
 import os
 from datetime import date, timedelta
 
@@ -290,9 +291,11 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
     if (app.岗位目录 or "").strip():
         company, role = jobs_router._split_dir(app.岗位目录)
         if not (company and role):
+            # 面向用户的文案不写内部口径（「按首个下划线拆分」是实现细节，
+            # 会被 humanizeError 原样直出到界面上）
             raise HTTPException(
                 status_code=422,
-                detail="目录名 `%s` 里拆不出完整的公司与岗位（按首个下划线拆分）"
+                detail="目录名 `%s` 拆不出公司与岗位，目录名须为「公司_岗位」形式"
                        % app.岗位目录)
     else:
         company, role = app.公司.strip(), app.岗位.strip()
@@ -324,8 +327,10 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
             "下次动作日期": app.下次动作日期,
             "简历版本": app.简历版本,
             # 取整在这里做：追踪表这一列是整数，且只有一处写入点，
-            # 让客户端各自取整等于把同一个规则复制到每个调用方
-            "评分": "" if app.评分 is None else str(int(round(app.评分))),
+            # 让客户端各自取整等于把同一个规则复制到每个调用方。
+            # 用 floor(x + 0.5) 而不是内置 round()：后者是**银行家舍入**，
+            # round(86.5) 得 86——用户预期的是四舍五入，不是「取最近的偶数」。
+            "评分": "" if app.评分 is None else str(math.floor(app.评分 + 0.5)),
             "备注": app.备注,
         })
         rows.append(row)

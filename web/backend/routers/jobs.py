@@ -37,6 +37,10 @@ INVALID_DIR_CHARS = set('\\/:*?"<>|')
 # 四排序。未知键静默回退——前端传参可能来自 URL，容错比严格更好
 # （与 applications.py 的 SORTS 同一策略，避免两页同一类控件的容忍度不一致）
 JOB_SORTS = ["dir", "score", "state", "recent"]
+# 每个维度的自然方向：目录名 A→Z、状态「未投递在前」是 asc；评分高分在前、
+# 最近更新新在前是 desc。前端切换维度时回到该维度的默认，请求缺 order 时后端照它兜底。
+JOB_DEFAULT_ORDER = {"dir": "asc", "score": "desc", "state": "asc", "recent": "desc"}
+JOB_ORDERS = ("asc", "desc")
 # 状态筛选白名单：未知值视为「全部」，同样静默容错
 JOB_STATUS = {"unapplied": "未投递", "active": "流程中", "terminal": "已终态"}
 
@@ -236,24 +240,49 @@ class NewJob(BaseModel):
     JD文本: str
 
 
-def _sort_jobs(items, sort: str):
-    """四排序。未评分的岗位在 score / state 下恒沉底——没有数据就不参与竞争。"""
+def _sort_jobs(items, sort: str, order: str = None):
+    """四排序 × 方向。
+
+    三条口径**不随方向反转**（跟着翻只会误导）：
+
+    - **未评分 / 没有更新时间的恒沉底**——没有数据就不参与竞争，
+      逆序时把它们翻到最上面，用户会以为"这些最该看"；
+    - **次要键（目录名）恒升序**——方向只作用于用户选的那个维度；
+    - 未知 sort / order 静默回退默认（前端传参可能来自 URL，容错比严格更好）。
+
+    状态排序的档位在逆序时手工取反（`-state_order[x]`，对任意档数天然成立），
+    而不是用 `reverse=True`：后者会把整个 key 元组一起翻，
+    未评分的沉底与目录名升序也就跟着翻了。
+    """
+    desc = (order if order in JOB_ORDERS
+            else JOB_DEFAULT_ORDER.get(sort, "asc")) == "desc"
+
     if sort == "score":
-        return sorted(items, key=lambda i: (i["score"] is None,
-                                            -(i["score"] or 0), i["dir"]))
+        return sorted(items, key=lambda i: (
+            0 if i["score"] is not None else 1,
+            -(i["score"] or 0) if desc else (i["score"] or 0),
+            i["dir"]))
     if sort == "state":
-        # 未投递 → 流程中 → 已终态；同状态内评分降序、未评分沉底（负号即降序）
-        order = {"未投递": 0, "流程中": 1, "已终态": 2}
-        return sorted(items, key=lambda i: (order[i["applyState"]],
-                                            i["score"] is None,
-                                            -(i["score"] or 0), i["dir"]))
+        # 未投递 → 流程中 → 已终态；同状态内按评分降序、未评分沉底。
+        # 注意组内评分的默认就是**降序**（与 score / recent 的整体降序同一语义），
+        # 所以逆序时它反而是升序——「逆序」翻的是整个排序，不是每个键各自取反。
+        state_order = {"未投递": 0, "流程中": 1, "已终态": 2}
+        return sorted(items, key=lambda i: (
+            state_order[i["applyState"]] if not desc else -state_order[i["applyState"]],
+            0 if i["score"] is not None else 1,
+            -(i["score"] or 0) if not desc else (i["score"] or 0),
+            i["dir"]))
     if sort == "recent":
-        return sorted(items, key=lambda i: (-(i["mtime"] or 0), i["dir"]))
-    return sorted(items, key=lambda i: i["dir"])
+        # mtime=0 理论上会落「无时间」桶；真实文件系统给不出 0，不另设防
+        return sorted(items, key=lambda i: (
+            0 if i["mtime"] else 1,
+            -(i["mtime"] or 0) if desc else (i["mtime"] or 0),
+            i["dir"]))
+    return sorted(items, key=lambda i: i["dir"], reverse=desc)
 
 
 @router.get("")
-def list_jobs(sort: str = "dir", status: str = None,
+def list_jobs(sort: str = "dir", order: str = None, status: str = None,
               ws: str = Depends(workspace_dir)):
     base = safe_join(ws, DIR_JOBS)
     if not os.path.isdir(base):
@@ -270,7 +299,7 @@ def list_jobs(sort: str = "dir", status: str = None,
     if status in JOB_STATUS:
         want = JOB_STATUS[status]
         items = [i for i in items if i["applyState"] == want]
-    items = _sort_jobs(items, sort if sort in JOB_SORTS else "dir")
+    items = _sort_jobs(items, sort if sort in JOB_SORTS else "dir", order)
     return {"items": items, "total": len(items)}
 
 

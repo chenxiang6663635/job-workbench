@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { abilityBadgeVariant, evidenceBadgeVariant } from "./JobCard";
+import { abilityBadgeVariant, evidenceBadgeVariant } from "./badgeVariants";
 import type { JobDetail } from "../api";
 
 /**

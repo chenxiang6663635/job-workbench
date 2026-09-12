@@ -1,5 +1,6 @@
 import { FileCode2, FileImage, FileText } from "lucide-react";
 import { cn } from "../lib/utils";
+import { fmtSize } from "../lib/format";
 
 /** 文件类型图标。此前 Library.tsx:10-21 与 ResumeTemplates.tsx:22-33 各写一份 */
 export function FileIcon({ kind, name }: { kind?: string; name?: string }) {
@@ -7,12 +8,6 @@ export function FileIcon({ kind, name }: { kind?: string; name?: string }) {
   const ext = name?.split(".").pop()?.toLowerCase();
   if (ext === "pdf") return <FileText size={16} className="text-destructive" />;
   return <FileImage size={16} className="text-warning" />;
-}
-
-export function fmtSize(n: number) {
-  if (n < 1024) return n + " B";
-  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
-  return (n / 1024 / 1024).toFixed(1) + " MB";
 }
 
 /**

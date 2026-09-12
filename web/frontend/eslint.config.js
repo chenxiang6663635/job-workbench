@@ -25,4 +25,13 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // shadcn/ui 产物文件按上游惯例同时导出组件与 variants 生成器（cva 的
+    // 类名工厂，本来就不是组件）。拆文件只会偏离上游模板、给后续升级添堵，
+    // 这里对齐惯例整体豁免；业务组件文件的同类问题则逐个挪走（badgeVariants.ts）
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 )

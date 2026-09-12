@@ -10,7 +10,8 @@ import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import { A4Preview } from "./A4Preview";
-import { FileCard, fmtSize } from "./FileCard";
+import { FileCard } from "./FileCard";
+import { fmtSize } from "../lib/format";
 
 // 从文件列表里挑出手写模板（resume_<版本>.html），供「生成 PDF」按钮使用
 function templateVersion(rel: string): string | null {

@@ -171,11 +171,12 @@ export default function Applications() {
       .then(() => setLoading(false));
   };
 
-  useEffect(load, [filter, sort]);
+  // drill 是 useMemo([]) 的稳定引用，focusId 在生命周期内不变——
+  // 放进依赖只是让 lint 满意，不会造成重复触发
+  useEffect(load, [filter, sort, drill]);
   // 下钻筛选只生效一次：首次加载后清掉，避免重复返回看板时的旧筛选残留
   useEffect(() => {
     sessionStorage.removeItem("jobws_drill");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const patch = (id: string, body: Partial<Application>) => {

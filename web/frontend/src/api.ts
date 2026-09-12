@@ -18,9 +18,28 @@ export interface PendingItem {
   reasons: string[];
 }
 
+// 看板「高分未投」条目（B3）：评分达到「建议投」档下界且追踪表里还没有记录
+export interface UnappliedHighItem {
+  dir: string;
+  company: string;
+  role: string;
+  score: number;
+  level: string | null;
+}
+
+// 评分档位 × 投递状态分布（B3）：档位边界由后端 jd_score.THRESHOLDS 派生
+export interface ScoreStateBucket {
+  tier: string;
+  unapplied: number;
+  active: number;
+  terminal: number;
+}
+
 export interface DashboardData {
   total: number;
   active: number;
+  unappliedHigh: UnappliedHighItem[];
+  scoreByState: ScoreStateBucket[];
   funnel: { stage: string; count: number }[];
   byDirection: { key: string; count: number }[];
   byBatch: { key: string; count: number }[];

@@ -8,19 +8,91 @@ Markdown 拼装耦合，本期不做提取重构（留作后续改进）。
 
 from __future__ import annotations
 
+import os
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends
 
+import jd_score
 import tracker
-from deps import workspace_dir
+from deps import DIR_JOBS, safe_join, workspace_dir
 from report import count_by, parse_date, retrospective  # noqa: E402 - report 与 tracker 同目录
+from routers import jobs as jobs_router  # noqa: E402 - 关联口径复用，不写第二份
 
 router = APIRouter(prefix="/api/dashboard")
 
 # 阶段枚举以 tracker.py 为单一事实源，此处不复制第二份
 STAGES = tracker.STAGES
 TERMINAL = tracker.TERMINAL_STAGES
+
+# 「高分」的档位下界**派生自** jd_score.THRESHOLDS，不是这里新发明的数字：
+# 取「建议投」这一档的下界（含）以上。改档位只需改 jd_score 一处，这里跟着变。
+#
+# 兜底不是防御性编程：档位名一旦被改，`_HIGH_BOUNDS` 就是空序列，min() 抛
+# ValueError，而看板的 import 在 main 的 router 列表里靠前——整个后端起不来。
+# 宁可退化成「第二档下界」这种错得不离谱的值，也不要让全站打不开。
+_HIGH_TIERS = ("强烈建议投", "建议投")
+_HIGH_BOUNDS = [lo for lo, _hi, tier, _a in jd_score.THRESHOLDS
+                if tier in _HIGH_TIERS]
+if _HIGH_BOUNDS:
+    HIGH_SCORE_FLOOR = min(_HIGH_BOUNDS)
+elif len(jd_score.THRESHOLDS) > 1:
+    HIGH_SCORE_FLOOR = jd_score.THRESHOLDS[1][0]
+else:
+    HIGH_SCORE_FLOOR = jd_score.THRESHOLDS[0][0]
+
+# 投递状态 → 输出键（前端图表用）
+_STATE_KEY = {"未投递": "unapplied", "流程中": "active", "已终态": "terminal"}
+
+
+def tier_of(score):
+    """评分 → 档位名。直接复用 `jd_score.verdict`：边界与越界回退都只有一处定义。"""
+    return jd_score.verdict(score)[0]
+
+
+def job_pool_overview(ws):
+    """岗位池视角的两组统计：高分未投清单 + 评分档位 × 投递状态分布。
+
+    匹配键（目录名）与终态口径全部复用 jobs_router——看板与岗位池对同一个岗位
+    必须给出同一个结论，各写一套判据迟早会互相矛盾。
+
+    未评分的岗位**不参与**分布图：「还没评」不等于最低档，塞进「不投」那一档
+    是在替用户下结论。
+    """
+    base = safe_join(ws, DIR_JOBS)
+    names = []
+    if os.path.isdir(base):
+        names = [n for n in sorted(os.listdir(base))
+                 if n and not n.startswith("_")
+                 and os.path.isdir(os.path.join(base, n))]
+
+    index = jobs_router._applications_by_key(ws) if names else {}
+    dist = {tier: {"unapplied": 0, "active": 0, "terminal": 0}
+            for _lo, _hi, tier, _a in jd_score.THRESHOLDS}
+    unapplied_high = []
+
+    for name in names:
+        card = jobs_router._parse_card(ws, os.path.join(DIR_JOBS, name))
+        if not (card and card.get("consistent") and card.get("total") is not None):
+            continue
+        company, role = jobs_router._split_dir(name)
+        state = jobs_router._apply_state(index.get(tracker.dedup_key(company, role)))
+        tier = tier_of(card["total"])
+        dist[tier][_STATE_KEY[state]] += 1
+        if state == "未投递" and card["total"] >= HIGH_SCORE_FLOOR:
+            display_company, display_role = jobs_router._job_company_role(ws, name)
+            unapplied_high.append({
+                "dir": name,
+                "company": display_company,
+                "role": display_role,
+                "score": card["total"],
+                "level": card.get("level"),
+            })
+
+    unapplied_high.sort(key=lambda x: -x["score"])
+    score_by_state = [dict({"tier": tier}, **dist[tier])
+                      for _lo, _hi, tier, _a in jd_score.THRESHOLDS]
+    return unapplied_high, score_by_state
 
 
 @router.get("")
@@ -100,6 +172,8 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         })
     pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
 
+    unapplied_high, score_by_state = job_pool_overview(ws)
+
     return {
         "total": total,
         "active": active,
@@ -115,4 +189,7 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         # 「我拒绝的 offer」单独统计，不算失败
         # 显式传 workspace：关键词表按工作区读取，并发下不能依赖全局
         "retrospective": retrospective(rows, history, today, ws),
+        # 岗位池视角（B3）：这两项与「有没有投递记录」无关，岗位池有内容就有值
+        "unappliedHigh": unapplied_high,
+        "scoreByState": score_by_state,
     }

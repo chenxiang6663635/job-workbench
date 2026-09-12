@@ -125,6 +125,20 @@ export default function Jobs() {
     setExpanded(null);
   };
 
+  // 看板「高分未投」下钻：带 focusDir 进来时直接打开该岗位详情。
+  // 读完即清——否则下次从导航回到岗位池会莫名其妙又弹一次详情。
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRILL_KEY);
+      if (!raw) return;
+      const drill = JSON.parse(raw) as { focusDir?: string };
+      sessionStorage.removeItem(DRILL_KEY);
+      if (drill.focusDir) open(drill.focusDir);
+    } catch {
+      // sessionStorage 不可用或内容坏了：当作没有下钻，不影响正常浏览
+    }
+  }, []);
+
   // 抓取成功后后端已写入 JD原文.md，直接打开详情让用户核对原文——
   // 抓取只是省掉复制粘贴，内容仍必须由用户过目（不做任何改写或摘要）
   const fetchJd = () => {

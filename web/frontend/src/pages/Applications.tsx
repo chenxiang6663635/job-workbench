@@ -5,6 +5,7 @@ import {
   ChevronsUpDown,
   FileUp,
   Inbox,
+  Mail,
   Plus,
   Search,
   X,
@@ -19,6 +20,7 @@ import {
   type HistoryEntry,
 } from "../api";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
+import StatusUpdateDialog from "../components/StatusUpdateDialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -139,6 +141,7 @@ export default function Applications() {
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
+  const [showStatus, setShowStatus] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [timelines, setTimelines] = useState<Record<string, HistoryEntry[]>>({});
   const [draft, setDraft] = useState({
@@ -311,6 +314,10 @@ export default function Applications() {
           </SelectContent>
         </Select>
 
+        <Button variant="outline" onClick={() => setShowStatus(true)}>
+          <Mail size={15} /> 粘贴邮件更新
+        </Button>
+
         <Button variant="outline" onClick={() => setShowImport(true)}>
           <FileUp size={15} /> 批量导入
         </Button>
@@ -324,6 +331,14 @@ export default function Applications() {
         <ImportApplicationsDialog
           onClose={() => setShowImport(false)}
           onImported={load}
+        />
+      )}
+
+      {showStatus && (
+        <StatusUpdateDialog
+          applications={items}
+          onClose={() => setShowStatus(false)}
+          onApplied={load}
         />
       )}
 

@@ -9,7 +9,7 @@ for contributors and for anyone evaluating the project's health.
   1–3 weeks. No fixed calendar.
 - Versioning: semver; during 0.x, breaking changes bump the minor. The full
   discipline lives in [CONTRIBUTING.md](../CONTRIBUTING.md).
-- Every release gets a changelog entry ([CHANGELOG.md](CHANGELOG.md)) and
+- Every release gets a changelog entry ([CHANGELOG.md](../CHANGELOG.md)) and
   GitHub release notes.
 
 ## Issue triage
@@ -32,7 +32,7 @@ for contributors and for anyone evaluating the project's health.
 
 - 1–2 small PRs per week, driven by actual usage — no batch dumps, no
   performative activity.
-- [ROADMAP.md](ROADMAP.md) is updated as items land; its Now section reflects
+- [ROADMAP.md](../ROADMAP.md) is updated as items land; its Now section reflects
   current work.
 - If maintenance ever pauses, a pinned issue will say so. This project does
   not go quiet silently.

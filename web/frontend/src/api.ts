@@ -38,7 +38,9 @@ export interface ScoreStateBucket {
 export interface DashboardData {
   total: number;
   active: number;
+  // 列表只给前几条，总数单独给：岗位池大起来时返回体不该跟着膨胀
   unappliedHigh: UnappliedHighItem[];
+  unappliedHighTotal: number;
   scoreByState: ScoreStateBucket[];
   funnel: { stage: string; count: number }[];
   byDirection: { key: string; count: number }[];
@@ -522,7 +524,9 @@ export const api = {
       `/applications/${encodeURIComponent(id)}/history`
     ),
 
-  addApplication: (body: Partial<Application>) =>
+  // `岗位目录`（如 `某公司_某岗位`）是「岗位池 → 投递」的推荐入口：给了它，
+  // 公司与岗位由后端按同一口径拆分，客户端不必自己拆（拆分只有一处实现）。
+  addApplication: (body: Partial<Application> & { 岗位目录?: string }) =>
     request<{ id: string; item: Application }>("/applications", {
       method: "POST",
       body,

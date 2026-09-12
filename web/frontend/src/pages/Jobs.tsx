@@ -53,12 +53,11 @@ function today(): string {
 }
 
 /**
- * 目录名 → (公司, 岗位)。这是后端 `_split_dir`（`web/backend/routers/jobs.py`）
- * 的镜像实现：取首个下划线、两端 trim。
+ * 目录名 → (公司, 岗位)。取首个下划线、两端 trim。
  *
- * 同一口径存在两份（TS 与 Python）是已知的张力——pytest 打不到这份 TS 实现。
- * 真正的收敛方式是把拆分下沉到后端（前端直接传目录名），放到后续批次做；
- * 在那之前，**改后端 `_split_dir` 必须同步改这里**，否则匹配键两边会漂。
+ * **这不是权威实现，只是点击时的即时预检**（拆不出来就别让用户白填一屏）。
+ * 真正写入追踪表的公司与岗位由后端按 `jobs._split_dir` 拆分——提交时只传目录名，
+ * 所以两份实现即使漂了，写进去的也仍然是对的。
  */
 function splitDir(dir: string): [string, string] {
   const i = dir.indexOf("_");
@@ -208,18 +207,20 @@ export default function Jobs() {
     setApplyTarget(job);
   };
 
-  // 写入追踪表用**目录名拆分值**而非卡片展示名：匹配键是目录名，
-  // 写展示名会让这条记录在岗位池里匹配不上（B1 审查抓出的就是这个问题）。
+  // 提交只传**目录名**：公司与岗位由后端按同一口径拆分（匹配键只有一处来源），
+  // 评分也原样传（解析卡的维度分可能是小数），取整同样在后端做。
+  // 两件事都不在这里做，正是为了不让同一个规则在客户端多出一份。
   const submitApply = () => {
     if (!applyTarget) return;
-    const [公司, 岗位] = splitDir(applyTarget.dir);
     setApplying(applyTarget.dir);
     setError(null);
-    const payload: Partial<Application> = { 公司, 岗位, ...applyDraft };
-    // 评分：解析卡允许小数维度分（如 24.5/30 → 87.5），追踪表这一列是整数，取整再写；
-    // **未评分时不写 0**——「没有评分」不等于「0 分」，留空才诚实（后端已支持空值）。
+    const payload: Partial<Application> & { 岗位目录?: string } = {
+      岗位目录: applyTarget.dir,
+      ...applyDraft,
+    };
+    // **未评分时不传**——「没有评分」不等于「0 分」，留空才诚实
     if (applyTarget.score !== null) {
-      payload.评分 = String(Math.round(applyTarget.score));
+      payload.评分 = String(applyTarget.score);
     }
     api
       .addApplication(payload)

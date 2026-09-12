@@ -281,6 +281,43 @@ def test_sort_recent_puts_undated_last():
     assert [i["dir"] for i in jobs_router._sort_jobs(items, "recent")] == ["新", "旧", "无时间"]
 
 
+# --- 方向（顺序 / 逆序）------------------------------------------------------
+
+def test_sort_dir_desc_and_unknown_order_falls_back():
+    items = [_stub("b"), _stub("a"), _stub("c")]
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "dir", "desc")] == ["c", "b", "a"]
+    # 未知 order 静默回退到该维度的默认（前端传参可能来自 URL，与 sort/status 同策略）
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "dir", "nope")] == ["a", "b", "c"]
+
+
+def test_unscored_stays_last_in_both_directions():
+    """逆序不得把「没有数据」翻到最上面——那会让用户以为这些最该看。"""
+    items = [_stub("无分数"), _stub("高分", 95), _stub("低分", 60)]
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "score", "desc")] == ["高分", "低分", "无分数"]
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "score", "asc")] == ["低分", "高分", "无分数"]
+
+
+def test_sort_state_desc_reverses_both_levels_but_not_the_sinking():
+    items = [_stub("终态高分", 99, "已终态"), _stub("未投低分", 10, "未投递"),
+             _stub("流程中", 50, "流程中"),
+             _stub("未投高分", 88, "未投递"), _stub("未投无分", None, "未投递")]
+    # 逆序 = 状态倒过来（已终态在前）且组内评分也跟着倒；未评分仍在**自己组内**沉底
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "state", "desc")] == [
+        "终态高分", "流程中", "未投低分", "未投高分", "未投无分"]
+
+
+def test_sort_recent_asc_puts_the_oldest_first():
+    items = [_stub("旧", mtime=100), _stub("新", mtime=300), _stub("无时间", mtime=None)]
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "recent", "asc")] == ["旧", "新", "无时间"]
+
+
+def test_ties_fall_back_to_dir_name_regardless_of_direction():
+    """方向只作用于主键：同分记录在任何方向下都按目录名升序决胜。"""
+    items = [_stub("b", 80), _stub("a", 80)]
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "score", "desc")] == ["a", "b"]
+    assert [i["dir"] for i in jobs_router._sort_jobs(items, "score", "asc")] == ["a", "b"]
+
+
 # --- 一键投递的写入（B2）-----------------------------------------------------
 
 def _apply(client, **body):

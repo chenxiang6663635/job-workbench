@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -496,50 +495,36 @@ export default function Dashboard() {
               <h2 className="mb-4 text-sm font-semibold text-foreground">
                 投递漏斗（点击柱子查看该阶段岗位）
               </h2>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart
-                  data={data.funnel}
-                  layout="vertical"
-                  margin={{ left: 8, right: 24 }}
-                >
-                  <XAxis type="number" hide domain={[0, maxFunnel]} />
-                  <YAxis
-                    type="category"
-                    dataKey="stage"
-                    width={56}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "hsl(var(--foreground) / 0.06)" }}
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 12,
-                      color: "hsl(var(--foreground))",
-                      fontSize: 12,
-                    }}
-                  />
-                  <Bar
-                    dataKey="count"
-                    radius={[0, 6, 6, 0]}
-                    barSize={18}
-                    onClick={(d) => {
-                      const stage = (d as { stage?: string }).stage;
-                      if (stage) drillTo({ stage });
-                    }}
-                    className="cursor-pointer"
+              {/* 纯 DOM 行，不是柱状图：数字要能**右对齐成一列**，与右侧
+                  「按方向 / 按批次」同一种读数方式。柱状图的标签只能跟着柱尾走，
+                  数据分布一不均就参差不齐（而这一栏的值本来就常常相等）。
+                  条形仍按比例，另加一层轨道——数据少时也能看清「占了多少」。 */}
+              <div className="space-y-2.5">
+                {data.funnel.map((f) => (
+                  <button
+                    key={f.stage}
+                    onClick={() => drillTo({ stage: f.stage })}
+                    title={`${f.stage}：${f.count} 条`}
+                    className="group flex w-full cursor-pointer items-center gap-3 text-left"
                   >
-                    {data.funnel.map((f) => (
-                      <Cell
-                        key={f.stage}
-                        fill={STAGE_COLORS[f.stage] ?? "hsl(var(--primary))"}
+                    <span className="w-12 shrink-0 text-xs text-muted-foreground transition-colors group-hover:text-primary">
+                      {f.stage}
+                    </span>
+                    <span className="h-3.5 flex-1 overflow-hidden rounded-full bg-secondary/40">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{
+                          width: `${Math.max(3, Math.round((f.count / maxFunnel) * 100))}%`,
+                          background: STAGE_COLORS[f.stage] ?? "hsl(var(--primary))",
+                        }}
                       />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                    </span>
+                    <span className="w-6 shrink-0 text-right text-xs font-medium tabular-nums text-foreground">
+                      {f.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-4">

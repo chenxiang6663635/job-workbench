@@ -250,8 +250,9 @@ def _sort_jobs(items, sort: str, order: str = None):
     - **次要键（目录名）恒升序**——方向只作用于用户选的那个维度；
     - 未知 sort / order 静默回退默认（前端传参可能来自 URL，容错比严格更好）。
 
-    状态排序的档位在逆序时手工取反（`2 - x`），而不是用 `reverse=True`：
-    后者会把整个 key 元组一起翻，未评分的沉底与目录名升序也就跟着翻了。
+    状态排序的档位在逆序时手工取反（`-state_order[x]`，对任意档数天然成立），
+    而不是用 `reverse=True`：后者会把整个 key 元组一起翻，
+    未评分的沉底与目录名升序也就跟着翻了。
     """
     desc = (order if order in JOB_ORDERS
             else JOB_DEFAULT_ORDER.get(sort, "asc")) == "desc"
@@ -267,11 +268,12 @@ def _sort_jobs(items, sort: str, order: str = None):
         # 所以逆序时它反而是升序——「逆序」翻的是整个排序，不是每个键各自取反。
         state_order = {"未投递": 0, "流程中": 1, "已终态": 2}
         return sorted(items, key=lambda i: (
-            state_order[i["applyState"]] if not desc else 2 - state_order[i["applyState"]],
+            state_order[i["applyState"]] if not desc else -state_order[i["applyState"]],
             0 if i["score"] is not None else 1,
             -(i["score"] or 0) if not desc else (i["score"] or 0),
             i["dir"]))
     if sort == "recent":
+        # mtime=0 理论上会落「无时间」桶；真实文件系统给不出 0，不另设防
         return sorted(items, key=lambda i: (
             0 if i["mtime"] else 1,
             -(i["mtime"] or 0) if desc else (i["mtime"] or 0),

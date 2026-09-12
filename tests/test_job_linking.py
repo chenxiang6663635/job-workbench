@@ -318,6 +318,19 @@ def test_ties_fall_back_to_dir_name_regardless_of_direction():
     assert [i["dir"] for i in jobs_router._sort_jobs(items, "score", "asc")] == ["a", "b"]
 
 
+def test_job_default_order_covers_every_sort_key():
+    """加新排序维度时忘了配默认方向，缺省 order 会静默落 asc——一行钉住。"""
+    assert set(jobs_router.JOB_DEFAULT_ORDER) == set(jobs_router.JOB_SORTS)
+
+
+def test_order_param_flows_through_http(client, tmp_path):
+    """HTTP 层的 order 透传：函数级测试钉口径，这条钉「查询串 → 排序」的接线。"""
+    _make_job(tmp_path, "B_乙")
+    _make_job(tmp_path, "A_甲")
+    assert [i["dir"] for i in _items(client, sort="dir")] == ["A_甲", "B_乙"]
+    assert [i["dir"] for i in _items(client, sort="dir", order="desc")] == ["B_乙", "A_甲"]
+
+
 # --- 一键投递的写入（B2）-----------------------------------------------------
 
 def _apply(client, **body):

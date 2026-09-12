@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, Settings as SettingsIcon, TrendingUp } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
@@ -9,17 +10,21 @@ import Resume from "./pages/Resume";
 import Settings from "./pages/Settings";
 import { api, setWorkspace, type WorkspaceItem } from "./api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
+import { LANGS } from "./i18n";
+import type { TranslationKey } from "./i18n/locales/zh-CN";
 
 type Tab = "dashboard" | "applications" | "jobs" | "resume" | "progress" | "library" | "settings";
 
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: "dashboard", label: "看板", icon: <LayoutDashboard size={16} /> },
-  { key: "applications", label: "追踪表", icon: <Briefcase size={16} /> },
-  { key: "jobs", label: "岗位池", icon: <FolderOpen size={16} /> },
-  { key: "resume", label: "简历工坊", icon: <FileText size={16} /> },
-  { key: "progress", label: "进展", icon: <TrendingUp size={16} /> },
-  { key: "library", label: "素材库", icon: <LibraryIcon size={16} /> },
-  { key: "settings", label: "设置", icon: <SettingsIcon size={16} /> },
+// label 改成 i18n key：文案不再写死在组件里（翻译缺失时回落 zh-CN，不会露出 key 名）。
+// 页面与组件内部的文案不在本批范围，留给「批量抽取」批统一处理。
+const TABS: { key: Tab; labelKey: TranslationKey; icon: React.ReactNode }[] = [
+  { key: "dashboard", labelKey: "nav.dashboard", icon: <LayoutDashboard size={16} /> },
+  { key: "applications", labelKey: "nav.applications", icon: <Briefcase size={16} /> },
+  { key: "jobs", labelKey: "nav.jobs", icon: <FolderOpen size={16} /> },
+  { key: "resume", labelKey: "nav.resume", icon: <FileText size={16} /> },
+  { key: "progress", labelKey: "nav.progress", icon: <TrendingUp size={16} /> },
+  { key: "library", labelKey: "nav.library", icon: <LibraryIcon size={16} /> },
+  { key: "settings", labelKey: "nav.settings", icon: <SettingsIcon size={16} /> },
 ];
 
 const WS_STORAGE_KEY = "jobws_selected_workspace";
@@ -39,6 +44,7 @@ function tabFromHash(): Tab {
 }
 
 export default function App() {
+  const { t, i18n } = useTranslation();
   // hash 路由：刷新保持当前 Tab，且可直接用 #library 等定位页面
   // （此前用纯 state，刷新总回看板，也无头验证工具无法直达内页）
   const [tab, setTab] = useState<Tab>(tabFromHash);
@@ -116,40 +122,64 @@ export default function App() {
       <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
           <div className="flex items-center gap-2">
-            <img src="/favicon.png" alt="求职工作台" className="h-7 w-7 rounded-lg" />
+            <img src="/favicon.png" alt={t("app.title")} className="h-7 w-7 rounded-lg" />
             <span className="text-sm font-semibold tracking-wide text-foreground">
-              求职工作台
+              {t("app.title")}
             </span>
           </div>
 
           <div className="flex items-center gap-1">
-            {TABS.map((t) => (
+            {TABS.map((item) => (
               <button
-                key={t.key}
-                onClick={() => switchTab(t.key)}
+                key={item.key}
+                onClick={() => switchTab(item.key)}
                 className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-all duration-200 ease-premium ${
-                  tab === t.key
+                  tab === item.key
                     ? "bg-primary/15 text-primary shadow-glow-primary"
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
               >
-                {t.icon}
-                {t.label}
+                {item.icon}
+                {t(item.labelKey)}
               </button>
             ))}
           </div>
 
           <div className="ml-auto flex items-center gap-3 text-xs">
+            {/* 语言切换：只有 zh-CN / en 两态，用分段按钮比下拉更省一次点击 */}
+            <div
+              className="flex items-center rounded-lg border border-border p-0.5"
+              role="group"
+              title={t("lang.switch")}
+            >
+              {LANGS.map((l) => (
+                <button
+                  key={l.value}
+                  onClick={() => i18n.changeLanguage(l.value)}
+                  className={`cursor-pointer rounded-md px-2 py-1 text-xs transition-colors ${
+                    i18n.language === l.value
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+
             {workspaces.length > 0 && (
               <Select value={currentWs} onValueChange={switchWorkspace}>
-                <SelectTrigger className="h-7 w-36 px-2 py-1 text-xs" title="切换工作区">
-                  <SelectValue placeholder="选择工作区" />
+                <SelectTrigger
+                  className="h-7 w-36 px-2 py-1 text-xs"
+                  title={t("nav.switchWorkspaceTitle")}
+                >
+                  <SelectValue placeholder={t("nav.workspacePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {workspaces.map((w) => (
                     <SelectItem key={w.name} value={w.name} className="text-xs">
                       {w.name}
-                      {w.isDefault ? "（默认）" : ""}
+                      {w.isDefault ? t("nav.workspaceDefaultSuffix") : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -167,10 +197,10 @@ export default function App() {
             />
             <span className="text-muted-foreground">
               {online === null
-                ? "连接中"
+                ? t("status.connecting")
                 : online
-                ? "已连接本地数据"
-                : "后端未启动"}
+                ? t("status.online")
+                : t("status.offline")}
             </span>
           </div>
         </div>
@@ -180,10 +210,11 @@ export default function App() {
         {online === false ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
             <p className="text-sm font-medium text-destructive">
-              无法连接到后端（localhost:8765）
+              {t("error.backend")}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              请在仓库根目录运行：
+              {t("error.backendHint")}
+              {/* 命令行本身不翻译：它是可直接复制执行的命令，翻译了就没法粘贴运行 */}
               <code className="mx-1 rounded bg-background px-1.5 py-0.5 text-foreground">
                 cd web/backend &amp;&amp; python -m uvicorn main:app --port 8765
               </code>
@@ -192,7 +223,7 @@ export default function App() {
         ) : !workspaceReady ? (
           // 工作区尚未激活（listWorkspaces 返回前）：避免首屏用空 ws 拉默认数据，
           // 否则切到非默认工作区 reload 后会先渲染一次默认工作区数据，产生闪烁
-          <div className="text-sm text-muted-foreground">正在定位工作区…</div>
+          <div className="text-sm text-muted-foreground">{t("loading.workspace")}</div>
         ) : tab === "dashboard" ? (
           <Dashboard key={currentWs} />
         ) : tab === "applications" ? (

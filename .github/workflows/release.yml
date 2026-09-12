@@ -240,6 +240,11 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          # 这个 job 只下载 artifact、**没有 checkout**，而 gh 默认靠当前目录的 git 仓库
+          # 推断目标仓库 → 会报 "failed to run git: fatal: not a git repository"。
+          # 显式给 GH_REPO（gh 认这个环境变量），四条 gh 调用一次性全覆盖；
+          # 不必为此引入一次代码拉取——publish 只需要 artifact 与说明文件。
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
           ASSET: ${{ needs.build.outputs.asset }}
         run: |

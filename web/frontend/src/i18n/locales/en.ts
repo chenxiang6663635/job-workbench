@@ -30,4 +30,21 @@ export default {
   "loading.workspace": "Locating workspace…",
 
   "lang.switch": "Language",
+
+  "job.unscored": "Unscored",
+  "job.notScored": "Not scored yet",
+  "job.jdSaved": "JD saved",
+  "job.reapplyHint": "Applying again creates a new record",
+  "job.applyHint": "After applying, follow up in the tracker",
+  "job.applying": "Applying…",
+  "job.reapply": "Apply again",
+  "job.apply": "Apply now",
+  "job.cardAria": "{{dir}}, match {{score}}, application status {{state}}",
+
+  "lineage.title": "Version lineage",
+  "lineage.subtitle": "Which jobs each version went to, and how far they got",
+  "lineage.loadFailed": "Failed to load version lineage: {{error}}",
+  "lineage.jobCount_one": "{{count}} job",
+  "lineage.jobCount_other": "{{count}} jobs",
+  "lineage.tip": "Tip: fill in the 简历版本 (resume version) column in the tracker when you apply — that is what links a version to its jobs.",
 } satisfies Record<TranslationKey, string>;

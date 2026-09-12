@@ -163,33 +163,59 @@ jobs:
           & powershell -ExecutionPolicy Bypass -File scripts/build_desktop.ps1 -Py "$py"
           if ($LASTEXITCODE -ne 0) { throw "打包失败（exit $LASTEXITCODE）" }
 
-      - name: 定位并改名产物
+      - name: 定位产物与更新元数据
         id: artifact
         shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           $ErrorActionPreference = "Stop"
-          $found = Get-ChildItem web/electron/release -Filter *.exe -ErrorAction SilentlyContinue
+          $dir = "web/electron/release"
+          $found = Get-ChildItem $dir -Filter *.exe -ErrorAction SilentlyContinue
           if (-not $found) {
             # 不许静默成功：没产物就是失败，并说清去哪找线索
-            throw "构建结束但 web/electron/release 下没有 .exe。看上一步输出里 electron-builder 的报错。"
+            throw "构建结束但 $dir 下没有 .exe。看上一步输出里 electron-builder 的报错。"
           }
           $found | ForEach-Object { Write-Host ("找到产物: {0}  ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB)) }
           if ($found.Count -gt 1) {
-            # 不猜该发哪个。本地 v0.1.1 全量构建出来恰好 1 个 exe，所以这里若被触发
+            # 不猜该发哪个。本地全量构建出来恰好 1 个 exe，所以这里若被触发
             # 说明产出形态变了，需要人看一眼再决定。
-            throw "web/electron/release 下有多个 .exe，无法判断该发布哪个：$($found.Name -join ', ')"
+            throw "$dir 下有多个 .exe，无法判断该发布哪个：$($found.Name -join ', ')"
           }
 
-          # Release 资产统一用 ASCII 名（与 v0.1.1 的 job-workbench-setup-0.1.1-win64.exe 一致）：
-          # 下载链接、脚本引用都不该依赖中文产品名。
-          $asset = "job-workbench-setup-$($env:VERSION)-win64.exe"
+          # 产物名由 build.artifactName 决定（job-workbench-setup-<ver>-win64.exe）。
+          # 这里只**校验**名字，**不再改名**——latest.yml 里记录的下载路径必须与资产名
+          # 逐字一致，改名就是让两者脱钩：客户端拿到元数据后按里面的文件名下载会 404。
+          $expected = "job-workbench-setup-$($env:VERSION)-win64.exe"
+          if ($found[0].Name -ne $expected) {
+            throw "产物名与预期不符：实际 $($found[0].Name)，预期 $expected（见 build.artifactName）。改名会让 latest.yml 里的路径对不上。"
+          }
+
+          $asset = $expected
           Copy-Item $found[0].FullName $asset -Force
+
+          # 自动更新元数据：electron-updater 靠它判断有没有新版、该下载哪个文件。
+          # electron-builder 只在配置了 build.publish 时才产出它，所以缺了就是配置退化。
+          $meta = Join-Path $dir "latest.yml"
+          if (-not (Test-Path $meta)) {
+            throw "没有生成 latest.yml —— 自动更新的元数据缺失。检查 build.publish 配置。"
+          }
+          Copy-Item $meta "latest.yml" -Force
+
+          # 差量更新用的块映射：没有它客户端会退化成全量下载（不失败），有则省流量
+          $blockmap = Get-ChildItem $dir -Filter "*.blockmap" -ErrorAction SilentlyContinue
+          if ($blockmap) {
+            Copy-Item $blockmap[0].FullName "$asset.blockmap" -Force
+            Write-Host "已带上块映射: $asset.blockmap"
+          } else {
+            Write-Host "没有 .blockmap，客户端将走全量下载（不视为失败）"
+          }
+
           Write-Host "资产名: $asset"
           "asset=$asset" >> $env:GITHUB_OUTPUT
 
       # 演练模式：只构建 + 校验 + 存成 workflow artifact，不碰 Release
+      # 这是**唯一能在不打 tag 时验证"自动更新元数据有没有被正确产出"的入口**
       - name: 演练产物留存
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
@@ -197,6 +223,8 @@ jobs:
           name: installer
           path: |
             ${{ steps.artifact.outputs.asset }}
+            ${{ steps.artifact.outputs.asset }}.blockmap
+            latest.yml
             release-notes.md
           retention-days: 7
           if-no-files-found: error
@@ -209,6 +237,8 @@ jobs:
           name: release-payload
           path: |
             ${{ steps.artifact.outputs.asset }}
+            ${{ steps.artifact.outputs.asset }}.blockmap
+            latest.yml
             release-notes.md
           retention-days: 3
           if-no-files-found: error
@@ -264,13 +294,18 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "更新 Release 说明失败（exit $LASTEXITCODE）" }
           }
 
-          gh release upload $env:TAG $asset --clobber
-          if ($LASTEXITCODE -ne 0) { throw "上传安装包失败（exit $LASTEXITCODE）——发布未完成，不要当成成功" }
+          # 安装包 + 自动更新元数据一起传。latest.yml 缺了的话老用户永远收不到更新，
+          # 而这件事在只检查 exe 的时候是**看不出来**的——所以下面两件都要核。
+          $files = @($asset, "latest.yml")
+          if (Test-Path "$asset.blockmap") { $files += "$asset.blockmap" }
+          gh release upload $env:TAG @files --clobber
+          if ($LASTEXITCODE -ne 0) { throw "上传发布资产失败（exit $LASTEXITCODE）——发布未完成，不要当成成功" }
 
           # 上传之后再核一遍：以 Release 上真实存在的资产为准，而不是以退出码为依据
           $assets = gh release view $env:TAG --json assets --jq '.assets[].name'
           if ($LASTEXITCODE -ne 0) { throw "读取 Release 资产列表失败（exit $LASTEXITCODE）" }
-          if ($assets -notcontains $asset) {
-            throw "上传命令返回 0，但 Release 资产列表里没有 $asset。实际列表：$($assets -join ', ')"
+          $missing = $files | Where-Object { $assets -notcontains $_ }
+          if ($missing) {
+            throw "上传命令返回 0，但 Release 资产列表里缺少：$($missing -join ', ')。实际列表：$($assets -join ', ')"
           }
-          Write-Host "已发布：$($env:TAG) / $asset"
+          Write-Host "已发布：$($env:TAG) / $($files -join ', ')"

@@ -8,7 +8,10 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -20,9 +23,18 @@
       "output": "release"
     },
     "productName": "求职工作台",
+    "artifactName": "job-workbench-setup-${version}-win64.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "chenxiang6663635",
+        "repo": "job-workbench"
+      }
+    ],
     "files": [
       "main.js",
-      "package.json"
+      "package.json",
+      "node_modules/**"
     ],
     "extraResources": [
       {

@@ -4,7 +4,7 @@
 // 前端静态产物由 FastAPI 同源托管（web/frontend/dist），无需 vite dev server，
 // 也无需放宽 CORS —— 页面与 API 同源。
 
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, dialog } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
@@ -236,6 +236,79 @@ function createWindow() {
   });
 }
 
+// ---- 自动更新（electron-updater）----
+// 只在打包形态启用：源码运行时没有 app-update.yml，检查必然失败，开发者也不需要它。
+//
+// 交互刻意做成"两次询问"：先问要不要下载，下载完再问要不要重启。
+// 静默下载 + 静默重启是更省事的写法，但会打断用户正在做的事——而这个应用一关窗口
+// 后端进程也停，重启的代价比一般桌面应用更高，必须由用户自己挑时机。
+function setupAutoUpdate() {
+  if (!app.isPackaged) {
+    log("源码形态，跳过自动更新检查");
+    return;
+  }
+
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require("electron-updater"));
+  } catch (e) {
+    // 依赖没打进包时不该让整个应用起不来——更新只是增强，不是启动必需
+    log(`自动更新不可用（electron-updater 未随包分发）: ${e.message}`);
+    return;
+  }
+
+  autoUpdater.autoDownload = false;
+  // 用主进程日志接手 updater 的输出：GUI 下看不到控制台，出问题只能靠这个文件
+  autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
+
+  autoUpdater.on("error", (err) => log(`自动更新出错: ${(err && err.message) || err}`));
+  autoUpdater.on("update-not-available", () => log("已是最新版本"));
+
+  autoUpdater.on("update-available", (info) => {
+    log(`发现新版本 ${info.version}`);
+    dialog
+      .showMessageBox({
+        type: "info",
+        title: "有新版本",
+        message: `求职工作台 ${info.version} 可用`,
+        detail: "下载完成后会再问你要不要重启。现在下载不会打断你正在做的事。",
+        buttons: ["下载更新", "以后再说"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response !== 0) return;
+        log("用户同意下载更新");
+        autoUpdater.downloadUpdate().catch((e) => log(`下载更新失败: ${e.message}`));
+      });
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    log(`更新已下载 ${info.version}`);
+    dialog
+      .showMessageBox({
+        type: "info",
+        title: "更新已就绪",
+        message: `求职工作台 ${info.version} 已下载完成`,
+        detail: "立即重启会先结束后端进程，再安装新版本。",
+        buttons: ["立即重启并安装", "退出时再装"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response !== 0) return;
+        log("用户同意重启安装");
+        stopBackend();
+        autoUpdater.quitAndInstall();
+      });
+  });
+
+  // 延迟检查：让窗口先渲染出来，别和启动链路抢时间
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((e) => log(`检查更新失败: ${e.message}`));
+  }, 5000);
+}
+
 app.whenReady().then(() => {
   // 若后端端口已被占用（用户可能已用 start.ps1 起了服务），直接复用
   checkHealth((ok) => {
@@ -248,6 +321,8 @@ app.whenReady().then(() => {
       waitBackendReady(() => createWindow());
     }
   });
+
+  setupAutoUpdate();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

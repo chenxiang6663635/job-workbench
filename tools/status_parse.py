@@ -206,8 +206,12 @@ def can_override(current, proposed):
     return True, ""
 
 
-def suggest(text, rows, today=None):
+def suggest(text, rows, today=None, focus_id=None):
     """把原文 + 既有记录合成建议。**纯函数：不写任何东西。**
+
+    `focus_id` 非空时**跳过公司名匹配**，只看这一条记录：站内信常常通篇不写
+    公司名（「您好，您的简历已进入笔试环节」），此时只能由用户点选记录。
+    用户的选择比子串匹配权威，所以命中记为「手动指定」而不是「公司」。
 
     返回：
       {
@@ -225,13 +229,21 @@ def suggest(text, rows, today=None):
     matches = []
 
     top = parsed["signals"][0] if parsed["signals"] else None
-    hits = match_rows(text, rows)
+
+    if focus_id:
+        target = next((r for r in (rows or [])
+                       if (r.get("id") or "").strip() == (focus_id or "").strip()), None)
+        hits = [(target, "手动指定")] if target is not None else []
+        if target is None:
+            notes.append("指定的记录 `%s` 不在追踪表里" % focus_id)
+    else:
+        hits = match_rows(text, rows)
 
     if parsed.get("ambiguous"):
         notes.append(parsed["ambiguous_reason"])
     if not top:
         notes.append("没有识别出状态线索；可在确认框里手工指定阶段")
-    if not hits:
+    if not hits and not focus_id:
         notes.append("原文里没有出现任何既有记录的公司名；请选择这条更新属于哪条记录")
 
     picked = hits

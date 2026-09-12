@@ -14,10 +14,12 @@ from __future__ import annotations
 import math
 import os
 from datetime import date, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+import status_parse
 import tracker
 from deps import DIR_TRACKING, workspace_dir
 from filelock import file_lock
@@ -392,5 +394,112 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
             target[k] = str(v)
         tracker.write_rows(rows, ws)
         tracker.append_history(tracker.diff_entries(app_id, before, target), ws)
+
+    return {"item": target}
+
+
+# ---------------------------------------------------------------------------
+# 投递状态建议（B11 轻量版）：原文 → 建议（只读）→ 用户逐条确认 → 写回。
+#
+# 判断全部在 tools/status_parse.py（纯函数、零 IO），这里只做 HTTP 编排：
+#   suggest 只读、不持锁——write_rows 是原子替换（tmp + os.replace），读到的
+#     要么是旧快照要么是新快照，不会读到半截；预览也本就不该跟写操作抢锁；
+#   apply 才持锁，并在锁内用**最新数据重算**并发前提与单调性——前端传来的
+#     判断一律不信（它可能来自几分钟前的旧快照，也可能被改过）。
+# ---------------------------------------------------------------------------
+
+class SuggestRequest(BaseModel):
+    原文: str
+    # 用 Optional 而不是「str = None」：pydantic v2 下后者只表示默认值是 None，
+    # 但**显式传 null 仍会校验失败**——而前端把「没选记录」序列化成 null 是最
+    # 自然的写法（端到端验证时就这么踩了一次，返回 422「Input should be a
+    # valid string」，界面上一脸懵）。
+    id: Optional[str] = None      # 未匹配到记录时由用户手动指定
+
+
+class ApplySuggestionRequest(BaseModel):
+    id: str
+    阶段: str
+    原阶段: Optional[str] = None   # 用户确认时看到的当前阶段（乐观并发用）
+    状态原因: Optional[str] = None
+    下次动作: Optional[str] = None
+    下次动作日期: Optional[str] = None
+    依据: str = ""                 # 命中的原文句子，写进时间线
+
+
+@router.post("/suggest-status")
+def suggest_status(item: SuggestRequest, ws: str = Depends(workspace_dir)):
+    """原文 → 建议。**只读**：不动追踪表、不写时间线、不碰任何文件。"""
+    text = (item.原文 or "").strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="请先粘贴要解析的原文")
+    rows = tracker.read_rows(ws)
+    return status_parse.suggest(text, rows, focus_id=item.id)
+
+
+@router.post("/apply-status-suggestion")
+def apply_status_suggestion(item: ApplySuggestionRequest,
+                            ws: str = Depends(workspace_dir)):
+    """把用户确认过的一条建议写回。**只有用户点了确认才会走到这里。**
+
+    三道服务端复核，缺一不可：
+
+    1. 阶段枚举合法；
+    2. **乐观并发**：库里的当前阶段必须与用户确认时看到的一致，否则 409 让
+       用户重新解析——建议是在旧快照上算出来的，期间记录可能已被别处改动
+       （另一个标签页、CLI、或一次批量导入），照着旧快照写会把别人的改动抹掉；
+    3. **单调性**：用规则层 `can_override` 重算——终态不回退、拒信不把 offer 打回。
+       用户若确实要任意改阶段，走表格里的 PATCH（那是手工修表的入口），
+       这条端点只负责「应用建议」这一种语义。
+    """
+    stage = (item.阶段 or "").strip()
+    if stage not in STAGES + TERMINAL:
+        raise HTTPException(status_code=422,
+                            detail="阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL))
+    if item.下次动作日期:
+        errs = tracker.check_date(item.下次动作日期, "下次动作日期")
+        if errs:
+            raise HTTPException(status_code=422, detail=errs[0])
+
+    lock_path = os.path.join(ws, DIR_TRACKING, "tracker.lock")
+    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+
+    with file_lock(lock_path):
+        rows = tracker.read_rows(ws)
+        target = _find(rows, item.id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="找不到 id 为 %s 的记录" % item.id)
+
+        current = (target.get("当前阶段") or "").strip()
+        seen = (item.原阶段 or "").strip()
+        if seen and current != seen:
+            raise HTTPException(
+                status_code=409,
+                detail="这条记录的当前阶段已变为 `%s`（你确认时是 `%s`）——请重新解析原文"
+                       % (current, seen))
+
+        ok, why = status_parse.can_override(current, stage)
+        if not ok:
+            raise HTTPException(status_code=422, detail=why)
+
+        before = dict(target)
+        target["当前阶段"] = stage
+        for field in ("状态原因", "下次动作", "下次动作日期"):
+            value = getattr(item, field)
+            if value is not None:
+                target[field] = value
+        # 终态必填原因：按更新后的最终值判定（PATCH 同一口径）
+        errs = tracker.check_reason_required(stage, target.get("状态原因", ""))
+        if errs:
+            raise HTTPException(status_code=422, detail=errs[0])
+
+        tracker.write_rows(rows, ws)
+        entries = tracker.diff_entries(item.id, before, target)
+        if (item.依据 or "").strip():
+            # 审计留痕：这条改动是根据哪句原文落下来的。没有它，半年后没人说得清
+            # 「这条为什么从一面变成已挂」——那正是这个功能最该自证的地方。
+            entries.append({"id": item.id, "字段": "状态来源", "原值": "",
+                            "新值": "原文解析：%s" % item.依据.strip()})
+        tracker.append_history(entries, ws)
 
     return {"item": target}

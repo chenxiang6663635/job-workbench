@@ -54,7 +54,26 @@ def test_receipt_mail_is_not_mistaken_for_a_rejection():
 def test_round_is_detected_from_strongest_keyword():
     assert status_parse.parse("邀请您参加第二轮面试")["signals"][0]["stage"] == "二面"
     assert status_parse.parse("邀请您参加终面")["signals"][0]["stage"] == "三面"
-    assert status_parse.parse("HR 与您沟通薪酬细节")["signals"][0]["stage"] == "HR面"
+    assert status_parse.parse("HR 邀请您沟通薪酬细节")["signals"][0]["stage"] == "HR面"
+    # 大小写不该成为漏判的理由（同一批词里中英混排）
+    assert status_parse.parse("HR面：邀您参加面试")["signals"][0]["stage"] == "HR面"
+
+
+def test_common_invitation_phrasings_are_recognised():
+    """最常见的那句「邀请您参加面试」必须认出来（早期只收了无「请」字的写法）。"""
+    assert status_parse.parse("邀请您参加面试")["signals"][0]["stage"] == "一面"
+    assert status_parse.parse("诚邀您参加面试")["signals"][0]["stage"] == "一面"
+    assert status_parse.parse("面试邀请：本周内安排")["signals"][0]["stage"] == "一面"
+
+
+def test_weak_words_alone_do_not_count_as_an_interview_invite():
+    """弱词必须与邀请类措辞共现。
+
+    「人力资源部的薪酬制度」这类正文单独出现「人力 / 薪酬」时判成 HR 面，
+    会让用户第一次试用就失去信任——宁可漏，不可错。
+    """
+    assert status_parse.parse("关于人力资源部的薪酬制度说明")["signals"] == []
+    assert status_parse.parse("分享一下上次技术面的复盘心得")["signals"] == []
 
 
 def test_written_test_mail_suggests_test_stage():
@@ -105,11 +124,23 @@ def test_stronger_stage_can_override():
     assert got["matches"][0]["可覆盖"] is True
 
 
-def test_any_terminal_current_blocks_every_suggestion():
-    """终态不回退：已挂的记录不该被一封后续邮件翻回去。"""
-    rows = [_row("A001", "示例公司", "示例岗位", "已挂")]
+@pytest.mark.parametrize("current", ["已挂", "已放弃", "我拒绝的 offer"])
+def test_any_terminal_current_blocks_every_suggestion(current):
+    """终态不回退：三个终态各自都要挡住，不能只测「已挂」。"""
+    rows = [_row("A001", "示例公司", "示例岗位", current)]
     got = _suggest("示例公司向您发出录用意向书。", rows)
     assert got["matches"][0]["可覆盖"] is False
+
+
+def test_company_name_prefix_match_is_resolved_toward_the_more_specific_one():
+    """表里同时有「华为」和「华为云」时，正文写「华为云」只该命中后者。
+
+    子串匹配的天然缺陷；能救的那一半在这里做（丢掉是别人前缀的那个）。
+    """
+    rows = [_row("A001", "华为", "后端开发", "已投"),
+            _row("A002", "华为云", "云平台开发", "已投")]
+    got = _suggest("华为云邀请您参加二面。", rows)
+    assert [m["id"] for m in got["matches"]] == ["A002"]
 
 
 def test_can_override_is_the_single_implementation():
@@ -147,9 +178,10 @@ def test_unmatched_text_says_so_instead_of_guessing():
 # --- 4. 日期与纯函数性 --------------------------------------------------------
 
 def test_dates_are_extracted_in_both_writings():
-    got = _suggest("请于 2026-09-20 前确认；另一场安排在 9月25日。", [])
-    assert "2026-09-20" in got["dates"]
-    assert "%d-09-25" % datetime.date.today().year in got["dates"]
+    """固定 today，不跟着系统时钟走——否则这条断言只是复述实现口径。"""
+    got = _suggest("请于 2026-09-20 前确认；另一场安排在 9月25日。", [],
+                   today=datetime.date(2026, 9, 12))
+    assert got["dates"] == ["2026-09-20", "2026-09-25"]
 
 
 def test_suggest_does_not_touch_the_input_rows_or_the_filesystem():

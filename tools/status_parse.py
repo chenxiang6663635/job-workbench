@@ -27,6 +27,11 @@ import tracker
 PROGRESS_STAGES = list(tracker.STAGES)
 TERMINAL_STAGES = list(tracker.TERMINAL_STAGES)
 
+# 「offer 及以上」：拒信不得把这些打回。用**显式成员判断**而不是比 rank——
+# rank 是按列表下标算的，遇到表里的未知值（旧数据、手改错）会返回最大值 9，
+# 于是「未知」被当成「最高档」，语义正好反了。
+OFFER_OR_BETTER = ("offer", "签约")
+
 # 「负面终态」：被拒 / 放弃。它们可以被落下来，但**不得把 offer 打回**——
 # 已拿到 offer 之后收到的那封「很遗憾」，多半来自另一个岗位或另一条流程；
 # 用一封邮件推翻 offer 是这一层代价最大的误判（调研里点名的失败模式）。
@@ -49,8 +54,22 @@ ROUND_RULES = (
     ("三面", ("三面", "第三轮", "终面", "总监面", "总经理面")),
     ("HR面", ("hr面", "hr 面", "人力面", "hr面试", "谈薪", "薪酬", "人力")),
     ("二面", ("二面", "第二轮", "复试", "专业面", "技术面")),
-    ("一面", ("一面", "初面", "第一轮", "面试邀请", "面试安排", "面试时间", "邀您参加面试")),
+    # 「邀请您参加面试」是最常见的写法之一，早期版本只收了「邀您参加面试」
+    # （无「请」字），结果这类邮件一个信号都识别不出——已在测试里钉住两种写法
+    ("一面", ("一面", "初面", "第一轮", "面试邀请", "面试安排", "面试时间",
+              "邀您参加面试", "邀请您参加面试", "面邀")),
 )
+
+# 邀请类措辞。只有「弱词」需要它共现才认——「薪酬」「人力」「技术面」「复试」
+# 单独出现完全可能来自复盘、准备、或制度介绍（「人力资源部的薪酬制度」），
+# 把这些判成面试邀请会让用户第一次试用就失去信任。
+INVITE_WORDS = ("邀请", "邀您", "安排", "参加", "面试时间", "面试通知", "面试链接",
+                "面邀", "复试通知", "约面")
+
+# 弱词：单独出现不足以定阶段
+WEAK_MARKERS = frozenset((
+    "薪酬", "人力", "技术面", "复试", "第一轮", "第二轮", "第三轮",
+))
 
 TEST_MARKERS = ("笔试", "在线测评", "测评链接", "机考", "在线编程", "coding test")
 APPLIED_MARKERS = ("投递成功", "简历已收到", "已收到您的简历", "感谢您的投递",
@@ -61,10 +80,21 @@ DATE_CN_RE = re.compile(r"(\d{1,2})\s*月\s*(\d{1,2})\s*日")
 
 
 def _hits(text, markers):
-    return [m for m in markers if m in text]
+    """命中的标记词。**大小写不敏感**——同一批词里既有中文也有英文（HR / hr、
+    coding test / Coding Test），只对一部分做 lower 会造成「换个大小写就漏」。
+    """
+    lower = text.lower()
+    return [m for m in markers if m in text or m.lower() in lower]
 
 
-def parse(text):
+def _round_hits(text, markers):
+    """轮次词的命中：弱词必须与邀请类措辞共现才算数（见 WEAK_MARKERS 注释）。"""
+    if _hits(text, INVITE_WORDS):
+        return _hits(text, markers)
+    return [m for m in _hits(text, markers) if m not in WEAK_MARKERS]
+
+
+def parse(text, today=None):
     """从原文里抽出信号（不涉及追踪表，纯文本规则）。
 
     返回 {"signals": [...], "dates": [...], "ambiguous": bool}，signals 按
@@ -73,14 +103,13 @@ def parse(text):
     猜错方向比不给建议更糟。
     """
     raw = text or ""
-    lower = raw.lower()
 
     reject = _hits(raw, REJECT_MARKERS)
-    offer = [m for m in OFFER_MARKERS if m.lower() in lower]
+    offer = _hits(raw, OFFER_MARKERS)
 
     signals = []
     if reject and offer:
-        return {"signals": [], "dates": extract_dates(raw), "ambiguous": True,
+        return {"signals": [], "dates": extract_dates(raw, today), "ambiguous": True,
                 "ambiguous_reason": "同一段原文里既有拒信措辞又有 offer 措辞"}
 
     if reject:
@@ -90,7 +119,7 @@ def parse(text):
         signals.append({"kind": "offer", "stage": "offer", "evidence": offer})
 
     for stage, markers in ROUND_RULES:
-        hit = _hits(raw, markers)
+        hit = _round_hits(raw, markers)
         if hit:
             signals.append({"kind": "interview", "stage": stage, "evidence": hit})
             break
@@ -103,19 +132,22 @@ def parse(text):
     if hit:
         signals.append({"kind": "applied", "stage": "已投", "evidence": hit})
 
-    return {"signals": signals, "dates": extract_dates(raw), "ambiguous": False}
+    return {"signals": signals, "dates": extract_dates(raw, today), "ambiguous": False}
 
 
-def extract_dates(text):
+def extract_dates(text, today=None):
     """抽出原文里的日期（ISO 与「X月X日」两种写法），返回去重后的 ISO 字符串。
 
-    只做提取不做推断：说不清是哪一年的（「X月X日」）按**当前年份**记，并在
-    建议里标注需人工确认——猜年份会把「明年 3 月」写成过去。
+    只做提取不做推断：说不清是哪一年的（「X月X日」）按**当年的年份**记，并在
+    建议里标注需人工确认——猜年份会把「明年 1 月」写成已经过去的日子。
+    跨年那一档（12 月收到「1月5日」的面试）由 note 提示人工确认，这里**不猜**。
+
+    `today` 只为可测：把年份来源显式化，免得测试只能跟着系统时钟走。
     """
     dates = []
     for y, m, d in DATE_ISO_RE.findall(text or ""):
         dates.append("%04d-%02d-%02d" % (int(y), int(m), int(d)))
-    year = datetime.date.today().year
+    year = (today or datetime.date.today()).year
     for m, d in DATE_CN_RE.findall(text or ""):
         dates.append("%04d-%02d-%02d" % (year, int(m), int(d)))
     return sorted(set(dates))
@@ -138,7 +170,17 @@ def match_rows(text, rows):
             hits.append((row, "公司+岗位"))
         else:
             hits.append((row, "公司"))
-    return hits
+
+    # 子串匹配的天然缺陷：表里有「华为」时，正文写「华为云」也会命中。
+    # 能救回来的那一半在这里做——**同一次匹配里**若某个公司名是另一个的前缀，
+    # 丢掉短的（更具体的那个才是正主）。表里只有短名时就救不回来了，
+    # 这是已知取舍，调用方要把「命中」与证据一起展示给用户复核。
+    names = [(row.get("公司") or "").strip() for row, _s in hits]
+    filtered = [(row, s) for (row, s) in hits
+                if not any(other != (row.get("公司") or "").strip()
+                           and (row.get("公司") or "").strip() in other
+                           for other in names)]
+    return filtered or hits
 
 
 def stage_rank(stage):
@@ -154,7 +196,7 @@ def can_override(current, proposed):
     if current in TERMINAL_STAGES:
         return False, "当前阶段 `%s` 是终态；终态不回退，如需重投请新建记录" % current
     if proposed in TERMINAL_STAGES:
-        if proposed in NEGATIVE_TERMINALS and stage_rank(current) >= stage_rank("offer"):
+        if proposed in NEGATIVE_TERMINALS and current in OFFER_OR_BETTER:
             return False, ("当前已是 `%s`，拒信不覆盖 offer 及以上；"
                            "请人工确认这封拒信属于哪条流程" % current)
         return True, ""
@@ -178,7 +220,7 @@ def suggest(text, rows, today=None):
         "notes":    [...],
       }
     """
-    parsed = parse(text)
+    parsed = parse(text, today)
     notes = []
     matches = []
 

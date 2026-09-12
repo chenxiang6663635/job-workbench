@@ -228,6 +228,18 @@ def test_apply_reports_a_missing_record(tmp_path, client):
 
 # --- 4. 乐观并发 -------------------------------------------------------------
 
+def test_apply_requires_the_stage_the_user_saw(tmp_path, client):
+    """`原阶段` 必填：它是乐观并发的唯一依据，不该能被省略。
+
+    之前用 Optional，不传就静默跳过校验——等于把「别照旧快照写」这道保护
+    变成了可选项（一个竞态窗口就足以让旧快照覆盖别人的改动）。
+    """
+    _make_tracking(tmp_path, ONE_ROW)
+    res = client.post("/api/applications/apply-status-suggestion",
+                      params={"ws": WS}, json={"id": "A001", "阶段": "二面"})
+    assert res.status_code == 422
+
+
 def test_apply_conflicts_when_the_record_moved_since_the_user_looked(tmp_path, client):
     """用户确认时看到「已投」，但库里已经是「笔试」——必须 409 而不是照写。
 

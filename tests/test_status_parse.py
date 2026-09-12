@@ -150,6 +150,22 @@ def test_can_override_is_the_single_implementation():
     assert status_parse.can_override("一面", "已挂")[0] is True
 
 
+def test_unknown_current_stage_blocks_any_override():
+    """表外未知值（手改坏了、旧版本留下的）要**显式拒绝**。
+
+    交给 rank 去比的话，未知值会落到列表末尾——语义上等于「比谁都强」，
+    这种「反过来的默认」正是最容易出错的地方。
+    """
+    ok, why = status_parse.can_override("端面", "二面")
+    assert ok is False
+    assert "不在已知阶段里" in why
+
+
+def test_empty_current_stage_allows_any_override():
+    """空阶段 = 记录还没有阶段（新建成空），任何建议都该能落。"""
+    assert status_parse.can_override("", "已投")[0] is True
+
+
 # --- 3. 匹配既有记录 ----------------------------------------------------------
 
 def test_matches_by_company_name_in_the_text():

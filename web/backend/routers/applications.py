@@ -420,7 +420,9 @@ class SuggestRequest(BaseModel):
 class ApplySuggestionRequest(BaseModel):
     id: str
     阶段: str
-    原阶段: Optional[str] = None   # 用户确认时看到的当前阶段（乐观并发用）
+    # 必填：这是乐观并发的唯一依据，**不该能被省略**。此前用 Optional，
+    # 调用方不传就静默跳过校验——等于把「别照旧快照写」这道保护变成可选项。
+    原阶段: str
     状态原因: Optional[str] = None
     下次动作: Optional[str] = None
     下次动作日期: Optional[str] = None
@@ -472,7 +474,7 @@ def apply_status_suggestion(item: ApplySuggestionRequest,
 
         current = (target.get("当前阶段") or "").strip()
         seen = (item.原阶段 or "").strip()
-        if seen and current != seen:
+        if current != seen:
             raise HTTPException(
                 status_code=409,
                 detail="这条记录的当前阶段已变为 `%s`（你确认时是 `%s`）——请重新解析原文"

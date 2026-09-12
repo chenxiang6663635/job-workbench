@@ -103,6 +103,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied }:
     setError(null);
     setFailures([]);
     const failed: string[] = [];
+    const done: string[] = [];
     for (const m of targets) {
       try {
         await api.applyStatusSuggestion({
@@ -113,6 +114,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied }:
           状态原因: reasons[m.id] || undefined,
           依据: m.证据.join("；") || undefined,
         });
+        done.push(m.id);
       } catch (e) {
         failed.push(`${m.公司} ${m.岗位}：${(e as Error).message}`);
       }
@@ -121,10 +123,19 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied }:
     onApplied();
     if (failed.length === 0) {
       onClose();
-    } else {
-      // 部分成功也刷新（成功的已经落盘了），把失败的留在屏幕上说明原因
-      setFailures(failed);
+      return;
     }
+    // 写成功的从勾选里摘掉：否则用户再点一次「应用更新」会对**已经写回**的记录
+    // 重发请求——那时它的原阶段早变了，必然 409，失败列表会从「1 条」涨成「全部」，
+    // 用户就再也收敛不到成功。
+    setPicked((prev) => {
+      const next = { ...prev };
+      done.forEach((id) => {
+        next[id] = false;
+      });
+      return next;
+    });
+    setFailures(failed);
   };
 
   const pickedCount = result
@@ -213,11 +224,13 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied }:
 
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <p className="text-xs text-muted-foreground">
-            {result
-              ? pickedCount > 0
-                ? `将更新 ${pickedCount} 条记录，并逐条记入变更时间线`
-                : "勾选要应用的记录后才会写入"
-              : "先解析原文，确认建议后再写入"}
+            {failures.length > 0
+              ? "成功的那几条已经落盘（勾选已摘掉）；剩下的修正后可直接重试"
+              : result
+                ? pickedCount > 0
+                  ? `逐条写入 ${pickedCount} 条，并记入变更时间线（一条失败不影响其余）`
+                  : "勾选要应用的记录后才会写入"
+                : "先解析原文，确认建议后再写入"}
           </p>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onClose}>

@@ -24,7 +24,8 @@ from pydantic import BaseModel
 
 import atomicio
 import jd_score
-from deps import DIR_JOBS, safe_join, workspace_dir
+import tracker
+from deps import DIR_JOBS, DIR_TRACKING, safe_join, workspace_dir
 from filelock import file_lock
 
 router = APIRouter(prefix="/api/jobs")
@@ -32,6 +33,12 @@ router = APIRouter(prefix="/api/jobs")
 JD_FILE = "JD原文.md"
 CARD_FILE = "解析卡.md"
 INVALID_DIR_CHARS = set('\\/:*?"<>|')
+
+# 四排序。未知键静默回退——前端传参可能来自 URL，容错比严格更好
+# （与 applications.py 的 SORTS 同一策略，避免两页同一类控件的容忍度不一致）
+JOB_SORTS = ["dir", "score", "state", "recent"]
+# 状态筛选白名单：未知值视为「全部」，同样静默容错
+JOB_STATUS = {"unapplied": "未投递", "active": "流程中", "terminal": "已终态"}
 
 # JD 抓取（第三批）：正文短于此字数视为没抓到（多为需登录或纯 JS 渲染），
 # 明确降级让用户手动粘贴——绝不假装成功把空壳存进 JD原文.md
@@ -49,6 +56,16 @@ def _dir_name(company: str, role: str) -> str:
     if not name or name.strip(". ") in ("", ".", ".."):
         raise HTTPException(status_code=422, detail="目录名不能为空或纯点号")
     return name
+
+
+def _split_dir(name: str):
+    """反向还原目录名里的 (公司, 岗位)，与 `_dir_name` 互为逆运算。
+
+    取**首个**下划线切分。公司名自带下划线时会还原偏左——这是刻意选的可预测口径：
+    宁可显示「未投递」让用户补一张解析卡，也不要自作聪明地猜哪一刀是公司的边界。
+    """
+    company, _, role = (name or "").partition("_")
+    return company.strip(), role.strip()
 
 
 def _read(path):
@@ -107,20 +124,110 @@ def _parse_card(workspace: str, job_dir: str):
     }
 
 
-def _summary(workspace: str, name: str):
+def _card_basic_info(workspace: str, job_dir: str):
+    """读解析卡「基本信息」段的公司/岗位；没填、缺文件或缺该段时返回 None。
+
+    解析卡是渐进填写的（可能只写到硬门槛就停了），所以「读不到」是常态而非异常。
+    """
+    card = _read(safe_join(workspace, job_dir, CARD_FILE))
+    if not card:
+        return None
+    seg = re.search(r"^##\s*基本信息\s*$(.*?)(?=^##\s|\Z)", card, re.M | re.S)
+    if not seg:
+        return None
+    values = {}
+    for key in ("公司", "岗位"):
+        m = re.search(r"^%s\s*[:：]\s*(.*)$" % key, seg.group(1), re.M)
+        values[key] = (m.group(1).strip() if m else "")
+    if not values["公司"] or not values["岗位"]:
+        return None
+    return values["公司"], values["岗位"]
+
+
+def _job_company_role(workspace: str, name: str):
+    """(公司, 岗位) 的**展示名**：解析卡「基本信息」优先，读不到回退目录名拆分。
+
+    只用于展示。关联键一律用目录名（见 `_link_fields`）——卡片里填的常是
+    给人看的详细描述（如「奥克斯集团（空调事业部＝…）」），当键会与追踪表系统性失配。
+    """
+    return (_card_basic_info(workspace, os.path.join(DIR_JOBS, name))
+            or _split_dir(name))
+
+
+def _applications_by_key(ws: str):
+    """{dedup_key: row} 索引，供岗位池按 (公司, 岗位) 查出投递状态。
+
+    一次性建索引：对每个岗位各查一次会退化成 O(n²)。追踪表还不存在时
+    （工作区刚初始化）返回空字典，此时所有岗位一律「未投递」。
+    """
+    if not os.path.isdir(os.path.join(ws, DIR_TRACKING)):
+        return {}
+    index = {}
+    for row in tracker.read_rows(ws):
+        key = tracker.dedup_key(row.get("公司"), row.get("岗位"))
+        if not (key[0] and key[1]):
+            continue
+        old = index.get(key)
+        # 同键多行是合法数据（挂了再投一次）：保留仍在流程中的那行——
+        # 状态展示要回答「这一岗现在走到哪了」，历史终态行不该盖住它
+        if old is not None and _apply_state(old) != "已终态" and _apply_state(row) == "已终态":
+            continue
+        index[key] = row
+    return index
+
+
+def _apply_state(row) -> str:
+    """未投递 / 流程中 / 已终态——终态口径直接复用 tracker，不另立清单。"""
+    if not row:
+        return "未投递"
+    stage = (row.get("当前阶段") or "").strip()
+    if not stage:
+        return "未投递"
+    return "已终态" if stage in tracker.TERMINAL_STAGES else "流程中"
+
+
+def _link_fields(workspace: str, name: str, app_index: dict = None):
+    """岗位与追踪表记录的关联字段——列表与详情共用，保证两处口径一致。
+
+    **匹配键只取目录名拆分**（`_split_dir`）：追踪表里的 (公司, 岗位) 是按
+    目录名口径录的，两边同源才匹配得上；解析卡「基本信息」里的名值往往更
+    详细（真实数据里就与追踪表不一致），拿它当键会系统性失配。
+
+    没有记录时后三个字段全为空，前端据此显示「未投递」。
+    """
+    company, role = _job_company_role(workspace, name)   # 展示名：卡片优先
+    match_company, match_role = _split_dir(name)         # 匹配键：目录名口径
+    if app_index is None:
+        app_index = _applications_by_key(workspace)
+    row = app_index.get(tracker.dedup_key(match_company, match_role))
+    return {
+        "company": company,
+        "role": role,
+        "applyState": _apply_state(row),
+        "stage": (row or {}).get("当前阶段") or None,
+        "applicationId": (row or {}).get("id") or None,
+    }
+
+
+def _summary(workspace: str, name: str, app_index: dict = None):
+    """单个岗位的列表条目。
+
+    列表端点一次建好索引整批传入（`_applications_by_key`）；单条调用
+    （新建、抓取 JD）不传时就地建一次——避免调用方忘传后静默滑成「未投递」。
+    """
     d = safe_join(workspace, DIR_JOBS, name)
     # 与 job_detail 调用方式相同，传带 DIR_JOBS 前缀的相对路径
     card = _parse_card(workspace, os.path.join(DIR_JOBS, name))
     # 以解析成功为基准，而非文件存在——存在但不通过的卡片不算"已评分"
     has_card = card is not None and card.get("consistent") and card.get("total") is not None
-    return {
+    return dict({
         "dir": name,
         "hasJD": _read(os.path.join(d, JD_FILE)) is not None,
         "hasCard": has_card,
         "score": card["total"] if has_card else None,
         "level": card["level"] if card else None,
         "mtime": int(os.path.getmtime(d)) if os.path.isdir(d) else None,
-    }
+    }, **_link_fields(workspace, name, app_index))
 
 
 class NewJob(BaseModel):
@@ -129,17 +236,41 @@ class NewJob(BaseModel):
     JD文本: str
 
 
+def _sort_jobs(items, sort: str):
+    """四排序。未评分的岗位在 score / state 下恒沉底——没有数据就不参与竞争。"""
+    if sort == "score":
+        return sorted(items, key=lambda i: (i["score"] is None,
+                                            -(i["score"] or 0), i["dir"]))
+    if sort == "state":
+        # 未投递 → 流程中 → 已终态；同状态内评分降序、未评分沉底（负号即降序）
+        order = {"未投递": 0, "流程中": 1, "已终态": 2}
+        return sorted(items, key=lambda i: (order[i["applyState"]],
+                                            i["score"] is None,
+                                            -(i["score"] or 0), i["dir"]))
+    if sort == "recent":
+        return sorted(items, key=lambda i: (-(i["mtime"] or 0), i["dir"]))
+    return sorted(items, key=lambda i: i["dir"])
+
+
 @router.get("")
-def list_jobs(ws: str = Depends(workspace_dir)):
+def list_jobs(sort: str = "dir", status: str = None,
+              ws: str = Depends(workspace_dir)):
     base = safe_join(ws, DIR_JOBS)
     if not os.path.isdir(base):
         return {"items": [], "total": 0}
 
+    index = _applications_by_key(ws)
     items = []
     for name in sorted(os.listdir(base)):
         d = os.path.join(base, name)
-        if os.path.isdir(d) and not name.startswith("_"):
-            items.append(_summary(ws, name))
+        if not (os.path.isdir(d) and not name.startswith("_")):
+            continue
+        items.append(_summary(ws, name, index))
+
+    if status in JOB_STATUS:
+        want = JOB_STATUS[status]
+        items = [i for i in items if i["applyState"] == want]
+    items = _sort_jobs(items, sort if sort in JOB_SORTS else "dir")
     return {"items": items, "total": len(items)}
 
 
@@ -280,12 +411,14 @@ def job_detail(job_id: str, ws: str = Depends(workspace_dir)):
 
     jd = _read(os.path.join(job_dir, JD_FILE))
     card_raw = _read(os.path.join(job_dir, CARD_FILE))
-    return {
+    card = _parse_card(ws, os.path.join(DIR_JOBS, job_id))
+    # 详情也带上列表同款字段（含投递状态）：详情与列表不说两套话
+    return dict({
         "dir": job_id,
         "jd": jd,
         "cardRaw": card_raw,
-        "card": _parse_card(ws, os.path.join(DIR_JOBS, job_id)),
-    }
+        "card": card,
+    }, **_link_fields(ws, job_id))
 
 
 @router.get("/{job_id}/gap")

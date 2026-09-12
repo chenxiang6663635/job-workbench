@@ -1,6 +1,8 @@
+import { Loader2, Send } from "lucide-react";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
-import type { JobSummary } from "../api";
+import { Button } from "./ui/button";
+import { FAIL_TERMINAL, type ApplyState, type JobSummary } from "../api";
 
 /** 档位 → Badge 语义色。此前是 levelColor() 手写 class 串 */
 export function levelBadgeVariant(level: string | null) {
@@ -27,20 +29,37 @@ export function evidenceBadgeVariant(ev: string | null) {
   return "outline" as const;
 }
 
+/**
+ * 投递状态 → Badge 语义色。
+ *
+ * 「已终态」用中性色：终态里含「我拒绝的 offer」——那是双向选择不是失败，
+ * 涂红等于把主动拒绝算成失败（与看板归因里单独统计它的口径相悖）。
+ * 真正的失败阶段由下面 stage 文字单独标红。
+ */
+export function applyStateBadgeVariant(state: ApplyState) {
+  if (state === "流程中") return "default" as const;
+  if (state === "已终态") return "secondary" as const;
+  return "outline" as const;
+}
+
 /** 岗位卡。此前整块 <button> 兼做卡片——现拆为 Card 容器 + 内部按钮（语义正确） */
 export default function JobCard({
   job,
   onOpen,
+  onApply,
+  applying = false,
 }: {
   job: JobSummary;
   onOpen: () => void;
+  onApply?: () => void;
+  applying?: boolean;
 }) {
   return (
     <Card className="transition-all duration-300 ease-premium hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10">
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`${job.dir}，匹配度 ${job.score ?? "未评分"}`}
+        aria-label={`${job.dir}，匹配度 ${job.score ?? "未评分"}，投递状态 ${job.applyState}`}
         className="w-full cursor-pointer p-5 text-left"
       >
         <div className="flex items-start justify-between gap-2">
@@ -54,15 +73,51 @@ export default function JobCard({
             </span>
           )}
         </div>
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {job.level ? (
             <Badge variant={levelBadgeVariant(job.level)}>{job.level}</Badge>
           ) : (
             <span className="text-xs text-muted-foreground">尚未评分</span>
           )}
+          <Badge variant={applyStateBadgeVariant(job.applyState)}>
+            {job.applyState}
+          </Badge>
+          {job.stage && (
+            <span
+              className={`text-xs ${
+                FAIL_TERMINAL.includes(job.stage)
+                  ? "text-destructive"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {job.stage}
+            </span>
+          )}
           {job.hasJD && <span className="text-xs text-muted-foreground">JD 已存</span>}
         </div>
       </button>
+
+      {/* 投递按钮放在主按钮之外：按钮嵌套按钮是非法 HTML，点击行为也会互相吞掉 */}
+      {onApply && job.applyState === "未投递" && (
+        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
+          <span className="text-xs text-muted-foreground">
+            投递后到追踪表继续跟进
+          </span>
+          <Button
+            variant="outline"
+            className="h-7 px-2.5 text-xs"
+            onClick={onApply}
+            disabled={applying}
+          >
+            {applying ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Send size={12} />
+            )}
+            {applying ? "投递中…" : "一键投递"}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }

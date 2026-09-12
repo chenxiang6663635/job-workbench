@@ -31,6 +31,8 @@ TERMINAL = tracker.TERMINAL_STAGES
 # 兜底不是防御性编程：档位名一旦被改，`_HIGH_BOUNDS` 就是空序列，min() 抛
 # ValueError，而看板的 import 在 main 的 router 列表里靠前——整个后端起不来。
 # 宁可退化成「第二档下界」这种错得不离谱的值，也不要让全站打不开。
+# 「高分还没投」列表的条数上限：列表本身不该随岗位池规模膨胀，总数另出字段
+UNAPPLIED_HIGH_LIMIT = 6
 _HIGH_TIERS = ("强烈建议投", "建议投")
 _HIGH_BOUNDS = [lo for lo, _hi, tier, _a in jd_score.THRESHOLDS
                 if tier in _HIGH_TIERS]
@@ -92,7 +94,14 @@ def job_pool_overview(ws):
     unapplied_high.sort(key=lambda x: -x["score"])
     score_by_state = [dict({"tier": tier}, **dist[tier])
                       for _lo, _hi, tier, _a in jd_score.THRESHOLDS]
-    return unapplied_high, score_by_state
+    total = len(unapplied_high)
+    # 条数上限放在这里而不是让前端 slice：岗位池大起来时返回体不该跟着膨胀。
+    # 总数单独给一个字段，前端才能说清「另有 N 个」而不是只显示前几条。
+    return {
+        "items": unapplied_high[:UNAPPLIED_HIGH_LIMIT],
+        "total": total,
+        "scoreByState": score_by_state,
+    }
 
 
 @router.get("")
@@ -172,7 +181,7 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         })
     pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
 
-    unapplied_high, score_by_state = job_pool_overview(ws)
+    pool = job_pool_overview(ws)
 
     return {
         "total": total,
@@ -189,7 +198,8 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         # 「我拒绝的 offer」单独统计，不算失败
         # 显式传 workspace：关键词表按工作区读取，并发下不能依赖全局
         "retrospective": retrospective(rows, history, today, ws),
-        # 岗位池视角（B3）：这两项与「有没有投递记录」无关，岗位池有内容就有值
-        "unappliedHigh": unapplied_high,
-        "scoreByState": score_by_state,
+        # 岗位池视角（B3）：这几项与「有没有投递记录」无关，岗位池有内容就有值
+        "unappliedHigh": pool["items"],
+        "unappliedHighTotal": pool["total"],
+        "scoreByState": pool["scoreByState"],
     }

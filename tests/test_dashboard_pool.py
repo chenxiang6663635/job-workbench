@@ -127,6 +127,23 @@ def test_score_by_state_follows_threshold_order(client, tmp_path):
         tier for _lo, _hi, tier, _a in jd_score.THRESHOLDS]
 
 
+def test_unapplied_high_is_capped_but_total_is_reported(client, tmp_path):
+    """列表有上限、总数单独给：返回体不该随岗位池规模膨胀。"""
+    for i in range(dash.UNAPPLIED_HIGH_LIMIT + 2):
+        _job(tmp_path, "公司%d_岗位%d" % (i, i), _card(80, (24, 20, 24, 12)))
+    data = client.get("/api/dashboard", params={"ws": WS}).json()
+    assert len(data["unappliedHigh"]) == dash.UNAPPLIED_HIGH_LIMIT
+    assert data["unappliedHighTotal"] == dash.UNAPPLIED_HIGH_LIMIT + 2
+
+
+def test_unapplied_high_is_sorted_by_score_desc(client, tmp_path):
+    """截断之前必须先排序——否则「前 6 条」是目录名顺序，不是最该投的 6 条。"""
+    _job(tmp_path, "公司A_岗位甲", _card(75, (22, 19, 24, 10)))
+    _job(tmp_path, "公司B_岗位乙", _card(95, (29, 24, 29, 13)))
+    data = client.get("/api/dashboard", params={"ws": WS}).json()
+    assert [i["score"] for i in data["unappliedHigh"]] == [95, 75]
+
+
 def test_terminal_jobs_count_as_terminal_not_unapplied(client, tmp_path):
     """挂掉了也算「投过」：分布图里进已终态桶，不该再当成未投递去提醒。"""
     _job(tmp_path, "公司A_岗位甲", _card(80, (24, 20, 24, 12)))

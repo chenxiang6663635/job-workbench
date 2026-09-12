@@ -11,6 +11,7 @@ check_direction/next_id/sort_key），Web 层只做 HTTP 编排与文件锁。
 
 from __future__ import annotations
 
+import math
 import os
 from datetime import date, timedelta
 
@@ -20,6 +21,9 @@ from pydantic import BaseModel
 import tracker
 from deps import DIR_TRACKING, workspace_dir
 from filelock import file_lock
+# 目录名拆分只有一处实现（jobs._split_dir）。前端「一键投递」传目录名过来，
+# 由这里拆——不再让每个调用方各自镜像一份拆分规则。
+from routers import jobs as jobs_router
 
 router = APIRouter(prefix="/api/applications")
 
@@ -37,8 +41,12 @@ HEALTH_ORDER = {"urgent": 0, "overdue": 1, "stale": 2, "ok": 3}
 
 
 class NewApplication(BaseModel):
-    公司: str
-    岗位: str
+    # 岗位目录名（`<公司>_<岗位>`）。**给了它就以它为准**：公司与岗位由后端拆分，
+    # 客户端不必也不该自己拆——拆分口径只该有一处实现（`jobs._split_dir`）。
+    # 此前前端镜像了一份 JavaScript 版，两份实现迟早会漂。
+    岗位目录: str = None
+    公司: str = ""
+    岗位: str = ""
     方向: str
     批次: str
     来源: str = ""
@@ -51,7 +59,8 @@ class NewApplication(BaseModel):
     简历版本: str = ""
     # 未评分留空（None → 空串）。此前默认 0 会把「还没评分」写成「0 分」——
     # 0 分是一个具体判断，不是「没有判断」，两者在追踪表里不能混为一谈。
-    评分: int = None
+    # 允许小数：解析卡的维度分可能带小数（如 24.5/30），落库前取整。
+    评分: float = None
     备注: str = ""
 
 
@@ -142,6 +151,10 @@ def _validate_dates(app: NewApplication):
     # 评分为 None 表示「还没评分」——跳过区间校验并留空；只有真填了才要求落在 0–100
     if app.评分 is not None and not (0 <= app.评分 <= 100):
         raise HTTPException(status_code=422, detail="评分必须在 0–100 之间")
+    if not (app.岗位目录 or "").strip() and not (app.公司.strip() and app.岗位.strip()):
+        raise HTTPException(
+            status_code=422,
+            detail="要么给 `岗位目录`，要么同时给 `公司` 与 `岗位`（前者由后端按目录名拆分）")
     if app.当前阶段 not in STAGES + TERMINAL:
         raise HTTPException(status_code=422,
                             detail="当前阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL))
@@ -272,11 +285,26 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
     os.makedirs(lock_path, exist_ok=True)
     lock_path = os.path.join(lock_path, "tracker.lock")
 
+    # 公司与岗位只有一处来源：给了目录名就由后端拆（与前端「一键投递」同源），
+    # 否则按字面值用。**不接受「目录名和字面值都给」时两边不一致还照字面值写**，
+    # 那样又会写出匹配不上的记录。
+    if (app.岗位目录 or "").strip():
+        company, role = jobs_router._split_dir(app.岗位目录)
+        if not (company and role):
+            # 面向用户的文案不写内部口径（「按首个下划线拆分」是实现细节，
+            # 会被 humanizeError 原样直出到界面上）
+            raise HTTPException(
+                status_code=422,
+                detail="目录名 `%s` 拆不出公司与岗位，目录名须为「公司_岗位」形式"
+                       % app.岗位目录)
+    else:
+        company, role = app.公司.strip(), app.岗位.strip()
+
     with file_lock(lock_path):
         rows = tracker.read_rows(ws)
 
         # canonical 去重：同公司+岗位且既有记录非终态则拒绝（409 并回传既有 id）
-        dup, dup_terminal = tracker.find_duplicate(rows, app.公司, app.岗位)
+        dup, dup_terminal = tracker.find_duplicate(rows, company, role)
         if dup and not dup_terminal:
             raise HTTPException(
                 status_code=409,
@@ -286,8 +314,8 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
         row = {f: "" for f in tracker.FIELDS}
         row.update({
             "id": tracker.next_id(rows),
-            "公司": app.公司.strip(),
-            "岗位": app.岗位.strip(),
+            "公司": company,
+            "岗位": role,
             "方向": app.方向,
             "批次": app.批次,
             "来源": app.来源,
@@ -298,7 +326,11 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
             "下次动作": app.下次动作,
             "下次动作日期": app.下次动作日期,
             "简历版本": app.简历版本,
-            "评分": "" if app.评分 is None else str(app.评分),
+            # 取整在这里做：追踪表这一列是整数，且只有一处写入点，
+            # 让客户端各自取整等于把同一个规则复制到每个调用方。
+            # 用 floor(x + 0.5) 而不是内置 round()：后者是**银行家舍入**，
+            # round(86.5) 得 86——用户预期的是四舍五入，不是「取最近的偶数」。
+            "评分": "" if app.评分 is None else str(math.floor(app.评分 + 0.5)),
             "备注": app.备注,
         })
         rows.append(row)

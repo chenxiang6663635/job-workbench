@@ -321,6 +321,8 @@ export default function Dashboard() {
 
   const maxFunnel = Math.max(1, ...data.funnel.map((f) => f.count));
   const unappliedHigh = data.unappliedHigh ?? [];
+  // 后端只回前 N 条，总数单独给——列表长度不再等于总数
+  const unappliedHighTotal = data.unappliedHighTotal ?? unappliedHigh.length;
   const scoreByState = data.scoreByState ?? [];
   const hasScoreByState = scoreByState.some(
     (t) => t.unapplied + t.active + t.terminal > 0
@@ -371,7 +373,7 @@ export default function Dashboard() {
           {unappliedHigh.length > 0 && (
             <div className="rounded-lg border border-primary/30 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
               <h2 className="text-sm font-semibold text-foreground">
-                高分还没投（{unappliedHigh.length}）
+                高分还没投（{unappliedHighTotal}）
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 评分达到「建议投」档及以上、且追踪表里还没有记录的岗位。点击直达该岗位详情。
@@ -394,9 +396,9 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              {unappliedHigh.length > 6 && (
+              {unappliedHighTotal > unappliedHigh.length && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  另有 {unappliedHigh.length - 6} 个，去岗位池按「评分」排序看全部。
+                  另有 {unappliedHighTotal - unappliedHigh.length} 个，去岗位池按「评分」排序看全部。
                 </p>
               )}
             </div>
@@ -461,13 +463,14 @@ export default function Dashboard() {
                     fill={APPLY_STATE_COLORS.流程中}
                     barSize={18}
                   />
+                  {/* 不设 radius：圆角只能挂在一根 Bar 上，而哪一根是「最后一根」
+                      取决于该档位有没有数据——挂上去就会出现「有的柱圆角、有的方角」 */}
                   <Bar
                     dataKey="terminal"
                     stackId="state"
                     name="已终态"
                     fill={APPLY_STATE_COLORS.已终态}
                     barSize={18}
-                    radius={[0, 6, 6, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>

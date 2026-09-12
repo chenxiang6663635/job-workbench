@@ -137,16 +137,31 @@ def test_usage_error_exits_two(monkeypatch, capsys):
     assert code == 2
 
 
-def test_tracker_without_subcommand_returns_one(monkeypatch, capsys):
-    code, out = _invoke(monkeypatch, capsys, tracker, [])
+def test_tracker_without_subcommand_returns_one(tmp_path, monkeypatch, capsys):
+    """必须显式给一个**存在**的工作区。
+
+    tracker.main 先查工作区存在性再看有没有子命令，而默认工作区是 `<仓库>/personal`
+    ——它在 CI 与任何新克隆上都不存在（已 gitignore）。不给 --workspace 的话，这条用例
+    在本机走「打印帮助」分支、在 CI 走「工作区不存在」分支，断言会随机器变红。
+    """
+    ws = _make_ws(tmp_path)
+    code, out = _invoke(monkeypatch, capsys, tracker, ["--workspace", str(ws)])
     assert code == 1
     assert "usage" in out.lower()
 
 
-def test_resume_build_rejects_unknown_command(monkeypatch, capsys):
-    """唯一有效值是 render；其它命令直接返回 1，不会去 spawn 浏览器。"""
-    code, _out = _invoke(monkeypatch, capsys, resume_build, ["not-a-command"])
+def test_resume_build_rejects_unknown_command(tmp_path, monkeypatch, capsys):
+    """唯一有效值是 render；其它命令直接返回 1，不会去 spawn 浏览器。
+
+    同样要显式给存在的工作区：`resume_build` 的工作区检查在未知子命令判断**之前**，
+    不给的话这条断言在 CI 上会因为另一个原因通过（去掉未知命令 guard 也照样绿）。
+    所以这里连错误文案一起钉住。
+    """
+    ws = _make_ws(tmp_path)
+    code, out = _invoke(monkeypatch, capsys, resume_build,
+                        ["--workspace", str(ws), "not-a-command"])
     assert code == 1
+    assert "未知子命令" in out, out
 
 
 def test_check_pr_title_exit_codes(monkeypatch, capsys):
@@ -203,10 +218,21 @@ def test_tracker_rejects_missing_workspace(tmp_path, monkeypatch, capsys):
     assert code == 1
 
 
-def test_report_stdout_does_not_write_a_file(tmp_path, monkeypatch, capsys):
+def test_report_stdout_prints_and_does_not_write_a_file(tmp_path, monkeypatch, capsys):
+    """先真的写一条记录进去，否则 report 会提前返回「追踪表尚未创建」——
+    那样这条用例只是在测一个空断言（写盘路径压根没跑到）。"""
     ws = _make_ws(tmp_path)
-    code, _out = _invoke(monkeypatch, capsys, report, ["--workspace", str(ws), "--stdout"])
+    _invoke(monkeypatch, capsys, tracker, [
+        "--workspace", str(ws), "add",
+        "--company", "示例公司", "--role", "示例岗位",
+        "--direction", "other", "--batch", "正式批",
+    ])
+    code, out = _invoke(monkeypatch, capsys, report, ["--workspace", str(ws), "--stdout"])
     assert code == 0
+    # 断言「真的走了生成路径」：看板是聚合报表，不会列出公司名，
+    # 所以钉的是「出看板了」且「不是那条尚未创建的提前返回」
+    assert "投递看板" in out, out
+    assert "尚未创建" not in out, out
     assert not (ws / "05_投递追踪" / "看板.md").exists()
 
 
@@ -216,13 +242,65 @@ def test_check_skills_passes_on_repo_skills(monkeypatch, capsys):
     assert code == 0, out
 
 
-def test_install_skills_dry_run_touches_nothing(monkeypatch, capsys, tmp_path):
-    """--dry-run 只校验不复制。目标固定为项目级，避免碰到用户级 ~/.agents/skills。"""
-    before = set(os.listdir(ROOT))
-    code, _out = _invoke(monkeypatch, capsys, install_skills,
-                         ["--target", "codebuddy", "--dry-run"])
-    assert code == 0
-    assert set(os.listdir(ROOT)) == before
+def test_install_skills_dry_run_validates_but_writes_nothing(monkeypatch, capsys):
+    """--dry-run 的要点是「**先校验**、只不复制」（install_skills.py 的注释写明了）。
+
+    所以这条要同时钉住两件：真的跑了校验、真的没复制。只比较仓库根目录的列表是
+    钉不住的——复制发生在子目录里。
+    """
+    target = os.path.join(ROOT, ".codebuddy", "skills")
+    before = sorted(os.listdir(target)) if os.path.isdir(target) else None
+
+    code, out = _invoke(monkeypatch, capsys, install_skills,
+                        ["--target", "codebuddy", "--dry-run"])
+    assert code == 0, out
+    assert "校验通过" in out, out
+    assert "将复制（演练）" in out, out
+
+    after = sorted(os.listdir(target)) if os.path.isdir(target) else None
+    assert after == before
+
+
+def test_tracker_update_changes_stage_and_records_history(tmp_path, monkeypatch, capsys):
+    """update 是仅次于 add 的高频子命令，且它同时写主表与时间线。"""
+    ws = _make_ws(tmp_path)
+    _invoke(monkeypatch, capsys, tracker, [
+        "--workspace", str(ws), "add",
+        "--company", "示例公司", "--role", "示例岗位",
+        "--direction", "other", "--batch", "正式批",
+    ])
+    code, out = _invoke(monkeypatch, capsys, tracker, [
+        "--workspace", str(ws), "update", "--id", "A001", "--stage", "已投",
+    ])
+    assert code == 0, out
+    assert tracker.read_rows(str(ws))[0]["当前阶段"] == "已投"
+    assert [h["字段"] for h in tracker.read_history(str(ws))] == ["创建", "当前阶段"]
+
+
+def _scored_card(total, dims):
+    """四位维度之和必须等于总分，否则评分卡被判为不一致（consistent=False）。"""
+    assert sum(dims) == total
+    lines = ["%s: %d/%d" % (name, num, maximum)
+             for (name, maximum), num in zip(jd_score.DIMENSIONS, dims)]
+    return "# 解析卡\n\n## 评分\n" + "\n".join(lines) + "\n总分: %d\n" % total
+
+
+def test_jd_score_prints_a_verdict_for_a_real_card(tmp_path, monkeypatch, capsys):
+    """评分脚本的只读真实路径：给一张自洽的卡，必须打出档位。
+
+    这条网对 B8 尤其重要——jd_score 是搬家时最容易「参数还在、逻辑走了样」的那种脚本。
+    """
+    ws = _make_ws(tmp_path)
+    job = ws / "01_岗位池" / "示例公司_示例岗位"
+    job.mkdir(parents=True)
+    card = job / "解析卡.md"
+    card.write_text(_scored_card(80, (24, 20, 24, 12)), encoding="utf-8")
+
+    code, out = _invoke(monkeypatch, capsys, jd_score,
+                        [str(card), "--workspace", str(ws)])
+    assert code == 0, out
+    assert "80" in out, out
+    assert "强烈建议投" in out, out
 
 
 # --- 5. 记录下来供 B8 用的事实 ----------------------------------------------

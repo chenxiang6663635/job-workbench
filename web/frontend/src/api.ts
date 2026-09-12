@@ -203,6 +203,8 @@ export interface QuestionGroup {
 export type ApplyState = "未投递" | "流程中" | "已终态";
 // 四排序与状态筛选：取值与后端 jobs.py 的 JOB_SORTS / JOB_STATUS 白名单一致
 export type JobSort = "dir" | "score" | "state" | "recent";
+// 岗位池排序方向。每个维度的自然默认在后端 JOB_DEFAULT_ORDER（单一真值源）
+export type JobOrder = "asc" | "desc";
 export type JobStatus = "" | "unapplied" | "active" | "terminal";
 
 export interface JobSummary {
@@ -603,9 +605,10 @@ export const api = {
     }),
 
   // 列表参数与 applications 同一范式：非默认值才传，白名单外的键由后端静默回退
-  listJobs: (params?: { sort?: JobSort; status?: JobStatus }) => {
+  listJobs: (params?: { sort?: JobSort; order?: JobOrder; status?: JobStatus }) => {
     const q = new URLSearchParams();
     if (params?.sort && params.sort !== "dir") q.set("sort", params.sort);
+    if (params?.order) q.set("order", params.order);
     if (params?.status) q.set("status", params.status);
     const qs = q.toString();
     return request<{ items: JobSummary[]; total: number }>(

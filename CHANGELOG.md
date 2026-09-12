@@ -10,6 +10,20 @@
 
 **取材原则**：只记录对使用者可见的软件变更（功能 / 修复 / 破坏性变更）。向工作区录入个人数据（岗位评分、事实补齐等）属于数据操作，不是软件变更，不入此册。
 
+## [0.2.1] - 2026-09-12
+
+### Added
+
+- **桌面自动更新**（PR #38）：安装版会自己检查新版本；发现后**先问你是否下载**，下载完**再问是否重启**——不会静默重启（关窗口会连带结束后端进程，重启的时机该由你挑）。
+  - **这一版仍然需要手动安装一次**：更新器必须先存在于已经装在机器上的那个版本里，之后的版本才会自动升级。顺序不可颠倒。
+  - 安装包**未做代码签名**，Windows SmartScreen 可能弹提示——如实说明，不是可以忽略的小事；代码签名留到后续版本评估。
+
+### Infrastructure（贡献者可见）
+
+- 发布资产新增 `latest.yml` 与块映射：前者是客户端判断「有没有新版、该下载哪个文件」的唯一依据，缺了老用户永远收不到更新，而这件事**只检查 exe 是看不出来的**；后者让升级走差量下载（缺了会退化为全量下载，不算失败）。
+- 「构建后给 exe 改名」这一步取消，改由 `build.artifactName` 直接产出 `job-workbench-setup-<版本>-win64.exe`——`latest.yml` 里记录的下载路径必须与资产名**逐字一致**，事后改名会让两者脱钩（客户端按元数据里的文件名下载会 404）。
+- 演练模式（`workflow_dispatch`）的产物同样带上这两样：这是**不打 tag 时唯一能验证元数据产出的入口**，v0.2.1 发布前用它实测过（产物名、块映射、`latest.yml` 均已确认产出）。
+
 ## [0.2.0] - 2026-09-12
 
 ### Added
@@ -131,7 +145,8 @@
 - 静态资源缓存策略缺失导致「改了功能界面没变化」（浏览器按启发式缓存旧 index.html/JS）：HTML 强制协商缓存（`no-cache`），带内容 hash 的 assets 长缓存 `immutable`。
 - 高级模板预览版式失真：改为按 A4 宽（794px）渲染再等比缩小（原先全宽渲染行宽达真实的 1.6 倍），高度按 iframe 内容真实高度展开（原先写死高度会截断内容）。
 
-[Unreleased]: https://github.com/chenxiang6663635/job-workbench/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/chenxiang6663635/job-workbench/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/chenxiang6663635/job-workbench/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/chenxiang6663635/job-workbench/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/chenxiang6663635/job-workbench/compare/v0.1.0...v0.1.1
 [0.1.0]: https://keepachangelog.com/zh-CN/1.1.0/

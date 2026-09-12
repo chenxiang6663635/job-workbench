@@ -5,6 +5,7 @@ import {
   BATCHES,
   DIRECTIONS,
   STAGES,
+  type Application,
   type JobSort,
   type JobStatus,
   type JobSummary,
@@ -58,7 +59,7 @@ function splitDir(dir: string): [string, string] {
 }
 
 export default function Jobs() {
-  const [items, setItems] = useState<Awaited<ReturnType<typeof api.listJobs>>["items"]>([]);
+  const [items, setItems] = useState<JobSummary[]>([]);
   const [detail, setDetail] = useState<Awaited<ReturnType<typeof api.jobDetail>> | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +90,10 @@ export default function Jobs() {
     api
       .listJobs({ sort, status })
       .then(
-        (r) => setItems(r.items),
+        (r) => {
+          setItems(r.items);
+          setError(null); // 重新拉到数据就撤掉上一次的报错，别让旧错误条常驻
+        },
         (e: Error) => setError(e.message)
       )
       .then(() => setLoading(false));
@@ -152,6 +156,8 @@ export default function Jobs() {
     const active = sort === key;
     return (
       <button
+        type="button"
+        aria-pressed={active}
         onClick={() => setSort(active ? "dir" : key)}
         className={`flex cursor-pointer items-center gap-1 font-medium transition-colors ${
           active ? "text-primary" : "text-muted-foreground hover:text-foreground"
@@ -165,6 +171,7 @@ export default function Jobs() {
   };
 
   const startApply = (job: JobSummary) => {
+    if (applying) return; // 已有投递在飞行中，先等它落地
     const [, role] = splitDir(job.dir);
     if (!role) {
       setError(
@@ -183,13 +190,14 @@ export default function Jobs() {
     const [公司, 岗位] = splitDir(applyTarget.dir);
     setApplying(applyTarget.dir);
     setError(null);
+    const payload: Partial<Application> = { 公司, 岗位, ...applyDraft };
+    // 评分：解析卡允许小数维度分（如 24.5/30 → 87.5），追踪表这一列是整数，取整再写；
+    // **未评分时不写 0**——「没有评分」不等于「0 分」，留空才诚实（后端已支持空值）。
+    if (applyTarget.score !== null) {
+      payload.评分 = String(Math.round(applyTarget.score));
+    }
     api
-      .addApplication({
-        公司,
-        岗位,
-        ...applyDraft,
-        评分: String(applyTarget.score ?? 0),
-      })
+      .addApplication(payload)
       .then((r) => {
         setApplying(null);
         setApplyTarget(null);
@@ -202,7 +210,7 @@ export default function Jobs() {
         window.location.hash = "applications";
       })
       .catch((e: Error) => {
-        // 409（同公司+岗位已存在）由后端给出可读文案，直接照抄给用户
+        // 失败一律把后端文案直出（409 重复录入也是人话），确认卡保持打开方便改了重试
         setError(e.message);
         setApplying(null);
       });
@@ -433,7 +441,7 @@ export default function Jobs() {
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             {status
-              ? "换个状态筛选看看，或把筛选切回「全部状态」。"
+              ? "可能是岗位池本来就空，也可能是都被筛掉了：切回「全部状态」看看，或新建一个岗位。"
               : "点击「新建岗位」粘贴一份 JD，随后让 AI 生成解析卡，即可看到匹配度评分。"}
           </p>
         </Card>
@@ -446,6 +454,7 @@ export default function Jobs() {
               onOpen={() => open(job.dir)}
               onApply={() => startApply(job)}
               applying={applying === job.dir}
+              busy={applying !== null}
             />
           ))}
         </div>

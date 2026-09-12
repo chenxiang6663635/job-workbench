@@ -274,3 +274,45 @@ def test_sort_state_orders_state_then_score():
 def test_sort_recent_puts_undated_last():
     items = [_stub("旧", mtime=100), _stub("新", mtime=300), _stub("无时间", mtime=None)]
     assert [i["dir"] for i in jobs_router._sort_jobs(items, "recent")] == ["新", "旧", "无时间"]
+
+
+# --- 一键投递的写入（B2）-----------------------------------------------------
+
+def _apply(client, **body):
+    payload = {"公司": "A公司", "岗位": "甲岗位", "方向": "other", "批次": "正式批"}
+    payload.update(body)
+    return client.post("/api/applications", params={"ws": WS}, json=payload)
+
+
+def _written_rows(tmp_path):
+    path = tmp_path / WS / TRACKING_DIR / "tracker.csv"
+    with io.open(str(path), "r", encoding="utf-8-sig", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def test_apply_from_job_pool_is_matched_back_by_dir_name(client, tmp_path):
+    """一键投递写进去的记录，必须能被岗位池的匹配逻辑命中。
+
+    写入值与匹配键都取目录名拆分（`_split_dir`），两边同源；写卡片展示名会导致
+    「投过了却显示未投递」——这是 B1 独立审查抓出的真问题，此处钉住闭环。
+    """
+    _make_job(tmp_path, "A公司_甲岗位")
+    r = _apply(client)
+    assert r.status_code == 200, r.text
+    item = _items(client)[0]
+    assert item["applyState"] == "流程中"
+    assert item["applicationId"] == r.json()["id"]
+
+
+def test_apply_without_score_leaves_score_blank(client, tmp_path):
+    """未评分不写 0：0 分是一个具体判断，「还没评分」不是。"""
+    _make_job(tmp_path, "A公司_甲岗位")
+    assert _apply(client).status_code == 200
+    assert _written_rows(tmp_path)[0]["评分"] == ""
+
+
+def test_apply_with_score_rounds_to_int(client, tmp_path):
+    """解析卡允许小数维度分（如 24.5/30 → 87.5），追踪表这一列是整数。"""
+    _make_job(tmp_path, "A公司_甲岗位")
+    assert _apply(client, 评分=88).status_code == 200
+    assert _written_rows(tmp_path)[0]["评分"] == "88"

@@ -36,7 +36,7 @@ export function evidenceBadgeVariant(ev: string | null) {
  * 涂红等于把主动拒绝算成失败（与看板归因里单独统计它的口径相悖）。
  * 真正的失败阶段由下面 stage 文字单独标红。
  */
-export function applyStateBadgeVariant(state: ApplyState) {
+function applyStateBadgeVariant(state: ApplyState) {
   if (state === "流程中") return "default" as const;
   if (state === "已终态") return "secondary" as const;
   return "outline" as const;
@@ -48,11 +48,14 @@ export default function JobCard({
   onOpen,
   onApply,
   applying = false,
+  busy = false,
 }: {
   job: JobSummary;
   onOpen: () => void;
   onApply?: () => void;
   applying?: boolean;
+  // 别的卡片正在投递：本卡按钮也要禁用，否则能同时发起两个写请求
+  busy?: boolean;
 }) {
   return (
     <Card className="transition-all duration-300 ease-premium hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10">
@@ -97,24 +100,32 @@ export default function JobCard({
         </div>
       </button>
 
-      {/* 投递按钮放在主按钮之外：按钮嵌套按钮是非法 HTML，点击行为也会互相吞掉 */}
-      {onApply && job.applyState === "未投递" && (
+      {/* 投递按钮放在主按钮之外：按钮嵌套按钮是非法 HTML，点击行为也会互相吞掉。
+          流程中不给入口（同公司+岗位已有一条在跑）；已终态放行——「挂了再投一次」
+          是合法数据，后端 find_duplicate 对终态行同样放行。 */}
+      {onApply && job.applyState !== "流程中" && (
         <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
           <span className="text-xs text-muted-foreground">
-            投递后到追踪表继续跟进
+            {job.applyState === "已终态"
+              ? "再投会新建一条记录"
+              : "投递后到追踪表继续跟进"}
           </span>
           <Button
             variant="outline"
             className="h-7 px-2.5 text-xs"
             onClick={onApply}
-            disabled={applying}
+            disabled={applying || busy}
           >
             {applying ? (
               <Loader2 size={12} className="animate-spin" />
             ) : (
               <Send size={12} />
             )}
-            {applying ? "投递中…" : "一键投递"}
+            {applying
+              ? "投递中…"
+              : job.applyState === "已终态"
+                ? "再投一次"
+                : "一键投递"}
           </Button>
         </div>
       )}

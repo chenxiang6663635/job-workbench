@@ -708,19 +708,26 @@ def check_reason_required(stage, reason):
     return []
 
 
+def dedup_key(company, role):
+    """(公司, 岗位) 的规范化键：trim + 大小写不敏感。
+
+    单一事实源：去重、导入校验、岗位池联动三处共用同一口径。
+    各写一份迟早漂移——一边判「重复」、另一边判「没投过」，用户会看到自相矛盾的结论。
+    """
+    return ((company or "").strip().lower(), (role or "").strip().lower())
+
+
 def find_duplicate(rows, company, role):
     """canonical 去重：按 (公司, 岗位) trim + 大小写不敏感匹配。
 
     返回 (既有行, 该行是否终态)；找不到返回 (None, False)。
     调用方据此决定：非终态则拒绝（409），终态则放行（允许挂了之后再投一次）。
     """
-    c = (company or "").strip().lower()
-    r = (role or "").strip().lower()
-    if not c or not r:
+    key = dedup_key(company, role)
+    if not key[0] or not key[1]:
         return None, False
     for row in rows:
-        if ((row.get("公司") or "").strip().lower() == c
-                and (row.get("岗位") or "").strip().lower() == r):
+        if dedup_key(row.get("公司"), row.get("岗位")) == key:
             return row, (row.get("当前阶段") or "") in TERMINAL_STAGES
     return None, False
 
@@ -808,7 +815,7 @@ def _validate_import_row(row, existing_rows, seen_in_batch, workspace=None):
     dup, dup_terminal = find_duplicate(existing_rows, row.get("公司"), row.get("岗位"))
     if dup and not dup_terminal:
         return "duplicate", ["与既有记录 %s（%s）重复" % (dup.get("id", ""), dup.get("当前阶段", ""))]
-    key = ((row.get("公司") or "").strip().lower(), (row.get("岗位") or "").strip().lower())
+    key = dedup_key(row.get("公司"), row.get("岗位"))
     if key in seen_in_batch:
         return "duplicate", ["与本批前面的行重复"]
     seen_in_batch.add(key)

@@ -194,6 +194,19 @@ The "Settings" page in the nav configures your AI provider (BYOK, bring your own
 
 > By default the AI judgement in this workbench is done by your AI CLI (CodeBuddy and friends); the provider is an optional BYOK enhancement (used for resume import and AI rewrite).
 
+### Optional: read-only email fetch
+
+If your mail provider supports IMAP, the workbench can pull recent recruiting emails so you do not have to copy-paste each one. Configure it under **Settings → 邮箱只读拉取** (the field takes your IMAP authorization code, not your web login password; most providers require you to enable IMAP in the web mail settings first).
+
+How it works, and what it will not do:
+
+- **Read-only**: the connection uses `SELECT (readonly)` and `BODY.PEEK` — it never sends, marks as read, moves, or deletes anything.
+- **Connected only when you click**: the mailbox is contacted exactly when you press "从邮箱拉取" — there is no background timer, polling, or keep-alive.
+- **Credentials stay local**: stored in `<workspace>/config/imap.json` on your machine, masked in the UI and in error messages, and **excluded from export / backup zips**.
+- **Dry-run by default**: fetching only lists emails; nothing is written to the tracker until you confirm a suggestion item by item.
+
+Typical flow: 投递追踪 → 「从邮箱拉取」 → pick a time window (last 7 / 30 / 90 days) → filter by keyword locally → click an email → review the parsed suggestion → confirm what to write back. If the email belongs to an application you have not recorded yet, the empty state offers a create-record form (the stage defaults to what the email implies).
+
 ---
 
 ## IV. Putting the AI to work: the jwb-jd / jwb-apply workflows

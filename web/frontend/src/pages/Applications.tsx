@@ -20,6 +20,7 @@ import {
   type HistoryEntry,
 } from "../api";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
+import ImapFetchDialog from "../components/ImapFetchDialog";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -142,6 +143,9 @@ export default function Applications() {
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [showStatus, setShowStatus] = useState(false);
+  const [showImap, setShowImap] = useState(false);
+  // IMAP 选中的邮件正文：交给 StatusUpdateDialog 预填（用户仍可编辑再解析）
+  const [statusDraft, setStatusDraft] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [timelines, setTimelines] = useState<Record<string, HistoryEntry[]>>({});
   const [draft, setDraft] = useState({
@@ -319,6 +323,10 @@ export default function Applications() {
           <Mail size={15} /> 粘贴邮件更新
         </Button>
 
+        <Button variant="outline" onClick={() => setShowImap(true)}>
+          <Inbox size={15} /> 从邮箱拉取
+        </Button>
+
         <Button variant="outline" onClick={() => setShowImport(true)}>
           <FileUp size={15} /> 批量导入
         </Button>
@@ -335,11 +343,27 @@ export default function Applications() {
         />
       )}
 
+      {showImap && (
+        <ImapFetchDialog
+          onClose={() => setShowImap(false)}
+          onUse={(body) => {
+            // 不在这里解析：关闭拉取框、预填原文，走同一条「解析 → 确认」流程
+            setShowImap(false);
+            setStatusDraft(body);
+            setShowStatus(true);
+          }}
+        />
+      )}
+
       {showStatus && (
         <StatusUpdateDialog
           applications={items}
-          onClose={() => setShowStatus(false)}
+          onClose={() => {
+            setShowStatus(false);
+            setStatusDraft("");
+          }}
           onApplied={load}
+          initialText={statusDraft}
         />
       )}
 

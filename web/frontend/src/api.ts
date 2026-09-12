@@ -457,6 +457,47 @@ export const TERMINAL = ["已挂", "已放弃", "我拒绝的 offer"];
 // 失败类终态（红色徽章用）；拒绝的 offer 用中性色
 export const FAIL_TERMINAL = ["已挂", "已放弃"];
 
+// ---- IMAP 只读拉取（B11）----
+// 授权码只存工作区本地 config/imap.json；接口回传的 password 是脱敏展示值。
+export interface ImapConfig {
+  host: string;
+  port: number;
+  user: string;
+  folder: string;
+  password: string;
+  hasPassword: boolean;
+  /** host 留空时将使用的服务器；未知域名返回空串 */
+  serverHint: string;
+}
+
+export interface ImapTestResult {
+  ok: boolean;
+  server: string;
+  folder: string;
+  messageCount: number;
+  note: string;
+}
+
+export interface ImapMessage {
+  uid: string;
+  subject: string;
+  from: string;
+  date: string;
+  body: string;
+}
+
+export interface ImapFetchResult {
+  messages: ImapMessage[];
+  count: number;
+  server: string;
+  folder: string;
+  /** 实际生效的时间窗（天）；0 = 不限 */
+  sinceDays: number;
+  /** 恒为 true：拉取只做取样，不改动任何数据 */
+  dryRun: boolean;
+  note: string;
+}
+
 export const BATCHES = ["提前批", "正式批", "补录"];
 // 方向 ID 取决于工作区装入的领域插件（后端 available_directions 动态读
 // <工作区>/config/directions/*.md）。此处是前端可选项的默认清单，与 Applications 页共用一份，
@@ -817,4 +858,22 @@ export const api = {
   testProvider: () => request<ProviderTestResult>("/provider/test", {
     method: "POST",
   }),
+
+  // ---- IMAP 只读拉取（B11）----
+  // fetch 是 dry-run：只返回邮件列表供挑选，不动追踪表；
+  // 写回仍走 applyStatusSuggestion（逐条确认后才写）。
+  getImap: () => request<ImapConfig>("/imap"),
+
+  saveImap: (body: {
+    host: string;
+    port: number;
+    user: string;
+    password: string; // 传空 = 保留已保存的值
+    folder: string;
+  }) => request<ImapConfig>("/imap", { method: "POST", body }),
+
+  testImap: () => request<ImapTestResult>("/imap/test", { method: "POST" }),
+
+  fetchImapMessages: (body: { limit?: number; folder?: string; since_days?: number }) =>
+    request<ImapFetchResult>("/imap/fetch", { method: "POST", body }),
 };

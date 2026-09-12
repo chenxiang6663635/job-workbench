@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ArrowRight, CheckCircle2, Loader2, Mail, X } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Mail, Plus, X } from "lucide-react";
 import {
   api,
+  BATCHES,
+  DIRECTIONS,
   STAGES,
   TERMINAL,
   type Application,
@@ -31,6 +33,8 @@ interface Props {
   applications: Application[];
   onClose: () => void;
   onApplied: () => void;
+  /** 预填原文（如从 IMAP 拉取的邮件正文）；用户仍可编辑后再解析 */
+  initialText?: string;
 }
 
 const NONE = "__none__";
@@ -43,8 +47,8 @@ const NONE = "__none__";
  * 一封邮件错误地写进另一条记录。服务端还会在锁内重算一遍规则（见
  * `apply-status-suggestion`），这里的所有勾选只是意图，不是权限。
  */
-export default function StatusUpdateDialog({ applications, onClose, onApplied }: Props) {
-  const [text, setText] = useState("");
+export default function StatusUpdateDialog({ applications, onClose, onApplied, initialText }: Props) {
+  const [text, setText] = useState(initialText ?? "");
   const [manualId, setManualId] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<StatusSuggestResult | null>(null);
@@ -53,6 +57,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied }:
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [stageOverride, setStageOverride] = useState<Record<string, string>>({});
+  const [createdNotice, setCreatedNotice] = useState<string | null>(null);
 
   const stageOf = (m: StatusMatch) => stageOverride[m.id] || m.建议阶段;
 
@@ -204,6 +209,12 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied }:
 
           {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
+          {createdNotice && (
+            <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
+              {createdNotice}
+            </p>
+          )}
+
           {failures.length > 0 && (
             <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               <p className="mb-1 font-medium">以下记录没能写入（其余已成功）：</p>
@@ -215,11 +226,29 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied }:
             </div>
           )}
 
-          {result && <SuggestionReport result={result} picked={picked} reasons={reasons}
+          {/* 没有匹配到记录时，直接给「新建记录」的出口——邮件来了而追踪表里
+              还没有这条投递，是最常见的断点（投递确认类邮件尤其如此） */}
+          {result && result.matches.length === 0 && (
+            <NewRecordPanel
+              result={result}
+              onCreated={(id, label, stage) => {
+                setManualId(id);
+                setCreatedNotice(
+                  `已创建记录：${label}（当前阶段 ${stage}）。若这封邮件只是投递确认，到此就够了；` +
+                  `若它还包含新进展（面试、offer 等），再点「解析原文」写回。`
+                );
+                onApplied();
+              }}
+            />
+          )}
+
+          {result && result.matches.length > 0 && (
+            <SuggestionReport result={result} picked={picked} reasons={reasons}
                                        stageOverride={stageOverride}
                                        onToggle={(id, v) => setPicked({ ...picked, [id]: v })}
                                        onReason={(id, v) => setReasons({ ...reasons, [id]: v })}
-                                       onStage={(id, v) => setStageOverride({ ...stageOverride, [id]: v })} />}
+                                       onStage={(id, v) => setStageOverride({ ...stageOverride, [id]: v })} />
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
@@ -302,6 +331,131 @@ function SuggestionReport({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+
+interface NewRecordPanelProps {
+  result: StatusSuggestResult;
+  onCreated: (id: string, label: string, stage: string) => void;
+}
+
+/**
+ * 「查无记录 → 一键新建」：邮件属于尚未记录的投递时的出口。
+ *
+ * 当前阶段默认取邮件信号（投递确认 → 已投；面试邀请 → 一面…），可改——
+ * 信号只是建议，建什么记录由用户定。方向与批次创建后不可改（服务端同一条
+ * 约束），所以在这里显式选择，而不是替用户猜一个。
+ */
+function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
+  const signalStage =
+    result.signals.length > 0 && result.signals[0].stage
+      ? result.signals[0].stage
+      : "已投";
+  const [company, setCompany] = useState("");
+  const [role, setRole] = useState("");
+  const [direction, setDirection] = useState("other");
+  const [batch, setBatch] = useState("正式批");
+  const [stage, setStage] = useState(signalStage);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const create = () => {
+    if (!company.trim() || !role.trim()) {
+      setErr("公司和岗位都需要填写");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    api
+      .addApplication({
+        公司: company.trim(),
+        岗位: role.trim(),
+        方向: direction,
+        批次: batch,
+        当前阶段: stage,
+      })
+      .then((r) => {
+        setDone(true);
+        onCreated(r.item.id, `${r.item.公司} ${r.item.岗位}`, stage);
+      })
+      .catch((e: Error) => setErr(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
+      <p className="text-sm text-muted-foreground">
+        没有匹配到追踪表里的记录。如果这条投递还没有记录（投递确认类邮件
+        常常如此），在这里直接建一条：
+      </p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Input
+          placeholder="公司（必填）"
+          value={company}
+          disabled={done}
+          onChange={(e) => setCompany(e.target.value)}
+          className="h-8 text-xs"
+        />
+        <Input
+          placeholder="岗位（必填）"
+          value={role}
+          disabled={done}
+          onChange={(e) => setRole(e.target.value)}
+          className="h-8 text-xs"
+        />
+        <Select value={direction} onValueChange={setDirection} disabled={done}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DIRECTIONS.map((d) => (
+              <SelectItem key={d} value={d}>
+                {d}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={batch} onValueChange={setBatch} disabled={done}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {BATCHES.map((b) => (
+              <SelectItem key={b} value={b}>
+                {b}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={stage} onValueChange={setStage} disabled={done}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STAGES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {err && <p className="text-xs text-destructive">{err}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button className="h-8 px-3 text-xs" onClick={create} disabled={busy || done}>
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+          {done ? "已创建" : "创建记录"}
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          当前阶段默认取邮件信号（{signalStage}）；方向与批次创建后不可改
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 function MatchCard({
   match,

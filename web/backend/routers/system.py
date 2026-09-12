@@ -34,6 +34,15 @@ EXCLUDE_DIRS = {"__pycache__", "node_modules", ".git", ".codebuddy", ".venv"}
 EXCLUDE_SUFFIX = {".lock", ".pyc", ".tmp"}
 EXCLUDE_PREFIX = {atomicio.TMP_PREFIX, "."}
 
+# 凭证类文件**不进**导出与快照：导出包可能被分享（求助/迁移），快照目录可能
+# 落在云盘同步范围内——而这两个文件是明文凭证（邮箱授权码≈邮箱读取权限；
+# API key≈计费凭证）。本清单是 `_iter_files` 的一部分，导出与备份共用。
+# 新增任何"会存凭证"的文件时，必须加进来。
+EXCLUDE_REL = {
+    "config/imap.json",
+    "config/provider.json",
+}
+
 # 时间机器式保留策略（照抄 Syncthing 的 staggered versioning）：
 # 越近的快照越密，越老的越稀，避免备份无限膨胀
 RETENTION_RULES = [
@@ -52,7 +61,7 @@ def _snapshot_dir(ws):
 
 
 def _iter_files(root):
-    """遍历工作区内应纳入导出/备份的文件（排除运行时产物）。"""
+    """遍历工作区内应纳入导出/备份的文件（排除运行时产物与访问凭证）。"""
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS]
         for name in filenames:
@@ -60,7 +69,11 @@ def _iter_files(root):
                 continue
             if os.path.splitext(name)[1].lower() in EXCLUDE_SUFFIX:
                 continue
-            yield os.path.join(dirpath, name)
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root).replace(os.sep, "/")
+            if rel in EXCLUDE_REL:
+                continue
+            yield full
 
 
 def _prune(snapshots):
@@ -172,9 +185,10 @@ def export_workspace(ws: str = Depends(workspace_dir)):
             "求职工作台导出包\n"
             "生成时间：%s\n"
             "工作区：%s\n\n"
-            "内容：全部原始 Markdown / CSV / JSON 文件，可用任意编辑器或 Excel 打开，\n"
+            "内容：数据文件（Markdown / CSV 等原始格式），可用任意编辑器或 Excel 打开，\n"
             "不需要本应用即可阅读。\n\n"
-            "不包含：应用外的快照备份（在系统用户目录）、运行时临时文件与锁文件。\n"
+            "不包含：应用外的快照备份（在系统用户目录）、运行时临时文件与锁文件；\n"
+            "也不包含邮箱授权码 / API key 等访问凭证（换机后在「设置」里重新填写）。\n"
             "注意：导出包含你的真实简历与个人信息，请妥善保管。\n"
         ) % (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name)
         zf.writestr("README_导出说明.txt", readme)

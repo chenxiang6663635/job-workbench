@@ -193,8 +193,16 @@ def can_override(current, proposed):
 
     这是「单调优先级」的唯一实现——Web 与 CLI 都该走这里，别各写一份判断。
     """
+    if not (current or "").strip():
+        # 空阶段 = 记录还没有阶段（新建成空），任何建议都能落
+        return True, ""
     if current in TERMINAL_STAGES:
         return False, "当前阶段 `%s` 是终态；终态不回退，如需重投请新建记录" % current
+    if current not in PROGRESS_STAGES:
+        # 表外未知值（手改坏了、旧版本留下的）：**显式拒绝**而不是交给 rank 去比。
+        # rank 是按列表下标算的，未知值会落到末尾——语义上等于「比谁都强」，
+        # 这种「反过来的默认」在判断上最容易出错，不如直接让人来看。
+        return False, "当前阶段 `%s` 不在已知阶段里（数据可能被手改过），无法判断是否更强" % current
     if proposed in TERMINAL_STAGES:
         if proposed in NEGATIVE_TERMINALS and current in OFFER_OR_BETTER:
             return False, ("当前已是 `%s`，拒信不覆盖 offer 及以上；"
@@ -206,8 +214,12 @@ def can_override(current, proposed):
     return True, ""
 
 
-def suggest(text, rows, today=None):
+def suggest(text, rows, today=None, focus_id=None):
     """把原文 + 既有记录合成建议。**纯函数：不写任何东西。**
+
+    `focus_id` 非空时**跳过公司名匹配**，只看这一条记录：站内信常常通篇不写
+    公司名（「您好，您的简历已进入笔试环节」），此时只能由用户点选记录。
+    用户的选择比子串匹配权威，所以命中记为「手动指定」而不是「公司」。
 
     返回：
       {
@@ -225,13 +237,21 @@ def suggest(text, rows, today=None):
     matches = []
 
     top = parsed["signals"][0] if parsed["signals"] else None
-    hits = match_rows(text, rows)
+
+    if focus_id:
+        target = next((r for r in (rows or [])
+                       if (r.get("id") or "").strip() == (focus_id or "").strip()), None)
+        hits = [(target, "手动指定")] if target is not None else []
+        if target is None:
+            notes.append("指定的记录 `%s` 不在追踪表里" % focus_id)
+    else:
+        hits = match_rows(text, rows)
 
     if parsed.get("ambiguous"):
         notes.append(parsed["ambiguous_reason"])
     if not top:
         notes.append("没有识别出状态线索；可在确认框里手工指定阶段")
-    if not hits:
+    if not hits and not focus_id:
         notes.append("原文里没有出现任何既有记录的公司名；请选择这条更新属于哪条记录")
 
     picked = hits

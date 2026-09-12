@@ -101,7 +101,8 @@ export default function Resume() {
       .listResumeVersions()
       .then((r) => {
         setVersions(r.items);
-        if (r.items.length && !version) setVersion(r.items[0].version);
+        // 函数式更新：不引用外层 version，挂载语义（[] 依赖）才成立
+        if (r.items.length) setVersion((cur) => cur || r.items[0].version);
       })
       .catch((e: Error) => setError(e.message));
   }, []);

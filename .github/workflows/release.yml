@@ -48,7 +48,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       asset: ${{ steps.artifact.outputs.asset }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # 默认会把 GITHUB_TOKEN 写进 .git/config 的 extraheader，之后 npm/pip
           # 拉的任何代码都能拿它直接 push。构建链不需要凭证，一律不带。
@@ -109,7 +109,7 @@ jobs:
           Write-Host "已抽出 $($body.Count) 行作为 Release 说明"
 
       - name: 安装 Python 3.8
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.8"
 
@@ -127,7 +127,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（exit $LASTEXITCODE）" }
 
       - name: 安装 Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
 

@@ -22,12 +22,12 @@ jobs:
     name: PR 标题（Conventional + 中文）
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # 与后端 job 一致地钉住解释器版本。runner 上确实有 python（这个 job 跑通过），
       # 但「恰好有」不等于「保证有」——闸门不该依赖镜像的隐式行为。
       - name: 安装 Python 3.8
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.8"
 

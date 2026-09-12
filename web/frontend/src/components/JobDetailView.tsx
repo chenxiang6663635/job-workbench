@@ -4,15 +4,8 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import DimensionRow from "./DimensionRow";
 import GapPanel from "./GapPanel";
-import { levelBadgeVariant } from "./JobCard";
+import { gateBadgeVariant, levelBadgeVariant } from "./badgeVariants";
 import type { JobDetail } from "../api";
-
-/** 硬门槛三态 → Badge 语义色 */
-export function gateBadgeVariant(conclusion: string | null) {
-  if (conclusion === "通过") return "success" as const;
-  if (conclusion === "不通过") return "destructive" as const;
-  return "warning" as const;
-}
 
 export default function JobDetailView({
   detail,

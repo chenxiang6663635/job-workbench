@@ -53,7 +53,9 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const issues = result?.issues || [];
+  // useMemo 包一层：裸的 `|| []` 每次渲染都造新数组，下方 useMemo([issues])
+  // 的依赖会随之每次变化（CI 的 react-hooks 警告即此）
+  const issues = useMemo(() => result?.issues || [], [result]);
   const unfilled = result?.unfilled || [];
   const basicsRed = useMemo(
     () => (k: string) => issues.some((i) => i.startsWith(`basics.${k}`)),

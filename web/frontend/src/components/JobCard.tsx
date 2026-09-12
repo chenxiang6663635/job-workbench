@@ -3,31 +3,7 @@ import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { FAIL_TERMINAL, type ApplyState, type JobSummary } from "../api";
-
-/** 档位 → Badge 语义色。此前是 levelColor() 手写 class 串 */
-export function levelBadgeVariant(level: string | null) {
-  if (!level) return "secondary" as const;
-  if (level.includes("强烈")) return "success" as const;
-  if (level.includes("建议投")) return "default" as const;
-  if (level.includes("斟酌")) return "warning" as const;
-  return "destructive" as const;
-}
-
-/** 能力分层 → Badge 语义色（Primary / Secondary / Weak） */
-export function abilityBadgeVariant(level: string | null) {
-  if (level === "Primary") return "default" as const;
-  if (level === "Secondary") return "secondary" as const;
-  if (level === "Weak") return "warning" as const;
-  return "secondary" as const;
-}
-
-/** 证据标签 → Badge 语义色（精确 / 模糊 / 语义） */
-export function evidenceBadgeVariant(ev: string | null) {
-  if (ev === "精确") return "default" as const;
-  if (ev === "模糊") return "warning" as const;
-  if (ev === "语义") return "secondary" as const;
-  return "outline" as const;
-}
+import { levelBadgeVariant } from "./badgeVariants";
 
 /**
  * 投递状态 → Badge 语义色。

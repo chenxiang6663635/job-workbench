@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Inbox, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { ChevronRight, Inbox, Loader2, RefreshCw, Search, X } from "lucide-react";
 import { api, type ImapMessage } from "../api";
 import {
   Dialog,
@@ -156,37 +156,38 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
           )}
 
           {filtered.map((m) => (
-            <div key={m.uid} className="rounded-xl border border-border bg-card/60 p-3 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {m.subject || "（无主题）"}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {m.from} · {m.date}
-                  </p>
-                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground/80">
-                    {m.body.slice(0, 140)}
-                    {m.body.length > 140 ? "…" : ""}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="h-7 shrink-0 px-2.5 text-xs"
-                  onClick={() => onUse(m.body)}
-                >
-                  <CheckCircle2 size={12} /> 用这封
-                </Button>
+            <button
+              key={m.uid}
+              type="button"
+              onClick={() => onUse(m.body)}
+              title="用这封邮件解析状态"
+              className="group flex w-full items-start gap-3 rounded-xl border border-border bg-card/60 p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-card"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {m.subject || "（无主题）"}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {m.from} · {m.date}
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground/80">
+                  {m.body.slice(0, 140)}
+                  {m.body.length > 140 ? "…" : ""}
+                </p>
               </div>
-            </div>
+              <ChevronRight
+                size={16}
+                className="mt-0.5 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary"
+              />
+            </button>
           ))}
         </div>
 
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <p className="text-xs text-muted-foreground">
             {messages
-              ? `显示 ${filtered.length} / ${messages.length} 封（${rangeLabel}）· 选一封后进入「解析 → 确认」`
-              : "选一封后进入「解析 → 建议 → 逐条确认」"}
+              ? `显示 ${filtered.length} / ${messages.length} 封（${rangeLabel}）· 点任意一封进入「解析 → 确认」`
+              : "点任意一封进入「解析 → 建议 → 逐条确认」"}
           </p>
           <Button variant="outline" onClick={onClose}>
             关闭

@@ -31,6 +31,8 @@ interface Props {
   applications: Application[];
   onClose: () => void;
   onApplied: () => void;
+  /** 预填原文（如从 IMAP 拉取的邮件正文）；用户仍可编辑后再解析 */
+  initialText?: string;
 }
 
 const NONE = "__none__";
@@ -43,8 +45,8 @@ const NONE = "__none__";
  * 一封邮件错误地写进另一条记录。服务端还会在锁内重算一遍规则（见
  * `apply-status-suggestion`），这里的所有勾选只是意图，不是权限。
  */
-export default function StatusUpdateDialog({ applications, onClose, onApplied }: Props) {
-  const [text, setText] = useState("");
+export default function StatusUpdateDialog({ applications, onClose, onApplied, initialText }: Props) {
+  const [text, setText] = useState(initialText ?? "");
   const [manualId, setManualId] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<StatusSuggestResult | null>(null);

@@ -4,6 +4,7 @@ import {
   Download,
   ExternalLink,
   FolderOpen,
+  Inbox,
   KeyRound,
   PlugZap,
   Save,
@@ -12,6 +13,8 @@ import {
 import { PROVIDER_REFERRAL } from "../lib/partner";
 import {
   api,
+  type ImapConfig,
+  type ImapTestResult,
   type ProviderConfig,
   type ProviderTestResult,
   type SystemPaths,
@@ -54,6 +57,76 @@ export default function Settings() {
   };
 
   useEffect(load, []);
+
+  // ---- IMAP 只读拉取（B11）----
+  const [imapCfg, setImapCfg] = useState<ImapConfig | null>(null);
+  const [imapHost, setImapHost] = useState("");
+  const [imapPort, setImapPort] = useState("993");
+  const [imapUser, setImapUser] = useState("");
+  const [imapPassword, setImapPassword] = useState("");
+  const [imapFolder, setImapFolder] = useState("INBOX");
+  const [imapSaving, setImapSaving] = useState(false);
+  const [imapTesting, setImapTesting] = useState(false);
+  const [imapErr, setImapErr] = useState<string | null>(null);
+  const [imapMessage, setImapMessage] = useState<string | null>(null);
+  const [imapTestResult, setImapTestResult] = useState<ImapTestResult | null>(null);
+
+  const loadImap = () => {
+    api
+      .getImap()
+      .then((r) => {
+        setImapCfg(r);
+        setImapHost(r.host);
+        setImapPort(String(r.port));
+        setImapUser(r.user);
+        setImapFolder(r.folder || "INBOX");
+      })
+      .catch((e: Error) => setImapErr(e.message));
+  };
+
+  useEffect(loadImap, []);
+
+  const saveImap = () => {
+    setImapErr(null);
+    setImapMessage(null);
+    if (!imapUser.trim()) {
+      setImapErr("请填写邮箱地址（授权码与服务器都围绕它工作）");
+      return;
+    }
+    const port = Number(imapPort);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      setImapErr("端口需在 1–65535 之间");
+      return;
+    }
+    setImapSaving(true);
+    api
+      .saveImap({
+        host: imapHost,
+        port,
+        user: imapUser,
+        password: imapPassword,
+        folder: imapFolder,
+      })
+      .then((r) => {
+        setImapCfg(r);
+        setImapPassword("");
+        setImapMessage("IMAP 配置已保存（授权码只存本机 config/imap.json）");
+      })
+      .catch((e: Error) => setImapErr(e.message))
+      .finally(() => setImapSaving(false));
+  };
+
+  const testImap = () => {
+    setImapErr(null);
+    setImapMessage(null);
+    setImapTestResult(null);
+    setImapTesting(true);
+    api
+      .testImap()
+      .then((r) => setImapTestResult(r))
+      .catch((e: Error) => setImapErr(e.message))
+      .finally(() => setImapTesting(false));
+  };
 
   // 路径加载：成功要清掉上一次的错误，否则一次失败会永久盖住后来成功加载的数据
   const loadPaths = () =>
@@ -202,6 +275,86 @@ export default function Settings() {
             <PlugZap size={15} /> {testing ? "测试中..." : "测试连接"}
           </Button>
         </div>
+      </Card>
+
+      <Card className="space-y-4 p-5">
+        <CardHeader className="p-0">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Inbox size={16} className="text-primary" /> 邮箱只读拉取（可选）
+          </CardTitle>
+        </CardHeader>
+
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          配置后，可在「投递追踪」页拉取最近的招聘邮件并解析出状态建议。
+          连接是只读的：不发信、不修改也不删除邮件；<span className="text-foreground">
+            只在你点击时连接一次，不会在后台运行</span>。
+          授权码只保存在本工作区的 config/imap.json，界面与错误信息里都会脱敏。
+        </p>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FormField label="邮箱地址">
+            <Input
+              placeholder="your-email@example.com"
+              value={imapUser}
+              onChange={(e) => setImapUser(e.target.value)}
+            />
+          </FormField>
+          <FormField label="IMAP 授权码（留空则保留已保存的）">
+            <Input
+              className="font-mono"
+              type="password"
+              placeholder={
+                imapCfg?.hasPassword
+                  ? `已保存（${imapCfg.password}）`
+                  : "多数邮箱需在网页版开启 IMAP 后生成"
+              }
+              value={imapPassword}
+              onChange={(e) => setImapPassword(e.target.value)}
+            />
+          </FormField>
+          <FormField label="IMAP 服务器（留空按邮箱域名推断）">
+            <Input
+              className="font-mono"
+              placeholder={imapCfg?.serverHint || "imap.qq.com"}
+              value={imapHost}
+              onChange={(e) => setImapHost(e.target.value)}
+            />
+          </FormField>
+          <FormField label="端口">
+            <Input
+              type="number"
+              value={imapPort}
+              onChange={(e) => setImapPort(e.target.value)}
+            />
+          </FormField>
+          <FormField label="文件夹">
+            <Input
+              className="font-mono"
+              placeholder="INBOX"
+              value={imapFolder}
+              onChange={(e) => setImapFolder(e.target.value)}
+            />
+          </FormField>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+          <Button onClick={saveImap} disabled={imapSaving}>
+            <Save size={15} /> {imapSaving ? "保存中..." : "保存"}
+          </Button>
+          <Button variant="outline" onClick={testImap} disabled={imapTesting}>
+            <PlugZap size={15} /> {imapTesting ? "测试中..." : "测试连接"}
+          </Button>
+          {imapMessage && <span className="text-xs text-success">{imapMessage}</span>}
+        </div>
+
+        {imapErr && <ErrorBanner message={imapErr} onClose={() => setImapErr(null)} />}
+
+        {imapTestResult && (
+          <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
+            {imapTestResult.note}（{imapTestResult.server} · {imapTestResult.folder}，
+            共 {imapTestResult.messageCount} 封）
+          </p>
+        )}
       </Card>
 
       <Card className="space-y-4 p-5">

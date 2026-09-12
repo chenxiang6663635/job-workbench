@@ -28,6 +28,7 @@ const zhCN = {
 
   "common.retry": "重试",
   "common.close": "关闭提示",
+  "common.clear": "清空",
   "loading.workspace": "正在定位工作区…",
 
   "lang.switch": "界面语言",
@@ -67,6 +68,45 @@ const zhCN = {
   // 所以只能切成两个 key 把文件名留在中间
   "job.cardEmptyHint1": "评分由 AI 在 CodeBuddy 中完成（jd 工作流），写入",
   "job.cardEmptyHint2": "后此处会自动展示四维度得分与档位。",
+
+  "a4.previewTitle": "简历预览",
+  "a4.scaledNotice": "预览已缩放至 {{percent}}%（布局与生成 PDF 一致）",
+
+  "question.searchPlaceholder": "搜问题、回答或复盘关键词…",
+  "question.searching": "检索中…",
+  "question.roundMissing": "未填轮次",
+  "question.myAnswer": "我的回答",
+  "question.retrospective": "复盘：{{value}}",
+  "question.emptyNoMatch": "没有匹配的问题",
+  "question.emptyNoData": "题库还是空的",
+  "question.emptyHintNoMatch": "换个关键词试试，或者清空搜索看全部。",
+  // 「问题记录」是面试记录里的真实字段名：英文必须保留原字段名，否则用户找不到该填哪一列
+  "question.emptyHintNoData": "面过之后在面试记录里填上「问题记录」字段，这里会攒下你被问过的问题——下次面试前可以照着过一遍。",
+  // 复数同理：_one/_other 两套都要在源语言里定义（见 lineage.jobCount 的说明）
+  "question.count_one": "共 {{count}} 条",
+  "question.count_other": "共 {{count}} 条",
+  "question.groupCount_one": "{{count}} 条",
+  "question.groupCount_other": "{{count}} 条",
+
+  // offer 的字段 label 是展示用表头，翻译；key 仍是 CSV 列名本身，不参与翻译
+  "offer.field.role": "岗位",
+  "offer.field.monthly": "月薪",
+  "offer.field.bonus": "年终",
+  "offer.field.signOn": "签字费",
+  "offer.field.equity": "股票期权",
+  "offer.field.location": "工作地点",
+  "offer.field.deadline": "答复截止日",
+  "offer.field.other": "其他条件",
+  "offer.emptyTitle": "还没有 Offer 记录",
+  "offer.emptyHint1": "拿到 offer 后把已知事实录进来，多个 offer 会并排在这里——",
+  "offer.emptyHint2": "数字放在一张表里，选择依然是你自己的",
+  "offer.emptyCta": "录入第一个 Offer",
+  "offer.add": "录入 Offer",
+  "offer.summary_one": "{{count}} 个 offer · 按答复截止日排列（越先要答复的越靠左）",
+  "offer.summary_other": "{{count}} 个 offer · 按答复截止日排列（越先要答复的越靠左）",
+  "offer.composition": "构成：{{value}}",
+  "offer.related": "关联 {{value}}",
+  "offer.disclaimer": "这里只并排展示你录入的已知事实，最终选择由你决定。",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

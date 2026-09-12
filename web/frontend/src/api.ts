@@ -149,6 +149,35 @@ export interface ImportCommitResult {
   skipped: number;
 }
 
+// 状态建议（B11）：规则层只出建议，改不改由用户逐条确认
+export interface StatusSignal {
+  kind: string; // reject | offer | interview | test | applied
+  stage: string; // 建议阶段
+  evidence: string[]; // 命中的原文句子——用户靠它复核判断
+}
+
+export interface StatusMatch {
+  id: string;
+  公司: string;
+  岗位: string;
+  当前阶段: string;
+  建议阶段: string; // 空 = 没识别出线索，需人工选
+  可覆盖: boolean;
+  原因: string;
+  命中: string; // 公司 / 公司+岗位 / 手动指定
+  证据: string[];
+}
+
+export interface StatusSuggestResult {
+  signals: StatusSignal[];
+  dates: string[];
+  matches: StatusMatch[];
+  ambiguous: boolean; // 原文自相矛盾（拒信 + offer 并存）
+  unmatched: boolean;
+  ambiguous_match: boolean; // 匹配到多条，需用户选
+  notes: string[];
+}
+
 // 面试题库（第二批）：按公司+岗位归集被问过的问题（只读聚合，无新数据文件）
 export interface QuestionItem {
   id: string;
@@ -546,6 +575,31 @@ export const api = {
     request<ImportPreviewResult | ImportCommitResult>("/applications/import", {
       method: "POST",
       body: { csv, mode },
+    }),
+
+  // 原文 → 状态建议（B11）：**只读**，不动追踪表、不写时间线。
+  // id 非空 = 用户手动指定记录（站内信常常通篇不写公司名）。
+  suggestStatus: (text: string, id?: string) =>
+    request<StatusSuggestResult>("/applications/suggest-status", {
+      method: "POST",
+      // 没指定记录时**整个字段不发**：显式传 null 曾把后端打成 422
+      body: id ? { 原文: text, id } : { 原文: text },
+    }),
+
+  // 用户确认后写回一条建议。服务端会在锁内重算单调性与并发前提：
+  // 409 = 记录在你确认期间变了（要重新解析）；422 = 规则不允许这么改
+  applyStatusSuggestion: (body: {
+    id: string;
+    阶段: string;
+    原阶段?: string;
+    状态原因?: string;
+    下次动作?: string;
+    下次动作日期?: string;
+    依据?: string;
+  }) =>
+    request<{ item: Application }>("/applications/apply-status-suggestion", {
+      method: "POST",
+      body,
     }),
 
   // 列表参数与 applications 同一范式：非默认值才传，白名单外的键由后端静默回退

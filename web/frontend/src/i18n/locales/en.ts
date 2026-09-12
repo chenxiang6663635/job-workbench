@@ -22,6 +22,11 @@ export default {
   "status.offline": "Backend not running",
   "error.backend": "Cannot connect to the backend (localhost:8765)",
   "error.backendHint": "Run from the repository root:",
+  "error.renderFailed": "Something went wrong rendering this page",
+  "error.forceReload": "Hard reload (clear cache)",
+
+  "common.retry": "Retry",
+  "common.close": "Dismiss message",
   "loading.workspace": "Locating workspace…",
 
   "lang.switch": "Language",

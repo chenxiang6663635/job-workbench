@@ -23,6 +23,11 @@ const zhCN = {
   "status.offline": "后端未启动",
   "error.backend": "无法连接到后端（localhost:8765）",
   "error.backendHint": "请在仓库根目录运行：",
+  "error.renderFailed": "页面渲染出错",
+  "error.forceReload": "强制刷新（清除缓存）",
+
+  "common.retry": "重试",
+  "common.close": "关闭提示",
   "loading.workspace": "正在定位工作区…",
 
   "lang.switch": "界面语言",

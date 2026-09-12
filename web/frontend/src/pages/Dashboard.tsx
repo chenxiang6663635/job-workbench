@@ -44,6 +44,13 @@ const STAGE_COLORS: Record<string, string> = {
   已放弃: "#94a3b8",
 };
 
+// 投递状态语义色（分布图用）：与阶段色同源思路——图表语义独立于主题 token
+const APPLY_STATE_COLORS = {
+  未投递: "#475569",
+  流程中: "#38bdf8",
+  已终态: "#94a3b8",
+};
+
 // 下钻筛选：投递到 sessionStorage，追踪表页在 mount 时读取
 type Drill = {
   stage?: string;
@@ -54,11 +61,18 @@ type Drill = {
   dueWithin?: number;
   sort?: "health";
   focusId?: string;
+  // 岗位池下钻：跳过去并直接打开该岗位详情（由 Jobs 页消费）
+  focusDir?: string;
 };
 
 function drillTo(filter: Drill) {
   sessionStorage.setItem("jobws_drill", JSON.stringify(filter));
   window.location.hash = "applications";
+}
+
+function drillToJob(dir: string) {
+  sessionStorage.setItem("jobws_drill", JSON.stringify({ focusDir: dir }));
+  window.location.hash = "jobs";
 }
 
 // 日期 YYYY-MM-DD + n 天，返回同格式字符串；入参非法时返回原值
@@ -296,6 +310,12 @@ export default function Dashboard() {
   }
 
   const maxFunnel = Math.max(1, ...data.funnel.map((f) => f.count));
+  const unappliedHigh = data.unappliedHigh ?? [];
+  const scoreByState = data.scoreByState ?? [];
+  const hasScoreByState = scoreByState.some(
+    (t) => t.unapplied + t.active + t.terminal > 0
+  );
+  const hasJobPoolSignal = unappliedHigh.length > 0 || hasScoreByState;
 
   return (
     <div className="space-y-6">
@@ -333,6 +353,118 @@ export default function Dashboard() {
           onClick={() => drillTo({ overdue: true })}
         />
       </div>
+
+      {/* 岗位池视角的两块。它们与「有没有投递记录」无关——
+          一个岗位都没投过时，高分未投恰恰是最该先看到的东西。 */}
+      {hasJobPoolSignal && (
+        <div className="space-y-4">
+          {unappliedHigh.length > 0 && (
+            <div className="rounded-lg border border-primary/30 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+              <h2 className="text-sm font-semibold text-foreground">
+                高分还没投（{unappliedHigh.length}）
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                评分达到「建议投」档及以上、且追踪表里还没有记录的岗位。点击直达该岗位详情。
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {unappliedHigh.slice(0, 6).map((j) => (
+                  <button
+                    key={j.dir}
+                    type="button"
+                    onClick={() => drillToJob(j.dir)}
+                    title={j.dir}
+                    className="flex cursor-pointer items-center justify-between gap-2 rounded-lg bg-background/60 px-3 py-2 text-left text-sm transition-colors hover:bg-secondary/60"
+                  >
+                    <span className="truncate text-foreground">
+                      {j.company} · {j.role}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-primary">
+                      {j.score}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {unappliedHigh.length > 6 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  另有 {unappliedHigh.length - 6} 个，去岗位池按「评分」排序看全部。
+                </p>
+              )}
+            </div>
+          )}
+
+          {hasScoreByState && (
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+              <h2 className="text-sm font-semibold text-foreground">
+                评分档位 × 投递状态
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                档位边界沿用评分卡的 THRESHOLDS（改阈值只改那一处）；未评分的岗位不参与——
+                「还没评」不等于最低档。
+              </p>
+              <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+                {(["未投递", "流程中", "已终态"] as const).map((s) => (
+                  <span key={s} className="inline-flex items-center gap-1.5">
+                    <span
+                      className="h-2.5 w-2.5 rounded-sm"
+                      style={{ background: APPLY_STATE_COLORS[s] }}
+                    />
+                    {s}
+                  </span>
+                ))}
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={scoreByState}
+                  layout="vertical"
+                  margin={{ left: 8, right: 24 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="tier"
+                    width={72}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "hsl(var(--foreground) / 0.06)" }}
+                    contentStyle={{
+                      background: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 12,
+                      color: "hsl(var(--foreground))",
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="unapplied"
+                    stackId="state"
+                    name="未投递"
+                    fill={APPLY_STATE_COLORS.未投递}
+                    barSize={18}
+                  />
+                  <Bar
+                    dataKey="active"
+                    stackId="state"
+                    name="流程中"
+                    fill={APPLY_STATE_COLORS.流程中}
+                    barSize={18}
+                  />
+                  <Bar
+                    dataKey="terminal"
+                    stackId="state"
+                    name="已终态"
+                    fill={APPLY_STATE_COLORS.已终态}
+                    barSize={18}
+                    radius={[0, 6, 6, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
 
       {data.total === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">

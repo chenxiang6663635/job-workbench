@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { ChevronsUpDown, Inbox, Link2, Loader2, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Inbox, Link2, Loader2, Plus } from "lucide-react";
 import {
   api,
   BATCHES,
   DIRECTIONS,
   STAGES,
   type Application,
+  type JobOrder,
   type JobSort,
   type JobStatus,
   type JobSummary,
@@ -24,6 +25,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import JobCard from "../components/JobCard";
 import JobDetailView from "../components/JobDetailView";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 // 四排序与后端 jobs.py 的 JOB_SORTS 白名单一致；未知键由后端静默回退 dir
 const SORT_LABELS: Record<JobSort, string> = {
@@ -31,6 +33,15 @@ const SORT_LABELS: Record<JobSort, string> = {
   score: "评分",
   state: "投递状态",
   recent: "最近更新",
+};
+
+// 每个维度的自然方向（与后端 JOB_DEFAULT_ORDER 同一张表）：
+// 评分默认想看高分、最近更新默认想看新的，目录名默认 A→Z
+const DEFAULT_ORDER: Record<JobSort, JobOrder> = {
+  dir: "asc",
+  score: "desc",
+  state: "asc",
+  recent: "desc",
 };
 
 const STATUS_ITEMS: { value: JobStatus; label: string }[] = [
@@ -79,6 +90,7 @@ export default function Jobs() {
   const [jdUrl, setJdUrl] = useState("");
   const [fetching, setFetching] = useState(false);
   const [sort, setSort] = useState<JobSort>("dir");
+  const [order, setOrder] = useState<JobOrder>("asc");
   const [status, setStatus] = useState<JobStatus>("");
   // 正在投递的岗位目录（按钮级 loading）：写追踪表是写操作，必须给出进行中反馈
   const [applying, setApplying] = useState<string | null>(null);
@@ -96,7 +108,7 @@ export default function Jobs() {
   const load = () => {
     setLoading(true);
     api
-      .listJobs({ sort, status })
+      .listJobs({ sort, order, status })
       .then(
         (r) => {
           setItems(r.items);
@@ -107,7 +119,7 @@ export default function Jobs() {
       .then(() => setLoading(false));
   };
 
-  useEffect(load, [sort, status]);
+  useEffect(load, [sort, order, status]);
 
   // 详情拉取期间补 loading 态：此前点击到返回前无任何骨架，像卡住
   const open = (dir: string) => {
@@ -174,22 +186,10 @@ export default function Jobs() {
       .catch((e: Error) => setError(e.message));
   };
 
-  const sortBtn = (key: JobSort) => {
-    const active = sort === key;
-    return (
-      <button
-        type="button"
-        aria-pressed={active}
-        onClick={() => setSort(active ? "dir" : key)}
-        className={`flex cursor-pointer items-center gap-1 font-medium transition-colors ${
-          active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-        }`}
-        title={`按${SORT_LABELS[key]}排序`}
-      >
-        {SORT_LABELS[key]}
-        <ChevronsUpDown size={12} className={active ? "opacity-100" : "opacity-40"} />
-      </button>
-    );
+  // 换维度就回到该维度的自然方向：评分默认想看高分，目录名默认想看 A→Z
+  const changeSort = (key: JobSort) => {
+    setSort(key);
+    setOrder(DEFAULT_ORDER[key]);
   };
 
   const startApply = (job: JobSummary) => {
@@ -280,13 +280,28 @@ export default function Jobs() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-muted-foreground">排序</span>
-          {(Object.keys(SORT_LABELS) as JobSort[]).map((key) => (
-            <span key={key} className="inline-flex items-center gap-1">
-              {sortBtn(key)}
-            </span>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 分段控件与简历工坊的模式切换条同一形态：原先的文字按钮 + 双向箭头
+              既看不出当前选中谁，也放不下「顺序 / 逆序」这半个控制 */}
+          <Tabs value={sort} onValueChange={(v) => changeSort(v as JobSort)}>
+            <TabsList>
+              {(Object.keys(SORT_LABELS) as JobSort[]).map((key) => (
+                <TabsTrigger key={key} value={key} className="px-2.5 py-1.5 text-xs">
+                  {SORT_LABELS[key]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+
+          <Button
+            variant="outline"
+            className="h-9 gap-1.5 px-3 text-xs"
+            onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
+            title={order === "asc" ? "当前升序，点击切换为降序" : "当前降序，点击切换为升序"}
+          >
+            {order === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+            {order === "asc" ? "升序" : "降序"}
+          </Button>
         </div>
         <Select
           value={status === "" ? ALL : status}

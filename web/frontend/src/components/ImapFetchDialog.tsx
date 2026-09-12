@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Inbox, Loader2, RefreshCw, X } from "lucide-react";
+import { CheckCircle2, Inbox, Loader2, RefreshCw, Search, X } from "lucide-react";
 import { api, type ImapMessage } from "../api";
 import {
   Dialog,
@@ -10,6 +10,14 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { ErrorBanner } from "./ErrorBanner";
 
 interface Props {
@@ -18,8 +26,16 @@ interface Props {
   onUse: (body: string) => void;
 }
 
+const RANGE_OPTIONS = [
+  { value: "7", label: "最近 7 天" },
+  { value: "30", label: "最近 30 天" },
+  { value: "90", label: "最近 90 天" },
+  { value: "0", label: "不限时间" },
+];
+
 /**
- * 从邮箱只读拉取最近邮件（最新在前），选一封交给「解析 → 建议 → 确认」流程。
+ * 从邮箱只读拉取邮件（服务端按时间窗搜索，最新在前），选一封交给
+ * 「解析 → 建议 → 确认」流程。
  *
  * 打开本对话框 = 一次显式点击，此时才连接邮箱（没有后台连接/定时轮询）。
  * 拉取是 dry-run：不动邮箱、也不动追踪表；写回只发生在用户于下一步
@@ -30,12 +46,14 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
   const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sinceDays, setSinceDays] = useState(30);
+  const [query, setQuery] = useState("");
 
   const load = () => {
     setLoading(true);
     setError(null);
     api
-      .fetchImapMessages({ limit: 20 })
+      .fetchImapMessages({ limit: 50, since_days: sinceDays })
       .then((r) => {
         setMessages(r.messages);
         setServer(r.server);
@@ -44,14 +62,23 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  // 切换时间窗即重新拉取（首次挂载也走这里）——用户改的是服务端搜索条件，
+  // 不重拉的话列表与所选范围对不上
+  useEffect(load, [sinceDays]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = (messages ?? []).filter(
+    (m) => !q || (m.subject + " " + m.from + " " + m.body).toLowerCase().includes(q)
+  );
+  const rangeLabel =
+    RANGE_OPTIONS.find((o) => o.value === String(sinceDays))?.label ?? "";
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="flex h-[80vh] w-full max-w-2xl flex-col gap-0 rounded-2xl p-0">
+      <DialogContent className="flex h-[82vh] w-full max-w-2xl flex-col gap-0 rounded-2xl p-0">
         <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-medium">
-            <Inbox size={16} className="text-primary" /> 从邮箱拉取最近邮件
+            <Inbox size={16} className="text-primary" /> 从邮箱拉取邮件
           </DialogTitle>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
@@ -66,6 +93,47 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
             {server && <span className="text-muted-foreground">（{server}）</span>}
           </DialogDescription>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={String(sinceDays)}
+              onValueChange={(v) => setSinceDays(Number(v))}
+            >
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RANGE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* 本地筛选：不动服务端，只在已拉回的列表里找（对付广告邮件刷屏） */}
+            <div className="relative min-w-[180px] flex-1">
+              <Search
+                size={14}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                className="h-8 pl-8 text-xs"
+                placeholder="按主题 / 发件人 / 正文筛掉无关邮件"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              className="h-8 px-3 text-xs"
+              onClick={load}
+              disabled={loading}
+            >
+              <RefreshCw size={14} /> 重新拉取
+            </Button>
+          </div>
+
           {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
           {loading && (
@@ -76,11 +144,18 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
 
           {!loading && messages && messages.length === 0 && (
             <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              没有取到邮件。如果邮箱确实有邮件，检查「设置」里的文件夹（如 INBOX）是否正确。
+              {rangeLabel}内没有取到邮件。可以把时间范围放宽，或检查「设置」里
+              的文件夹（如 INBOX）是否正确。
             </p>
           )}
 
-          {messages?.map((m) => (
+          {!loading && messages && messages.length > 0 && filtered.length === 0 && (
+            <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+              筛掉之后没有剩下了——换个关键词，或清空筛选框。
+            </p>
+          )}
+
+          {filtered.map((m) => (
             <div key={m.uid} className="rounded-xl border border-border bg-card/60 p-3 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -109,16 +184,13 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
 
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <p className="text-xs text-muted-foreground">
-            选一封后进入「解析 → 建议 → 逐条确认」——确认之前不会写任何数据
+            {messages
+              ? `显示 ${filtered.length} / ${messages.length} 封（${rangeLabel}）· 选一封后进入「解析 → 确认」`
+              : "选一封后进入「解析 → 建议 → 逐条确认」"}
           </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={load} disabled={loading}>
-              <RefreshCw size={14} /> 重新拉取
-            </Button>
-            <Button variant="outline" onClick={onClose}>
-              关闭
-            </Button>
-          </div>
+          <Button variant="outline" onClick={onClose}>
+            关闭
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

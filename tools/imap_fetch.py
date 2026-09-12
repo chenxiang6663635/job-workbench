@@ -20,6 +20,7 @@ socket 超时在连接建立后由 `conn.sock.settimeout()` 覆盖后续命令�
 
 from __future__ import annotations
 
+import datetime
 import imaplib
 import re
 import socket
@@ -30,8 +31,15 @@ from html.parser import HTMLParser
 
 DEFAULT_PORT = 993
 DEFAULT_FOLDER = "INBOX"
-DEFAULT_LIMIT = 20
-MAX_LIMIT = 50
+DEFAULT_LIMIT = 50
+MAX_LIMIT = 100
+# 默认只搜最近 30 天：几千封的邮箱里「最近 20 封」常常全是广告，
+# 按时间窗在服务端搜索，才能把「翻列表找招聘邮件」变成「拉回来再看」
+DEFAULT_SINCE_DAYS = 30
+
+# IMAP 日期字面量用的英文月份（不用 strftime，理由见 _imap_since）
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 # 单封邮件正文截断上限：列表预览用，防止把超大邮件整个打进响应
 MAX_BODY_CHARS = 4000
 SOCKET_TIMEOUT = 15
@@ -238,6 +246,20 @@ def _check_port(port):
         return DEFAULT_PORT
 
 
+def _imap_since(days):
+    """IMAP SINCE 的日期字面量（dd-Mon-yyyy，如 13-Aug-2026）。
+
+    不能用 strftime("%d-%b-%Y")：Windows 的 %b 跟随系统 locale，
+    中文环境下会输出「13-8月-2026」这种非法月份，服务器直接报错。
+    """
+    try:
+        days = max(1, int(days))
+    except (TypeError, ValueError):
+        days = DEFAULT_SINCE_DAYS
+    d = datetime.date.today() - datetime.timedelta(days=days)
+    return "%02d-%s-%04d" % (d.day, _MONTHS[d.month - 1], d.year)
+
+
 def _login(conn, user, password):
     """登录并统一错误口径（消息不含密码）。"""
     try:
@@ -287,9 +309,10 @@ def test_connection(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLD
 
 
 def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDER,
-                   limit=DEFAULT_LIMIT):
-    """只读拉取最近 `limit` 封邮件，最新在前。
+                   limit=DEFAULT_LIMIT, since_days=DEFAULT_SINCE_DAYS):
+    """只读拉取最近 `since_days` 天内的邮件（最新在前，最多 `limit` 封）。
 
+    `since_days=0` 表示不限时间（取最近 limit 封）。
     返回 [{"uid", "subject", "from", "date", "body"}]。
     只读保证：`select(readonly=True)` + `BODY.PEEK[]`，且不执行任何
     STORE / COPY / EXPUNGE 类命令；每次调用独立连接、结束即 logout。
@@ -315,11 +338,14 @@ def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDE
         if typ != "OK":
             raise ImapFetchError("打开文件夹失败：%s" % (data,))
 
+        # 时间窗在服务端过滤（SINCE 是 ASCII 安全的条件）：
+        # 只取「最近 N 封」在几千封的真实邮箱里会被广告邮件淹没
+        criteria = ["SINCE", _imap_since(since_days)] if since_days else ["ALL"]
         try:
             # UID SEARCH（不是 SEARCH）：拿到的是稳定 UID。
             # 序号（sequence number）在会话期间会因邮箱变化重排，
             # 用序号去 FETCH 有取到另一封邮件的风险。
-            typ, data = conn.uid("SEARCH", "ALL")
+            typ, data = conn.uid("SEARCH", *criteria)
         except imaplib.IMAP4.error as exc:
             raise ImapFetchError("检索邮件失败：%s" % exc)
         if typ != "OK":

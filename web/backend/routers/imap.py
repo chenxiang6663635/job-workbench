@@ -22,6 +22,8 @@ import io
 import json
 import os
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -185,6 +187,9 @@ def test_imap(ws: str = Depends(workspace_dir)):
 class FetchRequest(BaseModel):
     limit: int = imap_fetch.DEFAULT_LIMIT
     folder: str = ""  # 可选覆盖配置里的文件夹
+    # 只拉最近 N 天；0 = 不限（取最近 limit 封）。
+    # 用 Optional：前端显式传 null 时不该 422（pydantic v2 的坑，同阶段 2 注释）
+    since_days: Optional[int] = imap_fetch.DEFAULT_SINCE_DAYS
 
 
 @router.post("/fetch")
@@ -202,10 +207,12 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
 
     host = _resolve_host(cfg)
     folder = (body.folder or cfg["folder"] or imap_fetch.DEFAULT_FOLDER).strip()
+    since_days = body.since_days or 0
 
     try:
         messages = imap_fetch.fetch_messages(
-            host, cfg["user"], cfg["password"], cfg["port"], folder, body.limit)
+            host, cfg["user"], cfg["password"], cfg["port"], folder,
+            body.limit, since_days)
     except imap_fetch.ImapFetchError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -214,6 +221,7 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
         "count": len(messages),
         "server": host,
         "folder": folder,
+        "sinceDays": since_days,
         "dryRun": True,
         "note": "只读拉取，未改动任何数据；状态改动需要你逐条确认后才会写回。",
     }

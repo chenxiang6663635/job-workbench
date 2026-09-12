@@ -9,6 +9,7 @@
 """
 
 import os
+import re
 import socket
 import sys
 
@@ -139,7 +140,8 @@ def test_fetch_selects_readonly_and_uses_peek(fake):
 
     assert ("select", "INBOX", True) in fake.calls, "必须只读打开文件夹"
     searches = [c for c in fake.calls if c[0] == "uid:search"]
-    assert searches and searches[0][1] == "ALL", "检索必须走 UID SEARCH（序号会随邮箱变化重排）"
+    assert searches and searches[0][1] == "SINCE", "默认按时间窗检索（UID SEARCH）"
+    assert re.match(r"^\d{2}-[A-Z][a-z]{2}-\d{4}$", searches[0][2]), "SINCE 日期必须是不受 locale 影响的 ASCII 格式"
     specs = [c[2] for c in fake.calls if c[0] == "uid:fetch"]
     assert specs and all("PEEK" in s for s in specs), "读取必须用 UID FETCH + BODY.PEEK"
     forbidden = ("store", "copy", "expunge", "append", "create", "delete", "rename")
@@ -236,6 +238,23 @@ def test_probe_timeout_is_wrapped(monkeypatch):
     with pytest.raises(imap_fetch.ImapFetchError) as exc:
         imap_fetch._probe_tcp("imap.example.com", 993)
     assert "超时" in str(exc.value)
+
+
+def test_since_days_zero_means_search_all(fake):
+    imap_fetch.fetch_messages("imap.example.com", "a@example.com", "code", since_days=0)
+    search = [c for c in fake.calls if c[0] == "uid:search"][0]
+    assert search[1] == "ALL"
+
+
+def test_since_date_never_uses_localized_month_names():
+    """Windows 中文 locale 下 strftime("%b") 会输出「9月」——必须是 ASCII 月份。
+
+    服务器只认 dd-Mon-yyyy（如 13-Aug-2026），本地化月份会直接让 SEARCH 报错。
+    """
+    value = imap_fetch._imap_since(30)
+    assert re.match(
+        r"^\d{2}-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4}$", value
+    ), value
 
 
 def test_extract_body_skips_attachments():

@@ -491,6 +491,8 @@ export interface ImapFetchResult {
   count: number;
   server: string;
   folder: string;
+  /** 实际生效的时间窗（天）；0 = 不限 */
+  sinceDays: number;
   /** 恒为 true：拉取只做取样，不改动任何数据 */
   dryRun: boolean;
   note: string;
@@ -872,6 +874,6 @@ export const api = {
 
   testImap: () => request<ImapTestResult>("/imap/test", { method: "POST" }),
 
-  fetchImapMessages: (body: { limit?: number; folder?: string }) =>
+  fetchImapMessages: (body: { limit?: number; folder?: string; since_days?: number }) =>
     request<ImapFetchResult>("/imap/fetch", { method: "POST", body }),
 };

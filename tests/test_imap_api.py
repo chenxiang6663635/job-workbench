@@ -160,8 +160,9 @@ def test_fetch_uses_the_guessed_server_when_host_is_empty(tmp_path, client, monk
     _save(client, host="", user="me@" + "qq.com")
     captured = {}
 
-    def _fake(host, user, password, port, folder, limit):
-        captured.update({"host": host, "folder": folder, "limit": limit})
+    def _fake(host, user, password, port, folder, limit, since_days):
+        captured.update({"host": host, "folder": folder, "limit": limit,
+                         "since_days": since_days})
         return []
 
     monkeypatch.setattr(imap_fetch, "fetch_messages", _fake)
@@ -170,7 +171,24 @@ def test_fetch_uses_the_guessed_server_when_host_is_empty(tmp_path, client, monk
     assert res.status_code == 200
     assert captured["host"] == "imap.qq.com"
     assert captured["limit"] == 7
+    assert captured["since_days"] == 30, "不传时默认最近 30 天"
     assert res.json()["server"] == "imap.qq.com"
+
+
+def test_fetch_passes_the_time_window(tmp_path, client, monkeypatch):
+    _save(client)
+    captured = {}
+
+    def _fake(host, user, password, port, folder, limit, since_days):
+        captured["since_days"] = since_days
+        return []
+
+    monkeypatch.setattr(imap_fetch, "fetch_messages", _fake)
+
+    res = client.post("/api/imap/fetch", params={"ws": WS}, json={"since_days": 7})
+    assert res.status_code == 200
+    assert captured["since_days"] == 7
+    assert res.json()["sinceDays"] == 7
 
 
 def test_fetch_rejects_a_host_it_cannot_guess(tmp_path, client):

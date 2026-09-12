@@ -185,9 +185,16 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
 
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <p className="text-xs text-muted-foreground">
-            {messages
-              ? `显示 ${filtered.length} / ${messages.length} 封（${rangeLabel}）· 点任意一封进入「解析 → 确认」`
-              : "点任意一封进入「解析 → 建议 → 逐条确认」"}
+            {messages ? (
+              <>
+                <span className="tabular-nums">
+                  显示 {filtered.length} / {messages.length} 封
+                </span>
+                （{rangeLabel}）· 点任意一封进入「解析 → 确认」
+              </>
+            ) : (
+              "点任意一封进入「解析 → 建议 → 逐条确认」"
+            )}
           </p>
           <Button variant="outline" onClick={onClose}>
             关闭

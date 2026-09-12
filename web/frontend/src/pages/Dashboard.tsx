@@ -3,6 +3,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -500,7 +501,7 @@ export default function Dashboard() {
                 <BarChart
                   data={data.funnel}
                   layout="vertical"
-                  margin={{ left: 8, right: 24 }}
+                  margin={{ left: 8, right: 40 }}
                 >
                   <XAxis type="number" hide domain={[0, maxFunnel]} />
                   <YAxis
@@ -537,6 +538,15 @@ export default function Dashboard() {
                         fill={STAGE_COLORS[f.stage] ?? "hsl(var(--primary))"}
                       />
                     ))}
+                    {/* 柱尾补数量。数据少时所有柱子等长（最大值只有 1 时全是满宽），
+                        没有数字这张图读不出任何值——而右侧「按方向 / 按批次」每行
+                        都有数字，一页里两种读数方式显得割裂。 */}
+                    <LabelList
+                      dataKey="count"
+                      position="right"
+                      offset={8}
+                      style={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

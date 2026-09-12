@@ -47,4 +47,16 @@ export default {
   "lineage.jobCount_one": "{{count}} job",
   "lineage.jobCount_other": "{{count}} jobs",
   "lineage.tip": "Tip: fill in the 简历版本 (resume version) column in the tracker when you apply — that is what links a version to its jobs.",
+
+  "job.backToPool": "Back to job pool",
+  "job.hardGates": "Eligibility gates",
+  "job.gatePending": "Pending",
+  "job.gateReason": "Reason: {{reason}}",
+  "job.jdSource": "JD source",
+  "job.jdMissing": "(JD not saved yet)",
+  "job.parsedCard": "Parsed card",
+  "job.nextStep": "Next step: {{action}}",
+  "job.cardMissing": "No parsed card yet",
+  "job.cardEmptyHint1": "Scoring is done by the AI in CodeBuddy (the jd workflow); once it is written to",
+  "job.cardEmptyHint2": "the four dimension scores and the tier show up here automatically.",
 } satisfies Record<TranslationKey, string>;

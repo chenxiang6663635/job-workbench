@@ -53,6 +53,20 @@ const zhCN = {
   "lineage.jobCount_other": "{{count}} 个岗位",
   // 「简历版本」是追踪表 CSV 里的真实列名：英文里必须保留原字段名，否则用户找不到该填哪一列
   "lineage.tip": "提示：投递时在追踪表里填「简历版本」列，谱系才能把版本和岗位连起来。",
+
+  "job.backToPool": "返回岗位池",
+  "job.hardGates": "资格硬门槛",
+  "job.gatePending": "待确认",
+  "job.gateReason": "原因：{{reason}}",
+  "job.jdSource": "JD 原文",
+  "job.jdMissing": "（尚未保存 JD）",
+  "job.parsedCard": "解析卡",
+  "job.nextStep": "下一步：{{action}}",
+  "job.cardMissing": "尚未生成解析卡",
+  // 这两段被 <code>解析卡.md</code> 夹开：文件名是工作区的真实文件约定，不翻译，
+  // 所以只能切成两个 key 把文件名留在中间
+  "job.cardEmptyHint1": "评分由 AI 在 CodeBuddy 中完成（jd 工作流），写入",
+  "job.cardEmptyHint2": "后此处会自动展示四维度得分与档位。",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

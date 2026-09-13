@@ -2,3 +2,8 @@
 # Large behavior changes: open an issue describing motivation and generalization cost first.
 # English or Chinese are both fine - pick whichever you write best.
 blank_issues_enabled: true
+contact_links:
+  # 安全问题不走公开 issue（细节会把所有用户置于风险中），入口见 SECURITY.md
+  - name: Security report (private)
+    url: https://github.com/chenxiang6663635/job-workbench/security/advisories/new
+    about: Please report vulnerabilities privately instead of opening a public issue.

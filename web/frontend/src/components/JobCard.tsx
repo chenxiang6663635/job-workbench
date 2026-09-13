@@ -4,6 +4,7 @@ import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { FAIL_TERMINAL, type ApplyState, type JobSummary } from "../api";
+import { domainLabel } from "../lib/domainLabels";
 import { levelBadgeVariant } from "./badgeVariants";
 
 /**
@@ -60,12 +61,14 @@ export default function JobCard({
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {job.level ? (
-            <Badge variant={levelBadgeVariant(job.level)}>{job.level}</Badge>
+            <Badge variant={levelBadgeVariant(job.level)}>
+              {domainLabel("tier", job.level, t)}
+            </Badge>
           ) : (
             <span className="text-xs text-muted-foreground">{t("job.notScored")}</span>
           )}
           <Badge variant={applyStateBadgeVariant(job.applyState)}>
-            {job.applyState}
+            {domainLabel("jobState", job.applyState, t)}
           </Badge>
           {job.stage && (
             <span
@@ -75,7 +78,7 @@ export default function JobCard({
                   : "text-muted-foreground"
               }`}
             >
-              {job.stage}
+              {domainLabel("stage", job.stage, t)}
             </span>
           )}
           {job.hasJD && (

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GitBranch } from "lucide-react";
 import { api, type LineageItem } from "../api";
+import { domainLabel } from "../lib/domainLabels";
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
@@ -93,7 +94,7 @@ export default function VersionLineage() {
                     <span className="shrink-0 text-muted-foreground">{a.投递日期}</span>
                   )}
                   <Badge variant={stageBadgeVariant(a.当前阶段)} className="shrink-0">
-                    {a.当前阶段 || "—"}
+                    {a.当前阶段 ? domainLabel("stage", a.当前阶段, t) : "—"}
                   </Badge>
                 </div>
               ))}

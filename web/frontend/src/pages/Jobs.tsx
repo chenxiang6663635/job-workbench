@@ -14,6 +14,7 @@ import {
 } from "../api";
 // 模块级常量表存 key 而不是文案，渲染处再翻（拼错的 key 编译期就报错）
 import type { TranslationKey } from "../i18n/locales/zh-CN";
+import { domainLabel } from "../lib/domainLabels";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input, Textarea } from "../components/ui/input";
@@ -416,7 +417,7 @@ export default function Jobs() {
               <SelectContent>
                 {DIRECTIONS.map((d) => (
                   <SelectItem key={d} value={d}>
-                    {d}
+                    {domainLabel("direction", d, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -431,7 +432,7 @@ export default function Jobs() {
               <SelectContent>
                 {BATCHES.map((b) => (
                   <SelectItem key={b} value={b}>
-                    {b}
+                    {domainLabel("batch", b, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -446,7 +447,7 @@ export default function Jobs() {
               <SelectContent>
                 {STAGES.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {s}
+                    {domainLabel("stage", s, t)}
                   </SelectItem>
                 ))}
               </SelectContent>

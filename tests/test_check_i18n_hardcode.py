@@ -28,10 +28,17 @@ import check_i18n_hardcode as checker  # noqa: E402
 SRC = os.path.join("web", "frontend", "src")
 
 
-def _make_repo(tmp_path, files, allowlist=""):
-    """按 {相对 src 的路径: 内容} 造一个小源码树，可选写允许清单。"""
+def _make_repo(tmp_path, files, allowlist="", electron_files=None):
+    """按 {相对 src 的路径: 内容} 造一个小源码树，可选写允许清单。
+
+    electron_files 同理，但落在 web/electron/（第二棵被扫的源码树）。
+    """
     for rel, text in files.items():
         full = tmp_path / SRC / rel
+        full.parent.mkdir(parents=True, exist_ok=True)
+        io.open(str(full), "w", encoding="utf-8").write(text)
+    for rel, text in (electron_files or {}).items():
+        full = tmp_path / "web" / "electron" / rel
         full.parent.mkdir(parents=True, exist_ok=True)
         io.open(str(full), "w", encoding="utf-8").write(text)
     if allowlist:
@@ -225,3 +232,44 @@ def test_plural_base_name_counts_as_existing(tmp_path):
              os.path.join("i18n", "locales", "zh-CN.ts"):
                  '"a.count_one": "{{count}} 条",\n"a.count_other": "{{count}} 条",\n'}
     assert _missing(tmp_path, files) == []
+
+
+# ---- 9. Electron 主进程（第二棵源码树，web/electron） ----
+
+def _run_with_electron(tmp_path, files, electron_files, allowlist=""):
+    root = _make_repo(tmp_path, files, allowlist, electron_files)
+    unallowed, _ok, _plural, _missing, errors = checker.check(root)
+    return unallowed, errors
+
+
+def test_electron_cjk_string_is_reported(tmp_path):
+    """main.js 的用户可见串（窗口标题/更新对话框/日志）与前端同一套口径。"""
+    files = {"placeholder.js": "const x = 1;\n"}
+    electron = {
+        "main.js": 'log("后端已就绪");\n'
+                   'const win = new BrowserWindow({ title: "求职工作台" });\n',
+    }
+    unallowed, errors = _run_with_electron(tmp_path, files, electron)
+    assert errors == []
+    assert {u[0].replace(os.sep, "/") for u in unallowed} == {"electron/main.js"}
+    snippets = {u[2] for u in unallowed}
+    assert "后端已就绪" in snippets and "求职工作台" in snippets
+    assert all(u[3] == "string" for u in unallowed)
+
+
+def test_electron_comment_is_not_a_hit(tmp_path):
+    """注释不翻的口径在 Electron 侧同样成立（main.js 的注释全是中文）。"""
+    files = {"placeholder.js": "const x = 1;\n"}
+    electron = {"main.js": "// 后端已就绪（注释不翻）\nconst x = 1;\n"}
+    unallowed, errors = _run_with_electron(tmp_path, files, electron)
+    assert unallowed == []
+    assert errors == []
+
+
+def test_electron_release_dir_is_skipped(tmp_path):
+    """release/ 是本地打包产物（含旧文案的 bundle），不在检查范围。"""
+    files = {"placeholder.js": "const x = 1;\n"}
+    electron = {os.path.join("release", "bundle.js"): 'log("后端已就绪");\n'}
+    unallowed, errors = _run_with_electron(tmp_path, files, electron)
+    assert unallowed == []
+    assert errors == []

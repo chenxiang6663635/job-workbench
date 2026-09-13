@@ -55,6 +55,11 @@ i18n.use(initReactI18next).init({
 document.documentElement.lang = i18n.language;
 
 // 切换语言：持久化 + 同步 <html lang>（无障碍与浏览器翻译器都用得到）
+// + 同步窗口/标签页标题（Electron 窗口标题会被页面的 document.title 覆盖，
+//   不同步的话标题永远停在 index.html 的静态值）
+function applyDocumentTitle() {
+  document.title = i18n.t("app.title");
+}
 i18n.on("languageChanged", (lng) => {
   try {
     localStorage.setItem(LANG_STORAGE_KEY, lng);
@@ -62,6 +67,9 @@ i18n.on("languageChanged", (lng) => {
     // 持久化失败只影响下次启动的默认语言，不影响本次会话
   }
   document.documentElement.lang = lng;
+  applyDocumentTitle();
 });
+// init({lng}) 不触发 languageChanged——首屏标题在这里补一次
+applyDocumentTitle();
 
 export default i18n;

@@ -33,6 +33,7 @@
     ],
     "files": [
       "main.js",
+      "zoom.js",
       "package.json",
       "node_modules/**"
     ],

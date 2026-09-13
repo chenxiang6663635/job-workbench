@@ -267,10 +267,13 @@ function createWindow() {
   let zoomLevel = loadZoomLevel();
   const applyZoom = () => win.webContents.setZoomLevel(zoomLevel);
   win.webContents.on("did-finish-load", applyZoom);
-  win.webContents.setVisualZoomLevelLimits(1, 1);
+  // 该 API 返回 Promise（未就绪/已销毁时会 reject），与文件里其它异步面一样显式兜住
+  win.webContents.setVisualZoomLevelLimits(1, 1)
+    .catch((e) => log(`Failed to disable visual zoom: ${e.message}`));
 
   win.webContents.on("before-input-event", (event, input) => {
-    // macOS 用 Cmd、其余平台用 Ctrl；Shift 允许（Ctrl+Shift+= 打出的就是 "+"）
+    // macOS 用 Cmd、其余平台用 Ctrl（发布物目前只有 win64，这一支是为将来留的）；
+    // Shift 允许（Ctrl+Shift+= 打出的就是 "+"）
     const mod = process.platform === "darwin" ? input.meta : input.control;
     if (input.type !== "keyDown" || input.alt) return;
     const next = nextLevel(zoomLevel, input.key, mod);

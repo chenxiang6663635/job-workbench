@@ -8,9 +8,13 @@ assert.strictEqual(clampLevel(0), 0);
 assert.strictEqual(clampLevel(1.5), 1.5);
 assert.strictEqual(clampLevel(99), ZOOM_MAX, "越界上侧夹到上限");
 assert.strictEqual(clampLevel(-99), ZOOM_MIN, "越界下侧夹到下限");
-assert.strictEqual(clampLevel("abc"), 0, "非法输入回默认，而不是把界面缩没");
+assert.strictEqual(clampLevel("abc"), 0, "非数值字符串回默认，而不是把界面缩没");
 assert.strictEqual(clampLevel(undefined), 0);
 assert.strictEqual(clampLevel(null), 0);
+// 手工把 zoom.json 改成 {"level":"2"} 时按数值处理（宽松解析），空串视作 0
+assert.strictEqual(clampLevel("1.5"), 1.5, "纯数字字符串按数值处理");
+assert.strictEqual(clampLevel(""), 0, "空串是 0（Number('') === 0）");
+assert.strictEqual(clampLevel("99"), ZOOM_MAX, "字符串同样受上下限约束");
 
 // --- 按键映射 -----------------------------------------------------------------
 assert.strictEqual(nextLevel(0, "=", true), 0.5);

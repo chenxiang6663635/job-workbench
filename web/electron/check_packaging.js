@@ -16,17 +16,22 @@ const files = (pkg.build && pkg.build.files) || [];
 
 const problems = [];
 const required = new Set();
-for (const m of mainSrc.matchAll(/require\("\.\/([^"]+)"\)/g)) {
-  required.add(m[1].endsWith(".js") ? m[1] : `${m[1]}.js`);
-}
-
-for (const name of required) {
-  if (!files.includes(name)) {
-    problems.push(
-      `main.js 依赖 ${name}，但它不在 build.files 里——打包后 require 解析失败，启动即崩`);
+// 单引号与双引号都认：只认双引号时，把 require 改成单引号就能让守卫静默失效
+for (const m of mainSrc.matchAll(/require\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+  const spec = m[1];
+  const base = path.resolve(dir, spec);
+  // 归一化三种等价写法：显式扩展名、省略扩展名、目录（→ index.js）
+  const resolved = [base, `${base}.js`, path.join(base, "index.js")]
+    .find((p) => fs.existsSync(p));
+  if (!resolved) {
+    problems.push(`main.js 依赖 ${spec}，但在 web/electron/ 下找不到对应文件`);
+    continue;
   }
-  if (!fs.existsSync(path.join(dir, name))) {
-    problems.push(`${name} 在 web/electron/ 下不存在（改名或删除后忘了同步？）`);
+  const rel = path.relative(dir, resolved).split(path.sep).join("/");
+  required.add(rel);
+  if (!files.includes(rel)) {
+    problems.push(
+      `main.js 依赖 ${rel}，但它不在 build.files 里——打包后 require 解析失败，启动即崩`);
   }
 }
 

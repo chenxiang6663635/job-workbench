@@ -8,7 +8,9 @@ const ZOOM_MIN = -3;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.5;
 
-/** 夹取到合法范围；非法输入（NaN / 字符串 / undefined）回 0——不能把界面缩没。 */
+/** 夹取到合法范围。非数值输入（NaN / undefined / null / 非纯数字字符串）回 0——
+    不能把界面缩没；纯数字字符串（zoom.json 被手工改成 `"2"`）按数值处理，宽松
+    解析比拒绝更稳。行为由 zoom.test.js 钉住。 */
 function clampLevel(level) {
   const n = Number(level);
   if (!Number.isFinite(n)) return 0;

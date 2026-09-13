@@ -44,7 +44,7 @@ The workbench turns all of that into queryable, traceable files.
 
 ## UI Preview
 
-> **Note**: the UI is currently Chinese-first — read the note under [Download](#download) before you install. The screenshots below are the real interface.
+> **Note**: the interface is bilingual (简体中文 / English) — switch it with the `中文 / English` control in the header; the first run follows your system language and your choice is remembered. Read the note under [Download](#download) for what stays Chinese by design. The screenshots below are the real interface (Chinese UI, taken with generated demo data).
 
 All pages below run on generated demo data (`init_workspace.py --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
 
@@ -101,7 +101,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 
 ## Download
 
-> **Note**: **the UI is currently Chinese-first** — our primary users are Chinese job seekers, and the workflows read naturally in Chinese. An English UI is on the [roadmap](ROADMAP.md); today the interface you get is the one in the screenshots above. The code, the comments, this README and the [usage guide](docs/usage-guide.md) are in English — but the interface labels and the values stored in your CSV/Markdown files (stage names, column headers) are Chinese, and so is the CLI's built-in help.
+> **Note**: the interface is **bilingual** — every page ships in 简体中文 and English, with a `中文 / English` switch in the header (first run follows your system language, and the choice is remembered). The code, the comments, this README and the [usage guide](docs/usage-guide.md) are in English. What stays Chinese **by design**: the values stored in your CSV / Markdown files (stage names, column headers) — they are the shared data contract with the CLI and with your own history, so translating them would desync the UI from your data — plus the CLI's built-in help. The screenshots above show the Chinese UI; the English UI renders the same pages with English chrome.
 
 A packaged Windows desktop app (no Python/Node needed) is attached to the
 latest release — grab `job-workbench-setup-*.exe` from

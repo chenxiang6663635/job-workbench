@@ -49,6 +49,11 @@ i18n.use(initReactI18next).init({
 // 语言包走静态 import 打进 bundle：既满足 Electron asar 下不依赖文件路径，
 // 也让初始化同步完成（无 Suspense、无首屏文案闪一下 key 名的问题）。
 
+// 首屏同步一次 <html lang>：`init({lng})` **不会**触发 languageChanged
+// （那个事件只在切换语言时发），所以刷新后 lang 会停在 index.html 里的默认值——
+// 中文系统看不出问题，英文用户则是「界面英文、lang 写着 zh-CN」（2026-09-12 冒烟抓到）。
+document.documentElement.lang = i18n.language;
+
 // 切换语言：持久化 + 同步 <html lang>（无障碍与浏览器翻译器都用得到）
 i18n.on("languageChanged", (lng) => {
   try {

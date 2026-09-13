@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, Inbox, Link2, Loader2, Plus } from "lucide-react";
 import {
   api,
@@ -11,6 +12,8 @@ import {
   type JobStatus,
   type JobSummary,
 } from "../api";
+// 模块级常量表存 key 而不是文案，渲染处再翻（拼错的 key 编译期就报错）
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input, Textarea } from "../components/ui/input";
@@ -28,11 +31,11 @@ import JobDetailView from "../components/JobDetailView";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 // 四排序与后端 jobs.py 的 JOB_SORTS 白名单一致；未知键由后端静默回退 dir
-const SORT_LABELS: Record<JobSort, string> = {
-  dir: "目录名",
-  score: "评分",
-  state: "投递状态",
-  recent: "最近更新",
+const SORT_LABELS: Record<JobSort, TranslationKey> = {
+  dir: "job.sortDir",
+  score: "app.sortScore",
+  state: "job.sortState",
+  recent: "job.sortRecent",
 };
 
 // 每个维度的自然方向（与后端 JOB_DEFAULT_ORDER 同一张表）：
@@ -44,11 +47,11 @@ const DEFAULT_ORDER: Record<JobSort, JobOrder> = {
   recent: "desc",
 };
 
-const STATUS_ITEMS: { value: JobStatus; label: string }[] = [
-  { value: "", label: "全部状态" },
-  { value: "unapplied", label: "未投递" },
-  { value: "active", label: "流程中" },
-  { value: "terminal", label: "已终态" },
+const STATUS_ITEMS: { value: JobStatus; labelKey: TranslationKey }[] = [
+  { value: "", labelKey: "job.allStatus" },
+  { value: "unapplied", labelKey: "job.filterUnapplied" },
+  { value: "active", labelKey: "job.filterActive" },
+  { value: "terminal", labelKey: "job.filterTerminal" },
 ];
 
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达（与 Applications 同）
@@ -85,6 +88,9 @@ export default function Jobs() {
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const { t } = useTranslation();
+  // 当前筛选项是个 labelKey（模块级常量存不下翻译后的字符串）
+  const statusLabelKey = STATUS_ITEMS.find((s) => s.value === status)?.labelKey;
   const [draft, setDraft] = useState({ 公司: "", 岗位: "", JD文本: "" });
   // JD 链接抓取（第三批）：尽力而为，失败即明确降级提示手动粘贴
   const [jdUrl, setJdUrl] = useState("");
@@ -154,7 +160,7 @@ export default function Jobs() {
   // 抓取只是省掉复制粘贴，内容仍必须由用户过目（不做任何改写或摘要）
   const fetchJd = () => {
     if (!draft.公司.trim() || !draft.岗位.trim()) {
-      setError("抓取前先填公司与岗位（决定 JD 存在哪个岗位目录）");
+      setError(t("job.fetchNeedCompanyRole"));
       return;
     }
     setFetching(true);
@@ -199,7 +205,7 @@ export default function Jobs() {
     // 而后端建索引会跳过空键 → 追踪表里有记录、岗位池永远显示「未投递」
     if (!company || !role) {
       setError(
-        `目录「${job.dir}」拆不出完整的公司与岗位（关联键 = 目录名，按首个下划线拆分），请到追踪表手动新增`
+        t("job.splitDirFailed", { dir: job.dir })
       );
       return;
     }
@@ -268,14 +274,12 @@ export default function Jobs() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          共 {items.length} 个岗位
-          {status
-            ? `（已按「${STATUS_ITEMS.find((s) => s.value === status)?.label}」筛选）`
-            : ""}
-          ，评分由 AI 完成写入解析卡后展示
+          {t("job.count", { count: items.length })}
+          {status && statusLabelKey ? t("job.filteredBy", { name: t(statusLabelKey) }) : ""}
+          {t("job.scoreHint")}
         </p>
         <Button onClick={() => setCreating(true)}>
-          <Plus size={16} /> 新建岗位
+          <Plus size={16} /> {t("job.newJob")}
         </Button>
       </div>
 
@@ -287,7 +291,7 @@ export default function Jobs() {
             <TabsList>
               {(Object.keys(SORT_LABELS) as JobSort[]).map((key) => (
                 <TabsTrigger key={key} value={key} className="px-2.5 py-1.5 text-xs">
-                  {SORT_LABELS[key]}
+                  {t(SORT_LABELS[key])}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -297,10 +301,10 @@ export default function Jobs() {
             variant="outline"
             className="h-9 gap-1.5 px-3 text-xs"
             onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
-            title={order === "asc" ? "当前升序，点击切换为降序" : "当前降序，点击切换为升序"}
+            title={t(order === "asc" ? "job.orderHintAsc" : "job.orderHintDesc")}
           >
             {order === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-            {order === "asc" ? "升序" : "降序"}
+            {order === "asc" ? t("job.asc") : t("job.desc")}
           </Button>
         </div>
         <Select
@@ -308,12 +312,12 @@ export default function Jobs() {
           onValueChange={(v) => setStatus(v === ALL ? "" : (v as JobStatus))}
         >
           <SelectTrigger className="w-32">
-            <SelectValue placeholder="全部状态" />
+            <SelectValue placeholder={t("job.allStatus")} />
           </SelectTrigger>
           <SelectContent>
             {STATUS_ITEMS.map((s) => (
               <SelectItem key={s.value || ALL} value={s.value || ALL}>
-                {s.label}
+                {t(s.labelKey)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -324,12 +328,12 @@ export default function Jobs() {
         <Card className="space-y-3 border-primary/30 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
-              placeholder="公司名称"
+              placeholder={t("form.phCompany")}
               value={draft.公司}
               onChange={(e) => setDraft({ ...draft, 公司: e.target.value })}
             />
             <Input
-              placeholder="岗位名称"
+              placeholder={t("form.phRole")}
               value={draft.岗位}
               onChange={(e) => setDraft({ ...draft, 岗位: e.target.value })}
             />
@@ -338,7 +342,7 @@ export default function Jobs() {
           <div className="flex flex-wrap items-center gap-2">
             <Input
               className="flex-1"
-              placeholder="JD 网页链接（选填）：https://… 抓取成功后自动存为 JD原文.md"
+              placeholder={t("job.phJdUrl")}
               value={jdUrl}
               onChange={(e) => setJdUrl(e.target.value)}
             />
@@ -348,19 +352,22 @@ export default function Jobs() {
               disabled={
                 fetching || !jdUrl.trim() || !draft.公司.trim() || !draft.岗位.trim()
               }
-              title={!draft.公司.trim() || !draft.岗位.trim() ? "先填公司与岗位" : "抓取网页正文"}
+              title={
+                !draft.公司.trim() || !draft.岗位.trim()
+                  ? t("job.fetchNeedFillHint")
+                  : t("job.fetchTitle")
+              }
             >
               {fetching ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-              {fetching ? "抓取中…" : "从链接抓取"}
+              {fetching ? t("job.fetching") : t("job.fetchFromUrl")}
             </Button>
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            只取网页正文，不做改写或摘要。需登录、有反爬或纯 JS 渲染的页面抓不到，
-            会明确提示你手动粘贴——不会把半截内容当成抓取成功。
+            {t("job.fetchNote")}
           </p>
           <Textarea
             className="min-h-[12rem] resize-y font-mono text-xs leading-relaxed"
-            placeholder="粘贴完整的 JD 原文（含岗位职责与任职要求）。原文会被完整保存，不做改写或摘要。"
+            placeholder={t("job.phJdText")}
             value={draft.JD文本}
             onChange={(e) => setDraft({ ...draft, JD文本: e.target.value })}
           />
@@ -371,10 +378,10 @@ export default function Jobs() {
                 !draft.公司.trim() || !draft.岗位.trim() || !draft.JD文本.trim()
               }
             >
-              保存岗位
+              {t("job.saveJob")}
             </Button>
             <Button variant="ghost" onClick={() => setCreating(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
           </div>
         </Card>
@@ -383,15 +390,17 @@ export default function Jobs() {
       {applyTarget && (
         <Card className="space-y-3 border-primary/30 p-5">
           <p className="text-sm font-medium text-foreground">
-            确认投递：{applyTarget.company} · {applyTarget.role}
+            {t("job.confirmApply", {
+              company: applyTarget.company,
+              role: applyTarget.role,
+            })}
           </p>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            公司与岗位取自目录名{" "}
+            {t("job.applyNoteA")}{" "}
             <code className="rounded bg-background px-1 py-0.5 text-foreground">
               {applyTarget.dir}
             </code>
-            （关联键口径，与追踪表同源；卡片上的展示名可能与之不同）。方向、批次
-            创建后不能在界面上修改，请一次填对。
+            {t("job.applyNoteB")}
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
             <Select
@@ -399,7 +408,7 @@ export default function Jobs() {
               onValueChange={(v) => setApplyDraft({ ...applyDraft, 方向: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="方向" />
+                <SelectValue placeholder={t("form.phDirection")} />
               </SelectTrigger>
               <SelectContent>
                 {DIRECTIONS.map((d) => (
@@ -414,7 +423,7 @@ export default function Jobs() {
               onValueChange={(v) => setApplyDraft({ ...applyDraft, 批次: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="批次" />
+                <SelectValue placeholder={t("form.phBatch")} />
               </SelectTrigger>
               <SelectContent>
                 {BATCHES.map((b) => (
@@ -429,7 +438,7 @@ export default function Jobs() {
               onValueChange={(v) => setApplyDraft({ ...applyDraft, 当前阶段: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="当前阶段" />
+                <SelectValue placeholder={t("form.phStage")} />
               </SelectTrigger>
               <SelectContent>
                 {STAGES.map((s) => (
@@ -442,7 +451,7 @@ export default function Jobs() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-xs text-muted-foreground" htmlFor="apply-date">
-              投递日期
+              {t("job.applyDate")}
             </label>
             <Input
               id="apply-date"
@@ -459,10 +468,10 @@ export default function Jobs() {
               {applying === applyTarget.dir && (
                 <Loader2 size={14} className="animate-spin" />
               )}
-              确认投递
+              {t("job.confirmApplyBtn")}
             </Button>
             <Button variant="ghost" onClick={() => setApplyTarget(null)}>
-              取消
+              {t("common.cancel")}
             </Button>
           </div>
         </Card>
@@ -478,12 +487,12 @@ export default function Jobs() {
         <Card className="flex flex-col items-center gap-2 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium text-foreground">
-            {status ? "没有符合当前筛选的岗位" : "岗位池还是空的"}
+            {status ? t("job.emptyFiltered") : t("job.emptyPool")}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             {status
-              ? "可能是岗位池本来就空，也可能是都被筛掉了：切回「全部状态」看看，或新建一个岗位。"
-              : "点击「新建岗位」粘贴一份 JD，随后让 AI 生成解析卡，即可看到匹配度评分。"}
+              ? t("job.emptyFilteredHint", { all: t("job.allStatus") })
+              : t("job.emptyPoolHint", { action: t("job.newJob") })}
           </p>
         </Card>
       ) : (

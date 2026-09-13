@@ -1,3 +1,5 @@
+import i18n from "./i18n";
+
 export interface StaleItem {
   id: string;
   公司: string;
@@ -536,8 +538,9 @@ async function request<T>(
   // 两端都有值才比较：缺头（旧后端 / 跨源未暴露）时不误报。
   const served = res.headers.get("X-Jobws-Workspace");
   if (currentWorkspace && served && served !== currentWorkspace) {
+    // 这条会直接显示给用户，所以走 i18n（这里是普通模块，用实例而非 useTranslation）
     throw new Error(
-      `工作区不一致：请求的是 ${currentWorkspace}，服务端实际返回 ${served}。已阻止展示，避免张冠李戴。`
+      i18n.t("api.workspaceMismatch", { requested: currentWorkspace, served })
     );
   }
   return res.json() as Promise<T>;
@@ -547,10 +550,28 @@ async function request<T>(
 // （端到端验证时就出现过 {"detail":"Method Not Allowed"}），这里抽成人话。
 // 校验错误（422）的 detail 是数组，逐条拼接；非 JSON（纯文本 404 等）按原文返回。
 function humanizeError(raw: string, status: number): string {
-  const fallback = `请求失败 ${status}`;
+  const fallback = i18n.t("api.requestFailed", { status });
   if (!raw.trim()) return fallback;
   try {
-    const parsed = JSON.parse(raw) as { detail?: unknown };
+    const parsed = JSON.parse(raw) as {
+      detail?: unknown;
+      error_code?: unknown;
+      error_params?: unknown;
+    };
+    // 后端在 detail 之外多给一个稳定的语义 code（加法改造，见 web/backend/apierror.py）：
+    // 查得到本地化文案就用它，查不到回落 detail——绝不把 `err.xxx` 这样的 key 名显示给用户。
+    if (typeof parsed?.error_code === "string" && parsed.error_code) {
+      const key = `err.${parsed.error_code}`;
+      if (i18n.exists(key)) {
+        const params: Record<string, string> = {};
+        for (const [k, v] of Object.entries(
+          (parsed.error_params ?? {}) as Record<string, unknown>
+        )) {
+          params[k] = String(v);
+        }
+        return i18n.t(key, params);
+      }
+    }
     const detail = parsed?.detail;
     if (typeof detail === "string" && detail.trim()) return detail;
     if (Array.isArray(detail) && detail.length) {

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronRight,
@@ -19,6 +20,8 @@ import {
   type Application,
   type HistoryEntry,
 } from "../api";
+// 模块级常量表里放 key 而不是文案：TranslationKey 让拼错的 key 在编译期就报错
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
@@ -42,11 +45,11 @@ const STALE_DAYS = 14;
 type SortKey = "next" | "score" | "stale" | "health";
 
 // 健康度四态：颜色即严重度，具体理由放在 hover 的 title 里（给理由不给黑箱分数）
-const HEALTH_META: Record<string, { label: string; cls: string }> = {
-  urgent: { label: "紧急", cls: "bg-destructive/15 text-destructive" },
-  overdue: { label: "逾期", cls: "bg-warning/15 text-warning" },
-  stale: { label: "停滞", cls: "bg-primary/15 text-primary" },
-  ok: { label: "正常", cls: "bg-secondary/60 text-muted-foreground" },
+const HEALTH_META: Record<string, { labelKey: TranslationKey; cls: string }> = {
+  urgent: { labelKey: "app.healthUrgent", cls: "bg-destructive/15 text-destructive" },
+  overdue: { labelKey: "app.healthOverdue", cls: "bg-warning/15 text-warning" },
+  stale: { labelKey: "app.healthStale", cls: "bg-primary/15 text-primary" },
+  ok: { labelKey: "app.healthOk", cls: "bg-secondary/60 text-muted-foreground" },
 };
 
 type Drill = {
@@ -81,16 +84,18 @@ function stageStyle(stage: string) {
   return "bg-primary/15 text-primary";
 }
 
-const SORT_LABELS: Record<SortKey, string> = {
-  next: "下次动作日期",
-  score: "评分",
-  stale: "停留",
-  health: "健康度",
+// 值是 key 不是文案——模块级常量没法调 t()，渲染处再翻
+const SORT_LABELS: Record<SortKey, TranslationKey> = {
+  next: "app.sortNext",
+  score: "app.sortScore",
+  stale: "app.sortStale",
+  health: "app.sortHealth",
 };
 
 function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
+  const { t } = useTranslation();
   if (entries.length === 0) {
-    return <p className="text-xs text-muted-foreground/70">该记录暂无变更记录。</p>;
+    return <p className="text-xs text-muted-foreground/70">{t("app.noHistory")}</p>;
   }
   return (
     <div className="space-y-0">
@@ -116,9 +121,9 @@ function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                <span className="text-muted-foreground/70">{e.原值 || "（空）"}</span>
+                <span className="text-muted-foreground/70">{e.原值 || t("app.emptyValue")}</span>
                 <span className="mx-1 text-muted-foreground/50">→</span>
-                {e.新值 || "（空）"}
+                {e.新值 || t("app.emptyValue")}
               </p>
             </div>
           </div>
@@ -129,6 +134,7 @@ function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
 }
 
 export default function Applications() {
+  const { t } = useTranslation();
   const drill = useMemo(readDrill, []);
   const [items, setItems] = useState<Application[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -228,9 +234,9 @@ export default function Applications() {
         className={`flex cursor-pointer items-center gap-1 font-medium transition-colors ${
           active ? "text-primary" : "text-muted-foreground hover:text-foreground"
         }`}
-        title={`按${SORT_LABELS[key]}排序`}
+        title={t("app.sortByHint", { name: t(SORT_LABELS[key]) })}
       >
-        {SORT_LABELS[key]}
+        {t(SORT_LABELS[key])}
         <ChevronsUpDown size={12} className={active ? "opacity-100" : "opacity-40"} />
       </button>
     );
@@ -256,7 +262,7 @@ export default function Applications() {
           <Input
             value={filter.q}
             onChange={(e) => setFilter({ ...filter, q: e.target.value })}
-            placeholder="搜索公司、岗位或备注…"
+            placeholder={t("app.searchPlaceholder")}
             className="pl-8"
           />
         </div>
@@ -269,10 +275,10 @@ export default function Applications() {
           }
         >
           <SelectTrigger className="w-36">
-            <SelectValue placeholder="全部阶段" />
+            <SelectValue placeholder={t("app.allStages")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>全部阶段</SelectItem>
+            <SelectItem value={ALL}>{t("app.allStages")}</SelectItem>
             {STAGES.map((s) => (
               <SelectItem key={s} value={s}>
                 {s}
@@ -288,10 +294,10 @@ export default function Applications() {
           }
         >
           <SelectTrigger className="w-32">
-            <SelectValue placeholder="全部方向" />
+            <SelectValue placeholder={t("app.allDirections")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>全部方向</SelectItem>
+            <SelectItem value={ALL}>{t("app.allDirections")}</SelectItem>
             {DIRECTIONS.map((d) => (
               <SelectItem key={d} value={d}>
                 {d}
@@ -307,10 +313,10 @@ export default function Applications() {
           }
         >
           <SelectTrigger className="w-32">
-            <SelectValue placeholder="全部批次" />
+            <SelectValue placeholder={t("app.allBatches")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>全部批次</SelectItem>
+            <SelectItem value={ALL}>{t("app.allBatches")}</SelectItem>
             {BATCHES.map((b) => (
               <SelectItem key={b} value={b}>
                 {b}
@@ -320,19 +326,19 @@ export default function Applications() {
         </Select>
 
         <Button variant="outline" onClick={() => setShowStatus(true)}>
-          <Mail size={15} /> 粘贴邮件更新
+          <Mail size={15} /> {t("app.pasteMail")}
         </Button>
 
         <Button variant="outline" onClick={() => setShowImap(true)}>
-          <Inbox size={15} /> 从邮箱拉取
+          <Inbox size={15} /> {t("app.fetchMail")}
         </Button>
 
         <Button variant="outline" onClick={() => setShowImport(true)}>
-          <FileUp size={15} /> 批量导入
+          <FileUp size={15} /> {t("app.importCsv")}
         </Button>
 
         <Button onClick={() => setCreating(true)}>
-          <Plus size={16} /> 新增投递
+          <Plus size={16} /> {t("app.newApplication")}
         </Button>
       </div>
 
@@ -371,12 +377,12 @@ export default function Applications() {
         <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-white/5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input
-              placeholder="公司名称"
+              placeholder={t("form.phCompany")}
               value={draft.公司}
               onChange={(e) => setDraft({ ...draft, 公司: e.target.value })}
             />
             <Input
-              placeholder="岗位名称"
+              placeholder={t("form.phRole")}
               value={draft.岗位}
               onChange={(e) => setDraft({ ...draft, 岗位: e.target.value })}
             />
@@ -385,7 +391,7 @@ export default function Applications() {
               onValueChange={(v) => setDraft({ ...draft, 方向: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="方向" />
+                <SelectValue placeholder={t("form.phDirection")} />
               </SelectTrigger>
               <SelectContent>
                 {DIRECTIONS.map((d) => (
@@ -400,7 +406,7 @@ export default function Applications() {
               onValueChange={(v) => setDraft({ ...draft, 批次: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="批次" />
+                <SelectValue placeholder={t("form.phBatch")} />
               </SelectTrigger>
               <SelectContent>
                 {BATCHES.map((b) => (
@@ -430,10 +436,10 @@ export default function Applications() {
               onClick={submit}
               disabled={!draft.公司.trim() || !draft.岗位.trim()}
             >
-              保存
+              {t("common.save")}
             </Button>
             <Button variant="ghost" onClick={() => setCreating(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
           </div>
         </div>
@@ -448,9 +454,9 @@ export default function Applications() {
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
-          <p className="text-base font-medium">没有匹配的投递记录</p>
+          <p className="text-base font-medium">{t("app.emptyTitle")}</p>
           <p className="text-sm text-muted-foreground">
-            调整筛选条件，或点击右上角「新增投递」记录第一家公司。
+            {t("app.emptyHint", { action: t("app.newApplication") })}
           </p>
         </div>
       ) : (
@@ -458,17 +464,17 @@ export default function Applications() {
           <table className="w-full text-sm">
             <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 text-left font-medium">公司 / 岗位</th>
-                <th className="px-4 py-3 text-left font-medium">方向</th>
-                <th className="px-4 py-3 text-left font-medium">批次</th>
-                <th className="px-4 py-3 text-left font-medium">当前阶段</th>
-                <th className="px-4 py-3 text-left font-medium">状态原因</th>
+                <th className="px-4 py-3 text-left font-medium">{t("app.colCompanyRole")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("app.colDirection")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("app.colBatch")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("app.colStage")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("app.colReason")}</th>
                 <th className="px-4 py-3 text-left font-medium">
                   <span className="inline-flex items-center gap-1">
                     {sortBtn("next")}
                   </span>
                 </th>
-                <th className="px-4 py-3 text-left font-medium">截止</th>
+                <th className="px-4 py-3 text-left font-medium">{t("app.colDeadline")}</th>
                 <th className="px-4 py-3 text-left font-medium">
                   <span className="inline-flex items-center gap-1">
                     {sortBtn("score")}
@@ -501,7 +507,7 @@ export default function Applications() {
                         <button
                           onClick={() => toggleTimeline(it.id)}
                           className="mr-2 inline-flex cursor-pointer align-middle text-muted-foreground transition-colors hover:text-primary"
-                          title={isExpanded ? "收起时间线" : "展开时间线"}
+                          title={t(isExpanded ? "app.collapseTimeline" : "app.expandTimeline")}
                         >
                           {isExpanded ? (
                             <ChevronDown size={14} />
@@ -513,7 +519,7 @@ export default function Applications() {
                           {it.公司 || "—"}
                         </span>
                         <div className="pl-6 text-xs text-muted-foreground/70">
-                          {it.岗位 || "未填岗位"}
+                          {it.岗位 || t("app.roleMissing")}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-foreground">{it.方向 || "—"}</td>
@@ -529,7 +535,7 @@ export default function Applications() {
                               {it.当前阶段}
                             </span>
                             <span className="text-[10px] text-muted-foreground/70">
-                              已终态，不可改阶段
+                              {t("app.terminalLocked")}
                             </span>
                           </div>
                         ) : (
@@ -563,7 +569,7 @@ export default function Applications() {
                             }
                           }}
                           placeholder={
-                            TERMINAL.includes(it.当前阶段) ? "必填原因" : "选填"
+                            TERMINAL.includes(it.当前阶段) ? t("app.reasonRequired") : t("app.reasonOptional")
                           }
                           className="w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground hover:border-border-strong focus:border-primary/50"
                         />
@@ -577,7 +583,7 @@ export default function Applications() {
                             }
                           }}
                           type="date"
-                          title="下次动作日期"
+                          title={t("app.sortNext")}
                           className="w-36 rounded border border-transparent bg-transparent px-2 py-1 font-mono text-xs text-foreground outline-none transition-colors hover:border-border-strong focus:border-primary/50"
                         />
                         <div className="pl-2 text-xs text-muted-foreground/70">
@@ -602,7 +608,7 @@ export default function Applications() {
                             {isStale && (
                               <span className="h-1.5 w-1.5 rounded-full bg-warning" />
                             )}
-                            {staleDays} 天
+                            {t("app.daysUnit", { count: staleDays })}
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground/50">—</span>
@@ -617,10 +623,10 @@ export default function Applications() {
                           const meta = HEALTH_META[h.level];
                           return (
                             <span
-                              title={h.reasons.join("；") || "暂无异常"}
+                              title={h.reasons.join("；") || t("app.noHealthIssue")}
                               className={`cursor-help rounded-md px-2 py-1 text-xs font-medium ${meta.cls}`}
                             >
-                              {meta.label}
+                              {t(meta.labelKey)}
                             </span>
                           );
                         })()}

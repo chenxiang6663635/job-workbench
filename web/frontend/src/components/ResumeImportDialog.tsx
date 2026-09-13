@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { FileUp, Loader2, ShieldCheck, X } from "lucide-react";
 import {
   Dialog,
@@ -25,23 +27,27 @@ interface Props {
 }
 
 // 关键字段（诚实红线：这些字段若被模型补全危害最大，单独输入框 + 红/黄描边）
-const BASICS_KEYS = [
-  { key: "name", label: "姓名", amber: "姓名" },
-  { key: "phone", label: "电话", amber: "电话" },
-  { key: "email", label: "邮箱", amber: "邮箱" },
-  { key: "location", label: "所在地", amber: "" },
+// 只有 label 翻。**`amber` 是数据不是文案**：它拿去和后端返回的 `unfilled`
+// （中文键名）做匹配，翻了就永远匹配不上，待补填的高亮会静默失效
+const BASICS_KEYS: { key: string; labelKey: TranslationKey; amber: string }[] = [
+  { key: "name", labelKey: "resumeImp.fieldName", amber: "姓名" },
+  { key: "phone", labelKey: "resumeImp.fieldPhone", amber: "电话" },
+  { key: "email", labelKey: "resumeImp.fieldEmail", amber: "邮箱" },
+  { key: "location", labelKey: "resumeImp.fieldLocation", amber: "" },
 ];
 
-function toBase64(file: File): Promise<string> {
+// 模块级函数拿不到 t()，所以失败文案由调用方传入（而不是在这里写死任何语言）
+function toBase64(file: File, readFailedMsg: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve((r.result as string).split(",")[1] || "");
-    r.onerror = () => reject(new Error("文件读取失败"));
+    r.onerror = () => reject(new Error(readFailedMsg));
     r.readAsDataURL(file);
   });
 }
 
 export default function ResumeImportDialog({ currentVersion, onClose, onImported }: Props) {
+  const { t } = useTranslation();
   const [model, setModel] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,11 +80,11 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
     if (!f) return;
     const ext = "." + (f.name.split(".").pop() || "").toLowerCase();
     if (!ALLOWED.includes(ext)) {
-      setError(`不支持的格式 ${ext}（支持 ${ALLOWED.join(" / ")}）`);
+      setError(t("resumeImp.badFormat", { ext, list: ALLOWED.join(" / ") }));
       return;
     }
     if (f.size > MAX_MB * 1024 * 1024) {
-      setError(`文件超过 ${MAX_MB} MB`);
+      setError(t("resumeImp.tooLarge", { max: MAX_MB }));
       return;
     }
     setError(null);
@@ -88,13 +94,13 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
   const runImport = async () => {
     if (!file) return;
     if (!model.trim()) {
-      setError("请填写模型名（如 deepseek-chat）");
+      setError(t("resumeImp.modelRequired"));
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const content_base64 = await toBase64(file);
+      const content_base64 = await toBase64(file, t("resumeImp.readFailed"));
       const r = await api.importResume({ filename: file.name, content_base64, model: model.trim() });
       setResult(r);
       const d = (r.data || {}) as Record<string, unknown>;
@@ -147,10 +153,10 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
         {/* 顶栏：Dialog 自带 focus trap / Esc / aria-modal，此前手写遮罩都没有 */}
         <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-medium">
-            <FileUp size={16} className="text-primary" /> 简历一键导入 · 核对页
+            <FileUp size={16} className="text-primary" /> {t("resumeImp.title")}
           </DialogTitle>
           <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.closeAction")}>
               <X size={16} />
             </Button>
           </DialogClose>
@@ -159,9 +165,9 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
         {!result ? (
           <div className="flex-1 space-y-5 overflow-y-auto p-5">
             <DialogDescription className="text-sm">
-              上传 PDF / Word / Markdown / 纯文本简历 → 抽取文字 → 你的模型结构化为字段。
-              <span className="text-warning"> 模型只做「搬运」不做「写作」</span>：
-              原文没有的内容会留空，疑似补全的会标红，请你逐段核对后才落盘。
+              {t("resumeImp.desc1")}
+              <span className="text-warning">{t("resumeImp.desc2")}</span>
+              {t("resumeImp.desc3")}
             </DialogDescription>
             <div className="flex items-center gap-3">
               <input
@@ -172,12 +178,14 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                 onChange={(e) => pickFile(e.target.files?.[0] || null)}
               />
               <Button variant="outline" onClick={() => fileRef.current?.click()} className="border-dashed">
-                <FileUp size={15} /> 选择文件
+                <FileUp size={15} /> {t("resumeImp.chooseFile")}
               </Button>
-              <span className="text-sm text-muted-foreground">{file ? file.name : "未选择（≤10MB）"}</span>
+              <span className="text-sm text-muted-foreground">
+                {file ? file.name : t("resumeImp.noFile", { max: MAX_MB })}
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground">模型</Label>
+              <Label className="text-sm text-muted-foreground">{t("resumeImp.model")}</Label>
               <Input
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
@@ -186,7 +194,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               />
               <Button onClick={runImport} disabled={!file || busy}>
                 {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-                {busy ? "识别中…" : "识别并抽取"}
+                {busy ? t("resumeImp.recognizing") : t("resumeImp.recognize")}
               </Button>
             </div>
             {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
@@ -196,7 +204,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
             {/* 左：原文，供对照 */}
             <div className="w-1/2 overflow-y-auto border-r border-border p-4">
               <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                抽取到的原文（{result.characters} 字）· 请逐段对照
+                {t("resumeImp.sourceText", { count: result.characters })}
               </div>
               <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-foreground">
                 {result.text}
@@ -207,12 +215,16 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               {/* 摘要 */}
               <div className="flex flex-wrap gap-2 text-xs">
                 {unfilled.length > 0 && (
-                  <Badge variant="warning">⚠ 待补填：{unfilled.join("、")}</Badge>
+                  <Badge variant="warning">
+                    {t("resumeImp.unfilled", { fields: unfilled.join("、") })}
+                  </Badge>
                 )}
                 {issues.length > 0 ? (
-                  <Badge variant="destructive">⛔ 疑似补全 {issues.length} 处，请核对</Badge>
+                  <Badge variant="destructive">
+                    {t("resumeImp.suspect", { count: issues.length })}
+                  </Badge>
                 ) : (
-                  <Badge variant="success">✓ 字段全部可在原文中找到</Badge>
+                  <Badge variant="success">{t("resumeImp.allGood")}</Badge>
                 )}
               </div>
               {issues.length > 0 && (
@@ -224,7 +236,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               )}
               {/* 关键字段 */}
               <div className="grid grid-cols-2 gap-2">
-                {BASICS_KEYS.map(({ key, label, amber }) => {
+                {BASICS_KEYS.map(({ key, labelKey, amber }) => {
                   const red = basicsRed(key);
                   const yellow = amber && unfilled.includes(amber);
                   const border = red
@@ -234,7 +246,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                     : "border-border";
                   return (
                     <div key={key}>
-                      <Label className="text-[11px] text-muted-foreground">{label}</Label>
+                      <Label className="text-[11px] text-muted-foreground">{t(labelKey)}</Label>
                       <Input
                         value={basics[key] || ""}
                         onChange={(e) => setBasics((b) => ({ ...b, [key]: e.target.value }))}
@@ -246,7 +258,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               </div>
               {/* 其余结构（教育/项目/工作/技能/其他） */}
               <div>
-                <Label className="text-[11px] text-muted-foreground">其余结构（教育/项目/工作/技能/其他）</Label>
+                <Label className="text-[11px] text-muted-foreground">{t("resumeImp.restLabel")}</Label>
                 <Textarea
                   value={restJson}
                   onChange={(e) => setRestJson(e.target.value)}
@@ -254,7 +266,9 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                   spellCheck={false}
                   className={`font-mono text-[12px] ${restOk ? "" : "border-destructive ring-1 ring-destructive/40"}`}
                 />
-                {!restOk && <p className="mt-1 text-[12px] text-destructive">JSON 解析失败，请检查格式</p>}
+                {!restOk && (
+                  <p className="mt-1 text-[12px] text-destructive">{t("resumeImp.jsonInvalid")}</p>
+                )}
               </div>
             </div>
           </div>
@@ -265,18 +279,18 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
           <div className="flex items-center justify-between border-t border-border px-5 py-3">
             <Label className="flex items-center gap-2 text-sm text-foreground">
               <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
-              我已逐段核对，原文中没有的内容已删除或改写
+              {t("resumeImp.ack")}
             </Label>
             <div className="flex items-center gap-2">
               <Input
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
-                placeholder="目标版本名"
+                placeholder={t("resumeImp.phTargetVersion")}
                 className="w-40"
               />
               <Button onClick={save} disabled={!canSave || busy}>
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                确认无误，写入简历
+                {t("resumeImp.confirmWrite")}
               </Button>
             </div>
           </div>

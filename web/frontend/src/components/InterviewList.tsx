@@ -169,8 +169,12 @@ export default function InterviewList() {
                     </span>
                     {upcoming && (
                       <span className="text-warning/80">
+                        {/* count 选复数形式，hours 是显示值（缺 count 会显示 key 名） */}
                         {hrs < 24
-                          ? t("interview.hoursLater", { hours: Math.max(1, Math.round(hrs)) })
+                          ? t("interview.hoursLater", {
+                              count: Math.max(1, Math.round(hrs)),
+                              hours: Math.max(1, Math.round(hrs)),
+                            })
                           : t("interview.inTwoDays")}
                       </span>
                     )}

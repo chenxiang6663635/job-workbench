@@ -13,7 +13,8 @@ from __future__ import annotations
 import io
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from apierror import ApiError
 from deps import safe_join, workspace_dir
 
 router = APIRouter(prefix="/api/library")
@@ -52,7 +53,8 @@ def _list_files(base, recursive):
 @router.get("/{section}")
 def list_library(section: str, ws: str = Depends(workspace_dir)):
     if section != "facts":
-        raise HTTPException(status_code=404, detail="未知素材库分类: %s" % section)
+        raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
+                       section=section)
     base = safe_join(ws, FACT_DIR)
     items = _list_files(base, recursive=True)
     return {"section": section, "items": items, "total": len(items)}
@@ -61,12 +63,13 @@ def list_library(section: str, ws: str = Depends(workspace_dir)):
 @router.get("/{section}/content")
 def library_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
     if section != "facts":
-        raise HTTPException(status_code=404, detail="未知素材库分类: %s" % section)
+        raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
+                       section=section)
     base_rel = FACT_DIR
 
     full = safe_join(ws, base_rel, rel)
     if not os.path.isfile(full):
-        raise HTTPException(status_code=404, detail="文件不存在: %s" % rel)
+        raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)
 
     ext = os.path.splitext(rel)[1].lower()
     if ext in TEXT_EXT:
@@ -84,12 +87,13 @@ def library_file(section: str, rel: str, ws: str = Depends(workspace_dir)):
     通过 /api/library/{section}/file?rel=... 提供原始字节。
     """
     if section != "facts":
-        raise HTTPException(status_code=404, detail="未知素材库分类: %s" % section)
+        raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
+                       section=section)
     base_rel = FACT_DIR
 
     full = safe_join(ws, base_rel, rel)
     if not os.path.isfile(full):
-        raise HTTPException(status_code=404, detail="文件不存在: %s" % rel)
+        raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)
 
     ext = os.path.splitext(rel)[1].lower()
     if ext == ".pdf":

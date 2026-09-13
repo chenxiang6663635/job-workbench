@@ -255,7 +255,7 @@ jobs:
     # tag push 时 inputs.dry_run 为 null，`!= true` 成立，行为不变。
     if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-payload
 

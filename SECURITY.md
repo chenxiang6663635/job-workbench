@@ -21,7 +21,7 @@ build before reporting.
 **Do not open a public issue for a security problem** — that puts every user at
 risk before a fix exists.
 
-Use GitHub private reporting:
+Use GitHub private reporting (enabled on this repository — verified 2026-09-13):
 **Security → Advisories → Report a vulnerability**
 https://github.com/chenxiang6663635/job-workbench/security/advisories/new
 
@@ -47,9 +47,14 @@ rather than hours, and honest *"not planned"* answers with the reasoning attache
   BYOK provider API key in **plaintext** in `<workspace>/config/imap.json` and
   `<workspace>/config/provider.json`. Leaking those values into logs, error
   messages, export packages or the network is a bug.
-- **TLS downgrade on outbound connections.** Connections to your mail server, your
-  LLM provider and fetched job pages must verify certificates by default. (The
-  HTTP paths are being aligned with the IMAP policy — see issue #59.)
+- **TLS downgrade on outbound connections.** Connections to your mail server and to
+  fetched job pages verify certificates by default and refuse to continue when the
+  certificate cannot be checked.
+  **Known exception (tracked in #59):** the *provider connectivity test* opens an
+  unverified connection (`ssl._create_unverified_context()`) because the local
+  certificate store can crash the strict loader on affected Windows machines. That
+  request carries your BYOK API key, so do not run it on a network you do not
+  trust. Bringing it onto the same policy as IMAP is in scope for #59.
 - **The local HTTP API.** It listens on `127.0.0.1` by default; anything that makes
   it reachable from the network or from another origin is a bug.
 - **Export / backup packages** must never contain credential files. This is pinned
@@ -67,8 +72,10 @@ rather than hours, and honest *"not planned"* answers with the reasoning attache
   account could ship a malicious update — inherent to unsigned distribution, and
   accepted until code signing is adopted (recorded in CONTRIBUTING's "not doing"
   list).
-- **Fetched job pages are text.** HTML from a job posting is fetched, size-capped
-  and stored as plain text (`JD原文.md`); it is never rendered or executed. A
+- **Fetched job pages are text.** HTML from a job posting is fetched, size-capped,
+  stripped to text and stored as plain text (`JD原文.md`). The backend never
+  executes it, and the UI renders it through normal text interpolation
+  (`<pre>{text}</pre>` in `JobDetailView`) — there is no HTML-injection path. A
   hostile page is therefore a content problem unless you can show script execution
   or a path escape.
 - **Credentials are plaintext on disk** (see above). An attacker who already has
@@ -93,8 +100,10 @@ rather than hours, and honest *"not planned"* answers with the reasoning attache
 - No telemetry, no analytics, no accounts, no uploads — the system endpoint
   reports `telemetry: false` and the Settings page says the same thing.
 - Credentials are masked in API responses and never written into logs.
-- Certificate verification is on by default. Skipping it requires an explicit
-  environment opt-in and is refused with an actionable message otherwise.
+- Certificate verification is on by default on the IMAP path. Skipping it requires
+  an explicit environment opt-in (`JOBWS_IMAP_TLS=insecure`); otherwise the failure
+  is refused with an actionable message. The provider connectivity test is the
+  documented exception above — never for the mail path.
 - Auto-update is opt-in, asks twice, and only fetches from this repository's
   GitHub Releases.
 

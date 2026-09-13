@@ -78,6 +78,10 @@ Then just talk to your AI CLI: "parse this JD", "apply to this role", "what need
 
 Requirements: Python 3.8+ (stdlib only); `pypdf` only for PDF validation; Chrome or Edge only for PDF generation; optional Web UI — see [`web/README.md`](web/README.md).
 
+## Referral
+
+The optional AI features (resume import, AI rewrite) are BYOK — bring a key from any OpenAI-compatible provider. If you do not have one yet, the Settings page offers [OrcaRouter](https://www.orcarouter.ai/ref/ref_f34ad879f774bce8bc82) as a preset optional provider. Full disclosure: this is a **referral link** — signing up through it earns the project author a commission; your pricing and benefits are unaffected, and clicking it only opens a web page (nothing is sent from the app by clicking).
+
 ## Privacy
 
 This repository contains **no real personal data**. `personal/` is a workspace you fill with your own data (name, photo, contacts, applications, fact cards); it is entirely excluded from version control — after cloning, it is empty; generate your own with the init command above. In short: **fork it publicly with confidence, but never paste `personal/` content into issues, PRs or discussions.**

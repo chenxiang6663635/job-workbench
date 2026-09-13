@@ -70,6 +70,10 @@ python tools/install_skills.py --target user
 
 环境要求：Python 3.8+（脚本只用标准库）；pypdf 仅 PDF 校验需要；Chrome 或 Edge 仅 PDF 生成需要；Web 界面（可选）见 [`web/README.md`](web/README.md)。
 
+## 推广说明
+
+AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没有 key 的话，设置页把 [OrcaRouter](https://www.orcarouter.ai/ref/ref_f34ad879f774bce8bc82) 预置为可选 Provider。如实说明：这是一个**推广（返佣）链接**——通过它注册会给本项目作者返佣；你的价格与权益不受影响，点击也只是打开网页（本应用不会因点击发出任何数据）。
+
 ## 隐私
 
 本仓库**不含任何真实个人数据**。`personal/` 是用你自己的真实数据（姓名、照片、联系方式、投递记录、事实卡）填充的工作区，已整体排除在版本管理之外——克隆本仓库后它是空的，用上面的初始化命令生成你自己的。也就是说：**可以放心公开 fork，但不要把 `personal/` 里的内容贴进 issue、PR 或讨论区。**

@@ -135,6 +135,7 @@ export default function App() {
               <button
                 key={item.key}
                 onClick={() => switchTab(item.key)}
+                aria-current={tab === item.key ? "page" : undefined}
                 className={`flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm transition-all duration-200 ease-premium ${
                   tab === item.key
                     ? "bg-primary/15 text-primary shadow-glow-primary"
@@ -190,7 +191,7 @@ export default function App() {
             )}
 
             <span
-              title={t("status.localDataHint")}
+              aria-hidden="true"
               className={`h-2 w-2 rounded-full ${
                 online === null
                   ? "bg-muted-foreground/50"
@@ -199,7 +200,15 @@ export default function App() {
                   : "bg-destructive ring-2 ring-destructive/30"
               }`}
             />
-            <span className="whitespace-nowrap text-muted-foreground">
+            {/* 可见文案按顶栏宽度取短（Connected / 已连接），完整语义走 aria-label + title：
+                title 对键盘与触屏不可达，所以语义必须挂在会读的那个元素上 */}
+            <span
+              role="status"
+              aria-live="polite"
+              aria-label={t("status.localDataHint")}
+              title={t("status.localDataHint")}
+              className="whitespace-nowrap text-muted-foreground"
+            >
               {online === null
                 ? t("status.connecting")
                 : online

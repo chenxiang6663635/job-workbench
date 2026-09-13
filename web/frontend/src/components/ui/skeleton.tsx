@@ -11,7 +11,7 @@ function Skeleton({
       {...props}
     >
       {/* shimmer 横扫光带：比 opacity 脉冲更有「加载中」的方向感 */}
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-highlight/10 to-transparent" />
     </div>
   );
 }

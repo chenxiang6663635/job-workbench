@@ -376,7 +376,7 @@ export default function Applications() {
       )}
 
       {creating && (
-        <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-white/5 p-5">
+        <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-highlight/5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input
               placeholder={t("form.phCompany")}
@@ -454,7 +454,7 @@ export default function Applications() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium">{t("app.emptyTitle")}</p>
           <p className="text-sm text-muted-foreground">
@@ -503,7 +503,7 @@ export default function Applications() {
                   <Fragment key={it.id}>
                     <tr
                       id={`row-${it.id}`}
-                      className="group bg-card/40 shadow-card ring-1 ring-white/5 transition-colors hover:bg-secondary"
+                      className="group bg-card/40 shadow-card ring-1 ring-highlight/5 transition-colors hover:bg-secondary"
                     >
                       <td className="border-l-2 border-transparent px-4 py-3 transition-colors group-hover:border-primary">
                         <button

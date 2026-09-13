@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Archive,
   Download,
@@ -28,6 +29,7 @@ import { ErrorBanner } from "../components/ErrorBanner";
 import { FormField } from "../components/FormField";
 
 export default function Settings() {
+  const { t } = useTranslation();
   const [cfg, setCfg] = useState<ProviderConfig | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -90,12 +92,12 @@ export default function Settings() {
     setImapErr(null);
     setImapMessage(null);
     if (!imapUser.trim()) {
-      setImapErr("请填写邮箱地址（授权码与服务器都围绕它工作）");
+      setImapErr(t("settings.imapEmailRequired"));
       return;
     }
     const port = Number(imapPort);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      setImapErr("端口需在 1–65535 之间");
+      setImapErr(t("settings.imapPortRange"));
       return;
     }
     setImapSaving(true);
@@ -110,7 +112,7 @@ export default function Settings() {
       .then((r) => {
         setImapCfg(r);
         setImapPassword("");
-        setImapMessage("IMAP 配置已保存（授权码只存本机 config/imap.json）");
+        setImapMessage(t("settings.imapSaved"));
       })
       .catch((e: Error) => setImapErr(e.message))
       .finally(() => setImapSaving(false));
@@ -137,7 +139,8 @@ export default function Settings() {
         setPathsError(null);
       })
       .catch((e: Error) => {
-        console.error("读取系统路径失败", e);
+        // 控制台日志不是界面文案：保持英文，免得被「残余硬编码中文」检查误伤
+      console.error("readPaths failed", e);
         setPathsError(e.message);
       });
 
@@ -154,7 +157,12 @@ export default function Settings() {
       .backupWorkspace()
       .then((r) => {
         setBackupInfo(
-          `已备份 ${r.files} 个文件（${(r.size / 1024).toFixed(0)} KB），保留 ${r.kept} 份、淘汰 ${r.removed} 份`
+          t("settings.backupDone", {
+            files: r.files,
+            size: (r.size / 1024).toFixed(0),
+            kept: r.kept,
+            removed: r.removed,
+          })
         );
         return loadPaths();
       })
@@ -171,7 +179,7 @@ export default function Settings() {
       .then((r) => {
         setCfg(r);
         setApiKey("");
-        setInfo("配置已保存");
+        setInfo(t("settings.saved"));
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
@@ -192,9 +200,9 @@ export default function Settings() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">设置</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t("settings.title")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          LLM Provider 配置（BYOK）。配置后可用于 JD 解析 / 评分等 AI 增强，判断由你或 AI 完成。
+          {t("settings.providerDesc")}
         </p>
       </div>
 
@@ -209,7 +217,7 @@ export default function Settings() {
         </CardHeader>
 
         <div className="space-y-3">
-          <FormField label="Base URL（OpenAI 兼容，含 /v1，如 https://api.orcarouter.ai/v1）">
+          <FormField label={t("settings.baseUrl")}>
             <Input
               placeholder="https://api.xxx.ai/v1"
               value={baseUrl}
@@ -217,11 +225,15 @@ export default function Settings() {
             />
           </FormField>
 
-          <FormField label="API Key（留空则保留已保存的 key）">
+          <FormField label={t("settings.apiKey")}>
             <Input
               className="font-mono"
               type="password"
-              placeholder={cfg?.hasKey ? `已保存（${cfg.api_key}）` : "sk-..."}
+              placeholder={
+                cfg?.hasKey
+                  ? t("settings.apiKeySaved", { key: cfg.api_key })
+                  : t("settings.apiKeyPlaceholder")
+              }
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
@@ -236,7 +248,7 @@ export default function Settings() {
           <div className="space-y-1.5 rounded-lg border border-border bg-background/40 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
-                还没有 API Key？
+                {t("settings.referralNoKey")}
               </span>
               <div className="flex flex-wrap items-center gap-2">
                 {/* 端点一键填入：合作方的 Base URL 是固定的 OpenAI 兼容地址，
@@ -247,32 +259,32 @@ export default function Settings() {
                     className="h-7 px-2.5 text-xs"
                     onClick={() => {
                       setBaseUrl(refPreset);
-                      setInfo(`已填入 ${refName} 的 Base URL，填好 Key 后记得保存`);
+                      setInfo(t("settings.referralFilled", { name: refName }));
                     }}
                   >
-                    填入 {refName} 端点
+                    {t("settings.referralFill", { name: refName })}
                   </Button>
                 )}
                 <Button asChild variant="outline" className="h-7 px-2.5 text-xs">
                   <a href={refUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink size={12} /> 去 {refName} 注册
+                    <ExternalLink size={12} /> {t("settings.referralSignup", { name: refName })}
                   </a>
                 </Button>
               </div>
             </div>
             <p className="text-[11px] leading-relaxed text-muted-foreground/80">
-              这是推广链接：通过它注册，本项目作者会获得返佣，你的价格与权益不受影响。
-              点击只是打开网页——本应用不会因此发送或回传任何数据。
+              {t("settings.referralDisclosure")}
+              {t("settings.referralNoData")}
             </p>
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <Button onClick={save} disabled={saving}>
-            <Save size={15} /> {saving ? "保存中..." : "保存配置"}
+            <Save size={15} /> {saving ? t("common.saving") : t("settings.save")}
           </Button>
           <Button variant="outline" onClick={test} disabled={testing}>
-            <PlugZap size={15} /> {testing ? "测试中..." : "测试连接"}
+            <PlugZap size={15} /> {testing ? t("settings.testing") : t("settings.test")}
           </Button>
         </div>
       </Card>
@@ -280,39 +292,41 @@ export default function Settings() {
       <Card className="space-y-4 p-5">
         <CardHeader className="p-0">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Inbox size={16} className="text-primary" /> 邮箱只读拉取（可选）
+            <Inbox size={16} className="text-primary" /> {t("settings.imapTitle")}
           </CardTitle>
         </CardHeader>
 
         <p className="text-xs leading-relaxed text-muted-foreground">
-          配置后，可在「投递追踪」页拉取最近的招聘邮件并解析出状态建议。
-          连接是只读的：不发信、不修改也不删除邮件；<span className="text-foreground">
-            只在你点击时连接一次，不会在后台运行</span>。
-          授权码只保存在本工作区的 config/imap.json，界面与错误信息里都会脱敏。
+          {t("settings.imapDesc1")}
+          {t("settings.imapDesc2")}
+          {/* 句号与它后面的空格都在 key 里：写死在 JSX 里会同时出现两个问题——
+              英文界面里冒出中文句号，且句末少一个空格（冒烟时抓到） */}
+          <span className="text-foreground">{t("settings.imapDesc3")}</span>
+          {t("settings.imapDesc4")}
         </p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormField label="邮箱地址">
+          <FormField label={t("settings.imapEmail")}>
             <Input
               placeholder="your-email@example.com"
               value={imapUser}
               onChange={(e) => setImapUser(e.target.value)}
             />
           </FormField>
-          <FormField label="IMAP 授权码（留空则保留已保存的）">
+          <FormField label={t("settings.imapPassword")}>
             <Input
               className="font-mono"
               type="password"
               placeholder={
                 imapCfg?.hasPassword
-                  ? `已保存（${imapCfg.password}）`
-                  : "多数邮箱需在网页版开启 IMAP 后生成"
+                  ? t("settings.imapPasswordSaved", { key: imapCfg.password })
+                  : t("settings.imapPasswordHint")
               }
               value={imapPassword}
               onChange={(e) => setImapPassword(e.target.value)}
             />
           </FormField>
-          <FormField label="IMAP 服务器（留空按邮箱域名推断）">
+          <FormField label={t("settings.imapHost")}>
             <Input
               className="font-mono"
               placeholder={imapCfg?.serverHint || "imap.qq.com"}
@@ -320,14 +334,14 @@ export default function Settings() {
               onChange={(e) => setImapHost(e.target.value)}
             />
           </FormField>
-          <FormField label="端口">
+          <FormField label={t("settings.imapPort")}>
             <Input
               type="number"
               value={imapPort}
               onChange={(e) => setImapPort(e.target.value)}
             />
           </FormField>
-          <FormField label="文件夹">
+          <FormField label={t("settings.imapFolder")}>
             <Input
               className="font-mono"
               placeholder="INBOX"
@@ -339,10 +353,10 @@ export default function Settings() {
 
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <Button onClick={saveImap} disabled={imapSaving}>
-            <Save size={15} /> {imapSaving ? "保存中..." : "保存"}
+            <Save size={15} /> {imapSaving ? t("common.saving") : t("common.save")}
           </Button>
           <Button variant="outline" onClick={testImap} disabled={imapTesting}>
-            <PlugZap size={15} /> {imapTesting ? "测试中..." : "测试连接"}
+            <PlugZap size={15} /> {imapTesting ? t("settings.testing") : t("settings.test")}
           </Button>
           {imapMessage && <span className="text-xs text-success">{imapMessage}</span>}
         </div>
@@ -351,8 +365,11 @@ export default function Settings() {
 
         {imapTestResult && (
           <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
-            {imapTestResult.note}（{imapTestResult.server} · {imapTestResult.folder}，
-            共 {imapTestResult.messageCount} 封）
+            {t("settings.imapTestResult", {
+              server: imapTestResult.server,
+              folder: imapTestResult.folder,
+              count: imapTestResult.messageCount,
+            })}
           </p>
         )}
       </Card>
@@ -360,13 +377,12 @@ export default function Settings() {
       <Card className="space-y-4 p-5">
         <CardHeader className="p-0">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <ShieldCheck size={16} className="text-success" /> 数据与隐私
+            <ShieldCheck size={16} className="text-success" /> {t("settings.privacy")}
           </CardTitle>
         </CardHeader>
 
         <p className="text-xs leading-relaxed text-muted-foreground">
-          全部数据只存在你这台机器，无遥测、无上传。文件就是数据库——
-          你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。
+          {t("settings.privacyDesc")}
         </p>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -374,20 +390,20 @@ export default function Settings() {
             <a
               href={api.exportUrl()}
               onClick={() =>
-                setBackupInfo("导出包含你的真实简历与个人信息，请妥善保管导出的 zip。")
+                setBackupInfo(t("settings.exportNotice"))
               }
             >
-              <Download size={15} /> 导出整包 zip
+              <Download size={15} /> {t("settings.exportZip")}
             </a>
           </Button>
           <Button variant="outline" onClick={backup} disabled={backing}>
-            <Archive size={15} /> {backing ? "备份中..." : "立即备份"}
+            <Archive size={15} /> {backing ? t("settings.backingup") : t("settings.backupNow")}
           </Button>
           <Button
             variant="outline"
             onClick={() => api.openFolder("workspace").catch((e: Error) => setError(e.message))}
           >
-            <FolderOpen size={15} /> 打开数据目录
+            <FolderOpen size={15} /> {t("settings.openDataDir")}
           </Button>
         </div>
 
@@ -400,21 +416,29 @@ export default function Settings() {
         <div className="space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
           {/* 三态齐全：加载中骨架 / 读取失败可定位 / 就绪显示真实路径 */}
           {pathsError ? (
-            <p className="text-destructive">路径信息读取失败：{pathsError}</p>
+            <p className="text-destructive">{t("settings.pathsFailed", { error: pathsError })}</p>
           ) : !paths ? (
             <Skeleton className="h-14 w-full" />
           ) : (
             <>
               <p>
-                上次备份：{paths.lastBackup ?? "从未备份"}（共 {paths.snapshotCount} 份快照）
+                  {t("settings.lastBackup", {
+                    time: paths.lastBackup ?? t("settings.neverBackup"),
+                    count: paths.snapshotCount,
+                  })}
               </p>
-              <p className="break-all">快照位置：{paths.snapshotDir}</p>
-              <p className="break-all">工作区：{paths.workspace}</p>
+              <p className="break-all">
+                {t("settings.snapshotDir")}
+                {paths.snapshotDir}
+              </p>
+              <p className="break-all">
+                {t("settings.workspace")}
+                {paths.workspace}
+              </p>
             </>
           )}
           <p className="pt-1 text-muted-foreground/70">
-            快照刻意存放在工作区之外——与源数据同盘同目录的备份会被误删、被
-            git、被同步工具一并波及。导出包含简历与个人信息，不含应用外的快照。
+            {t("settings.snapshotNote")}
           </p>
         </div>
       </Card>
@@ -422,10 +446,10 @@ export default function Settings() {
       {testResult && (
         <Card className="space-y-2 border-success/30 bg-success/10 p-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-success">
-            <PlugZap size={15} /> 连接成功（HTTP {testResult.status}）
+            <PlugZap size={15} /> {t("settings.testOk", { status: testResult.status })}
           </div>
           <p className="text-xs text-muted-foreground">
-            可用模型 {testResult.modelCount} 个
+            {t("settings.modelCount", { count: testResult.modelCount })}
           </p>
           {testResult.models.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 import {
   Bar,
   BarChart,
@@ -115,6 +117,7 @@ function StatCard({
   accent: string;
   onClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const cls = onClick
     ? "cursor-pointer hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
     : "";
@@ -147,7 +150,7 @@ function StatCard({
       </div>
       {onClick && (
         <span className="absolute bottom-3 right-4 flex items-center gap-1 text-xs font-medium opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          查看 <ChevronRight size={14} />
+          {t("common.view")} <ChevronRight size={14} />
         </span>
       )}
     </button>
@@ -182,17 +185,20 @@ function StaleList({
   stale: StaleItem[];
   staleDays: number;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-warning/25 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Hourglass size={15} className="text-warning" />
-        <h2 className="text-sm font-semibold text-foreground">静默提醒</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t("dash.staleTitle")}</h2>
         <span className="ml-auto text-[10px] text-muted-foreground">
-          停留超过 {staleDays} 天无进展
+          {/* count 是给 i18next 选复数形式的，days 才是显示值——少传 count
+              会直接显示 key 名 `dash.staleSubtitle`（冒烟时抓到过） */}
+          {t("dash.staleSubtitle", { count: staleDays, days: staleDays })}
         </span>
       </div>
       {stale.length === 0 ? (
-        <p className="text-sm text-muted-foreground">没有长期无进展的活跃岗位。</p>
+        <p className="text-sm text-muted-foreground">{t("dash.staleEmpty")}</p>
       ) : (
         <ul className="space-y-2">
           {stale.map((s) => (
@@ -207,7 +213,7 @@ function StaleList({
                 </span>
               </span>
               <span className="flex items-center gap-3 text-xs">
-                <span className="font-mono text-warning">{s.days} 天</span>
+                <span className="font-mono text-warning">{t("app.daysUnit", { count: s.days })}</span>
                 <span className="text-muted-foreground">{s.当前阶段}</span>
               </span>
             </li>
@@ -221,26 +227,27 @@ function StaleList({
 // 健康度四态与追踪表同色同文案：颜色即严重度，理由整条列出（可核对优先）
 const LEVEL_META: Record<
   string,
-  { label: string; variant: "destructive" | "warning" | "default" }
+  { labelKey: TranslationKey; variant: "destructive" | "warning" | "default" }
 > = {
-  urgent: { label: "紧急", variant: "destructive" },
-  overdue: { label: "逾期", variant: "warning" },
-  stale: { label: "停滞", variant: "default" },
+  urgent: { labelKey: "app.healthUrgent", variant: "destructive" },
+  overdue: { labelKey: "app.healthOverdue", variant: "warning" },
+  stale: { labelKey: "app.healthStale", variant: "default" },
 };
 
 function PendingList({ pending }: { pending: PendingItem[] }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Flame size={15} className="text-destructive" />
-        <h2 className="text-sm font-semibold text-foreground">待推进</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t("dash.pendingTitle")}</h2>
         <span className="ml-auto text-[10px] text-muted-foreground">
-          健康度异常的活跃岗位
+          {t("dash.pendingSubtitle")}
         </span>
       </div>
       {pending.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          没有待推进的记录——节奏很稳，继续保持。
+          {t("dash.pendingEmpty")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -250,7 +257,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
               <li key={p.id}>
                 <button
                   onClick={() => drillTo({ sort: "health", focusId: p.id })}
-                  title="点击下钻到追踪表（按健康度排序）"
+                  title={t("dash.pendingDrillHint")}
                   className="group w-full cursor-pointer rounded-lg bg-secondary/60 px-3 py-2 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -258,7 +265,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
                       {p.公司} · {p.岗位}
                     </span>
                     <Badge variant={meta.variant} className="shrink-0">
-                      {meta.label}
+                      {t(meta.labelKey)}
                     </Badge>
                   </div>
                   {/* 理由整条亮出来：为什么该推进它，一目了然 */}
@@ -276,6 +283,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -300,7 +308,7 @@ export default function Dashboard() {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
         <AlertTriangle size={16} />
-        加载看板失败：{error}
+        {t("dash.loadFailed", { error })}
       </div>
     );
   }
@@ -332,33 +340,33 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="投递总数"
+          label={t("dash.total")}
           value={data.total}
-          hint="所有记录在案的公司"
+          hint={t("dash.totalHint")}
           icon={<Briefcase size={20} />}
           accent="#38bdf8"
           onClick={() => drillTo({})}
         />
         <StatCard
-          label="流程中"
+          label={t("dash.active")}
           value={data.active}
-          hint="尚未结束的岗位"
+          hint={t("dash.activeHint")}
           icon={<TrendingUp size={20} />}
           accent="#34d399"
           onClick={() => drillTo({ active: true })}
         />
         <StatCard
-          label="近七天待办"
+          label={t("dash.upcoming")}
           value={data.upcoming.length}
-          hint="需要跟进的动作"
+          hint={t("dash.upcomingHint")}
           icon={<CalendarClock size={20} />}
           accent="#fbbf24"
           onClick={() => drillTo({ dueWithin: 7 })}
         />
         <StatCard
-          label="已过截止"
+          label={t("dash.overdue")}
           value={data.overdue.length}
-          hint="待投但已过期"
+          hint={t("dash.overdueHint")}
           icon={<AlertTriangle size={20} />}
           accent="#f87171"
           onClick={() => drillTo({ overdue: true })}
@@ -372,10 +380,10 @@ export default function Dashboard() {
           {unappliedHigh.length > 0 && (
             <div className="rounded-lg border border-primary/30 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
               <h2 className="text-sm font-semibold text-foreground">
-                高分还没投（{unappliedHighTotal}）
+                {t("dash.unappliedHigh", { count: unappliedHighTotal })}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                评分达到「建议投」档及以上、且追踪表里还没有记录的岗位。点击直达该岗位详情。
+                {t("dash.unappliedHighHint")}
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {unappliedHigh.slice(0, 6).map((j) => (
@@ -397,7 +405,9 @@ export default function Dashboard() {
               </div>
               {unappliedHighTotal > unappliedHigh.length && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  另有 {unappliedHighTotal - unappliedHigh.length} 个，去岗位池按「评分」排序看全部。
+                  {t("dash.unappliedHighMore", {
+                    count: unappliedHighTotal - unappliedHigh.length,
+                  })}
                 </p>
               )}
             </div>
@@ -406,20 +416,27 @@ export default function Dashboard() {
           {hasScoreByState && (
             <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
               <h2 className="text-sm font-semibold text-foreground">
-                评分档位 × 投递状态
+                {t("dash.scoreByState")}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                档位边界沿用评分卡的 THRESHOLDS（改阈值只改那一处）；未评分的岗位不参与——
-                「还没评」不等于最低档。
+                {t("dash.scoreByStateHint")}
               </p>
               <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                {(["未投递", "流程中", "已终态"] as const).map((s) => (
-                  <span key={s} className="inline-flex items-center gap-1.5">
+                {/* 左边取值仍是中文（APPLY_STATE_COLORS 的键 = 数据值），
+                    右边展示走 t()——「取值不翻、展示翻」各归各 */}
+                {(
+                  [
+                    ["job.filterUnapplied", "未投递"],
+                    ["job.filterActive", "流程中"],
+                    ["job.filterTerminal", "已终态"],
+                  ] as [TranslationKey, keyof typeof APPLY_STATE_COLORS][]
+                ).map(([labelKey, value]) => (
+                  <span key={value} className="inline-flex items-center gap-1.5">
                     <span
                       className="h-2.5 w-2.5 rounded-sm"
-                      style={{ background: APPLY_STATE_COLORS[s] }}
+                      style={{ background: APPLY_STATE_COLORS[value] }}
                     />
-                    {s}
+                    {t(labelKey)}
                   </span>
                 ))}
               </div>
@@ -451,14 +468,14 @@ export default function Dashboard() {
                   <Bar
                     dataKey="unapplied"
                     stackId="state"
-                    name="未投递"
+                    name={t("job.filterUnapplied")}
                     fill={APPLY_STATE_COLORS.未投递}
                     barSize={18}
                   />
                   <Bar
                     dataKey="active"
                     stackId="state"
-                    name="流程中"
+                    name={t("job.filterActive")}
                     fill={APPLY_STATE_COLORS.流程中}
                     barSize={18}
                   />
@@ -467,7 +484,7 @@ export default function Dashboard() {
                   <Bar
                     dataKey="terminal"
                     stackId="state"
-                    name="已终态"
+                    name={t("job.filterTerminal")}
                     fill={APPLY_STATE_COLORS.已终态}
                     barSize={18}
                   />
@@ -482,10 +499,10 @@ export default function Dashboard() {
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium text-foreground">
-            还没有任何投递记录
+            {t("dash.emptyTitle")}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            去「追踪表」添加第一家公司的投递记录，看板就会自动统计漏斗、待办与到期提醒。
+            {t("dash.emptyHint", { tracker: t("nav.applications") })}
           </p>
         </div>
       ) : (
@@ -493,7 +510,7 @@ export default function Dashboard() {
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5 lg:col-span-2">
               <h2 className="mb-4 text-sm font-semibold text-foreground">
-                投递漏斗（点击柱子查看该阶段岗位）
+                {t("dash.funnelTitle")}
               </h2>
               {/* 纯 DOM 行，不是柱状图：数字要能**右对齐成一列**，与右侧
                   「按方向 / 按批次」同一种读数方式。柱状图的标签只能跟着柱尾走，
@@ -504,7 +521,7 @@ export default function Dashboard() {
                   <button
                     key={f.stage}
                     onClick={() => drillTo({ stage: f.stage })}
-                    title={`${f.stage}：${f.count} 条`}
+                    title={t("dash.funnelRowTitle", { stage: f.stage, count: f.count })}
                     className="group flex w-full cursor-pointer items-center gap-3 text-left"
                   >
                     <span className="w-12 shrink-0 text-xs text-muted-foreground transition-colors group-hover:text-primary">
@@ -530,7 +547,7 @@ export default function Dashboard() {
             <div className="space-y-4">
               <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
                 <h2 className="mb-3 text-sm font-semibold text-foreground">
-                  按方向（点击查看该方向岗位）
+                  {t("dash.byDirection")}
                 </h2>
                 <div className="space-y-2">
                   {data.byDirection.map((d) => (
@@ -547,7 +564,7 @@ export default function Dashboard() {
 
               <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
                 <h2 className="mb-3 text-sm font-semibold text-foreground">
-                  按批次（点击查看该批次岗位）
+                  {t("dash.byBatch")}
                 </h2>
                 <div className="space-y-2">
                   {data.byBatch.map((b) => (
@@ -564,10 +581,10 @@ export default function Dashboard() {
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
-                近七天待办
+                {t("dash.upcoming")}
               </h2>
               {data.upcoming.length === 0 ? (
-                <p className="text-sm text-muted-foreground">未来七天没有到期事项。</p>
+                <p className="text-sm text-muted-foreground">{t("dash.upcomingEmpty")}</p>
               ) : (
                 <ul className="space-y-2">
                   {data.upcoming.map((u) => (
@@ -578,7 +595,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => drillTo({ focusId: u.id })}
                         className="min-w-0 flex-1 cursor-pointer truncate text-left text-foreground transition-colors hover:text-primary"
-                        title="查看该记录"
+                        title={t("dash.viewRecord")}
                       >
                         {u.公司} · {u.岗位}
                       </button>
@@ -590,10 +607,10 @@ export default function Dashboard() {
                             variant="outline"
                             size="sm"
                             onClick={() => snooze(u.id, u.date)}
-                            title="顺延 7 天"
+                            title={t("dash.postpone7")}
                             className="h-6 px-1.5 text-[10px]"
                           >
-                            顺延 7 天
+                            {t("dash.postpone7")}
                           </Button>
                         )}
                       </span>
@@ -605,11 +622,11 @@ export default function Dashboard() {
 
             <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
-                已过截止日提醒
+                {t("dash.overdueTitle")}
               </h2>
               {data.overdue.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  没有已过截止日且未投递的记录。
+                  {t("dash.overdueEmpty")}
                 </p>
               ) : (
                 <ul className="space-y-2">

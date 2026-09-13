@@ -14,9 +14,10 @@ import ssl
 import urllib.error
 import urllib.request
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from apierror import ApiError
 from deps import safe_join, workspace_dir
 from filelock import file_lock
 
@@ -103,7 +104,8 @@ def save_provider(body: SaveProvider, ws: str = Depends(workspace_dir)):
         base_url = body.base_url.strip()
         # 去掉末尾 /v1 之前的部分不做规范化，由前端/用户决定；仅校验协议头
         if base_url and not (base_url.startswith("http://") or base_url.startswith("https://")):
-            raise HTTPException(status_code=422, detail="base_url 必须以 http:// 或 https:// 开头")
+            raise ApiError(422, "provider.baseUrlInvalid",
+                           "base_url 必须以 http:// 或 https:// 开头")
         new_key = (body.api_key or "").strip()
         cfg["base_url"] = base_url
         if new_key:
@@ -125,9 +127,9 @@ def test_provider(ws: str = Depends(workspace_dir)):
     path = _config_path(ws)
     cfg = _read_config(path)
     if not cfg["base_url"]:
-        raise HTTPException(status_code=400, detail="请先保存 Provider 的 base_url")
+        raise ApiError(400, "provider.needBaseUrl", "请先保存 Provider 的 base_url")
     if not cfg["api_key"]:
-        raise HTTPException(status_code=400, detail="请先保存 Provider 的 api_key")
+        raise ApiError(400, "provider.needApiKey", "请先保存 Provider 的 api_key")
 
     # 规范化：base_url 末尾去掉斜杠
     base = cfg["base_url"].rstrip("/")
@@ -147,12 +149,16 @@ def test_provider(ws: str = Depends(workspace_dir)):
             raw = resp.read().decode("utf-8", errors="replace")
             data = json.loads(raw) if raw.strip() else {}
     except urllib.error.HTTPError as e:
-        raise HTTPException(status_code=502, detail="连接失败（HTTP %s）：%s" % (e.code, _http_hint(e.code)))
+        raise ApiError(502, "provider.connectHttpError",
+                       "连接失败（HTTP %s）：%s" % (e.code, _http_hint(e.code)),
+                       status=str(e.code), hint=_http_hint(e.code))
     except urllib.error.URLError as e:
         reason = getattr(e, "reason", None)
-        raise HTTPException(status_code=502, detail="无法连接 %s：%s" % (base, reason or e))
+        raise ApiError(502, "provider.connectUnreachable",
+                       "无法连接 %s：%s" % (base, reason or e),
+                       base=base, reason=str(reason or e))
     except (ValueError, OSError) as e:
-        raise HTTPException(status_code=502, detail="连接异常：%s" % e)
+        raise ApiError(502, "provider.connectFailed", "连接异常：%s" % e, error=str(e))
 
     models = data.get("data", []) if isinstance(data, dict) else []
     model_names = [m.get("id") for m in models if isinstance(m, dict) and m.get("id")] if isinstance(models, list) else []

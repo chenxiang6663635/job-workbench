@@ -12,6 +12,7 @@ import sys
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # 让 web/backend 能 import pathres 与 tools/ 下的现有脚本（tracker、jd_score、report 等）
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -19,6 +20,7 @@ if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 import pathres  # noqa: E402
+from apierror import ApiError  # noqa: E402
 from deps import WORKSPACE_HEADER  # noqa: E402
 
 # 路径经 pathres 解析：打包（onedir）指向 exe 同级，解包指向仓库根
@@ -30,6 +32,20 @@ if TOOLS not in sys.path:
 from routers import applications, dashboard, imap, jobs, library, progress, provider, resume, system, workspace  # noqa: E402
 
 app = FastAPI(title="求职工作台", version="0.1.0")
+
+
+@app.exception_handler(ApiError)
+async def _api_error_handler(request: Request, exc: ApiError):
+    """把 ApiError 渲染成 {"detail", "error_code", "error_params"?}。
+
+    detail 原样保留：前端语言包里查不到对应 code（例如旧前端配新后端）时
+    直接显示它，不会退化成「只看到一串 err.xxx」。参数只在非空时才带上，
+    避免响应体里多一个恒为 {} 的字段。
+    """
+    content = {"detail": exc.detail, "error_code": exc.code}
+    if exc.params:
+        content["error_params"] = exc.params
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 def _apply_workspace_env(cli_workspace=None):

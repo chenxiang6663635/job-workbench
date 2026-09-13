@@ -16,11 +16,12 @@ import os
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import status_parse
 import tracker
+from apierror import ApiError
 from deps import DIR_TRACKING, workspace_dir
 from filelock import file_lock
 # 目录名拆分只有一处实现（jobs._split_dir）。前端「一键投递」传目录名过来，
@@ -149,20 +150,21 @@ def _validate_dates(app: NewApplication):
                          (app.下次动作日期, "下次动作日期")):
         errs = tracker.check_date(value or "", label)
         if errs:
-            raise HTTPException(status_code=422, detail=errs[0])
+            raise ApiError(422, "app.dateFormat", errs[0], label=label, value=value or "")
     # 评分为 None 表示「还没评分」——跳过区间校验并留空；只有真填了才要求落在 0–100
     if app.评分 is not None and not (0 <= app.评分 <= 100):
-        raise HTTPException(status_code=422, detail="评分必须在 0–100 之间")
+        raise ApiError(422, "app.scoreRange", "评分必须在 0–100 之间")
     if not (app.岗位目录 or "").strip() and not (app.公司.strip() and app.岗位.strip()):
-        raise HTTPException(
-            status_code=422,
-            detail="要么给 `岗位目录`，要么同时给 `公司` 与 `岗位`（前者由后端按目录名拆分）")
+        raise ApiError(
+            422, "app.needDirOrCompanyRole",
+            "要么给 `岗位目录`，要么同时给 `公司` 与 `岗位`（前者由后端按目录名拆分）")
     if app.当前阶段 not in STAGES + TERMINAL:
-        raise HTTPException(status_code=422,
-                            detail="当前阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL))
+        raise ApiError(422, "app.stageInvalid",
+                       "当前阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL),
+                       stages="/".join(STAGES + TERMINAL))
     errs = tracker.check_reason_required(app.当前阶段, app.状态原因)
     if errs:
-        raise HTTPException(status_code=422, detail=errs[0])
+        raise ApiError(422, "app.reasonRequired", errs[0], stage=app.当前阶段)
 
 
 @router.get("")
@@ -221,7 +223,7 @@ def application_history(app_id: str, limit: int = 50,
     """某条记录的变更时间线，倒序返回（最新在前）。"""
     rows = tracker.read_rows(ws)
     if _find(rows, app_id) is None:
-        raise HTTPException(status_code=404, detail="找不到 id 为 %s 的记录" % app_id)
+        raise ApiError(404, "app.recordNotFound", "找不到 id 为 %s 的记录" % app_id, id=app_id)
 
     entries = tracker.read_history(ws, app_id=app_id)
     entries = list(reversed(entries))
@@ -247,9 +249,9 @@ def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
     try:
         csv_rows, unknown = tracker.parse_import_csv(item.csv)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise ApiError(422, "app.importParseFailed", str(exc))
     if not csv_rows:
-        raise HTTPException(status_code=422, detail="CSV 里没有数据行")
+        raise ApiError(422, "app.importNoRows", "CSV 里没有数据行")
 
     preview = tracker.preview_import(csv_rows, workspace=ws)
     counts = {k: len(v) for k, v in preview.items()}
@@ -259,8 +261,10 @@ def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
         return {"mode": "preview", "unknown": unknown, "counts": counts, **preview}
 
     if preview["error"]:
-        raise HTTPException(status_code=422,
-                            detail="存在 %d 个错误行，修正后才能提交" % counts["error"])
+        raise ApiError(422, "app.importHasErrors",
+                       "存在 %d 个错误行，修正后才能提交" % counts["error"],
+                       # 同 job.fetchTooShort：避开 i18next 的保留插值名 count
+                       errors=counts["error"])
 
     lock_path = os.path.join(ws, DIR_TRACKING)
     os.makedirs(lock_path, exist_ok=True)
@@ -270,8 +274,8 @@ def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
         written = tracker.commit_import(preview, workspace=ws)
     if written < 0:
         # 预览后主表又变了（比如用户在别的标签页加过记录）：整批拒绝，重新预览
-        raise HTTPException(status_code=409,
-                            detail="预览后追踪表有变化，出现新的重复；请重新预览后再提交")
+        raise ApiError(409, "app.importPreviewStale",
+                       "预览后追踪表有变化，出现新的重复；请重新预览后再提交")
     return {"mode": "commit", "written": written, "skipped": counts["duplicate"]}
 
 
@@ -281,7 +285,7 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
 
     errs = tracker.check_direction(app.方向, ws)
     if errs:
-        raise HTTPException(status_code=422, detail=errs[0])
+        raise ApiError(422, "app.directionInvalid", errs[0], direction=app.方向)
 
     lock_path = os.path.join(ws, DIR_TRACKING)
     os.makedirs(lock_path, exist_ok=True)
@@ -295,10 +299,10 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
         if not (company and role):
             # 面向用户的文案不写内部口径（「按首个下划线拆分」是实现细节，
             # 会被 humanizeError 原样直出到界面上）
-            raise HTTPException(
-                status_code=422,
-                detail="目录名 `%s` 拆不出公司与岗位，目录名须为「公司_岗位」形式"
-                       % app.岗位目录)
+            raise ApiError(
+                422, "app.dirSplitFailed",
+                "目录名 `%s` 拆不出公司与岗位，目录名须为「公司_岗位」形式" % app.岗位目录,
+                dir=app.岗位目录)
     else:
         company, role = app.公司.strip(), app.岗位.strip()
 
@@ -308,10 +312,11 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
         # canonical 去重：同公司+岗位且既有记录非终态则拒绝（409 并回传既有 id）
         dup, dup_terminal = tracker.find_duplicate(rows, company, role)
         if dup and not dup_terminal:
-            raise HTTPException(
-                status_code=409,
-                detail="已存在相同公司+岗位的记录 `%s`（当前阶段：%s），请勿重复录入"
-                       % (dup.get("id", ""), dup.get("当前阶段", "")))
+            raise ApiError(
+                409, "app.duplicate",
+                "已存在相同公司+岗位的记录 `%s`（当前阶段：%s），请勿重复录入"
+                % (dup.get("id", ""), dup.get("当前阶段", "")),
+                id=dup.get("id", ""), stage=dup.get("当前阶段", ""))
 
         row = {f: "" for f in tracker.FIELDS}
         row.update({
@@ -349,20 +354,21 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
 @router.patch("/{app_id}")
 def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(workspace_dir)):
     if patch.评分 is not None and not (0 <= patch.评分 <= 100):
-        raise HTTPException(status_code=422, detail="评分必须在 0–100 之间")
+        raise ApiError(422, "app.scoreRange", "评分必须在 0–100 之间")
     if patch.当前阶段 and patch.当前阶段 not in STAGES + TERMINAL:
-        raise HTTPException(status_code=422,
-                            detail="当前阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL))
+        raise ApiError(422, "app.stageInvalid",
+                       "当前阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL),
+                       stages="/".join(STAGES + TERMINAL))
     for field, label in ((patch.下次动作日期, "下次动作日期"),
                          (patch.投递日期, "投递日期"), (patch.截止日期, "截止日期")):
         if field is not None and field:
             errs = tracker.check_date(field, label)
             if errs:
-                raise HTTPException(status_code=422, detail=errs[0])
+                raise ApiError(422, "app.dateFormat", errs[0], label=label, value=field)
 
     updates = {k: v for k, v in patch.model_dump().items() if v is not None and k in UPDATABLE}
     if not updates:
-        raise HTTPException(status_code=422, detail="没有提供任何要更新的字段")
+        raise ApiError(422, "app.noFieldsToUpdate", "没有提供任何要更新的字段")
 
     lock_path = os.path.join(ws, DIR_TRACKING, "tracker.lock")
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
@@ -371,14 +377,16 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
         rows = tracker.read_rows(ws)
         target = _find(rows, app_id)
         if target is None:
-            raise HTTPException(status_code=404, detail="找不到 id 为 %s 的记录" % app_id)
+            raise ApiError(404, "app.recordNotFound", "找不到 id 为 %s 的记录" % app_id,
+                           id=app_id)
 
         # 终态不回退：原阶段已是终态时禁止改阶段（基于锁内最新阶段判定）
         new_stage = updates.get("当前阶段")
         if new_stage is not None:
             errs = tracker.check_terminal_transition(target.get("当前阶段", ""), str(new_stage))
             if errs:
-                raise HTTPException(status_code=422, detail=errs[0])
+                raise ApiError(422, "app.terminalLocked", errs[0],
+                               stage=target.get("当前阶段", ""))
 
         # 终态必填原因：按更新后的最终阶段与最终原因判定
         final_stage = str(new_stage) if new_stage is not None else target.get("当前阶段", "")
@@ -387,7 +395,7 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
             final_reason = target.get("状态原因", "")
         errs = tracker.check_reason_required(final_stage, str(final_reason))
         if errs:
-            raise HTTPException(status_code=422, detail=errs[0])
+            raise ApiError(422, "app.reasonRequired", errs[0], stage=final_stage)
 
         before = dict(target)
         for k, v in updates.items():
@@ -434,7 +442,7 @@ def suggest_status(item: SuggestRequest, ws: str = Depends(workspace_dir)):
     """原文 → 建议。**只读**：不动追踪表、不写时间线、不碰任何文件。"""
     text = (item.原文 or "").strip()
     if not text:
-        raise HTTPException(status_code=422, detail="请先粘贴要解析的原文")
+        raise ApiError(422, "status.textRequired", "请先粘贴要解析的原文")
     rows = tracker.read_rows(ws)
     return status_parse.suggest(text, rows, focus_id=item.id)
 
@@ -456,12 +464,14 @@ def apply_status_suggestion(item: ApplySuggestionRequest,
     """
     stage = (item.阶段 or "").strip()
     if stage not in STAGES + TERMINAL:
-        raise HTTPException(status_code=422,
-                            detail="阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL))
+        raise ApiError(422, "status.stageInvalid",
+                       "阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL),
+                       stages="/".join(STAGES + TERMINAL))
     if item.下次动作日期:
         errs = tracker.check_date(item.下次动作日期, "下次动作日期")
         if errs:
-            raise HTTPException(status_code=422, detail=errs[0])
+            raise ApiError(422, "status.dateFormat", errs[0],
+                           label="下次动作日期", value=item.下次动作日期)
 
     lock_path = os.path.join(ws, DIR_TRACKING, "tracker.lock")
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
@@ -470,19 +480,22 @@ def apply_status_suggestion(item: ApplySuggestionRequest,
         rows = tracker.read_rows(ws)
         target = _find(rows, item.id)
         if target is None:
-            raise HTTPException(status_code=404, detail="找不到 id 为 %s 的记录" % item.id)
+            raise ApiError(404, "app.recordNotFound", "找不到 id 为 %s 的记录" % item.id,
+                           id=item.id)
 
         current = (target.get("当前阶段") or "").strip()
         seen = (item.原阶段 or "").strip()
         if current != seen:
-            raise HTTPException(
-                status_code=409,
-                detail="这条记录的当前阶段已变为 `%s`（你确认时是 `%s`）——请重新解析原文"
-                       % (current, seen))
+            raise ApiError(
+                409, "status.stale",
+                "这条记录的当前阶段已变为 `%s`（你确认时是 `%s`）——请重新解析原文"
+                % (current, seen),
+                current=current, seen=seen)
 
         ok, why = status_parse.can_override(current, stage)
         if not ok:
-            raise HTTPException(status_code=422, detail=why)
+            raise ApiError(422, "status.notAllowed", why,
+                           current=current, next=stage)
 
         before = dict(target)
         target["当前阶段"] = stage
@@ -493,7 +506,7 @@ def apply_status_suggestion(item: ApplySuggestionRequest,
         # 终态必填原因：按更新后的最终值判定（PATCH 同一口径）
         errs = tracker.check_reason_required(stage, target.get("状态原因", ""))
         if errs:
-            raise HTTPException(status_code=422, detail=errs[0])
+            raise ApiError(422, "status.reasonRequired", errs[0], stage=stage)
 
         tracker.write_rows(rows, ws)
         entries = tracker.diff_entries(item.id, before, target)

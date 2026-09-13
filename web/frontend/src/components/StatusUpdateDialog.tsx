@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, CheckCircle2, Loader2, Mail, Plus, X } from "lucide-react";
 import {
   api,
@@ -48,6 +49,7 @@ const NONE = "__none__";
  * `apply-status-suggestion`），这里的所有勾选只是意图，不是权限。
  */
 export default function StatusUpdateDialog({ applications, onClose, onApplied, initialText }: Props) {
+  const { t } = useTranslation();
   const [text, setText] = useState(initialText ?? "");
   const [manualId, setManualId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -63,7 +65,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
 
   const run = () => {
     if (!text.trim()) {
-      setError("请先粘贴邮件或站内信原文");
+      setError(t("status.pasteRequired"));
       return;
     }
     setBusy(true);
@@ -93,14 +95,16 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
     if (!result) return;
     const targets = result.matches.filter((m) => picked[m.id]);
     if (targets.length === 0) {
-      setError("请先勾选要应用的记录");
+      setError(t("status.pickRequired"));
       return;
     }
     const missingReason = targets.find(
       (m) => TERMINAL.includes(stageOf(m)) && !(reasons[m.id] || "").trim()
     );
     if (missingReason) {
-      setError(`进入终态必须填写原因：${missingReason.公司} ${missingReason.岗位}`);
+      setError(
+        t("status.reasonRequired", { label: `${missingReason.公司} ${missingReason.岗位}` })
+      );
       return;
     }
 
@@ -121,7 +125,9 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
         });
         done.push(m.id);
       } catch (e) {
-        failed.push(`${m.公司} ${m.岗位}：${(e as Error).message}`);
+        failed.push(
+          t("status.applyFailed", { label: `${m.公司} ${m.岗位}`, error: (e as Error).message })
+        );
       }
     }
     setBusy(false);
@@ -152,10 +158,10 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
       <DialogContent className="flex h-[88vh] w-full max-w-4xl flex-col gap-0 rounded-2xl p-0">
         <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-medium">
-            <Mail size={16} className="text-primary" /> 粘贴邮件更新投递状态
+            <Mail size={16} className="text-primary" /> {t("status.title")}
           </DialogTitle>
           <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.closeAction")}>
               <X size={16} />
             </Button>
           </DialogClose>
@@ -163,10 +169,8 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           <DialogDescription className="text-sm">
-            把笔试 / 面试 / offer / 拒信的原文整段粘进来，解析出「改哪条、改成什么、
-            依据哪句话」。<span className="text-muted-foreground">
-              解析不会改动任何数据，只有你逐条确认后才会写入，并记入变更时间线。
-            </span>
+            {t("status.desc")}
+            <span className="text-muted-foreground"> {t("status.descNote")}</span>
           </DialogDescription>
 
           <Textarea
@@ -177,7 +181,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
             }}
             rows={7}
             spellCheck={false}
-            placeholder="例如：您好！感谢您投递某某科技热管理工程师岗位，现邀请您参加第二轮面试，面试时间 9月25日 14:00……"
+            placeholder={t("status.placeholder")}
             className="resize-y text-[13px]"
           />
 
@@ -187,10 +191,10 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
               onValueChange={(v) => setManualId(v === NONE ? "" : v)}
             >
               <SelectTrigger className="w-72">
-                <SelectValue placeholder="指定记录（可选）" />
+                <SelectValue placeholder={t("status.pickRecord")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>自动识别（按原文里的公司名）</SelectItem>
+                <SelectItem value={NONE}>{t("status.autoMatch")}</SelectItem>
                 {applications.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.公司} {a.岗位}（{a.当前阶段}）
@@ -199,11 +203,11 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
               </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground">
-              站内信经常通篇不写公司名，这时在这条记录上手选一次
+              {t("status.manualHint")}
             </span>
             <Button onClick={run} disabled={busy} className="ml-auto">
               {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-              解析原文
+              {t("status.parse")}
             </Button>
           </div>
 
@@ -217,7 +221,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
 
           {failures.length > 0 && (
             <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-              <p className="mb-1 font-medium">以下记录没能写入（其余已成功）：</p>
+              <p className="mb-1 font-medium">{t("status.failedHeader")}</p>
               <ul className="list-disc space-y-0.5 pl-4">
                 {failures.map((f, i) => (
                   <li key={i}>{f}</li>
@@ -233,10 +237,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
               result={result}
               onCreated={(id, label, stage) => {
                 setManualId(id);
-                setCreatedNotice(
-                  `已创建记录：${label}（当前阶段 ${stage}）。若这封邮件只是投递确认，到此就够了；` +
-                  `若它还包含新进展（面试、offer 等），再点「解析原文」写回。`
-                );
+                setCreatedNotice(t("status.createdNotice", { label, stage }));
                 onApplied();
               }}
             />
@@ -254,20 +255,20 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <p className="text-xs text-muted-foreground">
             {failures.length > 0
-              ? "成功的那几条已经落盘（勾选已摘掉）；剩下的修正后可直接重试"
+              ? t("status.footerPartial")
               : result
                 ? pickedCount > 0
-                  ? `逐条写入 ${pickedCount} 条，并记入变更时间线（一条失败不影响其余）`
-                  : "勾选要应用的记录后才会写入"
-                : "先解析原文，确认建议后再写入"}
+                  ? t("status.footerPicked", { count: pickedCount })
+                  : t("status.footerNeedPick")
+                : t("status.footerNeedParse")}
           </p>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onClose}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button onClick={apply} disabled={!result || pickedCount === 0 || busy}>
               {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-              应用更新
+              {t("status.apply")}
             </Button>
           </div>
         </div>
@@ -297,10 +298,11 @@ function SuggestionReport({
   onReason,
   onStage,
 }: ReportProps) {
+  const { t } = useTranslation();
   if (result.matches.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-        没有匹配到追踪表里的记录。请在上方「指定记录」里选一条后重新解析。
+        {t("status.noMatchHint")}
       </p>
     );
   }
@@ -308,7 +310,7 @@ function SuggestionReport({
     <div className="space-y-3">
       {result.ambiguous && (
         <p className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning">
-          原文里既有拒信措辞又有 offer 措辞，无法判断方向——已不给出阶段建议，请人工核对。
+          {t("status.ambiguous")}
         </p>
       )}
       {result.notes.map((n, i) => (
@@ -347,6 +349,7 @@ interface NewRecordPanelProps {
  * 约束），所以在这里显式选择，而不是替用户猜一个。
  */
 function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
+  const { t } = useTranslation();
   const signalStage =
     result.signals.length > 0 && result.signals[0].stage
       ? result.signals[0].stage
@@ -362,7 +365,7 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
 
   const create = () => {
     if (!company.trim() || !role.trim()) {
-      setErr("公司和岗位都需要填写");
+      setErr(t("form.companyRoleRequired"));
       return;
     }
     setBusy(true);
@@ -386,19 +389,18 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
   return (
     <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
       <p className="text-sm text-muted-foreground">
-        没有匹配到追踪表里的记录。如果这条投递还没有记录（投递确认类邮件
-        常常如此），在这里直接建一条：
+        {t("status.newRecordHint")}
       </p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Input
-          placeholder="公司（必填）"
+          placeholder={t("form.companyRequired")}
           value={company}
           disabled={done}
           onChange={(e) => setCompany(e.target.value)}
           className="h-8 text-xs"
         />
         <Input
-          placeholder="岗位（必填）"
+          placeholder={t("form.roleRequired")}
           value={role}
           disabled={done}
           onChange={(e) => setRole(e.target.value)}
@@ -445,10 +447,10 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
       <div className="flex flex-wrap items-center gap-3">
         <Button className="h-8 px-3 text-xs" onClick={create} disabled={busy || done}>
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-          {done ? "已创建" : "创建记录"}
+          {done ? t("status.created") : t("status.create")}
         </Button>
         <span className="text-xs text-muted-foreground">
-          当前阶段默认取邮件信号（{signalStage}）；方向与批次创建后不可改
+          {t("status.newRecordNote", { stage: signalStage })}
         </span>
       </div>
     </div>
@@ -474,6 +476,7 @@ function MatchCard({
   onReason: (v: string) => void;
   onStage: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   const needsStage = !match.建议阶段;
   const terminal = TERMINAL.includes(stage);
   const blocked = !match.可覆盖;
@@ -486,7 +489,7 @@ function MatchCard({
           checked={picked}
           disabled={blocked || needsStage}
           onChange={(e) => onToggle(e.target.checked)}
-          title={blocked ? match.原因 : needsStage ? "请先选择要改成的阶段" : ""}
+          title={blocked ? match.原因 : needsStage ? t("status.pickStageFirst") : ""}
         />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -505,7 +508,7 @@ function MatchCard({
                 分成「徽章显示建议 + 另一处选择改成什么」迟早会对不上。 */}
             <Select value={stage || undefined} onValueChange={onStage}>
               <SelectTrigger className="h-8 w-36 text-xs">
-                <SelectValue placeholder="选择阶段" />
+                <SelectValue placeholder={t("form.selectStage")} />
               </SelectTrigger>
               <SelectContent>
                 {STAGES.map((s) => (
@@ -516,7 +519,7 @@ function MatchCard({
               </SelectContent>
             </Select>
             {!needsStage && (
-              <span className="text-xs text-muted-foreground">（规则建议，可改）</span>
+              <span className="text-xs text-muted-foreground">{t("status.ruleSuggestion")}</span>
             )}
           </div>
 
@@ -532,11 +535,11 @@ function MatchCard({
 
           {terminal && (
             <div className="flex items-center gap-2">
-              <span className="shrink-0 text-xs text-muted-foreground">状态原因</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{t("status.reasonLabel")}</span>
               <Input
                 value={reason}
                 onChange={(e) => onReason(e.target.value)}
-                placeholder="进入终态必须填写（默认填入命中的原句，可改）"
+                placeholder={t("status.reasonPlaceholder")}
                 className="h-8 text-xs"
               />
             </div>

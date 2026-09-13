@@ -20,11 +20,12 @@ import shutil
 import tempfile
 import urllib.parse
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
 import atomicio
 import resume_build
+from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
 from filelock import file_lock
@@ -70,7 +71,7 @@ def _lock_path(ws):
 def _check_version(version):
     # 只允许安全字符，避免用版本名拼路径时穿越目录
     if not version or not all(c.isalnum() or c in "-_" for c in version):
-        raise HTTPException(status_code=400, detail="版本名只能含字母、数字、-、_")
+        raise ApiError(400, "resume.versionInvalid", "版本名只能含字母、数字、-、_")
 
 
 @router.get("")
@@ -158,18 +159,17 @@ class ImportRequest(BaseModel):
 def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
     cfg = provider.read_config(ws)
     if not cfg.get("base_url") or not cfg.get("api_key"):
-        raise HTTPException(
-            status_code=400,
-            detail="先在「设置」配置 Provider（BYOK）：base_url 与 api_key")
+        raise ApiError(400, "resume.providerMissing",
+                       "先在「设置」配置 Provider（BYOK）：base_url 与 api_key")
     if not (item.model or "").strip():
-        raise HTTPException(status_code=422, detail="请填写模型名（如 deepseek-chat）")
+        raise ApiError(422, "resume.modelRequired", "请填写模型名（如 deepseek-chat）")
 
     # 前端把文件读成 base64 随 JSON 提交——multipart 需要额外依赖
     # python-multipart，而本项目不引入任何新运行时依赖
     try:
         content = base64.b64decode(item.content_base64 or "", validate=True)
     except (ValueError, TypeError):
-        raise HTTPException(status_code=422, detail="文件内容解码失败")
+        raise ApiError(422, "resume.fileDecodeFailed", "文件内容解码失败")
 
     filename = item.filename or ""
     tmp_dir = tempfile.mkdtemp(prefix="jobws_import_")
@@ -178,7 +178,7 @@ def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
             path, ext = resume_import.save_upload(content, filename, tmp_dir)
             text = resume_import.extract_text(path, ext)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise ApiError(422, "resume.extractFailed", str(exc), error=str(exc))
 
         prompt = resume_import.build_import_prompt(text)
         try:
@@ -186,18 +186,21 @@ def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
             data = _extract_json(raw)
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")[:200]
-            raise HTTPException(status_code=502,
-                                detail="模型端点返回 %s：%s" % (exc.code, body))
+            raise ApiError(502, "resume.modelHttpError",
+                           "模型端点返回 %s：%s" % (exc.code, body),
+                           status=str(exc.code), body=body)
         except urllib.error.URLError as exc:
             # 连不上端点（被墙/DNS/端口错），不要 500，降级成可理解的错误
-            raise HTTPException(status_code=502,
-                                detail="连不上模型端点：%s" % exc.reason)
+            raise ApiError(502, "resume.modelUnreachable",
+                           "连不上模型端点：%s" % exc.reason,
+                           reason=str(exc.reason))
         except (ValueError, KeyError, OSError) as exc:
-            raise HTTPException(status_code=502, detail="模型调用失败：%s" % exc)
+            raise ApiError(502, "resume.modelCallFailed",
+                           "模型调用失败：%s" % exc, error=str(exc))
 
         if not isinstance(data, dict):
-            raise HTTPException(status_code=502,
-                                detail="模型返回不是 JSON 对象，请重试或换个模型")
+            raise ApiError(502, "resume.modelNotJson",
+                           "模型返回不是 JSON 对象，请重试或换个模型")
 
         return {
             "file": filename,
@@ -219,7 +222,8 @@ def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
 def template_content(rel: str, ws: str = Depends(workspace_dir)):
     full = safe_join(ws, DIR_RESUME, rel)
     if not os.path.isfile(full):
-        raise HTTPException(status_code=404, detail="文件不存在: %s" % rel)
+        raise ApiError(404, "resume.fileNotFound",
+                           "文件不存在: %s" % rel, rel=rel)
     if os.path.splitext(rel)[1].lower() not in TEMPLATE_TEXT_EXT:
         return {"rel": rel, "type": "binary"}
     with io.open(full, "r", encoding="utf-8") as f:
@@ -233,7 +237,8 @@ def template_file(rel: str, ws: str = Depends(workspace_dir)):
     """
     full = safe_join(ws, DIR_RESUME, rel)
     if not os.path.isfile(full):
-        raise HTTPException(status_code=404, detail="文件不存在: %s" % rel)
+        raise ApiError(404, "resume.fileNotFound",
+                           "文件不存在: %s" % rel, rel=rel)
 
     ext = os.path.splitext(rel)[1].lower()
     if ext == ".pdf":
@@ -258,18 +263,19 @@ def build_template(version: str, ws: str = Depends(workspace_dir)):
     _check_version(version)
     browser = resume_build.find_browser()
     if not browser:
-        raise HTTPException(status_code=500, detail="未找到 Chrome 或 Edge，无法生成 PDF")
+        raise ApiError(500, "resume.chromeMissing", "未找到 Chrome 或 Edge，无法生成 PDF")
 
     pdf_dir = _pdf_dir(ws)
     html_path = os.path.join(pdf_dir, "resume_%s.html" % version)
     if not os.path.isfile(html_path):
-        raise HTTPException(status_code=404, detail="找不到手写模板: resume_%s.html" % version)
+        raise ApiError(404, "resume.templateNotFound",
+                       "找不到手写模板: resume_%s.html" % version, version=version)
 
     with file_lock(_lock_path(ws)):
         pdf_path = os.path.join(pdf_dir, "简历_%s.pdf" % version)
         ok = resume_build.build_pdf(browser, html_path, pdf_path)
         if not ok:
-            raise HTTPException(status_code=500, detail="PDF 未生成（浏览器打印失败或超时）")
+            raise ApiError(500, "resume.pdfFailed", "PDF 未生成（浏览器打印失败或超时）")
 
         a4_ok, a4_msg = resume_build.check_a4_mediabox(pdf_path)
         facts_file = os.path.join(ws, "config", "ats_required_facts.txt")
@@ -290,12 +296,14 @@ def get_resume(version: str, ws: str = Depends(workspace_dir)):
     _check_version(version)
     path = _data_path(ws, version)
     if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="找不到简历数据: resume_%s.json" % version)
+        raise ApiError(404, "resume.dataNotFound",
+                       "找不到简历数据: resume_%s.json" % version, version=version)
     try:
         with io.open(path, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail="JSON 解析失败：%s" % exc)
+        raise ApiError(422, "resume.jsonInvalid",
+                               "JSON 解析失败：%s" % exc, error=str(exc))
     return {"version": version, "data": data}
 
 
@@ -320,17 +328,20 @@ def preview_html(version: str, ws: str = Depends(workspace_dir)):
     _check_version(version)
     path = _data_path(ws, version)
     if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="找不到简历数据: resume_%s.json" % version)
+        raise ApiError(404, "resume.dataNotFound",
+                       "找不到简历数据: resume_%s.json" % version, version=version)
     try:
         with io.open(path, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail="JSON 解析失败：%s" % exc)
+        raise ApiError(422, "resume.jsonInvalid",
+                               "JSON 解析失败：%s" % exc, error=str(exc))
     try:
         tpl = resume_build.load_template()
         return {"version": version, "html": resume_build.render_block(tpl, data)}
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail="渲染失败：%s" % exc)
+        raise ApiError(500, "resume.renderFailed",
+                       "渲染失败：%s" % exc, error=str(exc))
 
 
 @router.get("/{version}/doc")
@@ -345,17 +356,20 @@ def export_doc(version: str, ws: str = Depends(workspace_dir)):
     _check_version(version)
     path = _data_path(ws, version)
     if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="找不到简历数据: resume_%s.json" % version)
+        raise ApiError(404, "resume.dataNotFound",
+                       "找不到简历数据: resume_%s.json" % version, version=version)
     try:
         with io.open(path, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail="JSON 解析失败：%s" % exc)
+        raise ApiError(422, "resume.jsonInvalid",
+                               "JSON 解析失败：%s" % exc, error=str(exc))
     try:
         tpl = resume_build.load_template()
         body = resume_build.render_block(tpl, data)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail="渲染失败：%s" % exc)
+        raise ApiError(500, "resume.renderFailed",
+                       "渲染失败：%s" % exc, error=str(exc))
 
     # Word 的 HTML 兼容头：显式 charset（否则中文按系统默认码页解码会乱码）
     doc_html = (
@@ -383,18 +397,20 @@ def build_resume(version: str, ws: str = Depends(workspace_dir)):
     _check_version(version)
     browser = resume_build.find_browser()
     if not browser:
-        raise HTTPException(status_code=500, detail="未找到 Chrome 或 Edge，无法生成 PDF")
+        raise ApiError(500, "resume.chromeMissing", "未找到 Chrome 或 Edge，无法生成 PDF")
 
     path = _data_path(ws, version)
     if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="找不到简历数据: resume_%s.json" % version)
+        raise ApiError(404, "resume.dataNotFound",
+                       "找不到简历数据: resume_%s.json" % version, version=version)
 
     with file_lock(_lock_path(ws)):
         try:
             with io.open(path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail="JSON 解析失败：%s" % exc)
+            raise ApiError(422, "resume.jsonInvalid",
+                               "JSON 解析失败：%s" % exc, error=str(exc))
 
         pdf_dir = _pdf_dir(ws)
         if not os.path.isdir(pdf_dir):
@@ -407,7 +423,8 @@ def build_resume(version: str, ws: str = Depends(workspace_dir)):
             with io.open(tmp_html, "w", encoding="utf-8") as f:
                 f.write(resume_build.render_block(tpl, data))
         except Exception as exc:  # noqa: BLE001
-            raise HTTPException(status_code=500, detail="渲染失败：%s" % exc)
+            raise ApiError(500, "resume.renderFailed",
+                       "渲染失败：%s" % exc, error=str(exc))
 
         try:
             ok = resume_build.build_pdf(browser, tmp_html, pdf_path)
@@ -419,7 +436,7 @@ def build_resume(version: str, ws: str = Depends(workspace_dir)):
                     pass
 
         if not ok:
-            raise HTTPException(status_code=500, detail="PDF 未生成（浏览器打印失败或超时）")
+            raise ApiError(500, "resume.pdfFailed", "PDF 未生成（浏览器打印失败或超时）")
 
         a4_ok, a4_msg = resume_build.check_a4_mediabox(pdf_path)
         # 显式传 facts_file：模块级 VERIFY_FACTS_FILE 在并发下会互相覆盖
@@ -497,25 +514,26 @@ def suggest_rewrite(version: str, item: SuggestRequest,
                     ws: str = Depends(workspace_dir)):
     _check_version(version)
     if not item.instruction.strip():
-        raise HTTPException(status_code=422, detail="改写方向不能为空")
+        raise ApiError(422, "resume.instructionRequired", "改写方向不能为空")
 
     cfg = provider.read_config(ws)
     if not cfg.get("base_url") or not cfg.get("api_key"):
-        raise HTTPException(
-            status_code=400,
-            detail="先在「设置」配置 Provider（BYOK）：base_url 与 api_key")
+        raise ApiError(400, "resume.providerMissing",
+                       "先在「设置」配置 Provider（BYOK）：base_url 与 api_key")
     model = (item.model or "").strip()
     if not model:
-        raise HTTPException(status_code=422, detail="请填写模型名（如 deepseek-chat）")
+        raise ApiError(422, "resume.modelRequired", "请填写模型名（如 deepseek-chat）")
 
     path = _data_path(ws, version)
     if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="找不到简历数据: resume_%s.json" % version)
+        raise ApiError(404, "resume.dataNotFound",
+                       "找不到简历数据: resume_%s.json" % version, version=version)
     try:
         with io.open(path, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail="JSON 解析失败：%s" % exc)
+        raise ApiError(422, "resume.jsonInvalid",
+                       "JSON 解析失败：%s" % exc, error=str(exc))
 
     prompt = resume_guard.build_rewrite_prompt(data, item.instruction)
     try:
@@ -523,10 +541,12 @@ def suggest_rewrite(version: str, item: SuggestRequest,
         suggestion = _extract_json(content)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:200]
-        raise HTTPException(status_code=502,
-                            detail="模型端点返回 %s：%s" % (exc.code, detail))
+        raise ApiError(502, "resume.modelHttpError",
+                       "模型端点返回 %s：%s" % (exc.code, detail),
+                       status=str(exc.code), body=detail)
     except (ValueError, KeyError, OSError) as exc:
-        raise HTTPException(status_code=502, detail="模型调用失败：%s" % exc)
+        raise ApiError(502, "resume.modelCallFailed",
+                       "模型调用失败：%s" % exc, error=str(exc))
 
     # 五项护栏：空改动 / 结构漂移 / 身份字段 / 字数爆炸 / 新增数字
     ok, issues = resume_guard.validate_rewrite(data, suggestion)

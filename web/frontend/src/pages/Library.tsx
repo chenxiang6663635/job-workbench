@@ -6,12 +6,14 @@ import { Card } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { FileCard } from "../components/FileCard";
+import { useTranslation } from "react-i18next";
 
 // 简历文件（手写 HTML / 生成 PDF）已于 2026-09-03 迁往「简历工坊」页浏览，
 // 素材库只保留事实库，避免与简历工坊同名混淆
 const SECTION = "facts" as const;
 
 export default function Library() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export default function Library() {
             onClick={() => setView(null)}
             className="-ml-2"
           >
-            <ArrowLeft size={16} /> 返回列表
+            <ArrowLeft size={16} /> {t("common.back")}
           </Button>
           <span className="text-sm font-medium text-foreground">{view.rel}</span>
         </div>
@@ -79,11 +81,13 @@ export default function Library() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground">事实库</span>
+        <span className="text-sm font-medium text-foreground">{t("lib.facts")}</span>
         <span className="text-xs text-muted-foreground">
-          简历文件已迁往「简历工坊」页浏览
+          {t("lib.movedNote", { page: t("nav.resume") })}
         </span>
-        <span className="ml-auto text-sm text-muted-foreground">{items.length} 个文件</span>
+        <span className="ml-auto text-sm text-muted-foreground">
+          {t("lib.fileCount", { count: items.length })}
+        </span>
       </div>
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
@@ -98,7 +102,7 @@ export default function Library() {
       ) : items.length === 0 ? (
         <Card className="flex flex-col items-center gap-2 border-dashed p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">事实库暂无事实卡</p>
+          <p className="text-sm text-muted-foreground">{t("lib.empty")}</p>
         </Card>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -111,7 +115,7 @@ export default function Library() {
               onClick={() => open(item)}
               badge={
                 item.kind === "binary" ? (
-                  <span className="shrink-0 text-xs text-muted-foreground/70">预览</span>
+                  <span className="shrink-0 text-xs text-muted-foreground/70">{t("lib.preview")}</span>
                 ) : null
               }
             />

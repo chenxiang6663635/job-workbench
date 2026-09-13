@@ -104,8 +104,29 @@ def _in_jsx_expression(line, pos):
     return right > left
 
 
+def _looks_like_field(text, start, end):
+    """中文块是否属于「取数 / 类型声明」而不是「写给人看的字」。
+
+    判定看紧邻字符：`it.公司`、`draft.JD文本`、`公司: string`、`面试id` 这类
+    中文是标识符的一部分；JSX 文本（`<span>已挂</span>`）两边是标签符号。
+    """
+    before = text[start - 1] if start else ""
+    after = text[end] if end < len(text) else ""
+    ident = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$")
+    # after 也要认 `?`：可选属性写成 `原阶段?: string`
+    return (before in ident or before in "._?" or after in ident or after in "?:")
+
+
 def find_hardcoded(text):
-    """返回 [(行号, 片段, 种类)]，种类为 string / bare-text（非字符串的裸文本）。"""
+    """返回 [(行号, 片段, 种类)]，种类三种：
+
+        string     字符串字面量里的中文（可能是数据，也可能是写死的文案）
+        field      取数 / 类型声明里的中文（`it.公司`、`公司: string`）——数据
+        jsx-text   JSX 裸文本里的中文（`<span>已挂</span>`）——一定是文案
+
+    **清单只放行前两类**：jsx-text 没有正当理由，一旦允许它借同名数据片段
+    放行，"往已豁免文件里再加一句写死的字"这个洞就又回来了。
+    """
     hits = []
     in_block = False
     for lineno, line in enumerate(text.splitlines(), 1):
@@ -116,11 +137,14 @@ def find_hardcoded(text):
         for m in CJK_RUN.finditer(plain):
             if _in_jsx_expression(line, m.start()):
                 continue
-            hits.append((lineno, m.group(0), "bare-text"))
+            # 偏移要相对 plain（字符串与注释已被摘掉），不是原始行
+            kind = "field" if _looks_like_field(plain, m.start(), m.end()) else "jsx-text"
+            hits.append((lineno, m.group(0), kind))
     return hits
 
 
-PLURAL_CALL = re.compile(r'\bt\(\s*"([^"]+)"', re.S)
+# 三种引号都认（项目风格是双引号，但单引号与模板串不该因此漏检）
+PLURAL_CALL = re.compile(r"""\bt\(\s*['"`]([^'"`]+)['"`]""", re.S)
 
 
 def _plural_bases(root):
@@ -166,7 +190,7 @@ def find_plural_without_count(root):
     return out
 
 
-CALL_KEY = re.compile(r'\bt\(\s*"([^"]+)"')
+CALL_KEY = re.compile(r"""\bt\(\s*['"`]([^'"`]+)['"`]""")
 
 
 def find_missing_keys(root):
@@ -261,7 +285,11 @@ def check(root):
             allow = table.get(rel, set())
             for ln, snip, kind in hits:
                 seen.setdefault(rel, set()).add(snip)
-                if snip in allow:
+                # **jsx-text 永不放行**。清单若不分类别地放行，`<span>已挂</span>`
+                # 这类裸文本会借着「已挂」这条数据豁免溜过去（独立审查发现）。
+                # 真实文件名那种情况（JobDetailView 的 解析卡.md）用 {"…"} 包成
+                # 字符串字面量即可。
+                if kind != "jsx-text" and snip in allow:
                     ok_hits.append((rel, ln, snip, kind))
                 else:
                     unallowed.append((rel, ln, snip, kind))

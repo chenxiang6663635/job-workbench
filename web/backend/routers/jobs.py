@@ -417,7 +417,9 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
         raise ApiError(
             422, "job.fetchTooShort",
             "只抓到 %d 字（可能需登录或由 JS 渲染），不足以当作 JD，请手动粘贴" % len(text),
-            count=len(text))
+            # 参数名别用 count：那是 i18next 的保留插值名，会触发复数解析
+            # （去查 err.xxx_other），文案得靠回落才显示得出来——改了名才是稳的
+            chars=len(text))
 
     name = _dir_name(company, role)
     job_dir = safe_join(ws, DIR_JOBS, name)

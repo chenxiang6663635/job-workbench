@@ -10,9 +10,10 @@
 3. **语言包豁免**：`i18n/locales/` 是中文的家；
 4. **JSX 表达式里的中文不算命中**（`{it.公司}` 是取数），裸文本才可能
    是"写死给用户看的字"；
-5. **清单两种粒度都生效**：整文件、以及 `文件:片段`；
-6. **僵尸条目报错**：清单里指向已无命中的文件必须被指出，否则下一处真命中
-   会悄悄获得豁免。
+5. **清单是片段级快照**：只放行登记过的片段，且 **jsx-text 一类永不放行**
+   （否则 `<span>已挂</span>` 会借数据豁免溜过去）；
+6. **僵尸条目报错**：清单里指向已无命中的文件、或列了却没出现的片段，都必须
+   被指出，否则下一处真命中会悄悄获得豁免。
 """
 
 import io
@@ -121,10 +122,22 @@ def test_only_listed_fragments_pass(tmp_path):
     这一条是被实证逼出来的——整文件豁免时，一个"已豁免"的文件里藏了
     4 处漏翻（列头、差异标签、按钮 tooltip），而检查全绿。
     """
-    files = {"a.tsx": 'const a = <pre>解析卡.md</pre>;\nconst b = <p>没翻译的一句</p>;\n'}
-    unallowed, ok, _ = _run(tmp_path, files, allowlist="a.tsx = 解析卡  # 真实文件名\n")
-    assert [h[2] for h in ok] == ["解析卡"]
+    files = {"a.tsx": 'const a = <pre>{"解析卡.md"}</pre>;\nconst b = <p>没翻译的一句</p>;\n'}
+    unallowed, ok, _ = _run(tmp_path, files, allowlist="a.tsx = 解析卡.md  # 真实文件名\n")
+    assert [h[2] for h in ok] == ["解析卡.md"]
     assert [u[2] for u in unallowed] == ["没翻译的一句"]
+
+
+def test_bare_text_is_never_exempted(tmp_path):
+    """裸文本即便片段在清单里也照拦（清单只放行字符串字面量类命中）。
+
+    否则 `<span>已挂</span>` 这种"写死给用户看的字"会借着数据豁免溜过去
+    ——独立审查发现的空子。
+    """
+    files = {"a.tsx": 'const a = <p>已挂</p>;\n'}
+    unallowed, ok, _ = _run(tmp_path, files, allowlist="a.tsx = 已挂  # 阶段枚举\n")
+    assert ok == []
+    assert [u[2] for u in unallowed] == ["已挂"]
 
 
 # ---- 6. 清单问题（两类僵尸，都会让下一处真命中悄悄获得豁免） ----

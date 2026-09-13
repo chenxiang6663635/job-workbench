@@ -39,8 +39,8 @@ components/InterviewList.tsx = · ${current.面试时间}|· ${r.形式}|· ${r.
 # 投递状态枚举（未投递/流程中/已终态）
 components/JobCard.tsx = 已终态|流程中
 
-# JSX 里的真实文件名 解析卡.md，不翻译
-components/JobDetailView.tsx = 解析卡
+# 真实文件名 解析卡.md（写成 {"解析卡.md"} 字符串字面量——清单只放行字符串类命中）
+components/JobDetailView.tsx = 解析卡.md
 
 # offer CSV 列名与字段名
 components/OfferCompare.tsx = 公司|关联记录|其他条件|备注|岗位|工作地点|年终|月薪|答复截止日|签字费|股票期权|薪资构成

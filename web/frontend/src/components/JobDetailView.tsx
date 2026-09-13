@@ -114,8 +114,10 @@ export default function JobDetailView({
               <p className="text-sm text-muted-foreground">{t("job.cardMissing")}</p>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {t("job.cardEmptyHint1")}{" "}
-                {/* 解析卡.md 是工作区里的真实文件名，不翻译 */}
-                <code className="text-muted-foreground">解析卡.md</code>{" "}
+                {/* 解析卡.md 是工作区里的真实文件名，不翻译。
+                    用 {"…"} 包成字符串字面量而不是裸文本：裸文本一律按硬编码文案拦
+                    （清单只放行字符串类命中），这样不翻的文件名也有个明确的写法。 */}
+                <code className="text-muted-foreground">{"解析卡.md"}</code>{" "}
                 {t("job.cardEmptyHint2")}
               </p>
             </div>

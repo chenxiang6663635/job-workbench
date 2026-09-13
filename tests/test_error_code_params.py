@@ -37,9 +37,14 @@ def _backend_calls():
             with io.open(path, "r", encoding="utf-8") as f:
                 tree = ast.parse(f.read())
             for node in ast.walk(tree):
-                if not (isinstance(node, ast.Call)
-                        and isinstance(node.func, ast.Name)
-                        and node.func.id == "ApiError"):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                # 裸名 `ApiError(...)` 与属性调用 `apierror.ApiError(...)` 都要认——
+                # 只认裸名的话，换个写法就能让新错误悄悄绕过这套断言
+                named = ((isinstance(func, ast.Name) and func.id == "ApiError")
+                         or (isinstance(func, ast.Attribute) and func.attr == "ApiError"))
+                if not named:
                     continue
                 if len(node.args) < 2 or not isinstance(node.args[1], ast.Constant):
                     continue
@@ -76,6 +81,10 @@ def test_placeholder_names_match_backend_params():
     for code in sorted(calls):
         want = zh.get("err." + code)
         if want is None:
+            # 不能 continue：缺 key 时这条断言会静默空转（另有 test 1 兜底，
+            # 但这里也报出来，缺 key 与参数不匹配是两种修改路径）
+            problems.append("err.%s 缺语言包 key（%s 的文案要）"
+                            % (code, calls[code][0][1]))
             continue
         for keys, where in calls[code]:
             missing = want - keys

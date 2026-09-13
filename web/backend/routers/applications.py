@@ -263,7 +263,8 @@ def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
     if preview["error"]:
         raise ApiError(422, "app.importHasErrors",
                        "存在 %d 个错误行，修正后才能提交" % counts["error"],
-                       count=counts["error"])
+                       # 同 job.fetchTooShort：避开 i18next 的保留插值名 count
+                       errors=counts["error"])
 
     lock_path = os.path.join(ws, DIR_TRACKING)
     os.makedirs(lock_path, exist_ok=True)

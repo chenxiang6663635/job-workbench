@@ -8,6 +8,7 @@
 
 - [ ] `pytest tests/` passes (locally or via CI)
 - [ ] Frontend changes: `npm run build` green
+- [ ] UI changes: `npm run test:ui` passes (layout + a11y smoke; run `npm run build` first — it serves `dist`)
 - [ ] **No real personal data**: nothing from `personal/`, no real companies/jobs/names/phones/emails/schools in the diff, screenshots or examples (use `Sample Corp A`, `sample@example.com`)
 - [ ] Honest red lines untouched (resume verbs may be questioned; knowledge gaps are never fabricated) - if touched, justify in the description
 - [ ] `tools/` changes stayed domain-agnostic (domain knowledge goes into profiles, personal facts stay in `personal/`)

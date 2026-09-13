@@ -104,6 +104,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 
 If you would rather not set up an environment at all, grab `job-workbench-setup-*.exe` from the [latest release](https://github.com/chenxiang6663635/job-workbench/releases/latest) (an Electron window plus a packaged backend; install it and run). Where data goes: the installed version uses `%APPDATA%\job-workbench\personal\`; the portable version (a `portable.txt` next to the backend exe) uses `personal\` beside the exe — **uninstalling the installed version does not touch the data in %APPDATA%**.
 
+The desktop app can zoom the interface: `Ctrl + =` in, `Ctrl + -` out (half-step, roughly 0.58x–1.73x), `Ctrl + 0` to reset. The level is remembered across restarts.
+
 Rebuild the installer in one command (frontend dist → PyInstaller backend exe → NSIS):
 
 ```powershell

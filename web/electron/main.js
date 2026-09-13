@@ -41,6 +41,38 @@ function log(msg) {
   }
 }
 
+// ---- 界面缩放 -----------------------------------------------------------------
+// 此前完全依赖 Electron 默认行为：没有显式实现，也就没有持久化与上下限——
+// 「Ctrl+= 能不能用、级别记不记得住」全看版本默认值。这里把它做成确定行为：
+//   Ctrl+= / Ctrl+- 以 0.5 级步进（Electron 一级 ≈ ×1.2），Ctrl+0 复位；
+//   级别夹在 -3..+3（约 0.58x–1.73x）；写进 userData/zoom.json，重启沿用。
+// 触控板的捏合缩放（visual zoom）同时关掉：两套缩放机制并存时，画面会出现
+// 「捏合能放大、一刷新又弹回去」的错觉，只保留可记忆的这一套。
+// 按键映射与上下限夹取在 zoom.js（纯函数，zoom.test.js 机检，CI 一并跑）。
+const { clampLevel, nextLevel } = require("./zoom");
+
+function zoomStatePath() {
+  return path.join(app.getPath("userData"), "zoom.json");
+}
+
+function loadZoomLevel() {
+  try {
+    return clampLevel(JSON.parse(fs.readFileSync(zoomStatePath(), "utf-8")).level);
+  } catch (e) {
+    // 首次运行没有这个文件；文件损坏也按默认级别处理——缩放偏好不值得打断启动
+  }
+  return 0;
+}
+
+function saveZoomLevel(level) {
+  try {
+    fs.mkdirSync(path.dirname(zoomStatePath()), { recursive: true });
+    fs.writeFileSync(zoomStatePath(), JSON.stringify({ level }, null, 2));
+  } catch (e) {
+    log(`Failed to persist zoom level: ${e.message}`);
+  }
+}
+
 // ---- Python 探测（优先级：JOBWS_PYTHON 环境变量 → PATH 中 python → python3）----
 function detectPython() {
   const candidates = [];
@@ -230,6 +262,27 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadURL(`http://127.0.0.1:${BACKEND_PORT}`);
+
+  // 缩放：加载完成后应用已保存的级别（开发时热重载不会丢），快捷键见下
+  let zoomLevel = loadZoomLevel();
+  const applyZoom = () => win.webContents.setZoomLevel(zoomLevel);
+  win.webContents.on("did-finish-load", applyZoom);
+  win.webContents.setVisualZoomLevelLimits(1, 1);
+
+  win.webContents.on("before-input-event", (event, input) => {
+    // macOS 用 Cmd、其余平台用 Ctrl；Shift 允许（Ctrl+Shift+= 打出的就是 "+"）
+    const mod = process.platform === "darwin" ? input.meta : input.control;
+    if (input.type !== "keyDown" || input.alt) return;
+    const next = nextLevel(zoomLevel, input.key, mod);
+    if (next === null) return;
+    // 拦下这次按键：否则默认菜单（View → Zoom In/Out）会对同一次按键再缩一遍
+    event.preventDefault();
+    if (next === zoomLevel) return;
+    zoomLevel = next;
+    applyZoom();
+    saveZoomLevel(zoomLevel);
+    log(`Zoom level: ${zoomLevel}`);
+  });
 
   win.on("closed", () => {
     stopBackend();

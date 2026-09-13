@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, PhoneCall, Plus, UserRound } from "lucide-react";
 import { api, type Contact } from "../api";
 import { Badge } from "./ui/badge";
@@ -18,6 +19,7 @@ function followState(date: string): "overdue" | "today" | null {
 }
 
 export default function ContactList() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<Contact[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export default function ContactList() {
 
   const submit = () => {
     if (!name.trim()) {
-      setError("姓名必填");
+      setError(t("contact.nameRequired"));
       return;
     }
     setSaving(true);
@@ -91,20 +93,20 @@ export default function ContactList() {
   const form = (
     <Card className="space-y-3 rounded-2xl border-primary/30 p-5">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Input placeholder="姓名 *" value={name} onChange={(e) => setName(e.target.value)} />
-        <Input placeholder="角色（HR / 技术面 / 猎头）" value={role} onChange={(e) => setRole(e.target.value)} />
-        <Input placeholder="公司" value={company} onChange={(e) => setCompany(e.target.value)} />
-        <Input placeholder="联系方式（微信 / 手机 / 邮箱）" value={contact} onChange={(e) => setContact(e.target.value)} />
-        <Input placeholder="来源（BOSS / 内推 / 官网）" value={source} onChange={(e) => setSource(e.target.value)} />
-        <Input type="date" title="下次跟进" value={nextFollow} onChange={(e) => setNextFollow(e.target.value)} />
+        <Input placeholder={t("contact.phName")} value={name} onChange={(e) => setName(e.target.value)} />
+        <Input placeholder={t("contact.phRole")} value={role} onChange={(e) => setRole(e.target.value)} />
+        <Input placeholder={t("contact.phCompany")} value={company} onChange={(e) => setCompany(e.target.value)} />
+        <Input placeholder={t("contact.phContact")} value={contact} onChange={(e) => setContact(e.target.value)} />
+        <Input placeholder={t("contact.phSource")} value={source} onChange={(e) => setSource(e.target.value)} />
+        <Input type="date" title={t("contact.nextFollow")} value={nextFollow} onChange={(e) => setNextFollow(e.target.value)} />
       </div>
-      <Input placeholder="备注（聊了什么、注意事项）" value={note} onChange={(e) => setNote(e.target.value)} />
+      <Input placeholder={t("contact.phNote")} value={note} onChange={(e) => setNote(e.target.value)} />
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => setShowForm(false)}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button onClick={submit} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
+          {saving ? t("common.saving") : t("common.save")}
         </Button>
       </div>
     </Card>
@@ -114,11 +116,11 @@ export default function ContactList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {loaded && `${rows.length} 位联系人 · 有下次跟进日期的排最前，超期的会标琥珀色`}
+          {loaded && t("contact.summary", { count: rows.length })}
         </p>
         <Button onClick={() => setShowForm((v) => !v)}>
           {showForm ? <ChevronDown size={14} /> : <Plus size={14} />}
-          {showForm ? "收起" : "记联系人"}
+          {showForm ? t("common.collapse") : t("contact.add")}
         </Button>
       </div>
 
@@ -136,11 +138,11 @@ export default function ContactList() {
       ) : loaded && !error && rows.length === 0 ? (
         <Card className="flex flex-col items-center rounded-2xl border-dashed p-8 text-center">
           <UserRound size={28} className="mb-3 text-muted-foreground/70" />
-          <p className="text-sm text-muted-foreground">还没有联系人记录</p>
+          <p className="text-sm text-muted-foreground">{t("contact.emptyTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
-            HR 的名字、聊到哪一步、答应什么时候回——
+            {t("contact.emptyHint1")}
             <br />
-            流程感很强的招聘，靠这些细节维系
+            {t("contact.emptyHint2")}
           </p>
         </Card>
       ) : (
@@ -160,7 +162,7 @@ export default function ContactList() {
                   <div>
                     <p className="text-sm font-medium text-foreground">{c.姓名}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {[c.角色, c.公司].filter(Boolean).join(" · ") || "（未填角色）"}
+                      {[c.角色, c.公司].filter(Boolean).join(" · ") || t("contact.roleMissing")}
                     </p>
                   </div>
                   <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[10px] font-mono">
@@ -186,21 +188,21 @@ export default function ContactList() {
                     }
                   >
                     {st === "overdue"
-                      ? `跟进超期：${c.下次跟进}`
+                      ? t("contact.overdue", { date: c.下次跟进 })
                       : st === "today"
-                      ? "今天该跟进"
+                      ? t("contact.dueToday")
                       : c.下次跟进
-                      ? `下次跟进：${c.下次跟进}`
-                      : "暂无跟进计划"}
+                      ? t("contact.nextFollowAt", { date: c.下次跟进 })
+                      : t("contact.noPlan")}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => markContacted(c)}
-                    title="把最近联系记为今天，并清掉跟进计划"
+                    title={t("contact.markTitle")}
                     className="h-6 px-2 text-[11px]"
                   >
-                    <PhoneCall size={11} /> 已联系
+                    <PhoneCall size={11} /> {t("contact.marked")}
                   </Button>
                 </div>
 

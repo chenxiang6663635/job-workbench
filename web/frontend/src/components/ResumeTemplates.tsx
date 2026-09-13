@@ -12,6 +12,10 @@ import { ErrorBanner } from "./ErrorBanner";
 import { A4Preview } from "./A4Preview";
 import { FileCard } from "./FileCard";
 import { fmtSize } from "../lib/format";
+import { useTranslation } from "react-i18next";
+
+/** 工作区里的真实目录名，不翻译——以插值方式进文案 */
+const RESUME_DIR = "02_简历工坊/";
 
 // 从文件列表里挑出手写模板（resume_<版本>.html），供「生成 PDF」按钮使用
 function templateVersion(rel: string): string | null {
@@ -20,6 +24,7 @@ function templateVersion(rel: string): string | null {
 }
 
 export default function ResumeTemplates() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<ResumeTemplateItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ResumeTemplateItem | null>(null);
@@ -80,14 +85,14 @@ export default function ResumeTemplates() {
             }}
             className="-ml-2"
           >
-            <ArrowLeft size={16} /> 返回列表
+            <ArrowLeft size={16} /> {t("common.back")}
           </Button>
           <span className="text-sm font-medium text-foreground">{selected.rel}</span>
           <span className="text-xs text-muted-foreground">{fmtSize(selected.size)}</span>
           {buildable && (
             <Button onClick={build} disabled={building} className="ml-auto">
               {building ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
-              {building ? "生成中…" : `生成 ${buildable} 的 PDF`}
+              {building ? t("resume.building") : t("tpl.buildVersion", { version: buildable })}
             </Button>
           )}
         </div>
@@ -104,7 +109,7 @@ export default function ResumeTemplates() {
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-foreground">
-                {result.passed ? "生成成功，校验通过" : "生成完成，校验未通过"}
+                {result.passed ? t("resume.buildOk") : t("resume.buildFailed")}
               </span>
               <span className="font-mono text-xs text-muted-foreground">
                 {(result.size / 1024).toFixed(1)} KB · {result.a4.message}
@@ -143,9 +148,7 @@ export default function ResumeTemplates() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        手写 HTML 的精排版（高级模板）。只读浏览与生成；编辑仍走手写 HTML，改动后回到这里刷新预览。
-      </p>
+      <p className="text-sm text-muted-foreground">{t("tpl.intro")}</p>
 
       {error && (
         <ErrorBanner message={error} />
@@ -160,7 +163,7 @@ export default function ResumeTemplates() {
       ) : items.length === 0 ? (
         <Card className="border-dashed p-10 text-center">
           <p className="text-sm text-muted-foreground">
-            02_简历工坊/ 下暂无文件。手写模板放 pdf/resume_&lt;版本&gt;.html。
+            {t("tpl.empty", { dir: RESUME_DIR, pattern: t("tpl.filePattern") })}
           </p>
         </Card>
       ) : (

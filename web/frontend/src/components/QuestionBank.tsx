@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BookOpen, MessageSquareQuote, Search, Sparkles, X } from "lucide-react";
 import { api, type QuestionGroup } from "../api";
 import { Badge } from "./ui/badge";
@@ -8,7 +9,9 @@ import { Input } from "./ui/input";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 
-// 轮次用小徽章标出，同一岗位的不同轮次问题一眼能分开
+// 轮次用小徽章标出，同一岗位的不同轮次问题一眼能分开。
+// 这是「数据值 → 样式」的映射（与 badgeVariants.ts 同类）：key 是工作区里的真实
+// 轮次取值，动它等于给数据改名，所以不翻译；只有「没填轮次」这个兜底占位才译。
 const ROUND_VARIANT: Record<string, "default" | "secondary" | "success"> = {
   笔试: "secondary",
   一面: "default",
@@ -19,6 +22,7 @@ const ROUND_VARIANT: Record<string, "default" | "secondary" | "success"> = {
 };
 
 function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
+  const { t } = useTranslation();
   return (
     <Card className="p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
@@ -26,7 +30,7 @@ function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
           variant={ROUND_VARIANT[item.轮次] ?? "secondary"}
           className="rounded px-1.5 py-0.5 text-[11px]"
         >
-          {item.轮次 || "未填轮次"}
+          {item.轮次 || t("question.roundMissing")}
         </Badge>
         {item.面试时间 && <span className="font-mono text-muted-foreground">{item.面试时间}</span>}
         {item.面试官 && <span className="text-muted-foreground">{item.面试官}</span>}
@@ -44,13 +48,13 @@ function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
       </p>
       {item.我的回答要点 && (
         <p className="mt-2 pl-6 text-xs leading-relaxed text-muted-foreground">
-          <span className="mr-1 text-muted-foreground/70">我的回答</span>
+          <span className="mr-1 text-muted-foreground/70">{t("question.myAnswer")}</span>
           {item.我的回答要点}
         </p>
       )}
       {item.复盘与改进 && (
         <p className="mt-1.5 rounded-lg border border-warning/20 bg-warning/5 px-2 py-1.5 pl-6 text-xs leading-relaxed text-warning">
-          复盘：{item.复盘与改进}
+          {t("question.retrospective", { value: item.复盘与改进 })}
         </p>
       )}
     </Card>
@@ -58,6 +62,7 @@ function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
 }
 
 export default function QuestionBank() {
+  const { t } = useTranslation();
   const [groups, setGroups] = useState<QuestionGroup[]>([]);
   const [total, setTotal] = useState(0);
   const [keyword, setKeyword] = useState("");
@@ -89,19 +94,19 @@ export default function QuestionBank() {
         <Input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="搜问题、回答或复盘关键词…"
+          placeholder={t("question.searchPlaceholder")}
           className="pl-9 pr-28"
         />
         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
           <span className="whitespace-nowrap text-xs text-muted-foreground">
-            {loading ? "检索中…" : `共 ${total} 条`}
+            {loading ? t("question.searching") : t("question.count", { count: total })}
           </span>
           {keyword && (
             <Button
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              title="清空"
+              title={t("common.clear")}
               onClick={() => setKeyword("")}
             >
               <X size={13} />
@@ -124,12 +129,10 @@ export default function QuestionBank() {
         <Card className="flex flex-col items-center border-dashed p-10 text-center">
           <BookOpen size={28} className="mb-3 text-muted-foreground" />
           <p className="text-base font-medium text-foreground">
-            {keyword ? "没有匹配的问题" : "题库还是空的"}
+            {keyword ? t("question.emptyNoMatch") : t("question.emptyNoData")}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {keyword
-              ? "换个关键词试试，或者清空搜索看全部。"
-              : "面过之后在面试记录里填上「问题记录」，这里会攒下你被问过的问题——下次面试前可以照着过一遍。"}
+            {keyword ? t("question.emptyHintNoMatch") : t("question.emptyHintNoData")}
           </p>
         </Card>
       ) : groups.length === 0 ? null : (
@@ -141,7 +144,7 @@ export default function QuestionBank() {
                 <span className="text-sm font-semibold text-foreground">{g.公司}</span>
                 {g.岗位 && <span className="text-xs text-muted-foreground">{g.岗位}</span>}
                 <Badge variant="secondary" className="ml-auto text-[11px]">
-                  {g.total} 条
+                  {t("question.groupCount", { count: g.total })}
                 </Badge>
               </div>
               <div className="space-y-2">

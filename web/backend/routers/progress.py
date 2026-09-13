@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
 import tracker
 import icsutil
+from apierror import ApiError
 from deps import DIR_TRACKING, workspace_dir
 from filelock import file_lock
 
@@ -63,11 +64,17 @@ class PatchInterview(BaseModel):
 def _validate_enum(轮次=None, 形式=None, 结果=None):
     """枚举字段在模型层拦住，避免脏值落进 CSV。"""
     if 轮次 is not None and 轮次 not in VALID_ROUNDS:
-        raise HTTPException(status_code=422, detail="轮次必须是 %s 之一" % "/".join(VALID_ROUNDS))
+        raise ApiError(422, "progress.roundInvalid",
+                       "轮次必须是 %s 之一" % "/".join(VALID_ROUNDS),
+                       values="/".join(VALID_ROUNDS))
     if 形式 is not None and 形式 and 形式 not in VALID_FORMS:
-        raise HTTPException(status_code=422, detail="形式必须是 %s 之一" % "/".join(VALID_FORMS))
+        raise ApiError(422, "progress.formInvalid",
+                       "形式必须是 %s 之一" % "/".join(VALID_FORMS),
+                       values="/".join(VALID_FORMS))
     if 结果 is not None and 结果 not in VALID_RESULTS:
-        raise HTTPException(status_code=422, detail="结果必须是 %s 之一" % "/".join(VALID_RESULTS))
+        raise ApiError(422, "progress.resultInvalid",
+                       "结果必须是 %s 之一" % "/".join(VALID_RESULTS),
+                       values="/".join(VALID_RESULTS))
 
 
 def _sort_rows(rows):
@@ -101,12 +108,13 @@ def create_interview(item: NewInterview, ws: str = Depends(workspace_dir)):
             src = next(
                 (r for r in main_rows if (r.get("id") or "").strip() == link), None)
             if src is None:
-                raise HTTPException(status_code=404, detail="找不到关联记录 %s" % link)
+                raise ApiError(404, "progress.linkNotFound",
+                               "找不到关联记录 %s" % link, id=link)
             # 未指定公司/岗位时从主表带出，保证列表可读
             company = company or src.get("公司", "")
             role = role or src.get("岗位", "")
         elif not company:
-            raise HTTPException(status_code=422, detail="未关联记录时必须提供公司")
+            raise ApiError(422, "progress.companyRequired", "未关联记录时必须提供公司")
 
         rows = tracker.read_interviews(ws)
         row = {field: "" for field in tracker.INTERVIEW_FIELDS}
@@ -147,13 +155,14 @@ def update_interview(
 
     updates = {k: v for k, v in item.dict().items() if v is not None}
     if not updates:
-        raise HTTPException(status_code=422, detail="没有提供任何要更新的字段")
+        raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 
     with file_lock(_lock_path(ws)):
         rows = tracker.read_interviews(ws)
         row = tracker.find_interview(rows, interview_id)
         if row is None:
-            raise HTTPException(status_code=404, detail="找不到面试 %s" % interview_id)
+            raise ApiError(404, "progress.interviewNotFound",
+                           "找不到面试 %s" % interview_id, id=interview_id)
 
         changed = []
         for field, value in updates.items():
@@ -174,8 +183,8 @@ def export_ics(ws: str = Depends(workspace_dir), app: str = None):
     rows = tracker.read_interviews(ws, app_id=(app or "").strip() or None)
     events = icsutil.events_from_interviews(rows)
     if not events:
-        raise HTTPException(
-            status_code=404, detail="没有可导出的面试日程（面试时间均为空）")
+        raise ApiError(404, "progress.icsEmpty",
+                       "没有可导出的面试日程（面试时间均为空）")
 
     ics_text = icsutil.build_ics(events)
     return Response(
@@ -286,13 +295,14 @@ def list_contacts(ws: str = Depends(workspace_dir), app: str = None):
 def create_contact(item: NewContact, ws: str = Depends(workspace_dir)):
     link = (item.关联记录 or "").strip()
     if not item.姓名.strip():
-        raise HTTPException(status_code=422, detail="姓名必填")
+        raise ApiError(422, "progress.nameRequired", "姓名必填")
 
     with file_lock(_lock_path(ws)):
         if link:
             main_rows = tracker.read_rows(ws)
             if not any((r.get("id") or "").strip() == link for r in main_rows):
-                raise HTTPException(status_code=404, detail="找不到关联记录 %s" % link)
+                raise ApiError(404, "progress.linkNotFound",
+                               "找不到关联记录 %s" % link, id=link)
 
         rows = tracker.read_contacts(ws)
         row = {field: "" for field in tracker.CONTACT_FIELDS}
@@ -317,13 +327,14 @@ def update_contact(contact_id: str, item: PatchContact,
                    ws: str = Depends(workspace_dir)):
     updates = {k: v for k, v in item.dict().items() if v is not None}
     if not updates:
-        raise HTTPException(status_code=422, detail="没有提供任何要更新的字段")
+        raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 
     with file_lock(_lock_path(ws)):
         rows = tracker.read_contacts(ws)
         row = tracker.find_contact(rows, contact_id)
         if row is None:
-            raise HTTPException(status_code=404, detail="找不到联系人 %s" % contact_id)
+            raise ApiError(404, "progress.contactNotFound",
+                           "找不到联系人 %s" % contact_id, id=contact_id)
         changed = []
         for field, value in updates.items():
             if field in tracker.CONTACT_FIELDS and row.get(field, "") != value:
@@ -386,10 +397,11 @@ def create_offer(item: NewOffer, ws: str = Depends(workspace_dir)):
             src = next((r for r in main_rows
                         if (r.get("id") or "").strip() == link), None)
             if src is None:
-                raise HTTPException(status_code=404, detail="找不到关联记录 %s" % link)
+                raise ApiError(404, "progress.linkNotFound",
+                               "找不到关联记录 %s" % link, id=link)
             company = company or src.get("公司", "")
         elif not company:
-            raise HTTPException(status_code=422, detail="未关联记录时必须提供公司")
+            raise ApiError(422, "progress.companyRequired", "未关联记录时必须提供公司")
 
         rows = tracker.read_offers(ws)
         row = {field: "" for field in tracker.OFFER_FIELDS}
@@ -427,13 +439,14 @@ def update_offer(offer_id: str, item: PatchOffer,
                  ws: str = Depends(workspace_dir)):
     updates = {k: v for k, v in item.dict().items() if v is not None}
     if not updates:
-        raise HTTPException(status_code=422, detail="没有提供任何要更新的字段")
+        raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 
     with file_lock(_lock_path(ws)):
         rows = tracker.read_offers(ws)
         row = tracker.find_offer(rows, offer_id)
         if row is None:
-            raise HTTPException(status_code=404, detail="找不到 offer %s" % offer_id)
+            raise ApiError(404, "progress.offerNotFound",
+                           "找不到 offer %s" % offer_id, id=offer_id)
         changed = []
         for field, value in updates.items():
             if field in tracker.OFFER_FIELDS and row.get(field, "") != value:

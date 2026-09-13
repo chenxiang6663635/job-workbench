@@ -11,10 +11,11 @@ from __future__ import annotations
 import os
 import sys
 
-from fastapi import HTTPException, Query, Request
+from fastapi import Query, Request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pathres  # noqa: E402
+from apierror import ApiError  # noqa: E402
 
 # 应用根（只读资源）。打包后 exe 同级，解包为仓库根。
 ROOT = pathres.resolve_root()
@@ -96,24 +97,26 @@ def workspace_dir(request: Request, ws: str = Query(default=None, description="�
 
     for bad in WS_NEAR_MISS:
         if bad in lower_keys:
-            raise HTTPException(
-                status_code=400,
-                detail="未知参数 `%s`；工作区参数名是 `ws`（例如 ?ws=personal）" % lower_keys[bad],
+            raise ApiError(
+                400, "ws.unknownParam",
+                "未知参数 `%s`；工作区参数名是 `ws`（例如 ?ws=personal）" % lower_keys[bad],
+                name=lower_keys[bad],
             )
 
     # 合法名 `ws` 的大小写变体（`WS` / `Ws`）单独处理：不能把它放进近名清单
     # （归一化后就是 `ws`，会与合法请求混淆），但它同样会被 FastAPI 静默忽略。
     if "ws" in lower_keys and lower_keys["ws"] != "ws":
-        raise HTTPException(
-            status_code=400,
-            detail="未知参数 `%s`；工作区参数名是**小写的** `ws`" % lower_keys["ws"],
+        raise ApiError(
+            400, "ws.unknownParamCase",
+            "未知参数 `%s`；工作区参数名是**小写的** `ws`" % lower_keys["ws"],
+            name=lower_keys["ws"],
         )
 
     # 显式的空值（`?ws=`）多半来自拼模板串的第三方脚本：静默回退默认工作区
     # 与「静默回退即危险」的立场冲突，明确拒绝。前端只在选中工作区时才拼 ws，
     # 不会受影响。
     if ws is not None and not ws.strip():
-        raise HTTPException(status_code=400, detail="`ws` 不允许为空（省略该参数即用默认工作区）")
+        raise ApiError(400, "ws.empty", "`ws` 不允许为空（省略该参数即用默认工作区）")
 
     if not ws:
         full = resolve_default_workspace()
@@ -121,15 +124,19 @@ def workspace_dir(request: Request, ws: str = Query(default=None, description="�
         return full
 
     if os.path.isabs(ws):
-        raise HTTPException(status_code=400, detail="workspace 必须是相对路径")
+        raise ApiError(400, "ws.mustBeRelative", "workspace 必须是相对路径")
 
     full = os.path.normpath(os.path.join(ROOT, ws))
     # 打包后工作区可能落在系统用户目录（数据根），故两个根都允许
     if not any(full.startswith(r + os.sep) for r in allowed_roots()):
-        raise HTTPException(status_code=400, detail="workspace 越出允许范围")
+        raise ApiError(400, "ws.outOfRange", "workspace 越出允许范围")
 
     if not os.path.isdir(full):
-        raise HTTPException(status_code=404, detail="工作区不存在: %s（先运行 tools/init_workspace.py）" % ws)
+        raise ApiError(
+            404, "ws.notFound",
+            "工作区不存在: %s（先运行 tools/init_workspace.py）" % ws,
+            name=ws,
+        )
 
     # 回显归一化后的工作区名，而不是原始输入串：`?ws=./personal` 服务的就是
     # personal，回显 `./personal` 会让按期望值比对的客户端误报不一致。
@@ -145,10 +152,10 @@ def safe_join(workspace: str, *parts: str) -> str:
     """
     for p in parts:
         if os.path.isabs(p) or ".." in p.split(os.sep) + p.split("/"):
-            raise HTTPException(status_code=400, detail="非法路径片段: %r" % p)
+            raise ApiError(400, "path.illegalSegment", "非法路径片段: %r" % p, part=p)
 
     full = os.path.normpath(os.path.join(workspace, *parts))
     if not (full == workspace or full.startswith(workspace + os.sep)):
-        raise HTTPException(status_code=400, detail="路径越出工作区")
+        raise ApiError(400, "path.escape", "路径越出工作区")
 
     return full

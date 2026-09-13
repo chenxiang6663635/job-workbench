@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Scale } from "lucide-react";
 import { api, type Offer } from "../api";
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -10,15 +12,18 @@ import OfferForm from "./OfferForm";
 
 // 并排对比的字段清单：逐行对齐，方便扫读。只列事实字段，
 // 绝不加「综合评价」之类的判断列——这是产品的伦理边界。
-const FIELDS: { key: keyof Offer; label: string }[] = [
-  { key: "岗位", label: "岗位" },
-  { key: "月薪", label: "月薪" },
-  { key: "年终", label: "年终" },
-  { key: "签字费", label: "签字费" },
-  { key: "股票期权", label: "股票期权" },
-  { key: "工作地点", label: "工作地点" },
-  { key: "答复截止日", label: "答复截止日" },
-  { key: "其他条件", label: "其他条件" },
+//
+// key 是 offer CSV 的真实列名（不翻译，取值全靠它）；label 表头是展示文案，
+// 所以这里存的是翻译 key 而不是字面量——表在组件外定义，拿不到当时的 t()。
+const FIELDS: { key: keyof Offer; labelKey: TranslationKey }[] = [
+  { key: "岗位", labelKey: "offer.field.role" },
+  { key: "月薪", labelKey: "offer.field.monthly" },
+  { key: "年终", labelKey: "offer.field.bonus" },
+  { key: "签字费", labelKey: "offer.field.signOn" },
+  { key: "股票期权", labelKey: "offer.field.equity" },
+  { key: "工作地点", labelKey: "offer.field.location" },
+  { key: "答复截止日", labelKey: "offer.field.deadline" },
+  { key: "其他条件", labelKey: "offer.field.other" },
 ];
 
 // 答复截止日临近（3 天内）用琥珀提示，但不排序不打分
@@ -29,6 +34,7 @@ function deadlineSoon(date: string): boolean {
 }
 
 export default function OfferCompare() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<Offer[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,14 +84,14 @@ export default function OfferCompare() {
       <div className="space-y-4">
         <Card className="flex flex-col items-center border-dashed p-8 text-center">
           <Scale size={28} className="mb-3 text-muted-foreground/70" />
-          <p className="text-sm text-muted-foreground">还没有 Offer 记录</p>
+          <p className="text-sm text-muted-foreground">{t("offer.emptyTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
-            拿到 offer 后把已知事实录进来，多个 offer 会并排在这里——
+            {t("offer.emptyHint1")}
             <br />
-            数字放在一张表里，选择依然是你自己的
+            {t("offer.emptyHint2")}
           </p>
           <Button className="mt-4" onClick={() => setShowForm(true)}>
-            录入第一个 Offer
+            {t("offer.emptyCta")}
           </Button>
         </Card>
         {form}
@@ -97,10 +103,10 @@ export default function OfferCompare() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {rows.length} 个 offer · 按答复截止日排列（越先要答复的越靠左）
+          {t("offer.summary", { count: rows.length })}
         </p>
         <Button onClick={() => setShowForm(true)}>
-          <Plus size={14} /> 录入 Offer
+          <Plus size={14} /> {t("offer.add")}
         </Button>
       </div>
 
@@ -127,7 +133,7 @@ export default function OfferCompare() {
                   const soon = f.key === "答复截止日" && deadlineSoon(value);
                   return (
                     <div key={f.key} className="flex items-start justify-between gap-2 text-xs">
-                      <span className="shrink-0 text-muted-foreground">{f.label}</span>
+                      <span className="shrink-0 text-muted-foreground">{t(f.labelKey)}</span>
                       <span
                         className={`text-right ${soon ? "font-medium text-warning" : "text-foreground"}`}
                       >
@@ -140,9 +146,11 @@ export default function OfferCompare() {
 
               {(o.薪资构成 || o.备注 || o.关联记录) && (
                 <div className="mt-3 space-y-1.5 border-t border-border pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
-                  {o.薪资构成 && <p>构成：{o.薪资构成}</p>}
+                  {o.薪资构成 && <p>{t("offer.composition", { value: o.薪资构成 })}</p>}
                   {o.备注 && <p>{o.备注}</p>}
-                  {o.关联记录 && <p className="text-muted-foreground/70">关联 {o.关联记录}</p>}
+                  {o.关联记录 && (
+                    <p className="text-muted-foreground/70">{t("offer.related", { value: o.关联记录 })}</p>
+                  )}
                 </div>
               )}
             </Card>
@@ -152,7 +160,7 @@ export default function OfferCompare() {
 
       {/* 固定页脚：产品的伦理边界，永远不替用户做选择 */}
       <p className="rounded-xl border border-border bg-background/60 px-4 py-3 text-center text-xs text-muted-foreground">
-        这里只并排展示你录入的已知事实，最终选择由你决定。
+        {t("offer.disclaimer")}
       </p>
 
       {form}

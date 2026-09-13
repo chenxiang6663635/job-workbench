@@ -13,6 +13,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ErrorBanner } from "./ErrorBanner";
+import { useTranslation } from "react-i18next";
 
 interface DiffItem {
   path: string;
@@ -59,6 +60,7 @@ export default function RewritePanel({
   onApply: (suggestion: Record<string, unknown>) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [instruction, setInstruction] = useState("");
   const [model, setModel] = useState(
     () => localStorage.getItem("jobws_rewrite_model") ?? ""
@@ -77,7 +79,7 @@ export default function RewritePanel({
 
   const generate = () => {
     if (!instruction.trim()) {
-      setError("先写一句改写方向");
+      setError(t("rewrite.instructionRequired"));
       return;
     }
     setLoading(true);
@@ -113,14 +115,14 @@ export default function RewritePanel({
           <div className="flex items-start justify-between">
             <div>
               <DialogTitle className="flex items-center gap-2">
-                <Sparkles size={16} className="text-primary" /> AI 改写建议
+                <Sparkles size={16} className="text-primary" /> {t("rewrite.title")}
               </DialogTitle>
               <DialogDescription className="mt-0.5">
-                只改写既有事实的表述。建议先过反编造校验，通过才能直接采用
+                {t("rewrite.desc")}
               </DialogDescription>
             </div>
             <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.closeAction")}>
                 <X size={16} />
               </Button>
             </DialogClose>
@@ -129,19 +131,19 @@ export default function RewritePanel({
 
         <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
           <Input
-            placeholder="改写方向，如：把项目表述往数据中心冷却方向靠"
+            placeholder={t("rewrite.phInstruction")}
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
           />
           <Input
-            placeholder="模型名，如 deepseek-chat"
+            placeholder={t("rewrite.phModel")}
             value={model}
             onChange={(e) => setModel(e.target.value)}
           />
         </div>
         <Button onClick={generate} disabled={loading} className="mt-3">
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loading ? "生成中…" : "生成建议"}
+          {loading ? t("rewrite.generating") : t("rewrite.generate")}
         </Button>
 
         {error && (
@@ -164,10 +166,10 @@ export default function RewritePanel({
               />
               <div className="text-xs">
                 {result.ok ? (
-                  <p className="text-success">反编造校验通过：无新增数字、结构未动、身份未改</p>
+                  <p className="text-success">{t("rewrite.checkPassed")}</p>
                 ) : (
                   <>
-                    <p className="font-medium text-destructive">校验未通过，默认不可采用：</p>
+                    <p className="font-medium text-destructive">{t("rewrite.checkFailed")}</p>
                     <ul className="mt-1 list-disc space-y-0.5 pl-4 text-foreground">
                       {result.issues.map((i, idx) => (
                         <li key={idx}>{i}</li>
@@ -180,7 +182,7 @@ export default function RewritePanel({
 
             {/* diff：逐处改动，原文 → 建议 */}
             {diffs.length === 0 ? (
-              <p className="text-xs text-muted-foreground">模型没有给出任何文字改动。</p>
+              <p className="text-xs text-muted-foreground">{t("rewrite.noDiff")}</p>
             ) : (
               <div className="space-y-2">
                 {diffs.map((d, idx) => (
@@ -190,7 +192,7 @@ export default function RewritePanel({
                   >
                     <p className="mb-1 font-mono text-[10px] text-muted-foreground/70">{d.path}</p>
                     <p className="leading-relaxed text-muted-foreground line-through decoration-destructive/60">
-                      {d.oldText || "（空）"}
+                      {d.oldText || t("app.emptyValue")}
                     </p>
                     <p className="mt-1 leading-relaxed text-foreground">{d.newText}</p>
                   </div>
@@ -207,25 +209,25 @@ export default function RewritePanel({
                     onChange={(e) => setForceAck(e.target.checked)}
                     className="cursor-pointer accent-warning"
                   />
-                  我逐条看过上述问题，确认没有编造内容，仍要采用
+                  {t("rewrite.forceAck")}
                 </Label>
               ) : (
                 <span className="text-xs text-muted-foreground">
-                  采用后会覆盖编辑区内容，仍需手动点「保存」落盘
+                  {t("rewrite.applyNote", { save: t("common.save") })}
                 </span>
               )}
               <div className="flex gap-2">
                 <DialogClose asChild>
-                  <Button variant="outline">关闭</Button>
+                  <Button variant="outline">{t("common.closeAction")}</Button>
                 </DialogClose>
                 <Button
                   onClick={() => onApply(result.suggestion)}
                   disabled={!canApply || diffs.length === 0}
                   title={
-                    !result.ok && !forceAck ? "校验未通过，先勾选确认才能采用" : undefined
+                    !result.ok && !forceAck ? t("rewrite.blockedTitle") : undefined
                   }
                 >
-                  采用建议
+                  {t("rewrite.apply")}
                 </Button>
               </div>
             </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Loader2, Send } from "lucide-react";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -33,12 +34,17 @@ export default function JobCard({
   // 别的卡片正在投递：本卡按钮也要禁用，否则能同时发起两个写请求
   busy?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <Card className="transition-all duration-300 ease-premium hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10">
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`${job.dir}，匹配度 ${job.score ?? "未评分"}，投递状态 ${job.applyState}`}
+        aria-label={t("job.cardAria", {
+          dir: job.dir,
+          score: job.score ?? t("job.unscored"),
+          state: job.applyState,
+        })}
         className="w-full cursor-pointer p-5 text-left"
       >
         <div className="flex items-start justify-between gap-2">
@@ -56,7 +62,7 @@ export default function JobCard({
           {job.level ? (
             <Badge variant={levelBadgeVariant(job.level)}>{job.level}</Badge>
           ) : (
-            <span className="text-xs text-muted-foreground">尚未评分</span>
+            <span className="text-xs text-muted-foreground">{t("job.notScored")}</span>
           )}
           <Badge variant={applyStateBadgeVariant(job.applyState)}>
             {job.applyState}
@@ -72,7 +78,9 @@ export default function JobCard({
               {job.stage}
             </span>
           )}
-          {job.hasJD && <span className="text-xs text-muted-foreground">JD 已存</span>}
+          {job.hasJD && (
+            <span className="text-xs text-muted-foreground">{t("job.jdSaved")}</span>
+          )}
         </div>
       </button>
 
@@ -83,8 +91,8 @@ export default function JobCard({
         <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
           <span className="text-xs text-muted-foreground">
             {job.applyState === "已终态"
-              ? "再投会新建一条记录"
-              : "投递后到追踪表继续跟进"}
+              ? t("job.reapplyHint")
+              : t("job.applyHint")}
           </span>
           <Button
             variant="outline"
@@ -98,10 +106,10 @@ export default function JobCard({
               <Send size={12} />
             )}
             {applying
-              ? "投递中…"
+              ? t("job.applying")
               : job.applyState === "已终态"
-                ? "再投一次"
-                : "一键投递"}
+                ? t("job.reapply")
+                : t("job.apply")}
           </Button>
         </div>
       )}

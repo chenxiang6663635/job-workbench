@@ -19,12 +19,13 @@ import sys
 import zipfile
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
 import atomicio
 import pathres
 import tracker
+from apierror import ApiError
 from deps import workspace_dir
 
 router = APIRouter(prefix="/api/system")
@@ -255,7 +256,7 @@ def open_folder(body: OpenFolderBody, ws: str = Depends(workspace_dir)):
     elif key == "snapshots":
         target = _snapshot_dir(ws)
     else:
-        raise HTTPException(status_code=400, detail="只支持 workspace / snapshots")
+        raise ApiError(400, "sys.unknownTarget", "只支持 workspace / snapshots", target=key)
 
     if not os.path.isdir(target):
         # 快照目录可能还没建，直接建出来再打开，比报错有用
@@ -269,6 +270,6 @@ def open_folder(body: OpenFolderBody, ws: str = Depends(workspace_dir)):
         else:
             subprocess.Popen(["xdg-open", target])
     except OSError as exc:
-        raise HTTPException(status_code=500, detail="打开失败：%s" % exc)
+        raise ApiError(500, "sys.openFailed", "打开失败：%s" % exc, error=str(exc))
 
     return {"ok": True, "path": target}

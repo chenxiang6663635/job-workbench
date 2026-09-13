@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, FileText, Sparkles } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -18,12 +19,13 @@ export default function JobDetailView({
   onToggleDimension: (name: string) => void;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const gates = detail.card?.hardGates;
 
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
-        <ArrowLeft size={16} /> 返回岗位池
+        <ArrowLeft size={16} /> {t("job.backToPool")}
       </Button>
 
       <h2 className="text-lg font-semibold text-foreground">{detail.dir}</h2>
@@ -31,12 +33,16 @@ export default function JobDetailView({
       {gates && (gates.items.length > 0 || gates.conclusion) && (
         <Card className="p-5">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">资格硬门槛</span>
+            <span className="text-sm font-semibold text-foreground">
+              {t("job.hardGates")}
+            </span>
             <Badge variant={gateBadgeVariant(gates.conclusion)}>
-              {gates.conclusion ?? "待确认"}
+              {gates.conclusion ?? t("job.gatePending")}
             </Badge>
             {gates.reason && (
-              <span className="text-xs text-destructive">原因：{gates.reason}</span>
+              <span className="text-xs text-destructive">
+                {t("job.gateReason", { reason: gates.reason })}
+              </span>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -61,16 +67,16 @@ export default function JobDetailView({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <FileText size={16} className="text-primary" /> JD 原文
+            <FileText size={16} className="text-primary" /> {t("job.jdSource")}
           </div>
           <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-lg bg-background p-4 text-xs leading-relaxed text-muted-foreground">
-            {detail.jd ?? "（尚未保存 JD）"}
+            {detail.jd ?? t("job.jdMissing")}
           </pre>
         </Card>
 
         <Card className="p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Sparkles size={16} className="text-primary" /> 解析卡
+            <Sparkles size={16} className="text-primary" /> {t("job.parsedCard")}
           </div>
 
           {detail.card ? (
@@ -99,17 +105,20 @@ export default function JobDetailView({
 
               {detail.card.action && (
                 <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary">
-                  下一步：{detail.card.action}
+                  {t("job.nextStep", { action: detail.card.action })}
                 </p>
               )}
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-6 text-center">
-              <p className="text-sm text-muted-foreground">尚未生成解析卡</p>
+              <p className="text-sm text-muted-foreground">{t("job.cardMissing")}</p>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                评分由 AI 在 CodeBuddy 中完成（jd 工作流），写入{" "}
-                <code className="text-muted-foreground">解析卡.md</code>{" "}
-                后此处会自动展示四维度得分与档位。
+                {t("job.cardEmptyHint1")}{" "}
+                {/* 解析卡.md 是工作区里的真实文件名，不翻译。
+                    用 {"…"} 包成字符串字面量而不是裸文本：裸文本一律按硬编码文案拦
+                    （清单只放行字符串类命中），这样不翻的文件名也有个明确的写法。 */}
+                <code className="text-muted-foreground">{"解析卡.md"}</code>{" "}
+                {t("job.cardEmptyHint2")}
               </p>
             </div>
           )}

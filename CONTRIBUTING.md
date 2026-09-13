@@ -136,6 +136,17 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 注意：产品侧 `CONTRIBUTING` 明确不做 Playwright **E2E 测试**（见下节），那是"把 UI 自动化
 写进 CI/测试套件"的取舍；开发时**用 Playwright 手动点一次页面做验证**不属此列，不受限。
 
+## 文案与 i18n（界面文字一律走 t()）
+
+- **界面文案一律走 `t()`**：key 加进 `web/frontend/src/i18n/locales/zh-CN.ts`（源语言，key 的单一真值）；`en.ts` 用 `satisfies Record<TranslationKey, string>` 在**编译期**钉住两边 key 集合一致——多一个、少一个、拼错一个都直接报错（不靠人盯）。
+- **四类不翻**：代码注释（中文注释是本项目文档惯例）；领域数据（阶段 / 批次 / 轮次 / 方向 / 终态枚举、CSV 列名、接口中文字段名——它们与 `tools/tracker.py` 和工作区文件是同一套字面量，翻了就与历史数据、CLI 对不上）；用户自己的内容；工作区里的真实文件名与目录名（保留原样，或拆 key 把它夹在中间）。
+- **容器组件的文案由调用方传**：如 `FormField` 的 label/hint——组件自身写死一句默认中文同样算硬编码（`emptyLabel ?? t("…")` 才是对的写法）。
+- **模块级常量表里不能调 `t()`**：改成存 `labelKey: TranslationKey`（`import type { TranslationKey }`）——类型标注是编译期护栏，渲染处再 `t()`。
+- **后端错误不猜语言**：抛 `ApiError(status, code, detail, **params)`（`web/backend/apierror.py`），`detail` 保留中文原文（调试与 issue 都读它），界面文案由前端按 `err.<code>` 查语言包，查不到回落 detail。code 命名 `<域>.<语义>`，**同一语义必须复用同一 code**；用户可见的动态值（阶段名、目录名、id）走 `params`，不要在文案里写死。
+- **自动检查**：`python tools/check_i18n_hardcode.py`（CI 跑，本地随手可跑；命中即拦）。它一起查三类问题，共同点是**漏了界面都会直接显示 key 名或中文**，而 tsc 与 lint 全都看不见：① 硬编码中文；② 复数 key 漏传 `count`；③ `t()` 里的 key 不存在。
+- **放行数据类命中**：登记进 `tools/i18n_hardcode_allowlist.txt`：`路径 = 片段1|片段2  # 理由`。**只放行列出来的片段，不整文件放行**——整文件豁免曾让一个已翻译文件里藏的 4 处漏翻（列头、差异标签、按钮 tooltip）全绿通过。清单是"现状存档"：某句中文翻掉了、文件删了，必须同步删，否则脚本报「片段已不再出现 / 文件已无命中」（留着会给将来的同名中文预授权）。重新生成草稿：`python tools/check_i18n_hardcode.py --print-allowlist`，理由要人写。
+- **验证**：改动前端后跑 `npx tsc -b` + `npx eslint .`；`npm run build` 交给 CI（本地 vite 会重写 `dist/` 的数百个文件）。
+
 ## 代码卫生（借鉴反屎山清单，精简为四人条款）
 
 写代码时自查，PR 自审时复核：

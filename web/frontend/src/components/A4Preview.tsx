@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 
 /**
@@ -18,7 +19,7 @@ export const A4_HEIGHT = 1123;
 export function A4Preview({
   html,
   src,
-  title = "简历预览",
+  title,
   onHeight,
   className,
 }: {
@@ -26,11 +27,13 @@ export function A4Preview({
   html?: string;
   /** 或外部地址（模板文件浏览） */
   src?: string;
+  /** iframe 的无障碍标题；不传则用默认文案（调用方可按场景覆盖） */
   title?: string;
   /** 内容真实高度回调（用于防超页护栏计算） */
   onHeight?: (height: number) => void;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [contentH, setContentH] = useState(A4_HEIGHT);
   const [scale, setScale] = useState(1);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -86,7 +89,7 @@ export function A4Preview({
           style={{ width: A4_WIDTH, transform: `scale(${scale})`, transformOrigin: "top left" }}
         >
           <iframe
-            title={title}
+            title={title ?? t("a4.previewTitle")}
             srcDoc={html}
             src={html ? undefined : src}
             className="w-full border-0"
@@ -105,7 +108,7 @@ export function A4Preview({
       </div>
       {scale < 1 && (
         <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
-          预览已缩放至 {Math.round(scale * 100)}%（布局与生成 PDF 一致）
+          {t("a4.scaledNotice", { percent: Math.round(scale * 100) })}
         </p>
       )}
     </div>

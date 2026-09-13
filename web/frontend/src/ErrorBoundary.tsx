@@ -1,6 +1,9 @@
 import { Component, type ReactNode } from "react";
+import { withTranslation, type WithTranslation } from "react-i18next";
 
-interface Props {
+// 崩溃兜底必须是 class 组件（要实现 getDerivedStateFromError），用不了 useTranslation
+// ——改用 withTranslation 注入 t，这样切语言时这层文案也跟着更新，而不是卡在旧语言。
+interface Props extends WithTranslation {
   children: ReactNode;
 }
 
@@ -13,7 +16,7 @@ interface State {
  * 深色主题下只剩纯背景——用户看到的就是"黑屏"，且无任何线索。
  * 有此边界后，崩溃会显示具体错误与恢复按钮。
  */
-export default class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
@@ -24,7 +27,9 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6">
-          <p className="text-sm font-semibold text-destructive">页面渲染出错</p>
+          <p className="text-sm font-semibold text-destructive">
+            {this.props.t("error.renderFailed")}
+          </p>
           <p className="mt-2 font-mono text-xs leading-relaxed text-foreground">
             {this.state.error.message}
           </p>
@@ -33,13 +38,13 @@ export default class ErrorBoundary extends Component<Props, State> {
               onClick={() => this.setState({ error: null })}
               className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              重试
+              {this.props.t("common.retry")}
             </button>
             <button
               onClick={() => window.location.reload()}
               className="cursor-pointer rounded-lg border border-border-strong px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary/60"
             >
-              强制刷新（清除缓存）
+              {this.props.t("error.forceReload")}
             </button>
           </div>
         </div>
@@ -48,3 +53,8 @@ export default class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+// 先赋名再导出：直接 `export default withTranslation()(ErrorBoundary)` 会让
+// react-refresh 报「anonymous component」警告，而前端门禁要求零警告。
+const TranslatedErrorBoundary = withTranslation()(ErrorBoundary);
+export default TranslatedErrorBoundary;

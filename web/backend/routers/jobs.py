@@ -19,12 +19,13 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import atomicio
 import jd_score
 import tracker
+from apierror import ApiError
 from deps import DIR_JOBS, DIR_TRACKING, safe_join, workspace_dir
 from filelock import file_lock
 
@@ -55,10 +56,11 @@ def _dir_name(company: str, role: str) -> str:
     name = ("%s_%s" % (company.strip(), role.strip())).strip()
     bad = [c for c in name if c in INVALID_DIR_CHARS or ord(c) < 32]
     if bad:
-        raise HTTPException(status_code=422,
-                            detail="公司或岗位名含非法字符: %s" % "".join(sorted(set(bad))))
+        raise ApiError(422, "job.nameInvalid",
+                       "公司或岗位名含非法字符: %s" % "".join(sorted(set(bad))),
+                       chars="".join(sorted(set(bad))))
     if not name or name.strip(". ") in ("", ".", ".."):
-        raise HTTPException(status_code=422, detail="目录名不能为空或纯点号")
+        raise ApiError(422, "job.nameEmpty", "目录名不能为空或纯点号")
     return name
 
 
@@ -306,22 +308,22 @@ def list_jobs(sort: str = "dir", order: str = None, status: str = None,
 @router.post("")
 def create_job(job: NewJob, ws: str = Depends(workspace_dir)):
     if not job.公司.strip() or not job.岗位.strip():
-        raise HTTPException(status_code=422, detail="公司与岗位不能为空")
+        raise ApiError(422, "job.companyRoleRequired", "公司与岗位不能为空")
     if not job.JD文本.strip():
-        raise HTTPException(status_code=422, detail="JD 文本不能为空")
+        raise ApiError(422, "job.jdRequired", "JD 文本不能为空")
 
     name = _dir_name(job.公司, job.岗位)
     job_dir = safe_join(ws, DIR_JOBS, name)
 
     if os.path.exists(job_dir):
-        raise HTTPException(status_code=409, detail="岗位已存在: %s" % name)
+        raise ApiError(409, "job.exists", "岗位已存在: %s" % name, name=name)
 
     lock_path = safe_join(ws, DIR_JOBS, ".jobs.lock")
     os.makedirs(safe_join(ws, DIR_JOBS), exist_ok=True)
 
     with file_lock(lock_path):
         if os.path.exists(job_dir):  # 双检：并发下同名
-            raise HTTPException(status_code=409, detail="岗位已存在: %s" % name)
+            raise ApiError(409, "job.exists", "岗位已存在: %s" % name, name=name)
         os.makedirs(job_dir)
         with io.open(os.path.join(job_dir, JD_FILE), "w", encoding="utf-8", newline="") as f:
             f.write("# %s %s\n\n%s\n" % (job.公司.strip(), job.岗位.strip(), job.JD文本.strip()))
@@ -384,9 +386,9 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
     company = (item.公司 or "").strip()
     role = (item.岗位 or "").strip()
     if not company or not role:
-        raise HTTPException(status_code=422, detail="公司与岗位不能为空")
+        raise ApiError(422, "job.companyRoleRequired", "公司与岗位不能为空")
     if not (url.startswith("http://") or url.startswith("https://")):
-        raise HTTPException(status_code=422, detail="请填写 http(s) 开头的完整链接")
+        raise ApiError(422, "job.urlInvalid", "请填写 http(s) 开头的完整链接")
 
     req = urllib.request.Request(url, headers={
         # 部分站点对默认 UA 直接返回 403，伪装成普通浏览器
@@ -399,20 +401,25 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
             content_type = resp.headers.get("Content-Type", "")
             raw = resp.read(FETCH_MAX_BYTES)
     except urllib.error.HTTPError as exc:
-        raise HTTPException(status_code=502,
-                            detail="页面返回 %s（可能需要登录或有反爬），请手动粘贴 JD" % exc.code)
+        raise ApiError(502, "job.fetchHttpError",
+                       "页面返回 %s（可能需要登录或有反爬），请手动粘贴 JD" % exc.code,
+                       status=str(exc.code))
     except urllib.error.URLError as exc:
-        raise HTTPException(status_code=502,
-                            detail="抓不到这个链接：%s，请手动粘贴 JD" % exc.reason)
+        raise ApiError(502, "job.fetchUnreachable",
+                       "抓不到这个链接：%s，请手动粘贴 JD" % exc.reason,
+                       reason=str(exc.reason))
     except Exception as exc:  # noqa: BLE001 - 网络异常种类太多，统一降级
-        raise HTTPException(status_code=502,
-                            detail="抓取失败：%s，请手动粘贴 JD" % exc)
+        raise ApiError(502, "job.fetchFailed",
+                       "抓取失败：%s，请手动粘贴 JD" % exc, error=str(exc))
 
     text = _html_to_text(_decode(raw, content_type))
     if len(text) < JD_MIN_CHARS:
-        raise HTTPException(
-            status_code=422,
-            detail="只抓到 %d 字（可能需登录或由 JS 渲染），不足以当作 JD，请手动粘贴" % len(text))
+        raise ApiError(
+            422, "job.fetchTooShort",
+            "只抓到 %d 字（可能需登录或由 JS 渲染），不足以当作 JD，请手动粘贴" % len(text),
+            # 参数名别用 count：那是 i18next 的保留插值名，会触发复数解析
+            # （去查 err.xxx_other），文案得靠回落才显示得出来——改了名才是稳的
+            chars=len(text))
 
     name = _dir_name(company, role)
     job_dir = safe_join(ws, DIR_JOBS, name)
@@ -436,7 +443,7 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
 def job_detail(job_id: str, ws: str = Depends(workspace_dir)):
     job_dir = safe_join(ws, DIR_JOBS, job_id)
     if not os.path.isdir(job_dir):
-        raise HTTPException(status_code=404, detail="岗位不存在: %s" % job_id)
+        raise ApiError(404, "job.notFound", "岗位不存在: %s" % job_id, id=job_id)
 
     jd = _read(os.path.join(job_dir, JD_FILE))
     card_raw = _read(os.path.join(job_dir, CARD_FILE))
@@ -459,7 +466,7 @@ def job_gap(job_id: str, ws: str = Depends(workspace_dir), resume: str = None):
     """
     job_dir = safe_join(ws, DIR_JOBS, job_id)
     if not os.path.isdir(job_dir):
-        raise HTTPException(status_code=404, detail="岗位不存在: %s" % job_id)
+        raise ApiError(404, "job.notFound", "岗位不存在: %s" % job_id, id=job_id)
 
     # 差距分析只依赖 JD 原文（gap_analysis 用其目录定位），解析卡不必须——
     # 新建岗位尚无解析卡时也应能看差距
@@ -474,12 +481,11 @@ def job_gap(job_id: str, ws: str = Depends(workspace_dir), resume: str = None):
             if f.startswith("resume_") and f.endswith(".json")
         ] if os.path.isdir(source_dir) else []
         if not versions:
-            raise HTTPException(
-                status_code=404,
-                detail="简历工坊里还没有任何版本，先在简历工坊创建一个")
+            raise ApiError(404, "job.resumeVersionMissing",
+                           "简历工坊里还没有任何版本，先在简历工坊创建一个")
         version = versions[-1]
 
     result, errors = jd_score.gap_analysis(ws, card, version)
     if result is None:
-        raise HTTPException(status_code=422, detail="；".join(errors))
+        raise ApiError(422, "job.gapFailed", "；".join(errors), errors="；".join(errors))
     return dict(result, resumeVersion=version, warnings=errors)

@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { abilityBadgeVariant, evidenceBadgeVariant } from "./badgeVariants";
 import type { JobDetail } from "../api";
+import { useTranslation } from "react-i18next";
 
 /**
  * 解析卡的单个维度行（可展开看逐条命中依据）。
@@ -20,6 +21,7 @@ export default function DimensionRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useTranslation();
   const panelId = useId();
   const hits = detail?.dimensionsDetail[dimension.name]?.hits ?? [];
   const raw = detail?.dimensionsDetail[dimension.name]?.raw ?? [];
@@ -60,7 +62,7 @@ export default function DimensionRow({
               {hits.map((h, i) => (
                 <li key={i} className="flex items-start gap-2 text-xs">
                   <Badge variant={abilityBadgeVariant(h.level)} className="mt-0.5 shrink-0">
-                    {h.level ?? "明细"}
+                    {h.level ?? t("dim.fallbackLevel")}
                   </Badge>
                   <span className="flex-1 text-muted-foreground">
                     {h.label}
@@ -85,7 +87,7 @@ export default function DimensionRow({
             </ul>
           )}
           {!detail?.dimensionsDetail[dimension.name] && (
-            <p className="text-xs text-muted-foreground">暂无该维度的逐条依据</p>
+            <p className="text-xs text-muted-foreground">{t("dim.noEvidence")}</p>
           )}
         </div>
       )}

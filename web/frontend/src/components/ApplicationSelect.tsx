@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { useTranslation } from "react-i18next";
 
 /** Radix Select 不接受空串值，用哨兵表示「不关联」 */
 const NONE = "__none__";
@@ -19,13 +20,14 @@ const NONE = "__none__";
 export function ApplicationSelect({
   value,
   onPick,
-  emptyLabel = "不关联",
+  emptyLabel,
 }: {
   /** 当前关联的投递 id，空串表示不关联 */
   value: string;
   onPick: (app: Application | null) => void;
   emptyLabel?: string;
 }) {
+  const { t } = useTranslation();
   const [apps, setApps] = useState<Application[]>([]);
   const loaded = useRef(false);
 
@@ -35,7 +37,8 @@ export function ApplicationSelect({
     api
       .listApplications({})
       .then((r) => setApps(r.items))
-      .catch((e: Error) => console.error("加载投递记录失败", e));
+      // 控制台日志不是界面文案：保持英文，避免被「残余硬编码中文」检查误伤
+      .catch((e: Error) => console.error("listApplications failed", e));
   };
 
   // 非空初值（编辑既有记录）时也要能显示「id · 公司 岗位」，而不是裸 id
@@ -56,7 +59,7 @@ export function ApplicationSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE}>{emptyLabel}</SelectItem>
+        <SelectItem value={NONE}>{emptyLabel ?? t("form.linkAppNone")}</SelectItem>
         {apps.map((a) => (
           <SelectItem key={a.id} value={a.id}>
             {a.id} · {a.公司} {a.岗位}

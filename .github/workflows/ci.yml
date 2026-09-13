@@ -30,6 +30,12 @@ jobs:
       - name: 校验 skills（合规 + 无重名）
         run: python tools/check_skills.py
 
+      # 界面文案的硬编码检查：i18n 抽完之后，这一条没有别的机制能拦——新增页面
+      # 一个字没翻译，lint 与 tsc 都是绿的，只有英文用户点进去才会发现。
+      # 与 pytest 共用同一实现（tools/check_i18n_hardcode.py），口径只有一处。
+      - name: 校验界面硬编码中文
+        run: python tools/check_i18n_hardcode.py
+
   frontend:
     name: 前端构建（lint + tsc + vite）
     runs-on: ubuntu-latest

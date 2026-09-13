@@ -19,6 +19,21 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // 变量/常量在声明前使用 = 运行期 TDZ 崩溃（`Cannot access 'status' before
+      // initialization`）。tsc 与默认 lint 都不查这个，只有真正打开那一页才会炸
+      // ——2026-09-12 的冒烟在岗位池页实测（Jobs.tsx 把 statusLabelKey 放在了
+      // status 声明之前）。函数声明不受影响：提升是合法的。
+      '@typescript-eslint/no-use-before-define': [
+        'error',
+        {
+          functions: false,
+          classes: false,
+          variables: true,
+          enums: true,
+          typedefs: false,
+          ignoreTypeReferences: true,
+        },
+      ],
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

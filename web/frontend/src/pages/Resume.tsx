@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FileCheck,
   FileDown,
@@ -54,6 +55,7 @@ function emptyData(): ResumeData {
 }
 
 export default function Resume() {
+  const { t } = useTranslation();
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [version, setVersion] = useState("");
   const [data, setData] = useState<ResumeData | null>(null);
@@ -152,7 +154,7 @@ export default function Resume() {
   const createVersion = () => {
     const name = newName.trim();
     if (!VERSION_RE.test(name)) {
-      setError("版本名只能含字母、数字、-、_");
+      setError(t("resume.versionNameInvalid"));
       return;
     }
     setCreatingBusy(true);
@@ -204,10 +206,10 @@ export default function Resume() {
       <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
         <TabsList>
           <TabsTrigger value="std" className="gap-1.5">
-            <PenLine size={16} /> 标准版式
+            <PenLine size={16} /> {t("resume.modeStd")}
           </TabsTrigger>
           <TabsTrigger value="advanced" className="gap-1.5">
-            <LayoutTemplate size={16} /> 高级模板
+            <LayoutTemplate size={16} /> {t("resume.modeAdvanced")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -219,14 +221,14 @@ export default function Resume() {
             onClick={() => setShowImport(true)}
             className="ml-auto border-dashed"
           >
-            <FileUp size={15} /> 导入简历
+            <FileUp size={15} /> {t("resume.importResume")}
           </Button>
           <Button
             variant="outline"
             onClick={() => setCreating(true)}
             className="border-dashed"
           >
-            <FilePlus2 size={15} /> 新建版本
+            <FilePlus2 size={15} /> {t("resume.newVersion")}
           </Button>
         </>
       )}
@@ -239,12 +241,12 @@ export default function Resume() {
             onKeyDown={(e) => {
               if (e.key === "Enter") createVersion();
             }}
-            placeholder="版本名，如 hvac / datacenter"
+            placeholder={t("resume.phVersionName")}
             className="w-56"
           />
           <Button onClick={createVersion} disabled={creatingBusy}>
             {creatingBusy ? <Loader2 size={14} className="animate-spin" /> : null}
-            {creatingBusy ? "创建中…" : "创建"}
+            {creatingBusy ? t("resume.creating") : t("resume.create")}
           </Button>
           <Button
             variant="ghost"
@@ -253,7 +255,7 @@ export default function Resume() {
               setNewName("");
             }}
           >
-            取消
+              {t("common.cancel")}
           </Button>
         </div>
       )}
@@ -277,10 +279,10 @@ export default function Resume() {
         {modeBar}
         <Card className="border-dashed p-10 text-center">
           <FileText size={28} className="mx-auto mb-3 text-muted-foreground" />
-          <p className="text-base font-medium text-foreground">还没有标准版式简历数据</p>
+          <p className="text-base font-medium text-foreground">{t("resume.emptyTitle")}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            点右上角「新建版本」直接开始编辑，不用手工去文件系统放 JSON。
-            手写 HTML 的精排版在「高级模板」里浏览与生成。
+            {t("resume.emptyHint1")}
+            {t("resume.emptyHint2")}
           </p>
         </Card>
         {importDialog}
@@ -296,7 +298,7 @@ export default function Resume() {
       <div className="flex flex-wrap items-center gap-3">
         <Select value={version} onValueChange={setVersion}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="选择版本" />
+            <SelectValue placeholder={t("resume.selectVersion")} />
           </SelectTrigger>
           <SelectContent>
             {versions.map((v) => (
@@ -308,24 +310,24 @@ export default function Resume() {
         </Select>
 
         <Button variant="outline" onClick={save} disabled={saving}>
-          <Save size={15} /> {saving ? "保存中…" : "保存"}
+          <Save size={15} /> {saving ? t("common.saving") : t("common.save")}
         </Button>
 
         <Button
           onClick={build}
           disabled={building || overflowLines > 0}
-          title={overflowLines > 0 ? "内容超出一页，先精简再生成" : "生成 PDF 并校验"}
+          title={t(overflowLines > 0 ? "resume.buildBlocked" : "resume.buildTitle")}
         >
           {building ? <Loader2 size={15} className="animate-spin" /> : <FileCheck size={15} />}
-          {building ? "生成中…" : "生成 PDF"}
+          {building ? t("resume.building") : t("resume.buildPdf")}
         </Button>
 
         <Button
           variant="outline"
           onClick={() => setShowRewrite(true)}
-          title="AI 只改写既有事实的表述，反编造校验不过不能采用"
+          title={t("resume.rewriteTitle")}
         >
-          <PenLine size={15} /> AI 改写
+          <PenLine size={15} /> {t("resume.aiRewrite")}
         </Button>
 
         {/* Word 版定位是「文本搬运」：方便网申系统粘贴。零依赖 .doc，
@@ -334,13 +336,13 @@ export default function Resume() {
           <a
             href={api.resumeDocUrl(version)}
             download
-            title="Word 版只保证文本可复制，排版以 PDF 为准"
+            title={t("resume.wordTitle")}
           >
-            <FileDown size={15} /> 导出 Word
+            <FileDown size={15} /> {t("resume.exportWord")}
           </a>
         </Button>
         <span className="text-[11px] text-muted-foreground/70">
-          Word 版只保证文本可复制，排版以 PDF 为准
+          {t("resume.wordTitle")}
         </span>
       </div>
 
@@ -350,9 +352,9 @@ export default function Resume() {
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2">
             <ShieldAlert size={15} className="mt-0.5 shrink-0 text-warning" />
             <p className="text-xs leading-relaxed text-muted-foreground">
-              内容来自事实库。改动只限于求职方向、概况、技能顺序与项目表述，
-              <span className="text-warning">项目事实一个字都不要改</span>——
-              每个动词都要经得起五到十分钟的追问。此处不提供一键美化。
+              {t("resume.stdNote1")}
+              <span className="text-warning">{t("resume.stdNote2")}</span>
+              {t("resume.stdNote3")}
             </p>
           </div>
           {data ? (
@@ -371,7 +373,7 @@ export default function Resume() {
           {overflowLines > 0 && (
             <ErrorBanner
               tone="warning"
-              message={`已超出约 ${overflowLines} 行，请先精简内容再生成 PDF`}
+              message={t("resume.overflowMsg", { lines: overflowLines })}
             />
           )}
 
@@ -380,7 +382,7 @@ export default function Resume() {
           {html ? (
             <A4Preview
               html={html}
-              title="简历预览"
+              title={t("a4.previewTitle")}
               onHeight={(h) => setOverflowPx(Math.max(0, h - A4_HEIGHT))}
             />
           ) : (
@@ -397,7 +399,7 @@ export default function Resume() {
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-semibold text-foreground">
-                  {result.passed ? "生成成功，ATS 校验通过" : "生成完成，校验未通过"}
+                  {result.passed ? t("resume.buildOk") : t("resume.buildFailed")}
                 </span>
                 <span className="font-mono text-xs text-muted-foreground">
                   {(result.size / 1024).toFixed(1)} KB
@@ -405,7 +407,7 @@ export default function Resume() {
               </div>
               <ul className="space-y-1 text-xs">
                 <li className="flex items-center justify-between">
-                  <span className="text-muted-foreground">纸型</span>
+                  <span className="text-muted-foreground">{t("resume.paperSize")}</span>
                   <span className={result.a4.ok ? "text-success" : "text-destructive"}>
                     {result.a4.message}
                   </span>
@@ -425,8 +427,8 @@ export default function Resume() {
               </ul>
               {!result.passed && (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  未通过时不要归档投递。删减原则：先删装饰性内容，
-                  绝不删核心成果与可验证数字。
+                  {t("resume.atsHint1")}
+                  {t("resume.atsHint2")}
                 </p>
               )}
             </Card>

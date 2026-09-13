@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -24,6 +25,7 @@ export function ErrorBanner({
   tone?: "error" | "warning" | "success";
   className?: string;
 }) {
+  const { t } = useTranslation();
   const { cls, Icon, role } = TONES[tone];
   return (
     <div
@@ -36,7 +38,7 @@ export function ErrorBanner({
         <button
           type="button"
           onClick={onClose}
-          aria-label="关闭提示"
+          aria-label={t("common.close")}
           className="cursor-pointer text-current opacity-70 transition-opacity hover:opacity-100"
         >
           <X size={14} />

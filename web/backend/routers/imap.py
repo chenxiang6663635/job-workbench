@@ -24,10 +24,11 @@ import os
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import imap_fetch
+from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
 from filelock import file_lock
@@ -109,9 +110,9 @@ def _resolve_host(cfg):
     """host 留空时按邮箱域名推断；推断不出就明确让人话报错。"""
     host = cfg["host"] or imap_fetch.guess_server(cfg["user"])
     if not host:
-        raise HTTPException(
-            status_code=400,
-            detail="IMAP 服务器地址为空且无法按邮箱域名推断：请在设置里手填服务器地址")
+        raise ApiError(
+            400, "imap.hostUnknown",
+            "IMAP 服务器地址为空且无法按邮箱域名推断：请在设置里手填服务器地址")
     return host
 
 
@@ -133,7 +134,7 @@ class SaveImap(BaseModel):
 def save_imap(body: SaveImap, ws: str = Depends(workspace_dir)):
     """保存 IMAP 配置。password 传空则保留原值（前端不来回传完整凭证）。"""
     if not (1 <= body.port <= 65535):
-        raise HTTPException(status_code=422, detail="端口需在 1–65535 之间")
+        raise ApiError(422, "imap.portRange", "端口需在 1–65535 之间")
 
     path = _config_path(ws)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -163,9 +164,9 @@ def test_imap(ws: str = Depends(workspace_dir)):
     """
     cfg = _read_config(_config_path(ws))
     if not cfg["user"]:
-        raise HTTPException(status_code=400, detail="请先保存邮箱地址")
+        raise ApiError(400, "imap.needEmail", "请先保存邮箱地址")
     if not cfg["password"]:
-        raise HTTPException(status_code=400, detail="请先保存 IMAP 授权码")
+        raise ApiError(400, "imap.needPassword", "请先保存 IMAP 授权码")
 
     host = _resolve_host(cfg)
     folder = cfg["folder"] or imap_fetch.DEFAULT_FOLDER
@@ -173,13 +174,15 @@ def test_imap(ws: str = Depends(workspace_dir)):
         count = imap_fetch.test_connection(
             host, cfg["user"], cfg["password"], cfg["port"], folder)
     except imap_fetch.ImapFetchError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise ApiError(502, "imap.testFailed", str(exc), error=str(exc))
 
     return {
         "ok": True,
         "server": host,
         "folder": folder,
         "messageCount": count,
+        # note 是给人看的展示句，界面语言该由渲染方决定：前端用
+        # settings.imapTestNote 自己渲染，这里保留字段只为不破坏既有响应契约。
         "note": "只读连接成功；本次测试没有读取、修改或删除任何邮件。",
     }
 
@@ -201,9 +204,9 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
     """
     cfg = _read_config(_config_path(ws))
     if not cfg["user"]:
-        raise HTTPException(status_code=400, detail="请先在设置里配置邮箱地址")
+        raise ApiError(400, "imap.needEmail", "请先在设置里配置邮箱地址")
     if not cfg["password"]:
-        raise HTTPException(status_code=400, detail="请先在设置里配置 IMAP 授权码")
+        raise ApiError(400, "imap.needPassword", "请先在设置里配置 IMAP 授权码")
 
     host = _resolve_host(cfg)
     folder = (body.folder or cfg["folder"] or imap_fetch.DEFAULT_FOLDER).strip()
@@ -214,7 +217,7 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
             host, cfg["user"], cfg["password"], cfg["port"], folder,
             body.limit, since_days)
     except imap_fetch.ImapFetchError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise ApiError(502, "imap.fetchFailed", str(exc), error=str(exc))
 
     return {
         "messages": messages,

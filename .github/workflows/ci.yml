@@ -60,6 +60,15 @@ jobs:
         working-directory: web/frontend
         run: npm run lint
 
+      # Electron 主进程是零测试覆盖区（桌面端没有 E2E），能纯函数化的部分
+      # 就靠这两条兜住：① 缩放上下限与按键映射（zoom.js）零依赖单测；
+      # ② 打包白名单守卫——新增模块忘了加进 build.files 时，源码形态照跑、
+      # 安装版启动即崩，只有这条检查能在合并前发现。
+      - name: Electron 主进程自检（缩放逻辑 + 打包白名单）
+        run: |
+          node web/electron/zoom.test.js
+          node web/electron/check_packaging.js
+
       - name: 构建
         working-directory: web/frontend
         run: npm run build

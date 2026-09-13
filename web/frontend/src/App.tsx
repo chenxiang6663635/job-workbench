@@ -120,20 +120,23 @@ export default function App() {
       <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-hero-glow" />
 
       <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
-          <div className="flex items-center gap-2">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-6">
+          <div className="flex shrink-0 items-center gap-2">
             <img src="/favicon.png" alt={t("app.title")} className="h-7 w-7 rounded-lg" />
-            <span className="text-sm font-semibold tracking-wide text-foreground">
+            <span className="whitespace-nowrap text-sm font-semibold tracking-wide text-foreground">
               {t("app.title")}
             </span>
           </div>
 
-          <div className="flex items-center gap-1">
+          {/* 导航条：英文标签比中文长 2–4 倍，此前被 flex 压窄后折行（按钮高 36→56px）。
+              现在禁止收缩与换行；宽度真不够时让这一条自己横向滚动，而不是把标签折成两行。 */}
+          <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
             {TABS.map((item) => (
               <button
                 key={item.key}
                 onClick={() => switchTab(item.key)}
-                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-all duration-200 ease-premium ${
+                aria-current={tab === item.key ? "page" : undefined}
+                className={`flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm transition-all duration-200 ease-premium ${
                   tab === item.key
                     ? "bg-primary/15 text-primary shadow-glow-primary"
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -145,7 +148,7 @@ export default function App() {
             ))}
           </div>
 
-          <div className="ml-auto flex items-center gap-3 text-xs">
+          <div className="ml-auto flex shrink-0 items-center gap-2 text-xs">
             {/* 语言切换：只有 zh-CN / en 两态，用分段按钮比下拉更省一次点击 */}
             <div
               className="flex items-center rounded-lg border border-border p-0.5"
@@ -170,10 +173,11 @@ export default function App() {
             {workspaces.length > 0 && (
               <Select value={currentWs} onValueChange={switchWorkspace}>
                 <SelectTrigger
-                  className="h-7 w-36 px-2 py-1 text-xs"
+                  className="h-7 w-28 overflow-hidden px-2 py-1 text-xs"
                   title={t("nav.switchWorkspaceTitle")}
                 >
-                  <SelectValue placeholder={t("nav.workspacePlaceholder")} />
+                  {/* 工作区名是用户数据（可能很长）：宁可省略号截断，也不要撑破顶栏 */}
+                  <SelectValue className="truncate" placeholder={t("nav.workspacePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {workspaces.map((w) => (
@@ -187,6 +191,7 @@ export default function App() {
             )}
 
             <span
+              aria-hidden="true"
               className={`h-2 w-2 rounded-full ${
                 online === null
                   ? "bg-muted-foreground/50"
@@ -195,7 +200,15 @@ export default function App() {
                   : "bg-destructive ring-2 ring-destructive/30"
               }`}
             />
-            <span className="text-muted-foreground">
+            {/* 可见文案按顶栏宽度取短（Connected / 已连接），完整语义走 aria-label + title：
+                title 对键盘与触屏不可达，所以语义必须挂在会读的那个元素上 */}
+            <span
+              role="status"
+              aria-live="polite"
+              aria-label={t("status.localDataHint")}
+              title={t("status.localDataHint")}
+              className="whitespace-nowrap text-muted-foreground"
+            >
               {online === null
                 ? t("status.connecting")
                 : online

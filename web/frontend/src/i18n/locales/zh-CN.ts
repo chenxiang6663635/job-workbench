@@ -19,8 +19,10 @@ const zhCN = {
   "nav.switchWorkspaceTitle": "切换工作区",
 
   "status.connecting": "连接中",
-  "status.online": "已连接本地数据",
+  "status.online": "已连接",
   "status.offline": "后端未启动",
+  // 顶栏状态点只有一格宽：短标签 + 完整语义放 title（悬停可见，读屏也能读到）
+  "status.localDataHint": "已连接本地数据：不发请求、不上传任何内容",
   "error.backend": "无法连接到后端（localhost:8765）",
   "error.backendHint": "请在仓库根目录运行：",
   "error.renderFailed": "页面渲染出错",

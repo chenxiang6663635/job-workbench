@@ -8,6 +8,7 @@
 3. 会话纪律：失败也要 logout、凭证缺失在连接前就拦住、错误消息不含凭证。
 """
 
+import imaplib
 import os
 import re
 import socket
@@ -317,3 +318,41 @@ def test_ssl_context_insecure_downgrade_is_explicit(monkeypatch):
     ctx = imap_fetch._ssl_context()
     assert ctx.verify_mode == ssl.CERT_NONE
     assert ctx.check_hostname is False
+
+
+def test_connect_passes_ssl_context_to_imaplib(monkeypatch):
+    """钉住接线：_connect 必须把 _ssl_context() 的产物传给 IMAP4_SSL。
+
+    其余测试的 fake fixture 直接替换 _connect，若这里的接线断了不会被
+    任何测试发现——严格校验就形同虚设。
+    """
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    monkeypatch.setattr(ssl, "create_default_context", lambda: ctx)
+    monkeypatch.setattr(imap_fetch, "_probe_tcp", lambda host, port: None)
+    captured = {}
+
+    def _fake_imap_ssl(host, port, ssl_context=None):
+        captured["ssl_context"] = ssl_context
+        return object()
+
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", _fake_imap_ssl)
+    imap_fetch._connect("host", 993)
+    assert captured["ssl_context"] is ctx
+
+
+def test_certificate_verify_failure_gets_its_own_message(monkeypatch):
+    """证书不被信任 ≠ 地址写错：消息必须分开，且不给降级出口。"""
+    monkeypatch.setattr(imap_fetch, "_probe_tcp", lambda host, port: None)
+    # 本机证书库损坏会让 _ssl_context 先崩——这里要测的是 _connect 对
+    # 「证书校验失败」的包装，所以给它一个能建出来的上下文
+    monkeypatch.setattr(ssl, "create_default_context",
+                        lambda: ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
+
+    def _raise_verify_failed(host, port, ssl_context=None):
+        raise ssl.SSLCertVerificationError("CERTIFICATE_VERIFY_FAILED")
+
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", _raise_verify_failed)
+    with pytest.raises(imap_fetch.ImapFetchError) as ei:
+        imap_fetch._connect("host", 993)
+    assert "证书校验失败" in str(ei.value)
+    assert "JOBWS_IMAP_TLS" not in str(ei.value)

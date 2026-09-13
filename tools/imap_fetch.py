@@ -233,6 +233,12 @@ def _connect(host, port):
     try:
         conn = imaplib.IMAP4_SSL(host, port, ssl_context=_ssl_context())
     except ssl.SSLError as exc:
+        if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+            # 与「地址写错」是两回事：证书不被信任可能是自签名，也可能是劫持——
+            # 两条路的答案都不是关校验，所以消息里明确不给降级出口
+            raise ImapFetchError(
+                "证书校验失败：系统证书库不信任 %s 的证书（可能自签名，也可能被"
+                "劫持）。不要为它关闭校验。" % host)
         raise ImapFetchError(
             "TLS 握手失败：%s（检查服务器地址与端口，SSL 端口通常为 993）" % exc)
     except (socket.timeout, OSError) as exc:

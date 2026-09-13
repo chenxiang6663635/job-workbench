@@ -89,8 +89,6 @@ export default function Jobs() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const { t } = useTranslation();
-  // 当前筛选项是个 labelKey（模块级常量存不下翻译后的字符串）
-  const statusLabelKey = STATUS_ITEMS.find((s) => s.value === status)?.labelKey;
   const [draft, setDraft] = useState({ 公司: "", 岗位: "", JD文本: "" });
   // JD 链接抓取（第三批）：尽力而为，失败即明确降级提示手动粘贴
   const [jdUrl, setJdUrl] = useState("");
@@ -98,6 +96,11 @@ export default function Jobs() {
   const [sort, setSort] = useState<JobSort>("dir");
   const [order, setOrder] = useState<JobOrder>("asc");
   const [status, setStatus] = useState<JobStatus>("");
+  // 当前筛选项是个 labelKey（模块级常量存不下翻译后的字符串）。
+  // **必须放在 status 声明之后**：放前面会踩 TDZ（`Cannot access 'status' before
+  // initialization`），而 tsc 与 eslint 都拦不住——只有真正打开本页才会炸
+  // （2026-09-12 冒烟前实测）。
+  const statusLabelKey = STATUS_ITEMS.find((s) => s.value === status)?.labelKey;
   // 正在投递的岗位目录（按钮级 loading）：写追踪表是写操作，必须给出进行中反馈
   const [applying, setApplying] = useState<string | null>(null);
   // 一键投递的确认目标。「一键」省掉的是重填公司与岗位，不是省掉确认：

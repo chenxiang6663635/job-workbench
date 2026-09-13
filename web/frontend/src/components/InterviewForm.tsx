@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   api,
   INTERVIEW_FORMS,
@@ -92,58 +93,67 @@ function InterviewFields({
   set: <K extends keyof Draft>(k: K, v: Draft[K]) => void;
   onPick: (app: Application | null) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-2 gap-4">
-      <FormField label="关联投递记录（可选）" className="col-span-2">
-        <ApplicationSelect value={d.link} onPick={onPick} emptyLabel="不关联（如内推面试）" />
+      <FormField label={t("form.linkApp")} className="col-span-2">
+        <ApplicationSelect value={d.link} onPick={onPick} emptyLabel={t("form.linkAppNone")} />
       </FormField>
 
-      <FormField label={`公司${d.link ? "" : " *"}（选关联后自动带出）`}>
+      {/* 公司的必填标记与「自动带出」提示拼在 label 后面，不进 key */}
+      <FormField
+        label={
+          t("form.company") +
+          (d.link ? "" : t("form.requiredSuffix")) +
+          t("form.autofillHint")
+        }
+      >
         <Input value={d.company} onChange={(e) => set("company", e.target.value)} />
       </FormField>
-      <FormField label="岗位">
+      <FormField label={t("form.role")}>
         <Input value={d.role} onChange={(e) => set("role", e.target.value)} />
       </FormField>
-      <FormField label="轮次">
+      <FormField label={t("interview.round")}>
         <EnumSelect value={d.round} options={INTERVIEW_ROUNDS} onChange={(v) => set("round", v)} />
       </FormField>
-      <FormField label="面试时间">
+      <FormField label={t("interview.when")}>
         <Input type="datetime-local" value={d.when} onChange={(e) => set("when", e.target.value)} />
       </FormField>
-      <FormField label="形式">
+      <FormField label={t("interview.form")}>
         <EnumSelect value={d.form} options={INTERVIEW_FORMS} onChange={(v) => set("form", v)} />
       </FormField>
-      <FormField label="结果">
+      <FormField label={t("interview.result")}>
         <EnumSelect value={d.result} options={INTERVIEW_RESULTS} onChange={(v) => set("result", v)} />
       </FormField>
-      <FormField label="面试官" className="col-span-2">
+      <FormField label={t("interview.interviewerLabel")} className="col-span-2">
         <Input value={d.interviewer} onChange={(e) => set("interviewer", e.target.value)} />
       </FormField>
 
-      <FormField label="问题记录" className="col-span-2">
+      {/* 三段 label 与详情页表头是同一组文案（interview.section*） */}
+      <FormField label={t("interview.sectionQuestions")} className="col-span-2">
         <Textarea
           rows={3}
           value={d.questions}
           onChange={(e) => set("questions", e.target.value)}
-          placeholder="被问了什么？按问题逐条记"
+          placeholder={t("interview.questionsPlaceholder")}
           className="resize-y"
         />
       </FormField>
-      <FormField label="我的回答要点" className="col-span-2">
+      <FormField label={t("interview.sectionAnswers")} className="col-span-2">
         <Textarea
           rows={3}
           value={d.answers}
           onChange={(e) => set("answers", e.target.value)}
-          placeholder="当时怎么答的？只记要点"
+          placeholder={t("interview.answersPlaceholder")}
           className="resize-y"
         />
       </FormField>
-      <FormField label="复盘与改进" className="col-span-2">
+      <FormField label={t("interview.sectionRetro")} className="col-span-2">
         <Textarea
           rows={2}
           value={d.retro}
           onChange={(e) => set("retro", e.target.value)}
-          placeholder="下次怎么答得更好？复盘是面试记录里唯一能复利的部分"
+          placeholder={t("interview.retroPlaceholder")}
           className="resize-y"
         />
       </FormField>
@@ -158,6 +168,7 @@ export default function InterviewForm({
   onClose: () => void;
   onSaved: (row: Interview) => void;
 }) {
+  const { t } = useTranslation();
   const [d, setD] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +187,7 @@ export default function InterviewForm({
 
   const submit = () => {
     if (!d.link && !d.company.trim()) {
-      setError("未关联投递记录时，公司必填");
+      setError(t("form.companyRequiredError"));
       return;
     }
     setSaving(true);
@@ -208,14 +219,14 @@ export default function InterviewForm({
       <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6">
         <DialogHeader className="mb-5 flex-row items-center justify-between space-y-0">
           <div>
-            <DialogTitle>记录一场面试</DialogTitle>
+            <DialogTitle>{t("interview.formTitle")}</DialogTitle>
             {/* Radix 要求 DialogContent 有可读描述，否则开发态会告警 */}
             <DialogDescription className="mt-0.5">
-              问题、回答、复盘三段分开记——复盘是唯一能复利的部分
+              {t("interview.formDesc")}
             </DialogDescription>
           </div>
           <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.closeAction")}>
               <X size={16} />
             </Button>
           </DialogClose>
@@ -227,10 +238,10 @@ export default function InterviewForm({
 
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving ? "保存中…" : "保存"}
+            {saving ? t("common.saving") : t("common.save")}
           </Button>
         </div>
       </DialogContent>

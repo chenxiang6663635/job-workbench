@@ -115,11 +115,33 @@ const zhCN = {
   "offer.related": "关联 {{value}}",
   "offer.disclaimer": "这里只并排展示你录入的已知事实，最终选择由你决定。",
 
+  // Offer 录入表单：字段 label 复用上面的 offer.field.*（表头与表单显示同一串）；
+  // 占位是举例性质，英文换成英文招聘语境的写法而不是逐字直译
+  "offer.formTitle": "记录 Offer 事实",
+  "offer.formDesc": "只录你已知的事实。怎么选，由你看完所有事实后自己决定",
+  "offer.salary": "薪资构成",
+  "offer.salaryPlaceholder": "如：月薪 x14 + 年终 x2",
+  "offer.monthlyPlaceholder": "如：11k",
+  "offer.bonusPlaceholder": "如：2 个月",
+  "offer.signOnPlaceholder": "如：1w（一次性）",
+  "offer.equityPlaceholder": "如：无 / 若干 RSU",
+  "offer.conditionsPlaceholder": "如：税前；试用期 80%；竞业条款待确认",
+  "offer.notePlaceholder": "如：口头 offer，等书面",
+
   // 表单通用：多处表单/对话框共用同一句校验与占位，集中放 form.* 便于复用
   "form.companyRequired": "公司（必填）",
   "form.roleRequired": "岗位（必填）",
   "form.companyRoleRequired": "公司和岗位都需要填写",
   "form.selectStage": "选择阶段",
+  // Offer 与面试两个表单共用：关联记录、必填标记、自动带出提示、校验失败一句话
+  "form.linkApp": "关联投递记录（可选）",
+  "form.linkAppNone": "不关联（如内推面试）",
+  "form.company": "公司",
+  "form.requiredSuffix": " *",
+  "form.autofillHint": "（选关联后自动带出）",
+  "form.role": "岗位",
+  "form.note": "备注",
+  "form.companyRequiredError": "未关联投递记录时，公司必填",
 
   "status.title": "粘贴邮件更新投递状态",
   "status.desc": "把笔试 / 面试 / offer / 拒信的原文整段粘进来，解析出「改哪条、改成什么、依据哪句话」。",
@@ -174,6 +196,18 @@ const zhCN = {
   "interview.sectionAnswers": "我的回答要点",
   "interview.sectionRetro": "复盘与改进",
   "interview.selectHint": "从左侧选择一场面试查看记录",
+  // 面试录入表单：三段 label 复用上面的 section*（表头与表单显示同一串）
+  "interview.formTitle": "记录一场面试",
+  "interview.formDesc": "问题、回答、复盘三段分开记——复盘是唯一能复利的部分",
+  "interview.round": "轮次",
+  "interview.when": "面试时间",
+  "interview.form": "形式",
+  "interview.result": "结果",
+  // 与 interview.interviewer（含插值「面试官 {{value}}」）区分：这里是纯 label
+  "interview.interviewerLabel": "面试官",
+  "interview.questionsPlaceholder": "被问了什么？按问题逐条记",
+  "interview.answersPlaceholder": "当时怎么答的？只记要点",
+  "interview.retroPlaceholder": "下次怎么答得更好？复盘是面试记录里唯一能复利的部分",
 
   "contact.add": "记联系人",
   "contact.nameRequired": "姓名必填",

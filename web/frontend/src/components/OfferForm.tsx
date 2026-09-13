@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api, type Application, type Offer } from "../api";
 import {
   Dialog,
@@ -54,55 +55,56 @@ function OfferFields({
   set: <K extends keyof Draft>(k: K, v: Draft[K]) => void;
   onPick: (app: Application | null) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-2 gap-4">
-      <FormField label="关联投递记录（可选）" className="col-span-2">
+      <FormField label={t("form.linkApp")} className="col-span-2">
         <ApplicationSelect value={d.link} onPick={onPick} />
       </FormField>
 
-      <FormField label={`公司${d.link ? "" : " *"}`}>
+      <FormField label={t("form.company") + (d.link ? "" : t("form.requiredSuffix"))}>
         <Input value={d.company} onChange={(e) => set("company", e.target.value)} />
       </FormField>
-      <FormField label="岗位">
+      <FormField label={t("offer.field.role")}>
         <Input value={d.role} onChange={(e) => set("role", e.target.value)} />
       </FormField>
-      <FormField label="薪资构成" className="col-span-2">
+      <FormField label={t("offer.salary")} className="col-span-2">
         <Input
           value={d.salary}
           onChange={(e) => set("salary", e.target.value)}
-          placeholder="如：月薪 x14 + 年终 x2"
+          placeholder={t("offer.salaryPlaceholder")}
         />
       </FormField>
-      <FormField label="月薪">
-        <Input value={d.monthly} onChange={(e) => set("monthly", e.target.value)} placeholder="如：11k" />
+      <FormField label={t("offer.field.monthly")}>
+        <Input value={d.monthly} onChange={(e) => set("monthly", e.target.value)} placeholder={t("offer.monthlyPlaceholder")} />
       </FormField>
-      <FormField label="年终">
-        <Input value={d.bonus} onChange={(e) => set("bonus", e.target.value)} placeholder="如：2 个月" />
+      <FormField label={t("offer.field.bonus")}>
+        <Input value={d.bonus} onChange={(e) => set("bonus", e.target.value)} placeholder={t("offer.bonusPlaceholder")} />
       </FormField>
-      <FormField label="签字费">
-        <Input value={d.signon} onChange={(e) => set("signon", e.target.value)} placeholder="如：1w（一次性）" />
+      <FormField label={t("offer.field.signOn")}>
+        <Input value={d.signon} onChange={(e) => set("signon", e.target.value)} placeholder={t("offer.signOnPlaceholder")} />
       </FormField>
-      <FormField label="股票期权">
-        <Input value={d.equity} onChange={(e) => set("equity", e.target.value)} placeholder="如：无 / 若干 RSU" />
+      <FormField label={t("offer.field.equity")}>
+        <Input value={d.equity} onChange={(e) => set("equity", e.target.value)} placeholder={t("offer.equityPlaceholder")} />
       </FormField>
-      <FormField label="工作地点">
+      <FormField label={t("offer.field.location")}>
         <Input value={d.location} onChange={(e) => set("location", e.target.value)} />
       </FormField>
-      <FormField label="答复截止日">
+      <FormField label={t("offer.field.deadline")}>
         <Input type="date" value={d.deadline} onChange={(e) => set("deadline", e.target.value)} />
       </FormField>
-      <FormField label="其他条件" className="col-span-2">
+      <FormField label={t("offer.field.other")} className="col-span-2">
         <Input
           value={d.conditions}
           onChange={(e) => set("conditions", e.target.value)}
-          placeholder="如：税前；试用期 80%；竞业条款待确认"
+          placeholder={t("offer.conditionsPlaceholder")}
         />
       </FormField>
-      <FormField label="备注" className="col-span-2">
+      <FormField label={t("form.note")} className="col-span-2">
         <Input
           value={d.note}
           onChange={(e) => set("note", e.target.value)}
-          placeholder="如：口头 offer，等书面"
+          placeholder={t("offer.notePlaceholder")}
         />
       </FormField>
     </div>
@@ -116,6 +118,7 @@ export default function OfferForm({
   onClose: () => void;
   onSaved: (row: Offer) => void;
 }) {
+  const { t } = useTranslation();
   const [d, setD] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +137,7 @@ export default function OfferForm({
 
   const submit = () => {
     if (!d.link && !d.company.trim()) {
-      setError("未关联投递记录时，公司必填");
+      setError(t("form.companyRequiredError"));
       return;
     }
     setSaving(true);
@@ -166,13 +169,13 @@ export default function OfferForm({
       <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6">
         <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0">
           <div>
-            <DialogTitle>记录 Offer 事实</DialogTitle>
+            <DialogTitle>{t("offer.formTitle")}</DialogTitle>
             <DialogDescription className="mt-0.5">
-              只录你已知的事实。怎么选，由你看完所有事实后自己决定
+              {t("offer.formDesc")}
             </DialogDescription>
           </div>
           <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="关闭">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.closeAction")}>
               <X size={16} />
             </Button>
           </DialogClose>
@@ -184,10 +187,10 @@ export default function OfferForm({
 
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving ? "保存中…" : "保存"}
+            {saving ? t("common.saving") : t("common.save")}
           </Button>
         </div>
       </DialogContent>

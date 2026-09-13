@@ -23,6 +23,8 @@
 
 **没有用到**（因此相应变更对我们无影响，逐条记下避免后人重复怀疑）：`clipboard`、`Notification`、`session.*`（含扩展与 cookie 监听）、`utilityProcess`、`setWindowOpenHandler`、`event.senderFrame`、`app.commandLine`、离屏渲染（OSR）、文件打开/保存对话框（`showOpenDialog`/`showSaveDialog`）、`console-message` 事件、`nativeImage`。仓库脚本里也**没有任何 `ELECTRON_*` 环境变量**引用。
 
+**未显式设置、但必须对照默认值的键**：`webPreferences` 只写了 `contextIsolation: true` 与 `nodeIntegration: false`，`sandbox` / `webSecurity` 等一律走 Electron 默认值。**默认值变化不属于「调用了某个 API」**，恰恰是「API 面小所以没事」这种论证最容易漏掉的一类——升级时必须逐项对照 v44 的 `webPreferences` 默认值表，而不是只看本文的 API 清单。
+
 ## 二、34 → 44 逐版对照（只列与我们相关的）
 
 | 版本 | 变更 | 对我们的影响 |
@@ -54,7 +56,9 @@
 | 中 | 缩放四件套（`setZoomLevel` 等）无官方变更记录 ≠ 无行为变化 | dev 启动实测 Ctrl+= / Ctrl+- / Ctrl+0、重启后级别沿用 |
 | 中 | 自动更新链路（electron-updater ^6.8.9 对 Electron 44） | 看 `main.log` 的 `checkForUpdates` 结果；能走通「已是最新」分支即可，真正的下载/安装需新版本存在 |
 | 低-中 | PDF 预览（v41 OOPIF） | 素材库页打开一份 PDF，确认可滚动、无白屏 |
+| 低-中 | **渲染进程跨 11 代 Chromium**（CSS 行为、`Intl`/日期、被移除的 Web API） | `npm run test:ui` 只覆盖布局与 a11y 最小集——需**人工遍历七个页面功能**（图表渲染、表单交互、简历 A4 预览、岗位抓取与解析） |
 | 低 | 窗口外观（v43 圆角） | 目测 |
+| 低 | 打包资源缓存（NSIS / winCodeSign 版本可能随 electron-builder 变化而刷新） | 打包时观察是否卡下载；卡住按脚本备注用自带 7za 手动解压到对应缓存目录 |
 | 低 | 后端进程收尾（`taskkill /t` 路径） | 关窗后 `tasklist` 查无 uvicorn/python 残留 |
 
 ## 四、桌面冒烟清单（升级批次逐条执行并记录结果）

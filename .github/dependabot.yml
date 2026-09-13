@@ -1,15 +1,34 @@
-# 依赖更新：由 GitHub 开 PR，仍走与人工改动同一条 CI + 双轨审查流水线。
+# 依赖更新：由 GitHub 开 PR，仍走与人工改动同一条 CI 流水线。
 #
 # 为什么是 monthly 而不是 weekly：单人维护，噪声即成本（见 CONTRIBUTING
 # 「可持续性约定」）。月频 + 分组，把「一堆小 PR」压成每生态每月一个。
-# 保守钉死的依赖（fastapi/uvicorn/pydantic 的兼容性上限）交给 CI 裁决：
-# 碰撞即红，人再决定是否放宽上限，不静默升级。
 #
 # dependabot 的 PR 标题是英文（`Bump x from a to b`），会被 pr-title 闸拦下。
 # 这是**预期**而不是故障：PR 标题 squash 后就是主干上的 subject，仓库要求中文。
 # 处理方式：人审完依赖差异后改标题再合——
 #   gh pr edit <编号> --title "chore(deps): 升级 <包> 到 <版本>"
 # 不给 dependabot 开豁免：那等于让依赖更新绕过唯一一道 subject 语言闸。
+#
+# 2026-09-13 首轮实操后的两条收紧（依据：#66 装不上、#68 冲突）：
+#
+# 1) **分组只收 minor / patch**。`update-types` 交给 groups 后，major 不再被塞进
+#    分组里一起撞——它们会各自成 PR，逐个决策。实证：#68 把 typescript 提到 7.0.2
+#    （major），而 typescript-eslint 的 peer 是 `>=4.8.4 <6.1.0`，整个分组一起红，
+#    既看不出是哪一条的问题、也不方便只放行其中几条。
+#
+# 2) **pip 的 major 逐个忽略**（不写 `"*"`——通配会把将来新加的依赖也一起静默屏蔽）。
+#    原因：后端基线是 Python 3.8，而 3.8 已 EOL、生态正在撤出（实证：#66 的 pypdf
+#    6.x 要求 `>=3.9`，装不上——不是冲突，是基线落后）。
+#    **到期条件（必须一起改）**：当 `.github/workflows/ci.yml` 的 `python-version`
+#    不再是 3.8（P4「Python 基线升级」）时，删除这段 ignore。
+#    **澄清一个容易搞错的机制**：这里 ignore 的是**版本更新**提案，**不影响安全更新**
+#    ——GitHub 官方文档：「There is no interaction between the settings specified in
+#    the dependabot.yml file and Dependabot security alerts」（安全更新走独立通道，
+#    按告警触发）。所以本段不会造成安全盲区；要收窄安全更新的范围得用 auto-triage
+#    规则，不是这里。
+#    另：npm 侧**不**忽略 major，理由是 **major 升级需要人工决策**（Electron 属于
+#    平台级破坏性变更，必须排批次 + 桌面实机冒烟，见
+#    docs/research/report_electron_33_to_44.md）——不是为了安全更新。
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -27,6 +46,21 @@ updates:
     groups:
       backend-python:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # 逐个列出运行时与开发依赖（当前 requirements*.txt 全量）。将来新增依赖时
+      # 若同样受 3.8 基线所限，需手动补进这份清单——这是刻意的：不写通配，
+      # 新依赖的 major 提案就不会被悄悄屏蔽。
+      - dependency-name: "fastapi"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "uvicorn"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pypdf"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "httpx"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: build
 
@@ -38,6 +72,7 @@ updates:
     groups:
       frontend-npm:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: build
 
@@ -49,5 +84,6 @@ updates:
     groups:
       electron-npm:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: build

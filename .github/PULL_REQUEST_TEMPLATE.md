@@ -21,6 +21,11 @@
 - [ ] **Round 2 - independent review**: a fresh-context reviewer (zero prior context) reviews the same diff, verdict posted as a PR comment
 - [ ] MAJOR+ findings from either round are fixed (extra commit) or explicitly deferred to a tracked issue
 
+<!-- Bot dependency PRs (`dependabot[bot]`, patch/minor only) are exempt from Round 2 —
+     author self-review + the four CI checks are the gate. Major bumps are NOT exempt.
+     See CONTRIBUTING.md §分支策略 → 「例外（机器人依赖 PR）」. -->
+
+
 ## Verification *
 
 <!-- Key commands and output excerpts so a reviewer can reproduce -->

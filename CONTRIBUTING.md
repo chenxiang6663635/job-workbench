@@ -143,7 +143,8 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 - **容器组件的文案由调用方传**：如 `FormField` 的 label/hint——组件自身写死一句默认中文同样算硬编码（`emptyLabel ?? t("…")` 才是对的写法）。
 - **模块级常量表里不能调 `t()`**：改成存 `labelKey: TranslationKey`（`import type { TranslationKey }`）——类型标注是编译期护栏，渲染处再 `t()`。
 - **后端错误不猜语言**：抛 `ApiError(status, code, detail, **params)`（`web/backend/apierror.py`），`detail` 保留中文原文（调试与 issue 都读它），界面文案由前端按 `err.<code>` 查语言包，查不到回落 detail。code 命名 `<域>.<语义>`，**同一语义必须复用同一 code**；用户可见的动态值（阶段名、目录名、id）走 `params`，不要在文案里写死。
-- **自动检查**：`python tools/check_i18n_hardcode.py`（CI 跑，本地随手可跑；命中即拦）。确属数据的，登记进 `tools/i18n_hardcode_allowlist.txt`：`路径 = 片段1|片段2  # 理由`。**只放行列出来的片段，不整文件放行**——整文件豁免曾让一个已翻译文件里藏的 4 处漏翻（列头、差异标签、按钮 tooltip）全绿通过。清单是"现状存档"：某句中文翻掉了、文件删了，必须同步删，否则脚本报「片段已不再出现 / 文件已无命中」（留着会给将来的同名中文预授权）。重新生成草稿：`python tools/check_i18n_hardcode.py --print-allowlist`，理由要人写。
+- **自动检查**：`python tools/check_i18n_hardcode.py`（CI 跑，本地随手可跑；命中即拦）。它一起查三类问题，共同点是**漏了界面都会直接显示 key 名或中文**，而 tsc 与 lint 全都看不见：① 硬编码中文；② 复数 key 漏传 `count`；③ `t()` 里的 key 不存在。
+- **放行数据类命中**：登记进 `tools/i18n_hardcode_allowlist.txt`：`路径 = 片段1|片段2  # 理由`。**只放行列出来的片段，不整文件放行**——整文件豁免曾让一个已翻译文件里藏的 4 处漏翻（列头、差异标签、按钮 tooltip）全绿通过。清单是"现状存档"：某句中文翻掉了、文件删了，必须同步删，否则脚本报「片段已不再出现 / 文件已无命中」（留着会给将来的同名中文预授权）。重新生成草稿：`python tools/check_i18n_hardcode.py --print-allowlist`，理由要人写。
 - **验证**：改动前端后跑 `npx tsc -b` + `npx eslint .`；`npm run build` 交给 CI（本地 vite 会重写 `dist/` 的数百个文件）。
 
 ## 代码卫生（借鉴反屎山清单，精简为四人条款）

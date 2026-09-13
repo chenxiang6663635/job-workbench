@@ -43,13 +43,17 @@ def _make_repo(tmp_path, files, allowlist=""):
 
 def _run(tmp_path, files, allowlist=""):
     root = _make_repo(tmp_path, files, allowlist)
-    unallowed, ok, _plural, errors = checker.check(root)
+    unallowed, ok, _plural, _missing, errors = checker.check(root)
     return unallowed, ok, errors
 
 
 def _plural(tmp_path, files):
-    """复数检查单独取（它与硬编码检查共用同一个工具）。"""
+    """复数检查单独取（与硬编码检查共用同一个工具）。"""
     return checker.find_plural_without_count(_make_repo(tmp_path, files))
+
+
+def _missing(tmp_path, files):
+    return checker.find_missing_keys(_make_repo(tmp_path, files))
 
 
 # ---- 1. 注释 ----
@@ -171,3 +175,25 @@ def test_plural_key_without_count_is_reported(tmp_path):
 def test_plural_key_with_count_is_fine(tmp_path):
     files = dict(PLURAL_LOCALE, **{"a.tsx": 'const x = t("a.count", { count: n });\n'})
     assert _plural(tmp_path, files) == []
+
+
+# ---- 8. t() 的 key 必须存在 ----
+
+def test_missing_key_is_reported(tmp_path):
+    files = {"a.tsx": 'const x = t("nope.notHere");\n',
+             os.path.join("i18n", "locales", "zh-CN.ts"): '"a.b": "有",\n'}
+    assert [m[2] for m in _missing(tmp_path, files)] == ["nope.notHere"]
+
+
+def test_existing_key_is_fine(tmp_path):
+    files = {"a.tsx": 'const x = t("a.b");\n',
+             os.path.join("i18n", "locales", "zh-CN.ts"): '"a.b": "有",\n'}
+    assert _missing(tmp_path, files) == []
+
+
+def test_plural_base_name_counts_as_existing(tmp_path):
+    """`t("a.count", {count})` 用的是基名，语言包里只有 _one/_other。"""
+    files = {"a.tsx": 'const x = t("a.count", { count: n });\n',
+             os.path.join("i18n", "locales", "zh-CN.ts"):
+                 '"a.count_one": "{{count}} 条",\n"a.count_other": "{{count}} 条",\n'}
+    assert _missing(tmp_path, files) == []

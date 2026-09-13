@@ -25,6 +25,10 @@
 `dash.staleSubtitle` 这串 key 名。类型系统与 lint 都拦不住（复数基名也是合法的
 TranslationKey），只有打开页面才看得见——2026-09-12 的冒烟就是这么抓到的。
 
+第三类检查：**`t("…")` 里写到的 key 必须存在**。i18next 未做类型增强时
+`t(key: string)` 接受任意字符串，拼错的 key 编译期不报，界面同样退化成显示
+key 名。复数基名（`xxx_one`/`xxx_other` 对应的 `xxx`）算存在。
+
 用法：
     python tools/check_i18n_hardcode.py              # 检查，未豁免命中即退出码 1
     python tools/check_i18n_hardcode.py --list       # 列出全部命中（含已豁免），供重新生成清单
@@ -162,6 +166,43 @@ def find_plural_without_count(root):
     return out
 
 
+CALL_KEY = re.compile(r'\bt\(\s*"([^"]+)"')
+
+
+def find_missing_keys(root):
+    """返回 [(文件, 行号, key)]：代码里 t("…") 写到、但源语言包里没有的 key。
+
+    为什么需要：i18next 没做类型增强时 `t(key: string)` 接受任意字符串，拼错的
+    key 编译期拦不住——界面会退化成直接显示 key 名（fallbackLng 也找不到时）。
+    这是与「复数漏 count」并列的第二类盲区，都只有打开那一页才看得见。
+    复数基名（xxx_one/xxx_other 对应的 xxx）算存在。
+    """
+    src = os.path.join(root, SRC_REL)
+    locale = os.path.join(src, "i18n", "locales", "zh-CN.ts")
+    if not os.path.isfile(locale):
+        return []
+    with io.open(locale, "r", encoding="utf-8") as f:
+        raw = f.read()
+    keys = set(re.findall(r'^\s*"([^"]+)":', raw, re.M))
+    keys |= set(k.rsplit("_", 1)[0] for k in keys if k.endswith(("_one", "_other")))
+
+    out = []
+    for dirpath, dirnames, filenames in os.walk(src):
+        dirnames[:] = [d for d in dirnames if d != "node_modules"]
+        for name in sorted(filenames):
+            if not name.endswith((".ts", ".tsx")):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, name), src)
+            if any(rel.startswith(skip) for skip in SKIP_DIRS):
+                continue
+            with io.open(os.path.join(dirpath, name), "r", encoding="utf-8") as f:
+                text = f.read()
+            for m in CALL_KEY.finditer(text):
+                if m.group(1) not in keys:
+                    out.append((rel, text[:m.start()].count("\n") + 1, m.group(1)))
+    return out
+
+
 def load_allowlist(root):
     """读允许清单。格式（一行一个文件）：
 
@@ -195,10 +236,10 @@ def load_allowlist(root):
 
 
 def check(root):
-    """返回 (未豁免命中, 已豁免命中, 复数漏 count 的调用点, 清单错误)。"""
+    """返回 (未豁免命中, 已豁免命中, 复数漏 count, 不存在的 key, 清单错误)。"""
     src = os.path.join(root, SRC_REL)
     if not os.path.isdir(src):
-        return [], [], [], ["源码目录不存在：%s" % src]
+        return [], [], [], [], ["源码目录不存在：%s" % src]
 
     table, errors = load_allowlist(root)
     seen = {}
@@ -237,7 +278,8 @@ def check(root):
         for frag in sorted(frags - actual):
             errors.append("清单里的片段已不再出现（可能已翻译，请删掉）：%s  →  %s"
                           % (rel.replace(os.sep, "/"), frag))
-    return unallowed, ok_hits, find_plural_without_count(root), errors
+    return (unallowed, ok_hits, find_plural_without_count(root),
+            find_missing_keys(root), errors)
 
 
 def main(argv=None):
@@ -249,7 +291,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     root = args.root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    unallowed, ok_hits, plural, errors = check(root)
+    unallowed, ok_hits, plural, missing_keys, errors = check(root)
 
     if args.print_allowlist:
         by_file = {}
@@ -272,13 +314,16 @@ def main(argv=None):
         print("硬编码中文  %s:%d  [%s] %s" % (rel.replace(os.sep, "/"), ln, kind, snip))
     for rel, ln, key in plural:
         print("复数缺 count  %s:%d  %s" % (rel.replace(os.sep, "/"), ln, key))
+    for rel, ln, key in missing_keys:
+        print("key 不存在  %s:%d  %s" % (rel.replace(os.sep, "/"), ln, key))
     for err in errors:
         print("清单问题  %s" % err)
 
-    if unallowed or plural or errors:
+    if unallowed or plural or missing_keys or errors:
         print("\n新增界面文案请走 t()（key 加进 i18n/locales/zh-CN.ts 与 en.ts）；"
               "确属数据/字段名/列名的，登记进 %s（`路径 = 片段`）并写明理由；"
-              "复数 key（_one/_other）必须传 count，否则界面会显示 key 名。"
+              "复数 key（_one/_other）必须传 count；t() 里的 key 必须真实存在"
+              "——这三类漏了任何一个，界面都会直接显示 key 名。"
               % ALLOWLIST_REL.replace(os.sep, "/"))
         return 1
     print("i18n 检查通过（已豁免 %d 处，复数调用点均带 count）" % len(ok_hits))

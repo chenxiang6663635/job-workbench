@@ -11,6 +11,7 @@
 import os
 import re
 import socket
+import ssl
 import sys
 
 import pytest
@@ -274,3 +275,45 @@ def test_extract_body_skips_attachments():
     body = imap_fetch.extract_body(msg)
     assert "正文在这里" in body
     assert "附件内容不该混进正文" not in body
+
+
+# ---- TLS 上下文（issue #50 S2：默认严格校验，证书库损坏时拒绝连接） ----
+
+class _BrokenStore:
+    """模拟 Windows 证书库损坏：create_default_context 直接抛 ASN1 错误。"""
+
+    @staticmethod
+    def boom():
+        raise ssl.SSLError("[ASN1: NOT_ENOUGH_DATA] not enough data")
+
+
+def test_ssl_context_strict_by_default(monkeypatch):
+    """证书库正常时：严格上下文（校验主机名 + 必须验证证书）。
+
+    哨兵用 PROTOCOL_TLS_CLIENT 而不是 create_default_context 的真返回值——
+    本机 Windows 证书库有损坏条目，真调用会在测试里直接崩。
+    """
+    sentinel = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    monkeypatch.setattr(ssl, "create_default_context", lambda: sentinel)
+    assert imap_fetch._ssl_context() is sentinel
+    assert sentinel.check_hostname is True
+    assert sentinel.verify_mode == ssl.CERT_REQUIRED
+
+
+def test_ssl_context_broken_store_rejects_connection(monkeypatch):
+    """证书库损坏且未显式降级：拒绝连接，错误消息给出 JOBWS_IMAP_TLS 出路。"""
+    monkeypatch.setattr(ssl, "create_default_context", _BrokenStore.boom)
+    monkeypatch.delenv("JOBWS_IMAP_TLS", raising=False)
+    with pytest.raises(imap_fetch.ImapFetchError) as ei:
+        imap_fetch._ssl_context()
+    assert "JOBWS_IMAP_TLS" in str(ei.value)
+    assert "证书" in str(ei.value)
+
+
+def test_ssl_context_insecure_downgrade_is_explicit(monkeypatch):
+    """显式 JOBWS_IMAP_TLS=insecure：降级为不校验（用户主动配置，风险自负）。"""
+    monkeypatch.setattr(ssl, "create_default_context", _BrokenStore.boom)
+    monkeypatch.setenv("JOBWS_IMAP_TLS", "insecure")
+    ctx = imap_fetch._ssl_context()
+    assert ctx.verify_mode == ssl.CERT_NONE
+    assert ctx.check_hostname is False

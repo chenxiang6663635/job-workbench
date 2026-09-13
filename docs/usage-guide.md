@@ -204,6 +204,7 @@ How it works, and what it will not do:
 - **Connected only when you click**: the mailbox is contacted exactly when you press "从邮箱拉取" — there is no background timer, polling, or keep-alive.
 - **Credentials stay local**: stored in `<workspace>/config/imap.json` on your machine, masked in the UI and in error messages, and **excluded from export / backup zips**.
 - **Dry-run by default**: fetching only lists emails; nothing is written to the tracker until you confirm a suggestion item by item.
+- **TLS certificate verification is on by default**: the connection verifies the mail server's certificate against your system trust store. On machines whose Windows certificate store is corrupted, `create_default_context()` fails and the connection is **refused** (your authorization code must not travel over an unverified connection). If you understand the risk — the connection can then be intercepted by a man-in-the-middle — you can explicitly set the environment variable `JOBWS_IMAP_TLS=insecure` to skip verification.
 
 Typical flow: 投递追踪 → 「从邮箱拉取」 → pick a time window (last 7 / 30 / 90 days) → filter by keyword locally → click an email → review the parsed suggestion → confirm what to write back. If the email belongs to an application you have not recorded yet, the empty state offers a create-record form (the stage defaults to what the email implies).
 

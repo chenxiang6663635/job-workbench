@@ -30,6 +30,18 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
   const { t } = useTranslation();
   const reached = data.conversion.filter((c) => c.reached > 0);
   const clusters = data.failureClusters;
+  // 聚类说明的显示层：有 noteCode 就按当前语言拼句，未登记的 code 回落后端原文
+  const noteText = (c: typeof clusters): string => {
+    if (!c) return "";
+    if (c.noteCode === "too_few_samples") {
+      return t("cluster.tooFewSamples", {
+        total: c.noteParams?.total ?? c.total,
+        min: c.noteParams?.min ?? c.minSamples,
+      });
+    }
+    if (c.noteCode === "no_keywords") return t("cluster.noKeywords");
+    return c.note;
+  };
 
   return (
     <div className="space-y-4">
@@ -145,11 +157,13 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
         </p>
         {!clusters || !clusters.shown ? (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            {clusters?.note || t("retro.clusterEmpty")}
+            {clusters ? noteText(clusters) || t("retro.clusterEmpty") : t("retro.clusterEmpty")}
           </p>
         ) : (
           <>
-            {clusters.note && <p className="mb-2 text-[11px] text-warning">{clusters.note}</p>}
+            {clusters.note && (
+              <p className="mb-2 text-[11px] text-warning">{noteText(clusters)}</p>
+            )}
             <div className="space-y-2">
               {clusters.clusters.map((c) => (
                 <div key={c.category}>

@@ -23,6 +23,7 @@ import {
 // 模块级常量表里放 key 而不是文案：TranslationKey 让拼错的 key 在编译期就报错
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { domainLabel } from "../lib/domainLabels";
+import { reasonLines } from "../lib/healthReasons";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
@@ -628,7 +629,10 @@ export default function Applications() {
                           const meta = HEALTH_META[h.level];
                           return (
                             <span
-                              title={h.reasons.join("；") || t("app.noHealthIssue")}
+                              title={
+                                reasonLines(h.reasons, h.hints, t).join(t("app.reasonJoiner")) ||
+                                t("app.noHealthIssue")
+                              }
                               className={`cursor-help rounded-md px-2 py-1 text-xs font-medium ${meta.cls}`}
                             >
                               {t(meta.labelKey)}

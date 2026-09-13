@@ -10,6 +10,14 @@ export interface StaleItem {
   说明: string;
 }
 
+// 健康度理由的结构化形态（与 reasons 按下标一一对应）：CLI 与中文界面继续
+// 显示 reasons 原文，英文界面按 code 在前端拼句；params 是原始数据（阶段是
+// 枚举原值、动作是用户原文），翻译由显示层负责
+export interface ReasonHint {
+  code: string;
+  params: Record<string, string | number>;
+}
+
 // 待推进（第二批）：健康度非 ok 且非终态的记录，与追踪表 health 排序同源
 export interface PendingItem {
   id: string;
@@ -18,6 +26,7 @@ export interface PendingItem {
   当前阶段: string;
   level: "urgent" | "overdue" | "stale";
   reasons: string[];
+  hints?: ReasonHint[];
 }
 
 // 看板「高分未投」条目（B3）：评分达到「建议投」档下界且追踪表里还没有记录
@@ -69,10 +78,13 @@ export interface FailureCluster {
   examples: string[];
 }
 
-// 失败原因聚类（第三批）：样本不足时 shown=false，note 说明"样本太少，暂不展示"
+// 失败原因聚类（第三批）：样本不足时 shown=false，note 说明"样本太少，暂不展示"；
+// noteCode/noteParams 是 note 的结构化形态（英文界面按 code 拼句）
 export interface FailureClusters {
   shown: boolean;
   note: string;
+  noteCode?: string | null;
+  noteParams?: Record<string, string | number>;
   clusters: FailureCluster[];
   total: number;
   minSamples: number;
@@ -115,8 +127,13 @@ export interface Application {
   备注: string;
   // 当前阶段已停留天数；无基准日时后端返回空串
   stageDays?: number | "";
-  // 健康度（第二批）：level 为 null 表示终态不参与判定；reasons 给人看
-  health?: { level: "urgent" | "overdue" | "stale" | "ok" | null; reasons: string[] };
+  // 健康度（第二批）：level 为 null 表示终态不参与判定；reasons 给人看，
+  // hints 是逐条对应的结构化形态（英文界面按 code 拼句）
+  health?: {
+    level: "urgent" | "overdue" | "stale" | "ok" | null;
+    reasons: string[];
+    hints?: ReasonHint[];
+  };
 }
 
 export interface HistoryEntry {

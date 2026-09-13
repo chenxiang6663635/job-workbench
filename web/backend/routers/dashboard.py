@@ -178,6 +178,7 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
             "id": row.get("id", ""), "公司": row.get("公司", ""),
             "岗位": row.get("岗位", ""), "当前阶段": row.get("当前阶段", ""),
             "level": health["level"], "reasons": health["reasons"],
+            "hints": health.get("hints", []),
         })
     pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
 

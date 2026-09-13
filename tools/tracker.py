@@ -473,13 +473,20 @@ def health_score(row, entries, today=None):
     - 终态（已挂/已放弃/我拒绝的 offer）返回 level=None，不参与判定
 
     reasons 收集**所有命中**的理由（不止最高级那一条），level 取最严重的一级。
+
+    hints 与 reasons **按下标一一对应**，是每条理由的结构化形态
+    （{"code", "params"}）：CLI 与中文界面继续显示 reasons 原文，
+    英文界面按 code 在前端拼句——「机器可读 + 人类可读」双出口。
+    params 里的值是**原始数据**（stage 是枚举原值，action 是用户原文），
+    翻译由显示层负责（枚举走 domainLabel，用户数据不翻）。
     """
     stage = (row.get("当前阶段") or "").strip()
     if stage in TERMINAL_STAGES:
-        return {"level": None, "reasons": []}
+        return {"level": None, "reasons": [], "hints": []}
 
     today = today or date.today()
     reasons = []
+    hints = []
     levels = []
 
     deadline = parse_iso_date(row.get("截止日期"))
@@ -489,10 +496,14 @@ def health_score(row, entries, today=None):
             levels.append("urgent")
             if left < 0:
                 reasons.append("已过截止日 %d 天仍未投" % (-left))
+                hints.append({"code": "deadline_passed",
+                              "params": {"days": -left}})
             elif left == 0:
                 reasons.append("今天就是截止日，仍未投")
+                hints.append({"code": "deadline_today", "params": {}})
             else:
                 reasons.append("距截止日 %d 天仍未投" % left)
+                hints.append({"code": "deadline_left", "params": {"days": left}})
 
     next_date = parse_iso_date(row.get("下次动作日期"))
     if next_date and next_date < today:
@@ -500,18 +511,22 @@ def health_score(row, entries, today=None):
         action = (row.get("下次动作") or "").strip()
         reasons.append("下次动作已逾期 %d 天：%s"
                        % ((today - next_date).days, action or "（未写动作）"))
+        hints.append({"code": "next_action_overdue",
+                      "params": {"days": (today - next_date).days, "action": action}})
 
     days = stale_days(row, entries, today=today)
     if days is not None and days > STALE_DAYS:
         levels.append("stale")
         reasons.append("已在「%s」停留 %d 天" % (stage or "未填阶段", days))
+        hints.append({"code": "stale_stage",
+                      "params": {"stage": stage or "未填阶段", "days": days}})
 
     level = "ok"
     for candidate in HEALTH_LEVELS:
         if candidate in levels:
             level = candidate
             break
-    return {"level": level, "reasons": reasons}
+    return {"level": level, "reasons": reasons, "hints": hints}
 
 
 def read_rows(workspace=None):

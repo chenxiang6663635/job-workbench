@@ -27,6 +27,7 @@ import {
 } from "../api";
 import RetrospectivePanel from "../components/RetrospectivePanel";
 import { domainLabel } from "../lib/domainLabels";
+import { reasonLines } from "../lib/healthReasons";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
@@ -254,6 +255,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
         <ul className="space-y-2">
           {pending.map((p) => {
             const meta = LEVEL_META[p.level] || LEVEL_META.stale;
+            const lines = reasonLines(p.reasons, p.hints, t);
             return (
               <li key={p.id}>
                 <button
@@ -271,7 +273,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
                   </div>
                   {/* 理由整条亮出来：为什么该推进它，一目了然 */}
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {p.reasons.join("；")}
+                    {lines.join(t("app.reasonJoiner"))}
                   </p>
                 </button>
               </li>

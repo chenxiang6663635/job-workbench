@@ -4,6 +4,12 @@
 # 「可持续性约定」）。月频 + 分组，把「一堆小 PR」压成每生态每月一个。
 # 保守钉死的依赖（fastapi/uvicorn/pydantic 的兼容性上限）交给 CI 裁决：
 # 碰撞即红，人再决定是否放宽上限，不静默升级。
+#
+# dependabot 的 PR 标题是英文（`Bump x from a to b`），会被 pr-title 闸拦下。
+# 这是**预期**而不是故障：PR 标题 squash 后就是主干上的 subject，仓库要求中文。
+# 处理方式：人审完依赖差异后改标题再合——
+#   gh pr edit <编号> --title "chore(deps): 升级 <包> 到 <版本>"
+# 不给 dependabot 开豁免：那等于让依赖更新绕过唯一一道 subject 语言闸。
 version: 2
 updates:
   - package-ecosystem: github-actions

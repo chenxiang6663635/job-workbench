@@ -55,6 +55,25 @@ rather than hours, and honest *"not planned"* answers with the reasoning attache
 - **Export / backup packages** must never contain credential files. This is pinned
   by `tests/test_export_privacy.py`; a bypass is a bug.
 
+## Known limitations (accepted, not vulnerabilities)
+
+- **The local API has no authentication.** The boundary is the loopback bind
+  (`127.0.0.1`). `--host` can widen it by hand, and anyone who can reach the port
+  can then read and write your workspace. Do not expose it to a network you do not
+  control; the API is not designed to be the thing that stops them.
+- **Updates are unsigned.** The installer has no code signing, so the auto-update
+  chain (GitHub Releases + `electron-updater`) uses this GitHub account and this
+  repository's protection rules as its trust anchor. A compromised maintainer
+  account could ship a malicious update — inherent to unsigned distribution, and
+  accepted until code signing is adopted (recorded in CONTRIBUTING's "not doing"
+  list).
+- **Fetched job pages are text.** HTML from a job posting is fetched, size-capped
+  and stored as plain text (`JD原文.md`); it is never rendered or executed. A
+  hostile page is therefore a content problem unless you can show script execution
+  or a path escape.
+- **Credentials are plaintext on disk** (see above). An attacker who already has
+  your OS user account does not need an exploit.
+
 ## Explicitly out of scope (by design)
 
 - Anyone who can read your OS user account can read the plaintext credential

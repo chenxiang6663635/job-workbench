@@ -61,11 +61,11 @@ function detectPython() {
         stdio: "pipe",
       }).toString().trim();
       if (out === "ok") {
-        log(`使用 Python: ${cand}`);
+        log(`Using Python: ${cand}`);
         return cand;
       }
     } catch (e) {
-      log(`Python 不可用: ${cand} (${e.message.split("\n")[0]})`);
+      log(`Python not usable: ${cand} (${e.message.split("\n")[0]})`);
     }
   }
   return null;
@@ -112,12 +112,12 @@ function waitBackendReady(cb) {
     checkHealth((ok) => {
       if (ok) {
         backendReady = true;
-        log("后端已就绪");
+        log("Backend ready");
         cb();
         return;
       }
       if (Date.now() - start > HEARTBEAT_TIMEOUT) {
-        log("后端启动超时。打包版请查看本日志上方 [backend-err] 的退出原因；源码版请检查 Python/FastAPI 环境");
+        log("Backend startup timed out. Packaged builds: see the [backend-err] exit reason above in this log; source runs: check your Python/FastAPI environment");
         app.quit();
         return;
       }
@@ -141,7 +141,7 @@ function startBackend() {
 
   const exe = findBackendExe();
   if (exe) {
-    log(`使用打包后端: ${exe}`);
+    log(`Using packaged backend: ${exe}`);
     backendProcess = spawn(exe, [], {
       cwd: path.dirname(exe),
       stdio: "pipe",
@@ -150,11 +150,11 @@ function startBackend() {
   } else {
     const python = detectPython();
     if (!python) {
-      log("未找到打包后端，也未找到可用的 Python（需含 FastAPI/uvicorn）。可用 JOBWS_PYTHON 环境变量指定。");
+      log("No packaged backend and no usable Python found (needs FastAPI/uvicorn). Set the JOBWS_PYTHON environment variable to point at one.");
       app.quit();
       return;
     }
-    log(`使用 python 后端: ${python}`);
+    log(`Using python backend: ${python}`);
     backendProcess = spawn(python, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", String(BACKEND_PORT)], {
       cwd: BACKEND_DIR,
       stdio: "pipe",
@@ -167,11 +167,11 @@ function startBackend() {
   backendProcess.stderr.on("data", (d) => log(`[backend-err] ${d}`));
 
   backendProcess.on("error", (err) => {
-    log(`后端进程错误: ${err.message}`);
+    log(`Backend process error: ${err.message}`);
   });
   backendProcess.on("exit", (code) => {
     if (!backendReady && code !== 0) {
-      log(`后端意外退出 code=${code}`);
+      log(`Backend exited unexpectedly, code=${code}`);
     }
     backendProcess = null;
   });
@@ -194,7 +194,7 @@ function stopBackend() {
       }
     }
   } catch (e) {
-    log(`结束后端失败: ${e.message}`);
+    log(`Failed to stop backend: ${e.message}`);
   }
   backendProcess = null;
 }
@@ -212,8 +212,8 @@ function findFrontendDist() {
 function createWindow() {
   const distDir = findFrontendDist();
   if (!fs.existsSync(path.join(distDir, "index.html"))) {
-    log(`未找到前端构建产物 ${distDir}/index.html`);
-    log("请先在 web/frontend 下执行 npm run build");
+    log(`Frontend build output not found: ${distDir}/index.html`);
+    log('Run "npm run build" under web/frontend first');
     app.quit();
     return;
   }
@@ -221,7 +221,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 880,
-    title: "求职工作台",
+    title: "Job Workbench",
     backgroundColor: "#0a0e17",
     webPreferences: {
       contextIsolation: true,
@@ -244,7 +244,7 @@ function createWindow() {
 // 后端进程也停，重启的代价比一般桌面应用更高，必须由用户自己挑时机。
 function setupAutoUpdate() {
   if (!app.isPackaged) {
-    log("源码形态，跳过自动更新检查");
+    log("Source run — skipping auto-update check");
     return;
   }
 
@@ -253,7 +253,7 @@ function setupAutoUpdate() {
     ({ autoUpdater } = require("electron-updater"));
   } catch (e) {
     // 依赖没打进包时不该让整个应用起不来——更新只是增强，不是启动必需
-    log(`自动更新不可用（electron-updater 未随包分发）: ${e.message}`);
+    log(`Auto-update unavailable (electron-updater not bundled): ${e.message}`);
     return;
   }
 
@@ -261,43 +261,43 @@ function setupAutoUpdate() {
   // 用主进程日志接手 updater 的输出：GUI 下看不到控制台，出问题只能靠这个文件
   autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
 
-  autoUpdater.on("error", (err) => log(`自动更新出错: ${(err && err.message) || err}`));
-  autoUpdater.on("update-not-available", () => log("已是最新版本"));
+  autoUpdater.on("error", (err) => log(`Auto-update error: ${(err && err.message) || err}`));
+  autoUpdater.on("update-not-available", () => log("Already up to date"));
 
   autoUpdater.on("update-available", (info) => {
-    log(`发现新版本 ${info.version}`);
+    log(`Update available: ${info.version}`);
     dialog
       .showMessageBox({
         type: "info",
-        title: "有新版本",
-        message: `求职工作台 ${info.version} 可用`,
-        detail: "下载完成后会再问你要不要重启。现在下载不会打断你正在做的事。",
-        buttons: ["下载更新", "以后再说"],
+        title: "Update available",
+        message: `Job Workbench ${info.version} is available`,
+        detail: "You will be asked whether to restart after the download completes. Downloading now will not interrupt what you are doing.",
+        buttons: ["Download update", "Later"],
         defaultId: 0,
         cancelId: 1,
       })
       .then(({ response }) => {
         if (response !== 0) return;
-        log("用户同意下载更新");
-        autoUpdater.downloadUpdate().catch((e) => log(`下载更新失败: ${e.message}`));
+        log("User chose to download the update");
+        autoUpdater.downloadUpdate().catch((e) => log(`Update download failed: ${e.message}`));
       });
   });
 
   autoUpdater.on("update-downloaded", (info) => {
-    log(`更新已下载 ${info.version}`);
+    log(`Update downloaded: ${info.version}`);
     dialog
       .showMessageBox({
         type: "info",
-        title: "更新已就绪",
-        message: `求职工作台 ${info.version} 已下载完成`,
-        detail: "立即重启会先结束后端进程，再安装新版本。",
-        buttons: ["立即重启并安装", "退出时再装"],
+        title: "Update ready",
+        message: `Job Workbench ${info.version} has been downloaded`,
+        detail: "Restarting quits the backend process first, then installs the new version.",
+        buttons: ["Restart and install", "Install on quit"],
         defaultId: 0,
         cancelId: 1,
       })
       .then(({ response }) => {
         if (response !== 0) return;
-        log("用户同意重启安装");
+        log("User chose to restart and install");
         stopBackend();
         autoUpdater.quitAndInstall();
       });
@@ -305,7 +305,7 @@ function setupAutoUpdate() {
 
   // 延迟检查：让窗口先渲染出来，别和启动链路抢时间
   setTimeout(() => {
-    autoUpdater.checkForUpdates().catch((e) => log(`检查更新失败: ${e.message}`));
+    autoUpdater.checkForUpdates().catch((e) => log(`Update check failed: ${e.message}`));
   }, 5000);
 }
 
@@ -313,7 +313,7 @@ app.whenReady().then(() => {
   // 若后端端口已被占用（用户可能已用 start.ps1 起了服务），直接复用
   checkHealth((ok) => {
     if (ok) {
-      log("检测到后端已在运行，直接打开界面");
+      log("Backend already running — opening the window directly");
       backendReady = true;
       createWindow();
     } else {

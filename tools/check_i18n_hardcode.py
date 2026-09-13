@@ -45,7 +45,12 @@ import re
 import sys
 
 SRC_REL = os.path.join("web", "frontend", "src")
+# Electron 主进程也归这个检查管：窗口标题 / 更新对话框 / 日志同样是界面文案。
+# 键以 `electron\` 前缀进同一份清单，与前端两棵树不串味。
+ELECTRON_REL = os.path.join("web", "electron")
+ELECTRON_KEY_PREFIX = "electron"
 SKIP_DIRS = (os.path.join("i18n", "locales"), os.path.join("i18n", "index.ts"))
+SKIP_DIR_NAMES = ("node_modules", "release")  # release = 本地打包产物（含旧文案）
 ALLOWLIST_REL = os.path.join("tools", "i18n_hardcode_allowlist.txt")
 CJK = re.compile(u"[\u4e00-\u9fff]")
 # JSX 裸文本按「连续中文块」报，而不是逐字符——一条文案报出十几个字，
@@ -275,30 +280,39 @@ def check(root):
     seen = {}
     unallowed, ok_hits = [], []
 
-    for dirpath, dirnames, filenames in os.walk(src):
-        dirnames[:] = [d for d in dirnames if d != "node_modules"]
-        for name in sorted(filenames):
-            if not name.endswith((".ts", ".tsx")):
-                continue
-            full = os.path.join(dirpath, name)
-            rel = os.path.relpath(full, src)
-            if any(rel.startswith(skip) for skip in SKIP_DIRS):
-                continue
-            with io.open(full, "r", encoding="utf-8") as f:
-                hits = find_hardcoded(f.read())
-            if not hits:
-                continue
-            allow = table.get(rel, set())
-            for ln, snip, kind in hits:
-                seen.setdefault(rel, set()).add(snip)
-                # **jsx-text 永不放行**。清单若不分类别地放行，`<span>已挂</span>`
-                # 这类裸文本会借着「已挂」这条数据豁免溜过去（独立审查发现）。
-                # 真实文件名那种情况（JobDetailView 的 解析卡.md）用 {"…"} 包成
-                # 字符串字面量即可。
-                if kind != "jsx-text" and snip in allow:
-                    ok_hits.append((rel, ln, snip, kind))
-                else:
-                    unallowed.append((rel, ln, snip, kind))
+    # 两棵源码树：前端 src（清单键 = 相对 src 的路径）与 Electron 主进程
+    # （清单键带 `electron\` 前缀）。Electron 目录可缺席（纯 Web 部署 / 测试树）。
+    roots = [(src, "")]
+    electron = os.path.join(root, ELECTRON_REL)
+    if os.path.isdir(electron):
+        roots.append((electron, ELECTRON_KEY_PREFIX))
+    for base, prefix in roots:
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIR_NAMES]
+            for name in sorted(filenames):
+                if not name.endswith((".ts", ".tsx", ".js")):
+                    continue
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, base)
+                if prefix:
+                    rel = os.path.join(prefix, rel)
+                if any(rel.startswith(skip) for skip in SKIP_DIRS):
+                    continue
+                with io.open(full, "r", encoding="utf-8") as f:
+                    hits = find_hardcoded(f.read())
+                if not hits:
+                    continue
+                allow = table.get(rel, set())
+                for ln, snip, kind in hits:
+                    seen.setdefault(rel, set()).add(snip)
+                    # **jsx-text 永不放行**。清单若不分类别地放行，`<span>已挂</span>`
+                    # 这类裸文本会借着「已挂」这条数据豁免溜过去（独立审查发现）。
+                    # 真实文件名那种情况（JobDetailView 的 解析卡.md）用 {"…"} 包成
+                    # 字符串字面量即可。
+                    if kind != "jsx-text" and snip in allow:
+                        ok_hits.append((rel, ln, snip, kind))
+                    else:
+                        unallowed.append((rel, ln, snip, kind))
 
     # 清单问题（两类，都会让下一处真命中悄悄获得豁免）：
     #   1. 文件已不存在或已清干净——整条留着是僵尸；

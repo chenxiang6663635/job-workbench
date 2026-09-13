@@ -228,6 +228,7 @@ export default {
   "app.filterStage": "Filter by stage",
   "app.filterDirection": "Filter by direction",
   "app.filterBatch": "Filter by batch",
+  "app.stageEditorAria": "Change stage for {{company}} · {{role}}",
   "app.allDirections": "All directions",
   "app.allBatches": "All batches",
   "app.pasteMail": "Paste email",

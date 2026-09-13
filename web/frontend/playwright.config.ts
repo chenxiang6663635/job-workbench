@@ -37,6 +37,10 @@ export default defineConfig({
     command: `${process.env.JOBWS_PYTHON || "python"} web/backend/main.py --workspace demo --port ${PORT}`,
     cwd: REPO_ROOT,
     url: `${BASE_URL}/api/health`,
+    // 本地复用已在跑的后端（省一次启动）；**本地陷阱**：若你正跑着 start.ps1
+    // （默认 personal 工作区、可能还是旧 dist），冒烟会复用它——页面数据仍是 demo
+    // （测试里强制了工作区），但测到的可能是旧产物。跑之前先关掉本地服务，
+    // 或者 `npx playwright test` 前删掉 dist 重新 `npm run build`。
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
     env: {

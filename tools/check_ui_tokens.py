@@ -68,8 +68,10 @@ RAW_PALETTE = re.compile(
     + r"-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald"
       r"|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}(?:/\d+)?(?![\w-])")
 
-# 3) white/black 的透明度写法（bare 的不在此列，见模块 docstring 第 3 条）
-WHITE_BLACK_ALPHA = re.compile(_PREFIX + r"-(?:white|black)/\d+(?![\w-])")
+# 3) white/black 的透明度写法（bare 的不在此列，见模块 docstring 第 3 条）。
+#    两种透明度都要认：`/5` 与任意值 `/[0.05]`——独立审查指出后者曾被漏判，
+#    而「带透明度的 white/black 一定是本可以用 token 却被写死」对两者同样成立
+WHITE_BLACK_ALPHA = re.compile(_PREFIX + r"-(?:white|black)/(?:\d+|\[[^\]]*\])(?![\w-])")
 
 # 4) 十六进制 / 函数式颜色任意值
 HEX_COLOR = re.compile(r"[\w:.-]+-\[(?:#|rgb|rgba|hsl|hsla)[^\]]*\](?![\w-])")

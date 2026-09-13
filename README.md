@@ -119,7 +119,7 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 
 ## Contributing
 
-Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). **Found a security problem? Use the private channel described in [SECURITY.md](SECURITY.md) — please do not open a public issue.** Code changes go through a PR with green CI (pytest + frontend lint/build + PR-title check); doc fixes can go straight to `main`.
+Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). **Found a security problem? Use the private channel described in [SECURITY.md](SECURITY.md) — please do not open a public issue.** Code changes go through a PR with green CI (pytest + frontend lint/build + PR-title check + UI smoke); doc fixes can go straight to `main`.
 
 ## License
 

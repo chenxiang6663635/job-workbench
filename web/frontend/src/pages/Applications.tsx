@@ -550,9 +550,14 @@ export default function Applications() {
                             onValueChange={(v) => patch(it.id, { 当前阶段: v })}
                           >
                             <SelectTrigger
-                              // 行内阶段编辑器：可视文本是「当前阶段」，但 role=combobox
-                              // 按 ARIA 不能从内容取名字，必须显式给 aria-label
-                              aria-label={t("form.phStage")}
+                              // 行内阶段编辑器：可视文本是阶段取值，而 role=combobox
+                              // 按 ARIA 不能从内容取名字，必须显式给 aria-label；
+                              // 且每行都长得一样——名字里带上公司与岗位，屏幕阅读器
+                              // 才分得清是哪一条投递（独立审查提出）
+                              aria-label={t("app.stageEditorAria", {
+                                company: it.公司,
+                                role: it.岗位,
+                              })}
                               className={`h-auto w-auto cursor-pointer gap-2 rounded-md border-0 px-2 py-1 text-xs font-medium shadow-none ${stageStyle(
                                 it.当前阶段
                               )}`}

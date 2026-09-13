@@ -50,16 +50,20 @@ for (const vp of VIEWPORTS) {
   });
 }
 
-test("语言切换立即改变导航文案，且不引入溢出", async ({ page }) => {
+test("语言切换立即改变导航文案与窗口标题，且不引入溢出", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await openPage(page, "dashboard");
   const nav = page.locator("nav");
 
   await nav.getByRole("button", { name: "中文" }).click();
   await expect(nav.getByRole("button", { name: "看板" })).toBeVisible();
+  // 窗口标题跟随语言：Electron 的窗口标题会被页面的 document.title 覆盖，
+  // 不同步的话标题会永远停在 index.html 的静态值（2026-09-13 实测到的缺陷）
+  await expect(page).toHaveTitle("求职工作台");
 
   await nav.getByRole("button", { name: "English" }).click();
   await expect(nav.getByRole("button", { name: "Dashboard" })).toBeVisible();
+  await expect(page).toHaveTitle("Job Workbench");
 
   const overflow = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,

@@ -22,12 +22,12 @@
 ### Fixed
 
 - **界面无横向溢出、顶栏不再折行**：此前窗口变窄或系统缩放放大时，英文标签会把顶栏挤成两行、宽表顶破页面——现在由 CI 的 UI 冒烟（七页 × 三视口）钉住。
-- **可访问性**：三处筛选/选择控件的可访问名补齐（此前屏幕阅读器读不出按钮用途），UI 冒烟对 serious/critical 级问题做门禁。
+- **可访问性**：六个筛选 / 选择控件（追踪表、岗位池、简历工坊三页）的可访问名补齐——此前屏幕阅读器读不出这些按钮是干什么的，行内阶段编辑器也分不清是哪一条投递；UI 冒烟对 serious/critical 级问题做门禁。
 
 ### Infrastructure（贡献者可见）
 
 - 新增 **UI 冒烟** CI job（布局 + a11y，约 40 秒）：CONTRIBUTING 的「不做 Playwright E2E」细化为「不做全量 E2E」，只保留这一个最小冒烟，并写明边界与理由。
-- 新增 **界面 token 一致性扫描器**（`tools/check_ui_tokens.py`）：旧调色板类名、去 token 化的 white/black 透明度、颜色任意值、原生 select 补丁全部机检；顺带把 21 处写死的 `ring-white/5` 等收敛为 `--highlight` / `--scrim` 两个语义 token（浅色主题从此可用）。
+- 新增 **界面 token 一致性扫描器**（`tools/check_ui_tokens.py`）：旧调色板类名、去 token 化的 white/black 透明度、颜色任意值、原生 select 补丁全部机检；顺带把 21 处写死的 `ring-white/5` 等收敛为 `--highlight` / `--scrim` 两个语义 token（**为浅色主题扫清了一类写死色**；浅色主题本身仍未实现，不是本批交付）。
 - **安全策略与依赖更新**：新增 `SECURITY.md`（威胁模型 + 私密报告通道，仓库已开启 Private vulnerability reporting）与 Dependabot 配置（四生态月频 + 分组）；分支保护增加「合并前必须解决所有讨论」。
 - 结果枚举的两套展示映射收敛为 `lib/domainLabels.ts` 一处（删除重复的 4 个语言包 key）。
 

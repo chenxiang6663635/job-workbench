@@ -81,9 +81,11 @@ def test_palette_scales_are_hits(tmp_path):
 
 def test_white_black_alpha_is_a_hit(tmp_path):
     unallowed, _, _ = _run(tmp_path, {
-        "a.tsx": 'const a = "ring-white/5";\nconst b = "bg-black/60";\n'})
-    assert _snips(unallowed) == ["bg-black/60", "ring-white/5"]
-    assert _kinds(unallowed) == ["alpha"]
+        "a.tsx": 'const a = "ring-white/5";\nconst b = "bg-black/60";\n'
+                 'const c = "bg-white/[0.05]";\nconst d = "text-black/[.6]";\n'})
+    assert _snips(unallowed) == [
+        "bg-black/60", "bg-white/[0.05]", "ring-white/5", "text-black/[.6]"]
+    assert _kinds(unallowed) == ["alpha"], "任意值透明度同样算去 token 化"
 
 
 def test_color_arbitrary_values_are_hits(tmp_path):

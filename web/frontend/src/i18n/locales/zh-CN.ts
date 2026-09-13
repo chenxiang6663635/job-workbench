@@ -249,6 +249,8 @@ const zhCN = {
   "app.filterStage": "按阶段筛选",
   "app.filterDirection": "按方向筛选",
   "app.filterBatch": "按批次筛选",
+  // 行内阶段编辑器的可访问名：每行控件外形一样，名字里必须带上「是哪一条投递」
+  "app.stageEditorAria": "修改「{{company}} · {{role}}」的当前阶段",
   "app.allDirections": "全部方向",
   "app.allBatches": "全部批次",
   "app.pasteMail": "粘贴邮件更新",

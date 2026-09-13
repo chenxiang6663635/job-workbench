@@ -6,6 +6,10 @@
 // 正是这条检查拦下的（`require("./zoom")` 对源码形态为真、对安装版为假）。
 //
 // 零依赖，`node web/electron/check_packaging.js` 直接跑（CI 里与 zoom.test.js 同一步）。
+//
+// 消息一律英文：electron 树的**字符串**口径是英文——check_i18n_hardcode.py 把这里
+// 的字符串按界面文案判（electron 日志用户会在 bug 报告里贴出来），中文串会被 CI 拦；
+// 注释仍按仓库惯例用中文。
 const fs = require("fs");
 const path = require("path");
 
@@ -24,14 +28,14 @@ for (const m of mainSrc.matchAll(/require\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
   const resolved = [base, `${base}.js`, path.join(base, "index.js")]
     .find((p) => fs.existsSync(p));
   if (!resolved) {
-    problems.push(`main.js 依赖 ${spec}，但在 web/electron/ 下找不到对应文件`);
+    problems.push(`main.js requires ${spec}, but no such file exists under web/electron/`);
     continue;
   }
   const rel = path.relative(dir, resolved).split(path.sep).join("/");
   required.add(rel);
   if (!files.includes(rel)) {
     problems.push(
-      `main.js 依赖 ${rel}，但它不在 build.files 里——打包后 require 解析失败，启动即崩`);
+      `main.js requires ${rel}, but it is not listed in build.files — the packaged app would fail to start`);
   }
 }
 
@@ -39,7 +43,7 @@ for (const m of mainSrc.matchAll(/require\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
 for (const f of files) {
   if (f.includes("*")) continue;
   if (!fs.existsSync(path.join(dir, f))) {
-    problems.push(`build.files 列了不存在的 ${f}`);
+    problems.push(`build.files lists ${f}, which does not exist`);
   }
 }
 
@@ -48,4 +52,4 @@ if (problems.length) {
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`check_packaging: OK（${required.size} 个相对依赖都在 build.files 里）`);
+console.log(`check_packaging: OK (${required.size} relative dependency/ies listed in build.files)`);

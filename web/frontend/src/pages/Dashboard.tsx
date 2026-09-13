@@ -27,6 +27,7 @@ import {
 } from "../api";
 import RetrospectivePanel from "../components/RetrospectivePanel";
 import { domainLabel } from "../lib/domainLabels";
+import { reasonLines } from "../lib/healthReasons";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
@@ -254,37 +255,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
         <ul className="space-y-2">
           {pending.map((p) => {
             const meta = LEVEL_META[p.level] || LEVEL_META.stale;
-            // 理由显示层：hints[i] 有登记的 code 就按当前语言拼句（阶段名过
-            // domainLabel），未登记的 code / 旧后端回落到后端原文——中文界面与原文一致
-            const lines = p.reasons.map((r, i) => {
-              const hint = p.hints?.[i];
-              if (!hint) return r;
-              const pp = hint.params;
-              switch (hint.code) {
-                case "deadline_passed":
-                  return t("health.deadlinePassed", { count: pp.days, days: pp.days });
-                case "deadline_today":
-                  return t("health.deadlineToday");
-                case "deadline_left":
-                  return t("health.deadlineLeft", { count: pp.days, days: pp.days });
-                case "next_action_overdue":
-                  return pp.action
-                    ? t("health.nextActionOverdue", {
-                        count: pp.days,
-                        days: pp.days,
-                        action: pp.action,
-                      })
-                    : t("health.nextActionOverdueNoAction", { count: pp.days, days: pp.days });
-                case "stale_stage":
-                  return t("health.staleStage", {
-                    count: pp.days,
-                    days: pp.days,
-                    stage: domainLabel("stage", String(pp.stage), t),
-                  });
-                default:
-                  return r;
-              }
-            });
+            const lines = reasonLines(p.reasons, p.hints, t);
             return (
               <li key={p.id}>
                 <button

@@ -191,8 +191,11 @@ if __name__ == "__main__":
             _pause_if_frozen()
             sys.exit(1)
 
-        # 双击 exe 场景：启动成功后自动打开浏览器界面
-        _open_browser_later(url)
+        # 双击 exe 场景：启动成功后自动打开浏览器界面。
+        # JOBWS_NO_BROWSER=1 关掉它——UI 冒烟（Playwright）会自己拉起后端，
+        # 每跑一次就弹一个浏览器窗口既干扰开发、也会在 CI 上留下无谓的进程。
+        if not os.environ.get("JOBWS_NO_BROWSER"):
+            _open_browser_later(url)
         uvicorn.run(app, host=args.host, port=args.port)
     except Exception as e:  # noqa: BLE001 —— 双击场景必须给人话而非闪退
         print("后端启动失败：%s" % e)

@@ -72,6 +72,11 @@ research_*.md
 # 就会把这些内部笔记一起提交进公开仓库。
 /tmp_*
 
+# Playwright 运行产物（UI 冒烟的失败截图 / trace / 报告）
+web/frontend/test-results/
+web/frontend/playwright-report/
+web/frontend/blob-report/
+
 # pytest 运行缓存
 .pytest_cache/
 # 测试覆盖率产物

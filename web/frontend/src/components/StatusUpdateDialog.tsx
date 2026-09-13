@@ -198,7 +198,8 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
                 <SelectItem value={NONE}>{t("status.autoMatch")}</SelectItem>
                 {applications.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
-                    {a.公司} {a.岗位}（{a.当前阶段}）
+                    {a.公司} {a.岗位}（
+                    {a.当前阶段 ? domainLabel("stage", a.当前阶段, t) : "—"}）
                   </SelectItem>
                 ))}
               </SelectContent>

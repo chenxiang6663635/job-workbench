@@ -40,12 +40,13 @@ const RESULT_LABEL: Record<string, TranslationKey> = {
 };
 
 function ResultBadge({ value }: { value: string }) {
+  const { t } = useTranslation();
   return (
     <Badge
       variant={RESULT_VARIANT[value] ?? "warning"}
       className="rounded-md px-1.5 py-0 text-[11px]"
     >
-      {value}
+      {domainLabel("result", value, t)}
     </Badge>
   );
 }

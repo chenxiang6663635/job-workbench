@@ -33,8 +33,9 @@ components/ImportApplicationsDialog.tsx = 公司|岗位|当前阶段|截止日�
 # 轮次/形式/结果枚举的默认值与 CSV 列名
 components/InterviewForm.tsx = 一面|公司|关联记录|复盘与改进|岗位|形式|待定|我的回答要点|结果|视频|轮次|问题记录|面试官|面试时间
 
-# 结果枚举比较 + 用模板串拼「· 轮次 · 形式」这类展示串（中文部分是数据）
-components/InterviewList.tsx = · ${current.面试时间}|· ${r.形式}|· ${r.轮次}|· ${t("interview.interviewer", { value: current.面试官 })}|· ${t("interview.related", { value: current.关联记录 })}|取消|复盘与改进|待定|我的回答要点|未通过|结果|通过|问题记录|面试|面试时间
+# 结果枚举比较 + 用模板串拼「· 轮次 · 形式」这类展示串（中文部分是数据/字段名；
+# domainLabel(...) 的插值键由 check 的「${} 键跳过」规则处理，不走清单）
+components/InterviewList.tsx = · ${domainLabel("round", r.轮次, t)}|· ${domainLabel("form", r.形式, t)}|· ${current.面试时间}|· ${t("interview.interviewer", { value: current.面试官 })}|· ${t("interview.related", { value: current.关联记录 })}|取消|复盘与改进|待定|我的回答要点|未通过|轮次|结果|通过|问题记录|面试|面试时间
 
 # 投递状态枚举（未投递/流程中/已终态）
 components/JobCard.tsx = 已终态|流程中

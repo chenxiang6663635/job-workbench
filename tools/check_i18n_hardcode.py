@@ -222,8 +222,14 @@ def find_missing_keys(root):
             with io.open(os.path.join(dirpath, name), "r", encoding="utf-8") as f:
                 text = f.read()
             for m in CALL_KEY.finditer(text):
-                if m.group(1) not in keys:
-                    out.append((rel, text[:m.start()].count("\n") + 1, m.group(1)))
+                key = m.group(1)
+                # 模板串插值键（`domain.${group}.${raw}`）静态不可判定：拼错的
+                # 字面量 key 才是这类检查的目标，带 ${} 的键跳过而非误报——
+                # 否则「值→文案」的动态映射（lib/domainLabels.ts）永远过不了。
+                if "${" in key:
+                    continue
+                if key not in keys:
+                    out.append((rel, text[:m.start()].count("\n") + 1, key))
     return out
 
 

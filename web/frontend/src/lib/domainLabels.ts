@@ -23,6 +23,12 @@ export type DomainGroup =
   | "result"
   | "jobState";
 
+/**
+ * 键形如 `domain.<组>.<真值>`（扁平点号键，含中文段）。i18next v21+ 默认
+ * `ignoreJSONStructure: true`——嵌套查找失败会按整串扁平键回查，本仓库的语言包
+ * 全是这种扁平键（`nav.dashboard` 同款）。**依赖这个默认值**：若将来显式改掉，
+ * 这一组键会静默退化（好在失败模式是「显示原值」，不是崩溃或漏 key 名）。
+ */
 export function domainLabel(group: DomainGroup, raw: string, t: TFunction): string {
   if (!raw) return raw;
   return t(`domain.${group}.${raw}` as never, { defaultValue: raw }) as string;

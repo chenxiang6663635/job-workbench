@@ -109,7 +109,7 @@ jobs:
           Write-Host "已抽出 $($body.Count) 行作为 Release 说明"
 
       - name: 安装 Python 3.8
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.8"
 

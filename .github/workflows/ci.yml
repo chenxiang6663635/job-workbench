@@ -10,7 +10,7 @@ jobs:
     name: 后端测试（pytest）
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: 安装 Python 3.8
         uses: actions/setup-python@v6
@@ -46,7 +46,7 @@ jobs:
     name: 前端构建（lint + tsc + vite）
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: 安装 Node 20
         uses: actions/setup-node@v5
@@ -87,7 +87,7 @@ jobs:
     name: UI 冒烟（布局 + a11y）
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: 安装 Python 3.8
         uses: actions/setup-python@v6

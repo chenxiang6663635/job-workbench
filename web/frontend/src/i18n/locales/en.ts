@@ -7,8 +7,11 @@ export default {
 
   "nav.dashboard": "Dashboard",
   "nav.applications": "Tracker",
-  "nav.jobs": "Job Pool",
-  "nav.resume": "Resume Workshop",
+  // 导航标签按英文习惯取短名：英文比中文长 2–4 倍，1280 宽的桌面窗口放不下
+  // 「Job Pool」/「Resume Workshop」这类长标签（会挤到换行或藏入口），
+  // 中文侧仍是「岗位池 / 简历工坊」，语义由页面标题承载。
+  "nav.jobs": "Jobs",
+  "nav.resume": "Resume",
   "nav.progress": "Progress",
   "nav.library": "Library",
   "nav.settings": "Settings",
@@ -18,8 +21,10 @@ export default {
   "nav.switchWorkspaceTitle": "Switch workspace",
 
   "status.connecting": "Connecting",
-  "status.online": "Local data connected",
-  "status.offline": "Backend not running",
+  // 顶栏只有一格宽：短标签 + 完整语义放 title（见 status.localDataHint）
+  "status.online": "Connected",
+  "status.offline": "Backend offline",
+  "status.localDataHint": "Local data connected — nothing is sent anywhere",
   "error.backend": "Cannot connect to the backend (localhost:8765)",
   "error.backendHint": "Run from the repository root:",
   "error.renderFailed": "Something went wrong rendering this page",

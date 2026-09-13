@@ -244,6 +244,11 @@ const zhCN = {
   "app.sortByHint": "按{{name}}排序",
   "app.searchPlaceholder": "搜索公司、岗位或备注…",
   "app.allStages": "全部阶段",
+  // 三个筛选器的可访问名：Radix 的 SelectTrigger 是 role=combobox，按 ARIA
+  // 不能从内容取名字（可见的「全部阶段」是取值不是名字），必须显式给 aria-label
+  "app.filterStage": "按阶段筛选",
+  "app.filterDirection": "按方向筛选",
+  "app.filterBatch": "按批次筛选",
   "app.allDirections": "全部方向",
   "app.allBatches": "全部批次",
   "app.pasteMail": "粘贴邮件更新",
@@ -292,6 +297,8 @@ const zhCN = {
   "job.sortState": "投递状态",
   "job.sortRecent": "最近更新",
   "job.allStatus": "全部状态",
+  // 同 app.filter*：combobox 的可访问名必须显式给（可见文本是取值不是名字）
+  "job.filterStatus": "按状态筛选",
   "job.filterUnapplied": "未投递",
   "job.filterActive": "流程中",
   "job.filterTerminal": "已终态",

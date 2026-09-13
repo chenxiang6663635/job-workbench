@@ -276,7 +276,7 @@ export default function Applications() {
             setFilter({ ...filter, stage: v === ALL ? "" : v })
           }
         >
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-36" aria-label={t("app.filterStage")}>
             <SelectValue placeholder={t("app.allStages")} />
           </SelectTrigger>
           <SelectContent>
@@ -295,7 +295,7 @@ export default function Applications() {
             setFilter({ ...filter, direction: v === ALL ? "" : v })
           }
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-32" aria-label={t("app.filterDirection")}>
             <SelectValue placeholder={t("app.allDirections")} />
           </SelectTrigger>
           <SelectContent>
@@ -314,7 +314,7 @@ export default function Applications() {
             setFilter({ ...filter, batch: v === ALL ? "" : v })
           }
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-32" aria-label={t("app.filterBatch")}>
             <SelectValue placeholder={t("app.allBatches")} />
           </SelectTrigger>
           <SelectContent>
@@ -550,6 +550,9 @@ export default function Applications() {
                             onValueChange={(v) => patch(it.id, { 当前阶段: v })}
                           >
                             <SelectTrigger
+                              // 行内阶段编辑器：可视文本是「当前阶段」，但 role=combobox
+                              // 按 ARIA 不能从内容取名字，必须显式给 aria-label
+                              aria-label={t("form.phStage")}
                               className={`h-auto w-auto cursor-pointer gap-2 rounded-md border-0 px-2 py-1 text-xs font-medium shadow-none ${stageStyle(
                                 it.当前阶段
                               )}`}

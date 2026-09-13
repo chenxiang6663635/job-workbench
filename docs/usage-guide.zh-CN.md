@@ -349,7 +349,7 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 
 ### 网页标题显示 "Vite + React + TS"
 
-旧版构建残留的缓存或未刷新产物。`Ctrl+F5` 强刷；仍不行则重新构建前端（`cd web/frontend && npm.cmd run build`）并重启后端。新的正确标题是「求职工作台」。
+旧版构建残留的缓存或未刷新产物。`Ctrl+F5` 强刷；仍不行则重新构建前端（`cd web/frontend && npm.cmd run build`）并重启后端。新的正确标题是 "Job Workbench"（窗口标题跟随界面语言，中文界面为「求职工作台」）。
 
 ### .ps1 脚本报 ParserError / 中文乱码
 

@@ -348,7 +348,7 @@ With `console=True`, a black window that flashes past means **it failed at start
 
 ### The page title says "Vite + React + TS"
 
-That is a stale artifact from an older build or a cached bundle. Force-reload with `Ctrl+F5`; if it persists, rebuild the frontend (`cd web/frontend && npm.cmd run build`) and restart the backend. The **new** correct title is 「求职工作台」.
+That is a stale artifact from an older build or a cached bundle. Force-reload with `Ctrl+F5`; if it persists, rebuild the frontend (`cd web/frontend && npm.cmd run build`) and restart the backend. The **new** correct title is "Job Workbench" (the window title follows the interface language — 求职工作台 in Chinese).
 
 ### .ps1 scripts throw ParserError / mojibake
 

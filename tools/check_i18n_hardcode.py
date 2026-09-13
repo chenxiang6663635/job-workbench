@@ -50,7 +50,7 @@ SRC_REL = os.path.join("web", "frontend", "src")
 ELECTRON_REL = os.path.join("web", "electron")
 ELECTRON_KEY_PREFIX = "electron"
 SKIP_DIRS = (os.path.join("i18n", "locales"), os.path.join("i18n", "index.ts"))
-SKIP_DIR_NAMES = ("node_modules", "release")  # release = 本地打包产物（含旧文案）
+SKIP_DIR_NAMES = ("node_modules", "release")  # release = 本地打包产物（含旧文案）；对两棵源码树都生效
 ALLOWLIST_REL = os.path.join("tools", "i18n_hardcode_allowlist.txt")
 CJK = re.compile(u"[\u4e00-\u9fff]")
 # JSX 裸文本按「连续中文块」报，而不是逐字符——一条文案报出十几个字，

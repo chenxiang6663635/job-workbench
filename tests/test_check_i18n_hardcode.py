@@ -234,7 +234,7 @@ def test_plural_base_name_counts_as_existing(tmp_path):
     assert _missing(tmp_path, files) == []
 
 
-# ---- 7. Electron 主进程（第二棵源码树，web/electron） ----
+# ---- 9. Electron 主进程（第二棵源码树，web/electron） ----
 
 def _run_with_electron(tmp_path, files, electron_files, allowlist=""):
     root = _make_repo(tmp_path, files, allowlist, electron_files)

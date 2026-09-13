@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import datetime
 import imaplib
+import os
 import re
 import socket
 import ssl
@@ -197,17 +198,47 @@ def _probe_tcp(host, port):
         raise ImapFetchError("无法连接 %s:%s：%s" % (host, port, exc))
 
 
-def _connect(host, port):
-    """建立会话。3.8 兼容：不传 imaplib 的 timeout 参数（3.9+ 才有）。
+def _ssl_context():
+    """显式 TLS 上下文：默认严格校验（系统证书库 + 主机名）。
 
-    SSL 上下文沿用解释器默认（3.8–3.11 为不校验系统证书库的宽松上下文，
-    3.12 起改为系统证书校验）——不显式 `create_default_context()`，因为它在
-    本机 Windows 上会触发证书库加载崩溃（与 provider.py 同一环境 bug，见其注释）。
+    为什么不走解释器默认：Python ≤3.11 的 imaplib 默认上下文**不校验服务器
+    证书**，授权码在传输层可被中间人截获（issue #50 S2）。
+
+    为什么不能无脑 `create_default_context()`：它要枚举整个 Windows 证书库，
+    库里有损坏条目的机器会直接抛 ASN1 错误（本机实测，与 provider.py 同一
+    环境问题）。此时**默认拒绝连接**（授权码不能在未校验的连接上裸奔），
+    仅当 `JOBWS_IMAP_TLS=insecure` 时显式降级为不校验——降级必须由用户
+    主动配置，风险写在错误消息里。
     """
+    try:
+        return ssl.create_default_context()
+    except ssl.SSLError as exc:
+        if os.environ.get("JOBWS_IMAP_TLS", "").strip().lower() == "insecure":
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            return ctx
+        raise ImapFetchError(
+            "无法加载本机系统证书库，邮件服务器证书无法校验（%s）。"
+            "已拒绝连接：授权码在未校验的连接上可被中间人截获。"
+            "出路：修复系统证书库（certmgr.msc 排查损坏的证书条目）；"
+            "或设置环境变量 JOBWS_IMAP_TLS=insecure 显式跳过证书校验"
+            "（不推荐，风险自负）。" % exc)
+
+
+def _connect(host, port):
+    """建立会话。3.8 兼容：不传 imaplib 的 timeout 参数（3.9+ 才有）；
+    TLS 校验策略见 `_ssl_context`。"""
     _probe_tcp(host, port)
     try:
-        conn = imaplib.IMAP4_SSL(host, port)
+        conn = imaplib.IMAP4_SSL(host, port, ssl_context=_ssl_context())
     except ssl.SSLError as exc:
+        if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+            # 与「地址写错」是两回事：证书不被信任可能是自签名，也可能是劫持——
+            # 两条路的答案都不是关校验，所以消息里明确不给降级出口
+            raise ImapFetchError(
+                "证书校验失败：系统证书库不信任 %s 的证书（可能自签名，也可能被"
+                "劫持）。不要为它关闭校验。" % host)
         raise ImapFetchError(
             "TLS 握手失败：%s（检查服务器地址与端口，SSL 端口通常为 993）" % exc)
     except (socket.timeout, OSError) as exc:

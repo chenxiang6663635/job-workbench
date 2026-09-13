@@ -182,6 +182,8 @@ def cluster_failures(rows, workspace=None):
             "shown": False,
             "note": "样本太少，暂不展示（失败记录 %d 条，至少需要 %d 条才能谈「高频」）"
                     % (total, MIN_CLUSTER_SAMPLES),
+            "noteCode": "too_few_samples",
+            "noteParams": {"total": total, "min": MIN_CLUSTER_SAMPLES},
             "clusters": [],
             "total": total,
             "minSamples": MIN_CLUSTER_SAMPLES,
@@ -221,6 +223,8 @@ def cluster_failures(rows, workspace=None):
         "shown": True,
         "note": "" if source == "keywords" else
                 "未配置 config/failure_keywords.txt，当前按「状态原因」原文频次统计",
+        "noteCode": None if source == "keywords" else "no_keywords",
+        "noteParams": {},
         "clusters": clusters,
         "total": total,
         "minSamples": MIN_CLUSTER_SAMPLES,

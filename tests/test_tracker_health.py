@@ -101,3 +101,51 @@ def test_ok_when_nothing_wrong():
     h = _score(row)
     assert h["level"] == "ok"
     assert h["reasons"] == []
+    assert h["hints"] == []
+
+
+def test_hints_are_structured_and_aligned_with_reasons():
+    """hints 与 reasons 按下标一一对应；params 是原始数据（阶段原值、用户原文）。
+
+    CLI 与中文界面继续显示 reasons 原文；英文界面按 code 在前端拼句
+    （阶段名过 domainLabel）。这里锁住两边不脱钩——多一条 reason 就必须
+    多一条 hint，且 code/params 与理由语义一致。
+    """
+    # deadline_left
+    h = _score(_row(截止日期=str(TODAY + timedelta(days=2))))
+    assert h["hints"] == [{"code": "deadline_left", "params": {"days": 2}}]
+    # deadline_passed
+    h = _score(_row(截止日期=str(TODAY - timedelta(days=5))))
+    assert h["hints"] == [{"code": "deadline_passed", "params": {"days": 5}}]
+    # deadline_today
+    h = _score(_row(截止日期=str(TODAY)))
+    assert h["hints"] == [{"code": "deadline_today", "params": {}}]
+    # next_action_overdue：action 是用户原文；写了动作带原文
+    row = _row(当前阶段="已投", 下次动作="跟进 HR",
+               下次动作日期=str(TODAY - timedelta(days=2)))
+    h = _score(row)
+    assert h["hints"] == [{"code": "next_action_overdue",
+                           "params": {"days": 2, "action": "跟进 HR"}}]
+    assert h["hints"][0]["code"] in ("next_action_overdue",)  # 语义自检
+    # next_action_overdue：没写动作传空串（占位符「（未写动作）」由显示层负责）
+    row = _row(当前阶段="已投", 下次动作日期=str(TODAY - timedelta(days=1)))
+    h = _score(row)
+    assert h["hints"] == [{"code": "next_action_overdue",
+                           "params": {"days": 1, "action": ""}}]
+    # stale_stage：stage 是枚举原值（domainLabel 在显示层翻译）
+    row = _row(当前阶段="已投",
+               投递日期=str(TODAY - timedelta(days=tracker.STALE_DAYS + 1)))
+    h = _score(row)
+    assert h["hints"] == [{"code": "stale_stage",
+                           "params": {"stage": "已投", "days": tracker.STALE_DAYS + 1}}]
+
+
+def test_hints_align_with_reasons_by_index():
+    """多条理由全收时，hints 与 reasons 必须等长且逐条对应。"""
+    row = _row(截止日期=str(TODAY + timedelta(days=2)),
+               下次动作="改简历", 下次动作日期=str(TODAY - timedelta(days=1)),
+               投递日期=str(TODAY - timedelta(days=tracker.STALE_DAYS + 3)))
+    h = _score(row)
+    assert len(h["hints"]) == len(h["reasons"]) == 3
+    assert [x["code"] for x in h["hints"]] == [
+        "deadline_left", "next_action_overdue", "stale_stage"]

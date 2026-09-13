@@ -754,4 +754,23 @@ export default {
   "domain.jobState.未投递": "Not applied",
   "domain.jobState.流程中": "In progress",
   "domain.jobState.已终态": "Closed",
+
+  // Structured rendering for health hints / cluster note (see lib/domainLabels.ts
+  // for the philosophy: backend sends {code, params}, the UI composes sentences).
+  // count drives plural forms; days is the displayed value (always ≥ 1 here).
+  "app.reasonJoiner": "; ",
+  "health.deadlinePassed_one": "Deadline passed {{count}} day ago and still not applied",
+  "health.deadlinePassed_other": "Deadline passed {{count}} days ago and still not applied",
+  "health.deadlineToday": "Today is the deadline — still not applied",
+  "health.deadlineLeft_one": "Deadline in {{count}} day, still not applied",
+  "health.deadlineLeft_other": "Deadline in {{count}} days, still not applied",
+  "health.nextActionOverdue_one": "Next action overdue by {{count}} day: {{action}}",
+  "health.nextActionOverdue_other": "Next action overdue by {{count}} days: {{action}}",
+  "health.nextActionOverdueNoAction_one": "Next action overdue by {{count}} day (no action written)",
+  "health.nextActionOverdueNoAction_other": "Next action overdue by {{count}} days (no action written)",
+  "health.staleStage_one": "Stalled in {{stage}} for {{count}} day",
+  "health.staleStage_other": "Stalled in {{stage}} for {{count}} days",
+  "cluster.tooFewSamples": "Too few failures to show ({{total}} records; need at least {{min}} to call anything a pattern)",
+  // 状态原因 is the real CSV column name — kept in Chinese with a gloss
+  "cluster.noKeywords": "config/failure_keywords.txt not set — counting the raw 状态原因 (status reason) text instead",
 } satisfies Record<TranslationKey, string>;

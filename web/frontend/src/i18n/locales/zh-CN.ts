@@ -823,6 +823,25 @@ const zhCN = {
   "domain.jobState.未投递": "未投递",
   "domain.jobState.流程中": "流程中",
   "domain.jobState.已终态": "已终态",
+
+  // ---- 健康度理由与聚类说明的结构化渲染（后端 hints/noteCode 的前端半边）----
+  // 中文值与后端原文一致（zh 界面显示不变）；en 按 code 拼句。
+  // 复数：days 恒 ≥1，count 与 days 同传（count 选复数、days 是显示值）
+  "app.reasonJoiner": "；",
+  "health.deadlinePassed_one": "已过截止日 {{days}} 天仍未投",
+  "health.deadlinePassed_other": "已过截止日 {{days}} 天仍未投",
+  "health.deadlineToday": "今天就是截止日，仍未投",
+  "health.deadlineLeft_one": "距截止日 {{days}} 天仍未投",
+  "health.deadlineLeft_other": "距截止日 {{days}} 天仍未投",
+  "health.nextActionOverdue_one": "下次动作已逾期 {{days}} 天：{{action}}",
+  "health.nextActionOverdue_other": "下次动作已逾期 {{days}} 天：{{action}}",
+  "health.nextActionOverdueNoAction_one": "下次动作已逾期 {{days}} 天：（未写动作）",
+  "health.nextActionOverdueNoAction_other": "下次动作已逾期 {{days}} 天：（未写动作）",
+  "health.staleStage_one": "已在「{{stage}}」停留 {{days}} 天",
+  "health.staleStage_other": "已在「{{stage}}」停留 {{days}} 天",
+  "cluster.tooFewSamples": "样本太少，暂不展示（失败记录 {{total}} 条，至少需要 {{min}} 条才能谈「高频」）",
+  // 「状态原因」是追踪表 CSV 的真实列名，英文里保留原字段名 + 括注
+  "cluster.noKeywords": "未配置 config/failure_keywords.txt，当前按「状态原因」原文频次统计",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

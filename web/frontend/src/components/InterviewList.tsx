@@ -20,23 +20,14 @@ import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import { domainLabel } from "../lib/domainLabels";
 import InterviewForm from "./InterviewForm";
-import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 // 结果徽章配色：通过=绿、未通过=红、取消=灰、待定=琥珀
+// （配色是「取值 → 样式」的映射，与文案无关，故不走显示层）
 const RESULT_VARIANT: Record<string, "success" | "destructive" | "secondary" | "warning"> = {
   通过: "success",
   未通过: "destructive",
   取消: "secondary",
   待定: "warning",
-};
-
-// 结果作为**筛选项 label** 时的展示文案（取值仍是 CSV 里的中文）。
-// 与 Jobs 页的投递状态筛选取同一口径：筛选项是 UI 文案（翻），记录取值不翻。
-const RESULT_LABEL: Record<string, TranslationKey> = {
-  待定: "interview.resultTbd",
-  通过: "interview.resultPass",
-  未通过: "interview.resultFail",
-  取消: "interview.resultCancel",
 };
 
 function ResultBadge({ value }: { value: string }) {
@@ -107,7 +98,7 @@ export default function InterviewList() {
               onClick={() => setFilter(r)}
               className={`rounded-full ${filter === r ? "text-primary" : "text-muted-foreground"}`}
             >
-              {r ? (RESULT_LABEL[r] ? t(RESULT_LABEL[r]) : r) : t("common.all")}
+              {r ? domainLabel("result", r, t) : t("common.all")}
             </Button>
           ))}
         </div>

@@ -177,10 +177,7 @@ export default {
   "interview.hoursLater_other": "· in {{hours}} hours",
   "interview.inTwoDays": "· tomorrow or the day after",
   "interview.fallbackRound": "Interview",
-  "interview.resultTbd": "Pending",
-  "interview.resultPass": "Passed",
-  "interview.resultFail": "Failed",
-  "interview.resultCancel": "Cancelled",
+  // result values live in the domain.* group (lib/domainLabels.ts is the single entry point)
   "interview.related": "linked: {{value}}",
   "interview.interviewer": "interviewer: {{value}}",
   "interview.sectionQuestions": "Questions asked",

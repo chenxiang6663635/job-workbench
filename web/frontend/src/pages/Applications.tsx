@@ -22,6 +22,7 @@ import {
 } from "../api";
 // 模块级常量表里放 key 而不是文案：TranslationKey 让拼错的 key 在编译期就报错
 import type { TranslationKey } from "../i18n/locales/zh-CN";
+import { domainLabel } from "../lib/domainLabels";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
@@ -281,7 +282,7 @@ export default function Applications() {
             <SelectItem value={ALL}>{t("app.allStages")}</SelectItem>
             {STAGES.map((s) => (
               <SelectItem key={s} value={s}>
-                {s}
+                {domainLabel("stage", s, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -300,7 +301,7 @@ export default function Applications() {
             <SelectItem value={ALL}>{t("app.allDirections")}</SelectItem>
             {DIRECTIONS.map((d) => (
               <SelectItem key={d} value={d}>
-                {d}
+                {domainLabel("direction", d, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -319,7 +320,7 @@ export default function Applications() {
             <SelectItem value={ALL}>{t("app.allBatches")}</SelectItem>
             {BATCHES.map((b) => (
               <SelectItem key={b} value={b}>
-                {b}
+                {domainLabel("batch", b, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -396,7 +397,7 @@ export default function Applications() {
               <SelectContent>
                 {DIRECTIONS.map((d) => (
                   <SelectItem key={d} value={d}>
-                    {d}
+                    {domainLabel("direction", d, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -411,7 +412,7 @@ export default function Applications() {
               <SelectContent>
                 {BATCHES.map((b) => (
                   <SelectItem key={b} value={b}>
-                    {b}
+                    {domainLabel("batch", b, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -522,8 +523,12 @@ export default function Applications() {
                           {it.岗位 || t("app.roleMissing")}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-foreground">{it.方向 || "—"}</td>
-                      <td className="px-4 py-3 text-foreground">{it.批次 || "—"}</td>
+                      <td className="px-4 py-3 text-foreground">
+                        {it.方向 ? domainLabel("direction", it.方向, t) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-foreground">
+                        {it.批次 ? domainLabel("batch", it.批次, t) : "—"}
+                      </td>
                       <td className="px-4 py-3">
                         {TERMINAL.includes(it.当前阶段) ? (
                           <div className="flex flex-col gap-0.5">
@@ -532,7 +537,7 @@ export default function Applications() {
                                 it.当前阶段
                               )}`}
                             >
-                              {it.当前阶段}
+                              {domainLabel("stage", it.当前阶段, t)}
                             </span>
                             <span className="text-[10px] text-muted-foreground/70">
                               {t("app.terminalLocked")}
@@ -553,7 +558,7 @@ export default function Applications() {
                             <SelectContent>
                               {STAGES.map((s) => (
                                 <SelectItem key={s} value={s} className="text-xs">
-                                  {s}
+                                  {domainLabel("stage", s, t)}
                                 </SelectItem>
                               ))}
                             </SelectContent>

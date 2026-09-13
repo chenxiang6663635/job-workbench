@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { ErrorBanner } from "./ErrorBanner";
+import { domainLabel } from "../lib/domainLabels";
 
 interface Props {
   applications: Application[];
@@ -197,7 +198,8 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
                 <SelectItem value={NONE}>{t("status.autoMatch")}</SelectItem>
                 {applications.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
-                    {a.公司} {a.岗位}（{a.当前阶段}）
+                    {a.公司} {a.岗位}（
+                    {a.当前阶段 ? domainLabel("stage", a.当前阶段, t) : "—"}）
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -413,7 +415,7 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
           <SelectContent>
             {DIRECTIONS.map((d) => (
               <SelectItem key={d} value={d}>
-                {d}
+                {domainLabel("direction", d, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -425,7 +427,7 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
           <SelectContent>
             {BATCHES.map((b) => (
               <SelectItem key={b} value={b}>
-                {b}
+                {domainLabel("batch", b, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -437,7 +439,7 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
           <SelectContent>
             {STAGES.map((s) => (
               <SelectItem key={s} value={s}>
-                {s}
+                {domainLabel("stage", s, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -501,7 +503,7 @@ function MatchCard({
 
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="rounded bg-secondary/60 px-2 py-0.5 text-xs text-muted-foreground">
-              {match.当前阶段 || "—"}
+              {match.当前阶段 ? domainLabel("stage", match.当前阶段, t) : "—"}
             </span>
             <ArrowRight size={14} className="text-primary" />
             {/* 建议阶段直接做成可改的下拉：一处控件既展示建议也允许改。
@@ -513,7 +515,7 @@ function MatchCard({
               <SelectContent>
                 {STAGES.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {s}
+                    {domainLabel("stage", s, t)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -198,6 +198,21 @@ def test_missing_key_is_reported(tmp_path):
     assert [m[2] for m in _missing(tmp_path, files)] == ["nope.notHere"]
 
 
+def test_interpolated_key_is_skipped(tmp_path):
+    """模板串插值键（`domain.${group}.${raw}`）静态不可判定：跳过而非误报。
+
+    领域枚举的显示层（lib/domainLabels.ts）按「组.真值」拼动态键，未登记的值
+    靠 defaultValue 原样回落——把它当「key 不存在」报出来是假阳性。
+    """
+    files = {
+        "lib/domainLabels.ts": (
+            'const k = t(`domain.${group}.${raw}`, { defaultValue: raw });'
+        ),
+        "i18n/locales/zh-CN.ts": 'const zhCN = {\n  "app.title": "x",\n} as const;',
+    }
+    assert _missing(tmp_path, files) == []
+
+
 def test_existing_key_is_fine(tmp_path):
     files = {"a.tsx": 'const x = t("a.b");\n',
              os.path.join("i18n", "locales", "zh-CN.ts"): '"a.b": "有",\n'}

@@ -9,6 +9,7 @@ import {
   type Application,
   type Interview,
 } from "../api";
+import { domainLabel, type DomainGroup } from "../lib/domainLabels";
 import {
   Dialog,
   DialogClose,
@@ -58,16 +59,20 @@ const EMPTY: Draft = {
   result: "待定",
 };
 
-/** 常量枚举下拉（选项即值，取值非空故无需哨兵） */
+/** 常量枚举下拉（选项即值，取值非空故无需哨兵）。
+ *  group 传入时选项走显示层映射（domainLabel）：值仍是原始枚举，只有文案翻。 */
 function EnumSelect({
   value,
   options,
   onChange,
+  group,
 }: {
   value: string;
   options: string[];
   onChange: (v: string) => void;
+  group?: DomainGroup;
 }) {
+  const { t } = useTranslation();
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger>
@@ -76,7 +81,7 @@ function EnumSelect({
       <SelectContent>
         {options.map((o) => (
           <SelectItem key={o} value={o}>
-            {o}
+            {group ? domainLabel(group, o, t) : o}
           </SelectItem>
         ))}
       </SelectContent>
@@ -114,16 +119,31 @@ function InterviewFields({
         <Input value={d.role} onChange={(e) => set("role", e.target.value)} />
       </FormField>
       <FormField label={t("interview.round")}>
-        <EnumSelect value={d.round} options={INTERVIEW_ROUNDS} onChange={(v) => set("round", v)} />
+        <EnumSelect
+          value={d.round}
+          options={INTERVIEW_ROUNDS}
+          group="round"
+          onChange={(v) => set("round", v)}
+        />
       </FormField>
       <FormField label={t("interview.when")}>
         <Input type="datetime-local" value={d.when} onChange={(e) => set("when", e.target.value)} />
       </FormField>
       <FormField label={t("interview.form")}>
-        <EnumSelect value={d.form} options={INTERVIEW_FORMS} onChange={(v) => set("form", v)} />
+        <EnumSelect
+          value={d.form}
+          options={INTERVIEW_FORMS}
+          group="form"
+          onChange={(v) => set("form", v)}
+        />
       </FormField>
       <FormField label={t("interview.result")}>
-        <EnumSelect value={d.result} options={INTERVIEW_RESULTS} onChange={(v) => set("result", v)} />
+        <EnumSelect
+          value={d.result}
+          options={INTERVIEW_RESULTS}
+          group="result"
+          onChange={(v) => set("result", v)}
+        />
       </FormField>
       <FormField label={t("interview.interviewerLabel")} className="col-span-2">
         <Input value={d.interviewer} onChange={(e) => set("interviewer", e.target.value)} />

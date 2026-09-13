@@ -18,6 +18,7 @@ import {
 } from "./ui/select";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
+import { domainLabel } from "../lib/domainLabels";
 import InterviewForm from "./InterviewForm";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
@@ -39,12 +40,13 @@ const RESULT_LABEL: Record<string, TranslationKey> = {
 };
 
 function ResultBadge({ value }: { value: string }) {
+  const { t } = useTranslation();
   return (
     <Badge
       variant={RESULT_VARIANT[value] ?? "warning"}
       className="rounded-md px-1.5 py-0 text-[11px]"
     >
-      {value}
+      {domainLabel("result", value, t)}
     </Badge>
   );
 }
@@ -166,8 +168,8 @@ export default function InterviewList() {
                   </div>
                   <div className="mt-1 truncate text-xs text-muted-foreground">
                     {r.岗位}
-                    {r.轮次 && ` · ${r.轮次}`}
-                    {r.形式 && ` · ${r.形式}`}
+                    {r.轮次 && ` · ${domainLabel("round", r.轮次, t)}`}
+                    {r.形式 && ` · ${domainLabel("form", r.形式, t)}`}
                   </div>
                   <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                     <CalendarClock
@@ -202,7 +204,10 @@ export default function InterviewList() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-base font-semibold text-foreground">
-                    {current.公司} · {current.轮次 || t("interview.fallbackRound")}
+                    {current.公司} ·{" "}
+                    {current.轮次
+                      ? domainLabel("round", current.轮次, t)
+                      : t("interview.fallbackRound")}
                   </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {current.岗位}
@@ -221,7 +226,7 @@ export default function InterviewList() {
                   <SelectContent>
                     {INTERVIEW_RESULTS.map((r) => (
                       <SelectItem key={r} value={r}>
-                        {r}
+                        {domainLabel("result", r, t)}
                       </SelectItem>
                     ))}
                   </SelectContent>

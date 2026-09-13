@@ -26,6 +26,7 @@ import {
   type StaleItem,
 } from "../api";
 import RetrospectivePanel from "../components/RetrospectivePanel";
+import { domainLabel } from "../lib/domainLabels";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
@@ -214,7 +215,7 @@ function StaleList({
               </span>
               <span className="flex items-center gap-3 text-xs">
                 <span className="font-mono text-warning">{t("app.daysUnit", { count: s.days })}</span>
-                <span className="text-muted-foreground">{s.当前阶段}</span>
+                <span className="text-muted-foreground">{domainLabel("stage", s.当前阶段, t)}</span>
               </span>
             </li>
           ))}
@@ -454,6 +455,7 @@ export default function Dashboard() {
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
+                    tickFormatter={(v: string) => domainLabel("tier", v, t)}
                   />
                   <Tooltip
                     cursor={{ fill: "hsl(var(--foreground) / 0.06)" }}
@@ -521,11 +523,14 @@ export default function Dashboard() {
                   <button
                     key={f.stage}
                     onClick={() => drillTo({ stage: f.stage })}
-                    title={t("dash.funnelRowTitle", { stage: f.stage, count: f.count })}
+                    title={t("dash.funnelRowTitle", {
+                      stage: domainLabel("stage", f.stage, t),
+                      count: f.count,
+                    })}
                     className="group flex w-full cursor-pointer items-center gap-3 text-left"
                   >
-                    <span className="w-12 shrink-0 text-xs text-muted-foreground transition-colors group-hover:text-primary">
-                      {f.stage}
+                    <span className="w-24 shrink-0 text-xs text-muted-foreground transition-colors group-hover:text-primary">
+                      {domainLabel("stage", f.stage, t)}
                     </span>
                     <span className="h-3.5 flex-1 overflow-hidden rounded-full bg-secondary/40">
                       <span
@@ -555,7 +560,7 @@ export default function Dashboard() {
                       key={d.key}
                       onClick={() => drillTo({ direction: d.key })}
                     >
-                      <span className="text-muted-foreground">{d.key}</span>
+                      <span className="text-muted-foreground">{domainLabel("direction", d.key, t)}</span>
                       <span className="font-mono text-primary">{d.count}</span>
                     </ClickRow>
                   ))}
@@ -569,7 +574,7 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   {data.byBatch.map((b) => (
                     <ClickRow key={b.key} onClick={() => drillTo({ batch: b.key })}>
-                      <span className="text-muted-foreground">{b.key}</span>
+                      <span className="text-muted-foreground">{domainLabel("batch", b.key, t)}</span>
                       <span className="font-mono text-primary">{b.count}</span>
                     </ClickRow>
                   ))}

@@ -2,6 +2,7 @@ import { ChartNoAxesColumn, Layers, RotateCcw, ThumbsDown } from "lucide-react";
 import type { Retrospective } from "../api";
 import { Card } from "./ui/card";
 import { useTranslation } from "react-i18next";
+import { domainLabel } from "../lib/domainLabels";
 
 /**
  * 周期复盘区块（P3 长期资产）。
@@ -52,7 +53,9 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
             <div className="space-y-2">
               {reached.map((c) => (
                 <div key={c.stage} className="flex items-center gap-2 text-xs">
-                  <span className="w-12 shrink-0 text-muted-foreground">{c.stage}</span>
+                  <span className="w-24 shrink-0 text-muted-foreground">
+                    {domainLabel("stage", c.stage, t)}
+                  </span>
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary/60">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${barColor(c.rate)}`}
@@ -82,7 +85,9 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
               <div className="space-y-1.5">
                 {data.stay.map((s) => (
                   <div key={s.stage} className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{s.stage}</span>
+                    <span className="text-muted-foreground">
+                      {domainLabel("stage", s.stage, t)}
+                    </span>
                     <span className="text-foreground">
                       {t("app.daysUnit", { count: s.median })}
                       <span className="ml-1.5 text-[10px] text-muted-foreground/70">

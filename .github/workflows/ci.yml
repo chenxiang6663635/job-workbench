@@ -36,6 +36,12 @@ jobs:
       - name: 校验界面硬编码中文
         run: python tools/check_i18n_hardcode.py
 
+      # 界面 token 一致性：旧调色板类名写回来时 Tailwind 不报错（样式只是静默
+      # 失效），tsc 与 eslint 也看不见类名字符串——只有这条扫描能拦。
+      # 与 check_i18n_hardcode.py 同一种范式：判定唯一实现，CI 与 pytest 共用。
+      - name: 校验界面 token 一致性
+        run: python tools/check_ui_tokens.py
+
   frontend:
     name: 前端构建（lint + tsc + vite）
     runs-on: ubuntu-latest
@@ -72,3 +78,49 @@ jobs:
       - name: 构建
         working-directory: web/frontend
         run: npm run build
+
+  # 最小 UI 冒烟：钉住静态检查测不到的那一类问题（英文标签挤爆顶栏、横向溢出、
+  # 控制台报错、serious/critical 可访问性）。**不是**全量 E2E——业务流仍靠发布前的
+  # 人工冒烟，这里只跑七个页面 × 三个视口的最小断言集（约 40 秒）。
+  # 与 CONTRIBUTING §明确不做 的「全量 Playwright E2E 不做」配套：例外有边界、有理由。
+  ui-smoke:
+    name: UI 冒烟（布局 + a11y）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 安装 Python 3.8
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.8"
+          cache: pip
+
+      - name: 安装后端依赖
+        run: pip install -r web/backend/requirements-dev.txt
+
+      # 后端同源托管 web/frontend/dist，冒烟跑的就是它；demo 工作区提供满数据页面
+      - name: 初始化 demo 工作区
+        run: python tools/init_workspace.py --target demo --demo
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+
+      - name: 安装前端依赖
+        working-directory: web/frontend
+        run: npm ci
+
+      - name: 构建前端
+        working-directory: web/frontend
+        run: npm run build
+
+      - name: 安装 Playwright 浏览器
+        working-directory: web/frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: 布局 + a11y 冒烟
+        working-directory: web/frontend
+        run: npm run test:ui

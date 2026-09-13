@@ -297,7 +297,7 @@ export default function Resume() {
 
       <div className="flex flex-wrap items-center gap-3">
         <Select value={version} onValueChange={setVersion}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-40" aria-label={t("resume.selectVersion")}>
             <SelectValue placeholder={t("resume.selectVersion")} />
           </SelectTrigger>
           <SelectContent>

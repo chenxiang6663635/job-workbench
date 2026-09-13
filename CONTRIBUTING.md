@@ -42,7 +42,7 @@
 - `tools/`、`web/backend/`、`web/frontend/` 的代码修改，`tests/` 用例
 - 依赖变更（`requirements*.txt` / `package.json`）；CI / workflows 配置
 - 数据模型 / schema 变更；触碰 [AGENTS.md](AGENTS.md) 诚实红线的内容
-- PR 门槛：CI 绿（后端 pytest、前端 lint + build、PR 标题校验**三个 check 全过**——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + **双轨审查（两轮均可定位，借鉴 branch closeout 的 Review Intake 条款）**：
+- PR 门槛：CI 绿（后端 pytest、前端 lint + build、PR 标题校验、UI 冒烟**四个 check 全过**——**PR 合并前的流程硬要求，红不许合**）+ 对照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 自查 + **双轨审查（两轮均可定位，借鉴 branch closeout 的 Review Intake 条款）**：
   1. **作者自审**：逐文件通读 `gh pr diff`（重点：隐私与四道门、API 消费面、改动是否纯增量），结论用 `gh pr comment` 落进 PR；
   2. **独立审查**：派一个**全新上下文**的子代理以陌生 reviewer 视角逐文件审同一 diff（不带入作者意图，只看代码本身）；
   两轮结论（含发现的问题与处理决定）都必须留在 PR 页面——单人开发也要让 PR 可追溯「改了什么、两轮各审出了什么、为什么这么定」；**不得将作者自审标称为独立审查，不得伪造审查身份**；独立审发现 MAJOR 级及以上问题当场修（追加 commit）或记入后续 PR，不许静默合并（实证：PR #13 独立审抓出自审完全漏掉的 3 个 MAJOR）；Squash and merge，合后删分支
@@ -111,7 +111,7 @@
 - 本文件与 [AGENTS.md](AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
-- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/init_workspace.py --target demo --demo`）。
 
 ## 开发辅助工具（MCP / 代码图谱，开发者与 AI 用，非产品）
 
@@ -134,8 +134,8 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 记进 `.gitnexus/`/`.codegraph/`（本机缓存）。这两个目录已 gitignore 不会进仓库，但**别把它们
 本体外发**；索引进展用 `gitnexus list`、`codegraph status` 查看。
 
-注意：产品侧 `CONTRIBUTING` 明确不做 Playwright **E2E 测试**（见下节），那是"把 UI 自动化
-写进 CI/测试套件"的取舍；开发时**用 Playwright 手动点一次页面做验证**不属此列，不受限。
+注意：产品侧 `CONTRIBUTING` 不做**全量** Playwright E2E（见下节：只留一个最小 UI 冒烟，
+钉布局与 serious/critical a11y）；开发时**用 Playwright 手动点一次页面做验证**不属此列，不受限。
 
 ## 文案与 i18n（界面文字一律走 t()）
 
@@ -161,5 +161,5 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 
 ## 明确不做（过度工程）
 
-`develop`/`release`/`hotfix` 分支、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、Playwright E2E、代码签名。
-（依据：`docs/research/report_dev_workflow.md` —— 单人维护项目的最小可行取舍。例外：最小 CI（2026-09-08 上线，pytest + 前端构建）；**分支保护（2026-09-08 起启用）**——线性历史 + 禁 force push（含 admin）。GitHub 分支保护无法按路径区分"代码 vs 文档"（required checks 会连带禁止一切直推），故分级靠"分支策略"节的规则自律执行，出错靠 revert 兜底。）
+`develop`/`release`/`hotfix` 分支、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、**全量** Playwright E2E（2026-09-13 细化为「不做全量、只留最小冒烟」：`web/frontend/e2e/` 只钉「页面能开 / 无横向溢出 / 顶栏不折行 / 无控制台错误 / serious+critical a11y 为 0」，不写业务流。理由：这类布局崩实测已发生两次——英文标签挤爆顶栏、窗口标题被页面 title 覆盖——而 tsc、eslint、两条判定脚本全都测不到，只能靠真机跑）、代码签名。
+（依据：`docs/research/report_dev_workflow.md` —— 单人维护项目的最小可行取舍。例外：最小 CI（2026-09-08 上线，pytest + 前端构建）、最小 UI 冒烟（2026-09-13 上线，布局 + a11y，见上条括注）；**分支保护（2026-09-08 起启用）**——线性历史 + 禁 force push（含 admin）。GitHub 分支保护无法按路径区分"代码 vs 文档"（required checks 会连带禁止一切直推），故分级靠"分支策略"节的规则自律执行，出错靠 revert 兜底。）

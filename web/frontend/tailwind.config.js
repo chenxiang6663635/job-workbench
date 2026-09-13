@@ -35,6 +35,9 @@ export default {
         },
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
+        /* 中性叠层：卡片高光 / 骨架微光（配 /5、/10 等透明度使用）与弹窗遮罩 */
+        highlight: "hsl(var(--highlight))",
+        scrim: "hsl(var(--scrim))",
         border: {
           DEFAULT: "hsl(var(--border))",
           strong: "hsl(var(--border-strong))",

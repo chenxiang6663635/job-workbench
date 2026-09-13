@@ -276,7 +276,7 @@ export default function Applications() {
             setFilter({ ...filter, stage: v === ALL ? "" : v })
           }
         >
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-36" aria-label={t("app.filterStage")}>
             <SelectValue placeholder={t("app.allStages")} />
           </SelectTrigger>
           <SelectContent>
@@ -295,7 +295,7 @@ export default function Applications() {
             setFilter({ ...filter, direction: v === ALL ? "" : v })
           }
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-32" aria-label={t("app.filterDirection")}>
             <SelectValue placeholder={t("app.allDirections")} />
           </SelectTrigger>
           <SelectContent>
@@ -314,7 +314,7 @@ export default function Applications() {
             setFilter({ ...filter, batch: v === ALL ? "" : v })
           }
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-32" aria-label={t("app.filterBatch")}>
             <SelectValue placeholder={t("app.allBatches")} />
           </SelectTrigger>
           <SelectContent>
@@ -376,7 +376,7 @@ export default function Applications() {
       )}
 
       {creating && (
-        <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-white/5 p-5">
+        <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-highlight/5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input
               placeholder={t("form.phCompany")}
@@ -454,7 +454,7 @@ export default function Applications() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium">{t("app.emptyTitle")}</p>
           <p className="text-sm text-muted-foreground">
@@ -503,7 +503,7 @@ export default function Applications() {
                   <Fragment key={it.id}>
                     <tr
                       id={`row-${it.id}`}
-                      className="group bg-card/40 shadow-card ring-1 ring-white/5 transition-colors hover:bg-secondary"
+                      className="group bg-card/40 shadow-card ring-1 ring-highlight/5 transition-colors hover:bg-secondary"
                     >
                       <td className="border-l-2 border-transparent px-4 py-3 transition-colors group-hover:border-primary">
                         <button
@@ -550,6 +550,14 @@ export default function Applications() {
                             onValueChange={(v) => patch(it.id, { 当前阶段: v })}
                           >
                             <SelectTrigger
+                              // 行内阶段编辑器：可视文本是阶段取值，而 role=combobox
+                              // 按 ARIA 不能从内容取名字，必须显式给 aria-label；
+                              // 且每行都长得一样——名字里带上公司与岗位，屏幕阅读器
+                              // 才分得清是哪一条投递（独立审查提出）
+                              aria-label={t("app.stageEditorAria", {
+                                company: it.公司,
+                                role: it.岗位,
+                              })}
                               className={`h-auto w-auto cursor-pointer gap-2 rounded-md border-0 px-2 py-1 text-xs font-medium shadow-none ${stageStyle(
                                 it.当前阶段
                               )}`}

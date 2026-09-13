@@ -177,10 +177,7 @@ export default {
   "interview.hoursLater_other": "· in {{hours}} hours",
   "interview.inTwoDays": "· tomorrow or the day after",
   "interview.fallbackRound": "Interview",
-  "interview.resultTbd": "Pending",
-  "interview.resultPass": "Passed",
-  "interview.resultFail": "Failed",
-  "interview.resultCancel": "Cancelled",
+  // result values live in the domain.* group (lib/domainLabels.ts is the single entry point)
   "interview.related": "linked: {{value}}",
   "interview.interviewer": "interviewer: {{value}}",
   "interview.sectionQuestions": "Questions asked",
@@ -225,6 +222,13 @@ export default {
   "app.sortByHint": "Sort by {{name}}",
   "app.searchPlaceholder": "Search company, role or notes…",
   "app.allStages": "All stages",
+  // accessible names for the three filters: the trigger is role=combobox, which
+  // per ARIA cannot take its name from content (the visible "All stages" is the
+  // value, not the name), so an explicit aria-label is required
+  "app.filterStage": "Filter by stage",
+  "app.filterDirection": "Filter by direction",
+  "app.filterBatch": "Filter by batch",
+  "app.stageEditorAria": "Change stage for {{company}} · {{role}}",
   "app.allDirections": "All directions",
   "app.allBatches": "All batches",
   "app.pasteMail": "Paste email",
@@ -267,6 +271,7 @@ export default {
   "job.sortState": "Status",
   "job.sortRecent": "Updated",
   "job.allStatus": "All statuses",
+  "job.filterStatus": "Filter by status",
   "job.filterUnapplied": "Not applied",
   "job.filterActive": "In progress",
   "job.filterTerminal": "Closed",

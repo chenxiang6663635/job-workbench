@@ -127,7 +127,7 @@ function StatCard({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`group relative overflow-hidden rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
+      className={`group relative overflow-hidden rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
     >
       <div
         className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-20 blur-2xl transition-opacity duration-300 group-hover:opacity-40"
@@ -189,7 +189,7 @@ function StaleList({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-warning/25 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+    <div className="rounded-lg border border-warning/25 bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Hourglass size={15} className="text-warning" />
         <h2 className="text-sm font-semibold text-foreground">{t("dash.staleTitle")}</h2>
@@ -239,7 +239,7 @@ const LEVEL_META: Record<
 function PendingList({ pending }: { pending: PendingItem[] }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+    <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Flame size={15} className="text-destructive" />
         <h2 className="text-sm font-semibold text-foreground">{t("dash.pendingTitle")}</h2>
@@ -381,7 +381,7 @@ export default function Dashboard() {
       {hasJobPoolSignal && (
         <div className="space-y-4">
           {unappliedHigh.length > 0 && (
-            <div className="rounded-lg border border-primary/30 bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+            <div className="rounded-lg border border-primary/30 bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
               <h2 className="text-sm font-semibold text-foreground">
                 {t("dash.unappliedHigh", { count: unappliedHighTotal })}
               </h2>
@@ -417,7 +417,7 @@ export default function Dashboard() {
           )}
 
           {hasScoreByState && (
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
               <h2 className="text-sm font-semibold text-foreground">
                 {t("dash.scoreByState")}
               </h2>
@@ -500,7 +500,7 @@ export default function Dashboard() {
       )}
 
       {data.total === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium text-foreground">
             {t("dash.emptyTitle")}
@@ -512,7 +512,7 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5 lg:col-span-2">
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 lg:col-span-2">
               <h2 className="mb-4 text-sm font-semibold text-foreground">
                 {t("dash.funnelTitle")}
               </h2>
@@ -552,7 +552,7 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
                 <h2 className="mb-3 text-sm font-semibold text-foreground">
                   {t("dash.byDirection")}
                 </h2>
@@ -569,7 +569,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
                 <h2 className="mb-3 text-sm font-semibold text-foreground">
                   {t("dash.byBatch")}
                 </h2>
@@ -586,7 +586,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
                 {t("dash.upcoming")}
               </h2>
@@ -627,7 +627,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-white/5 p-5">
+            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
                 {t("dash.overdueTitle")}
               </h2>
@@ -663,7 +663,7 @@ export default function Dashboard() {
 
           {/* 周期复盘（P3）：转化率 / 停留 / 归因——数据越攒越值钱 */}
           {data.retrospective && (
-            <div className="rounded-lg border border-border bg-card/40 shadow-card ring-1 ring-white/5 p-5">
+            <div className="rounded-lg border border-border bg-card/40 shadow-card ring-1 ring-highlight/5 p-5">
               <RetrospectivePanel data={data.retrospective} />
             </div>
           )}

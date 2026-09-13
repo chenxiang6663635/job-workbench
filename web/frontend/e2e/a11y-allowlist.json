@@ -1,0 +1,23 @@
+{
+  "_doc": [
+    "axe 豁免登记：页面 → 规则 id → { reason, nodes }。",
+    "nodes = 登记时的命中节点数：放行范围就是这几条，数量变多即视为新命中并报错",
+    "（只按规则名放行的话，同一页将来的同类问题会被静默吞掉——独立审查提出）。",
+    "登记了却不再命中的条目同样报错（僵尸条目），与 i18n / token 两份清单同一种纪律。",
+    "典型用途：第三方组件（Radix/shadcn）的已知限制，且修法需要偏离上游模板。"
+  ],
+  "pages": {
+    "jobs": {
+      "aria-valid-attr-value": {
+        "reason": "分段控件由 ui/tabs 实现（Tabs 只当排序模式切换、没有内容面板），Radix 仍会给触发器写上 aria-controls，指向一个不存在的 content id。根治要把这类分段控件改成 radio group / toggle group（同 resume 页），属页面控件重构——不在截图前仓促改，见 PR 的后续项。",
+        "nodes": 1
+      }
+    },
+    "resume": {
+      "aria-valid-attr-value": {
+        "reason": "同 jobs：ui/tabs 当分段控件用（标准版式 / 高级模板切换），没有内容面板，触发器的 aria-controls 悬空。根治同样是把分段控件换成 radio group / toggle group。",
+        "nodes": 1
+      }
+    }
+  }
+}

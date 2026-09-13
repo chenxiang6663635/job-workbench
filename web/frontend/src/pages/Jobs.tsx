@@ -315,7 +315,7 @@ export default function Jobs() {
           value={status === "" ? ALL : status}
           onValueChange={(v) => setStatus(v === ALL ? "" : (v as JobStatus))}
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-32" aria-label={t("job.filterStatus")}>
             <SelectValue placeholder={t("job.allStatus")} />
           </SelectTrigger>
           <SelectContent>

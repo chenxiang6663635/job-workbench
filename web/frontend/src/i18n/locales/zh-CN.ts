@@ -192,12 +192,9 @@ const zhCN = {
   "interview.inTwoDays": "· 明后两天",
   // 轮次为空时的兜底占位；轮次本身是数据枚举，不翻
   "interview.fallbackRound": "面试",
-  // 结果作为**筛选项 label** 时是 UI 文案（翻）；记录里的结果取值仍是同一串中文
-  // （不翻），与 Jobs 页「未投递/流程中/已终态」同一口径——两处不共用 key
-  "interview.resultTbd": "待定",
-  "interview.resultPass": "通过",
-  "interview.resultFail": "未通过",
-  "interview.resultCancel": "取消",
+  // 结果枚举的展示文案统一在 domain.* 组（lib/domainLabels.ts 是显示层唯一入口）：
+  // 2026-09-13 收敛前这里另有一份 interview.result* 与 domain.result.* 逐字重复，
+  // 违反「单一真值源」；筛选项与徽章都改走 domainLabel("result", …)，此处不再登记
   "interview.related": "关联 {{value}}",
   "interview.interviewer": "面试官 {{value}}",
   // 三段的标题是给人看的表头；取值用的 CSV 列名仍是中文，不受影响
@@ -247,6 +244,13 @@ const zhCN = {
   "app.sortByHint": "按{{name}}排序",
   "app.searchPlaceholder": "搜索公司、岗位或备注…",
   "app.allStages": "全部阶段",
+  // 三个筛选器的可访问名：Radix 的 SelectTrigger 是 role=combobox，按 ARIA
+  // 不能从内容取名字（可见的「全部阶段」是取值不是名字），必须显式给 aria-label
+  "app.filterStage": "按阶段筛选",
+  "app.filterDirection": "按方向筛选",
+  "app.filterBatch": "按批次筛选",
+  // 行内阶段编辑器的可访问名：每行控件外形一样，名字里必须带上「是哪一条投递」
+  "app.stageEditorAria": "修改「{{company}} · {{role}}」的当前阶段",
   "app.allDirections": "全部方向",
   "app.allBatches": "全部批次",
   "app.pasteMail": "粘贴邮件更新",
@@ -295,6 +299,8 @@ const zhCN = {
   "job.sortState": "投递状态",
   "job.sortRecent": "最近更新",
   "job.allStatus": "全部状态",
+  // 同 app.filter*：combobox 的可访问名必须显式给（可见文本是取值不是名字）
+  "job.filterStatus": "按状态筛选",
   "job.filterUnapplied": "未投递",
   "job.filterActive": "流程中",
   "job.filterTerminal": "已终态",

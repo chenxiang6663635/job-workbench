@@ -102,8 +102,15 @@ def _claude_cmd(exe):
 
 
 def _codex_cmd(exe):
-    return [exe, "exec", "-s", "read-only", "-C", ROOT,
-            "--skip-git-repo-check", "--ephemeral", "--ignore-user-config", _NAV]
+    # --ignore-user-config：config.toml 的字段兼容性不该卡住门禁（auth 不受影响）。
+    # --ignore-rules：实测（2026-09-14）——用户级 execpolicy 白名单
+    #   （`~/.codex/rules/*.rules`）只含别的仓库积累的命令 allow 规则，审查命令
+    #   不命中 → 被判「需要审批」→ approval: never 下直接拒绝（blocked by
+    #   policy）。忽略白名单后，读命令在**只读沙箱内**自动放行（再实测：成功
+    #   读到文件，头部 sandbox 仍为 read-only）——写约束由沙箱硬保证，白名单
+    #   只是审批加速层。
+    return [exe, "exec", "-s", "read-only", "-C", ROOT, "--skip-git-repo-check",
+            "--ephemeral", "--ignore-user-config", "--ignore-rules", _NAV]
 
 
 HOSTS = [("claude", _claude_cmd), ("codex", _codex_cmd)]

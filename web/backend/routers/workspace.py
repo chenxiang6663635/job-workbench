@@ -89,24 +89,52 @@ class WorkspaceInitBody(BaseModel):
     force: bool = False
 
 
+# Windows 保留设备名：这些名字（含带扩展名的形式）不能作目录名，系统会拒绝或
+# 把它当设备处理。跨平台一律拦——本产品要在 Windows 上双击即用。
+_RESERVED_NAMES = frozenset(
+    ["CON", "PRN", "AUX", "NUL"]
+    + ["COM%d" % i for i in range(1, 10)]
+    + ["LPT%d" % i for i in range(1, 10)]
+)
+
+
 def _resolve_new_workspace(name: str) -> str:
     """把工作区名解析成**可写数据根**下的绝对路径；非法或越界即拒绝。
 
-    只收单个目录名：含路径分隔符、`..`、以点开头、绝对路径一律拒绝——新建是
-    "在数据根下加一个目录"，不是"往任意位置写"。落在数据根（而不是应用根）
-    之下是刻意的：打包安装后应用目录可能不可写。
+    只收单个目录名，且**不接受会被系统悄悄改写的名字**：首尾空白、尾随点、
+    Windows 保留设备名——它们要么让目录名与用户输入的不一致，要么与既有目录
+    **静默合并**（`"ws."` 在 Windows 上就是 `"ws"`）。"静默错位比报错危险"
+    这条规矩，在目录名上同样适用（独立审查 MAJOR-1）。
+
+    落在数据根（而不是应用根）之下是刻意的：打包安装到不可写位置时，
+    数据根会回退到系统用户目录。
     """
-    candidate = (name or "").strip()
+    raw = name or ""
+    candidate = raw.strip()
     if not candidate:
         raise ApiError(422, "ws.nameRequired", "工作区名不能为空")
+    if candidate != raw:
+        raise ApiError(422, "ws.nameInvalid",
+                       "工作区名不能带首尾空白（会被系统悄悄去掉）", name=raw)
     if (os.path.isabs(candidate) or "/" in candidate or "\\" in candidate
             or candidate in (".", "..") or candidate.startswith(".")):
         raise ApiError(422, "ws.nameInvalid",
-                       "工作区名只能是单个目录名（不含路径分隔符）", name=name)
+                       "工作区名只能是单个目录名（不含路径分隔符、不以点开头）", name=name)
+    if candidate.endswith(".") or candidate.split(".")[0].upper() in _RESERVED_NAMES:
+        raise ApiError(422, "ws.nameInvalid",
+                       "`%s` 不能用作目录名（尾随点会被系统丢掉；CON/NUL 这类是保留名）"
+                       % candidate, name=name)
 
     root = os.path.normpath(data_root())
     full = os.path.normpath(os.path.join(root, candidate))
-    if not full.startswith(root + os.sep):
+    # 前缀比较前先 normcase：Windows 文件系统大小写不敏感、而字符串比较敏感——
+    # 盘符大小写不同时，正常名字会被误判越界（独立审查 MAJOR-2）。
+    try:
+        inside = (os.path.normcase(os.path.commonpath([root, full]))
+                  == os.path.normcase(root))
+    except ValueError:      # 不同盘符
+        inside = False
+    if not inside or os.path.normcase(full) == os.path.normcase(root):
         raise ApiError(400, "ws.outOfRange", "工作区越出允许范围")
     return full
 

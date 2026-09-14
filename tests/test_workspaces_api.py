@@ -80,14 +80,21 @@ def test_apply_rejects_replayed_token(client):
     assert again.json()["error_code"] == "ws.tokenInvalid"
 
 
-@pytest.mark.parametrize("name", ["", "..", ".hidden", "a/b", "a\\b", "../evil"])
+# 后三类对应"会被系统悄悄改写、从而与既有目录静默合并"的输入：
+# `"ws "` / `"ws."` 在 Windows 上就是 `"ws"`，保留设备名则根本建不出来。
+@pytest.mark.parametrize("name", [
+    "", "..", ".hidden", "a/b", "a\\b", "../evil",
+    "ws ", " ws", "ws.",
+    "CON", "nul", "COM1", "LPT9",
+])
 def test_illegal_names_are_rejected(client, name, tmp_path):
     resp = client.post("/api/workspaces/preview", json={"name": name})
 
     assert resp.status_code == 422
     assert resp.json()["error_code"] in ("ws.nameRequired", "ws.nameInvalid")
-    # 一个副作用都不能有：数据根里不该冒出任何新目录
-    assert [p.name for p in tmp_path.iterdir() if p.is_dir()] == ["tokens"]
+    # 一个副作用都不能有：数据根里除了令牌目录，不该多出任何东西（用集合比较，
+    # 不比顺序——顺序会随平台与文件系统变）
+    assert {p.name for p in tmp_path.iterdir()} == {"tokens"}
 
 
 def test_conflict_after_preview_is_refused(client, tmp_path):

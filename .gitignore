@@ -73,6 +73,8 @@ research_*.md
 /tmp_*
 # 连字符形式的临时工作区（手动跑两段式/演示时 init 出来的目录）
 /tmp-*
+# 若手动用 --basetemp=.pytest-tmp 跑测试（临时目录落在仓库内）时的产物
+/.pytest-tmp/
 
 # Playwright 运行产物（UI 冒烟的失败截图 / trace / 报告）
 web/frontend/test-results/

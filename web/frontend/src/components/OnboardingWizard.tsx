@@ -139,7 +139,12 @@ export function OnboardingWizard({
   const stepLabels = [t("onboard.step1"), t("onboard.step2"), t("onboard.step3")];
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(next) : busy ? undefined : close())}>
+    <Dialog
+      open={open}
+      // 进行中与创建成功都不允许关闭：前者会留下半成品工作区，后者会让用户
+      // 还没点到「开始使用」就把路径提示弄丢（独立审查 MINOR-2）。
+      onOpenChange={(next) => (next || busy || created ? undefined : close())}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>

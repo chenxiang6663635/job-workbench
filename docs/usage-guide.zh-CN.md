@@ -193,7 +193,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 
 - **Base URL**：OpenAI 兼容端点（含 `/v1`，如 `https://api.orcarouter.ai/v1`）
 - **API Key**：只存本地，界面只显示脱敏后的末尾 4 位
-- **测试连接**：调 `{base_url}/models` 验证 key 有效并列出模型
+- **测试连接**：调 `{base_url}/models` 验证 key 有效并列出模型。出网 HTTPS 默认校验证书（抓取 JD、简历改写同一策略）：本机证书库加载失败时会**拒绝连接**并提示修证书库（`certmgr.msc`），不会静默跳过校验——key 不会在未校验的连接上发出。显式降级用 `JOBWS_HTTP_TLS=insecure`（不推荐）
 - **数据与隐私**：整包导出 zip、快照备份到系统用户目录、打开数据目录、无遥测声明
 - **还没有 API Key？**：未存 key 时，页面会给出一个推荐 Provider 的注册入口，以及一个「一键填入该 Provider 端点」的按钮（预设值只在源码里定义一处）。这个入口在界面上明确标注为推广链接——通过它注册会给本项目作者返佣，你的价格与权益不受影响；点击只是打开网页，不会有任何数据从本应用发出。该入口当前指向 [OrcaRouter](https://www.orcarouter.ai/ref/ref_f34ad879f774bce8bc82)。
 

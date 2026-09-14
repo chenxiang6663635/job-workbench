@@ -113,7 +113,7 @@
 
 **关键排错（重要经验）**：
 1. **file_lock 不能锁内容文件本身**：对 `provider.json` 加锁在 Windows 会 Permission denied（内容写入时锁未释放 + 0 字节文件锁 1 字节异常）。应改用独立 `.lock` 文件（与 tracker 的 `tracker.lock` 一致）。
-2. **`ssl.create_default_context()` 在本机触发 `ASN1: NOT_ENOUGH_DATA`**（Windows 证书存储加载 bug，与目标 Provider 无关）。连通性测试改 `ssl._create_unverified_context()`（不加载证书库）绕过——连通性测试是本地配置检查，可接受不校验证书。
+2. **`ssl.create_default_context()` 在本机触发 `ASN1: NOT_ENOUGH_DATA`**（Windows 证书存储加载 bug，与目标 Provider 无关）。当时的处置是连通性测试改用不加载证书库的上下文绕过。**该处置已于 2026-09-13 被推翻（issue #59）**：请求上挂着 `Authorization: Bearer <api_key>`、目标又是用户填的公网地址，"本地配置检查"这个前提不成立——key 会在未校验的连接上暴露给中间人，且用户看到的是 `ASN1` 原文而非出路。现统一走 `tools/tls_policy.py`：默认严格校验，证书库不可用时**明确拒绝**并提示修证书库（`certmgr.msc`）或显式设 `JOBWS_HTTP_TLS=insecure` 降级。本行保留为决策沿革记录，不再是当前口径。
 3. workspace 判定用 `config/profile.md` 标记，与 `jd_score.resolve_profile` 单一事实源一致。
 
 **遗留**：测试工作区 test_ws 已删、测试 provider.json 已删、截图已清。工作区切换下拉是完整可用的（切工作区 reload 后各页面按新 ws 拉数据）。

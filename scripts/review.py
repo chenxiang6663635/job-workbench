@@ -33,8 +33,11 @@ CONTRIBUTING 的流程门禁要求每批 PR 做双轨审查，其中第二轨必
 - 第二宿主 CLI 需自行安装并登录；本机实测 claude / codex 均可用（copilot 未接）。
   **改动任一宿主分支后都要实跑一次**——两个分支的坑不同（.CMD 参数截断就是
   只在实跑时暴露的那类）。
-- codex 分支默认 `--ignore-user-config`：审查要确定性，且用户 config.toml 的
-  版本不兼容字段（如 `service_tier`）不该卡住门禁；auth 走 CODEX_HOME 不受影响。
+- codex 分支带 `--ignore-rules`（忽略用户 execpolicy 白名单——`~/.codex/rules/`
+  里是别的仓库积累的 allow 规则，不忽略会让审查命令被判「需要审批」而拒绝）。
+  **不加** `--ignore-user-config`：实测（2026-09-14）缺了用户 config 的
+  `[windows] sandbox` 设置后，Windows 默认沙箱连**读**命令一起拒（blocked by
+  policy）——审查取用户正常 CLI 环境，只读约束由 `-s read-only` 保证。
 - 输出是**审查意见**，采纳与否由作者判断——与子代理轨同一条纪律：findings 可
   记录「不采纳 + 理由」，不许静默忽略 MAJOR。
 
@@ -102,15 +105,15 @@ def _claude_cmd(exe):
 
 
 def _codex_cmd(exe):
-    # --ignore-user-config：config.toml 的字段兼容性不该卡住门禁（auth 不受影响）。
     # --ignore-rules：实测（2026-09-14）——用户级 execpolicy 白名单
     #   （`~/.codex/rules/*.rules`）只含别的仓库积累的命令 allow 规则，审查命令
     #   不命中 → 被判「需要审批」→ approval: never 下直接拒绝（blocked by
-    #   policy）。忽略白名单后，读命令在**只读沙箱内**自动放行（再实测：成功
-    #   读到文件，头部 sandbox 仍为 read-only）——写约束由沙箱硬保证，白名单
-    #   只是审批加速层。
+    #   policy）。忽略白名单后，读命令在**只读沙箱内**自动放行。
+    # **不加** --ignore-user-config：缺了用户 config 的 `[windows] sandbox`
+    #   设置后，Windows 默认沙箱连读命令都拒（同日二分实测）；写约束由
+    #   `-s read-only` 硬保证。
     return [exe, "exec", "-s", "read-only", "-C", ROOT, "--skip-git-repo-check",
-            "--ephemeral", "--ignore-user-config", "--ignore-rules", _NAV]
+            "--ephemeral", "--ignore-rules", _NAV]
 
 
 HOSTS = [("claude", _claude_cmd), ("codex", _codex_cmd)]

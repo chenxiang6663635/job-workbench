@@ -190,7 +190,7 @@ The "Settings" page in the nav configures your AI provider (BYOK, bring your own
 
 - **Base URL**: an OpenAI-compatible endpoint (including `/v1`, e.g. `https://api.orcarouter.ai/v1`)
 - **API Key**: stored locally only; the UI shows just the masked last 4 characters
-- **Test connection**: calls `{base_url}/models` to verify the key and list models
+- **Test connection**: calls `{base_url}/models` to verify the key and list models. Outbound HTTPS verifies certificates by default (JD fetching and resume rewrite use the same policy): if the system certificate store cannot be loaded, the request is **refused** with a "fix the store (`certmgr.msc`)" message instead of silently skipping verification — your API key never travels over an unverified connection. The explicit opt-out is `JOBWS_HTTP_TLS=insecure` (not recommended)
 - **Data and privacy**: export everything as a zip, snapshot backup to the system user directory, open the data directory, no-telemetry statement
 - **No API key yet?**: while no key is stored, the page shows a sign-up entry for a recommended provider, plus a button that fills in that provider's Base URL for you (the preset lives in one place in the source). The entry is labelled on screen as a referral link — signing up through it credits the project author; your pricing is unaffected, and clicking it only opens a web page (no data leaves the app). The entry currently points to [OrcaRouter](https://www.orcarouter.ai/ref/ref_f34ad879f774bce8bc82).
 

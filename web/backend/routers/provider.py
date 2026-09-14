@@ -10,13 +10,13 @@ from __future__ import annotations
 import io
 import json
 import os
-import ssl
 import urllib.error
 import urllib.request
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+import tls_http
 from apierror import ApiError
 from deps import safe_join, workspace_dir
 from filelock import file_lock
@@ -139,12 +139,12 @@ def test_provider(ws: str = Depends(workspace_dir)):
         "Authorization": "Bearer %s" % cfg["api_key"],
         "Content-Type": "application/json",
     })
-    # 不用 ssl.create_default_context()：它加载 Windows 系统证书存储，
-    # 在本机触发 ASN1: NOT_ENOUGH_DATA 崩溃（与目标 Provider 无关的环境 bug）。
-    # 连通性测试是本地配置检查，用 unverified context 即可（不加载证书库）。
-    ctx = ssl._create_unverified_context()
+    # 出网统一走 tls_http：默认严格校验证书。旧实现为绕开本机证书库损坏而**关闭**
+    # 了校验，但请求上挂着 Bearer key、目标又是用户填的公网地址——key 会在未校验
+    # 的连接上暴露给中间人（issue #59）。证书库损坏时现在明确拒绝并给出路指引。
     try:
-        with urllib.request.urlopen(req, timeout=TEST_TIMEOUT, context=ctx) as resp:
+        with tls_http.open_url(req, timeout=TEST_TIMEOUT,
+                               purpose="Provider 连通性测试") as resp:
             status = resp.status
             raw = resp.read().decode("utf-8", errors="replace")
             data = json.loads(raw) if raw.strip() else {}

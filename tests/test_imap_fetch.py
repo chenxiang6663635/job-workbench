@@ -308,7 +308,9 @@ def test_ssl_context_broken_store_rejects_connection(monkeypatch):
     with pytest.raises(imap_fetch.ImapFetchError) as ei:
         imap_fetch._ssl_context()
     assert "JOBWS_IMAP_TLS" in str(ei.value)
-    assert "证书" in str(ei.value)
+    # 收紧（独立审查 MINOR-3）：断言"含证书二字"太宽——要的是**出路指引**，
+    # 与 test_tls_policy.py 的口径一致（同一份策略实现产出的消息）
+    assert "certmgr.msc" in str(ei.value)
 
 
 def test_ssl_context_insecure_downgrade_is_explicit(monkeypatch):

@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 import atomicio
 import resume_build
+import tls_http
 from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
@@ -501,7 +502,10 @@ def _call_llm(cfg, prompt, model):
         "Content-Type": "application/json",
         "Authorization": "Bearer " + cfg["api_key"],
     })
-    with urllib.request.urlopen(req, timeout=LLM_TIMEOUT) as resp:
+    # 出网统一走 tls_http：默认严格校验。此前这里没传 context，证书库损坏的机器上
+    # 只会抛 ASN1 原文，被调用点兜成"模型调用失败"（issue #59）。
+    with tls_http.open_url(req, timeout=LLM_TIMEOUT,
+                           purpose="简历改写（模型调用）") as resp:
         payload = json.loads(resp.read().decode("utf-8"))
     try:
         return payload["choices"][0]["message"]["content"]

@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 import atomicio
 import jd_score
+import tls_http
 import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, DIR_TRACKING, safe_join, workspace_dir
@@ -397,9 +398,16 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
         "Accept": "text/html,application/xhtml+xml",
     })
     try:
-        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
+        # 出网统一走 tls_http（策略唯一实现在 tools/tls_policy.py，见 issue #59）
+        with tls_http.open_url(req, timeout=FETCH_TIMEOUT,
+                               purpose="抓取 JD 链接") as resp:
             content_type = resp.headers.get("Content-Type", "")
             raw = resp.read(FETCH_MAX_BYTES)
+    except ApiError:
+        # tls_http 已翻译过的证书类错误（sys.certStoreUnavailable /
+        # sys.certUntrusted）必须原样上抛：下面的 `except Exception` 会把它兜成
+        # 「抓取失败：…」，用户就又看不到"修证书库"这一步了。
+        raise
     except urllib.error.HTTPError as exc:
         raise ApiError(502, "job.fetchHttpError",
                        "页面返回 %s（可能需要登录或有反爬），请手动粘贴 JD" % exc.code,

@@ -22,10 +22,10 @@ from __future__ import annotations
 
 import datetime
 import imaplib
-import os
 import re
 import socket
 import ssl
+import tls_policy
 from email import message_from_bytes
 from email.header import decode_header
 from html.parser import HTMLParser
@@ -201,29 +201,20 @@ def _probe_tcp(host, port):
 def _ssl_context():
     """显式 TLS 上下文：默认严格校验（系统证书库 + 主机名）。
 
+    策略本体在 `tools/tls_policy.py`——与三处 HTTP 出网（provider / resume /
+    jobs）共用同一份判定（issue #59），本函数只做「领域错误类型」的适配：
+    默认严格 → 证书库不可用时**默认拒绝连接** → 仅当 `JOBWS_IMAP_TLS=insecure`
+    时显式降级（降级必须由用户主动配置，风险写在错误消息里）。
+
     为什么不走解释器默认：Python ≤3.11 的 imaplib 默认上下文**不校验服务器
     证书**，授权码在传输层可被中间人截获（issue #50 S2）。
-
-    为什么不能无脑 `create_default_context()`：它要枚举整个 Windows 证书库，
-    库里有损坏条目的机器会直接抛 ASN1 错误（本机实测，与 provider.py 同一
-    环境问题）。此时**默认拒绝连接**（授权码不能在未校验的连接上裸奔），
-    仅当 `JOBWS_IMAP_TLS=insecure` 时显式降级为不校验——降级必须由用户
-    主动配置，风险写在错误消息里。
     """
     try:
-        return ssl.create_default_context()
-    except ssl.SSLError as exc:
-        if os.environ.get("JOBWS_IMAP_TLS", "").strip().lower() == "insecure":
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            return ctx
-        raise ImapFetchError(
-            "无法加载本机系统证书库，邮件服务器证书无法校验（%s）。"
-            "已拒绝连接：授权码在未校验的连接上可被中间人截获。"
-            "出路：修复系统证书库（certmgr.msc 排查损坏的证书条目）；"
-            "或设置环境变量 JOBWS_IMAP_TLS=insecure 显式跳过证书校验"
-            "（不推荐，风险自负）。" % exc)
+        return tls_policy.outbound_ssl_context("IMAP 拉取", tls_policy.IMAP_ENV_VAR)
+    except tls_policy.TlsPolicyError as exc:
+        # 调用方（routers/imap.py、CLI）统一按 ImapFetchError 处理，
+        # 所以这里把策略异常换成带邮件语境的错误类型。
+        raise ImapFetchError(str(exc))
 
 
 def _connect(host, port):

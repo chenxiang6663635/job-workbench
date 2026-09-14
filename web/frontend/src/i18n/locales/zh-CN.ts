@@ -386,9 +386,9 @@ const zhCN = {
   // 所以文案里必须写明"不随工作区导出/同步"，否则用户会以为换台机器会跟着变。
   "settings.langTitle": "界面语言",
   "settings.langDesc": "只影响这台机器的界面（存在本机，不随工作区导出或同步）。数据里的枚举取值仍是中文——它与你的历史数据和 CLI 共用同一套字面量。",
-  "settings.providerDesc": "LLM Provider 配置（BYOK）。配置后可用于 JD 解析 / 评分等 AI 增强，判断由你或 AI 完成。",
-  "settings.baseUrl": "Base URL（OpenAI 兼容，含 /v1，如 https://api.orcarouter.ai/v1）",
-  "settings.apiKey": "API Key（留空则保留已保存的 key）",
+  "settings.providerDesc": "模型服务（LLM Provider / BYOK）配置。配置后可用于 JD 解析 / 评分等 AI 增强，判断由你或 AI 完成。",
+  "settings.baseUrl": "服务地址（Base URL，OpenAI 兼容，含 /v1，如 https://api.orcarouter.ai/v1）",
+  "settings.apiKey": "API 密钥（API Key；留空则保留已保存的 key）",
   "settings.apiKeySaved": "已保存（{{key}}）",
   "settings.apiKeyPlaceholder": "sk-...",
   "settings.saved": "配置已保存",
@@ -399,10 +399,10 @@ const zhCN = {
   "settings.modelCount_one": "可用模型 {{count}} 个",
   "settings.modelCount_other": "可用模型 {{count}} 个",
   // 推广披露：这两句必须跟按钮挨在一起，翻译时也不能弱化措辞
-  "settings.referralNoKey": "还没有 API Key？",
+  "settings.referralNoKey": "还没有 API 密钥（API Key）？",
   "settings.referralFill": "填入 {{name}} 端点",
   "settings.referralSignup": "去 {{name}} 注册",
-  "settings.referralFilled": "已填入 {{name}} 的 Base URL，填好 Key 后记得保存",
+  "settings.referralFilled": "已填入 {{name}} 的服务地址（Base URL），填好密钥后记得保存",
   "settings.referralDisclosure": "这是推广链接：通过它注册，本项目作者会获得返佣，你的价格与权益不受影响。",
   "settings.referralNoData": "点击只是打开网页——本应用不会因此发送或回传任何数据。",
 
@@ -485,7 +485,7 @@ const zhCN = {
   "imap.filterPlaceholder": "按主题 / 发件人 / 正文筛掉无关邮件",
   "imap.refetch": "重新拉取",
   "imap.fetching": "拉取中（只读连接）...",
-  "imap.empty": "{{range}}内没有取到邮件。可以把时间范围放宽，或检查「设置」里的文件夹（如 INBOX）是否正确。",
+  "imap.empty": "{{range}}内没有取到邮件。可以把时间范围放宽，或检查「设置」里的文件夹（如收件箱 INBOX）是否正确。",
   "imap.emptyFiltered": "筛掉之后没有剩下了——换个关键词，或清空筛选框。",
   "imap.useThis": "用这封邮件解析状态",
   "imap.noSubject": "（无主题）",
@@ -709,7 +709,7 @@ const zhCN = {
   "err.progress.icsEmpty": "没有可导出的面试日程（面试时间均为空）",
 
   "err.resume.versionInvalid": "版本名只能含字母、数字、-、_",
-  "err.resume.providerMissing": "先在「设置」配置 Provider（BYOK）：Base URL 与 API Key",
+  "err.resume.providerMissing": "先在「设置」配置模型服务（Provider / BYOK）：服务地址（Base URL）与 API 密钥（API Key）",
   "err.resume.modelRequired": "请填写模型名（如 deepseek-chat）",
   "err.resume.fileDecodeFailed": "文件内容解码失败",
   "err.resume.extractFailed": "没能从文件里抽取到文本（{{error}}）——加密文件或扫描件通常抽不出来",

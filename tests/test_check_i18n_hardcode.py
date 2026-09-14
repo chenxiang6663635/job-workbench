@@ -397,8 +397,12 @@ def test_comparison_expression_is_not_reported(tmp_path):
 
 
 def test_english_outside_the_scope_is_not_reported(tmp_path):
-    """范围只有 pages/** 与 web/electron/**（起步范围，宁可窄也不要吵）。"""
-    files = {os.path.join("components", "Widget.tsx"): "const el = <p>Hardcoded</p>;\n"}
+    """范围是 pages/**、components/** 与 web/electron/**——`lib/**` 之类仍不扫。
+
+    （2026-09-14 扩范围到 components：这条原来拿 components 当"范围外"的例子，
+    扩完就不成立了，改用 lib/ 继续钉住「范围之外不报」这件事。）
+    """
+    files = {os.path.join("lib", "Widget.tsx"): "const el = <p>Hardcoded</p>;\n"}
     unallowed, _, _ = _en(tmp_path, files)
     assert unallowed == []
 
@@ -467,3 +471,45 @@ def test_en_prefixed_entry_does_not_leak_into_the_chinese_check(tmp_path):
                                 allowlist="en:components/X.tsx = 已挂  # 故意写在同一行\n")
     assert [u[2] for u in unallowed] == ["已挂"]
     assert errors == []
+
+
+# ---- 英文检查：范围是否被真正消费、误报回归（2026-09-14） ----
+
+def test_english_scope_really_covers_components(tmp_path):
+    """`EN_SCOPE_RELS` 必须被真正消费，components 里的硬编码英文要报。
+
+    2026-09-14 实测：check_english 的 targets 曾是硬编码的 pages + electron，
+    把范围常量改了、检查行为纹丝不动——插进去的硬编码英文照样漏过（反向验证抓到）。
+    """
+    files = {os.path.join("components", "Foo.tsx"): "<span>Hardcoded English</span>\n"}
+    root = _make_repo(tmp_path, files)
+    unallowed, _ok, _errors = checker.check_english(root)
+    assert [u[2] for u in unallowed] == ["Hardcoded English"]
+
+
+def test_semicolon_terminated_jsx_text_is_not_a_hit():
+    """类型注解 `=> void;` 里冒出来的 `void;` 不是文案。
+
+    泛型的 `<K` 会被 TAG_LIKE 认成标签、`> void;` 又被当成行尾文案，两处叠加就是
+    2026-09-14 扩到 components 时抓到的三处误报；规则：以 `;` 结尾一律当代码跳过。
+    """
+    hits = checker.find_hardcoded_english(
+        "set: <K extends keyof Draft>(k: K, v: Draft[K]) => void;\n")
+    assert hits == []
+
+
+def test_english_scope_comes_from_the_constant(tmp_path, monkeypatch):
+    """范围必须由 `EN_SCOPE_RELS` 决定：改常量要立刻生效。
+
+    与上一条互补——那条证明 components 被扫；这条证明"扫哪里"由常量说了算，
+    即使有人把 targets 再改回硬编码（同时把常量留着当摆设），这里也会红。
+    """
+    files = {
+        os.path.join("pages", "A.tsx"): "const a = <span>From pages</span>;\n",
+        os.path.join("components", "B.tsx"): "const b = <span>From components</span>;\n",
+    }
+    root = _make_repo(tmp_path, files)
+    monkeypatch.setattr(checker, "EN_SCOPE_RELS",
+                        (os.path.join("web", "frontend", "src", "components"),))
+    unallowed, _ok, _errors = checker.check_english(root)
+    assert [u[2] for u in unallowed] == ["From components"]

@@ -163,6 +163,16 @@ jobs:
           & powershell -ExecutionPolicy Bypass -File scripts/build_desktop.ps1 -Py "$py"
           if ($LASTEXITCODE -ne 0) { throw "打包失败（exit $LASTEXITCODE）" }
 
+      # 打包后端冒烟：**构建成功 ≠ 能启动**。v0.2.2 的教训——tools/ 没进 PyInstaller
+      # 依赖图，`import imaplib` 在启动路径上失败，后端一启动就崩；而此前这一步只构建
+      # 不运行产物，CI 全绿、缺陷一路跟到发布前。脚本与本地同源、已做反向验证
+      # （拿修复前的 exe 跑它必红），不是空转的绿灯。
+      - name: 打包后端冒烟（能启动 + 健康检查）
+        shell: pwsh
+        run: |
+          python scripts/smoke_backend_exe.py
+          if ($LASTEXITCODE -ne 0) { throw "打包后端冒烟失败（exit $LASTEXITCODE）——产物可能缺模块，不要按绿发布" }
+
       - name: 定位产物与更新元数据
         id: artifact
         shell: pwsh

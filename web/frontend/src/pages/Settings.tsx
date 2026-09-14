@@ -200,7 +200,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground">{t("settings.title")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -211,269 +211,276 @@ export default function Settings() {
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
       {info && <ErrorBanner tone="success" message={info} onClose={() => setInfo(null)} />}
 
-      {/* 界面语言：设备级偏好，与下面三张卡（工作区级、随工作区走）不是一类东西，
-          所以文案里必须写明"不随工作区导出/同步"——否则用户会以为换台机器会跟着变。
-          与顶栏那个分段按钮共用同一个 i18n 实例：两处入口、一份状态，不会打架。 */}
-      <Card className="space-y-4 p-5">
-        <CardHeader className="p-0">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Languages size={16} className="text-primary" /> {t("settings.langTitle")}
-          </CardTitle>
-        </CardHeader>
+      {/* 两列网格：设置页此前是 max-w-2xl 单列——比其它六页窄 45%，切 tab 时内容宽度
+          会整块跳变（2026-09-13 实测：672px vs 1232px）。改成与别页同宽之后，单列表单
+          会被拉到 1200px 以上，所以按卡片分两列：每张卡仍是"一屏一件事"，字段行长度也
+          回到可读范围。items-start 让卡片各按内容高度，不被同行的最高卡片拉长。 */}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {/* 界面语言：设备级偏好，与下面三张卡（工作区级、随工作区走）不是一类东西，
+            所以文案里必须写明"不随工作区导出/同步"——否则用户会以为换台机器会跟着变。
+            与顶栏那个分段按钮共用同一个 i18n 实例：两处入口、一份状态，不会打架。 */}
+        <Card className="space-y-4 p-5">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Languages size={16} className="text-primary" /> {t("settings.langTitle")}
+            </CardTitle>
+          </CardHeader>
 
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {t("settings.langDesc")}
-        </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {t("settings.langDesc")}
+          </p>
 
-        <div className="flex flex-wrap items-center gap-2" role="group"
-             aria-label={t("lang.switch")}>
-          {LANGS.map((l) => (
-            <Button
-              key={l.value}
-              variant={i18n.language === l.value ? "default" : "outline"}
-              className="h-7 px-3 text-xs"
-              aria-pressed={i18n.language === l.value}
-              onClick={() => i18n.changeLanguage(l.value)}
-            >
-              {l.label}
-            </Button>
-          ))}
-        </div>
-      </Card>
+          <div className="flex flex-wrap items-center gap-2" role="group"
+               aria-label={t("lang.switch")}>
+            {LANGS.map((l) => (
+              <Button
+                key={l.value}
+                variant={i18n.language === l.value ? "default" : "outline"}
+                className="h-7 px-3 text-xs"
+                aria-pressed={i18n.language === l.value}
+                onClick={() => i18n.changeLanguage(l.value)}
+              >
+                {l.label}
+              </Button>
+            ))}
+          </div>
+        </Card>
 
-      <Card className="space-y-4 p-5">
-        <CardHeader className="p-0">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <KeyRound size={16} className="text-primary" /> {t("settings.providerTitle")}
-          </CardTitle>
-        </CardHeader>
+        <Card className="space-y-4 p-5">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <KeyRound size={16} className="text-primary" /> {t("settings.providerTitle")}
+            </CardTitle>
+          </CardHeader>
 
-        <div className="space-y-3">
-          <FormField label={t("settings.baseUrl")}>
-            <Input
-              placeholder="https://api.xxx.ai/v1"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-            />
-          </FormField>
+          <div className="space-y-3">
+            <FormField label={t("settings.baseUrl")}>
+              <Input
+                placeholder="https://api.xxx.ai/v1"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+              />
+            </FormField>
 
-          <FormField label={t("settings.apiKey")}>
-            <Input
-              className="font-mono"
-              type="password"
-              placeholder={
-                cfg?.hasKey
-                  ? t("settings.apiKeySaved", { key: cfg.api_key })
-                  : t("settings.apiKeyPlaceholder")
-              }
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-          </FormField>
-        </div>
+            <FormField label={t("settings.apiKey")}>
+              <Input
+                className="font-mono"
+                type="password"
+                placeholder={
+                  cfg?.hasKey
+                    ? t("settings.apiKeySaved", { key: cfg.api_key })
+                    : t("settings.apiKeyPlaceholder")
+                }
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+            </FormField>
+          </div>
 
-        {/* 推广入口：放在「正好要填 key」的位置，且必须写明它是推广链接。
-            藏在一个像官网链接的按钮后面就是欺骗，与本项目的诚实红线冲突。 */}
-        {/* 只在「还没存过 key」时出现：已经配好的人不需要这个入口，
-            顺带也免掉 cfg 加载完成前的闪一下（cfg 为 null 时不渲染）。 */}
-        {cfg && !cfg.hasKey && refUrl && (
-          <div className="space-y-1.5 rounded-lg border border-border bg-background/40 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">
-                {t("settings.referralNoKey")}
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                {/* 端点一键填入：合作方的 Base URL 是固定的 OpenAI 兼容地址，
-                    手抄容易错，且错了只会在「测试连接」时才暴露 */}
-                {refPreset && refPreset !== baseUrl && (
-                  <Button
-                    variant="ghost"
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => {
-                      setBaseUrl(refPreset);
-                      setInfo(t("settings.referralFilled", { name: refName }));
-                    }}
-                  >
-                    {t("settings.referralFill", { name: refName })}
+          {/* 推广入口：放在「正好要填 key」的位置，且必须写明它是推广链接。
+              藏在一个像官网链接的按钮后面就是欺骗，与本项目的诚实红线冲突。 */}
+          {/* 只在「还没存过 key」时出现：已经配好的人不需要这个入口，
+              顺带也免掉 cfg 加载完成前的闪一下（cfg 为 null 时不渲染）。 */}
+          {cfg && !cfg.hasKey && refUrl && (
+            <div className="space-y-1.5 rounded-lg border border-border bg-background/40 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {t("settings.referralNoKey")}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* 端点一键填入：合作方的 Base URL 是固定的 OpenAI 兼容地址，
+                      手抄容易错，且错了只会在「测试连接」时才暴露 */}
+                  {refPreset && refPreset !== baseUrl && (
+                    <Button
+                      variant="ghost"
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => {
+                        setBaseUrl(refPreset);
+                        setInfo(t("settings.referralFilled", { name: refName }));
+                      }}
+                    >
+                      {t("settings.referralFill", { name: refName })}
+                    </Button>
+                  )}
+                  <Button asChild variant="outline" className="h-7 px-2.5 text-xs">
+                    <a href={refUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink size={12} /> {t("settings.referralSignup", { name: refName })}
+                    </a>
                   </Button>
-                )}
-                <Button asChild variant="outline" className="h-7 px-2.5 text-xs">
-                  <a href={refUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink size={12} /> {t("settings.referralSignup", { name: refName })}
-                  </a>
-                </Button>
+                </div>
               </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+                {t("settings.referralDisclosure")}
+                {t("settings.referralNoData")}
+              </p>
             </div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground/80">
-              {t("settings.referralDisclosure")}
-              {t("settings.referralNoData")}
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+            <Button onClick={save} disabled={saving}>
+              <Save size={15} /> {saving ? t("common.saving") : t("settings.save")}
+            </Button>
+            <Button variant="outline" onClick={test} disabled={testing}>
+              <PlugZap size={15} /> {testing ? t("settings.testing") : t("settings.test")}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="space-y-4 p-5">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Inbox size={16} className="text-primary" /> {t("settings.imapTitle")}
+            </CardTitle>
+          </CardHeader>
+
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {t("settings.imapDesc1")}
+            {t("settings.imapDesc2")}
+            {/* 句号与它后面的空格都在 key 里：写死在 JSX 里会同时出现两个问题——
+                英文界面里冒出中文句号，且句末少一个空格（冒烟时抓到） */}
+            <span className="text-foreground">{t("settings.imapDesc3")}</span>
+            {t("settings.imapDesc4")}
+          </p>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label={t("settings.imapEmail")}>
+              <Input
+                placeholder="your-email@example.com"
+                value={imapUser}
+                onChange={(e) => setImapUser(e.target.value)}
+              />
+            </FormField>
+            <FormField label={t("settings.imapPassword")}>
+              <Input
+                className="font-mono"
+                type="password"
+                placeholder={
+                  imapCfg?.hasPassword
+                    ? t("settings.imapPasswordSaved", { key: imapCfg.password })
+                    : t("settings.imapPasswordHint")
+                }
+                value={imapPassword}
+                onChange={(e) => setImapPassword(e.target.value)}
+              />
+            </FormField>
+            <FormField label={t("settings.imapHost")}>
+              <Input
+                className="font-mono"
+                placeholder={imapCfg?.serverHint || "imap.qq.com"}
+                value={imapHost}
+                onChange={(e) => setImapHost(e.target.value)}
+              />
+            </FormField>
+            <FormField label={t("settings.imapPort")}>
+              <Input
+                type="number"
+                value={imapPort}
+                onChange={(e) => setImapPort(e.target.value)}
+              />
+            </FormField>
+            <FormField label={t("settings.imapFolder")}>
+              <Input
+                className="font-mono"
+                placeholder="INBOX"
+                value={imapFolder}
+                onChange={(e) => setImapFolder(e.target.value)}
+              />
+            </FormField>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+            <Button onClick={saveImap} disabled={imapSaving}>
+              <Save size={15} /> {imapSaving ? t("common.saving") : t("common.save")}
+            </Button>
+            <Button variant="outline" onClick={testImap} disabled={imapTesting}>
+              <PlugZap size={15} /> {imapTesting ? t("settings.testing") : t("settings.test")}
+            </Button>
+            {imapMessage && <span className="text-xs text-success">{imapMessage}</span>}
+          </div>
+
+          {imapErr && <ErrorBanner message={imapErr} onClose={() => setImapErr(null)} />}
+
+          {imapTestResult && (
+            <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
+              {t("settings.imapTestResult", {
+                server: imapTestResult.server,
+                folder: imapTestResult.folder,
+                count: imapTestResult.messageCount,
+              })}
+            </p>
+          )}
+        </Card>
+
+        <Card className="space-y-4 p-5">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <ShieldCheck size={16} className="text-success" /> {t("settings.privacy")}
+            </CardTitle>
+          </CardHeader>
+
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {t("settings.privacyDesc")}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild>
+              <a
+                href={api.exportUrl()}
+                onClick={() =>
+                  setBackupInfo(t("settings.exportNotice"))
+                }
+              >
+                <Download size={15} /> {t("settings.exportZip")}
+              </a>
+            </Button>
+            <Button variant="outline" onClick={backup} disabled={backing}>
+              <Archive size={15} /> {backing ? t("settings.backingup") : t("settings.backupNow")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => api.openFolder("workspace").catch((e: Error) => setError(e.message))}
+            >
+              <FolderOpen size={15} /> {t("settings.openDataDir")}
+            </Button>
+          </div>
+
+          {backupInfo && (
+            <p className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+              {backupInfo}
+            </p>
+          )}
+
+          <div className="space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
+            {/* 三态齐全：加载中骨架 / 读取失败可定位 / 就绪显示真实路径 */}
+            {pathsError ? (
+              <p className="text-destructive">{t("settings.pathsFailed", { error: pathsError })}</p>
+            ) : !paths ? (
+              <Skeleton className="h-14 w-full" />
+            ) : (
+              <>
+                <p>
+                    {t("settings.lastBackup", {
+                      time: paths.lastBackup ?? t("settings.neverBackup"),
+                      count: paths.snapshotCount,
+                    })}
+                </p>
+                <p className="break-all">
+                  {t("settings.snapshotDir")}
+                  {paths.snapshotDir}
+                </p>
+                <p className="break-all">
+                  {t("settings.workspace")}
+                  {paths.workspace}
+                </p>
+              </>
+            )}
+            <p className="pt-1 text-muted-foreground/70">
+              {t("settings.snapshotNote")}
             </p>
           </div>
-        )}
+        </Card>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-          <Button onClick={save} disabled={saving}>
-            <Save size={15} /> {saving ? t("common.saving") : t("settings.save")}
-          </Button>
-          <Button variant="outline" onClick={test} disabled={testing}>
-            <PlugZap size={15} /> {testing ? t("settings.testing") : t("settings.test")}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="space-y-4 p-5">
-        <CardHeader className="p-0">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Inbox size={16} className="text-primary" /> {t("settings.imapTitle")}
-          </CardTitle>
-        </CardHeader>
-
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {t("settings.imapDesc1")}
-          {t("settings.imapDesc2")}
-          {/* 句号与它后面的空格都在 key 里：写死在 JSX 里会同时出现两个问题——
-              英文界面里冒出中文句号，且句末少一个空格（冒烟时抓到） */}
-          <span className="text-foreground">{t("settings.imapDesc3")}</span>
-          {t("settings.imapDesc4")}
-        </p>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormField label={t("settings.imapEmail")}>
-            <Input
-              placeholder="your-email@example.com"
-              value={imapUser}
-              onChange={(e) => setImapUser(e.target.value)}
-            />
-          </FormField>
-          <FormField label={t("settings.imapPassword")}>
-            <Input
-              className="font-mono"
-              type="password"
-              placeholder={
-                imapCfg?.hasPassword
-                  ? t("settings.imapPasswordSaved", { key: imapCfg.password })
-                  : t("settings.imapPasswordHint")
-              }
-              value={imapPassword}
-              onChange={(e) => setImapPassword(e.target.value)}
-            />
-          </FormField>
-          <FormField label={t("settings.imapHost")}>
-            <Input
-              className="font-mono"
-              placeholder={imapCfg?.serverHint || "imap.qq.com"}
-              value={imapHost}
-              onChange={(e) => setImapHost(e.target.value)}
-            />
-          </FormField>
-          <FormField label={t("settings.imapPort")}>
-            <Input
-              type="number"
-              value={imapPort}
-              onChange={(e) => setImapPort(e.target.value)}
-            />
-          </FormField>
-          <FormField label={t("settings.imapFolder")}>
-            <Input
-              className="font-mono"
-              placeholder="INBOX"
-              value={imapFolder}
-              onChange={(e) => setImapFolder(e.target.value)}
-            />
-          </FormField>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-          <Button onClick={saveImap} disabled={imapSaving}>
-            <Save size={15} /> {imapSaving ? t("common.saving") : t("common.save")}
-          </Button>
-          <Button variant="outline" onClick={testImap} disabled={imapTesting}>
-            <PlugZap size={15} /> {imapTesting ? t("settings.testing") : t("settings.test")}
-          </Button>
-          {imapMessage && <span className="text-xs text-success">{imapMessage}</span>}
-        </div>
-
-        {imapErr && <ErrorBanner message={imapErr} onClose={() => setImapErr(null)} />}
-
-        {imapTestResult && (
-          <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
-            {t("settings.imapTestResult", {
-              server: imapTestResult.server,
-              folder: imapTestResult.folder,
-              count: imapTestResult.messageCount,
-            })}
-          </p>
-        )}
-      </Card>
-
-      <Card className="space-y-4 p-5">
-        <CardHeader className="p-0">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <ShieldCheck size={16} className="text-success" /> {t("settings.privacy")}
-          </CardTitle>
-        </CardHeader>
-
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {t("settings.privacyDesc")}
-        </p>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild>
-            <a
-              href={api.exportUrl()}
-              onClick={() =>
-                setBackupInfo(t("settings.exportNotice"))
-              }
-            >
-              <Download size={15} /> {t("settings.exportZip")}
-            </a>
-          </Button>
-          <Button variant="outline" onClick={backup} disabled={backing}>
-            <Archive size={15} /> {backing ? t("settings.backingup") : t("settings.backupNow")}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => api.openFolder("workspace").catch((e: Error) => setError(e.message))}
-          >
-            <FolderOpen size={15} /> {t("settings.openDataDir")}
-          </Button>
-        </div>
-
-        {backupInfo && (
-          <p className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-            {backupInfo}
-          </p>
-        )}
-
-        <div className="space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
-          {/* 三态齐全：加载中骨架 / 读取失败可定位 / 就绪显示真实路径 */}
-          {pathsError ? (
-            <p className="text-destructive">{t("settings.pathsFailed", { error: pathsError })}</p>
-          ) : !paths ? (
-            <Skeleton className="h-14 w-full" />
-          ) : (
-            <>
-              <p>
-                  {t("settings.lastBackup", {
-                    time: paths.lastBackup ?? t("settings.neverBackup"),
-                    count: paths.snapshotCount,
-                  })}
-              </p>
-              <p className="break-all">
-                {t("settings.snapshotDir")}
-                {paths.snapshotDir}
-              </p>
-              <p className="break-all">
-                {t("settings.workspace")}
-                {paths.workspace}
-              </p>
-            </>
-          )}
-          <p className="pt-1 text-muted-foreground/70">
-            {t("settings.snapshotNote")}
-          </p>
-        </div>
-      </Card>
+      </div>
 
       {testResult && (
         <Card className="space-y-2 border-success/30 bg-success/10 p-5">

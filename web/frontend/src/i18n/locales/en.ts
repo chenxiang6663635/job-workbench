@@ -267,6 +267,7 @@ export default {
   "form.phBatch": "Batch",
   "form.phStage": "Stage",
 
+  "job.sortAria": "Sort by",
   "job.sortDir": "Directory",
   "job.sortState": "Status",
   "job.sortRecent": "Updated",
@@ -397,6 +398,7 @@ export default {
   "settings.neverBackup": "never",
   "settings.snapshotNote": "Snapshots are deliberately kept outside the workspace — a backup sitting beside its source gets deleted by mistake, swept into git, or caught by sync tools. The export holds your résumé and personal data, not the snapshots outside the app.",
 
+  "resume.modeAria": "Editing mode",
   "resume.modeStd": "Standard",
   "resume.modeAdvanced": "Advanced templates",
   "resume.importResume": "Import résumé",

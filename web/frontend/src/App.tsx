@@ -67,14 +67,14 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  useEffect(() => {
-    api
-      .dashboard()
-      .then(() => setOnline(true))
-      .catch(() => setOnline(false));
-  }, []);
-
-  // 加载可用工作区，并把当前选中的工作区设为激活态（同步 api.ts 全局）。
+  // 加载可用工作区 → 激活 → 探活（三件事一个序列）。
+  //
+  // **探活为什么必须排在激活之后**（2026-09-13 实测发现）：探活请求原先不带工作区，
+  // 服务端就按**它自己的默认**工作区作答；而工作区一致性守卫（见 api.ts 的
+  // workspaceMismatch）在 currentWorkspace 已激活后，会把这份"默认工作区的响应"
+  // 判成错位 → 探活失败 → 整页显示"后端未启动"，而后端一切正常。
+  // main.tsx 开着 StrictMode，effect 会跑两遍，第二遍必然踩到——只要 localStorage
+  // 里存的是**非默认**工作区，首页就是一块错误面板（本地实测：ws=demo 时复现）。
   // 完成后置 workspaceReady=true 才渲染内容区，消除首屏用空 ws 拉默认数据的竞态。
   // 优先 localStorage 里上次的选择；无效或无记录时回退默认工作区。
   useEffect(() => {
@@ -95,9 +95,14 @@ export default function App() {
           }
         }
         setWorkspaceReady(true);
+        // 探活带上刚激活的工作区：这次请求的成败才真的只反映"后端在不在"
+        return api.dashboard();
       })
+      .then(() => setOnline(true))
       .catch(() => {
-        setWorkspaceReady(true); // 即便列工作区失败也放行，避免永久卡在加载中
+        // 列工作区或探活任一失败，都说明后端不可用
+        setOnline(false);
+        setWorkspaceReady(true); // 同时放行内容区，避免永久卡在加载中
       });
   }, []);
 

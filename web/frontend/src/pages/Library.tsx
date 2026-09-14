@@ -79,7 +79,7 @@ export default function Library() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-foreground">{t("lib.facts")}</span>
         <span className="text-xs text-muted-foreground">

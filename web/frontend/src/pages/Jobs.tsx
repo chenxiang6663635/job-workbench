@@ -29,7 +29,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import JobCard from "../components/JobCard";
 import JobDetailView from "../components/JobDetailView";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Segmented } from "../components/ui/segmented";
 
 // 四排序与后端 jobs.py 的 JOB_SORTS 白名单一致；未知键由后端静默回退 dir
 const SORT_LABELS: Record<JobSort, TranslationKey> = {
@@ -273,7 +273,7 @@ export default function Jobs() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -290,16 +290,18 @@ export default function Jobs() {
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2">
           {/* 分段控件与简历工坊的模式切换条同一形态：原先的文字按钮 + 双向箭头
-              既看不出当前选中谁，也放不下「顺序 / 逆序」这半个控制 */}
-          <Tabs value={sort} onValueChange={(v) => changeSort(v as JobSort)}>
-            <TabsList>
-              {(Object.keys(SORT_LABELS) as JobSort[]).map((key) => (
-                <TabsTrigger key={key} value={key} className="px-2.5 py-1.5 text-xs">
-                  {t(SORT_LABELS[key])}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+              既看不出当前选中谁，也放不下「顺序 / 逆序」这半个控制。
+              2026-09-13 起改用 ui/segmented（原生 radio group）：Tabs 当单选开关用
+              会挂上不存在的 aria-controls，axe 拦得住、语义也是错的 */}
+          <Segmented
+            value={sort}
+            onChange={(v) => changeSort(v)}
+            ariaLabel={t("job.sortAria")}
+            options={(Object.keys(SORT_LABELS) as JobSort[]).map((key) => ({
+              value: key,
+              label: t(SORT_LABELS[key]),
+            }))}
+          />
 
           <Button
             variant="outline"

@@ -24,7 +24,7 @@ import {
 } from "../components/ui/select";
 import { Skeleton } from "../components/ui/skeleton";
 import { Card } from "../components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Segmented } from "../components/ui/segmented";
 import { ErrorBanner } from "../components/ErrorBanner";
 // A4_HEIGHT 是防超页护栏的基准，宽高常量统一由 A4Preview 定义（单一真值源）
 import { A4Preview, A4_HEIGHT } from "../components/A4Preview";
@@ -200,19 +200,19 @@ export default function Resume() {
   ) : null;
 
   // 模式切换条 + 标准版式的新建版本入口（两种模式共用顶栏）
-  // 此前是两个裸 button 拼 modeActive/modeIdle 两个 class 串——改用 ui/tabs
+  // 此前是两个裸 button 拼 modeActive/modeIdle 两个 class 串——改用 ui/segmented
+  // （原生 radio group：Tabs 当单选开关用会挂上不存在的 aria-controls）
   const modeBar = (
     <div className="flex flex-wrap items-center gap-2">
-      <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-        <TabsList>
-          <TabsTrigger value="std" className="gap-1.5">
-            <PenLine size={16} /> {t("resume.modeStd")}
-          </TabsTrigger>
-          <TabsTrigger value="advanced" className="gap-1.5">
-            <LayoutTemplate size={16} /> {t("resume.modeAdvanced")}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <Segmented
+        value={mode}
+        onChange={(v) => setMode(v)}
+        ariaLabel={t("resume.modeAria")}
+        options={[
+          { value: "std", label: t("resume.modeStd"), icon: <PenLine size={16} /> },
+          { value: "advanced", label: t("resume.modeAdvanced"), icon: <LayoutTemplate size={16} /> },
+        ]}
+      />
 
       {mode === "std" && !creating && (
         <>
@@ -264,7 +264,7 @@ export default function Resume() {
 
   if (mode === "advanced") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         {errorBanner}
         {modeBar}
         <ResumeTemplates />
@@ -274,7 +274,7 @@ export default function Resume() {
 
   if (!version) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         {errorBanner}
         {modeBar}
         <Card className="border-dashed p-10 text-center">
@@ -291,7 +291,7 @@ export default function Resume() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {errorBanner}
       {modeBar}
 

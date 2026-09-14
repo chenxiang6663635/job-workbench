@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Archive,
@@ -89,6 +89,11 @@ export default function Settings() {
       off();
     };
   }, []);
+
+  /** 松手落盘：鼠标/触摸/键盘三类结束路径与失焦都走它。 */
+  const commitZoom = (e: SyntheticEvent<HTMLInputElement>) => {
+    void setZoomLevel(Number((e.target as HTMLInputElement).value), true);
+  };
 
   // ---- IMAP 只读拉取（B11）----
   const [imapCfg, setImapCfg] = useState<ImapConfig | null>(null);
@@ -301,20 +306,17 @@ export default function Settings() {
                     aria-label={t("settings.zoomTitle")}
                     className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary"
                     onChange={(e) => {
-                      // 拖动中只预览（persist=false）：输入事件本身已按帧调度，
-                      // 不再叠一层节流；百分比取主进程返回值，前端不复制 1.2 常量。
+                      // 拖动中只预览（persist=false，不落盘）：输入事件本身已按帧调度，
+                      // 不再叠一层节流。这里**不回写 IPC 返回值**——拖动很快时旧响应
+                      // 可能盖掉新位置（独立审查提的竞态）；百分比松手后由广播校正。
                       const level = Number(e.target.value);
                       setZoom((s) => (s ? { ...s, level } : s));
-                      void setZoomLevel(level, false)?.then((r) => {
-                        if (r) setZoom((s) => (s ? { ...s, level: r.level, percent: r.percent } : s));
-                      });
+                      void setZoomLevel(level, false);
                     }}
-                    onPointerUp={(e) =>
-                      void setZoomLevel(Number((e.target as HTMLInputElement).value), true)
-                    }
-                    onKeyUp={(e) =>
-                      void setZoomLevel(Number((e.target as HTMLInputElement).value), true)
-                    }
+                    onPointerUp={commitZoom}
+                    onPointerCancel={commitZoom}
+                    onBlur={commitZoom}
+                    onKeyUp={commitZoom}
                   />
                   <span className="w-12 shrink-0 text-right text-xs tabular-nums text-foreground">
                     {zoom.percent}%

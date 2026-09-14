@@ -51,7 +51,9 @@ for (const f of files) {
 // 漏登记时源码形态照跑（路径能解析）、安装版一启动就崩——与 zoom.js 那次同类。
 // 只认 path.join(__dirname, "x.js") 这一种写法；将来写法变了，正则匹配不到就
 // 静默跳过，宁可漏报也不误报（误报会把守卫变成噪音，然后被绕过）。
-for (const m of mainSrc.matchAll(/preload:\s*path\.join\(\s*__dirname\s*,\s*['"]([^'"]+)['"]\s*\)/g)) {
+// 认 path.join / path.resolve 与单/双/反引号三类引号：写法稍变就静默失效的守卫，
+// 等于没有守卫（2026-09-14 独立审查提的）。
+for (const m of mainSrc.matchAll(/preload:\s*path\.(?:join|resolve)\([^)\n]*?['"`]([^'"`]+)['"`]\s*\)/g)) {
   const rel = m[1].split(path.sep).join("/");
   if (!fs.existsSync(path.join(dir, rel))) {
     problems.push(`webPreferences.preload points at ${rel}, but no such file exists under web/electron/`);

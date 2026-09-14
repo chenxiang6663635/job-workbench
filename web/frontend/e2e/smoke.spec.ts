@@ -158,6 +158,8 @@ test("设置页「界面大小」在浏览器里降级为一句说明（偏好�
   // 「只在桌面应用里可调」，而不是整块消失——消失会让人以为功能不存在，而那正是
   // 这次要修的那类「按了没反应」（#84）。
   await openPage(page, "settings");
+  // 不依赖前序用例遗留的语言状态：先显式切到中文再断言（顺序耦合会让偶发失败难查）
+  await page.locator("nav").getByRole("button", { name: "中文" }).click();
   await expect(page.getByText(/界面大小|Interface size/).first()).toBeVisible();
   await expect(
     page.getByText(/只在桌面应用里可调|in the desktop app only/),

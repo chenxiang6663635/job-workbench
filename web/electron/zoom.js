@@ -21,11 +21,13 @@ function clampLevel(level) {
 function nextLevel(current, key, withModifier) {
   if (!withModifier) return null;
   let next = null;
-  if (key === "=" || key === "+") {
+  // 键名按 Chromium 的 key 值表：主键盘 = / + / - / _ / 0，小键盘是 Add / Subtract / Insert。
+  // （注释里一直说"含小键盘"，但这几个值其实没实现——2026-09-14 独立审查对出来的。）
+  if (key === "=" || key === "+" || key === "Add") {
     next = current + ZOOM_STEP;
-  } else if (key === "-" || key === "_") {
+  } else if (key === "-" || key === "_" || key === "Subtract") {
     next = current - ZOOM_STEP;
-  } else if (key === "0") {
+  } else if (key === "0" || key === "Insert") {
     next = 0;
   }
   if (next === null) return null;

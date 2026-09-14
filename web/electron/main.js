@@ -4,7 +4,7 @@
 // 前端静态产物由 FastAPI 同源托管（web/frontend/dist），无需 vite dev server，
 // 也无需放宽 CORS —— 页面与 API 同源。
 
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
@@ -106,25 +106,36 @@ ipcMain.handle("prefs:get", () => ({
   lang: resolvedLang(),
 }));
 
-// persist=false 用于滑块拖动中的实时预览：只改内存与画面，不落盘、也不广播
-// （广播会把"预览值"当成最终值回灌给滑块，拖动中反而互相打架）；松手时再以
-// persist=true 调一次，落盘并广播。
-ipcMain.handle("prefs:set-zoom", (_event, payload) => {
-  const { level, persist = true } = payload || {};
+// 缩放变更的唯一写入口：快捷键与设置页滑块都走这里（夹取 → 应用 → 可选落盘/广播）。
+// persist=false 只用于滑块拖动中的实时预览：不落盘、不广播（广播会把"预览值"当成
+// 最终值回灌，拖动中反而互相打架）；松手时以 persist=true 再调一次。**默认落盘**——
+// 只有显式 false 才是预览，避免调用方传 0/null 之类把状态卡在"永不确认"。
+function applyZoomChange(level, persist) {
   const next = clampLevel(level);   // 夹取只认 zoom.js 这一份实现
-  if (next !== zoomLevel) {
-    zoomLevel = next;
-    applyZoomToAll();
-    if (persist) {
-      saveZoomLevel(zoomLevel);
-      broadcastZoom();
-    }
+  if (next === zoomLevel) return { level: zoomLevel, percent: levelToPercent(zoomLevel) };
+  zoomLevel = next;
+  applyZoomToAll();
+  if (persist) {
+    saveZoomLevel(zoomLevel);
+    broadcastZoom();
   }
   return { level: zoomLevel, percent: levelToPercent(zoomLevel) };
+}
+
+ipcMain.handle("prefs:set-zoom", (_event, payload) => {
+  const p = payload || {};
+  return applyZoomChange(p.level, p.persist !== false);
 });
+
+// 与前端 LANGS 同一份口径；不在表里的上报一律忽略（不受信输入不进状态）
+const UI_LANGS = ["zh-CN", "en"];
 
 ipcMain.handle("prefs:set-lang", (_event, lang) => {
   const next = String(lang || "");
+  if (!UI_LANGS.includes(next)) {
+    log(`Ignored unknown UI language report: ${next}`);
+    return { lang: resolvedLang() };
+  }
   if (next === currentLang) return { lang: currentLang };
   currentLang = next;
   // 窗口标题只在"页面接管前"有意义（加载完成后由渲染进程的 document.title 接管，
@@ -329,6 +340,19 @@ function createWindow() {
     },
   });
   win.setMenuBarVisibility(false);
+  // 只允许留在本机界面：页面一旦被导航到外部站点，preload 注入的偏好通道也会跟着
+  // 暴露给那个文档（contextBridge 是按文档注入的）。窗口内的外链交给系统浏览器。
+  const allowedOrigin = `http://127.0.0.1:${BACKEND_PORT}`;
+  win.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(allowedOrigin)) {
+      event.preventDefault();
+      log(`Blocked navigation to ${url}`);
+    }
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url).catch((e) => log(`Failed to open external URL: ${e.message}`));
+    return { action: "deny" };
+  });
   win.loadURL(`http://127.0.0.1:${BACKEND_PORT}`);
 
   // 缩放级别在 app ready 时已加载（见 whenReady）；这里把当前值应用到新窗口
@@ -348,10 +372,7 @@ function createWindow() {
     // 拦下这次按键：否则默认菜单（View → Zoom In/Out）会对同一次按键再缩一遍
     event.preventDefault();
     if (next === zoomLevel) return;
-    zoomLevel = next;
-    applyZoom();
-    saveZoomLevel(zoomLevel);
-    broadcastZoom();   // 设置页滑块跟随快捷键造成的变更
+    applyZoomChange(next, true);   // 与设置页滑块共用同一个写入口
     log(`Zoom level: ${zoomLevel}`);
   });
 

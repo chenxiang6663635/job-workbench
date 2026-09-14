@@ -47,9 +47,14 @@ export function reportLang(lang: string) {
   return window.jobwsPrefs?.setLang(lang);
 }
 
-/** 订阅缩放变化（来自快捷键或其它窗口）；无通道时是空订阅。 */
+/** 订阅缩放变化（来自快捷键或其它窗口）；无通道时是空订阅。
+    回调前做一次形状兜底：主进程日后换结构时，宁可不更新，也不要写进 NaN。 */
 export function onZoomChanged(
   cb: (payload: { level: number; percent: number }) => void,
 ): () => void {
-  return window.jobwsPrefs ? window.jobwsPrefs.onZoomChanged(cb) : () => {};
+  if (!window.jobwsPrefs) return () => {};
+  return window.jobwsPrefs.onZoomChanged((payload) => {
+    if (!payload || !Number.isFinite(payload.level) || !Number.isFinite(payload.percent)) return;
+    cb(payload);
+  });
 }

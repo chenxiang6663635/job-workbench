@@ -25,6 +25,10 @@ assert.strictEqual(nextLevel(0, "+", true), 0.5, "Ctrl+Shift+= produces '+'");
 assert.strictEqual(nextLevel(0, "-", true), -0.5);
 assert.strictEqual(nextLevel(0, "_", true), -0.5, "Ctrl+Shift+- produces '_'");
 assert.strictEqual(nextLevel(1.5, "0", true), 0, "Ctrl+0 resets");
+// 小键盘：Chromium 的 key 值不是字符本身
+assert.strictEqual(nextLevel(0, "Add", true), 0.5, "numpad + (key 'Add')");
+assert.strictEqual(nextLevel(0, "Subtract", true), -0.5, "numpad - (key 'Subtract')");
+assert.strictEqual(nextLevel(1.5, "Insert", true), 0, "numpad 0 (key 'Insert')");
 assert.strictEqual(nextLevel(0, "=", false), null, "no modifier, not a zoom key");
 assert.strictEqual(nextLevel(0, "a", true), null, "other keys do not zoom");
 

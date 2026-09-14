@@ -9,19 +9,39 @@ Python 3.8 把 pydantic 钉在 2.10 以下，与 MCP SDK 要求的 pydantic>=2.1
 所以这里只 import `pathres`：它只依赖 os/sys，零第三方依赖，且本来就是
 「只读资源 / 可写数据」这条链路的单一事实源。剩下的几个常量与函数按
 `deps.py` 的口径复刻（改动时必须同步改两边，故在此写明对应关系）。
+
+**当前形态需要仓库在侧**：领域函数（tracker / report / jd_score）还在 `tools/`
+下、没抽成可安装的包（那是 B8 的活），所以本包暂时与仓库共存，装成 wheel
+会拿不到领域层。这里不复制一份 pathres 逻辑来「假装独立」——两套实现迟早
+漂移；取而代之的是找不到仓库就明说，而不是抛一个没有上下文的 ImportError。
 """
 
 import os
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-# mcp/jobws_mcp/paths.py -> 上推两级 = 仓库根（mcp/ 与 jobws_mcp/）
-REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
+REPO_ROOT_ENV = "JOBWS_REPO_ROOT"
+
+
+def _locate_repo_root():
+    """仓库根：环境变量优先，其次按包位置（mcp/jobws_mcp/ 上推两级）。"""
+    env = os.environ.get(REPO_ROOT_ENV, "").strip()
+    if env:
+        return os.path.abspath(env)
+    return os.path.dirname(os.path.dirname(_HERE))
+
+
+REPO_ROOT = _locate_repo_root()
 BACKEND_DIR = os.path.join(REPO_ROOT, "web", "backend")
 TOOLS_DIR = os.path.join(REPO_ROOT, "tools")
 
 # tools/ 与 web/backend/ 都不是包，靠 sys.path 导入（与 tests/ 下的既有测试同法）
 for _p in (BACKEND_DIR, TOOLS_DIR):
+    if not os.path.isdir(_p):
+        raise ImportError(
+            "找不到工作台仓库（%s 不存在）。jobws-mcp 当前需要仓库在侧："
+            "请以 editable 方式安装（pip install -e ./mcp），或用环境变量 %s "
+            "指向仓库根。" % (_p, REPO_ROOT_ENV))
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -76,8 +96,12 @@ def resolve_workspace(name=None, must_exist=False):
     **越界必须拒绝**：后端对 `?ws=` 的约束是「只允许相对路径且落在允许根之内」
     （deps.py:126-132）。MCP 由宿主代用户调用，参数来自模型而非人手，
     少了这道检查等于给了任意目录读取能力——所以这里硬拒绝而不是警告。
+
+    两处比后端更严（MCP 的参数来源更不可控）：
+    - 比对前先 realpath：允许根内的符号链接 / junction 会读穿到链接目标；
+    - 不允许「恰好等于根」：把仓库根当工作区，等于允许枚举仓库结构。
     """
-    roots = allowed_roots()
+    roots = [os.path.realpath(r) for r in allowed_roots()]
     name = (name or os.environ.get(ENV_WORKSPACE, "") or "").strip()
 
     if not name:
@@ -92,12 +116,15 @@ def resolve_workspace(name=None, must_exist=False):
         # （不逐个根去试存在的目录：那会让同名工作区在不同形态下指向不同副本。）
         path = os.path.normpath(os.path.join(data_root(), name))
 
-    if not any(path == r or path.startswith(r + os.sep) for r in roots):
+    real = os.path.realpath(path)
+    if not any(real.startswith(r + os.sep) for r in roots):
         raise WorkspaceError(
             "工作区越出允许范围：%s（允许的根：%s）" % (path, "、".join(roots)))
-    if must_exist and not os.path.isdir(path):
-        raise WorkspaceError("工作区不存在：%s（先用 init_workspace 创建一个）" % path)
-    return path
+    if must_exist and not os.path.isdir(real):
+        raise WorkspaceError(
+            "工作区不存在：%s（可先用 `python tools/init_workspace.py --demo` "
+            "生成一个）" % path)
+    return real
 
 
 def workspace_profile(workspace):

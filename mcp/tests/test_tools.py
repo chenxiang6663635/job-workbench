@@ -46,22 +46,36 @@ def _write_tracker(ws, rows):
             w.writerow(r)
 
 
-def _write_job(ws, dirname, company=None, role=None, total=78):
+def _write_job(ws, dirname, company=None, role=None, total=78, consistent=True):
     """造一个岗位目录。不传 company/role 时「基本信息」段为空，
-    用于验证此时回退到目录名切分（与 jobs.py 同口径）。"""
+    用于验证此时回退到目录名切分（与 jobs.py 同口径）。
+
+    consistent=False 时四维之和与总分不符，模拟填了一半的解析卡——
+    后端对这种卡片不给档位，MCP 必须一致。
+    """
     d = os.path.join(ws, "01_岗位池", dirname)
     if not os.path.isdir(d):
         os.makedirs(d)
     with io.open(os.path.join(d, "JD原文.md"), "w", encoding="utf-8") as f:
         f.write("# JD\n\n示例岗位描述。\n")
+
+    if consistent:
+        tech = int(round(total * 0.30))       # 满分 30
+        exp = int(round(total * 0.25))        # 满分 25
+        fit = int(round(total * 0.30))        # 满分 30
+        stable = total - tech - exp - fit     # 满分 15
+    else:
+        tech, exp, fit, stable = 24, 20, 24, 10   # 和为 78，与 total 无关
+
     with io.open(os.path.join(d, "解析卡.md"), "w", encoding="utf-8") as f:
         f.write("## 基本信息\n\n")
         if company:
             f.write("公司: %s\n" % company)
         if role:
             f.write("岗位: %s\n" % role)
-        f.write("\n## 评分\n\n技术匹配: 24/30\n经历匹配: 20/25\n"
-                "方向契合: 24/30\n培养与稳定性: 10/15\n总分: %s\n" % total)
+        f.write("\n## 评分\n\n技术匹配: %d/30\n经历匹配: %d/25\n"
+                "方向契合: %d/30\n培养与稳定性: %d/15\n总分: %s\n"
+                % (tech, exp, fit, stable, total))
 
 
 @pytest.fixture()
@@ -189,3 +203,54 @@ def test_workspace_profile_flag(tmp_path, monkeypatch):
     plain = os.path.join(str(tmp_path), "plain")
     os.makedirs(plain)
     assert paths.workspace_profile(plain) is False
+
+
+def test_list_jobs_matches_by_dir_name_not_card(tmp_path, monkeypatch):
+    """匹配键只用目录名：卡片里的公司名更详细时也要认出「已投递」。
+
+    后端 jobs.py:196-209 明确写了这条（卡片值只用于展示）。拿卡片名当键的话，
+    真实数据里会把已投岗位成片判成未投递。
+    """
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
+    ws = os.path.join(str(tmp_path), "personal")
+    _write_tracker(ws, [_row(id="1", 公司="示例科技", 岗位="后端开发工程师",
+                             当前阶段="一面")])
+    _write_job(ws, "示例科技_后端开发工程师",
+               company="示例科技（集团）", role="后端开发工程师（社招）")
+    item = tools_readonly.list_jobs(ws)["items"][0]
+    assert item["状态"] == "流程中", "按目录名匹配才认得出已投递"
+    assert item["公司"] == "示例科技（集团）", "展示名仍取卡片"
+
+
+def test_list_jobs_keeps_active_row_when_same_key_repeats(tmp_path, monkeypatch):
+    """同键多行（挂了再投一次）：保留仍在流程中的那行。
+
+    否则同一岗位在网页端显示「流程中」、在 MCP 侧却报「已终态」——
+    同键同名两种结论，正是这批要避免的事。
+    """
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
+    ws = os.path.join(str(tmp_path), "personal")
+    _write_tracker(ws, [
+        _row(id="1", 公司="示例科技", 岗位="后端开发工程师", 当前阶段="已挂"),
+        _row(id="2", 公司="示例科技", 岗位="后端开发工程师", 当前阶段="二面"),
+    ])
+    _write_job(ws, "示例科技_后端开发工程师")
+    assert tools_readonly.list_jobs(ws)["items"][0]["状态"] == "流程中"
+
+
+def test_resolve_workspace_rejects_relative_escape(tmp_path, monkeypatch):
+    """相对路径往上逃也要拦住（宿主可能由模型代传 `../..` 这类参数）。"""
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
+    with pytest.raises(paths.WorkspaceError):
+        paths.resolve_workspace(os.path.join("..", "outside"))
+
+
+def test_card_score_flags_inconsistent_card(tmp_path, monkeypatch):
+    """四维之和与总分不符：总分照给，但不给档位（与后端 `_parse_card` 同口径）。"""
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
+    ws = os.path.join(str(tmp_path), "personal")
+    _write_job(ws, "星海智能_算法工程师", company="星海智能", role="算法工程师",
+               total=52, consistent=False)
+    score = tools_readonly.list_jobs(ws)["items"][0]["评分"]
+    assert score["total"] == 52
+    assert score["consistent"] is False and score["level"] is None

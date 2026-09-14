@@ -67,19 +67,36 @@ def _card_basic_info(card_path):
 
 
 def _card_score(card_path):
-    """读解析卡的总分与结论（jd_score 是评分口径的单一事实源）。"""
+    """读解析卡的总分与结论，与 jobs.py 的 `_parse_card` 同口径。
+
+    关键一致点：**四维之和必须等于总分**才给档位（level / action）——解析卡是
+    渐进填写的，填到一半时给一个算错的分档比不给更糟。总分照常返回，由
+    `consistent` 标明是否自洽（后端同样处理）。
+    """
     card = _read_text(card_path)
     if not card:
         return None
     fields = jd_score.parse_score_section(card)
     if not fields:
         return None
+    dims, ok = [], True
+    for name, maximum in jd_score.DIMENSIONS:
+        num, errs = jd_score.parse_dimension(fields.get(name, ""), name, maximum)
+        if errs or num is None:
+            ok = False
+            break
+        dims.append(num)
     try:
         total = float((fields.get("总分") or "").strip())
     except (TypeError, ValueError):
-        return None
-    level, action = jd_score.verdict(total)
-    return {"total": total, "level": level, "action": action}
+        total = None
+        ok = False
+    level = action = None
+    if ok and total is not None and abs(sum(dims) - total) < 1e-6:
+        level, action = jd_score.verdict(total)
+    else:
+        ok = False
+    return {"total": total, "level": level, "action": action, "consistent": ok}
 
 
 def _slim(row, verbose=False):
@@ -114,41 +131,61 @@ def list_applications(workspace, stage=None, keyword=None, limit=20, verbose=Fal
     }
 
 
+def _apply_state(row):
+    """未投递 / 流程中 / 已终态——终态口径复用 tracker，不另立清单（jobs.py:186）。"""
+    if not row:
+        return "未投递"
+    stage = (row.get("当前阶段") or "").strip()
+    if not stage:
+        return "未投递"
+    return "已终态" if stage in tracker.TERMINAL_STAGES else "流程中"
+
+
+def _applications_by_key(workspace):
+    """{dedup_key: row} 索引，照抄 jobs.py:164 的 `_applications_by_key`。
+
+    跳过空键；同键多行是合法数据（挂了再投一次），保留**仍在流程中**的那行——
+    状态要回答「这一岗现在走到哪了」，历史终态行不该盖住它。
+    """
+    if not os.path.isdir(os.path.join(workspace, DIR_TRACKING)):
+        return {}
+    index = {}
+    for row in tracker.read_rows(workspace):
+        key = tracker.dedup_key(row.get("公司"), row.get("岗位"))
+        if not (key[0] and key[1]):
+            continue
+        old = index.get(key)
+        if old is not None and _apply_state(old) != "已终态" and _apply_state(row) == "已终态":
+            continue
+        index[key] = row
+    return index
+
+
 def list_jobs(workspace, keyword=None, limit=20):
     """岗位池列表（只读）：公司、岗位、评分与投递状态。
 
-    状态三态（未投递 / 流程中 / 已终态）由追踪表按 `tracker.dedup_key`
-    匹配后判定，终态集合取 `tracker.TERMINAL_STAGES`——与 jobs.py:186 同口径。
+    展示名取解析卡「基本信息」，读不到回退目录名拆分；**匹配键只用目录名**——
+    卡片里填的公司名常更详细（真实数据里就与追踪表不一致），拿它当键会与追踪表
+    系统性失配，把已投岗位判成「未投递」（jobs.py:196-209 的明确要求）。
     """
     base = os.path.join(workspace, DIR_JOBS)
     if not os.path.isdir(base):
         return {"workspace": workspace, "total": 0, "returned": 0, "items": []}
 
-    applied = {}
-    for row in tracker.read_rows(workspace):
-        key = tracker.dedup_key(row.get("公司"), row.get("岗位"))
-        applied[key] = (row.get("当前阶段") or "").strip()
-
+    applied = _applications_by_key(workspace)
     items = []
     for name in sorted(os.listdir(base)):
         full = os.path.join(base, name)
         if name.startswith("_") or not os.path.isdir(full):
             continue
-        company, role = _split_dir(name)
         card_path = os.path.join(full, CARD_FILE)
-        basic = _card_basic_info(card_path)
-        if basic:
-            company, role = basic
-        stage = applied.get(tracker.dedup_key(company, role))
-        if stage is None:
-            state = "未投递"
-        elif stage in tracker.TERMINAL_STAGES:
-            state = "已终态"
-        else:
-            state = "流程中"
+        company, role = _card_basic_info(card_path) or _split_dir(name)   # 展示名
+        match_company, match_role = _split_dir(name)                      # 匹配键
+        row = applied.get(tracker.dedup_key(match_company, match_role))
         items.append({
             "目录": name, "公司": company, "岗位": role,
-            "状态": state, "阶段": stage or "", "评分": _card_score(card_path),
+            "状态": _apply_state(row), "阶段": (row or {}).get("当前阶段", "").strip(),
+            "评分": _card_score(card_path),
             "有JD原文": os.path.isfile(os.path.join(full, JD_FILE)),
             "有解析卡": os.path.isfile(card_path),
         })
@@ -244,6 +281,8 @@ def dashboard_summary(workspace, today=None, stale_days=None):
             "岗位": (row.get("岗位") or "").strip(),
             "当前阶段": (row.get("当前阶段") or "").strip(),
             "level": health["level"], "reasons": health["reasons"],
+            # hints 与 reasons 一一对应，是英文宿主拼句用的结构化形态（后端同款）
+            "hints": health.get("hints", []),
         })
     pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
 

@@ -239,7 +239,8 @@ def test_init_preview_surfaces_overwrites(tmp_path):
     errors, plan = init_workspace.plan_init(str(target), demo=True)
 
     assert errors == []
-    assert "覆盖" in plan["summary"]
+    # 两个词都要在：只有"新建"没有"覆盖"说明覆盖清单漏了（反之亦然）
+    assert "覆盖" in plan["summary"] and "新建" in plan["summary"]
     assert any("将覆盖" in line for line in plan["diff"]), plan["diff"]
 
 

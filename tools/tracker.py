@@ -1161,7 +1161,10 @@ def _validate_update(target, changes, workspace=None):
     # 终态不回退：原阶段已是终态时不可再改阶段
     if stage:
         errors.extend(check_terminal_transition(target.get("当前阶段", ""), stage))
-    # 终态必填原因：按更新后的最终阶段与最终原因判定
+    # 终态必填原因：按更新后的最终阶段与最终原因判定。
+    # 注意 `"" 也是显式值`：`--reason ""` 表示"清空原因"，它会被收进 changes
+    # （cmd_update 按 `is not None` 收），所以这里用 `in changes` 而**不是**
+    # `changes.get(...) or ...`——后者会把"清空"悄悄当成"没提供"（独立审查 MAJOR-1）。
     final_stage = stage if stage is not None else target.get("当前阶段", "")
     final_reason = (changes["状态原因"] if "状态原因" in changes
                     else target.get("状态原因", ""))
@@ -1231,7 +1234,13 @@ def apply_approved_update(payload, workspace=None):
         target[field] = value
     write_rows(rows, ws)
     append_history(diff_entries(app_id, before, target), ws)
-    return {"id": app_id,
+    # 回传**实际**差异：预览到确认之间可能隔了很久，主表里的"原值"未必还是预览
+    # 时那个——展示落盘时的真实前后值才算数（独立审查 MAJOR-2）。
+    diff = ["| 字段 | 原值 | 新值 |", "|---|---|---|"]
+    for field in sorted(changes):
+        diff.append("| %s | %s | %s |" % (
+            field, before.get(field, "") or "（空）", target.get(field, "") or "（空）"))
+    return {"id": app_id, "diff": diff,
             "summary": "已更新 %s（%s %s）" % (app_id, target.get("公司", ""),
                                             target.get("岗位", ""))}
 
@@ -1270,7 +1279,7 @@ def cmd_update(args):
 
     result = apply_approved_update(plan["payload"], WORKSPACE)
     print("## %s\n" % result["summary"])
-    for line in plan["diff"]:
+    for line in result.get("diff") or plan["diff"]:
         print(line)
     return 0
 

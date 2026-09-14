@@ -95,18 +95,6 @@ def copy_tree(src, dst, overwrite=False):
     return replaced
 
 
-def install_domain(target, domain):
-    """把领域插件复制为 <target>/config/。返回退出码。"""
-    domain_src = os.path.join(PROFILES, domain)
-    if not os.path.isdir(domain_src):
-        print("错误：找不到领域插件 `%s`" % domain)
-        print("可用插件：%s" % "、".join(list_domains()))
-        return 1
-    copy_tree(domain_src, os.path.join(target, "config"))
-    print("已装入领域插件：%s" % domain)
-    return 0
-
-
 def demo_counts():
     """按 demo 骨架里的实际数据统计，而不是把数字写死在提示里。
 
@@ -139,35 +127,6 @@ def demo_counts():
         "jobs": dirs("01_岗位池"),
         "resumes": dirs("02_简历工坊/source", suffix=".json"),
     }
-
-
-def install_demo(target, domain):
-    """把 template/demo/ 的占位数据铺到目标工作区。
-
-    全新初始化时这些文件都是**新建**的：模板里没有 tracker.csv（只有 `_示例_tracker.csv`），
-    所以正常情况下一个都不会被覆盖。只有在已有工作区上重跑 `--demo --force` 时才会覆盖，
-    那时把被覆盖的文件逐条报出来。
-    """
-    if not os.path.isdir(DEMO):
-        print("错误：找不到 demo 数据骨架 %s" % DEMO)
-        return 1
-    if domain != DEMO_DEFAULT_DOMAIN:
-        print("注意：demo 数据是配 %s 写的，当前装入的是 %s，" % (DEMO_DEFAULT_DOMAIN, domain))
-        print("      「方向」列可能与插件不符（可改 tracker.csv 或换插件）。")
-        print("      注：tracker check 不校验方向，校验它的是 tracker add 与 list --direction。")
-    replaced = copy_tree(DEMO, target, overwrite=True)
-    counts = demo_counts()
-    print("已装入 demo 数据（全部为占位信息，可放心截图）")
-    print("  已装入：%d 条投递 / %d 场面试 / %d 位联系人 / %d 个 Offer / %d 张解析卡 / %d 份简历"
-          % (counts["tracker"], counts["interviews"], counts["contacts"],
-             counts["offers"], counts["jobs"], counts["resumes"]))
-    if replaced:
-        print("")
-        print("注意：以下 %d 个文件本来已存在，已被 demo 数据覆盖：" % len(replaced))
-        for path in replaced:
-            print("  - %s" % os.path.relpath(path, ROOT))
-        print("若那是你的真实数据，请立刻从备份/快照恢复（设置页可手动备份）。")
-    return 0
 
 
 def print_next_steps(target_name, demo=False):
@@ -206,9 +165,12 @@ def _display_path(path, base):
 def _plan_tree(src, dst, overwrite=False):
     """只读遍历：算出复制时**会新建**与**会覆盖**哪些文件（**不落盘**）。
 
-    判定规则与 `copy_tree` 保持一致（默认跳过已存在文件，overwrite=True 才覆盖，
-    子目录会被创建）——否则「预览说会覆盖 3 个」和「实际覆盖了 5 个」就开始
-    各说各话。真正的复制仍由 `copy_tree` 执行。
+    判定规则与 `copy_tree` 保持一致（默认跳过已存在文件，overwrite=True 才覆盖）
+    ——否则「预览说会覆盖 3 个」和「实际覆盖了 5 个」就开始各说各话。真正的复制
+    仍由 `copy_tree` 执行。
+
+    只数**文件**：`copy_tree` 会顺带把空目录建出来（如 `applications/`），但目录
+    不会覆盖任何东西，也不在「新建 N 个文件」的口径里（独立审查 MINOR-3）。
     """
     creates, replaces = [], []
     for item in sorted(os.listdir(src)):
@@ -388,13 +350,16 @@ def main():
         print("加 --force 覆盖，或换一个 --target 名称。")
         return 1
 
+    # 计划一次——**预览与真正执行走同一个 plan_init**：两套逻辑各自维护的话，
+    # "预览说覆盖 3 个、实际盖了 5 个"迟早会发生（独立审查 MINOR-4 的双写风险）。
+    errors, plan = plan_init(target, args.domain, args.demo, args.force)
+    if errors:
+        for problem in errors:
+            print("错误：%s" % problem)
+        return 1
+
     if getattr(args, "preview", False):
         import approval
-        errors, plan = plan_init(target, args.domain, args.demo, args.force)
-        if errors:
-            for problem in errors:
-                print("错误：%s" % problem)
-            return 1
         result = approval.preview("init", target, plan["payload"], plan["summary"],
                                   plan["diff"], plan["targets"])
         print("## 预览（未写入）\n")
@@ -405,49 +370,40 @@ def main():
         print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
         return 0
 
-    ws_src = os.path.join(TEMPLATE, "workspace")
-    if not os.path.isdir(ws_src):
-        print("错误：找不到模板骨架 %s" % ws_src)
-        return 1
+    domain = plan["payload"]["domain"]
+    demo = plan["payload"]["demo"]
+    created, replaced = _run_init(target, domain, demo)
 
-    # 1. 复制六个模块
-    for module in MODULES:
-        src = os.path.join(ws_src, module)
-        if os.path.isdir(src):
-            copy_tree(src, os.path.join(target, module))
     print("已创建六个模块目录")
-
-    # 骨架总说明。模块内各自还有 README，这里复制的是工作区根的那份
-    ws_readme = os.path.join(ws_src, "README.md")
-    if os.path.isfile(ws_readme):
-        copy_tree_file(ws_readme, os.path.join(target, "README.md"))
+    if os.path.isfile(os.path.join(target, "README.md")):
         print("已生成工作区说明 README.md")
-
-    # 2. 档案模板 -> AGENTS.md
-    agents_src = os.path.join(TEMPLATE, "AGENTS.example.md")
-    agents_dst = os.path.join(target, "AGENTS.md")
-    if os.path.isfile(agents_src) and not os.path.isfile(agents_dst):
-        shutil.copy2(agents_src, agents_dst)
+    if os.path.isfile(os.path.join(target, "AGENTS.md")):
         print("已生成 AGENTS.md（待填写）")
-
-    # 3. 领域插件。demo 数据的「方向」列依赖 software-backend，未指定时默认装它
-    domain = args.domain
-    if not domain and args.demo:
-        domain = DEMO_DEFAULT_DOMAIN
-        print("--demo 未指定 --domain，默认装入 %s" % domain)
     if domain:
-        code = install_domain(target, domain)
-        if code:
-            return code
+        print("已装入领域插件：%s" % domain)
+        if demo and not args.domain:
+            print("--demo 未指定 --domain，默认装入 %s" % domain)
     else:
         print("未指定 --domain，稍后手动复制插件到 config/ 即可")
         print("可用插件：%s" % "、".join(list_domains()))
 
-    # 4. demo 数据（覆盖模板里的同名空骨架）
-    if args.demo:
-        code = install_demo(target, domain or DEMO_DEFAULT_DOMAIN)
-        if code:
-            return code
+    if demo:
+        if domain and domain != DEMO_DEFAULT_DOMAIN:
+            print("注意：demo 数据是配 %s 写的，当前装入的是 %s，"
+                  % (DEMO_DEFAULT_DOMAIN, domain))
+            print("      「方向」列可能与插件不符（可改 tracker.csv 或换插件）。")
+            print("      注：tracker check 不校验方向，校验它的是 tracker add 与 list --direction。")
+        counts = demo_counts()
+        print("已装入 demo 数据（全部为占位信息，可放心截图）")
+        print("  已装入：%d 条投递 / %d 场面试 / %d 位联系人 / %d 个 Offer / %d 张解析卡 / %d 份简历"
+              % (counts["tracker"], counts["interviews"], counts["contacts"],
+                 counts["offers"], counts["jobs"], counts["resumes"]))
+    if replaced:
+        print("")
+        print("注意：以下 %d 个文件本来已存在，已被 demo 数据覆盖：" % len(replaced))
+        for path in replaced:
+            print("  - %s" % _display_path(path, ROOT))
+        print("若那是你的真实数据，请立刻从备份/快照恢复（设置页可手动备份）。")
 
     print_next_steps(args.target, args.demo)
     return 0

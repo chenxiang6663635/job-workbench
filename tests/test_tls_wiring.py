@@ -11,6 +11,7 @@
 
 import json
 import os
+import re
 import ssl
 import sys
 import urllib.request
@@ -112,14 +113,25 @@ def test_jobs_fetch_jd_passes_policy_context(monkeypatch, sentinel_ctx, tmp_path
 
 # ---- 扫描：#59 的验收原文（`grep -rn "_create_unverified_context" web/ tools/` 归零）----
 
-def test_no_unverified_context_shortcut_left():
-    """关证书校验的捷径不许再出现在 web/ 与 tools/ 的源码里。
+def test_no_handwritten_unverified_context_outside_policy():
+    """关证书校验的写法不许再出现在 web/ 与 tools/ 的源码里。
 
     用扫描而不是 grep：这条纪律要跟着 CI 跑，靠人记得 grep 的约定等于没有。
-    与那三个 issue 里的验收条目同源，改了判定就要同步改这里。
+    与 issue #59 的验收条目同源，改了判定就要同步改这里。
+
+    只禁一个 API 名不够（独立审查 MINOR-2）：手写 `ssl.CERT_NONE` +
+    `check_hostname = False` 同样会关掉校验，却完全不经过那个 API。所以按
+    **形状**扫，并且**计数放行**——唯一允许出现的地方是策略实现本身，每个形状
+    各只允许一处；多出第二处即报错（与 a11y 豁免清单"节点数变多即视为新命中"
+    同一纪律）。正则与 needle 都拼开写，保证本文件不会被自己扫到。
     """
-    # 拼开写：保证本文件自己不会被这条规则扫到（否则就成了"豁免自己"的笑话）
-    needle = "_create_unverified" + "_context"
+    rules = (
+        # (说明, 正则, 允许出现的文件（相对仓库根）, 允许出现的次数)
+        ("关校验捷径", re.compile(re.escape("_create_unverified" + "_context")), None, 0),
+        ("手写 CERT_NONE", re.compile(r"ssl\.CERT_NONE"), "tools/tls_policy.py", 1),
+        ("手写 check_hostname=False", re.compile(r"check_hostname\s*=\s*False"),
+         "tools/tls_policy.py", 1),
+    )
     skip_dirs = ("node_modules", "release", "__pycache__", ".git", "dist")
     offenders = []
     for base in ("web", "tools"):
@@ -129,12 +141,15 @@ def test_no_unverified_context_shortcut_left():
                 if not name.endswith((".py", ".js", ".ts", ".tsx")):
                     continue
                 full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, ROOT_DIR).replace("\\", "/")
                 with open(full, "r", encoding="utf-8", errors="replace") as f:
-                    for lineno, line in enumerate(f, 1):
-                        if needle in line:
-                            offenders.append("%s:%d"
-                                             % (os.path.relpath(full, ROOT_DIR).replace("\\", "/"),
-                                                lineno))
+                    lines = f.readlines()
+                for label, rx, allowed_file, allowed_count in rules:
+                    hits = [i + 1 for i, line in enumerate(lines) if rx.search(line)]
+                    if allowed_file and rel == allowed_file:
+                        hits = hits[allowed_count:]
+                    for lineno in hits:
+                        offenders.append("%s:%d [%s]" % (rel, lineno, label))
     assert offenders == [], (
         "出网一律走 tools/tls_policy.py；确需跳过校验只能由用户显式设环境变量。命中：%s"
         % offenders)

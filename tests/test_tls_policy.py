@@ -92,6 +92,41 @@ def test_downgrade_requires_the_insecure_word(monkeypatch):
             tls_policy.outbound_ssl_context("Provider 连通性测试", "JOBWS_HTTP_TLS")
 
 
+class _BrokenStoreOtherError:
+    """证书库故障抛成**非** SSLError 的形态（独立审查 MINOR-1）。
+
+    `ssl.SSLError` 是 `OSError` 的子类，但 `create_default_context()` 在更外层
+    也可能抛裸 `OSError`（证书库枚举/文件访问失败）。若只认 `SSLError`，这类
+    故障既不降级、也拿不到出路文案 —— 正好是 #59 想消除的"用户看到原文"。
+    """
+
+    @staticmethod
+    def boom():
+        raise OSError("cannot enumerate the certificate store")
+
+
+def test_non_sslerror_store_failure_still_gives_way_out(monkeypatch):
+    monkeypatch.setattr(ssl, "create_default_context", _BrokenStoreOtherError.boom)
+    monkeypatch.delenv("JOBWS_HTTP_TLS", raising=False)
+
+    with pytest.raises(tls_policy.TlsPolicyError) as ei:
+        tls_policy.outbound_ssl_context("Provider 连通性测试", "JOBWS_HTTP_TLS")
+
+    msg = str(ei.value)
+    assert "certmgr.msc" in msg
+    assert "JOBWS_HTTP_TLS" in msg
+
+
+def test_non_sslerror_store_failure_can_still_be_downgraded(monkeypatch):
+    monkeypatch.setattr(ssl, "create_default_context", _BrokenStoreOtherError.boom)
+    monkeypatch.setenv("JOBWS_HTTP_TLS", "insecure")
+
+    ctx = tls_policy.outbound_ssl_context("Provider 连通性测试", "JOBWS_HTTP_TLS")
+
+    assert ctx.verify_mode == ssl.CERT_NONE
+    assert ctx.check_hostname is False
+
+
 def test_downgrade_context_really_skips_verification(monkeypatch):
     """显式 insecure：返回的上下文确实不校验（主机名与证书都不校验）。
 

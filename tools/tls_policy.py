@@ -15,10 +15,13 @@
 口径（四条，`tests/test_tls_policy.py` 逐条钉住）：
 
 1. 先试 `ssl.create_default_context()`：成功即为严格上下文（校验主机名 + 证书）；
-2. 抛 `ssl.SSLError`（典型是 Windows 证书库损坏的 ASN1 错误）→ **默认拒绝**，
-   消息含 `certmgr.msc` 排查指引、显式降级变量名，以及 purpose（是哪条功能在出网）；
+2. 证书库加载失败（典型是 Windows 证书库损坏的 ASN1 错误，`SSLError`/`OSError`）
+   → **默认拒绝**，消息含 `certmgr.msc` 排查指引、显式降级变量名，以及 purpose
+   （是哪条功能在出网）；
 3. 只有该变量（容忍大小写与首尾空格——它是人手敲的）等于 `insecure` 才降级；
-4. 降级后的上下文确实是 `CERT_NONE` + `check_hostname = False`。
+4. 降级后的上下文确实把证书校验与主机名校验都关掉了（不是"以为降级了"）——
+   测试逐项断言，别在这里复述字面写法：`tests/test_tls_wiring.py` 的扫描
+   按形状计数放行，本文件里多写一处字面量会被它抓住（真实防线不靠注释）。
 
 **刻意不做的一件事：不缓存上下文。** `create_default_context()` 每次都要枚举系统
 证书库（已知慢路径），但缓存会把"用户刚修好证书库却仍然失败"变成幽灵问题——
@@ -60,7 +63,11 @@ def outbound_ssl_context(purpose, env_var):
     """
     try:
         return ssl.create_default_context()
-    except ssl.SSLError as exc:
+    except (ssl.SSLError, OSError) as exc:
+        # 捕 `OSError` 而不是只捕 `ssl.SSLError`：证书库故障在个别平台/版本上会
+        # 抛成更外层的形态（`SSLError` 本身也是 `OSError` 子类，这里列出两者是
+        # 为了让意图显式）。只认 `SSLError` 的话，这类故障既不降级、也拿不到出路
+        # 文案——就退回了"用户看到原文"这个 #59 想消除的现象（独立审查 MINOR-1）。
         if os.environ.get(env_var, "").strip().lower() == INSECURE:
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ctx.check_hostname = False

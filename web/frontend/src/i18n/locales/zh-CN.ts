@@ -377,6 +377,13 @@ const zhCN = {
 
   // 设置页。Provider（BYOK）、邮箱只读拉取、数据与隐私三块
   "settings.title": "设置",
+  // 中文值中文优先、把外来词放括号里：这正是本批要修的那处"中文界面下冒英文"。
+  // （原先写成 `"Provider"` 只是把写死变成了"写死在语言包里"，用户看到的仍是英文。）
+  "settings.providerTitle": "模型服务（Provider）",
+  // 语言是**设备级**偏好：与下面三张卡（工作区级、随工作区走）不是一类东西，
+  // 所以文案里必须写明"不随工作区导出/同步"，否则用户会以为换台机器会跟着变。
+  "settings.langTitle": "界面语言",
+  "settings.langDesc": "只影响这台机器的界面（存在本机，不随工作区导出或同步）。数据里的枚举取值仍是中文——它与你的历史数据和 CLI 共用同一套字面量。",
   "settings.providerDesc": "LLM Provider 配置（BYOK）。配置后可用于 JD 解析 / 评分等 AI 增强，判断由你或 AI 完成。",
   "settings.baseUrl": "Base URL（OpenAI 兼容，含 /v1，如 https://api.orcarouter.ai/v1）",
   "settings.apiKey": "API Key（留空则保留已保存的 key）",

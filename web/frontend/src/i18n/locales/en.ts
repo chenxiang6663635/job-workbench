@@ -342,6 +342,9 @@ export default {
   "dash.overdueEmpty": "Nothing past its deadline while still unapplied.",
 
   "settings.title": "Settings",
+  "settings.providerTitle": "Provider",
+  "settings.langTitle": "Interface language",
+  "settings.langDesc": "Affects this machine only (stored locally; not exported or synced with the workspace). Enum values inside your data stay Chinese — that is the shared contract with your history and the CLI.",
   "settings.providerDesc": "LLM provider (BYOK). Once configured it powers JD parsing, scoring and other AI assists; the judgement stays yours or the AI’s.",
   "settings.baseUrl": "Base URL (OpenAI-compatible, including /v1, e.g. https://api.orcarouter.ai/v1)",
   "settings.apiKey": "API key (leave blank to keep the saved one)",

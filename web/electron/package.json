@@ -34,6 +34,7 @@
     "files": [
       "main.js",
       "zoom.js",
+      "i18n.js",
       "package.json",
       "node_modules/**"
     ],

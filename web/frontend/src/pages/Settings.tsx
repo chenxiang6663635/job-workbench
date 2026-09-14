@@ -7,10 +7,12 @@ import {
   FolderOpen,
   Inbox,
   KeyRound,
+  Languages,
   PlugZap,
   Save,
   ShieldCheck,
 } from "lucide-react";
+import { LANGS } from "../i18n";
 import { PROVIDER_REFERRAL } from "../lib/partner";
 import {
   api,
@@ -29,7 +31,7 @@ import { ErrorBanner } from "../components/ErrorBanner";
 import { FormField } from "../components/FormField";
 
 export default function Settings() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [cfg, setCfg] = useState<ProviderConfig | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -209,10 +211,40 @@ export default function Settings() {
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
       {info && <ErrorBanner tone="success" message={info} onClose={() => setInfo(null)} />}
 
+      {/* 界面语言：设备级偏好，与下面三张卡（工作区级、随工作区走）不是一类东西，
+          所以文案里必须写明"不随工作区导出/同步"——否则用户会以为换台机器会跟着变。
+          与顶栏那个分段按钮共用同一个 i18n 实例：两处入口、一份状态，不会打架。 */}
       <Card className="space-y-4 p-5">
         <CardHeader className="p-0">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <KeyRound size={16} className="text-primary" /> Provider
+            <Languages size={16} className="text-primary" /> {t("settings.langTitle")}
+          </CardTitle>
+        </CardHeader>
+
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {t("settings.langDesc")}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2" role="group"
+             aria-label={t("lang.switch")}>
+          {LANGS.map((l) => (
+            <Button
+              key={l.value}
+              variant={i18n.language === l.value ? "default" : "outline"}
+              className="h-7 px-3 text-xs"
+              aria-pressed={i18n.language === l.value}
+              onClick={() => i18n.changeLanguage(l.value)}
+            >
+              {l.label}
+            </Button>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="space-y-4 p-5">
+        <CardHeader className="p-0">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <KeyRound size={16} className="text-primary" /> {t("settings.providerTitle")}
           </CardTitle>
         </CardHeader>
 

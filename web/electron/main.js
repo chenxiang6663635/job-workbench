@@ -9,6 +9,7 @@ const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
+const { tFor } = require("./i18n");
 
 const BACKEND_PORT = 8765;
 const HEALTH_URL = `http://127.0.0.1:${BACKEND_PORT}/api/health`;
@@ -253,7 +254,10 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 880,
-    title: "Job Workbench",
+    // 初始标题按系统语言：首帧（以及后端没起来、页面加载失败的路径）也得是对的语言。
+    // 页面加载完成后由渲染进程的 document.title 接管（见前端 i18n 的 applyDocumentTitle）。
+    // 已知取舍：主进程读不到界面里选的语言，只能跟系统语言——理由写在 i18n.js 顶部。
+    title: tFor(app.getLocale())("windowTitle"),
     backgroundColor: "#0a0e17",
     webPreferences: {
       contextIsolation: true,
@@ -322,13 +326,14 @@ function setupAutoUpdate() {
 
   autoUpdater.on("update-available", (info) => {
     log(`Update available: ${info.version}`);
+    const t = tFor(app.getLocale());
     dialog
       .showMessageBox({
         type: "info",
-        title: "Update available",
-        message: `Job Workbench ${info.version} is available`,
-        detail: "You will be asked whether to restart after the download completes. Downloading now will not interrupt what you are doing.",
-        buttons: ["Download update", "Later"],
+        title: t("updateAvailableTitle"),
+        message: t("updateAvailableMessage", { version: info.version }),
+        detail: t("updateAvailableDetail"),
+        buttons: [t("updateAvailableDownload"), t("updateAvailableLater")],
         defaultId: 0,
         cancelId: 1,
       })
@@ -341,13 +346,14 @@ function setupAutoUpdate() {
 
   autoUpdater.on("update-downloaded", (info) => {
     log(`Update downloaded: ${info.version}`);
+    const t = tFor(app.getLocale());
     dialog
       .showMessageBox({
         type: "info",
-        title: "Update ready",
-        message: `Job Workbench ${info.version} has been downloaded`,
-        detail: "Restarting quits the backend process first, then installs the new version.",
-        buttons: ["Restart and install", "Install on quit"],
+        title: t("updateReadyTitle"),
+        message: t("updateReadyMessage", { version: info.version }),
+        detail: t("updateReadyDetail"),
+        buttons: [t("updateReadyRestart"), t("updateReadyInstallOnQuit")],
         defaultId: 0,
         cancelId: 1,
       })

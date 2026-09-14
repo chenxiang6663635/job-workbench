@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import zhCN from "./locales/zh-CN";
 import en from "./locales/en";
+import { reportLang } from "../lib/prefs";
 
 /** 语言持久化的 localStorage 键（与 jobws_selected_workspace 同一前缀） */
 export const LANG_STORAGE_KEY = "jobws_lang";
@@ -68,8 +69,12 @@ i18n.on("languageChanged", (lng) => {
   }
   document.documentElement.lang = lng;
   applyDocumentTitle();
+  // 把界面语言送到主进程：窗口初始标题与更新对话框由它渲染（桌面壳里才有通道）
+  reportLang(lng);
 });
-// init({lng}) 不触发 languageChanged——首屏标题在这里补一次
+// init({lng}) 不触发 languageChanged——首屏标题与"首次语言上报"在这里各补一次。
+// 上报让主进程从"只能按系统语言"变成"跟随界面里选的语言"（#77 的那条待办）。
 applyDocumentTitle();
+reportLang(i18n.language);
 
 export default i18n;

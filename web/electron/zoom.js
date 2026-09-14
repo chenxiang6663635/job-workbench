@@ -21,15 +21,24 @@ function clampLevel(level) {
 function nextLevel(current, key, withModifier) {
   if (!withModifier) return null;
   let next = null;
-  if (key === "=" || key === "+") {
+  // 键名按 Chromium 的 key 值表：主键盘 = / + / - / _ / 0，小键盘是 Add / Subtract / Insert。
+  // （注释里一直说"含小键盘"，但这几个值其实没实现——2026-09-14 独立审查对出来的。）
+  if (key === "=" || key === "+" || key === "Add") {
     next = current + ZOOM_STEP;
-  } else if (key === "-" || key === "_") {
+  } else if (key === "-" || key === "_" || key === "Subtract") {
     next = current - ZOOM_STEP;
-  } else if (key === "0") {
+  } else if (key === "0" || key === "Insert") {
     next = 0;
   }
   if (next === null) return null;
   return clampLevel(next);
 }
 
-module.exports = { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, clampLevel, nextLevel };
+/** 级别 → 显示百分比（四舍五入到整数）。真值口径 = 1.2^level：0 → 100、+1 → 120、
+    -1 → 83、+3 → 173。滑块旁的数字用它算——别在界面上复刻 1.2 这个常量。
+    （只做这一个方向：滑块的取值口径是 level 本身，percent 仅用于显示。） */
+function levelToPercent(level) {
+  return Math.round(Math.pow(1.2, clampLevel(level)) * 100);
+}
+
+module.exports = { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, clampLevel, nextLevel, levelToPercent };

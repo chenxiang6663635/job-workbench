@@ -867,6 +867,12 @@ const zhCN = {
   "cluster.tooFewSamples": "样本太少，暂不展示（失败记录 {{total}} 条，至少需要 {{min}} 条才能谈「高频」）",
   // 「状态原因」是追踪表 CSV 的真实列名，英文里保留原字段名 + 括注
   "cluster.noKeywords": "未配置 config/failure_keywords.txt，当前按「状态原因」原文频次统计",
+  // 界面大小（桌面端偏好；与界面语言同属「设备级、不随工作区走」）
+  "settings.zoomTitle": "界面大小",
+  "settings.zoomDesc": "拖动即可预览：整个界面（含文字）一起缩放，重新打开仍然保留。",
+  "settings.zoomHint": "快捷键同样可用：Ctrl + 放大、Ctrl - 缩小、Ctrl 0 复位。",
+  "settings.zoomDesktopOnly":
+    "界面大小只在桌面应用里可调；浏览器里打开时，用浏览器自己的缩放（Ctrl +/-）即可。",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

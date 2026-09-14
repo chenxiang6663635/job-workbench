@@ -33,6 +33,7 @@
     ],
     "files": [
       "main.js",
+      "preload.js",
       "zoom.js",
       "i18n.js",
       "package.json",

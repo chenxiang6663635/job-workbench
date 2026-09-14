@@ -4,7 +4,7 @@
 // 前端静态产物由 FastAPI 同源托管（web/frontend/dist），无需 vite dev server，
 // 也无需放宽 CORS —— 页面与 API 同源。
 
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
@@ -50,7 +50,7 @@ function log(msg) {
 // 触控板的捏合缩放（visual zoom）同时关掉：两套缩放机制并存时，画面会出现
 // 「捏合能放大、一刷新又弹回去」的错觉，只保留可记忆的这一套。
 // 按键映射与上下限夹取在 zoom.js（纯函数，zoom.test.js 机检，CI 一并跑）。
-const { clampLevel, nextLevel } = require("./zoom");
+const { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, clampLevel, nextLevel, levelToPercent } = require("./zoom");
 
 function zoomStatePath() {
   return path.join(app.getPath("userData"), "zoom.json");
@@ -73,6 +73,78 @@ function saveZoomLevel(level) {
     log(`Failed to persist zoom level: ${e.message}`);
   }
 }
+
+// ---- 偏好通道：单一真值在主进程 -------------------------------------------------
+// 「界面大小」与「界面语言」两项偏好由主进程持有（缩放要驱动原生层 setZoomLevel、
+// 语言要渲染窗口标题与更新对话框），渲染进程经 preload 只表达意图。两个入口
+// （设置页滑块、Ctrl± 快捷键）都只写这里，避免各算一套（2026-09-14 #84/#77）。
+let zoomLevel = 0;          // app ready 时由 loadZoomLevel() 填充（getPath 要求 ready）
+let currentLang = null;     // 界面语言上报值；未上报前回退系统语言（与旧行为一致）
+
+/** 当前生效语言：界面语言优先，未上报时按系统语言。 */
+function resolvedLang() {
+  return currentLang || app.getLocale();
+}
+
+function applyZoomToAll() {
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.setZoomLevel(zoomLevel);
+}
+
+/** 把当前缩放广播给所有窗口：设置页滑块据此跟随快捷键造成的变更。 */
+function broadcastZoom() {
+  const payload = { level: zoomLevel, percent: levelToPercent(zoomLevel) };
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send("prefs:zoom-changed", payload);
+}
+
+// 通道注册在模块顶层即可（ipcMain.handle 不依赖 ready）
+ipcMain.handle("prefs:get", () => ({
+  level: zoomLevel,
+  min: ZOOM_MIN,
+  max: ZOOM_MAX,
+  step: ZOOM_STEP,
+  percent: levelToPercent(zoomLevel),
+  lang: resolvedLang(),
+}));
+
+// 缩放变更的唯一写入口：快捷键与设置页滑块都走这里（夹取 → 应用 → 可选落盘/广播）。
+// persist=false 只用于滑块拖动中的实时预览：不落盘、不广播（广播会把"预览值"当成
+// 最终值回灌，拖动中反而互相打架）；松手时以 persist=true 再调一次。**默认落盘**——
+// 只有显式 false 才是预览，避免调用方传 0/null 之类把状态卡在"永不确认"。
+function applyZoomChange(level, persist) {
+  const next = clampLevel(level);   // 夹取只认 zoom.js 这一份实现
+  if (next === zoomLevel) return { level: zoomLevel, percent: levelToPercent(zoomLevel) };
+  zoomLevel = next;
+  applyZoomToAll();
+  if (persist) {
+    saveZoomLevel(zoomLevel);
+    broadcastZoom();
+  }
+  return { level: zoomLevel, percent: levelToPercent(zoomLevel) };
+}
+
+ipcMain.handle("prefs:set-zoom", (_event, payload) => {
+  const p = payload || {};
+  return applyZoomChange(p.level, p.persist !== false);
+});
+
+// 与前端 LANGS 同一份口径；不在表里的上报一律忽略（不受信输入不进状态）
+const UI_LANGS = ["zh-CN", "en"];
+
+ipcMain.handle("prefs:set-lang", (_event, lang) => {
+  const next = String(lang || "");
+  if (!UI_LANGS.includes(next)) {
+    log(`Ignored unknown UI language report: ${next}`);
+    return { lang: resolvedLang() };
+  }
+  if (next === currentLang) return { lang: currentLang };
+  currentLang = next;
+  // 窗口标题只在"页面接管前"有意义（加载完成后由渲染进程的 document.title 接管，
+  // 见前端 i18n 的 applyDocumentTitle）；真正随界面语言变的是更新对话框的取词语言。
+  const t = tFor(currentLang);
+  for (const w of BrowserWindow.getAllWindows()) w.setTitle(t("windowTitle"));
+  log(`UI language reported by renderer: ${currentLang}`);
+  return { lang: currentLang };
+});
 
 // ---- Python 探测（优先级：JOBWS_PYTHON 环境变量 → PATH 中 python → python3）----
 function detectPython() {
@@ -254,21 +326,36 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 880,
-    // 初始标题按系统语言：首帧（以及后端没起来、页面加载失败的路径）也得是对的语言。
-    // 页面加载完成后由渲染进程的 document.title 接管（见前端 i18n 的 applyDocumentTitle）。
-    // 已知取舍：主进程读不到界面里选的语言，只能跟系统语言——理由写在 i18n.js 顶部。
-    title: tFor(app.getLocale())("windowTitle"),
+    // 初始标题：优先用渲染进程上报过的界面语言，没有则按系统语言。首帧（以及后端
+    // 没起来、页面加载失败的路径）也得是对的语言；页面加载完成后由渲染进程的
+    // document.title 接管（见前端 i18n 的 applyDocumentTitle）。
+    title: tFor(resolvedLang())("windowTitle"),
     backgroundColor: "#0a0e17",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      // 偏好通道的桥（界面大小 / 界面语言）。**必须同步登记进 build.files** —
+      // check_packaging.js 也守这一条（漏了的话安装版的通道会缺失）。
+      preload: path.join(__dirname, "preload.js"),
     },
   });
   win.setMenuBarVisibility(false);
+  // 只允许留在本机界面：页面一旦被导航到外部站点，preload 注入的偏好通道也会跟着
+  // 暴露给那个文档（contextBridge 是按文档注入的）。窗口内的外链交给系统浏览器。
+  const allowedOrigin = `http://127.0.0.1:${BACKEND_PORT}`;
+  win.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(allowedOrigin)) {
+      event.preventDefault();
+      log(`Blocked navigation to ${url}`);
+    }
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url).catch((e) => log(`Failed to open external URL: ${e.message}`));
+    return { action: "deny" };
+  });
   win.loadURL(`http://127.0.0.1:${BACKEND_PORT}`);
 
-  // 缩放：加载完成后应用已保存的级别（开发时热重载不会丢），快捷键见下
-  let zoomLevel = loadZoomLevel();
+  // 缩放级别在 app ready 时已加载（见 whenReady）；这里把当前值应用到新窗口
   const applyZoom = () => win.webContents.setZoomLevel(zoomLevel);
   win.webContents.on("did-finish-load", applyZoom);
   // 该 API 返回 Promise（未就绪/已销毁时会 reject），与文件里其它异步面一样显式兜住
@@ -285,9 +372,7 @@ function createWindow() {
     // 拦下这次按键：否则默认菜单（View → Zoom In/Out）会对同一次按键再缩一遍
     event.preventDefault();
     if (next === zoomLevel) return;
-    zoomLevel = next;
-    applyZoom();
-    saveZoomLevel(zoomLevel);
+    applyZoomChange(next, true);   // 与设置页滑块共用同一个写入口
     log(`Zoom level: ${zoomLevel}`);
   });
 
@@ -326,7 +411,7 @@ function setupAutoUpdate() {
 
   autoUpdater.on("update-available", (info) => {
     log(`Update available: ${info.version}`);
-    const t = tFor(app.getLocale());
+    const t = tFor(resolvedLang());
     dialog
       .showMessageBox({
         type: "info",
@@ -346,7 +431,7 @@ function setupAutoUpdate() {
 
   autoUpdater.on("update-downloaded", (info) => {
     log(`Update downloaded: ${info.version}`);
-    const t = tFor(app.getLocale());
+    const t = tFor(resolvedLang());
     dialog
       .showMessageBox({
         type: "info",
@@ -372,6 +457,9 @@ function setupAutoUpdate() {
 }
 
 app.whenReady().then(() => {
+  // 缩放偏好在 ready 后加载：loadZoomLevel 走 app.getPath("userData")
+  zoomLevel = loadZoomLevel();
+
   // 若后端端口已被占用（用户可能已用 start.ps1 起了服务），直接复用
   checkHealth((ok) => {
     if (ok) {

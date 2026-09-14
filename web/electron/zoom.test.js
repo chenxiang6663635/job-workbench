@@ -4,7 +4,7 @@
 // 断言消息用英文：electron 树的字符串口径是英文（check_i18n_hardcode.py 会把
 // 这里的中文串当界面文案拦下）；注释仍按仓库惯例用中文。
 const assert = require("assert");
-const { ZOOM_MIN, ZOOM_MAX, clampLevel, nextLevel } = require("./zoom");
+const { ZOOM_MIN, ZOOM_MAX, clampLevel, nextLevel, levelToPercent } = require("./zoom");
 
 // --- 夹取 ---------------------------------------------------------------------
 assert.strictEqual(clampLevel(0), 0);
@@ -25,6 +25,10 @@ assert.strictEqual(nextLevel(0, "+", true), 0.5, "Ctrl+Shift+= produces '+'");
 assert.strictEqual(nextLevel(0, "-", true), -0.5);
 assert.strictEqual(nextLevel(0, "_", true), -0.5, "Ctrl+Shift+- produces '_'");
 assert.strictEqual(nextLevel(1.5, "0", true), 0, "Ctrl+0 resets");
+// 小键盘：Chromium 的 key 值不是字符本身
+assert.strictEqual(nextLevel(0, "Add", true), 0.5, "numpad + (key 'Add')");
+assert.strictEqual(nextLevel(0, "Subtract", true), -0.5, "numpad - (key 'Subtract')");
+assert.strictEqual(nextLevel(1.5, "Insert", true), 0, "numpad 0 (key 'Insert')");
 assert.strictEqual(nextLevel(0, "=", false), null, "no modifier, not a zoom key");
 assert.strictEqual(nextLevel(0, "a", true), null, "other keys do not zoom");
 
@@ -39,5 +43,13 @@ for (let i = 0; i < 3; i += 1) level = nextLevel(level, "=", true);
 assert.strictEqual(level, 1.5);
 for (let i = 0; i < 3; i += 1) level = nextLevel(level, "-", true);
 assert.strictEqual(level, 0, "three steps up and down must land exactly on 0");
+
+// --- 百分比显示（设置页滑块旁的数字） -------------------------------------------
+assert.strictEqual(levelToPercent(0), 100);
+assert.strictEqual(levelToPercent(1), 120, "one step up renders as 120%");
+assert.strictEqual(levelToPercent(-1), 83, "one step down renders as 83%");
+assert.strictEqual(levelToPercent(ZOOM_MAX), 173, "max renders as 173%");
+assert.strictEqual(levelToPercent(ZOOM_MIN), 58, "min renders as 58%");
+assert.strictEqual(levelToPercent(99), 173, "out-of-range values are clamped before conversion");
 
 console.log("zoom.test.js: all assertions passed");

@@ -59,8 +59,29 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
             await session.initialize()
             listed = await session.list_tools()
             names = sorted(t.name for t in listed.tools)
-            assert names == ["dashboard_summary", "list_applications", "list_jobs"]
+            assert names == ["apply_approval", "dashboard_summary", "list_applications",
+                             "list_jobs", "preview_add_application",
+                             "preview_import_applications"]
 
             result = await session.call_tool("dashboard_summary", {})
             text = result.content[0].text
             assert json.loads(text)["total"] == 1
+
+            # 两段式写入走一遍真通道：preview 不落盘，apply 才写。
+            # 这条比单测更硬——它验的是宿主实际要走的那条路（stdio + JSON 序列化）。
+            tracker_csv = os.path.join(ws, "05_投递追踪", "tracker.csv")
+            with open(tracker_csv, "rb") as handle:
+                before = handle.read()
+
+            preview = await session.call_tool("preview_add_application", {
+                "company": "示例公司乙", "role": "示例岗位丙",
+                "direction": "backend", "batch": "正式批"})
+            data = json.loads(preview.content[0].text)
+            assert data["ok"] is True, data
+            with open(tracker_csv, "rb") as handle:
+                assert handle.read() == before, "预览阶段不许落盘"
+
+            applied = await session.call_tool("apply_approval", {"token": data["token"]})
+            assert json.loads(applied.content[0].text)["ok"] is True
+            with open(tracker_csv, "rb") as handle:
+                assert handle.read() != before, "apply 之后应真的写入"

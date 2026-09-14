@@ -71,6 +71,8 @@ research_*.md
 # 注意 untracked **不等于**被忽略：没有这条规则时，一次 git add -A
 # 就会把这些内部笔记一起提交进公开仓库。
 /tmp_*
+# 连字符形式的临时工作区（手动跑两段式/演示时 init 出来的目录）
+/tmp-*
 
 # Playwright 运行产物（UI 冒烟的失败截图 / trace / 报告）
 web/frontend/test-results/

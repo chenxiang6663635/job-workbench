@@ -41,6 +41,7 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+import approval  # noqa: E402
 import check_i18n_hardcode  # noqa: E402
 import check_pr_title  # noqa: E402
 import check_skills  # noqa: E402
@@ -60,6 +61,7 @@ TARGETS = [
     ("resume", resume_build, "按岗位生成投递材料"),
     ("jd", jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
+    ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
     ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token）"),
 ]

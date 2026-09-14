@@ -93,6 +93,8 @@ CJK = re.compile(u"[\u4e00-\u9fff]")
 #   - 跨行的属性值不查（只看单行）；
 #   - 只覆盖上面列出的属性与键；`data-*`、`className` 等不在范围内；
 #   - 以 `;` 结尾的裸文本一律当代码跳过（类型注解 `=> void;` 的误报就是这么来的）。
+#     **代价**：真文案若恰以分号结尾（`<li>Press Ctrl+S;</li>`）会被放走——这类文案
+#     请走属性写法（`title=`，属性值不参与该跳过）或改写句子，别把分号当文案结尾。
 # 刻意不做：不按"有大写字母"猜品牌名、不查注释——检查一旦吵起来就会被绕过，宁可窄。
 # 主进程语言包 `web/electron/i18n.js` 由 SKIP_DIRS 按路径豁免——那里是字面量的家。
 EN_SCOPE_RELS = (os.path.join("web", "frontend", "src", "pages"),
@@ -248,9 +250,13 @@ def check_english(root):
         if rel == ELECTRON_REL:
             targets.append((os.path.join(root, rel), os.path.join(root, rel),
                             ELECTRON_KEY_PREFIX))
-        else:
+        elif rel.startswith(SRC_REL):
             # 前端各子树的清单键都以 `web/frontend/src` 为基准（与中文那套同一写法）
             targets.append((os.path.join(root, rel), os.path.join(root, SRC_REL), ""))
+        else:
+            # 范围必须落在前端 src 或 web/electron 之下：否则清单键会算出带 `..` 的
+            # 路径，既不可读、又会静默污染清单（2026-09-14 审查提出的隐含约束，显式化）。
+            errors.append("EN_SCOPE_RELS 里的路径不在前端 src 或 web/electron 之下：%s" % rel)
 
     for base, key_base, prefix in targets:
         if not os.path.isdir(base):

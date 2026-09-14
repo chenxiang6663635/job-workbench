@@ -496,3 +496,20 @@ def test_semicolon_terminated_jsx_text_is_not_a_hit():
     hits = checker.find_hardcoded_english(
         "set: <K extends keyof Draft>(k: K, v: Draft[K]) => void;\n")
     assert hits == []
+
+
+def test_english_scope_comes_from_the_constant(tmp_path, monkeypatch):
+    """范围必须由 `EN_SCOPE_RELS` 决定：改常量要立刻生效。
+
+    与上一条互补——那条证明 components 被扫；这条证明"扫哪里"由常量说了算，
+    即使有人把 targets 再改回硬编码（同时把常量留着当摆设），这里也会红。
+    """
+    files = {
+        os.path.join("pages", "A.tsx"): "const a = <span>From pages</span>;\n",
+        os.path.join("components", "B.tsx"): "const b = <span>From components</span>;\n",
+    }
+    root = _make_repo(tmp_path, files)
+    monkeypatch.setattr(checker, "EN_SCOPE_RELS",
+                        (os.path.join("web", "frontend", "src", "components"),))
+    unallowed, _ok, _errors = checker.check_english(root)
+    assert [u[2] for u in unallowed] == ["From components"]

@@ -386,7 +386,7 @@ const zhCN = {
   // 所以文案里必须写明"不随工作区导出/同步"，否则用户会以为换台机器会跟着变。
   "settings.langTitle": "界面语言",
   "settings.langDesc": "只影响这台机器的界面（存在本机，不随工作区导出或同步）。数据里的枚举取值仍是中文——它与你的历史数据和 CLI 共用同一套字面量。",
-  "settings.providerDesc": "LLM Provider 配置（BYOK）。配置后可用于 JD 解析 / 评分等 AI 增强，判断由你或 AI 完成。",
+  "settings.providerDesc": "模型服务（LLM Provider / BYOK）配置。配置后可用于 JD 解析 / 评分等 AI 增强，判断由你或 AI 完成。",
   "settings.baseUrl": "服务地址（Base URL，OpenAI 兼容，含 /v1，如 https://api.orcarouter.ai/v1）",
   "settings.apiKey": "API 密钥（API Key；留空则保留已保存的 key）",
   "settings.apiKeySaved": "已保存（{{key}}）",
@@ -709,7 +709,7 @@ const zhCN = {
   "err.progress.icsEmpty": "没有可导出的面试日程（面试时间均为空）",
 
   "err.resume.versionInvalid": "版本名只能含字母、数字、-、_",
-  "err.resume.providerMissing": "先在「设置」配置 Provider（BYOK）：Base URL 与 API Key",
+  "err.resume.providerMissing": "先在「设置」配置模型服务（Provider / BYOK）：服务地址（Base URL）与 API 密钥（API Key）",
   "err.resume.modelRequired": "请填写模型名（如 deepseek-chat）",
   "err.resume.fileDecodeFailed": "文件内容解码失败",
   "err.resume.extractFailed": "没能从文件里抽取到文本（{{error}}）——加密文件或扫描件通常抽不出来",

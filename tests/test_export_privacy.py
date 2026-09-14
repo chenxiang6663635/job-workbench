@@ -56,6 +56,10 @@ def _make_workspace(tmp_path):
     (ws / "config" / "imap.lock").write_text("", encoding="utf-8")
     (ws / "01_岗位池").mkdir(exist_ok=True)
     (ws / "01_岗位池" / "note.md").write_text("普通数据", encoding="utf-8")
+    # 诱饵（issue #50 T1）：让"按 .txt 后缀取第一个"的写法拿错文件——
+    # 下面那条测试靠它才真的能拦住回归，否则改成精确匹配只是"看着更严谨"。
+    (ws / "01_岗位池" / "notes.txt").write_text("这是普通文本数据，不是导出说明",
+                                                encoding="utf-8")
 
 
 def _rel_names(ws):
@@ -102,7 +106,12 @@ def test_export_readme_states_the_credential_boundary(tmp_path, client):
     res = client.get("/api/system/export", params={"ws": WS})
     zf = zipfile.ZipFile(io.BytesIO(res.content))
 
-    readme = [n for n in zf.namelist() if n.endswith("导出说明.txt") or n.endswith(".txt")]
-    assert readme, "导出包应附说明文件"
-    text = zf.read(readme[0]).decode("utf-8")
+    # 精确匹配文件名（issue #50 T1）：此前是 `endswith(".txt")` + `[0]`，
+    # 工作区里只要存在别的 .txt，取到的就不是说明文件——而这条测试正是
+    # "边界可被信任"的依据，取错文件等于在测另一份东西。
+    assert any(n.endswith("notes.txt") for n in zf.namelist()), \
+        "诱饵文件应随包一起导出，否则本测试的回归保障是空的"
+    names = [n for n in zf.namelist() if n == "README_导出说明.txt"]
+    assert len(names) == 1, "导出包根目录应恰有一份 README_导出说明.txt：%s" % zf.namelist()
+    text = zf.read(names[0]).decode("utf-8")
     assert "凭证" in text, "说明里必须写明哪些敏感内容不在包里"

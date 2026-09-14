@@ -35,7 +35,13 @@ interface Props {
   applications: Application[];
   onClose: () => void;
   onApplied: () => void;
-  /** 预填原文（如从 IMAP 拉取的邮件正文）；用户仍可编辑后再解析 */
+  /** 预填原文（如从 IMAP 拉取的邮件正文）；用户仍可编辑后再解析。
+   *
+   * **契约（issue #50 m3）：只在挂载时读取一次**——它喂给 `useState` 的初值，
+   * 同一实例上后来换值不会生效。调用方有两层防线，缺一会静默沿用上一次的原文
+   * （那正是"把邮件写进另一条记录"的起点）：`showStatus && …` 的条件渲染覆盖
+   * "关闭再打开"；`key={statusDraft}` 覆盖"对话框没卸载、正文却被换掉"——
+   * 对话框已打开时再点「从邮箱拉取」换一封邮件，走的就是后一条路径。 */
   initialText?: string;
 }
 

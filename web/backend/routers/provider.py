@@ -20,6 +20,7 @@ import tls_http
 from apierror import ApiError
 from deps import safe_join, workspace_dir
 from filelock import file_lock
+from redact import mask_secret
 
 router = APIRouter(prefix="/api/provider")
 
@@ -58,12 +59,9 @@ def _read_config(path):
 
 
 def _mask_key(key):
-    """key 脱敏：只显示末尾 4 位，其余用 * 遮挡。空 key 原样返回。"""
-    if not key:
-        return ""
-    if len(key) <= 4:
-        return "****"
-    return "*" * (len(key) - 4) + key[-4:]
+    """key 脱敏。实现已收进 `redact.mask_secret`（issue #50 m2：与 IMAP 的
+    `_mask_password` 逐字相同，抽公共模块）；保留私名只因为调用点读起来更贴域。"""
+    return mask_secret(key)
 
 
 def read_config(ws):

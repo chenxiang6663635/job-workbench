@@ -616,6 +616,9 @@ export default {
 
   "err.imap.hostUnknown": "The IMAP server is empty and cannot be inferred from the email domain — fill it in under Settings",
   "err.imap.portRange": "The port must be between 1 and 65535",
+  "err.imap.hostMalformed": "Invalid server address: enter the host name only (e.g. imap.qq.com) — no scheme, slash or space",
+  "err.imap.hostPortInline": "Put the port in the Port field: don't write host:port as the address (imap.qq.com:993 becomes two fields)",
+  "err.imap.hostTooLong": "Server address is too long ({{length}} characters; limit 253) — host name only, no path",
   "err.imap.needEmail": "Save the email address first",
   "err.imap.needPassword": "Save the IMAP app password first",
   "err.imap.testFailed": "IMAP connection test failed: {{error}}",

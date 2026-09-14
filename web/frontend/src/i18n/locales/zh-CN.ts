@@ -676,6 +676,11 @@ const zhCN = {
   // IMAP 这两条只读承诺相关：文案不得弱化，用户是据此决定敢不敢点「测试连接」
   "err.imap.hostUnknown": "IMAP 服务器地址为空且无法按邮箱域名推断：请在设置里手填服务器地址",
   "err.imap.portRange": "端口需在 1–65535 之间",
+  // host 形状校验（issue #50 A1）：三种形状问题的出路不一样，所以拆三个 code ——
+  // 合成一句"地址不合法"等于把可操作指引磨成废话，也翻不出英文的对应说法。
+  "err.imap.hostMalformed": "服务器地址不合法：只填主机名（如 imap.qq.com），不要带协议头、斜杠或空格",
+  "err.imap.hostPortInline": "端口请填在「端口」栏：地址里不要写成 host:port（例如 imap.qq.com:993 应拆成两栏）",
+  "err.imap.hostTooLong": "服务器地址过长（{{length}} 字符，上限 253）：只填主机名，不要带路径",
   "err.imap.needEmail": "请先保存邮箱地址",
   "err.imap.needPassword": "请先保存 IMAP 授权码",
   "err.imap.testFailed": "IMAP 连接测试失败：{{error}}",

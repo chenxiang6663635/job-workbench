@@ -188,6 +188,16 @@ def _probe_tcp(host, port):
 
     3.8 的 imaplib 不接受 timeout 参数（3.9+ 才有），若不做这一步，
     连接不可达主机时 `connect()` 可能在系统默认 TCP 超时前一直阻塞。
+
+    **代价与取舍（issue #50 S1 的结论：保留探测）**：一次会话因此产生**两条**
+    TCP 连接（探测 + TLS 建连），对连接频率敏感的邮箱理论上可能视为异常。
+    替代方案「只在 connect 失败时再补救超时」在 3.8 上做不到——imaplib 拿不到
+    超时参数，等它返回时已经阻塞完了，补救没有意义；临时改
+    `socket.setdefaulttimeout()` 是进程级副作用，会波及 FastAPI 线程池里的其它
+    请求。所以这里是**用一条多余连接换"15 秒内一定给出人话"**。
+    什么时候可以去掉它：基线升到 3.9+ 后改用 `IMAP4_SSL(host, port, timeout=…)`
+    ——v0.4 候选里的 Python 3.12 升级就是那个时机（届时本注释与
+    `tests/test_imap_fetch.py::test_probe_runs_before_the_tls_connection` 一起删）。
     """
     try:
         probe = socket.create_connection((host, port), timeout=SOCKET_TIMEOUT)

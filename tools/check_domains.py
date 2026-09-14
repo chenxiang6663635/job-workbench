@@ -82,9 +82,10 @@ def _check_failure_keywords(path):
             problems.append("failure_keywords.txt 第 %d 行 `=` 两侧都要有内容：%s"
                             % (number, stripped))
             continue
-        # 消费端（report 的聚类）按逗号分词后会丢弃空词——`类别=,,,` 在校验层
-        # 看着"有内容"、到复盘侧却是空类别（跨宿主审查 MINOR，2026-09-14）。
-        if not any(part.strip() for part in words.split(",")):
+        # 分词必须与消费端（report 的聚类）逐字一致：**中英文逗号都算分隔符**、
+        # 空词丢弃——否则 `类别=,,,` / `类别=，，，` 这类"校验看着有内容、复盘
+        # 侧却是空类别"的分歧会漏网（跨宿主审查 MINOR ×2，2026-09-14）。
+        if not any(part.strip() for part in re.split(r"[,，]", words)):
             problems.append("failure_keywords.txt 第 %d 行没有任何有效关键词（只有逗号）：%s"
                             % (number, stripped))
     return problems

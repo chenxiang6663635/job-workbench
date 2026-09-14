@@ -51,7 +51,8 @@ def _make(tmp_path, dirname="demo-domain", profile_id=None, lexicon=None,
             "# 领域插件\n\n| 项 | 值 |\n|---|---|\n| 插件 ID | `%s` |\n| 名称 | 演示 |\n"
             "| 内置方向 | `x` |\n" % pid, encoding="utf-8")
     if "lexicon.md" not in omit:
-        (dom / "lexicon.md").write_text(lexicon or GOOD_LEXICON, encoding="utf-8")
+        (dom / "lexicon.md").write_text(GOOD_LEXICON if lexicon is None else lexicon,
+                                        encoding="utf-8")
     if "failure_keywords.txt" not in omit:
         (dom / "failure_keywords.txt").write_text(keywords, encoding="utf-8")
     (dom / "directions" / "x.md").write_text(
@@ -102,6 +103,20 @@ def test_comma_only_keywords_are_reported(tmp_path):
     root = _make(tmp_path, keywords="# 注释\n类别一=,,,\n")
     item = inspect_domains(str(root))[0]
     assert "没有任何有效关键词" in _problems_text(item)
+
+
+def test_chinese_comma_only_keywords_are_reported(tmp_path):
+    """分词必须与消费端一致：中文逗号也是分隔符（`类别=，，，` 同样是空类别）。"""
+    root = _make(tmp_path, keywords="类别一=，，，\n")
+    item = inspect_domains(str(root))[0]
+    assert "没有任何有效关键词" in _problems_text(item)
+
+
+def test_empty_lexicon_file_is_reported(tmp_path):
+    """空词典文件（真的空，不是 None）——解析器返回空 → 报「解析不出词条」。"""
+    root = _make(tmp_path, lexicon="")
+    item = inspect_domains(str(root))[0]
+    assert "解析不出任何词条" in _problems_text(item)
 
 
 def test_profile_id_mismatch_is_reported(tmp_path):

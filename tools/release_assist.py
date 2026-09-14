@@ -37,9 +37,19 @@ CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 
 
 def read_version():
-    """版本号唯一来源：web/electron/package.json（CONTRIBUTING 的规定）。"""
+    """版本号唯一来源：web/electron/package.json（CONTRIBUTING 的规定）。
+
+    任何换不到**非空字符串版本号**的形态（JSON 坏、键缺失、值不是字符串）统一
+    抛 ValueError——入口层映射为退出码 2。旧实现 `["version"]` 直取：键缺失抛
+    KeyError、值为 null 在别处炸成 TypeError，都不在契约的异常面里（跨宿主审查
+    MAJOR，2026-09-14）。
+    """
     with io.open(PACKAGE_JSON, "r", encoding="utf-8") as handle:
-        return json.load(handle)["version"]
+        data = json.load(handle)
+    version = data.get("version") if isinstance(data, dict) else None
+    if not isinstance(version, str) or not version.strip():
+        raise ValueError("package.json 的 version 缺失或不是字符串")
+    return version.strip()
 
 
 def find_section(changelog_text, version):
@@ -66,7 +76,11 @@ def find_section(changelog_text, version):
 
 
 def check(version, tag=None, changelog_path=None):
-    """返回 (ok, 信息行清单, 说明文本或 None)。"""
+    """返回 (ok, 信息行清单, 说明文本或 None)。
+
+    CHANGELOG 不存在或读取失败（权限 / 占用 / 坏编码）时抛 OSError——由入口层
+    映射为退出码 2（契约：文件缺失或读取失败 → 2）。
+    """
     lines = []
     ok = True
     if tag:
@@ -79,8 +93,7 @@ def check(version, tag=None, changelog_path=None):
 
     path = changelog_path or CHANGELOG
     if not os.path.isfile(path):
-        lines.append("找不到 CHANGELOG：%s" % path)
-        return False, lines, None
+        raise FileNotFoundError("找不到 CHANGELOG：%s" % path)
     with io.open(path, "r", encoding="utf-8-sig") as handle:
         text = handle.read()
 
@@ -108,9 +121,6 @@ def main():
     if not os.path.isfile(PACKAGE_JSON):
         print("错误：找不到 %s（版本号唯一来源）" % PACKAGE_JSON)
         return 2
-    if not os.path.isfile(CHANGELOG):
-        print("错误：找不到 %s" % CHANGELOG)
-        return 2
     try:
         real = read_version()
     except (OSError, ValueError) as exc:
@@ -127,15 +137,23 @@ def main():
     version = real
     print("版本：%s（web/electron/package.json）" % version)
 
-    ok, lines, notes = check(version, tag=args.tag)
+    try:
+        ok, lines, notes = check(version, tag=args.tag)
+    except (OSError, UnicodeDecodeError) as exc:
+        print("错误：读取 CHANGELOG 失败：%s" % exc)
+        return 2
     for line in lines:
         print(line)
     if not ok:
         return 1
 
     if args.notes_out:
-        with io.open(args.notes_out, "w", encoding="utf-8") as handle:
-            handle.write(notes + "\n")
+        try:
+            with io.open(args.notes_out, "w", encoding="utf-8") as handle:
+                handle.write(notes + "\n")
+        except OSError as exc:
+            print("错误：写出 %s 失败：%s" % (args.notes_out, exc))
+            return 2
         print("Release 说明已写出：%s" % args.notes_out)
     else:
         print("")

@@ -140,8 +140,9 @@ def main(argv=None):
         if sys.stdout.encoding.lower() != "utf-8":
             try:
                 sys.stdout.reconfigure(encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as exc:  # 只影响显示层、不阻断命令——但要说一声（禁静默吞错）
+                print("注意：stdout 切换 UTF-8 失败（%s），中文输出可能乱码" % exc,
+                      file=sys.stderr)
 
     parser = build_parser()
     # parse_known_args 而不是 REMAINDER：subparser 里用 REMAINDER 收集剩余参数时，

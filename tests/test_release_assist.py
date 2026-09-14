@@ -9,6 +9,8 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "tools"))
 
@@ -136,3 +138,29 @@ def test_main_missing_package_json_exits_two(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["release_assist"])
     assert release_assist.main() == 2
     assert "找不到" in capsys.readouterr().out
+
+
+def test_main_rejects_package_json_without_version(tmp_path, monkeypatch, capsys):
+    """package.json 缺 version 键 → 退出码 2（读取/配置错误契约；第三轮 M）。"""
+    bad = tmp_path / "package.json"
+    bad.write_text('{"name": "x"}', encoding="utf-8")
+    monkeypatch.setattr(release_assist, "PACKAGE_JSON", str(bad))
+    monkeypatch.setattr(sys, "argv", ["release_assist"])
+    assert release_assist.main() == 2
+    assert "version" in capsys.readouterr().out
+
+
+def test_main_changelog_read_failure_exits_two(monkeypatch, capsys):
+    """CHANGELOG 读取失败（OSError）→ 退出码 2（第三轮 M 的异常面）。"""
+    def _boom(*args, **kwargs):
+        raise OSError("模拟读取失败")
+    monkeypatch.setattr(release_assist, "check", _boom)
+    monkeypatch.setattr(sys, "argv", ["release_assist"])
+    assert release_assist.main() == 2
+    assert "读取 CHANGELOG 失败" in capsys.readouterr().out
+
+
+def test_check_raises_when_changelog_missing(tmp_path):
+    """check 的库契约：路径不存在抛 FileNotFoundError（入口层映射 2；第三轮 M）。"""
+    with pytest.raises(FileNotFoundError):
+        release_assist.check("0.2.2", changelog_path=str(tmp_path / "nope.md"))

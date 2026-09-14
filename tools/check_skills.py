@@ -26,6 +26,8 @@
   7. `description` 不含半角冒号+空格（`: `）——严格 YAML 宿主（Codex 实测）会因
      「mapping values are not allowed in this context」拒绝**整个技能**；本仓库
      自己的解析器用 partition 切分、对冒号宽容，所以只有这条校验能拦住。
+     **引号包裹亦不豁免**：单行解析器没有引号语义，支持一半比不支持更危险——
+     描述文案统一不用半角冒号+空格（跨宿主审查第四轮把这条边界固定为测试）。
 
 用法（入口已统一，见 tools/jobws.py）：
     python tools/jobws.py skills check                 # 校验仓库 skills/

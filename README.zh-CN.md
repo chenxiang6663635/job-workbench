@@ -97,7 +97,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | `skills/` | 四个求职向工作流 + 教练评分标准，另有三个开发向技能（CLI 契约 / API 审查 / MCP），跨运行时单一源 |
 | `tools/` | 六个 Python 脚本 |
 | `web/` | Web 界面：FastAPI 后端 + React 前端（七个页面），与 CLI 共享同一份数据 |
-| `tests/` | 33 项测试（反编造护栏 + 健康度语义），CI 质量门 |
+| `tests/` | pytest 测试套件（隐私护栏、反编造检查、追踪表语义），CI 质量门 |
 | `personal/` | 使用者的真实工作区（**已整体 gitignore，仓库内不含任何真实数据**） |
 | `docs/` | 使用手册、文档索引、设计文档（`docs/specs/`） |
 | `.github/` | CI 工作流、issue / PR 模板、行为准则、Copilot 指引 |
@@ -113,7 +113,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 ## 贡献
 
-欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；代码改动走 PR（CI 绿：33 项基线 + 前端构建），纯文档可直推。
+欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；代码改动走 PR（CI 绿：后端测试 + 前端构建），纯文档可直推。
 
 ## License
 

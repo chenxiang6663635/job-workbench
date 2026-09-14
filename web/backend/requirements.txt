@@ -2,3 +2,5 @@ fastapi<0.116
 uvicorn<0.53
 pydantic<2.10
 pypdf>=5.9
+# 出网证书兜底：系统证书库不可用时回退到随包 CA 清单（tools/tls_policy.py）
+certifi>=2024.2.2

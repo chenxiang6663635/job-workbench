@@ -33,7 +33,9 @@ from apierror import ApiError  # noqa: E402
 
 class _BrokenStore:
     @staticmethod
-    def boom():
+    def boom(cafile=None):
+        # 签名收下 cafile：回退路径会以 `create_default_context(cafile=…)` 调替身，
+        # 无参签名会 TypeError 冒泡、绕过"拒绝"这条底线（独立审查 MINOR-4）。
         raise ssl.SSLError("[ASN1: NOT_ENOUGH_DATA] not enough data")
 
 
@@ -42,8 +44,9 @@ def _req(url="https://example.com/v1/models"):
 
 
 def test_broken_store_becomes_actionable_api_error(monkeypatch):
-    """证书库损坏：502 + 稳定 code，detail 里带着排查指引。"""
+    """证书库损坏、连随包 CA 也不可用：502 + 稳定 code，detail 里带着排查指引。"""
     monkeypatch.setattr(ssl, "create_default_context", _BrokenStore.boom)
+    monkeypatch.setattr(tls_policy, "_builtin_ca_file", lambda: None)
     monkeypatch.delenv("JOBWS_HTTP_TLS", raising=False)
 
     with pytest.raises(ApiError) as ei:
@@ -52,6 +55,39 @@ def test_broken_store_becomes_actionable_api_error(monkeypatch):
     assert ei.value.status_code == 502
     assert ei.value.code == "sys.certStoreUnavailable"
     assert "certmgr.msc" in ei.value.detail, "detail 是调试与 issue 用的原文，要能定位"
+
+
+def test_broken_store_falls_back_to_bundled_ca(monkeypatch):
+    """证书库损坏但随包 CA 可用：出网照常，且传给 urlopen 的上下文仍是严格的。
+
+    兼容性批新增的第二条路。替身只在 `cafile is None` 时抛错、`cafile` 分支交给
+    真实现加载随包 cacert.pem——所以断言的是真实回退产物。非证书类连接错误按口径
+    原样抛出，这里顺势用它当"请求已抵达 urlopen"的信号。
+    """
+    real = ssl.create_default_context
+
+    def store_broken(cafile=None):
+        if cafile is None:
+            raise ssl.SSLError("[ASN1: NOT_ENOUGH_DATA] not enough data")
+        return real(cafile=cafile)
+
+    monkeypatch.setattr(ssl, "create_default_context", store_broken)
+    monkeypatch.delenv("JOBWS_HTTP_TLS", raising=False)
+    captured = {}
+
+    def fake_urlopen(req, timeout=None, context=None):
+        captured["context"] = context
+        raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    with pytest.raises(urllib.error.URLError):
+        tls_http.open_url(_req(), timeout=5, purpose="Provider 连通性测试")
+
+    ctx = captured["context"]
+    assert ctx is not None, "策略给的上下文必须真的传进 urlopen"
+    assert ctx.check_hostname is True
+    assert ctx.verify_mode == ssl.CERT_REQUIRED
 
 
 def test_untrusted_certificate_gets_its_own_code_and_host(monkeypatch):

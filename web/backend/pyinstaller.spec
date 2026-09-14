@@ -78,6 +78,17 @@ if os.path.isdir(_template_src):
         elif os.path.isdir(src):
             tools_datas.append((src, os.path.join("template", name)))
 
+# certifi 的随包 CA 清单：出网证书兜底（tools/tls_policy.py）在系统证书库不可用时
+# 会按 `certifi.where()` 读这个文件。PyInstaller 的静态分析看不见"运行时读文件"
+# 这一步——不显式收集的话，打包版里系统证书库一坏就彻底没有出路，而且只在真出网
+# 时才炸（CI 只构建不运行产物，发现不了）。缺 certifi 会在这里直接报错：
+# 它是运行时依赖（requirements.txt 已声明）。
+# 依赖链路：certifi 的**模块**由 tls_policy（在下方 tools_modules 里）的
+# 函数内 `import certifi` 带进依赖图，这里的 collect_data_files 只补数据文件；
+# 若将来把 tls_policy.py 挪出 tools/，那条链路会静默断掉——记得同时补 hiddenimports。
+from PyInstaller.utils.hooks import collect_data_files  # noqa: E402
+tools_datas += collect_data_files("certifi")
+
 # uvicorn 的动态导入必须显式声明，否则打包后启动即失败（业界公认的坑）
 uvicorn_hidden = [
     "uvicorn.logging",

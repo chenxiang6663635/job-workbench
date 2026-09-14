@@ -76,7 +76,7 @@ python tools/jobws.py skills install --target user
 
 Then just talk to your AI CLI: "parse this JD", "apply to this role", "what needs attention this week".
 
-Requirements: Python 3.8+ (stdlib only); `pypdf` only for PDF validation; Chrome or Edge only for PDF generation; optional Web UI — see [`web/README.md`](web/README.md).
+Requirements — CLI: Python 3.8+ (standard library only); `pypdf` for PDF validation; `certifi` ships the fallback CA bundle used when your system certificate store is unusable (outbound HTTPS / IMAP). PDF generation: Chrome or Edge. Web UI (optional): see [`web/README.md`](web/README.md).
 
 ## Referral
 

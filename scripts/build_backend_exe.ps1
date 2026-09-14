@@ -27,12 +27,18 @@ Write-Host "=== 求职工作台 · 构建后端 exe ===" -ForegroundColor Cyan
 # 别探 filelock：它是仓内模块（web/backend/filelock.py），从仓库根 import 会命中
 # 同名 PyPI 包，误报/漏报都出现过。
 function Test-PyDeps([string]$pyPath) {
-    $prevEap = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
-    & $pyPath -c "import fastapi, uvicorn, pydantic, PyInstaller" 2>$null
-    $code = $LASTEXITCODE
-    $ErrorActionPreference = $prevEap
-    return ($code -eq 0)
+    # `*> $null` 把 stdout 与 stderr 一起吞掉：只重定向 stderr 时，解释器启动阶段的任何
+    # stdout（sitecustomize / conda 包装脚本）会作为"额外输出"混进函数返回值，调用方
+    # `if (Test-PyDeps ...)` 对**非空数组恒为真** → 坏环境被误选（2026-09-13 独立审查 MAJOR-1）。
+    # try/catch 兜住「命令不存在」这类终止性错误（PATH 没有 python 时 `&` 会抛），
+    # 否则它会炸穿探测段、绕过 conda 兜底与人话报错（同审查 MAJOR-2）。
+    try {
+        & $pyPath -c "import fastapi, uvicorn, pydantic, PyInstaller" *> $null
+        return [bool]($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
 }
 
 # 0. 解释器探测：脚本内裸调 "python" 会因 PATH 解析差异落到别的环境（教训：base 环境抢跑）。
@@ -46,7 +52,9 @@ function Resolve-PyPath() {
     $candidates = @()
     if (Test-Path $venvPy) { $candidates += $venvPy }
     if ($condaPy -and (Test-Path $condaPy)) { $candidates += $condaPy }
-    $candidates += "python"   # PATH 解析
+    # PATH 上的 python 先确认真存在再入候选：`& "python"` 在命令不存在时抛终止性错误，
+    # 会把「探测失败」变成「脚本崩」，连下面的报错都到不了（独立审查 MAJOR-2）。
+    if (Get-Command python -ErrorAction SilentlyContinue) { $candidates += "python" }
 
     foreach ($cand in $candidates) {
         if (Test-PyDeps $cand) { return $cand }
@@ -54,14 +62,18 @@ function Resolve-PyPath() {
 
     # 兜底：扫 conda 环境列表（「base 抢跑、依赖在别的环境」的正解）
     if (Get-Command conda -ErrorAction SilentlyContinue) {
-        $prevEap = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
-        $envsJson = conda env list --json 2>$null | ConvertFrom-Json
-        $ErrorActionPreference = $prevEap
-        foreach ($envDir in @($envsJson.envs)) {
+        $envsJson = $null
+        try { $envsJson = conda env list --json 2>$null | ConvertFrom-Json } catch { }
+        # 输出异常（非 JSON / 空 / 混警告行）时上面会得到 $null，而 `@($null)` 是
+        # **含一个 $null 的单元素数组** → `Join-Path $null` 直接抛错（独立审查 MAJOR-3）。
+        # 显式判空并过滤，常态下这层不产生任何额外输出。
+        $envDirs = @()
+        if ($envsJson -and $envsJson.envs) { $envDirs = @($envsJson.envs | Where-Object { $_ }) }
+        foreach ($envDir in $envDirs) {
             $cand = Join-Path $envDir "python.exe"
             if ((Test-Path $cand) -and (Test-PyDeps $cand)) {
-                Write-Host "注：PATH 与当前激活环境都没装齐依赖，自动选用 conda 环境：$envDir" -ForegroundColor Yellow
+                Write-Host "注：候选环境（.venv / CONDA_PREFIX / PATH）都没装齐依赖，自动选用 conda 环境：$envDir" -ForegroundColor Yellow
                 return $cand
             }
         }
@@ -70,7 +82,9 @@ function Resolve-PyPath() {
 }
 
 if (-not $Py) {
-    $Py = Resolve-PyPath
+    # [string] 强约束：函数只要多吐一个值就会变成数组（PowerShell「返回值多值污染」的经典坑），
+    # 在边界上收紧，坏形态尽早暴露而不是变成后续的诡异报错。
+    $Py = [string](Resolve-PyPath)
 }
 Write-Host "使用解释器: $Py" -ForegroundColor DarkGray
 
@@ -95,7 +109,9 @@ $checkCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ($checkCode -ne 0) {
     Write-Host "当前解释器缺少依赖（fastapi / uvicorn / PyInstaller）。" -ForegroundColor Red
-    Write-Host "请在目标环境执行: $Py -m pip install -r web/backend/requirements.txt -r web/backend/requirements-dev.txt" -ForegroundColor Yellow
+    # PyInstaller 不在两份 requirements 里（CI 也是单独装的），提示必须带上它，
+    # 否则用户照提示装完仍缺、再报同一个错（独立审查 MINOR-5）。
+    Write-Host "请在目标环境执行: $Py -m pip install -r web/backend/requirements.txt -r web/backend/requirements-dev.txt 'pyinstaller<7'" -ForegroundColor Yellow
     exit 1
 }
 

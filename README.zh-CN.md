@@ -46,13 +46,13 @@
 
 以下页面全部由 demo 数据生成（`init_workspace.py --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。
 
-![看板](docs/screenshots/01-dashboard.png)
-![追踪表](docs/screenshots/02-applications.png)
-![岗位池](docs/screenshots/03-jobs.png)
-![简历工坊](docs/screenshots/04-resume.png)
-![进展](docs/screenshots/05-progress.png)
-![素材库](docs/screenshots/06-library.png)
-![设置](docs/screenshots/07-settings.png)
+![看板](docs/screenshots/zh-CN/01-dashboard.png)
+![追踪表](docs/screenshots/zh-CN/02-applications.png)
+![岗位池](docs/screenshots/zh-CN/03-jobs.png)
+![简历工坊](docs/screenshots/zh-CN/04-resume.png)
+![进展](docs/screenshots/zh-CN/05-progress.png)
+![素材库](docs/screenshots/zh-CN/06-library.png)
+![设置](docs/screenshots/zh-CN/07-settings.png)
 
 ## 快速开始
 

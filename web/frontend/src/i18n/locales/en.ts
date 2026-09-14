@@ -788,4 +788,11 @@ export default {
   "cluster.tooFewSamples": "Too few failures to show ({{total}} records; need at least {{min}} to call anything a pattern)",
   // 状态原因 is the real CSV column name — kept in Chinese with a gloss
   "cluster.noKeywords": "config/failure_keywords.txt not set — counting the raw 状态原因 (status reason) text instead",
+  // Interface size (desktop-only preference; same class as the UI language)
+  "settings.zoomTitle": "Interface size",
+  "settings.zoomDesc":
+    "Drag to preview: the whole interface (text included) scales together, and the choice is remembered.",
+  "settings.zoomHint": "Shortcuts work too: Ctrl + to enlarge, Ctrl - to shrink, Ctrl 0 to reset.",
+  "settings.zoomDesktopOnly":
+    "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

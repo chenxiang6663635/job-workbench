@@ -152,3 +152,14 @@ test("语言切换立即改变导航文案与窗口标题，且不引入溢出",
   }));
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
 });
+
+test("设置页「界面大小」在浏览器里降级为一句说明（偏好通道只在桌面壳里）", async ({ page }) => {
+  // 浏览器态没有 preload 注入的 window.jobwsPrefs：卡片必须仍然可见、且写明
+  // 「只在桌面应用里可调」，而不是整块消失——消失会让人以为功能不存在，而那正是
+  // 这次要修的那类「按了没反应」（#84）。
+  await openPage(page, "settings");
+  await expect(page.getByText(/界面大小|Interface size/).first()).toBeVisible();
+  await expect(
+    page.getByText(/只在桌面应用里可调|in the desktop app only/),
+  ).toBeVisible();
+});

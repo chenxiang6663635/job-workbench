@@ -35,6 +35,20 @@ if os.path.isdir(_tools_src):
         if os.path.isfile(src):
             tools_datas.append((src, "tools"))
 
+# tools/ 下的模块名清单（喂给 hiddenimports，理由见下方 project_hidden）。
+# 后端对这些模块用**裸名导入**（`import tracker`、`from report import …`、`import imap_fetch`）：
+# tools/ 不在 pathex 里时 PyInstaller 找不到它们 → 跳过、不进依赖图 → 它们自己 import 的库
+# 不会被收集。v0.2.2 就是这么丢的 `imaplib`（打包版后端一启动就 ModuleNotFoundError）；
+# 而 CI 只构建不运行产物，所以全绿。手写模块名治不了本（曾只写 tracker/jd_score，
+# 新加的 imap_fetch 照样漏），因此这里**自动枚举**：新增 tools 模块自动进分析图。
+tools_modules = []
+if os.path.isdir(_tools_src):
+    tools_modules = sorted(
+        os.path.splitext(name)[0]
+        for name in os.listdir(_tools_src)
+        if name.endswith(".py") and name != "__init__.py"
+    )
+
 # uvicorn 的动态导入必须显式声明，否则打包后启动即失败（业界公认的坑）
 uvicorn_hidden = [
     "uvicorn.logging",
@@ -68,14 +82,13 @@ project_hidden = [
     "routers.library",
     "routers.provider",
     "routers.workspace",
-    # tools/ 下被后端 import 的脚本
-    "tracker",
-    "jd_score",
-]
+] + tools_modules  # tools/ 下全部模块（自动枚举，理由见上方 tools_modules）
 
 a = Analysis(
     ["main.py"],
-    pathex=[BACKEND_DIR],
+    # tools/ 也必须在 pathex 里：否则上面那些裸名模块 PyInstaller 根本找不到，
+    # hiddenimports 里写了等于没写（v0.2.2 的实证：tracker/jd_score 也没进 PYZ）
+    pathex=[BACKEND_DIR] + ([_tools_src] if os.path.isdir(_tools_src) else []),
     binaries=[],
     datas=tools_datas,
     hiddenimports=uvicorn_hidden + project_hidden,

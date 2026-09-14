@@ -1,20 +1,20 @@
 ---
 name: jwb-recruit-coach
 description: Use when 解析 JD、给岗位打分、改写简历或生成投递材料时，需要按本工作台的评分框架、硬门槛过滤与诚实红线行事。触发场景包括执行 jwb-jd、jwb-apply、jwb-track、jwb-resume 工作流，或用户粘贴岗位描述要求判断是否值得投递。English triggers: scoring framework, eligibility gate, hard filters, honesty red lines, rewrite resume, application materials.
-compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
+compatibility: Python 3.8+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 岗位评估与材料纪律
 
 ## 核心原则
 
-**判断由 AI 做，脚本只做 IO 与校验。** 评分不是 Python 算出来的，是你读 JD 原文与用户档案后填进解析卡的；`tools/jobws.py jd` 只校验加总自洽并套阈值。改评分标准不用改代码，只改 `template/profiles/` 下的插件。
+**判断由 AI 做，脚本只做 IO 与校验。** 评分不是 Python 算出来的，是你读 JD 原文与用户档案后填进解析卡的；`jobws jd` 只校验加总自洽并套阈值。改评分标准不用改代码，只改领域插件。
 
 **唯一事实源是用户的 `00_事实库/`。** 简历动词、行为故事、经历匹配打分都必须回查事实卡，不得以解析卡概述或档案摘要为准。
 
 ## 领域插件
 
-配置位于 `template/profiles/<domain-id>/`：
+配置位于领域插件目录 `profiles/<domain-id>/`：
 
 - `lexicon.md` —— 三级词典（Primary / Secondary / Weak）
 - `directions/<direction-id>.md` —— 方向锚点表 + 方向特有词

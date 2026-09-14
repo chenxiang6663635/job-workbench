@@ -1,30 +1,30 @@
 ---
 name: jwb-track
 description: Use when 用户要查看投递进度、更新面试进展、查询最近待办、按条件筛选投递记录、统计投递情况或生成投递漏斗看板时。English triggers: application tracker, interview progress, pending to-dos, filter applications, application statistics, funnel dashboard.
-compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
+compatibility: Python 3.8+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 投递追踪表查改与看板
 
-所有操作经由 `tools/jobws.py track` 与 `tools/jobws.py report`，**不要直接编辑 CSV**。
+所有操作经由 `jobws track` 与 `jobws report`，**不要直接编辑 CSV**。
 
 以下示例省略了 `--workspace`，默认使用 `personal/`。若用户的文件在其他目录，加上 `--workspace <目录>`。
 
 ## 常用操作
 
 ```
-python tools/jobws.py track list                      # 全部
-python tools/jobws.py track list --due-within 7       # 未来 7 天到期（最常用）
-python tools/jobws.py track list --stage 笔试         # 按阶段
-python tools/jobws.py track list --direction hvac     # 按方向
-python tools/jobws.py track list --batch 提前批       # 按批次
-python tools/jobws.py track list --company 华为       # 公司名模糊匹配
-python tools/jobws.py track show --id A001
-python tools/jobws.py track update --id A001 --stage 一面 --next "准备项目口述" --next-date 2026-09-10
-python tools/jobws.py track import --file 待导入.csv               # CSV 批量导入（写入前先出差异预览）
-python tools/jobws.py track import --file 待导入.csv --dry-run     # 只预览不写入
-python tools/jobws.py report                            # 生成 05_投递追踪/看板.md
-python tools/jobws.py report --stdout                   # 只打印不写文件
+jobws track list                      # 全部
+jobws track list --due-within 7       # 未来 7 天到期（最常用）
+jobws track list --stage 笔试         # 按阶段
+jobws track list --direction hvac     # 按方向
+jobws track list --batch 提前批       # 按批次
+jobws track list --company 华为       # 公司名模糊匹配
+jobws track show --id A001
+jobws track update --id A001 --stage 一面 --next "准备项目口述" --next-date 2026-09-10
+jobws track import --file 待导入.csv               # CSV 批量导入（写入前先出差异预览）
+jobws track import --file 待导入.csv --dry-run     # 只预览不写入
+jobws report                            # 生成 05_投递追踪/看板.md
+jobws report --stdout                   # 只打印不写文件
 ```
 
 看板第六节「周期复盘」含**失败原因聚类**：按 `<工作区>/config/failure_keywords.txt`
@@ -44,12 +44,12 @@ python tools/jobws.py report --stdout                   # 只打印不写文件
 面试与岗位是一对多，存独立文件 `05_投递追踪/interviews.csv`（`面试id` 从 I001 起，`关联记录` 外键指回 tracker.csv），**不改主表结构**。记录面试会自动在主表时间线入账一条「面试」变更。
 
 ```
-python tools/jobws.py track interview add --app A001 --round 一面 --when "2026-09-08 14:00" --form 视频 --interviewer 张工 --questions "..." --answers "..." --retro "..."
-python tools/jobws.py track interview add --company 某内推公司 --role 热力仿真 --round 笔试   # 未投递的面试也可记录
-python tools/jobws.py track interview list                    # 时间倒序
-python tools/jobws.py track interview list --app A001         # 只看某岗位的面试
-python tools/jobws.py track interview show --id I001
-python tools/jobws.py track interview update --id I001 --result 通过 --retro "..."
+jobws track interview add --app A001 --round 一面 --when "2026-09-08 14:00" --form 视频 --interviewer 张工 --questions "..." --answers "..." --retro "..."
+jobws track interview add --company 某内推公司 --role 热力仿真 --round 笔试   # 未投递的面试也可记录
+jobws track interview list                    # 时间倒序
+jobws track interview list --app A001         # 只看某岗位的面试
+jobws track interview show --id I001
+jobws track interview update --id I001 --result 通过 --retro "..."
 ```
 
 - 轮次：笔试 / 一面 / 二面 / 三面 / HR面 / 终面 / 其他；形式：现场 / 视频 / 电话 / 其他；结果：待定 / 通过 / 未通过 / 取消
@@ -70,7 +70,7 @@ python tools/jobws.py track interview update --id I001 --result 通过 --retro "
 
 ## 看板内容
 
-`tools/jobws.py report` 输出六部分：投递漏斗（含占比条）、按方向统计、按批次统计、近 7 天待办、已过截止日提醒、周期复盘（转化率 / 停留 / 失败归因与聚类）。
+`jobws report` 输出六部分：投递漏斗（含占比条）、按方向统计、按批次统计、近 7 天待办、已过截止日提醒、周期复盘（转化率 / 停留 / 失败归因与聚类）。
 
 ## 输出要求
 

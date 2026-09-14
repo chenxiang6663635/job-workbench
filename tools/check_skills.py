@@ -15,15 +15,18 @@
      最该拦住的一条：apply / jd / resume / track / recruit-coach 全是高概率
      通用名，装到用户级目录时等于拿通用词跟别人抢位置。
   5. `compatibility` 必填——环境声明，让宿主能判断能否挂载。
+  6. **正文不得引用仓库相对路径**（`tools/`、`web/`、`template/`、`skills/`、
+     `tests/` 这些顶层目录）——技能会被 `install_skills` 分发到宿主的技能目录，
+     那时的工作目录是**用户自己的工作区**、不在这个仓库里：正文里写
+     `tools/jobws.py` 只会把宿主引到一条不存在的路径上。命令名就写 `jobws`，
+     "它在仓库里的哪个位置"写进 frontmatter 的 `compatibility`（该字段不参与本
+     检查——那里正是说明路径的地方）。
+     （阶段 B 之前这条被**刻意**推迟：当时正文里有 21 处 `tools/` 引用，启用即
+     CI 红、而红着不能合并。`jobws` 统一入口落地、引用全部改完后于 2026-09-14 启用。）
 
-刻意**未实现**的一条：正文不得引用仓库相对路径（如 `tools/xxx.py`）。
-它应该在阶段 B（抽出 `jobws` 统一入口、技能正文改调 jobws）之后再启用——
-现在技能正文里确实有 21 处 `tools/` 引用，启用即 CI 红，而红着又不能合并。
-等到阶段 B 把引用换成 `jobws` 后，在这里补上这条规则即可（见 CHANGELOG 0.2.0）。
-
-用法：
-    python tools/check_skills.py                 # 校验仓库 skills/
-    python tools/check_skills.py --root <dir>    # 校验指定目录
+用法（入口已统一，见 tools/jobws.py）：
+    python tools/jobws.py skills check                 # 校验仓库 skills/
+    python tools/jobws.py skills check --root <dir>    # 校验指定目录
 退出码：0 全部合规，1 存在问题，2 目录不存在。
 """
 
@@ -43,27 +46,37 @@ REQUIRED = ["name", "description", "compatibility"]
 # 真正兑现它的是这条前缀规则。独立审查指出原实现漏了它，故补上。
 NAME_RE = re.compile(r"^jwb-[a-z0-9]+(-[a-z0-9]+)*$")
 
+# 正文里禁止出现的仓库顶层目录（校验项第 6 条）。技能分发到宿主后，工作目录是
+# 用户自己的工作区，这些前缀在那里都不存在。新增顶层目录时记得加进来——漏了
+# 不会报错，只会让技能把宿主引到死路径上（独立审查 MINOR-2/3/4 的由来：
+# 最初只禁了 `tools/`，漏掉 web/、template/、skills/ 这些同类）。
+REPO_PATH_PREFIXES = ("tools/", "web/", "template/", "skills/", "tests/")
+
 # 改名前的旧目录名。分发脚本清理残留时**只认这五个**，而不是
 # 「凡不在源码里的目录都删」——后者会把用户自己装的第三方技能一并删掉。
 LEGACY_NAMES = {"apply", "jd", "resume", "track", "recruit-coach"}
 
 
 def _parse_frontmatter(text):
-    """解析 --- 包裹的 frontmatter，返回 (字段字典, 错误信息)。
+    """解析 --- 包裹的 frontmatter，返回 (字段字典, 错误信息, 结束行号)。
 
     只认 `key: value` 单行形式，不引第三方 YAML 依赖：本仓库的 SKILL.md
     结构就这么简单，引入解析器反而多一个要维护的东西。
+
+    结束行号（0 基）是给正文扫描用的：`tools/` 这类仓库路径在 frontmatter 里是
+    **合法**的（`compatibility` 正是说明"命令在仓库里长什么样"的地方），只有正文
+    才禁——所以必须知道正文从哪一行开始。
     """
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
-        return None, "缺少 frontmatter（文件首行必须是 ---）"
+        return None, "缺少 frontmatter（文件首行必须是 ---）", None
     end = None
     for i in range(1, len(lines)):
         if lines[i].strip() == "---":
             end = i
             break
     if end is None:
-        return None, "frontmatter 未闭合（找不到结束的 ---）"
+        return None, "frontmatter 未闭合（找不到结束的 ---）", None
 
     fields = {}
     for line in lines[1:end]:
@@ -73,7 +86,7 @@ def _parse_frontmatter(text):
             continue
         key, _, value = line.partition(":")
         fields[key.strip()] = value.strip()
-    return fields, None
+    return fields, None, end
 
 
 def inspect_skills(skills_root):
@@ -109,11 +122,26 @@ def inspect_skills(skills_root):
             item["problems"].append("读取失败：%s" % exc)
             results.append(item)
             continue
-        fields, error = _parse_frontmatter(text)
+        fields, error, frontmatter_end = _parse_frontmatter(text)
         if error:
             item["problems"].append(error)
             results.append(item)
             continue
+
+        # 正文里的仓库相对路径（校验项第 6 条）：技能分发到宿主后，工作目录是
+        # 用户自己的工作区，这些路径在那里都不存在。只报第一处——修完再跑一次
+        # 就知道后面还有没有；一次列一串反而没人看。
+        body_lines = text.splitlines()[frontmatter_end + 1:]
+        for offset, line in enumerate(body_lines):
+            hit = next((prefix for prefix in REPO_PATH_PREFIXES if prefix in line), None)
+            if hit:
+                item["problems"].append(
+                    "第 %d 行（文件行号，含 frontmatter）引用了仓库相对路径 `%s…`："
+                    "%s——技能会被分发到宿主，那时的工作目录是用户自己的工作区，"
+                    "仓库路径在那里不存在；命令名写 `jobws`，路径说明放 frontmatter "
+                    "的 compatibility"
+                    % (frontmatter_end + 2 + offset, hit, line.strip()))
+                break
 
         name = fields.get("name")
         item["name"] = name

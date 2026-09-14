@@ -22,14 +22,55 @@ $frontend = Join-Path $root "web\frontend"
 
 Write-Host "=== 求职工作台 · 构建后端 exe ===" -ForegroundColor Cyan
 
+# 依赖是否齐（fastapi/uvicorn/pydantic/PyInstaller）。**只在解释器探测里用**，
+# 复用下方构建前校验的前提：EAP 局部降为 Continue，只看退出码。
+# 别探 filelock：它是仓内模块（web/backend/filelock.py），从仓库根 import 会命中
+# 同名 PyPI 包，误报/漏报都出现过。
+function Test-PyDeps([string]$pyPath) {
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    & $pyPath -c "import fastapi, uvicorn, pydantic, PyInstaller" 2>$null
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap
+    return ($code -eq 0)
+}
+
 # 0. 解释器探测：脚本内裸调 "python" 会因 PATH 解析差异落到别的环境（教训：base 环境抢跑）。
-#    优先级：显式 -Py > 项目 .venv > 当前激活的 conda 环境 > PATH
-if (-not $Py) {
+#    **存在性不等于可用**：本机常见的坏状态是「CONDA_PREFIX 指向 base，PATH 里的 python
+#    却在另一个 conda 环境」——按存在性探测会选中 base，然后报「缺少依赖」，把排查引到
+#    错误方向（2026-09-13 实测：探测到 base，而依赖在 envs\pytorch）。所以候选逐个
+#    **验证依赖**，第一个满足的胜出；全都不满足时再扫 conda 环境列表兜底，并打印用的是谁。
+function Resolve-PyPath() {
     $venvPy = Join-Path $root ".venv\Scripts\python.exe"
     $condaPy = if ($env:CONDA_PREFIX) { Join-Path $env:CONDA_PREFIX "python.exe" } else { "" }
-    if (Test-Path $venvPy) { $Py = $venvPy }
-    elseif ($condaPy -and (Test-Path $condaPy)) { $Py = $condaPy }
-    else { $Py = "python" }
+    $candidates = @()
+    if (Test-Path $venvPy) { $candidates += $venvPy }
+    if ($condaPy -and (Test-Path $condaPy)) { $candidates += $condaPy }
+    $candidates += "python"   # PATH 解析
+
+    foreach ($cand in $candidates) {
+        if (Test-PyDeps $cand) { return $cand }
+    }
+
+    # 兜底：扫 conda 环境列表（「base 抢跑、依赖在别的环境」的正解）
+    if (Get-Command conda -ErrorAction SilentlyContinue) {
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $envsJson = conda env list --json 2>$null | ConvertFrom-Json
+        $ErrorActionPreference = $prevEap
+        foreach ($envDir in @($envsJson.envs)) {
+            $cand = Join-Path $envDir "python.exe"
+            if ((Test-Path $cand) -and (Test-PyDeps $cand)) {
+                Write-Host "注：PATH 与当前激活环境都没装齐依赖，自动选用 conda 环境：$envDir" -ForegroundColor Yellow
+                return $cand
+            }
+        }
+    }
+    return "python"   # 都不满足：交给下方校验段给出「缺什么、怎么装」的人话报错
+}
+
+if (-not $Py) {
+    $Py = Resolve-PyPath
 }
 Write-Host "使用解释器: $Py" -ForegroundColor DarkGray
 

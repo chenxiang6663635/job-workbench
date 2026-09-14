@@ -38,6 +38,9 @@ CONTRIBUTING 的流程门禁要求每批 PR 做双轨审查，其中第二轨必
   **不加** `--ignore-user-config`：实测（2026-09-14）缺了用户 config 的
   `[windows] sandbox` 设置后，Windows 默认沙箱连**读**命令一起拒（blocked by
   policy）——审查取用户正常 CLI 环境，只读约束由 `-s read-only` 保证。
+- **不要并发跑**：输入落盘在固定的两个 `tmp_review_*` 文件（路径可预测、已
+  gitignore、便于人读）——同一工作区同时跑两个审查会互相覆盖输入；单人顺序
+  使用无此问题。
 - 输出是**审查意见**，采纳与否由作者判断——与子代理轨同一条纪律：findings 可
   记录「不采纳 + 理由」，不许静默忽略 MAJOR。
 
@@ -70,6 +73,27 @@ def _git(args):
     return result.stdout.decode("utf-8", "replace")
 
 
+def _worktree_note(head):
+    """版本一致性提示：审查方「对照源码」的前提，是当前检出即审查对象。
+
+    `--head` 可指向任意提交（例如复核已合并区间）；源码却始终来自当前检出。
+    两者不同版本时，提示词必须讲清楚「判据以 diff 为准」——否则审查方会拿
+    另一个版本的源码去否定/肯定 diff（跨宿主审查 M2，2026-09-14）。
+    """
+    head_sha = _git(["rev-parse", "HEAD"]).strip()[:12]
+    target = _git(["rev-parse", head]).strip()[:12]
+    dirty = bool(_git(["status", "--porcelain"]).strip())
+    if target == head_sha and not dirty:
+        return "当前检出的源码即审查对象（%s）。" % target
+    if target == head_sha and dirty:
+        return ("当前检出的源码即审查对象（%s）；工作区另有未提交修改——"
+                "它们**不在**本批 diff 内，不应作为审查判据。" % target)
+    return ("**注意：当前检出的源码与审查对象可能不是同一版本**（当前 HEAD=%s，"
+            "审查终点=%s%s）。判据以 diff 为准：对照源码时按 diff 反映的版本，"
+            "当前检出只作参考，不要用它否定或肯定 diff。"
+            % (head_sha, target, "；另有未提交修改" if dirty else ""))
+
+
 def _prepare(base, head):
     """生成 diff 文件与渲染后的提示词；不做任何写仓库的动作（tmp_ 例外，已 gitignore）。"""
     diff_text = _git(["diff", "%s...%s" % (base, head), "-U10"])
@@ -83,6 +107,7 @@ def _prepare(base, head):
         "{{DIFF_FILE}}": DIFF_FILE,
         "{{BASE}}": base,
         "{{HEAD}}": head,
+        "{{WORKTREE_NOTE}}": _worktree_note(head),
         "{{COMMITS}}": _git(["log", "--oneline", "%s..%s" % (base, head)]).strip() or "（无）",
         "{{FILES}}": _git(["diff", "--name-only", "%s...%s" % (base, head)]).strip() or "（无）",
     }
@@ -99,8 +124,11 @@ _NAV = "Read the file at %s and follow its instructions." % os.path.relpath(PROM
 
 
 def _claude_cmd(exe):
-    # Read/Grep/Glob 足够：读提示词、读 diff、读源码（不给 Bash——只读排查由此保证）
-    return [exe, "-p", _NAV, "--allowedTools", "Read", "Grep", "Glob",
+    # allowedTools 是「免询问」而不是「仅允许」（用户级 settings 可能另有授权），
+    # 所以显式把执行/改写类工具拉黑——双保险（跨宿主审查 M1，2026-09-14）。
+    return [exe, "-p", _NAV,
+            "--allowedTools", "Read", "Grep", "Glob",
+            "--disallowedTools", "Bash", "Edit", "Write", "NotebookEdit",
             "--output-format", "text"]
 
 
@@ -156,21 +184,21 @@ def main():
         print("范围 %s...%s 的 diff 为空——没有需要审查的改动。" % (args.base, args.head))
         return 1
 
+    print("diff 已落盘：%s（%d 字节）" % (DIFF_FILE, diff_size))
+    print("提示词已落盘：%s" % PROMPT_OUT)
+    if args.dry_run:
+        print("--- 提示词（已落盘；命令行只传一行导航语）---")
+        print(prompt)
+        print("--- dry-run 结束：未调用宿主（不探测、不要求宿主存在）---")
+        return 0
+
     picked = _pick_host(args.host)
     if picked is None:
         print("错误：找不到第二宿主 CLI（需要 claude 或 codex 在 PATH 上）。")
         print("装好其中一个再跑；或 --host claude/codex 指定。")
         return 1
     name, exe, build = picked
-
-    print("diff 已落盘：%s（%d 字节）" % (DIFF_FILE, diff_size))
-    print("提示词已落盘：%s" % PROMPT_OUT)
     print("第二宿主：%s（%s）" % (name, exe))
-    if args.dry_run:
-        print("--- 提示词（已落盘；命令行只传一行导航语）---")
-        print(prompt)
-        print("--- dry-run 结束：未调用宿主 ---")
-        return 0
 
     print("开始独立审查（只读；输出即时可见）…")
     proc = subprocess.run(build(exe), cwd=ROOT)

@@ -94,7 +94,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | 目录 | 用途 |
 |---|---|
 | `template/` | 通用骨架：档案模板、空工作区、领域插件 |
-| `skills/` | 四个工作流 + jwb-recruit-coach 评分标准，跨运行时单一源 |
+| `skills/` | 五个求职向工作流 + 教练评分标准，另有三个开发向技能（CLI 契约 / API 审查 / MCP），跨运行时单一源 |
 | `tools/` | 六个 Python 脚本 |
 | `web/` | Web 界面：FastAPI 后端 + React 前端（七个页面），与 CLI 共享同一份数据 |
 | `tests/` | 33 项测试（反编造护栏 + 健康度语义），CI 质量门 |

@@ -56,6 +56,8 @@
 
 ## 快速开始
 
+不想配环境的话，[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里有桌面版 `job-workbench-setup-*.exe`（免 Python / Node）：安装包是**向导式**——可自选安装位置，并选择「为所有用户 / 仅为我」（升级旧版时沿默认选项即可）。数据在 `%APPDATA%\job-workbench\`，不离开本机。
+
 ```bash
 # 1. 初始化工作区（生成六个模块 + 档案模板 + 领域插件）
 python tools/init_workspace.py --target my_job_hunt --domain software-backend

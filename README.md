@@ -106,7 +106,9 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 A packaged Windows desktop app (no Python/Node needed) is attached to the
 latest release — grab `job-workbench-setup-*.exe` from
 [Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest),
-install, launch, done. Data lives in `%APPDATA%\job-workbench\` and never leaves
+install, launch, done. The installer is a wizard: pick the install folder and
+whether to install for all users or just you (when upgrading, keep the
+defaults). Data lives in `%APPDATA%\job-workbench\` and never leaves
 your machine. Prefer source? Skip to [Quick start](#quick-start).
 
 ## Docs

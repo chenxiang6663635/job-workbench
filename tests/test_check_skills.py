@@ -43,6 +43,43 @@ def test_compliant_skill_passes(tmp_path):
     assert results[0]["problems"] == []
 
 
+def test_frontmatter_may_reference_tools_path(tmp_path):
+    """frontmatter 里的 `tools/` 是**合法**的（校验项第 6 条只扫正文）。
+
+    `compatibility` 正是说明"命令在仓库里长什么样"的地方——把它也禁掉的话，
+    技能就没有任何位置能写清 `jobws` 到底是什么了。
+    """
+    assert "tools/" in GOOD, "固件要在 frontmatter 里带 tools/，这条断言才有意义"
+    _make(tmp_path, "jwb-demo")
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_body_referencing_repo_path_is_reported(tmp_path):
+    """正文出现 `tools/...` → 拦住。
+
+    技能会被分发到宿主的技能目录，那时的工作目录是**用户自己的工作区**、
+    不在这个仓库里，正文里的 `tools/jobws.py` 只会把宿主引到死路径上。
+    """
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n先运行 `python tools/jobws.py track list`。")
+    _make(tmp_path, "jwb-demo", body=body)
+
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+
+    assert any("仓库相对路径" in p for p in problems), problems
+    # 行号要准：GOOD 的正文第 4 行（文件第 9 行）就是那处引用
+    assert any("正文第 9 行" in p for p in problems), problems
+
+
+def test_body_may_use_bare_jobws_command(tmp_path):
+    """正文写命令名 `jobws`（不带路径）→ 放行——这正是改完之后的形态。"""
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n运行 `jobws track list` 查看投递记录。")
+    _make(tmp_path, "jwb-demo", body=body)
+
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
 def test_result_shape_is_stable(tmp_path):
     """CI 与分发脚本都按这三个键取值，形状不能悄悄变。"""
     _make(tmp_path, "jwb-demo")

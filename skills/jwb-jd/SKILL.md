@@ -1,7 +1,7 @@
 ---
 name: jwb-jd
 description: Use when 用户粘贴或提供岗位 JD、招聘信息、职位描述，要求判断是否值得投递、评估岗位匹配度、给岗位打分或比较多个 offer 方向时。English triggers: job description, paste a JD, is this job worth applying for, evaluate job fit, score a position, compare offer directions.
-compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
+compatibility: Python 3.8+；命令中的 jobws 指仓库内的 python tools/jobws.py，需在仓库根运行、工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 解析 JD 并判定是否值得投递
@@ -42,7 +42,7 @@ compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作�
 不确定时可先查：
 
 ```
-python tools/jobws.py jd --show-profile --domain <X> --direction <Y>
+jobws jd --show-profile --domain <X> --direction <Y>
 ```
 
 方向不属于当前领域 → 回退该领域第一个方向，并在解析卡末尾标注「结论仅供参考」。
@@ -69,7 +69,7 @@ python tools/jobws.py jd --show-profile --domain <X> --direction <Y>
 ### 5. 校验并出结论
 
 ```
-python tools/jobws.py jd "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" \
+jobws jd "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" \
     --workspace <工作区> --domain <X> --direction <Y>
 ```
 
@@ -86,7 +86,7 @@ python tools/jobws.py jd "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.m
 解析卡通过后，可选做差距分析——它把「补关键词」拆成两类，直接服务诚实红线：
 
 ```
-python tools/jobws.py jd --gap --resume <版本> "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" --workspace <工作区>
+jobws jd --gap --resume <版本> "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" --workspace <工作区>
 ```
 
 输出三分：

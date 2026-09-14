@@ -1,7 +1,7 @@
 ---
 name: jwb-resume
 description: Use when 用户改完简历内容后需要重新生成 PDF、校验简历页数与文本层、排查 ATS 抓取问题，或要更换简历照片时。English triggers: rebuild resume PDF, verify resume page count, ATS text layer, resume parsing, change resume photo.
-compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作区；全本地运行，不上传工作区数据。
+compatibility: Python 3.8+；命令中的 jobws 指仓库内的 python tools/jobws.py，需在仓库根运行、工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 重建简历 PDF 并校验
@@ -11,14 +11,14 @@ compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作�
 ## 用法
 
 ```
-python tools/jobws.py resume                      # 全部版本都生成并校验
-python tools/jobws.py resume --version hvac       # 只生成指定版本
-python tools/jobws.py resume --no-verify          # 只生成不校验
+jobws resume                      # 全部版本都生成并校验
+jobws resume --version hvac       # 只生成指定版本
+jobws resume --no-verify          # 只生成不校验
 
 # 数据驱动「标准版式」：JSON + 内置模板（不经过手写 HTML）
-python tools/jobws.py resume render                          # 全部 JSON 版本
-python tools/jobws.py resume render --version hvac           # 只生成指定 JSON 版本
-python tools/jobws.py resume render --version hvac --no-verify
+jobws resume render                          # 全部 JSON 版本
+jobws resume render --version hvac           # 只生成指定 JSON 版本
+jobws resume render --version hvac --no-verify
 ```
 
 省略 `--workspace` 时默认使用 `personal/`。

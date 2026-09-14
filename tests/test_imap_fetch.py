@@ -302,8 +302,9 @@ def test_ssl_context_strict_by_default(monkeypatch):
 
 
 def test_ssl_context_broken_store_rejects_connection(monkeypatch):
-    """证书库损坏且未显式降级：拒绝连接，错误消息给出 JOBWS_IMAP_TLS 出路。"""
+    """证书库损坏、连随包 CA 也不可用且未显式降级：拒绝连接，消息给出出路。"""
     monkeypatch.setattr(ssl, "create_default_context", _BrokenStore.boom)
+    monkeypatch.setattr(imap_fetch.tls_policy, "_builtin_ca_file", lambda: None)
     monkeypatch.delenv("JOBWS_IMAP_TLS", raising=False)
     with pytest.raises(imap_fetch.ImapFetchError) as ei:
         imap_fetch._ssl_context()
@@ -311,6 +312,29 @@ def test_ssl_context_broken_store_rejects_connection(monkeypatch):
     # 收紧（独立审查 MINOR-3）：断言"含证书二字"太宽——要的是**出路指引**，
     # 与 test_tls_policy.py 的口径一致（同一份策略实现产出的消息）
     assert "certmgr.msc" in str(ei.value)
+
+
+def test_ssl_context_falls_back_to_bundled_ca(monkeypatch):
+    """证书库损坏但随包 CA 可用：拿到**严格**上下文，既不拒绝、也不降级。
+
+    兼容性批新增的第二条路——本机证书库坏、或本机 OpenSSL 与它不兼容时的兜底。
+    这里让替身只在 `cafile is None` 时抛错，`cafile` 分支交给真实现加载随包的
+    cacert.pem，所以断言的是**真实**回退产物，不是纸面替身。
+    """
+    real = ssl.create_default_context
+
+    def store_broken(cafile=None):
+        if cafile is None:
+            raise ssl.SSLError("[ASN1: NOT_ENOUGH_DATA] not enough data")
+        return real(cafile=cafile)
+
+    monkeypatch.setattr(ssl, "create_default_context", store_broken)
+    monkeypatch.delenv("JOBWS_IMAP_TLS", raising=False)
+
+    ctx = imap_fetch._ssl_context()
+
+    assert ctx.check_hostname is True
+    assert ctx.verify_mode == ssl.CERT_REQUIRED
 
 
 def test_ssl_context_insecure_downgrade_is_explicit(monkeypatch):

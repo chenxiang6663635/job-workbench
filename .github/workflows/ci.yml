@@ -42,6 +42,29 @@ jobs:
       - name: 校验界面 token 一致性
         run: python tools/jobws.py lint ui-tokens
 
+  # 支持矩阵：主干声明下限 3.8、上限按 3.12 验证——两个版本都真跑一遍测试。
+  # **刻意不用 matrix**：matrix 会给 job 显示名加 "(3.8)" 这类后缀，而
+  # 「后端测试（pytest）」是分支保护的必需检查，名字一变，main 上的 PR 会全部
+  # 卡在 Expected（2026-09-13 实测）。所以 3.12 单开一个 job，且**不进分支保护**：
+  # 它是增量信号，不是合并闸门。
+  backend-312:
+    name: 后端测试（Python 3.12）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 安装依赖
+        run: pip install -r web/backend/requirements-dev.txt
+
+      - name: 运行测试
+        run: python -m pytest tests/ -q
+
   mcp:
     name: MCP 包（3.12）
     runs-on: ubuntu-latest

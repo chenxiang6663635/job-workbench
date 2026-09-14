@@ -198,17 +198,17 @@ The "Settings" page in the nav configures your AI provider (BYOK, bring your own
 
 ### Optional: read-only email fetch
 
-If your mail provider supports IMAP, the workbench can pull recent recruiting emails so you do not have to copy-paste each one. Configure it under **Settings → 邮箱只读拉取** (the field takes your IMAP authorization code, not your web login password; most providers require you to enable IMAP in the web mail settings first).
+If your mail provider supports IMAP, the workbench can pull recent recruiting emails so you do not have to copy-paste each one. Configure it under **Settings → Read-only mailbox fetch (optional)** — 「邮箱只读拉取」in the Chinese UI (the field takes your IMAP authorization code, not your web login password; most providers require you to enable IMAP in the web mail settings first).
 
 How it works, and what it will not do:
 
 - **Read-only**: the connection uses `SELECT (readonly)` and `BODY.PEEK` — it never sends, marks as read, moves, or deletes anything.
-- **Connected only when you click**: the mailbox is contacted exactly when you press "从邮箱拉取" — there is no background timer, polling, or keep-alive.
-- **Credentials stay local**: stored in `<workspace>/config/imap.json` on your machine, masked in the UI and in error messages, and **excluded from export / backup zips**.
+- **Connected only when you click**: the mailbox is contacted exactly when you press **Fetch from mailbox** (「从邮箱拉取」) — there is no background timer, polling, or keep-alive.
+- **Credentials stay local — but they are stored in _plaintext_**: written to `<workspace>/config/imap.json` on your machine, masked in the UI and in error messages, and **excluded from export / backup zips**. Plaintext means any process that can read your user directory can read that file; that is the price of not pulling in a system keychain dependency. Treat the workspace as sensitive and keep it out of synced folders or public shares.
 - **Dry-run by default**: fetching only lists emails; nothing is written to the tracker until you confirm a suggestion item by item.
 - **TLS certificate verification is on by default**: the connection verifies the mail server's certificate against your system trust store. On machines whose Windows certificate store is corrupted, `create_default_context()` fails and the connection is **refused** (your authorization code must not travel over an unverified connection). If you understand the risk — the connection can then be intercepted by a man-in-the-middle — you can explicitly set the environment variable `JOBWS_IMAP_TLS=insecure` to skip verification.
 
-Typical flow: 投递追踪 → 「从邮箱拉取」 → pick a time window (last 7 / 30 / 90 days) → filter by keyword locally → click an email → review the parsed suggestion → confirm what to write back. If the email belongs to an application you have not recorded yet, the empty state offers a create-record form (the stage defaults to what the email implies).
+Typical flow: **Tracker** → **Fetch from mailbox** → pick a time window (last 7 / 30 / 90 days) → filter by keyword locally → click an email → review the parsed suggestion → confirm what to write back. If the email belongs to an application you have not recorded yet, the empty state offers a create-record form (the stage defaults to what the email implies).
 
 ---
 

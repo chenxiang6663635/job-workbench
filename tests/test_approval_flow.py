@@ -12,11 +12,19 @@
 
 import argparse
 import io
+import os
+import sys
 
 import pytest
 
-import approval
-import tracker
+# 自插 sys.path：不能指望"别的测试模块先被导入时顺手插好"——单独跑本文件
+# （pytest 直接收一个文件）时那条隐式依赖就断了（本次实测踩到）。
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+
+import approval  # noqa: E402
+import init_workspace  # noqa: E402
+import tracker  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -154,3 +162,107 @@ def test_import_conflict_after_preview_is_refused(tmp_path):
         approval.apply(token["token"])
 
     assert _csv_bytes(ws) == after_first
+
+
+def _seed_one(ws):
+    tracker.apply_approved_add({"fields": {
+        "公司": "示例公司甲", "岗位": "示例岗位乙", "方向": "backend",
+        "批次": "正式批", "当前阶段": "待投"}}, str(ws))
+
+
+def test_update_preview_is_byte_identical_then_apply_writes(tmp_path):
+    """更新：预览字节级不变；apply 后字段与时间线都变了。"""
+    ws = _make_ws(tmp_path)
+    _seed_one(ws)
+    snapshot = _tracking_snapshot(ws)
+
+    payload = {"id": "A001", "changes": {"当前阶段": "一面", "下次动作": "准备项目口述"}}
+    errors, plan = tracker.preview_update_fields(payload, str(ws))
+    assert errors == [] and plan
+    token = approval.preview("track.update", str(ws), plan["payload"],
+                             plan["summary"], plan["diff"], plan["targets"])
+
+    assert _tracking_snapshot(ws) == snapshot, "预览阶段整个追踪目录都不许动"
+
+    result = approval.apply(token["token"])
+
+    assert result["id"] == "A001"
+    after = _csv_bytes(ws).decode("utf-8-sig")
+    assert "一面" in after and "准备项目口述" in after
+    history = (ws / "05_投递追踪" / "history.csv").read_text(encoding="utf-8-sig")
+    assert "当前阶段" in history, "更新要按字段级差异入账时间线"
+
+
+def test_update_terminal_rollback_is_refused_at_preview(tmp_path):
+    """终态不回退：预览阶段就拦（不必等到 apply 才报）。"""
+    ws = _make_ws(tmp_path)
+    tracker.apply_approved_add({"fields": {
+        "公司": "示例公司甲", "岗位": "示例岗位乙", "方向": "backend",
+        "批次": "正式批", "当前阶段": "已挂", "状态原因": "面试未通过"}}, str(ws))
+
+    errors, plan = tracker.preview_update_fields(
+        {"id": "A001", "changes": {"当前阶段": "一面"}}, str(ws))
+
+    assert errors and plan is None
+
+
+def test_init_preview_creates_nothing_then_apply_creates(tmp_path):
+    """init 的两段式：预览连目标目录都不该建；apply 后工作区真的立起来。"""
+    target = tmp_path / "new-ws"
+
+    errors, plan = init_workspace.plan_init(str(target), demo=True)
+
+    assert errors == [] and plan
+    assert not target.exists(), "预览阶段连目标目录都不该建"
+    assert "新建" in plan["summary"]
+
+    token = approval.preview("init", str(target), plan["payload"], plan["summary"],
+                             plan["diff"], plan["targets"])
+    result = approval.apply(token["token"])
+
+    assert result["written"] > 0
+    assert (target / "05_投递追踪" / "tracker.csv").is_file()
+    assert (target / "AGENTS.md").is_file()
+
+
+def test_init_preview_surfaces_overwrites(tmp_path):
+    """目标已有数据时，预览必须把「将覆盖」摆在明面上。
+
+    demo 数据落在已经填了真实数据的工作区上就是数据丢失——用户有权在**落盘之前**
+    看到"哪几个文件会被盖掉"，而不是事后读一句"已覆盖 N 个"。
+    """
+    target = tmp_path / "ws"
+    (target / "05_投递追踪").mkdir(parents=True)
+    (target / "05_投递追踪" / "tracker.csv").write_text(
+        "id,公司\nA001,我自己的数据\n", encoding="utf-8")
+
+    errors, plan = init_workspace.plan_init(str(target), demo=True)
+
+    assert errors == []
+    # 两个词都要在：只有"新建"没有"覆盖"说明覆盖清单漏了（反之亦然）
+    assert "覆盖" in plan["summary"] and "新建" in plan["summary"]
+    assert any("将覆盖" in line for line in plan["diff"]), plan["diff"]
+
+
+def test_init_force_path_survives_apply(tmp_path):
+    """对着非空目录（`--force`）的两段式也要能走通。
+
+    安全默认是"目标非空就拒绝"，但用户当初**就是**对着非空目录预览的——载荷里
+    记着 force，apply 不该反悔；否则这条路根本走不通（`-force` 形同虚设）。
+    """
+    target = tmp_path / "ws"
+    (target / "05_投递追踪").mkdir(parents=True)
+    (target / "05_投递追踪" / "tracker.csv").write_text(
+        "id,公司\nA001,我自己的数据\n", encoding="utf-8")
+
+    errors, plan = init_workspace.plan_init(str(target), demo=True, force=True)
+    assert errors == []
+    assert plan["payload"]["force"] is True
+
+    token = approval.preview("init", str(target), plan["payload"], plan["summary"],
+                             plan["diff"], plan["targets"])
+    result = approval.apply(token["token"])
+
+    assert result["written"] > 0
+    tracker_csv = (target / "05_投递追踪" / "tracker.csv").read_text(encoding="utf-8-sig")
+    assert "我自己的数据" not in tracker_csv, "demo 数据应已覆盖旧内容"

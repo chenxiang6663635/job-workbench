@@ -1134,39 +1134,130 @@ def cmd_add(args):
     return 0
 
 
-def cmd_update(args):
-    rows = read_rows()
-    target = None
-    for row in rows:
-        if (row.get("id") or "").strip() == args.id:
-            target = row
-            break
+def _validate_update(target, changes, workspace=None):
+    """更新字段的校验（与命令行同一口径，预览与落盘两段共用）。
 
-    if target is None:
-        print("错误：找不到 id 为 `%s` 的记录" % args.id)
-        return 1
-
+    target 是主表里那一行（调用方已按 id 找好）；changes 是**要改的字段**
+    （中文列名 → 新值字符串）——不在 changes 里的字段不动。
+    """
     errors = []
-    if args.stage and args.stage not in STAGES + TERMINAL_STAGES:
+    stage = changes.get("当前阶段")
+    if stage is not None and stage not in STAGES + TERMINAL_STAGES:
         errors.append("`--stage` 必须是 %s 之一" % "/".join(STAGES + TERMINAL_STAGES))
-    if args.score is not None and not (0 <= args.score <= 100):
-        errors.append("`--score` 必须在 0–100 之间")
-    for value, label in ((args.next_date, "下次动作日期"),
-                         (args.applied, "投递日期"),
-                         (args.deadline, "截止日期")):
-        errs = check_date(value, label)
-        if errs:
-            errors.extend(errs)
+    score = changes.get("评分")
+    if score is not None and score != "":
+        try:
+            if not 0 <= int(score) <= 100:
+                errors.append("`--score` 必须在 0–100 之间")
+        except ValueError:
+            errors.append("`--score` 不是整数：%s" % score)
+    for key in ("下次动作日期", "投递日期", "截止日期"):
+        value = changes.get(key)
+        if value:
+            errs = check_date(value, key)
+            if errs:
+                errors.extend(errs)
 
     # 终态不回退：原阶段已是终态时不可再改阶段
-    if args.stage:
-        errors.extend(check_terminal_transition(target.get("当前阶段", ""), args.stage))
-
-    # 终态必填原因：按更新后的最终阶段与最终原因判定
-    final_stage = args.stage or target.get("当前阶段", "")
-    final_reason = args.reason if args.reason is not None else target.get("状态原因", "")
+    if stage:
+        errors.extend(check_terminal_transition(target.get("当前阶段", ""), stage))
+    # 终态必填原因：按更新后的最终阶段与最终原因判定。
+    # 注意 `"" 也是显式值`：`--reason ""` 表示"清空原因"，它会被收进 changes
+    # （cmd_update 按 `is not None` 收），所以这里用 `in changes` 而**不是**
+    # `changes.get(...) or ...`——后者会把"清空"悄悄当成"没提供"（独立审查 MAJOR-1）。
+    final_stage = stage if stage is not None else target.get("当前阶段", "")
+    final_reason = (changes["状态原因"] if "状态原因" in changes
+                    else target.get("状态原因", ""))
     errors.extend(check_reason_required(final_stage, final_reason))
+    return errors
 
+
+def _find_by_id(rows, app_id):
+    for row in rows:
+        if (row.get("id") or "").strip() == app_id:
+            return row
+    return None
+
+
+def preview_update_fields(payload, workspace=None):
+    """按载荷预览一次更新（**不落盘**）：返回 (errors, plan)。
+
+    payload = {"id": "A001", "changes": {字段: 新值}}——只列**要改**的字段。
+    """
+    ws = resolve_ws(workspace)
+    app_id = (payload.get("id") or "").strip()
+    changes = dict(payload.get("changes") or {})
+    target = _find_by_id(read_rows(ws), app_id)
+    if target is None:
+        return ["找不到 id 为 `%s` 的记录" % app_id], None
+
+    errors = _validate_update(target, changes, ws)
+    if errors:
+        return errors, None
+    if not changes:
+        return ["没有提供任何要更新的字段。可更新字段：%s" % "、".join(UPDATABLE)], None
+
+    diff = ["| 字段 | 原值 | 新值 |", "|---|---|---|"]
+    for field in sorted(changes):
+        diff.append("| %s | %s | %s |" % (
+            field, target.get(field, "") or "（空）", changes[field] or "（空）"))
+    return [], {
+        "payload": {"id": app_id, "changes": changes},
+        "summary": "更新 %s（%s %s）：改 %d 个字段" % (
+            app_id, target.get("公司", ""), target.get("岗位", ""), len(changes)),
+        "diff": diff,
+        "targets": _tracking_targets(ws),
+    }
+
+
+def apply_approved_update(payload, workspace=None):
+    """两段式的第二步：按已确认的载荷更新一条记录。
+
+    重校验（含"终态不回退"）：预览到确认之间记录可能已被改动——不通过就拒绝，
+    宁可让用户重新预览，也不在半信半疑的状态下落盘。
+    """
+    ws = resolve_ws(workspace)
+    app_id = payload.get("id")
+    changes = dict(payload.get("changes") or {})
+    rows = read_rows(ws)
+    target = _find_by_id(rows, app_id)
+    if target is None:
+        raise ConflictError("记录 `%s` 不存在了（预览之后被改过 id 或删除）——请重新预览。"
+                            % app_id)
+    errors = _validate_update(target, changes, ws)
+    if errors:
+        raise ConflictError("预览之后数据有变化，已拒绝写入：%s（请重新预览）"
+                            % "；".join(errors))
+
+    before = dict(target)
+    for field, value in changes.items():
+        target[field] = value
+    write_rows(rows, ws)
+    append_history(diff_entries(app_id, before, target), ws)
+    # 回传**实际**差异：预览到确认之间可能隔了很久，主表里的"原值"未必还是预览
+    # 时那个——展示落盘时的真实前后值才算数（独立审查 MAJOR-2）。
+    diff = ["| 字段 | 原值 | 新值 |", "|---|---|---|"]
+    for field in sorted(changes):
+        diff.append("| %s | %s | %s |" % (
+            field, before.get(field, "") or "（空）", target.get(field, "") or "（空）"))
+    return {"id": app_id, "diff": diff,
+            "summary": "已更新 %s（%s %s）" % (app_id, target.get("公司", ""),
+                                            target.get("岗位", ""))}
+
+
+def cmd_update(args):
+    """更新记录；--preview 只登记令牌（两段式的第一步），不改工作区。"""
+    changes = {}
+    for field, value in (("当前阶段", args.stage), ("状态原因", args.reason),
+                         ("下次动作", args.next), ("下次动作日期", args.next_date),
+                         ("备注", args.note), ("投递日期", args.applied),
+                         ("截止日期", args.deadline)):
+        if value is not None:
+            changes[field] = value
+    if args.score is not None:
+        changes["评分"] = str(args.score)
+
+    errors, plan = preview_update_fields({"id": args.id, "changes": changes}, WORKSPACE)
     if errors:
         print("## 校验失败\n")
         for e in errors:
@@ -1174,33 +1265,21 @@ def cmd_update(args):
         print("\n未写入 CSV。")
         return 1
 
-    changes = []
-    before = dict(target)
-    mapping = [
-        ("当前阶段", args.stage), ("状态原因", args.reason), ("下次动作", args.next),
-        ("下次动作日期", args.next_date), ("备注", args.note),
-        ("投递日期", args.applied), ("截止日期", args.deadline),
-    ]
-    for field, value in mapping:
-        if value is not None:
-            old = target.get(field, "")
-            target[field] = value
-            changes.append("| %s | %s | %s |" % (field, old or "（空）", value or "（空）"))
-    if args.score is not None:
-        old = target.get("评分", "")
-        target["评分"] = str(args.score)
-        changes.append("| 评分 | %s | %d |" % (old or "（空）", args.score))
+    if getattr(args, "preview", False):
+        import approval
+        result = approval.preview("track.update", WORKSPACE, plan["payload"],
+                                  plan["summary"], plan["diff"], plan["targets"])
+        print("## 预览（未写入）\n")
+        print(result["summary"])
+        for line in plan["diff"]:
+            print(line)
+        print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
+        print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
+        return 0
 
-    if not changes:
-        print("没有提供任何要更新的字段。可更新字段：%s" % "、".join(UPDATABLE))
-        return 1
-
-    write_rows(rows)
-    append_history(diff_entries(args.id, before, target))
-    print("## 已更新 %s（%s %s）\n" % (args.id, target.get("公司", ""), target.get("岗位", "")))
-    print("| 字段 | 原值 | 新值 |")
-    print("|---|---|---|")
-    for line in changes:
+    result = apply_approved_update(plan["payload"], WORKSPACE)
+    print("## %s\n" % result["summary"])
+    for line in result.get("diff") or plan["diff"]:
         print(line)
     return 0
 
@@ -1690,6 +1769,9 @@ def build_parser():
     p_upd.add_argument("--deadline", help="截止日期 YYYY-MM-DD")
     p_upd.add_argument("--note", help="备注")
     p_upd.add_argument("--score", type=int, help="评分 0-100")
+    p_upd.add_argument("--preview", action="store_true",
+                       help="只预览、并把这次更新登记为一次性令牌（不落盘）；"
+                            "确认后用 python tools/jobws.py apply <令牌> 落盘")
 
     # 方向选项取决于工作区装入的插件，此处不在定义时写死，
     # 改为在 cmd_list 中校验，以便给出「可用方向」的具体提示

@@ -84,3 +84,7 @@ en:pages/Settings.tsx = https://api.xxx.ai/v1
 en:pages/Settings.tsx = your-email@example.com
 # IMAP 文件夹名：协议取值、大小写敏感，不能翻
 en:pages/Settings.tsx = INBOX
+# Provider 的模型名（技术标识，翻了就调不通）
+en:components/ResumeImportDialog.tsx = deepseek-chat
+# 真实文件名（用户在仓库里能看到、要照着填的）
+en:components/RetrospectivePanel.tsx = config/failure_keywords.txt

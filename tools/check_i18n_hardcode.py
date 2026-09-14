@@ -81,16 +81,23 @@ CJK = re.compile(u"[\u4e00-\u9fff]")
 # 方向与中文那类**相反**：中文检查防的是"英文界面里冒中文"，它只看 CJK，于是
 # "中文界面里冒英文"是它的结构性盲区（设置页卡片标题 Provider、Electron 的窗口
 # 初始标题与两个更新对话框，2026-09-13 实测确认），tsc / eslint / UI 冒烟同样
-# 看不见。范围从紧起步，理由见 CONTRIBUTING：
-#   目录：web/frontend/src/pages/** 与 web/electron/**
+# 看不见。范围与**已知边界**（2026-09-14 扩过一次，理由见 CONTRIBUTING）：
+#   目录：web/frontend/src/pages/**、web/frontend/src/components/**、web/electron/**
+#         —— 范围由 EN_SCOPE_RELS 定义，check_english 直接消费它（此前 targets 是
+#         硬编码的 pages + electron，改常量根本不生效：2026-09-14 反向验证才发现）。
 #   形状：JSX 裸文本、少数文案属性（title / aria-label / alt / placeholder）、
 #         Electron 的对话框文案键（title / message / detail）
 #   豁免：同一份清单的 `en:` 段（片段级 + 理由）
-# 刻意不做：不扫整棵组件树、不按"有大写字母"猜品牌名、不查注释——检查一旦吵起来
-# 就会被绕过，宁可窄。
-# 起步范围：前端只扫 pages/**（组件树先不动），Electron 扫整棵（它只有几个文件）。
+# **已知边界**（写清是为了不让它被当成「全都查了」）：
+#   - 行注释之后的假命中会跳过（`//` 后不看），块注释内的属性字面量不查；
+#   - 跨行的属性值不查（只看单行）；
+#   - 只覆盖上面列出的属性与键；`data-*`、`className` 等不在范围内；
+#   - 以 `;` 结尾的裸文本一律当代码跳过（类型注解 `=> void;` 的误报就是这么来的）。
+# 刻意不做：不按"有大写字母"猜品牌名、不查注释——检查一旦吵起来就会被绕过，宁可窄。
 # 主进程语言包 `web/electron/i18n.js` 由 SKIP_DIRS 按路径豁免——那里是字面量的家。
-EN_SCOPE_RELS = (os.path.join("web", "frontend", "src", "pages"), ELECTRON_REL)
+EN_SCOPE_RELS = (os.path.join("web", "frontend", "src", "pages"),
+                 os.path.join("web", "frontend", "src", "components"),
+                 ELECTRON_REL)
 EN_ALLOWLIST_PREFIX = "en:"
 # 至少 3 个连续字母才算"一句英文"：`a` / `OK` / `ID` 这类不算文案
 EN_WORD = re.compile(r"[A-Za-z]{3,}")
@@ -179,6 +186,8 @@ def find_hardcoded_english(text):
             if not TAG_LIKE.search(plain[:m.start()]):
                 continue
             snippet = m.group(1).strip()
+            if snippet.endswith(";"):
+                continue   # 代码（`=> void;`），不是文案
             if EN_WORD.search(snippet):
                 hits.append((lineno, snippet, "jsx-text"))
         # 1b) 行尾裸文本：`<Icon /> Provider`（同样要求前面出现的是标签，而不是 `a > b`）
@@ -186,6 +195,11 @@ def find_hardcoded_english(text):
             if not TAG_LIKE.search(plain[:m.start()]):
                 continue
             snippet = m.group(1).strip()
+            # 以 `;` 结尾的一律当代码：`set: <K extends keyof Draft>(…) => void;` 这种
+            # 类型注解里，泛型的 `<K` 会被 TAG_LIKE 认成标签、`> void;` 又被当成行尾文案，
+            # 两处叠加就误报成 `void;`（2026-09-14 扩到 components 时实测三处）。
+            if snippet.endswith(";"):
+                continue
             if EN_WORD.search(snippet):
                 hits.append((lineno, snippet, "jsx-text"))
         # 2) 跨行裸文本：上一行以 `>` 收尾、本行是纯文本（可带收尾标签）
@@ -195,8 +209,11 @@ def find_hardcoded_english(text):
         prev_closes_tag = (prev_tail.endswith(">")
                            and not prev_tail.endswith(("=>", "->", ">=", "<=")))
         stripped = _strip_trailing_tag(plain.strip())
+        # 以 `;` 结尾的一律当代码：TypeScript 类型注解里的 `=> void;` 正是这样被误报成
+        # jsx-text 的（2026-09-14 扩到 components 时实测三处），而真文案几乎不会以分号结尾。
         if (prev_closes_tag and stripped
                 and not stripped.startswith(("<", "{", "}", ")"))
+                and not stripped.endswith(";")
                 and not re.search(r"[<>{}]", stripped) and EN_WORD.search(stripped)):
             hits.append((lineno, stripped, "jsx-text"))
         # 3) / 4) 字面量型文案。匹配在"去过注释"的文本上做：注释不翻是仓库口径，
@@ -222,12 +239,18 @@ def check_english(root):
     table, errors = load_allowlist(root, prefix=EN_ALLOWLIST_PREFIX)
     seen = {}
     unallowed, ok_hits = [], []
-    # (被遍历的目录, 清单键的基准目录, 键前缀)
-    targets = (
-        (os.path.join(root, SRC_REL, "pages"), os.path.join(root, SRC_REL), ""),
-        (os.path.join(root, ELECTRON_REL), os.path.join(root, ELECTRON_REL),
-         ELECTRON_KEY_PREFIX),
-    )
+    # (被遍历的目录, 清单键的基准目录, 键前缀)。范围来自 EN_SCOPE_RELS（常量在文件
+    # 顶部，范围决策的理由写在那里）——此前 targets 是硬编码的 pages + electron，
+    # 改 EN_SCOPE_RELS 根本不生效（2026-09-14 实测：扩了范围、检查行为纹丝不动，
+    # 反向验证插进去的硬编码英文也照样漏过）。
+    targets = []
+    for rel in EN_SCOPE_RELS:
+        if rel == ELECTRON_REL:
+            targets.append((os.path.join(root, rel), os.path.join(root, rel),
+                            ELECTRON_KEY_PREFIX))
+        else:
+            # 前端各子树的清单键都以 `web/frontend/src` 为基准（与中文那套同一写法）
+            targets.append((os.path.join(root, rel), os.path.join(root, SRC_REL), ""))
 
     for base, key_base, prefix in targets:
         if not os.path.isdir(base):

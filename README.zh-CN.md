@@ -70,6 +70,13 @@ python tools/jobws.py skills install --target user
 #    文件里还有两条通用诚实红线：简历动词经得起追问、永不编造经历
 ```
 
+**用 CodeBuddy？** 同一套技能也打包为 CodeBuddy 插件——把本仓库加为插件市场并安装即可（插件直接读 `skills/`，没有第二份副本）：
+
+```
+/plugin marketplace add https://github.com/chenxiang6663635/job-workbench
+/plugin install job-workbench
+```
+
 然后直接用自然语言跟你的 AI CLI 说："解析这份 JD"、"投递这个岗位"、"看最近七天要处理什么"。
 
 环境要求——命令行：Python 3.8+（只用标准库）；pypdf 仅 PDF 校验需要；certifi 提供出网证书兜底（系统证书库不可用时回退到随包 CA 清单，HTTPS / IMAP 共用）。PDF 生成：Chrome 或 Edge。Web 界面（可选）见 [`web/README.md`](web/README.md)。
@@ -87,13 +94,14 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | 目录 | 用途 |
 |---|---|
 | `template/` | 通用骨架：档案模板、空工作区、领域插件 |
-| `skills/` | 四个工作流 + jwb-recruit-coach 评分标准，跨运行时单一源 |
+| `skills/` | 四个求职向工作流 + 教练评分标准，另有三个开发向技能（CLI 契约 / API 审查 / MCP），跨运行时单一源 |
 | `tools/` | 六个 Python 脚本 |
 | `web/` | Web 界面：FastAPI 后端 + React 前端（七个页面），与 CLI 共享同一份数据 |
-| `tests/` | 33 项测试（反编造护栏 + 健康度语义），CI 质量门 |
+| `tests/` | pytest 测试套件（隐私护栏、反编造检查、追踪表语义），CI 质量门 |
 | `personal/` | 使用者的真实工作区（**已整体 gitignore，仓库内不含任何真实数据**） |
 | `docs/` | 使用手册、文档索引、设计文档（`docs/specs/`） |
 | `.github/` | CI 工作流、issue / PR 模板、行为准则、Copilot 指引 |
+| `.codebuddy-plugin/` | CodeBuddy 插件清单——把同一份 `skills/` 交给插件系统，不另存副本 |
 
 ## 文档
 
@@ -105,7 +113,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 ## 贡献
 
-欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；代码改动走 PR（CI 绿：33 项基线 + 前端构建），纯文档可直推。
+欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；代码改动走 PR（CI 绿：后端测试 + 前端构建），纯文档可直推。
 
 ## License
 

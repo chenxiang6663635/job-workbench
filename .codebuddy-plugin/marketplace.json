@@ -1,0 +1,23 @@
+{
+  "name": "job-workbench",
+  "description": "求职工作台的 CodeBuddy 插件：八个技能——五个求职向（投递追踪 / 岗位评估 / 简历 / 投递执行 / 教练）+ 三个开发向（CLI 契约 / API 审查 / MCP 指南）。数据与命令都在这台机器上，CLI 与可选 MCP 见仓库 README。",
+  "description_en": "Job Workbench plugin for CodeBuddy: eight skills — five job-hunting (application tracking, job evaluation, resume, applying, coaching) plus three maintainer-facing (CLI contract, API review, MCP guide). All data and commands stay on this machine; see the repository README for the CLI and optional MCP server.",
+  "owner": {
+    "name": "chenxiang6663635"
+  },
+  "plugins": [
+    {
+      "name": "job-workbench",
+      "description": "求职工作台技能包（8 个）：求职向——投递追踪（jwb-track）/ 岗位评估（jwb-jd）/ 简历（jwb-resume）/ 投递执行（jwb-apply）/ 求职教练（jwb-recruit-coach）；开发向——CLI 契约（jwb-cli-contract）/ API 审查（jwb-api-review）/ MCP 指南（jwb-mcp-server）。技能调用仓库内的 jobws CLI；插件内容即本仓库（技能在 skills/ 下，插件机制按约定读它——不另做镜像）。",
+      "description_en": "Skills for Job Workbench (8): job-hunting — application tracker, job-pool evaluation, resume workshop, applying, and a recruiting coach; maintainer-facing — CLI contract, API review, and MCP guide. Skills drive the in-repo jobws CLI; the plugin content is this repository itself (skills live in skills/ — no second copy is maintained).",
+      "source": "./",
+      "author": {
+        "name": "chenxiang6663635",
+        "url": "https://github.com/chenxiang6663635"
+      },
+      "homepage": "https://github.com/chenxiang6663635/job-workbench",
+      "repository": "https://github.com/chenxiang6663635/job-workbench",
+      "license": "MIT"
+    }
+  ]
+}

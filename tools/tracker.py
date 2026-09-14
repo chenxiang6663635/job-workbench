@@ -992,7 +992,8 @@ def _lock_path(workspace=None):
 
     三个 apply_approved_* 在锁内做「读最新 → 重校验 → 写」整段——否则并发的
     两次落盘会各自算出同一个 next_id，后写覆盖前写（独立审查 M1）。锁文件所在
-    目录按需创建：全新工作区第一次导入时它还不存在。
+    目录按需创建：全新工作区第一次导入时它还不存在。建目录刻意留在**锁外**——
+    makedirs 幂等，并发首建也无害（跨宿主审查 MINOR 确认过这一点）。
     """
     ws = resolve_ws(workspace)
     tracking_dir = os.path.join(ws, "05_投递追踪")

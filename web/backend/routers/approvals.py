@@ -30,7 +30,13 @@ class ApprovalApplyBody(BaseModel):
 
 @router.post("/apply")
 def apply_approval(body: ApprovalApplyBody):
-    """凭令牌执行已确认的写入；令牌一次性，取走即焚（与 CLI 的 apply 同源）。"""
+    """凭令牌执行已确认的写入；令牌一次性，取走即焚（与 CLI 的 apply 同源）。
+
+    刻意**不**接收工作区参数：令牌绑定的就是目标工作区，「要写哪里」在令牌里
+    （与 /workspaces/apply 同一取舍——PR #100 的安全边界）。用户在 A 工作区预览
+    后切到 B 再点确认，写入的仍是 A——这是确认书的语义，不是缺陷（跨宿主审查
+    MINOR 确认过这一点）。
+    """
     try:
         result = approval.apply(body.token)
     except approval.ApprovalConflict as exc:

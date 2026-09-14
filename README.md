@@ -74,6 +74,13 @@ python tools/jobws.py skills install --target user
 #    every resume verb must survive questioning; never fabricate experience.
 ```
 
+**Using CodeBuddy?** The same skills ship as a CodeBuddy plugin — add this repo as a plugin marketplace and install it (the plugin reads `skills/` directly; there is no second copy):
+
+```
+/plugin marketplace add https://github.com/chenxiang6663635/job-workbench
+/plugin install job-workbench
+```
+
 Then just talk to your AI CLI: "parse this JD", "apply to this role", "what needs attention this week".
 
 Requirements — CLI: Python 3.8+ (standard library only); `pypdf` for PDF validation; `certifi` ships the fallback CA bundle used when your system certificate store is unusable (outbound HTTPS / IMAP). PDF generation: Chrome or Edge. Web UI (optional): see [`web/README.md`](web/README.md).
@@ -91,13 +98,14 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | Path | Purpose |
 |---|---|
 | `template/` | Generic skeleton: profile templates, empty workspace, domain plugins |
-| `skills/` | The four workflows + the jwb-recruit-coach scoring standard, single source across AI runtimes |
+| `skills/` | The four job-hunting workflows + the coach scoring standard, and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
 | `tools/` | Six Python scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (seven pages), same data files as the CLI |
 | `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |
 | `personal/` | Your real workspace (**fully git-ignored; the repo ships zero real data**) |
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |
 | `.github/` | CI workflow, issue / PR templates, code of conduct, Copilot instructions |
+| `.codebuddy-plugin/` | CodeBuddy plugin manifest — delivers the same `skills/` through the plugin system, no second copy |
 
 ## Download
 

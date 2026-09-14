@@ -78,7 +78,7 @@ web/
         └── pages/            Dashboard / Applications / Jobs / Resume / Progress / Library / Settings
 ```
 
-仓库根 `tests/` 共 33 项测试（反编造护栏 + 健康度语义）由 CI（`.github/workflows/ci.yml`）与本地 `python -m pytest tests/ -q` 把关；后端依赖见 `backend/requirements-dev.txt`。
+仓库根 `tests/` 的测试（反编造护栏 + 健康度语义）由 CI（`.github/workflows/ci.yml`）与本地 `python -m pytest tests/ -q` 把关；后端依赖见 `backend/requirements-dev.txt`。
 
 ## 已知边界
 

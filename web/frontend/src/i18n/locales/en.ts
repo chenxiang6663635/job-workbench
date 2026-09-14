@@ -604,6 +604,8 @@ export default {
 
   "err.sys.unknownTarget": "Only workspace / snapshots are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",
+  "err.sys.certStoreUnavailable": "The system certificate store could not be loaded, so the certificate cannot be verified and the connection was refused (credentials must not travel over an unverified connection). To investigate, look for broken entries with certmgr.msc; if you really must skip verification for now, set JOBWS_HTTP_TLS or JOBWS_IMAP_TLS to insecure for that path (not recommended)",
+  "err.sys.certUntrusted": "Certificate verification failed: your trust store does not trust the certificate for {{host}} (self-signed, or intercepted). Do not disable verification for it — use a trusted endpoint or check your network",
 
   "err.provider.baseUrlInvalid": "The base URL must start with http:// or https://",
   "err.provider.needBaseUrl": "Save the provider base URL first",

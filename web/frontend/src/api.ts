@@ -523,7 +523,7 @@ export const BATCHES = ["提前批", "正式批", "补录"];
 // 避免两页各写一份后漂移；后端在插件不可用时对未知方向放行。
 export const DIRECTIONS = ["datacenter", "hvac", "other"];
 
-// 面试记录枚举，与后端 tracker.INTERVIEW_* 一致（单一事实源在 tools/tracker.py）
+// 面试记录枚举，与后端 tracker.INTERVIEW_* 一致（单一事实源在 tools/jobws.py track）
 export const INTERVIEW_ROUNDS = ["笔试", "一面", "二面", "三面", "HR面", "终面", "其他"];
 export const INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"];
 export const INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"];

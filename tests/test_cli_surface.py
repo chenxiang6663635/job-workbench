@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
 """CLI 面的冒烟回归（B8 的前置安全网）。
 
-为什么需要这一层：B8 要做的是把 `tools/` 下 9 个脚本的 CLI 面合并成 `jobws`
-统一入口且**不丢功能**，而在此之前 `tests/` 对 CLI 面**零覆盖**——等于没网搬家。
-搬家时最容易丢掉的恰好是参数名与退出码语义，所以这里钉三件：
+为什么需要这一层：B8 把 `tools/` 下 10 个脚本的 CLI 面合并成 `jobws` 统一入口
+且**不丢功能**，而在此之前 `tests/` 对 CLI 面**零覆盖**——等于没网搬家。
+搬家时最容易丢掉的恰好是参数名与退出码语义，所以这里钉四件：
 
 1. **每个入口都能被 `--help` 叫醒**，且子命令一个不少；
 2. **退出码语义**：`--help` 是 0、用法错误是 2、不合法输入是 1（三种都有实例钉住）；
-3. **有副作用的子命令在临时工作区跑一条真实路径**，断言真的落盘。
+3. **有副作用的子命令在临时工作区跑一条真实路径**，断言真的落盘；
+4. **分发层自身**：`jobws` 无参数、未知命令、缺子命令这些分支的退出码——
+   网要跟着鱼走，新网自己也得钉住。
 
-不启子进程、不碰网络：全部在进程内改 `sys.argv` 再调 `main()`（沿用
-`test_demo_workspace.py` 的做法）。唯一例外是 `resume_build`——它真会 spawn
-浏览器，所以只测它的「不合法输入」分支（那条路不会启动任何进程）。
+全部在进程内改 `sys.argv` 再调入口（沿用 `test_demo_workspace.py` 的做法），
+不碰网络。两类例外：`resume_build` 真会 spawn 浏览器，所以只测它的「不合法
+输入」分支；「旧脚本路径只给迁移提示」那一条必须起子进程——它验的正是
+`python tools/xxx.py` 这种独立进程的行为。
 """
 
 import os
@@ -302,11 +305,46 @@ def test_legacy_script_paths_only_print_migration_hint():
                    "init_workspace", "install_skills", "check_skills",
                    "check_pr_title"):
         path = os.path.join(TOOLS, script + ".py")
+        # timeout + cwd：任一脚本将来在导入期阻塞时，别把整轮 pytest 挂死
         proc = subprocess.run([sys.executable, path], stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, encoding="utf-8",
-                              errors="replace")
+                              errors="replace", timeout=60, cwd=ROOT)
         assert proc.returncode == 2, "%s 应以退出码 2 结束" % script
         assert "jobws" in proc.stdout, "%s 应给出 jobws 迁移提示" % script
+
+
+# --- 5. 分发层自身（网要跟着鱼走，新网自己也得钉）----------------------------
+
+@pytest.mark.parametrize("argv,expected", [
+    ([], 1),                      # 无命令：打印帮助并退出 1
+    (["nope"], 2),                # 未知命令
+    (["skills", "nope"], 2),      # 未知子命令
+    (["skills"], 2),              # 缺子命令
+    (["lint"], 2),                # 缺子命令
+    (["--help"], 0),              # 顶层帮助
+    (["skills", "--help"], 0),    # 只是想知道这组有哪些子命令
+])
+def test_dispatch_exit_codes(argv, expected, monkeypatch, capsys):
+    code, out = _invoke_jobws(monkeypatch, capsys, argv)
+    assert code == expected, out
+
+
+def test_command_map_covers_every_merged_module():
+    """10 个脚本全部有映射，且每个模块仍然真的暴露 main()。
+
+    安全网改走 jobws 之后，命令到模块的映射只由 TARGETS / SUB_TARGETS 单方保证；
+    这里从「模块侧」反查一遍，免得改映射时悄悄漏掉一个。
+    """
+    mapped = {}
+    for name, module, _help in jobws.TARGETS:
+        if module is not None:
+            mapped[name] = module
+    for key, module in jobws.SUB_TARGETS.items():
+        mapped[" ".join(key)] = module
+    assert len(mapped) == 10, sorted(mapped)
+    for command, module in mapped.items():
+        assert callable(getattr(module, "main", None)), \
+            "%s 指向的 %s 没有 main()" % (command, module)
 
 
 # --- 5. 记录下来供 B8 用的事实 ----------------------------------------------

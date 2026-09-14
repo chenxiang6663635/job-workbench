@@ -11,14 +11,14 @@ compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作�
 ## 用法
 
 ```
-python tools/resume_build.py                      # 全部版本都生成并校验
-python tools/resume_build.py --version hvac       # 只生成指定版本
-python tools/resume_build.py --no-verify          # 只生成不校验
+python tools/jobws.py resume                      # 全部版本都生成并校验
+python tools/jobws.py resume --version hvac       # 只生成指定版本
+python tools/jobws.py resume --no-verify          # 只生成不校验
 
 # 数据驱动「标准版式」：JSON + 内置模板（不经过手写 HTML）
-python tools/resume_build.py render                          # 全部 JSON 版本
-python tools/resume_build.py render --version hvac           # 只生成指定 JSON 版本
-python tools/resume_build.py render --version hvac --no-verify
+python tools/jobws.py resume render                          # 全部 JSON 版本
+python tools/jobws.py resume render --version hvac           # 只生成指定 JSON 版本
+python tools/jobws.py resume render --version hvac --no-verify
 ```
 
 省略 `--workspace` 时默认使用 `personal/`。

@@ -35,13 +35,13 @@ npm install
 ### 初始化你的工作区（已有 personal/ 的跳过）
 
 ```bash
-python tools/init_workspace.py --target personal --domain hvac-cooling
+python tools/jobws.py init --target personal --domain hvac-cooling
 ```
 
 只想先看看界面长什么样、不想先填任何真实信息的话，用 `--demo`：
 
 ```bash
-python tools/init_workspace.py --target demo --demo
+python tools/jobws.py init --target demo --demo
 ```
 
 它会额外铺一份占位数据（8 条投递 / 3 场面试 / 2 位联系人 / 1 个 Offer /
@@ -245,7 +245,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 说"重建简历 PDF"，或命令行：
 
 ```bash
-python tools/resume_build.py --workspace personal --version hvac
+python tools/jobws.py resume --workspace personal --version hvac
 ```
 
 ---
@@ -256,30 +256,30 @@ python tools/resume_build.py --workspace personal --version hvac
 
 ```bash
 # 追踪表
-python tools/tracker.py list                        # 全部记录
-python tools/tracker.py list --due-within 7         # 未来 7 天到期
-python tools/tracker.py list --stage 笔试           # 按阶段筛
-python tools/tracker.py add --company "某公司" --role "岗位" --direction hvac --batch 正式批 ...
-python tools/tracker.py update --id A001 --stage 一面 --next "准备口述" --next-date 2026-09-10
-python tools/tracker.py history --id A001           # 变更时间线
-python tools/tracker.py import --file 待导入.csv --dry-run   # CSV 批量导入（只预览差异）
-python tools/tracker.py import --file 待导入.csv             # 预览通过后写入
-python tools/tracker.py interview add --app A001 --round 一面 --questions "..."   # 面试记录
-python tools/tracker.py contact add --name "张工" --app A001   # 招聘方联系人
-python tools/tracker.py offer add --company "某公司" --monthly "..."  # Offer 事实
-python tools/tracker.py check                       # schema 自检（坏文件隔离）
+python tools/jobws.py track list                        # 全部记录
+python tools/jobws.py track list --due-within 7         # 未来 7 天到期
+python tools/jobws.py track list --stage 笔试           # 按阶段筛
+python tools/jobws.py track add --company "某公司" --role "岗位" --direction hvac --batch 正式批 ...
+python tools/jobws.py track update --id A001 --stage 一面 --next "准备口述" --next-date 2026-09-10
+python tools/jobws.py track history --id A001           # 变更时间线
+python tools/jobws.py track import --file 待导入.csv --dry-run   # CSV 批量导入（只预览差异）
+python tools/jobws.py track import --file 待导入.csv             # 预览通过后写入
+python tools/jobws.py track interview add --app A001 --round 一面 --questions "..."   # 面试记录
+python tools/jobws.py track contact add --name "张工" --app A001   # 招聘方联系人
+python tools/jobws.py track offer add --company "某公司" --monthly "..."  # Offer 事实
+python tools/jobws.py track check                       # schema 自检（坏文件隔离）
 
 # 投递漏斗看板（Markdown，含周期复盘与失败原因聚类）
-python tools/report.py --stdout
+python tools/jobws.py report --stdout
 
 # 简历 PDF + ATS 校验
-python tools/resume_build.py --workspace personal            # 全部版本
-python tools/resume_build.py --version hvac                  # 指定版本
-python tools/resume_build.py render --workspace personal     # 数据驱动标准版式
+python tools/jobws.py resume --workspace personal            # 全部版本
+python tools/jobws.py resume --version hvac                  # 指定版本
+python tools/jobws.py resume render --workspace personal     # 数据驱动标准版式
 
 # JD 解析卡评分校验
-python tools/jd_score.py "personal/01_岗位池/<目录>/解析卡.md" --domain hvac-cooling --direction hvac
-python tools/jd_score.py --gap --resume hvac "personal/01_岗位池/<目录>/解析卡.md"   # JD↔简历差距
+python tools/jobws.py jd "personal/01_岗位池/<目录>/解析卡.md" --domain hvac-cooling --direction hvac
+python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<目录>/解析卡.md"   # JD↔简历差距
 ```
 
 ---
@@ -339,7 +339,7 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 
 ### 网页里岗位卡片没有评分
 
-评分必须满足两点：`解析卡.md` 存在 **且** 四项加总与总分自洽（会被 `jd_score` 规则校验）。如果手改过解析卡导致格式不对，网页会当作"未评分"。用 `python tools/jd_score.py <解析卡路径>` 看具体哪里不自洽。
+评分必须满足两点：`解析卡.md` 存在 **且** 四项加总与总分自洽（会被 `jd_score` 规则校验）。如果手改过解析卡导致格式不对，网页会当作"未评分"。用 `python tools/jobws.py jd <解析卡路径>` 看具体哪里不自洽。
 
 ### CSV 用 Excel 打开乱码
 
@@ -368,5 +368,5 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 |---|---|
 | 整体架构（三层分离、领域插件） | `docs/specs/2026-08-30-general-workbench-design.md` |
 | Web 层设计（API 契约、并发与安全） | `docs/specs/2026-08-30-web-prototype-design.md` |
-| AI 工作流定义 | 根 `skills/` 下五个 SKILL.md（`tools/install_skills.py` 分发到各 AI CLI） |
+| AI 工作流定义 | 根 `skills/` 下五个 SKILL.md（`tools/jobws.py skills install` 分发到各 AI CLI） |
 | 文档总索引 | `docs/README.md` |

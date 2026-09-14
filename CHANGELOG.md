@@ -18,7 +18,7 @@
 
 ### Changed
 
-- **命令行入口统一为 `jobws`（破坏性变更）**：`tools/` 下 8 个脚本不再各自可执行，统一走 `python tools/jobws.py <命令>`。**参数名、子命令、退出码（0 通过 / 1 业务失败 / 2 用法或配置错误）全部不变**，只有入口名变了。迁移对照：
+- **命令行入口统一为 `jobws`（破坏性变更）**：`tools/` 下 10 个脚本不再各自可执行，统一走 `python tools/jobws.py <命令>`。**参数名、子命令、退出码（0 通过 / 1 业务失败 / 2 用法或配置错误）全部不变**，只有入口名变了。迁移对照：
 
   | 旧用法 | 新用法 |
   |---|---|
@@ -30,6 +30,8 @@
   | `python tools/install_skills.py …` | `python tools/jobws.py skills install …` |
   | `python tools/check_skills.py …` | `python tools/jobws.py skills check …` |
   | `python tools/check_pr_title.py` | `python tools/jobws.py lint pr-title` |
+  | `python tools/check_i18n_hardcode.py` | `python tools/jobws.py lint i18n` |
+  | `python tools/check_ui_tokens.py` | `python tools/jobws.py lint ui-tokens` |
 
   直接运行旧脚本**不再执行任何功能**，会打印上表对应的新命令并以退出码 2 结束——不静默失败。`jobws --help` 列出全部命令，`jobws track --help` 看追踪表的 10 个子命令（子命令与参数照旧，例如 `jobws track list --stage 一面`）。桌面应用不受影响（它直接调用领域函数，不走命令行）。
 

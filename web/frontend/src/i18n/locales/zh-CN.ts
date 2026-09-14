@@ -625,7 +625,7 @@ const zhCN = {
   "err.ws.empty": "`ws` 不允许为空（省略该参数即用默认工作区）",
   "err.ws.mustBeRelative": "workspace 必须是相对路径",
   "err.ws.outOfRange": "workspace 越出允许范围",
-  "err.ws.notFound": "工作区不存在：{{name}}（先运行 tools/init_workspace.py）",
+  "err.ws.notFound": "工作区不存在：{{name}}（先运行 tools/jobws.py init）",
   "err.path.illegalSegment": "非法路径片段：{{part}}",
   "err.path.escape": "路径越出工作区",
 

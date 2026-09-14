@@ -122,7 +122,7 @@ def resolve_workspace(name=None, must_exist=False):
             "工作区越出允许范围：%s（允许的根：%s）" % (path, "、".join(roots)))
     if must_exist and not os.path.isdir(real):
         raise WorkspaceError(
-            "工作区不存在：%s（可先用 `python tools/init_workspace.py --demo` "
+            "工作区不存在：%s（可先用 `python tools/jobws.py init --demo` "
             "生成一个）" % path)
     return real
 

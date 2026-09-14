@@ -2,7 +2,7 @@
 """工作区管理：列出可用的工作区。
 
 工作区判定标准：目录下含 `config/profile.md` 即为有效工作区
-（与 tools/jd_score.py 的 resolve_profile 判定一致，保持单一事实源）。
+（与 tools/jobws.py jd 的 resolve_profile 判定一致，保持单一事实源）。
 
 扫描范围：应用根（ROOT）+ 可写数据根（打包后可能在系统用户目录），
 两者都扫并去重——保证便携模式与回退模式下都能列出工作区。

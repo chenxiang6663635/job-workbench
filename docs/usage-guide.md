@@ -35,13 +35,13 @@ npm install
 ### Initialise your workspace (skip if you already have `personal/`)
 
 ```bash
-python tools/init_workspace.py --target personal --domain hvac-cooling
+python tools/jobws.py init --target personal --domain hvac-cooling
 ```
 
 If you just want to see what it looks like without filling in any real information, use `--demo`:
 
 ```bash
-python tools/init_workspace.py --target demo --demo
+python tools/jobws.py init --target demo --demo
 ```
 
 That also lays down a full set of placeholder data (8 applications / 3 interviews / 2 contacts / 1 offer / 2 parsed JD cards / 1 resume). Every company and person name is fake, so you can click around or take screenshots safely; the `software-backend` domain profile is installed by default because the demo data's "direction" field depends on it. Once it is running, pick `demo` from the workspace dropdown in the top-right corner.
@@ -242,7 +242,7 @@ After an interview, say "move XX to first round", or just use the dropdown in th
 Say "rebuild the resume PDF", or from the command line:
 
 ```bash
-python tools/resume_build.py --workspace personal --version hvac
+python tools/jobws.py resume --workspace personal --version hvac
 ```
 
 ---
@@ -253,33 +253,33 @@ Run every command from the repo root. `--workspace personal` can be omitted (it 
 
 ```bash
 # Tracker
-python tools/tracker.py list                        # every record
-python tools/tracker.py list --due-within 7         # due within 7 days
-python tools/tracker.py list --stage 笔试           # filter by stage
-python tools/tracker.py add --company "某公司" --role "岗位" --direction hvac --batch 正式批 ...
-python tools/tracker.py update --id A001 --stage 一面 --next "准备口述" --next-date 2026-09-10
-python tools/tracker.py history --id A001           # change timeline
-python tools/tracker.py import --file 待导入.csv --dry-run   # bulk CSV import (preview diff only)
-python tools/tracker.py import --file 待导入.csv             # write, once the preview is clean
-python tools/tracker.py interview add --app A001 --round 一面 --questions "..."   # interview record
-python tools/tracker.py contact add --name "张工" --app A001   # recruiter contact
-python tools/tracker.py offer add --company "某公司" --monthly "..."  # offer facts
-python tools/tracker.py check                       # schema self-check (quarantines broken files)
+python tools/jobws.py track list                        # every record
+python tools/jobws.py track list --due-within 7         # due within 7 days
+python tools/jobws.py track list --stage 笔试           # filter by stage
+python tools/jobws.py track add --company "某公司" --role "岗位" --direction hvac --batch 正式批 ...
+python tools/jobws.py track update --id A001 --stage 一面 --next "准备口述" --next-date 2026-09-10
+python tools/jobws.py track history --id A001           # change timeline
+python tools/jobws.py track import --file 待导入.csv --dry-run   # bulk CSV import (preview diff only)
+python tools/jobws.py track import --file 待导入.csv             # write, once the preview is clean
+python tools/jobws.py track interview add --app A001 --round 一面 --questions "..."   # interview record
+python tools/jobws.py track contact add --name "张工" --app A001   # recruiter contact
+python tools/jobws.py track offer add --company "某公司" --monthly "..."  # offer facts
+python tools/jobws.py track check                       # schema self-check (quarantines broken files)
 
 # Application funnel report (Markdown, incl. cycle review and failure clustering)
-python tools/report.py --stdout
+python tools/jobws.py report --stdout
 
 # Resume PDF + ATS check
-python tools/resume_build.py --workspace personal            # all versions
-python tools/resume_build.py --version hvac                  # one version
-python tools/resume_build.py render --workspace personal     # data-driven standard layout
+python tools/jobws.py resume --workspace personal            # all versions
+python tools/jobws.py resume --version hvac                  # one version
+python tools/jobws.py resume render --workspace personal     # data-driven standard layout
 
 # JD parsed-card score validation
-python tools/jd_score.py "personal/01_岗位池/<dir>/解析卡.md" --domain hvac-cooling --direction hvac
-python tools/jd_score.py --gap --resume hvac "personal/01_岗位池/<dir>/解析卡.md"   # JD↔resume gaps
+python tools/jobws.py jd "personal/01_岗位池/<dir>/解析卡.md" --domain hvac-cooling --direction hvac
+python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<dir>/解析卡.md"   # JD↔resume gaps
 ```
 
-> The stage names above (`笔试`, `一面`, …) are the actual values written into your data files, which is why they appear in Chinese. They are validated against a fixed list (`STAGES` in `tools/tracker.py`), so they cannot simply be renamed to English.
+> The stage names above (`笔试`, `一面`, …) are the actual values written into your data files, which is why they appear in Chinese. They are validated against a fixed list (`STAGES` in `tools/jobws.py track`), so they cannot simply be renamed to English.
 
 ---
 
@@ -338,7 +338,7 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 
 ### A job card in the UI has no score
 
-A score needs two things: the `解析卡.md` must exist **and** its four dimensions must add up to a consistent total (validated by the `jd_score` rules). If you hand-edited a parsed card and broke the format, the UI treats it as "not scored". Run `python tools/jd_score.py <path to parsed card>` to see exactly what does not add up.
+A score needs two things: the `解析卡.md` must exist **and** its four dimensions must add up to a consistent total (validated by the `jd_score` rules). If you hand-edited a parsed card and broke the format, the UI treats it as "not scored". Run `python tools/jobws.py jd <path to parsed card>` to see exactly what does not add up.
 
 ### CSV opens as gibberish in Excel
 
@@ -367,5 +367,5 @@ A `.ps1` containing Chinese must be saved as **UTF-8 with BOM**. Save it without
 |---|---|
 | Overall architecture (three-layer split, domain profiles) | `docs/specs/2026-08-30-general-workbench-design.md` |
 | Web layer design (API contracts, concurrency, security) | `docs/specs/2026-08-30-web-prototype-design.md` |
-| AI workflow definitions | The five SKILL.md files under `skills/` (distributed to your AI CLIs by `tools/install_skills.py`) |
+| AI workflow definitions | The five SKILL.md files under `skills/` (distributed to your AI CLIs by `tools/jobws.py skills install`) |
 | Documentation index | `docs/README.md` |

@@ -6,7 +6,7 @@
     ├── JD原文.md
     └── 解析卡.md
 
-解析卡的评分小节由 tools/jd_score.py 的解析函数读取——评分由 AI CLI
+解析卡的评分小节由 tools/jobws.py jd 的解析函数读取——评分由 AI CLI
 完成写入，Web 只做查看与展示，不做评分决策。
 """
 

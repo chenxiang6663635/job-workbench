@@ -6,25 +6,25 @@ compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作�
 
 # 投递追踪表查改与看板
 
-所有操作经由 `tools/tracker.py` 与 `tools/report.py`，**不要直接编辑 CSV**。
+所有操作经由 `tools/jobws.py track` 与 `tools/jobws.py report`，**不要直接编辑 CSV**。
 
 以下示例省略了 `--workspace`，默认使用 `personal/`。若用户的文件在其他目录，加上 `--workspace <目录>`。
 
 ## 常用操作
 
 ```
-python tools/tracker.py list                      # 全部
-python tools/tracker.py list --due-within 7       # 未来 7 天到期（最常用）
-python tools/tracker.py list --stage 笔试         # 按阶段
-python tools/tracker.py list --direction hvac     # 按方向
-python tools/tracker.py list --batch 提前批       # 按批次
-python tools/tracker.py list --company 华为       # 公司名模糊匹配
-python tools/tracker.py show --id A001
-python tools/tracker.py update --id A001 --stage 一面 --next "准备项目口述" --next-date 2026-09-10
-python tools/tracker.py import --file 待导入.csv               # CSV 批量导入（写入前先出差异预览）
-python tools/tracker.py import --file 待导入.csv --dry-run     # 只预览不写入
-python tools/report.py                            # 生成 05_投递追踪/看板.md
-python tools/report.py --stdout                   # 只打印不写文件
+python tools/jobws.py track list                      # 全部
+python tools/jobws.py track list --due-within 7       # 未来 7 天到期（最常用）
+python tools/jobws.py track list --stage 笔试         # 按阶段
+python tools/jobws.py track list --direction hvac     # 按方向
+python tools/jobws.py track list --batch 提前批       # 按批次
+python tools/jobws.py track list --company 华为       # 公司名模糊匹配
+python tools/jobws.py track show --id A001
+python tools/jobws.py track update --id A001 --stage 一面 --next "准备项目口述" --next-date 2026-09-10
+python tools/jobws.py track import --file 待导入.csv               # CSV 批量导入（写入前先出差异预览）
+python tools/jobws.py track import --file 待导入.csv --dry-run     # 只预览不写入
+python tools/jobws.py report                            # 生成 05_投递追踪/看板.md
+python tools/jobws.py report --stdout                   # 只打印不写文件
 ```
 
 看板第六节「周期复盘」含**失败原因聚类**：按 `<工作区>/config/failure_keywords.txt`
@@ -44,12 +44,12 @@ python tools/report.py --stdout                   # 只打印不写文件
 面试与岗位是一对多，存独立文件 `05_投递追踪/interviews.csv`（`面试id` 从 I001 起，`关联记录` 外键指回 tracker.csv），**不改主表结构**。记录面试会自动在主表时间线入账一条「面试」变更。
 
 ```
-python tools/tracker.py interview add --app A001 --round 一面 --when "2026-09-08 14:00" --form 视频 --interviewer 张工 --questions "..." --answers "..." --retro "..."
-python tools/tracker.py interview add --company 某内推公司 --role 热力仿真 --round 笔试   # 未投递的面试也可记录
-python tools/tracker.py interview list                    # 时间倒序
-python tools/tracker.py interview list --app A001         # 只看某岗位的面试
-python tools/tracker.py interview show --id I001
-python tools/tracker.py interview update --id I001 --result 通过 --retro "..."
+python tools/jobws.py track interview add --app A001 --round 一面 --when "2026-09-08 14:00" --form 视频 --interviewer 张工 --questions "..." --answers "..." --retro "..."
+python tools/jobws.py track interview add --company 某内推公司 --role 热力仿真 --round 笔试   # 未投递的面试也可记录
+python tools/jobws.py track interview list                    # 时间倒序
+python tools/jobws.py track interview list --app A001         # 只看某岗位的面试
+python tools/jobws.py track interview show --id I001
+python tools/jobws.py track interview update --id I001 --result 通过 --retro "..."
 ```
 
 - 轮次：笔试 / 一面 / 二面 / 三面 / HR面 / 终面 / 其他；形式：现场 / 视频 / 电话 / 其他；结果：待定 / 通过 / 未通过 / 取消
@@ -70,7 +70,7 @@ python tools/tracker.py interview update --id I001 --result 通过 --retro "..."
 
 ## 看板内容
 
-`tools/report.py` 输出六部分：投递漏斗（含占比条）、按方向统计、按批次统计、近 7 天待办、已过截止日提醒、周期复盘（转化率 / 停留 / 失败归因与聚类）。
+`tools/jobws.py report` 输出六部分：投递漏斗（含占比条）、按方向统计、按批次统计、近 7 天待办、已过截止日提醒、周期复盘（转化率 / 停留 / 失败归因与聚类）。
 
 ## 输出要求
 

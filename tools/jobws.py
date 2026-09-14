@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """求职工作台的**唯一**命令行入口。
 
-为什么合并：`tools/` 下曾有 8 个各自可执行的脚本，文档、CI、技能资产里散着
+为什么合并：`tools/` 下曾有 10 个各自可执行的脚本，文档、CI、技能资产里散着
 几十处 `python tools/xxx.py`；一个入口之后，用户只需记住 `jobws`，迁移对照表
 见 CHANGELOG 与 Release 说明。
 
@@ -13,6 +13,14 @@
 - 后端 `web/backend/` 与 MCP 包照旧 import 这些模块，领域层没动；
 - 本批不把 argparse 搬进 jobws——那是「抽领域层」的下一刀，混进这次破坏性
   变更会让 diff 大到没人审得动。
+
+**两条纪律（新增命令时必须守住）**：
+
+1. **选项一律跟在命令之后**。`jobws --workspace X track` 这种写法里，`X` 会被
+   当成子命令名而报 invalid choice；写成 `jobws track --workspace X` 才对。
+2. **被分发的模块不得在顶层 import 三方库**。`jobws lint pr-title` 跑在
+   `pr-title.yml` 这个**不装任何依赖**的 job 上，顶层 import 一旦引入三方库，
+   那条分支保护检查会当场挂掉。
 
 用法：
 
@@ -33,8 +41,10 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+import check_i18n_hardcode  # noqa: E402
 import check_pr_title  # noqa: E402
 import check_skills  # noqa: E402
+import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jd_score  # noqa: E402
@@ -51,7 +61,7 @@ TARGETS = [
     ("jd", jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
-    ("lint", None, "检查器（pr-title 校验 PR 标题规范）"),
+    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token）"),
 ]
 
 # (顶层命令, 子命令) -> 模块
@@ -59,9 +69,14 @@ SUB_TARGETS = {
     ("skills", "install"): install_skills,
     ("skills", "check"): check_skills,
     ("lint", "pr-title"): check_pr_title,
+    ("lint", "i18n"): check_i18n_hardcode,
+    ("lint", "ui-tokens"): check_ui_tokens,
 }
 
-SUB_CHOICES = {"skills": ["install", "check"], "lint": ["pr-title"]}
+SUB_CHOICES = {"skills": ["install", "check"],
+               "lint": ["pr-title", "i18n", "ui-tokens"]}
+
+HELP_FLAGS = ("-h", "--help")
 
 
 def build_parser():
@@ -77,7 +92,10 @@ def build_parser():
         # 打印的是 jobws 自己的说明，用户看不到 track 的 10 个子命令。
         sub = subs.add_parser(name, help=help_text, add_help=False)
         if module is None:
-            sub.add_argument("sub", metavar="<子命令>",
+            # nargs="?"：子命令留空时由 main 自己报「缺子命令」并给出可选值。
+            # 写成必需的话，`jobws skills --help` 会被 argparse 的缺参错误抢先，
+            # 用户反而看不到这一组有哪些子命令。
+            sub.add_argument("sub", metavar="<子命令>", nargs="?",
                              help="可选：%s" % " / ".join(SUB_CHOICES[name]))
     return parser
 
@@ -85,7 +103,7 @@ def build_parser():
 def _dispatch(module, rest):
     """把参数交给模块的 main：参数名与退出码语义由各模块自己负责。
 
-    改 sys.argv 而不是传参：8 个模块里只有 check_pr_title 的 main 显式接受
+    改 sys.argv 而不是传参：被分发的模块里只有 check_pr_title 的 main 显式接受
     argv，其余都从 sys.argv 解析——统一改 sys.argv 对两边都成立，也不必去
     改它们的签名。
     """
@@ -95,6 +113,15 @@ def _dispatch(module, rest):
         return module.main()
     finally:
         sys.argv = saved
+
+
+def _exit_code(exc):
+    """SystemExit 归一化：None 视为 0，非整数一律 1（`sys.exit("文案")` 就是 1）。"""
+    if exc.code is None:
+        return 0
+    if isinstance(exc.code, int):
+        return exc.code
+    return 1
 
 
 def main(argv=None):
@@ -123,7 +150,14 @@ def main(argv=None):
                 module = mod
                 break
         if module is None:
-            print("命令缺少子命令：%s" % args.group)
+            # `jobws skills --help` 这种：sub 缺位，但用户只是想看有哪些子命令
+            choices = SUB_CHOICES.get(args.group, [])
+            if rest and all(item in HELP_FLAGS for item in rest):
+                print("用法：jobws %s <%s>" % (args.group, " / ".join(choices)))
+                for choice in choices:
+                    print("    jobws %s %s" % (args.group, choice))
+                return 0
+            print("命令缺少子命令：%s（可选：%s）" % (args.group, " / ".join(choices)))
             return 2
 
     try:
@@ -131,7 +165,7 @@ def main(argv=None):
     except SystemExit as exc:
         # argparse 的 --help(0) 与用法错误(2) 都走这里：必须原样透出，
         # 否则 `jobws track --help` 会被误报成失败
-        return 0 if exc.code is None else exc.code
+        return _exit_code(exc)
     return 0 if code is None else code
 
 

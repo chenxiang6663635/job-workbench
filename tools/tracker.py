@@ -1651,7 +1651,7 @@ def main():
     WORKSPACE = os.path.abspath(args.workspace)
     if not os.path.isdir(WORKSPACE):
         print("错误：工作区不存在 %s" % WORKSPACE)
-        print("先运行 python tools/init_workspace.py 初始化。")
+        print("先运行 python tools/jobws.py init 初始化。")
         return 1
 
     if not args.cmd:

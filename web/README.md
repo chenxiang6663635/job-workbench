@@ -45,7 +45,7 @@ npm run dev
 Web 只是同一份文件的另一个视图：
 
 - 数据都在 `personal/` 下，Web 不复制、不缓存
-- 在网页新增投递 → `python tools/tracker.py --workspace personal list` 能查到
+- 在网页新增投递 → `python tools/jobws.py track --workspace personal list` 能查到
 - 用 CLI 或 AI 生成的解析卡 → 岗位池详情页自动展示四维度评分与档位
 - 所有改动都能被 `git diff` 追踪
 

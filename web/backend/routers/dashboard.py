@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """看板统计。
 
-复用 tools/report.py 的 count_by / parse_date（纯统计函数，无副作用）。
+复用 tools/jobws.py report 的 count_by / parse_date（纯统计函数，无副作用）。
 upcoming/overdue 的判定逻辑此处直接实现——report.build_report 里它与
 Markdown 拼装耦合，本期不做提取重构（留作后续改进）。
 """

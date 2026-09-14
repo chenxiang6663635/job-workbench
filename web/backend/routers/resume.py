@@ -6,7 +6,7 @@
 - 高级模板：手写 HTML 精排版的文件浏览（只读）与生成——原在素材库，
   现迁入此处；编辑仍走手写 HTML / CLI，Web 不提供编辑。
 
-复用 tools/resume_build.py 的 render_block / build_pdf / verify_pdf，
+复用 tools/jobws.py resume 的 render_block / build_pdf / verify_pdf，
 此处只做 HTTP 编排与文件锁，不重写渲染与校验逻辑。
 """
 

@@ -42,6 +42,27 @@ jobs:
       - name: 校验界面 token 一致性
         run: python tools/check_ui_tokens.py
 
+  mcp:
+    name: MCP 包（3.12）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # 与主干的 3.8 job **必须分开跑**：MCP SDK 要求 pydantic>=2.12 且
+      # Python>=3.10，而主干后端为兼容 3.8 把 pydantic 钉在 2.10 以下——
+      # 两个依赖集互斥，装进同一个环境必然一边崩（MCP 路线形态 A）。
+      - name: 安装 MCP 包
+        run: pip install -e "./mcp[dev]"
+
+      - name: 运行 MCP 测试
+        run: python -m pytest mcp/tests -q
+
   frontend:
     name: 前端构建（lint + tsc + vite）
     runs-on: ubuntu-latest

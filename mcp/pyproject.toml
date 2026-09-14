@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobws-mcp"
+version = "0.1.0"
+description = "求职工作台的只读 MCP 服务（本地优先：只读写本机工作区，不出网）"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+# 只依赖官方 SDK。主干后端为兼容 Python 3.8 把 pydantic 钉在 2.10 以下，
+# 而 MCP SDK 要求 pydantic>=2.12 —— 两个依赖集互斥，所以这个包自成环境，
+# 不进 web/backend/requirements.txt（MCP 路线形态 A，见 plans 的路线决策）。
+dependencies = ["mcp>=2.0,<3"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+jobws-mcp = "jobws_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["jobws_mcp*"]

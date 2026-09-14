@@ -181,6 +181,29 @@ def test_save_still_allows_an_empty_host(tmp_path, client):
     assert _save(client, host="").status_code == 200
 
 
+def test_save_rejects_a_full_width_colon(tmp_path, client):
+    """全角冒号也是 host:port 连写（独立审查 MINOR-1）。
+
+    中文输入法下 `imap.qq.com：993` 是一敲就出来的形态。ASCII 判定看不住它，
+    结果就退回到本批要消灭的那件事：连接期一句"连不上 993 端口"，看不出原因。
+    """
+    res = _save(client, host="imap.qq.com：993")
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "imap.hostPortInline"
+
+
+def test_save_rejects_full_width_slash_and_space(tmp_path, client):
+    """全角斜杠 / 全角空格同理——按 NFKC 归一化后再判定形状。"""
+    assert _save(client, host="imap.qq.com／path").json()["error_code"] == "imap.hostMalformed"
+    assert _save(client, host="imap　qq.com").json()["error_code"] == "imap.hostMalformed"
+
+
+def test_save_accepts_an_ipv6_zone_id(tmp_path, client):
+    """带作用域标识的 link-local 地址是合法 IPv6（独立审查 MINOR-3）：
+    不能因为含 `%`/冒号就被判成 host:port。"""
+    assert _save(client, host="fe80::1%eth0").status_code == 200
+
+
 def test_fetch_rejects_a_stored_host_with_a_scheme(tmp_path, client, monkeypatch):
     """老配置里已经存了坏值：使用时也要拦住，且**不发起连接**。"""
     path = _config_path(tmp_path)

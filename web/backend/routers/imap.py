@@ -22,6 +22,7 @@ import io
 import json
 import os
 import socket
+import unicodedata
 
 from typing import Optional
 
@@ -96,8 +97,14 @@ MAX_HOST_LEN = 253
 
 
 def _is_ipv6_literal(host):
-    """是不是 IPv6 字面量（`[::1]` 或 `::1`）——含冒号但**不是** host:port。"""
+    """是不是 IPv6 字面量——含冒号但**不是** host:port。
+
+    认三种写法：`[::1]`、裸 `::1`，以及带作用域标识的 `fe80::1%eth0`
+    （`inet_pton` 不认 `%eth0`，剥掉再判——否则合法地址会被误报成
+    "端口请填另一栏"）。
+    """
     candidate = host[1:-1] if host.startswith("[") and host.endswith("]") else host
+    candidate = candidate.split("%", 1)[0]
     try:
         socket.inet_pton(socket.AF_INET6, candidate)
         return True
@@ -116,23 +123,28 @@ def _check_host_shape(host):
     分三个 code 而不是一个通用 code：三种形状问题的**出路不一样**（去掉协议头 /
     端口填另一栏 / 只填主机名），合成一句话等于把可操作的指引磨成一句废话，
     英文界面也只能渲染成同一段含糊文案。
+
+    形状判定先做 **NFKC 归一化**：中文输入法下 `imap.qq.com：993`（全角冒号）
+    是一敲就出来的形态，ASCII 判定看不住它，结果就退回到"连接期一句连不上"。
+    归一化**只用于判定**，落盘与响应里仍是用户输入的原值。
     """
-    if len(host) > MAX_HOST_LEN:
+    probe = unicodedata.normalize("NFKC", host)
+    if len(probe) > MAX_HOST_LEN:
         raise ApiError(422, "imap.hostTooLong",
                        "服务器地址过长（%d 字符，上限 %d）：只填主机名，不要带路径"
-                       % (len(host), MAX_HOST_LEN),
-                       length=len(host))
-    if "://" in host:
+                       % (len(probe), MAX_HOST_LEN),
+                       length=len(probe))
+    if "://" in probe:
         raise ApiError(422, "imap.hostMalformed",
                        "服务器地址不要带协议头：去掉 http:// 或 https://，"
                        "只填主机名（如 imap.qq.com）")
-    if "/" in host:
+    if "/" in probe:
         raise ApiError(422, "imap.hostMalformed",
                        "服务器地址不能含斜杠：只填主机名，路径不要写进来")
-    if any(ch.isspace() for ch in host):
+    if any(ch.isspace() for ch in probe):
         raise ApiError(422, "imap.hostMalformed",
                        "服务器地址不能含空格：请检查是否多粘了一段")
-    if ":" in host and not _is_ipv6_literal(host):
+    if ":" in probe and not _is_ipv6_literal(probe):
         raise ApiError(422, "imap.hostPortInline",
                        "端口请填在「端口」栏：地址里不要写成 host:port"
                        "（例如 imap.qq.com:993 应拆成两栏）")

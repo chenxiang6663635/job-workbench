@@ -32,6 +32,8 @@
 
 ### Infrastructure（贡献者可见）
 
+- **文档截图改双语两套（共 14 张）**：英文放 `docs/screenshots/`、中文放 `docs/screenshots/zh-CN/`，`README.md` 引英文那套、`README.zh-CN.md` 引中文那套——英文读者不会在主要材料里看到中文界面，中文读者也不用对着英文界面猜。（此前两个 README 共用同一批图，双语之后必然有一方看到的是另一种语言的界面。）图为 `init_workspace.py --demo` 生成的 demo 工作区（合成数据），**本机用户名已遮挡**（设置页快照目录显示为 `C:\Users\<用户名>\…`）。
+
 - 新增 **UI 冒烟** CI job（布局 + a11y，约 40 秒）：CONTRIBUTING 的「不做 Playwright E2E」细化为「不做全量 E2E」，只保留这一个最小冒烟，并写明边界与理由。
 - 新增 **界面 token 一致性扫描器**（`tools/check_ui_tokens.py`）：旧调色板类名、去 token 化的 white/black 透明度、颜色任意值、原生 select 补丁全部机检；顺带把 21 处写死的 `ring-white/5` 等收敛为 `--highlight` / `--scrim` 两个语义 token（**为浅色主题扫清了一类写死色**；浅色主题本身仍未实现，不是本批交付）。
 - **安全策略与依赖更新**：新增 `SECURITY.md`（威胁模型 + 私密报告通道，仓库已开启 Private vulnerability reporting）与 Dependabot 配置（四生态月频 + 分组）；分支保护增加「合并前必须解决所有讨论」。

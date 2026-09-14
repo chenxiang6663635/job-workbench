@@ -1,7 +1,7 @@
 ---
 name: jwb-resume
 description: Use when 用户改完简历内容后需要重新生成 PDF、校验简历页数与文本层、排查 ATS 抓取问题，或要更换简历照片时。English triggers: rebuild resume PDF, verify resume page count, ATS text layer, resume parsing, change resume photo.
-compatibility: Python 3.8+；命令中的 jobws 指仓库内的 python tools/jobws.py，需在仓库根运行、工作区已初始化；全本地运行，不上传工作区数据。
+compatibility: Python 3.8+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 重建简历 PDF 并校验
@@ -58,7 +58,7 @@ jobws resume render --version hvac --no-verify
 
 ## AI 改写的反编造护栏
 
-Web 端「简历工坊 → AI 改写」生成建议时，反编造条款（`web/backend/resume_guard.py` 的 `GUARDRAIL_CLAUSE`）由测试锁死——**删句即 `tests/test_prompt_guardrails.py` 失败**。任何改写能力（CLI 或 Web）必须遵守同样的条款：
+Web 端「简历工坊 → AI 改写」生成建议时，反编造条款（简历护栏里的 `GUARDRAIL_CLAUSE`）由仓库测试锁死——**删句即测试失败**。任何改写能力（CLI 或 Web）必须遵守同样的条款：
 
 1. 只改写既有事实的表述，**不新增任何事实**；
 2. 不新增原文没有的数字、百分比、金额、规模、时长；

@@ -15,11 +15,12 @@
      最该拦住的一条：apply / jd / resume / track / recruit-coach 全是高概率
      通用名，装到用户级目录时等于拿通用词跟别人抢位置。
   5. `compatibility` 必填——环境声明，让宿主能判断能否挂载。
-  6. **正文不得引用仓库相对路径**（`tools/...`）——技能会被 `install_skills`
-     分发到宿主的技能目录，那时的工作目录是**用户自己的工作区**、不在这个仓库里：
-     正文里写 `tools/jobws.py` 只会把宿主引到一条不存在的路径上。命令名就写
-     `jobws`，"它在仓库里的哪个位置"写进 frontmatter 的 `compatibility`
-     （该字段不参与本检查——那里正是说明路径的地方）。
+  6. **正文不得引用仓库相对路径**（`tools/`、`web/`、`template/`、`skills/`、
+     `tests/` 这些顶层目录）——技能会被 `install_skills` 分发到宿主的技能目录，
+     那时的工作目录是**用户自己的工作区**、不在这个仓库里：正文里写
+     `tools/jobws.py` 只会把宿主引到一条不存在的路径上。命令名就写 `jobws`，
+     "它在仓库里的哪个位置"写进 frontmatter 的 `compatibility`（该字段不参与本
+     检查——那里正是说明路径的地方）。
      （阶段 B 之前这条被**刻意**推迟：当时正文里有 21 处 `tools/` 引用，启用即
      CI 红、而红着不能合并。`jobws` 统一入口落地、引用全部改完后于 2026-09-14 启用。）
 
@@ -44,6 +45,12 @@ REQUIRED = ["name", "description", "compatibility"]
 # 注意：下面的「name 唯一」只能保证仓库内不重名，兑现不了「不撞车」——
 # 真正兑现它的是这条前缀规则。独立审查指出原实现漏了它，故补上。
 NAME_RE = re.compile(r"^jwb-[a-z0-9]+(-[a-z0-9]+)*$")
+
+# 正文里禁止出现的仓库顶层目录（校验项第 6 条）。技能分发到宿主后，工作目录是
+# 用户自己的工作区，这些前缀在那里都不存在。新增顶层目录时记得加进来——漏了
+# 不会报错，只会让技能把宿主引到死路径上（独立审查 MINOR-2/3/4 的由来：
+# 最初只禁了 `tools/`，漏掉 web/、template/、skills/ 这些同类）。
+REPO_PATH_PREFIXES = ("tools/", "web/", "template/", "skills/", "tests/")
 
 # 改名前的旧目录名。分发脚本清理残留时**只认这五个**，而不是
 # 「凡不在源码里的目录都删」——后者会把用户自己装的第三方技能一并删掉。
@@ -122,16 +129,18 @@ def inspect_skills(skills_root):
             continue
 
         # 正文里的仓库相对路径（校验项第 6 条）：技能分发到宿主后，工作目录是
-        # 用户自己的工作区，`tools/...` 在那里不存在。只报第一处——修完再跑一次
+        # 用户自己的工作区，这些路径在那里都不存在。只报第一处——修完再跑一次
         # 就知道后面还有没有；一次列一串反而没人看。
         body_lines = text.splitlines()[frontmatter_end + 1:]
         for offset, line in enumerate(body_lines):
-            if "tools/" in line:
+            hit = next((prefix for prefix in REPO_PATH_PREFIXES if prefix in line), None)
+            if hit:
                 item["problems"].append(
-                    "正文第 %d 行引用了仓库相对路径：%s——技能会被分发到宿主，"
-                    "那时的工作目录是用户自己的工作区，`tools/...` 不存在；"
-                    "命令名写 `jobws`，路径说明放 frontmatter 的 compatibility"
-                    % (frontmatter_end + 2 + offset, line.strip()))
+                    "第 %d 行（文件行号，含 frontmatter）引用了仓库相对路径 `%s…`："
+                    "%s——技能会被分发到宿主，那时的工作目录是用户自己的工作区，"
+                    "仓库路径在那里不存在；命令名写 `jobws`，路径说明放 frontmatter "
+                    "的 compatibility"
+                    % (frontmatter_end + 2 + offset, hit, line.strip()))
                 break
 
         name = fields.get("name")

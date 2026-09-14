@@ -68,7 +68,7 @@ def test_body_referencing_repo_path_is_reported(tmp_path):
 
     assert any("仓库相对路径" in p for p in problems), problems
     # 行号要准：GOOD 的正文第 4 行（文件第 9 行）就是那处引用
-    assert any("正文第 9 行" in p for p in problems), problems
+    assert any("第 9 行" in p for p in problems), problems
 
 
 def test_body_may_use_bare_jobws_command(tmp_path):
@@ -78,6 +78,22 @@ def test_body_may_use_bare_jobws_command(tmp_path):
     _make(tmp_path, "jwb-demo", body=body)
 
     assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_body_references_to_other_repo_dirs_are_reported(tmp_path):
+    """仓库顶层目录不止 `tools/` 一个：web/、template/、skills/、tests/ 同样会被拦。
+
+    独立审查指出最初只禁 `tools/` 是漏的——那些路径分发到宿主后一样是死的。
+    """
+    for index, path in enumerate(("skills/jwb-x/SKILL.md", "web/backend/demo.py",
+                                  "template/profiles/x/lexicon.md", "tests/test_x.py")):
+        dirname = "jwb-demo%d" % index
+        body = GOOD.format(name=dirname).replace(
+            "# 标题", "# 标题\n\n见 `%s`。" % path)
+        _make(tmp_path, dirname, body=body)
+
+        problems = inspect_skills(str(tmp_path))[0]["problems"]
+        assert any("仓库相对路径" in p for p in problems), (path, problems)
 
 
 def test_result_shape_is_stable(tmp_path):

@@ -1,12 +1,12 @@
 ---
 name: jwb-jd
 description: Use when 用户粘贴或提供岗位 JD、招聘信息、职位描述，要求判断是否值得投递、评估岗位匹配度、给岗位打分或比较多个 offer 方向时。English triggers: job description, paste a JD, is this job worth applying for, evaluate job fit, score a position, compare offer directions.
-compatibility: Python 3.8+；命令中的 jobws 指仓库内的 python tools/jobws.py，需在仓库根运行、工作区已初始化；全本地运行，不上传工作区数据。
+compatibility: Python 3.8+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 解析 JD 并判定是否值得投递
 
-**执行前必读**：工作区的 `AGENTS.md`（档案、硬门槛事实、自定义红线）与 `skills/jwb-recruit-coach/SKILL.md`（评分标准）。不读这两份不得开始评分。
+**执行前必读**：工作区的 `AGENTS.md`（档案、硬门槛事实、自定义红线）与 `jwb-recruit-coach` 技能（评分标准）。不读这两处不得开始评分。
 
 ## 流程
 
@@ -37,7 +37,7 @@ compatibility: Python 3.8+；命令中的 jobws 指仓库内的 python tools/job
 
 ### 3. 确认领域与方向
 
-词典在 `template/profiles/<domain-id>/lexicon.md`，方向锚点在 `directions/<direction-id>.md`。
+词典在领域插件目录（`profiles/<domain-id>/lexicon.md`），方向锚点在 `directions/<direction-id>.md`。
 
 不确定时可先查：
 

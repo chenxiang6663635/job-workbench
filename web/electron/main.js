@@ -446,7 +446,11 @@ function setupAutoUpdate() {
         if (response !== 0) return;
         log("User chose to restart and install");
         stopBackend();
-        autoUpdater.quitAndInstall();
+        // 必须静默装（isSilent=true）：安装器已改为向导式（#82），不带这个参数的话
+        // 更新会弹出安装向导，把「无感升级」变成「再走一遍安装流程」——而向导里的
+        // 默认目录未必等于当前安装目录，用户随手改路径就会产生第二份安装。
+        // isForceRunAfter=true：装完自动把应用重新拉起来。
+        autoUpdater.quitAndInstall(true, true);
       });
   });
 

@@ -70,6 +70,13 @@ python tools/jobws.py skills install --target user
 #    文件里还有两条通用诚实红线：简历动词经得起追问、永不编造经历
 ```
 
+**用 CodeBuddy？** 同一套技能也打包为 CodeBuddy 插件——把本仓库加为插件市场并安装即可（插件直接读 `skills/`，没有第二份副本）：
+
+```
+/plugin marketplace add https://github.com/chenxiang6663635/job-workbench
+/plugin install job-workbench
+```
+
 然后直接用自然语言跟你的 AI CLI 说："解析这份 JD"、"投递这个岗位"、"看最近七天要处理什么"。
 
 环境要求——命令行：Python 3.8+（只用标准库）；pypdf 仅 PDF 校验需要；certifi 提供出网证书兜底（系统证书库不可用时回退到随包 CA 清单，HTTPS / IMAP 共用）。PDF 生成：Chrome 或 Edge。Web 界面（可选）见 [`web/README.md`](web/README.md)。
@@ -94,6 +101,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | `personal/` | 使用者的真实工作区（**已整体 gitignore，仓库内不含任何真实数据**） |
 | `docs/` | 使用手册、文档索引、设计文档（`docs/specs/`） |
 | `.github/` | CI 工作流、issue / PR 模板、行为准则、Copilot 指引 |
+| `.codebuddy-plugin/` | CodeBuddy 插件清单——把同一份 `skills/` 交给插件系统，不另存副本 |
 
 ## 文档
 

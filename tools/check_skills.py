@@ -23,6 +23,9 @@
      检查——那里正是说明路径的地方）。
      （阶段 B 之前这条被**刻意**推迟：当时正文里有 21 处 `tools/` 引用，启用即
      CI 红、而红着不能合并。`jobws` 统一入口落地、引用全部改完后于 2026-09-14 启用。）
+  7. `description` 不含半角冒号+空格（`: `）——严格 YAML 宿主（Codex 实测）会因
+     「mapping values are not allowed in this context」拒绝**整个技能**；本仓库
+     自己的解析器用 partition 切分、对冒号宽容，所以只有这条校验能拦住。
 
 用法（入口已统一，见 tools/jobws.py）：
     python tools/jobws.py skills check                 # 校验仓库 skills/
@@ -169,6 +172,14 @@ def inspect_skills(skills_root):
         elif desc and len(desc) > DESC_MAX:
             item["problems"].append(
                 "description 过长（%d 字符，上限 %d）" % (len(desc), DESC_MAX))
+        elif desc and ": " in desc:
+            # 半角冒号+空格在严格 YAML 宿主下是语法错误：Codex 实测会拒绝整个技能
+            # （2026-09-14：全部 5 个技能在 .codex/ 与 ~/.agents/ 下加载失败，报
+            # 「mapping values are not allowed in this context」——只因为 description
+            # 里写了 `English triggers: …`）。本解析器对冒号宽容，所以只能在这里拦。
+            item["problems"].append(
+                "description 含 `: `（半角冒号+空格）：严格 YAML 宿主（如 Codex）"
+                "会因此拒绝加载整个技能；改用全角冒号 `：` 或改写表述")
 
         results.append(item)
 

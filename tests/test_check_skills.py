@@ -16,7 +16,7 @@ from check_skills import describe, inspect_skills  # noqa: E402
 
 GOOD = """---
 name: {name}
-description: Use when 用户要做某件事时。English triggers: do a thing.
+description: Use when 用户要做某件事时。English triggers：do a thing.
 compatibility: Python 3.8+；需仓库内 tools/ 脚本。
 ---
 
@@ -198,6 +198,20 @@ def test_block_scalar_description_is_rejected(tmp_path):
         "---\nname: jwb-x\ndescription: |\n  这里可以写八百字\ncompatibility: ok\n---\n"))
     item = inspect_skills(str(tmp_path))[0]
     assert any("块标量" in p for p in item["problems"])
+
+
+def test_yaml_unsafe_colon_in_description_is_rejected(tmp_path):
+    """description 里半角冒号+空格：严格 YAML 宿主拒绝整个技能（Codex 实测）。
+
+    本仓库自己的解析器用 partition 切分、对冒号宽容——所以「本地全绿、Codex
+    全红」正是这条要堵的盲区（2026-09-14：`English triggers: …` 让 5 个技能
+    在三处镜像目录全部加载失败）。
+    """
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: Use when 做事。English triggers: do it.\n"
+        "compatibility: ok\n---\n"))
+    item = inspect_skills(str(tmp_path))[0]
+    assert any("半角冒号" in p for p in item["problems"])
 
 
 def test_repo_skills_are_compliant():

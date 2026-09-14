@@ -49,10 +49,155 @@ SRC_REL = os.path.join("web", "frontend", "src")
 # 键以 `electron\` 前缀进同一份清单，与前端两棵树不串味。
 ELECTRON_REL = os.path.join("web", "electron")
 ELECTRON_KEY_PREFIX = "electron"
-SKIP_DIRS = (os.path.join("i18n", "locales"), os.path.join("i18n", "index.ts"))
+SKIP_DIRS = (os.path.join("i18n", "locales"), os.path.join("i18n", "index.ts"),
+             # 主进程的语言包（两棵源码树各自的语言包都是"译文的家"）
+             os.path.join(ELECTRON_KEY_PREFIX, "i18n.js"))
 SKIP_DIR_NAMES = ("node_modules", "release")  # release = 本地打包产物（含旧文案）；对两棵源码树都生效
 ALLOWLIST_REL = os.path.join("tools", "i18n_hardcode_allowlist.txt")
 CJK = re.compile(u"[\u4e00-\u9fff]")
+
+# ---- 第二类：硬编码英文（中文界面下的英文残留）----
+#
+# 方向与中文那类**相反**：中文检查防的是"英文界面里冒中文"，它只看 CJK，于是
+# "中文界面里冒英文"是它的结构性盲区（设置页卡片标题 Provider、Electron 的窗口
+# 初始标题与两个更新对话框，2026-09-13 实测确认），tsc / eslint / UI 冒烟同样
+# 看不见。范围从紧起步，理由见 CONTRIBUTING：
+#   目录：web/frontend/src/pages/** 与 web/electron/**
+#   形状：JSX 裸文本、少数文案属性（title / aria-label / alt / placeholder）、
+#         Electron 的对话框文案键（title / message / detail）
+#   豁免：同一份清单的 `en:` 段（片段级 + 理由）
+# 刻意不做：不扫整棵组件树、不按"有大写字母"猜品牌名、不查注释——检查一旦吵起来
+# 就会被绕过，宁可窄。
+# 起步范围：前端只扫 pages/**（组件树先不动），Electron 扫整棵（它只有几个文件）。
+# 主进程语言包 `web/electron/i18n.js` 由 SKIP_DIRS 按路径豁免——那里是字面量的家。
+EN_SCOPE_RELS = (os.path.join("web", "frontend", "src", "pages"), ELECTRON_REL)
+EN_ALLOWLIST_PREFIX = "en:"
+# 至少 3 个连续字母才算"一句英文"：`a` / `OK` / `ID` 这类不算文案
+EN_WORD = re.compile(r"[A-Za-z]{3,}")
+# 同行 JSX 裸文本：`>Text<`
+EN_JSX_INLINE = re.compile(r">\s*([A-Za-z][^<>{}]*[A-Za-z0-9'’.!?])\s*<")
+# 行尾裸文本：`<Icon /> Provider`（`/>` 之后没跟着尖括号，文案就在这一行结尾）
+EN_JSX_TAIL = re.compile(r"(?:/>|>)\s*([A-Za-z][^<>{}]*?)\s*$")
+# 文案属性：只有写成字面量的才命中（`title={t("…")}` 不是命中）
+EN_TEXT_ATTR = re.compile(r"""\b(title|aria-label|alt|placeholder)\s*=\s*"([^"]*)\"""")
+# Electron 窗口/对话框的文案键（可另起一行，也可跟在 `{` / `,` 之后）
+EN_COPY_KEY = re.compile(r"""(?:^|[{,]\s*)(title|message|detail)\s*:\s*"([^"]*)\"""")
+
+
+def _strip_trailing_tag(text):
+    """去掉行尾的 `</Tag>`，留下裸文本本体。"""
+    return re.sub(r"</[A-Za-z][^>]*>\s*$", "", text).strip()
+
+
+def find_hardcoded_english(text):
+    """返回 [(行号, 片段, 种类)]，种类两种：
+
+        jsx-text    JSX 裸文本里的英文（`<span>Provider</span>` / `/> Provider`）
+        text-attr   文案属性或 Electron 文案键里的英文字面量
+
+    两种都**可能是正当的数据**（文件名、品牌名、示例值），所以都可按片段豁免——
+    与中文检查"裸文本永不放行"不同：那里裸文本必然是写给人看的中文，而这里
+    `<code>config/failure_keywords.txt</code>` 这种确实该保持原样。代价是豁免
+    必须写清理由，且只放行登记过的那一条片段。
+    """
+    hits = []
+    lines = text.splitlines()
+    in_block = False
+    prev_plain = ""
+    for lineno, line in enumerate(lines, 1):
+        was_in_block = in_block
+        _strings, plain, in_block = _scan_line(line, in_block)
+        # 1) 同行裸文本
+        for m in EN_JSX_INLINE.finditer(plain):
+            snippet = m.group(1).strip()
+            if EN_WORD.search(snippet):
+                hits.append((lineno, snippet, "jsx-text"))
+        # 1b) 行尾裸文本：`<Icon /> Provider`（要求本行前面真的出现过 `<`，
+        #     否则 `a > bcd` 这种比较表达式会被误报）
+        for m in EN_JSX_TAIL.finditer(plain):
+            if "<" not in plain[:m.start()]:
+                continue
+            snippet = m.group(1).strip()
+            if EN_WORD.search(snippet):
+                hits.append((lineno, snippet, "jsx-text"))
+        # 2) 跨行裸文本：上一行以 `>` 收尾、本行是纯文本（可带收尾标签）
+        #    `=>` / `->` / `>=` 的收尾不是标签：链式调用与 JSX 事件处理器的
+        #    续行都会被它们带进来（首次在仓库试跑时抓到的两处误报就是这么来的）
+        prev_tail = prev_plain.rstrip()
+        prev_closes_tag = (prev_tail.endswith(">")
+                           and not prev_tail.endswith(("=>", "->", ">=", "<=")))
+        stripped = _strip_trailing_tag(plain.strip())
+        if (prev_closes_tag and stripped
+                and not stripped.startswith(("<", "{", "}", ")"))
+                and not re.search(r"[<>{}]", stripped) and EN_WORD.search(stripped)):
+            hits.append((lineno, stripped, "jsx-text"))
+        # 3) / 4) 字面量型文案（注释里的不算：块注释整行跳过，行注释只看 `//` 之前）
+        if not was_in_block:
+            cut = line.find("//")
+            for m in list(EN_TEXT_ATTR.finditer(line)) + list(EN_COPY_KEY.finditer(line)):
+                if cut >= 0 and m.start() > cut:
+                    continue
+                value = m.group(2).strip()
+                if EN_WORD.search(value):
+                    hits.append((lineno, value, "text-attr"))
+        prev_plain = plain
+    return hits
+
+
+def check_english(root):
+    """硬编码英文检查。返回 (未豁免命中, 已豁免命中, 清单错误)。
+
+    清单键与中文那套**写法一致**：前端命中是相对 `web/frontend/src` 的路径
+    （如 `pages/Settings.tsx`），Electron 命中带 `electron/` 前缀（如
+    `electron/main.js`）。两套豁免读同一份清单文件，键的写法必须一样——
+    否则"照着上一行抄"写出来的条目永远对不上，只会变成一条僵尸。
+    """
+    table, errors = load_allowlist(root, prefix=EN_ALLOWLIST_PREFIX)
+    seen = {}
+    unallowed, ok_hits = [], []
+    # (被遍历的目录, 清单键的基准目录, 键前缀)
+    targets = (
+        (os.path.join(root, SRC_REL, "pages"), os.path.join(root, SRC_REL), ""),
+        (os.path.join(root, ELECTRON_REL), os.path.join(root, ELECTRON_REL),
+         ELECTRON_KEY_PREFIX),
+    )
+
+    for base, key_base, prefix in targets:
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIR_NAMES]
+            for name in sorted(filenames):
+                if not name.endswith((".tsx", ".ts", ".js")):
+                    continue
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, key_base)
+                if prefix:
+                    rel = os.path.join(prefix, rel)
+                if any(rel.startswith(skip) for skip in SKIP_DIRS):
+                    continue
+                with io.open(full, "r", encoding="utf-8") as f:
+                    hits = find_hardcoded_english(f.read())
+                if not hits:
+                    continue
+                allow = table.get(rel, set())
+                for ln, snip, kind in hits:
+                    seen.setdefault(rel, set()).add(snip)
+                    if snip in allow:
+                        ok_hits.append((rel, ln, snip, kind))
+                    else:
+                        unallowed.append((rel, ln, snip, kind))
+
+    # 与中文清单同一套僵尸纪律：文件清了、片段翻掉了，都要同步删条目
+    for rel, frags in sorted(table.items()):
+        actual = seen.get(rel, set())
+        if not actual:
+            errors.append("英文清单里的文件已无命中或不存在：%s" % rel.replace(os.sep, "/"))
+            continue
+        for frag in sorted(frags - actual):
+            errors.append("英文清单里的片段已不再出现（可能已翻译，请删掉）：%s  →  %s"
+                          % (rel.replace(os.sep, "/"), frag))
+    return unallowed, ok_hits, errors
 # JSX 裸文本按「连续中文块」报，而不是逐字符——一条文案报出十几个字，
 # 输出会淹没真正有用的那一行。
 CJK_RUN = re.compile(u"[\u4e00-\u9fff]+")
@@ -238,16 +383,21 @@ def find_missing_keys(root):
     return out
 
 
-def load_allowlist(root):
+def load_allowlist(root, prefix=""):
     """读允许清单。格式（一行一个文件）：
 
         components/Foo.tsx = 已挂|已放弃|待投      # 阶段枚举（数据）
+        en:pages/Settings.tsx = Provider          # 品牌名（英文检查的豁免）
 
     **只放行列出来的片段，不是整文件放行**。这一条是被实证逼出来的：
     2026-09-12 的未提交审查里，一个"整文件豁免"的已翻译文件里藏着 4 处
     漏翻（列头、差异标签、按钮 tooltip）——整文件豁免就是"新漏翻悄悄通过"
     的入口。片段级放行的代价是清单长一些，换来的是"往同一文件里再加一句
     硬编码文案"必然报错。
+
+    `prefix` 用来把两套豁免分开：中文检查读**不带** `en:` 的条目，英文检查
+    （`prefix="en:"`）只读带 `en:` 的条目。同一行里的 `en:` 段永远不会成为
+    对方那套的放行依据——否则"某句中文是阶段枚举"会顺手放过同一文件的英文文案。
 
     `#` 之后是理由（人看的，不参与匹配）。返回 ({文件: 片段集合}, 错误列表)。
     """
@@ -265,7 +415,18 @@ def load_allowlist(root):
             if not sep:
                 errors.append("清单第 %d 行缺少 `=`（格式：路径 = 片段1|片段2）" % lineno)
                 continue
-            table[rel.strip().replace("/", os.sep)] = set(
+            key = rel.strip()
+            if prefix:
+                if not key.startswith(prefix):
+                    continue
+                key = key[len(prefix):].strip()
+            elif key.startswith(EN_ALLOWLIST_PREFIX):
+                # 另一套豁免：对中文检查来说它既不是文件、也不该报"僵尸"
+                continue
+            # **合并**而不是赋值：同一文件允许分多行登记（每行写自己的理由）。
+            # 赋值会让后面的行悄悄覆盖前面的——"清单里写了、实际没放行"，
+            # 而且不报任何错（英文段尤其需要分行，见文件里的 `en:` 段）。
+            table.setdefault(key.replace("/", os.sep), set()).update(
                 x.strip() for x in frags.split("|") if x.strip())
     return table, errors
 
@@ -340,6 +501,8 @@ def main(argv=None):
 
     root = args.root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     unallowed, ok_hits, plural, missing_keys, errors = check(root)
+    en_unallowed, en_ok, en_errors = check_english(root)
+    errors = errors + en_errors
 
     if args.print_allowlist:
         by_file = {}
@@ -348,6 +511,13 @@ def main(argv=None):
         for rel in sorted(by_file):
             print("%s = %s"
                   % (rel.replace(os.sep, "/"), "|".join(sorted(by_file[rel]))))
+        en_by_file = {}
+        for rel, _ln, snip, _kind in en_ok + en_unallowed:
+            en_by_file.setdefault(rel, set()).add(snip)
+        for rel in sorted(en_by_file):
+            print("%s%s = %s"
+                  % (EN_ALLOWLIST_PREFIX, rel.replace(os.sep, "/"),
+                     "|".join(sorted(en_by_file[rel]))))
         return 0
 
     if args.list:
@@ -355,11 +525,19 @@ def main(argv=None):
             print("  豁免  %s:%d  [%s] %s" % (rel.replace(os.sep, "/"), ln, kind, snip))
         for rel, ln, snip, kind in unallowed:
             print("未豁免  %s:%d  [%s] %s" % (rel.replace(os.sep, "/"), ln, kind, snip))
-        print("\n合计：已豁免 %d，未豁免 %d" % (len(ok_hits), len(unallowed)))
+        for rel, ln, snip, kind in en_ok:
+            print("  豁免英文  %s:%d  [%s] %s" % (rel.replace(os.sep, "/"), ln, kind, snip))
+        for rel, ln, snip, kind in en_unallowed:
+            print("未豁免英文  %s:%d  [%s] %s"
+                  % (rel.replace(os.sep, "/"), ln, kind, snip))
+        print("\n合计：中文已豁免 %d、未豁免 %d；英文已豁免 %d、未豁免 %d"
+              % (len(ok_hits), len(unallowed), len(en_ok), len(en_unallowed)))
         return 0
 
     for rel, ln, snip, kind in unallowed:
         print("硬编码中文  %s:%d  [%s] %s" % (rel.replace(os.sep, "/"), ln, kind, snip))
+    for rel, ln, snip, kind in en_unallowed:
+        print("硬编码英文  %s:%d  [%s] %s" % (rel.replace(os.sep, "/"), ln, kind, snip))
     for rel, ln, key in plural:
         print("复数缺 count  %s:%d  %s" % (rel.replace(os.sep, "/"), ln, key))
     for rel, ln, key in missing_keys:
@@ -367,14 +545,16 @@ def main(argv=None):
     for err in errors:
         print("清单问题  %s" % err)
 
-    if unallowed or plural or missing_keys or errors:
+    if unallowed or en_unallowed or plural or missing_keys or errors:
         print("\n新增界面文案请走 t()（key 加进 i18n/locales/zh-CN.ts 与 en.ts）；"
-              "确属数据/字段名/列名的，登记进 %s（`路径 = 片段`）并写明理由；"
+              "确属数据/字段名/列名/文件名的，登记进 %s 并写明理由"
+              "（中文命中写 `路径 = 片段`，英文命中写 `%s路径 = 片段`）；"
               "复数 key（_one/_other）必须传 count；t() 里的 key 必须真实存在"
-              "——这三类漏了任何一个，界面都会直接显示 key 名。"
-              % ALLOWLIST_REL.replace(os.sep, "/"))
+              "——任何一类漏了，界面都会显示 key 名或冒出另一种语言的字。"
+              % (ALLOWLIST_REL.replace(os.sep, "/"), EN_ALLOWLIST_PREFIX))
         return 1
-    print("i18n 检查通过（已豁免 %d 处，复数调用点均带 count）" % len(ok_hits))
+    print("i18n 检查通过（中文已豁免 %d 处、英文已豁免 %d 处；复数调用点均带 count）"
+          % (len(ok_hits), len(en_ok)))
     return 0
 
 

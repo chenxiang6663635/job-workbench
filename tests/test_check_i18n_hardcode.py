@@ -273,3 +273,150 @@ def test_electron_release_dir_is_skipped(tmp_path):
     unallowed, errors = _run_with_electron(tmp_path, files, electron)
     assert unallowed == []
     assert errors == []
+
+
+# ---- 10. 硬编码英文（中文界面下的英文残留） ----
+# 这一类的存在理由与中文那类**相反**：中文检查防的是"英文界面里冒中文"，
+# 它只看 CJK，于是"中文界面里冒英文"（设置页的 Provider、Electron 的窗口标题与
+# 更新对话框）三处都是它的结构性盲区——tsc / eslint / UI 冒烟同样看不见。
+# 判定同样从紧：只扫 pages/** 与 web/electron/**，只认 JSX 裸文本、少数文案属性
+# 与 Electron 的对话框文案键；豁免用**同一份清单的 `en:` 段**（片段级 + 理由）。
+
+EN_SCOPE = os.path.join("pages", "Settings.tsx")
+
+
+def _en(tmp_path, files, allowlist="", electron_files=None):
+    root = _make_repo(tmp_path, files, allowlist, electron_files)
+    unallowed, ok, errors = checker.check_english(root)
+    return unallowed, ok, errors
+
+
+def test_english_jsx_bare_text_is_reported(tmp_path):
+    files = {EN_SCOPE: "const el = <CardTitle>Provider</CardTitle>;\n"}
+    unallowed, _, errors = _en(tmp_path, files)
+    assert [u[2] for u in unallowed] == ["Provider"]
+    assert errors == []
+
+
+def test_english_bare_text_after_a_self_closing_tag_is_reported(tmp_path):
+    """`<Icon /> Provider` —— 设置页卡片标题的真实形态（图标 + 文案）。"""
+    files = {EN_SCOPE: '<CardTitle className="x">\n  <Icon size={16} /> Provider\n</CardTitle>\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert [u[2] for u in unallowed] == ["Provider"]
+
+
+def test_translated_jsx_text_is_not_reported(tmp_path):
+    files = {EN_SCOPE: 'const el = <CardTitle>{t("settings.providerTitle")}</CardTitle>;\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_chinese_bare_text_is_not_the_english_checks_business(tmp_path):
+    """中文裸文本归中文检查管（它更严：裸文本永不放行），这里不重复报。"""
+    files = {EN_SCOPE: "const el = <p>中文文案</p>;\n"}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_english_text_attribute_is_reported(tmp_path):
+    files = {EN_SCOPE: '<button title="Switch workspace" />\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert [u[2] for u in unallowed] == ["Switch workspace"]
+
+
+def test_translated_text_attribute_is_not_reported(tmp_path):
+    files = {EN_SCOPE: '<button title={t("nav.switchWorkspaceTitle")} />\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_arrow_function_continuation_is_not_reported(tmp_path):
+    """`=>` 的 `>` 不是标签收尾——否则链式调用的每一行都会被当成裸文本。
+
+    真实误报（2026-09-13 首次在仓库上试跑时抓到）：`const loadPaths = () =>`
+    的下一行 `api` 被报成"硬编码英文 api"。误报的代价不是多看一眼，而是
+    检查被绕过——CI 恒红之后，人就会开始往清单里塞假条目。
+    """
+    files = {EN_SCOPE: "const loadPaths = () =>\n  api\n    .systemPaths()\n    .then(f);\n"}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_jsx_expression_continuation_is_not_reported(tmp_path):
+    """`onClick={() =>` 之后那行是 JSX 表达式（取数/调用），不是裸文本。"""
+    files = {EN_SCOPE: 'const el = <Button onClick={() =>\n  setInfo(t("x.y"))\n} />;\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_english_outside_the_scope_is_not_reported(tmp_path):
+    """范围只有 pages/** 与 web/electron/**（起步范围，宁可窄也不要吵）。"""
+    files = {os.path.join("components", "Widget.tsx"): "const el = <p>Hardcoded</p>;\n"}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_electron_dialog_copy_is_reported(tmp_path):
+    files = {"placeholder.ts": "const x = 1;\n"}
+    electron = {"main.js": 'dialog.showMessageBox({ title: "Update available" });\n'}
+    unallowed, _, errors = _en(tmp_path, files, electron_files=electron)
+    assert [u[2] for u in unallowed] == ["Update available"]
+    assert errors == []
+
+
+def test_electron_i18n_table_is_exempt(tmp_path):
+    """主进程语言包（web/electron/i18n.js）是英文的家——与前端 i18n/locales 同理。"""
+    files = {"placeholder.ts": "const x = 1;\n"}
+    electron = {"i18n.js": 'const T = { en: { update: "Update available" } };\n'}
+    unallowed, _, _ = _en(tmp_path, files, electron_files=electron)
+    assert unallowed == []
+
+
+def test_english_allowlist_is_fragment_level(tmp_path):
+    files = {EN_SCOPE: "const a = <p>Provider</p>;\nconst b = <p>Legacy badge</p>;\n"}
+    allowlist = "en:pages/Settings.tsx = Provider  # 品牌名，不翻\n"
+    unallowed, ok, errors = _en(tmp_path, files, allowlist=allowlist)
+    assert [h[2] for h in ok] == ["Provider"]
+    assert [u[2] for u in unallowed] == ["Legacy badge"]
+    assert errors == []
+
+
+def test_multiple_allowlist_lines_for_one_file_merge(tmp_path):
+    """同一文件允许分多行登记（每行写自己的理由）——是合并不是覆盖。
+
+    首版实现是赋值，于是同一文件的三行只剩最后一行生效：清单"看着写了"、
+    实际没放行，而且**不报任何错**。英文那类尤其需要分行——"示例值"与
+    "协议取值"是两种理由，挤在一行会把它们糊成一句。
+    """
+    files = {EN_SCOPE: 'const a = <img alt="Provider" />;\nconst b = <img alt="Legacy badge" />;\n'}
+    allowlist = ("en:pages/Settings.tsx = Provider  # 品牌名\n"
+                 "en:pages/Settings.tsx = Legacy badge  # 旧标识\n")
+
+    unallowed, ok, errors = _en(tmp_path, files, allowlist=allowlist)
+
+    assert [h[2] for h in ok] == ["Provider", "Legacy badge"]
+    assert unallowed == []
+    assert errors == []
+
+
+def test_english_allowlist_zombie_entry_is_an_error(tmp_path):
+    """两类僵尸都要报（与中文清单同一纪律），只是报的粒度不同：
+    文件已无命中报文件，片段已不再出现报片段——留着任何一条，都会给将来的
+    同名英文预授权。"""
+    allowlist = "en:pages/Settings.tsx = Provider  # 已经改走 t() 了\n"
+
+    _, _, file_level = _en(tmp_path, {EN_SCOPE: "const x = 1;\n"}, allowlist=allowlist)
+    assert any("Settings.tsx" in e for e in file_level)
+
+    _, _, frag_level = _en(tmp_path, {EN_SCOPE: "const a = <p>Legacy badge</p>;\n"},
+                           allowlist=allowlist)
+    assert any("Provider" in e for e in frag_level)
+
+
+def test_en_prefixed_entry_does_not_leak_into_the_chinese_check(tmp_path):
+    """`en:` 段是另一套豁免：不能顺手把同一文件的中文数据也放行。"""
+    files = {os.path.join("components", "X.tsx"): 'const s = "已挂";\n'}
+    unallowed, _, errors = _run(tmp_path, files,
+                                allowlist="en:components/X.tsx = 已挂  # 故意写在同一行\n")
+    assert [u[2] for u in unallowed] == ["已挂"]
+    assert errors == []

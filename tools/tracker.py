@@ -887,6 +887,26 @@ def commit_import(preview, workspace=None):
     return len(accepted)
 
 
+def plan_import(preview, workspace=None):
+    """把导入预览整理成两段式所需的载荷与差异表（CLI 与网页端共用一份构造）。
+
+    `preview` 是 `preview_import()` 的结果；返回 `approval.preview()` 要的
+    四个参数。刻意只留这一份构造：两处各自拼 diff，迟早出现「预览说 X、
+    落盘写 Y」——那比不预览更糟。
+    """
+    accepted = preview.get("ok") or []
+    diff = ["| 状态 | 行 | 公司 | 岗位 |", "|---|---|---|---|"]
+    for item in accepted:
+        diff.append("| 将新增 | %d | %s | %s |" % (
+            item["line"], item["row"].get("公司", ""), item["row"].get("岗位", "")))
+    return {
+        "payload": {"preview": preview},
+        "summary": "导入 %d 条投递记录" % len(accepted),
+        "diff": diff,
+        "targets": _tracking_targets(workspace),
+    }
+
+
 def cmd_import(args):
     """CSV 批量导入：--dry-run 只预览；默认预览通过即提交（与 Web 同一校验）。"""
     try:
@@ -924,15 +944,10 @@ def cmd_import(args):
         return 0
     if getattr(args, "preview", False):
         import approval
-        diff = ["| 状态 | 行 | 公司 | 岗位 |", "|---|---|---|---|"]
-        for item in preview["ok"]:
-            diff.append("| 将新增 | %d | %s | %s |" % (
-                item["line"], item["row"].get("公司", ""),
-                item["row"].get("岗位", "")))
+        plan = plan_import(preview, WORKSPACE)
         result = approval.preview(
-            "track.import", WORKSPACE, {"preview": preview},
-            "导入 %d 条投递记录" % len(preview["ok"]), diff,
-            _tracking_targets(WORKSPACE))
+            "track.import", WORKSPACE, plan["payload"],
+            plan["summary"], plan["diff"], plan["targets"])
         print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
         print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
         return 0

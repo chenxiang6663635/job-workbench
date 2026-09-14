@@ -29,7 +29,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import applications, dashboard, imap, jobs, library, progress, provider, resume, system, workspace  # noqa: E402
+from routers import applications, approvals, dashboard, imap, jobs, library, progress, provider, resume, system, workspace  # noqa: E402
 
 app = FastAPI(title="求职工作台", version="0.1.0")
 
@@ -88,6 +88,7 @@ async def _workspace_guard(request: Request, call_next):
 
 app.include_router(dashboard.router)
 app.include_router(applications.router)
+app.include_router(approvals.router)
 app.include_router(jobs.router)
 app.include_router(progress.router)
 app.include_router(library.router)

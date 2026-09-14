@@ -19,6 +19,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+import approval
 import status_parse
 import tracker
 from apierror import ApiError
@@ -257,8 +258,18 @@ def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
     counts = {k: len(v) for k, v in preview.items()}
 
     if item.mode != "commit":
-        # preview：不动数据，把差异表交回前端分色展示
-        return {"mode": "preview", "unknown": unknown, "counts": counts, **preview}
+        # preview：不动数据，把差异表交回前端分色展示。可提交时（无错误行、
+        # 且有将新增行）按**令牌协议**登记（tools/approval.py）——返回的
+        # token 由前端在用户点「确认」后提交到 /api/approvals/apply；
+        # 有错误行或没有可写行时不给令牌（前端按钮同样保持禁用）。
+        token = None
+        if not preview["error"] and counts["ok"] > 0:
+            plan = tracker.plan_import(preview, ws)
+            token = approval.preview(
+                "track.import", ws, plan["payload"], plan["summary"],
+                plan["diff"], plan["targets"])["token"]
+        return {"mode": "preview", "unknown": unknown, "counts": counts,
+                "token": token, **preview}
 
     if preview["error"]:
         raise ApiError(422, "app.importHasErrors",

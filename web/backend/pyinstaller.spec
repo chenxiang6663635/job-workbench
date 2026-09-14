@@ -117,6 +117,7 @@ project_hidden = [
     "py_runtime",
     "routers",
     "routers.applications",
+    "routers.approvals",
     "routers.dashboard",
     "routers.jobs",
     "routers.library",

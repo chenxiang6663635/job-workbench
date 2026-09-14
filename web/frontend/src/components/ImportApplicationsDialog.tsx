@@ -130,8 +130,16 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
   const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
+  // 确认令牌：预览时（可提交才）由后端登记，确认时凭它落盘——与 CLI/MCP 同一套
+  // 两段式。文本一变就作废（resetPreview），不会拿旧令牌提交新内容。
+  const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const resetPreview = () => {
+    setPreview(null);
+    setToken(null);
+  };
 
   const readFile = (f: File | null) => {
     if (!f) return;
@@ -139,7 +147,7 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
     reader.onload = () => {
       setText(String(reader.result || ""));
       setFileName(f.name);
-      setPreview(null);
+      resetPreview();
       setError(null);
     };
     reader.onerror = () => setError(t("impCsv.readFailed"));
@@ -155,29 +163,36 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
     setError(null);
     api
       .importApplications(text, "preview")
-      .then((r) => setPreview(r as ImportPreviewResult))
+      .then((r) => {
+        const body = r as ImportPreviewResult;
+        setPreview(body);
+        setToken(body.token);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
   };
 
   const commit = () => {
-    if (!preview || preview.counts.error > 0) return;
+    if (!token) return;
     setBusy(true);
     setError(null);
+    // 两段式的第二步：凭预览时登记的一次性令牌落盘（与命令行/MCP 同源）。
+    // 重放、过期、预览之后数据变了——都由服务端在这一步拒绝。
     api
-      .importApplications(text, "commit")
+      .applyApproval(token)
       .then(() => {
-        // written 必然 ≥1：canCommit 已保证存在 ok 行且无错误行
         onImported();
         onClose();
       })
       .catch((e: Error) => {
+        // 令牌已不可用（过期/用过）或数据已变：这份预览不再可信，清掉重来
         setError(e.message);
+        resetPreview();
         setBusy(false);
       });
   };
 
-  const canCommit = !!preview && preview.counts.error === 0 && preview.counts.ok > 0;
+  const canCommit = !!preview && !!token && preview.counts.error === 0 && preview.counts.ok > 0;
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -204,7 +219,7 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
-                setPreview(null);
+                resetPreview();
               }}
               rows={6}
               spellCheck={false}

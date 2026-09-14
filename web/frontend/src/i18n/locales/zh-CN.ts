@@ -468,6 +468,16 @@ const zhCN = {
   "settings.neverBackup": "从未备份",
   "settings.snapshotNote": "快照刻意存放在工作区之外——与源数据同盘同目录的备份会被误删、被 git、被同步工具一并波及。导出包含简历与个人信息，不含应用外的快照。",
 
+  // 数据位置卡片：数据根 + 模式（便携 = 应用旁；用户目录 = 安装到不可写位置时的回退）
+  "settings.dataLocTitle": "数据位置",
+  "settings.dataLocDesc": "工作区、快照与全部数据都存放在下面这个位置，只在这台机器上。",
+  "settings.dataRoot": "数据根：",
+  "settings.modePortable": "便携模式",
+  "settings.modeUser": "用户目录",
+  "settings.modePortableHint": "数据就在应用目录旁——整个文件夹拷走即可带走。",
+  "settings.modeUserHint": "数据在系统用户目录（应用安装在不可写位置时的回退位置）。",
+  "settings.openDataRoot": "打开数据根",
+
   // 简历工坊页
   "resume.modeAria": "编辑模式",
   "resume.modeStd": "标准版式",
@@ -573,7 +583,7 @@ const zhCN = {
   "impCsv.empty": "没有识别到数据行，请检查 CSV 格式（表头 + 至少一行数据）。",
   "impCsv.footerCommit_one": "确认后将新增 {{count}} 条，并逐条记入变更时间线",
   "impCsv.footerCommit_other": "确认后将新增 {{count}} 条，并逐条记入变更时间线",
-  "impCsv.footerBlocked": "存在错误行时不能提交",
+  "impCsv.footerBlocked": "存在错误行、或没有可新增的行时不能提交",
   "impCsv.footerNeedPreview": "先预览校验，确认差异后再写入",
   "impCsv.confirm": "确认导入",
   // 预览表的列头与差异标签：列头/标签是给人看的（翻），表里取数的 key 仍是 CSV 列名（不翻）
@@ -678,6 +688,10 @@ const zhCN = {
   "err.app.noFieldsToUpdate": "没有提供任何要更新的字段",
   "err.app.terminalLocked": "记录已处于终态「{{stage}}」，不能再改阶段（如需重新投递，请新建一条记录）",
 
+  // 确认令牌（两段式的第二步）：冲突与令牌失效的通用语义
+  "err.approval.tokenInvalid": "这次确认已失效（可能已用过，或已超过 10 分钟）——请重新预览再确认",
+  "err.approval.conflict": "预览之后数据有变化，为免写错已拒绝——请重新预览再确认",
+
   "err.status.textRequired": "请先粘贴要解析的原文",
   "err.status.stageInvalid": "阶段必须是 {{stages}} 之一",
   "err.status.dateFormat": "`{{label}}: {{value}}` 日期格式错误，应为 YYYY-MM-DD",
@@ -702,7 +716,7 @@ const zhCN = {
   "err.lib.unknownSection": "未知素材库分类：{{section}}",
   "err.lib.fileNotFound": "文件不存在：{{rel}}",
 
-  "err.sys.unknownTarget": "只支持 workspace / snapshots（收到 {{target}}）",
+  "err.sys.unknownTarget": "只支持 workspace / snapshots / dataRoot（收到 {{target}}）",
   "err.sys.openFailed": "打开失败：{{error}}",
   // 出网 TLS（issue #59）：证书库不可用与证书不被信任是两回事——前者给降级出路，
   // 后者明确不给（自签名或被劫持，两条路的答案都不是关校验）。

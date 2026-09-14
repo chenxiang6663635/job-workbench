@@ -151,7 +151,9 @@ export interface ImportRowIssue {
   errors: string[];
 }
 
-// CSV 批量导入：preview 结果（新增/重复/错误分色展示，不动数据）
+// CSV 批量导入：preview 结果（新增/重复/错误分色展示，不动数据）。
+// `token` 是**可提交时**（无错误行且有将新增行）发出的一次性确认令牌：确认后
+// 拿它调 applyApproval 落盘——与 CLI/MCP 共用同一套两段式协议。
 export interface ImportPreviewResult {
   mode: "preview";
   unknown: string[];
@@ -159,6 +161,7 @@ export interface ImportPreviewResult {
   ok: ImportRowIssue[];
   duplicate: ImportRowIssue[];
   error: ImportRowIssue[];
+  token: string | null;
 }
 
 // CSV 批量导入：commit 结果
@@ -322,6 +325,8 @@ export interface ResumeBuildResult {
 // 高级模板（手写 HTML 精排版）的文件条目，与 LibraryItem 同构但归简历域
 export interface SystemPaths {
   workspace: string;
+  dataRoot: string;
+  mode: "portable" | "user";
   snapshotDir: string;
   snapshotCount: number;
   lastBackup: string | null;
@@ -545,6 +550,14 @@ export type WorkspaceApplyResult = {
   path: string;
 };
 
+/** 凭确认令牌落盘的结果（/api/approvals/apply：与 CLI/MCP 同一套两段式）。 */
+export type ApprovalApplyResult = {
+  ok: boolean;
+  operation: string;
+  summary: string;
+  written?: number;
+};
+
 export let currentWorkspace = "";
 export function setWorkspace(ws: string) {
   currentWorkspace = ws;
@@ -692,6 +705,15 @@ export const api = {
 
   applyWorkspace: (token: string) =>
     request<WorkspaceApplyResult>("/workspaces/apply", {
+      method: "POST",
+      body: { token },
+    }),
+
+  // 确认令牌的统一落盘入口（两段式的第二步）：令牌一次性、10 分钟有效期、
+  // 绑定工作区与载荷指纹。「要写什么」在令牌里、不在请求里。
+  // 冲突（预览后数据变了）409、令牌不可用（过期/重放/被改）422。
+  applyApproval: (token: string) =>
+    request<ApprovalApplyResult>("/approvals/apply", {
       method: "POST",
       body: { token },
     }),
@@ -907,7 +929,7 @@ export const api = {
   backupWorkspace: () =>
     request<BackupResult>("/system/backup", { method: "POST" }),
 
-  openFolder: (which: "workspace" | "snapshots") =>
+  openFolder: (which: "workspace" | "snapshots" | "dataRoot") =>
     request<{ ok: boolean; path: string }>("/system/open-folder", {
       method: "POST",
       body: { path: which },

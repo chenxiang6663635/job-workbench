@@ -425,6 +425,15 @@ export default {
   "settings.neverBackup": "never",
   "settings.snapshotNote": "Snapshots are deliberately kept outside the workspace — a backup sitting beside its source gets deleted by mistake, swept into git, or caught by sync tools. The export holds your résumé and personal data, not the snapshots outside the app.",
 
+  "settings.dataLocTitle": "Data location",
+  "settings.dataLocDesc": "Workspaces, snapshots and all your data live here — on this machine only.",
+  "settings.dataRoot": "Data root: ",
+  "settings.modePortable": "Portable",
+  "settings.modeUser": "User folder",
+  "settings.modePortableHint": "Data sits right next to the app — copy the whole folder and take it with you.",
+  "settings.modeUserHint": "Stored in your system user folder (fallback when the install folder is not writable).",
+  "settings.openDataRoot": "Open data root",
+
   "resume.modeAria": "Editing mode",
   "resume.modeStd": "Standard",
   "resume.modeAdvanced": "Advanced templates",
@@ -522,7 +531,7 @@ export default {
   "impCsv.empty": "No data rows found — check the CSV format (a header plus at least one row).",
   "impCsv.footerCommit_one": "This will add {{count}} row, each recorded in the change timeline",
   "impCsv.footerCommit_other": "This will add {{count}} rows, each recorded in the change timeline",
-  "impCsv.footerBlocked": "Cannot submit while errors remain",
+  "impCsv.footerBlocked": "Cannot submit while errors remain or when there is nothing new to add",
   "impCsv.footerNeedPreview": "Run a preview first, confirm the diff, then write",
   "impCsv.confirm": "Import",
   "impCsv.colCompany": "Company",
@@ -615,6 +624,9 @@ export default {
   "err.app.noFieldsToUpdate": "No fields to update were provided",
   "err.app.terminalLocked": "This record is already in the terminal stage “{{stage}}” — its stage cannot change (create a new record to apply again)",
 
+  "err.approval.tokenInvalid": "This confirmation is no longer valid (already used, or older than 10 minutes) — preview again and re-confirm",
+  "err.approval.conflict": "The data changed after the preview, so nothing was written — preview again and re-confirm",
+
   "err.status.textRequired": "Paste the text to parse first",
   "err.status.stageInvalid": "The stage must be one of {{stages}}",
   "err.status.dateFormat": "`{{label}}: {{value}}` is not a valid date — expected YYYY-MM-DD",
@@ -639,7 +651,7 @@ export default {
   "err.lib.unknownSection": "Unknown library section: {{section}}",
   "err.lib.fileNotFound": "File not found: {{rel}}",
 
-  "err.sys.unknownTarget": "Only workspace / snapshots are supported (got {{target}})",
+  "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",
   "err.sys.certStoreUnavailable": "The system certificate store could not be loaded, so the certificate cannot be verified and the connection was refused (credentials must not travel over an unverified connection). To investigate, look for broken entries with certmgr.msc; if you really must skip verification for now, set JOBWS_HTTP_TLS or JOBWS_IMAP_TLS to insecure for that path (not recommended)",
   "err.sys.certUntrusted": "Certificate verification failed: your trust store does not trust the certificate for {{host}} (self-signed, or intercepted). Do not disable verification for it — use a trusted endpoint or check your network",

@@ -325,7 +325,7 @@ def apply_approved_init(payload, workspace=None):
     domain = payload.get("domain")
     demo = bool(payload.get("demo"))
     created, replaced = _run_init(target, domain, demo)
-    return {"written": len(created),
+    return {"written": len(created), "path": target,
             "summary": "已初始化 %s（新建 %d 个文件，覆盖 %d 个）"
                        % (os.path.basename(target.rstrip("\\/")) or target,
                           len(created), len(replaced))}

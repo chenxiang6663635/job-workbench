@@ -152,8 +152,15 @@ def system_paths(ws: str = Depends(workspace_dir)):
                 for f in zips
             ).strftime("%Y-%m-%d %H:%M:%S")
 
+    # 「数据位置」卡片要用：数据根 + 当前模式。模式只有两种——便携（数据就在
+    # 应用目录旁，解压/拷 U 盘即用）与用户目录（应用装在不可写位置时的回退）。
+    from deps import ROOT, data_root  # 函数内 import：本模块别处不依赖 deps
+
+    data_root_path = os.path.normpath(data_root())
     return {
         "workspace": ws,
+        "dataRoot": data_root_path,
+        "mode": "portable" if data_root_path == os.path.normpath(ROOT) else "user",
         "snapshotDir": snap_dir,
         "snapshotCount": len(
             [f for f in os.listdir(snap_dir) if f.endswith(".zip")]

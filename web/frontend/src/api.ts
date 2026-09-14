@@ -658,6 +658,28 @@ export const api = {
       body: { csv, mode },
     }),
 
+  // --- 工作区：新建同样是两段式（预览拿令牌 → apply 落盘）---
+  // 与命令行共用同一份实现：`/preview` 只算清单并登记一次性令牌（不落盘），
+  // `/apply` 才真正创建。前端负责把 diff 展示给用户、拿到确认再往下走。
+  listDomains: () =>
+    request<{ items: { id: string; isDemoDefault: boolean }[]; demoDefault: string }>(
+      "/workspaces/domains"
+    ),
+
+  previewWorkspace: (body: {
+    name: string;
+    domain?: string;
+    demo?: boolean;
+    force?: boolean;
+  }) =>
+    request<WorkspacePreviewResult>("/workspaces/preview", { method: "POST", body }),
+
+  applyWorkspace: (token: string) =>
+    request<WorkspaceApplyResult>("/workspaces/apply", {
+      method: "POST",
+      body: { token },
+    }),
+
   // 原文 → 状态建议（B11）：**只读**，不动追踪表、不写时间线。
   // id 非空 = 用户手动指定记录（站内信常常通篇不写公司名）。
   suggestStatus: (text: string, id?: string) =>

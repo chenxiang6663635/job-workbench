@@ -16,7 +16,6 @@ import {
   ChevronRight,
   Flame,
   Hourglass,
-  Inbox,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -26,6 +25,7 @@ import {
   type StaleItem,
 } from "../api";
 import RetrospectivePanel from "../components/RetrospectivePanel";
+import { EmptyOnboarding } from "../components/OnboardingWizard";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
 import { Badge } from "../components/ui/badge";
@@ -500,15 +500,10 @@ export default function Dashboard() {
       )}
 
       {data.total === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
-          <Inbox size={28} className="text-muted-foreground" />
-          <p className="text-base font-medium text-foreground">
-            {t("dash.emptyTitle")}
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("dash.emptyHint", { tracker: t("nav.applications") })}
-          </p>
-        </div>
+        // 空库不是"出错"，是"还没开始"：给引导，不给错误提示。注意这条分支只在
+        // 后端**成功**返回且 total===0 时才会走到（失败走上面的 error 分支）——
+        // 把"接口失败"渲染成"欢迎新建工作区"，会让用户以为数据丢了而真去重建。
+        <EmptyOnboarding />
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-3">

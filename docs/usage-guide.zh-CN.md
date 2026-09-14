@@ -107,7 +107,9 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 
 不想配环境可以用 [Release](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里的 `job-workbench-setup-*.exe`（Electron 窗口 + 打包好的后端，双击装完即用）。数据目录：安装版在 `%APPDATA%\job-workbench\personal\`，绿色版（backend exe 旁有 `portable.txt`）在 exe 旁 `personal\`——**卸载安装版不影响 %APPDATA% 里的数据**。
 
-桌面版可以调界面缩放：`Ctrl + =` 放大、`Ctrl + -` 缩小（0.5 级步进，约 0.58x–1.73x）、`Ctrl + 0` 复位；级别会记住，重启沿用。
+安装包现在是**向导式**：可以自选安装位置，并选择「为所有用户 / 仅为我」。**升级旧版时请沿默认选项**（「仅为我」+ 原目录）——选「所有用户」会装到 `Program Files` 并与旧安装分叉。静默安装仍可用：`/S`（`/D=<目录>` 可指定位置）。
+
+桌面版可以调界面缩放：**设置页的「界面大小」滑块**（拖动即预览，整个界面含文字一起缩放），或 `Ctrl + =` 放大、`Ctrl + -` 缩小（0.5 级步进，约 0.58x–1.73x）、`Ctrl + 0` 复位；级别会记住，重启沿用，滑块与快捷键互相同步。
 
 一键重建安装包（前端 dist → PyInstaller 后端 exe → NSIS）：
 
@@ -115,7 +117,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 ```
 
-产物在 `web/electron/release/求职工作台 Setup <版本>.exe`。冒烟：`Setup.exe /S /D=<目录>` 静默安装后启动，验证 `http://127.0.0.1:8765`。
+产物在 `web/electron/release/求职工作台 Setup <版本>.exe`。冒烟：`Setup.exe /S` 静默安装到默认的「仅为我」位置（`/D=<目录>` 可指定位置），启动后验证 `http://127.0.0.1:8765`。
 
 ---
 

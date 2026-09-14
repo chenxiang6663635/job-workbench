@@ -291,6 +291,23 @@ def _en(tmp_path, files, allowlist="", electron_files=None):
     return unallowed, ok, errors
 
 
+def test_real_repo_has_no_violations():
+    """对**真实仓库**跑一遍：两类检查都不得有未豁免命中（独立审查 m7）。
+
+    合成树证明判定逻辑，证明不了"仓库此刻真的干净"。缺这条时，仓库里新冒出来的
+    一句硬编码文案只能等 CI 发现——而 CI 跑的就是同一条命令，人却常常只跑 pytest。
+    与 `test_check_ui_tokens.py::test_real_repo_has_no_violations` 同一用意。
+    """
+    unallowed, _ok, plural, missing, errors = checker.check(ROOT_DIR)
+    en_unallowed, _en_ok, en_errors = checker.check_english(ROOT_DIR)
+
+    assert unallowed == []
+    assert en_unallowed == []
+    assert plural == []
+    assert missing == []
+    assert errors + en_errors == []
+
+
 def test_english_jsx_bare_text_is_reported(tmp_path):
     files = {EN_SCOPE: "const el = <CardTitle>Provider</CardTitle>;\n"}
     unallowed, _, errors = _en(tmp_path, files)
@@ -345,6 +362,36 @@ def test_arrow_function_continuation_is_not_reported(tmp_path):
 def test_jsx_expression_continuation_is_not_reported(tmp_path):
     """`onClick={() =>` 之后那行是 JSX 表达式（取数/调用），不是裸文本。"""
     files = {EN_SCOPE: 'const el = <Button onClick={() =>\n  setInfo(t("x.y"))\n} />;\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_single_line_block_comment_is_not_reported(tmp_path):
+    """单行块注释里的属性不算命中（独立审查 m1）。
+
+    `/* title="X" */` 这种写法：进 `_scan_line` 时置 in_block=True 又立刻闭合，
+    返回的 in_block 是 False——只看"行首是否在块注释里"会漏掉它，于是注释里的
+    文案被当成真命中。注释不翻是本项目口径，误报会把人逼去清单里塞假条目。
+    """
+    files = {EN_SCOPE: '/* title="Switch workspace" */\nconst x = 1;\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_line_comment_attribute_is_not_reported(tmp_path):
+    files = {EN_SCOPE: '// title="Switch workspace"\nconst x = 1;\n'}
+    unallowed, _, _ = _en(tmp_path, files)
+    assert unallowed == []
+
+
+def test_comparison_expression_is_not_reported(tmp_path):
+    """同行比较表达式不是 JSX（独立审查 m2）。
+
+    `len > min && len < max` 会命中"`>Text<`"的形状——`EN_JSX_INLINE` 必须要求
+    那个 `>` 属于一个标签（前面出现过 `<Tag` / `</` / `<>`），否则 `.ts`/`.js`
+    文件里的比较运算会被成片误报。
+    """
+    files = {EN_SCOPE: "const ok = len > min && len < max;\nconst y = 2;\n"}
     unallowed, _, _ = _en(tmp_path, files)
     assert unallowed == []
 

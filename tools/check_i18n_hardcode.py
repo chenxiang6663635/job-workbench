@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""界面硬编码中文检查的**唯一**实现（CI 与 pytest 共用）。
+"""界面文案**双向**硬编码检查的**唯一**实现（CI 与 pytest 共用）。
+
+两个方向：① 硬编码**中文**（防"英文界面里冒中文"）；② 硬编码**英文**（防"中文界面
+里冒英文"，2026-09-13 补，见下方"第四类"）。两类共用同一份清单文件、两套互不通用的
+豁免段（`en:` 段只对英文检查生效），僵尸纪律一致。
 
 为什么需要它：i18n 抽完之后，「有没有人又写死一句中文」这件事没有编译器能拦。
 新增的页面/组件一个字没翻译，lint 与 tsc 都是绿的——只有真的英文用户点进去
@@ -29,10 +33,26 @@ TranslationKey），只有打开页面才看得见——2026-09-12 的冒烟就�
 `t(key: string)` 接受任意字符串，拼错的 key 编译期不报，界面同样退化成显示
 key 名。复数基名（`xxx_one`/`xxx_other` 对应的 `xxx`）算存在。
 
+第四类检查：**硬编码英文**（`check_english`）。方向与前三类相反——前三类防的是
+"英文界面里冒中文"，而中文检查只看 CJK，于是"中文界面里冒英文"成了它（以及
+tsc / eslint / UI 冒烟）的结构性盲区。范围从紧：
+
+  * 目录：`web/frontend/src/pages/**` 与 `web/electron/**`（组件树先不动——
+    扩范围前要先把误报分类，否则检查会被绕过）；
+  * 形状：JSX 裸文本（`>Text<`、`<Icon /> Text`、跨行）、四个文案属性
+    （`title` / `aria-label` / `alt` / `placeholder`）、Electron 的
+    `title` / `message` / `detail` 键；
+  * 豁免：清单里的 `en:` 段（前缀**必须小写**），片段级 + 理由。
+
+  **刻意不覆盖**（写在这里是为了不被当成"全都查了"）：表达式里的字符串字面量
+  （`placeholder={x || "imap.qq.com"}`、`{cond && "Yes"}`）、白名单之外的属性、
+  非 JSX 裸文本（如 `<option>INBOX</option>`）、跨行属性值、块注释里的写法。
+  这些形态与"数据 vs 文案"的边界纠缠，机器判定会先制造噪音；缺口登记在 issue 里。
+
 用法：
     python tools/check_i18n_hardcode.py              # 检查，未豁免命中即退出码 1
     python tools/check_i18n_hardcode.py --list       # 列出全部命中（含已豁免），供重新生成清单
-    python tools/check_i18n_hardcode.py --print-allowlist  # 打印清单草稿
+    python tools/check_i18n_hardcode.py --print-allowlist  # 打印清单草稿（含 `en:` 段）
     python tools/check_i18n_hardcode.py --root <dir> # 指定仓库根
 """
 
@@ -74,6 +94,9 @@ EN_SCOPE_RELS = (os.path.join("web", "frontend", "src", "pages"), ELECTRON_REL)
 EN_ALLOWLIST_PREFIX = "en:"
 # 至少 3 个连续字母才算"一句英文"：`a` / `OK` / `ID` 这类不算文案
 EN_WORD = re.compile(r"[A-Za-z]{3,}")
+# "像标签的开始"：`<div` / `</div` / `<>`。用来确认裸文本两侧的尖括号是 JSX，
+# 而不是比较运算符（`len > min && len < max` 的形状与 `>Text<` 完全一样）。
+TAG_LIKE = re.compile(r"<[A-Za-z/]")
 # 同行 JSX 裸文本：`>Text<`
 EN_JSX_INLINE = re.compile(r">\s*([A-Za-z][^<>{}]*[A-Za-z0-9'’.!?])\s*<")
 # 行尾裸文本：`<Icon /> Provider`（`/>` 之后没跟着尖括号，文案就在这一行结尾）
@@ -87,6 +110,48 @@ EN_COPY_KEY = re.compile(r"""(?:^|[{,]\s*)(title|message|detail)\s*:\s*"([^"]*)\
 def _strip_trailing_tag(text):
     """去掉行尾的 `</Tag>`，留下裸文本本体。"""
     return re.sub(r"</[A-Za-z][^>]*>\s*$", "", text).strip()
+
+
+def _without_comments(line):
+    """去掉行内注释，**保留字符串字面量**——属性值就在字符串里。
+
+    为什么不复用 `_scan_line` 的 plain：它把字符串一并剥掉了，而文案属性要的正是
+    字符串里的值。这里只去注释，并且认引号——`"https://x"` 里的 `//` 不是注释
+    （与中文检查同一条教训）。单行块注释 `/* title="X" */` 也在这里被去掉：
+    只看"行首是否在块注释中"是拦不住它的（进函数即闭合，标记又变回 False）。
+    """
+    out = []
+    i, n = 0, len(line)
+    quote = None
+    while i < n:
+        ch = line[i]
+        if quote:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(line[i + 1])
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"', "`"):
+            quote = ch
+            out.append(ch)
+            i += 1
+            continue
+        if line.startswith("//", i):
+            break
+        if line.startswith("/*", i):
+            end = line.find("*/", i + 2)
+            if end < 0:
+                break
+            out.append(" " * (end + 2 - i))
+            i = end + 2
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
 
 
 def find_hardcoded_english(text):
@@ -107,15 +172,18 @@ def find_hardcoded_english(text):
     for lineno, line in enumerate(lines, 1):
         was_in_block = in_block
         _strings, plain, in_block = _scan_line(line, in_block)
-        # 1) 同行裸文本
+        # 1) 同行裸文本：`>Text<`。要求这个 `>` 属于标签（前面出现过 `<Tag` /
+        #    `</` / `<>`）——否则 `len > min && len < max` 这类比较会被成片误报
+        #    （独立审查 m2：`pages/**` 现在还只有 .tsx，但 Electron 树是 .js）。
         for m in EN_JSX_INLINE.finditer(plain):
+            if not TAG_LIKE.search(plain[:m.start()]):
+                continue
             snippet = m.group(1).strip()
             if EN_WORD.search(snippet):
                 hits.append((lineno, snippet, "jsx-text"))
-        # 1b) 行尾裸文本：`<Icon /> Provider`（要求本行前面真的出现过 `<`，
-        #     否则 `a > bcd` 这种比较表达式会被误报）
+        # 1b) 行尾裸文本：`<Icon /> Provider`（同样要求前面出现的是标签，而不是 `a > b`）
         for m in EN_JSX_TAIL.finditer(plain):
-            if "<" not in plain[:m.start()]:
+            if not TAG_LIKE.search(plain[:m.start()]):
                 continue
             snippet = m.group(1).strip()
             if EN_WORD.search(snippet):
@@ -131,12 +199,11 @@ def find_hardcoded_english(text):
                 and not stripped.startswith(("<", "{", "}", ")"))
                 and not re.search(r"[<>{}]", stripped) and EN_WORD.search(stripped)):
             hits.append((lineno, stripped, "jsx-text"))
-        # 3) / 4) 字面量型文案（注释里的不算：块注释整行跳过，行注释只看 `//` 之前）
+        # 3) / 4) 字面量型文案。匹配在"去过注释"的文本上做：注释不翻是仓库口径，
+        #    而块注释（含单行 `/* … */`）与行注释都得一起排除。
         if not was_in_block:
-            cut = line.find("//")
-            for m in list(EN_TEXT_ATTR.finditer(line)) + list(EN_COPY_KEY.finditer(line)):
-                if cut >= 0 and m.start() > cut:
-                    continue
+            code = _without_comments(line)
+            for m in list(EN_TEXT_ATTR.finditer(code)) + list(EN_COPY_KEY.finditer(code)):
                 value = m.group(2).strip()
                 if EN_WORD.search(value):
                     hits.append((lineno, value, "text-attr"))
@@ -492,7 +559,8 @@ def check(root):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="检查前端源码里的硬编码中文")
+    parser = argparse.ArgumentParser(
+        description="检查界面源码里的硬编码文案（中文 + 英文）")
     parser.add_argument("--root", default=None, help="仓库根目录（默认按本文件位置推断）")
     parser.add_argument("--list", action="store_true", help="列出全部命中（含已豁免）")
     parser.add_argument("--print-allowlist", dest="print_allowlist", action="store_true",

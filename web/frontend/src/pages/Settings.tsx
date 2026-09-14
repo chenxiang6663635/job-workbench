@@ -5,6 +5,7 @@ import {
   Download,
   ExternalLink,
   FolderOpen,
+  HardDrive,
   Inbox,
   KeyRound,
   Languages,
@@ -497,6 +498,56 @@ export default function Settings() {
               })}
             </p>
           )}
+        </Card>
+
+        {/* 数据位置：数据根 + 模式（便携 = 应用目录旁；用户目录 = 安装到不可写
+            位置时的回退）。与「数据与隐私」相邻：一张回答「数据在哪」，一张
+            回答「怎么带走 / 怎么备份」。 */}
+        <Card className="space-y-4 p-5">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <HardDrive size={16} className="text-primary" /> {t("settings.dataLocTitle")}
+            </CardTitle>
+          </CardHeader>
+
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {t("settings.dataLocDesc")}
+          </p>
+
+          {/* 三态与「数据与隐私」卡同款：读取失败可定位 / 加载中骨架 / 就绪显示真实路径 */}
+          {pathsError ? (
+            <p className="text-[11px] text-destructive">
+              {t("settings.pathsFailed", { error: pathsError })}
+            </p>
+          ) : !paths ? (
+            <Skeleton className="h-12 w-full" />
+          ) : (
+            <div className="space-y-1.5">
+              <p className="break-all text-[11px] text-muted-foreground">
+                {t("settings.dataRoot")}
+                <span className="font-mono text-foreground/80">{paths.dataRoot}</span>
+              </p>
+              <p className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">
+                  {paths.mode === "portable" ? t("settings.modePortable") : t("settings.modeUser")}
+                </Badge>
+                <span className="text-[11px] leading-relaxed text-muted-foreground/80">
+                  {paths.mode === "portable"
+                    ? t("settings.modePortableHint")
+                    : t("settings.modeUserHint")}
+                </span>
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => api.openFolder("dataRoot").catch((e: Error) => setError(e.message))}
+            >
+              <FolderOpen size={15} /> {t("settings.openDataRoot")}
+            </Button>
+          </div>
         </Card>
 
         <Card className="space-y-4 p-5">

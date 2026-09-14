@@ -24,8 +24,8 @@ Write-Host "=== 求职工作台 · 构建后端 exe ===" -ForegroundColor Cyan
 
 # 依赖是否齐（fastapi/uvicorn/pydantic/PyInstaller）。**只在解释器探测里用**，
 # 复用下方构建前校验的前提：EAP 局部降为 Continue，只看退出码。
-# 别探 filelock：它是仓内模块（web/backend/filelock.py），从仓库根 import 会命中
-# 同名 PyPI 包，误报/漏报都出现过。
+# 别探 filelock：它是仓内模块（现随领域层在 tools/filelock.py），从仓库根 import
+# 会命中同名 PyPI 包，误报/漏报都出现过。
 function Test-PyDeps([string]$pyPath) {
     $ErrorActionPreference = "Continue"
     # `*> $null` 把 stdout 与 stderr 一起吞掉：只重定向 stderr 时，解释器启动阶段的任何
@@ -100,7 +100,7 @@ if ($Py -ne "python" -and -not (Test-Path $Py)) {
 # 故校验段局部降为 Continue，只认 $LASTEXITCODE。
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-# 注意：这里**不要**探测 filelock。它是仓内模块（web/backend/filelock.py），不是 pip 依赖；
+# 注意：这里**不要**探测 filelock。它是仓内模块（现随领域层在 tools/filelock.py），不是 pip 依赖；
 # 从仓库根执行 `import filelock` 会去命中同名的 PyPI 包——本机恰好装了它就通过，
 # 干净环境（CI / 新机器）没装就误报「缺少依赖 fastapi / uvicorn / PyInstaller」，
 # 而那句话是假的，会把排查引到错误方向。第三方的同名包反而可能遮蔽仓内模块。

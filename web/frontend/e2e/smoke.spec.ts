@@ -165,3 +165,57 @@ test("设置页「界面大小」在浏览器里降级为一句说明（偏好�
     page.getByText(/只在桌面应用里可调|in the desktop app only/),
   ).toBeVisible();
 });
+
+test("空库首页给引导；接口失败不误报空态", async ({ page }) => {
+  // 空态只在后端**成功**返回 total === 0 时出现（PR #100 的刻意边界）：
+  // 把「接口失败」渲染成「欢迎新建工作区」，会让用户以为数据丢了而真去重建。
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  // ① 页面数据加载失败：首屏探活（App 用第一次 dashboard 请求探活）之后，
+  // Dashboard 自己的数据请求失败 → 显示加载错误，且不得显示空态引导。
+  // （第一次必须放行：探活失败会走 App 级「后端离线」屏，那是另一个分支。）
+  let dashboardCalls = 0;
+  await page.route("**/api/dashboard**", async (route) => {
+    dashboardCalls += 1;
+    if (dashboardCalls === 1) {
+      await route.continue();
+    } else {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "boom", error_code: "test.boom" }),
+      });
+    }
+  });
+  await openPage(page, "dashboard");
+  await expect(page.getByText(/Failed to load the dashboard/)).toBeVisible();
+  await expect(page.getByText("No workspace yet")).toHaveCount(0);
+
+  // ② 空库：total === 0 且各列表为空 → 引导卡出现，点主按钮打开三步向导。
+  // 响应按 DashboardData 的最小合法形状造（KPI 区在空态分支之前就会读
+  // funnel / upcoming / overdue，缺字段会先崩在这一步）。
+  const emptyDashboard = {
+    total: 0,
+    active: 0,
+    funnel: [],
+    byDirection: [],
+    byBatch: [],
+    upcoming: [],
+    overdue: [],
+    stale: [],
+    pending: [],
+    staleDays: 7,
+    retrospective: null,
+    unappliedHigh: [],
+    unappliedHighTotal: 0,
+    scoreByState: [],
+  };
+  await page.unroute("**/api/dashboard**");
+  await page.route("**/api/dashboard**", (route) => route.fulfill({ json: emptyDashboard }));
+  await page.reload();
+
+  await expect(page.getByText("No workspace yet")).toBeVisible();
+  await page.getByRole("button", { name: "Create a workspace" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByText(/Three steps/)).toBeVisible();
+});

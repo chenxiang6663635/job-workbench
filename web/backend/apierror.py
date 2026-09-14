@@ -17,8 +17,8 @@
                    stage="已挂")
 
 **code 的命名口径**：`<域>.<语义>`，域与 routers 对齐（ws / path / app / status /
-job / progress / resume / imap / provider / lib / sys）。同一个语义在不同路由里
-必须复用同一个 code——前端语言包按 code 给一份文案，各写各的就会漂移。
+job / progress / resume / imap / provider / lib / sys / approval）。同一个语义在不同
+路由里必须复用同一个 code——前端语言包按 code 给一份文案，各写各的就会漂移。
 """
 
 from __future__ import annotations

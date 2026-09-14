@@ -251,22 +251,35 @@ class OpenFolderBody(BaseModel):
     path: str
 
 
+def _open_target(key, ws):
+    """把「打开目录」的预设键解析成目标路径；未知键即拒绝（400）。
+
+    只认预设键、不接受任意路径——避免变成任意目录打开器。抽成纯函数是为了
+    能直接单测：走端点会真的拉起系统文件管理器。
+    """
+    from deps import data_root  # 函数内 import：本模块别处不依赖 deps
+    if key == "workspace":
+        return ws
+    if key == "snapshots":
+        return _snapshot_dir(ws)
+    if key == "dataRoot":
+        # 设置页「数据位置」卡片用：便携模式下数据根在应用旁、用户目录模式下
+        # 在系统用户目录——两种都不一定等于某个具体工作区。
+        return os.path.normpath(data_root())
+    raise ApiError(400, "sys.unknownTarget",
+                   "只支持 workspace / snapshots / dataRoot", target=key)
+
+
 @router.post("/open-folder")
 def open_folder(body: OpenFolderBody, ws: str = Depends(workspace_dir)):
-    """用系统文件管理器打开目录（workspaces / snapshots 两种）。
+    """用系统文件管理器打开目录（workspace / snapshots / dataRoot 三种）。
 
-    只接受这两个预设键，不接受任意路径——避免变成任意目录打开器。
+    只接受这几个预设键，不接受任意路径——避免变成任意目录打开器。
     """
-    key = (body.path or "").strip()
-    if key == "workspace":
-        target = ws
-    elif key == "snapshots":
-        target = _snapshot_dir(ws)
-    else:
-        raise ApiError(400, "sys.unknownTarget", "只支持 workspace / snapshots", target=key)
+    target = _open_target((body.path or "").strip(), ws)
 
     if not os.path.isdir(target):
-        # 快照目录可能还没建，直接建出来再打开，比报错有用
+        # 目录可能还没建（快照目录、全新数据根），直接建出来再打开，比报错有用
         os.makedirs(target)
 
     try:

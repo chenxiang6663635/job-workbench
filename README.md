@@ -60,13 +60,13 @@ All pages below run on generated demo data (`init_workspace.py --demo`); compani
 ```bash
 # 0. Just want to look around first? One command gives you a filled demo workspace
 #    (8 applications / 3 interviews / 2 contacts / 1 offer, all placeholder data)
-python tools/init_workspace.py --target demo --demo
+python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
-python tools/init_workspace.py --target my_job_hunt --domain software-backend
+python tools/jobws.py init --target my_job_hunt --domain software-backend
 
 # 2. Distribute skills to your AI CLI (CodeBuddy / Claude Code / cross-runtime ~/.agents/skills/)
-python tools/install_skills.py --target user
+python tools/jobws.py skills install --target user
 
 # 3. Fill in my_job_hunt/AGENTS.md
 #    Section 3 (hard eligibility facts) is required — the JD gate deliberately

@@ -60,8 +60,8 @@
 
 - **先开分支，再动手**：分支要在敲第一行代码前建好（`git switch -c feat/xxx`），不要先在 `main` 写完再 checkout——那样虽然未提交改动会被带到新分支、`main` 仍干净，但流程易混淆，一旦中途忘记开分支，提交就直接落进 `main`。
 - **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、**subject 必须含中文**、≤100 字符），豁免 Merge/Revert。判定逻辑在 `tools/commit_header.py`，与 CI 的 PR 标题校验同源。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
-- **PR 标题也被校验（CI workflow `pr-title`）**：本地钩子只在你自己敲 `git commit` 时运行，而 PR 标题是 GitHub 在合并时用来生成提交 subject 的，**本地钩子结构上看不到它**——这一步只能由 CI 做（语言规则见 §提交规范）。`tools/check_pr_title.py` 经 `PR_TITLE` 环境变量取标题，不拼进 `run:`：PR 标题是外部可控输入，拼进 shell 等于开后门。违规时 CI 红，`gh pr edit <编号> --title "feat(scope): 中文说明"` 即可——这个 workflow 单独一份并显式订阅了 `edited`，因为 `pull_request` 默认只触发 opened / synchronize / reopened，**改标题默认不会重跑**，那样「按提示改标题」就清不掉红叉（2026-09-10 实测踩到）。
-- **开 PR 前先本地预检标题（同一套实现，一秒钟省一轮返工）**：`python tools/check_pr_title.py --title "<你准备用的标题>"`。CI 才是硬闸，但本地预检能把「开完 PR 才发现标题违规」提前到按下回车之前（2026-09-12 实测：scope 写成 `feat(api,ui)`——scope 正则不含逗号，本地两笔提交都合规、PR 标题到 CI 才红）。
+- **PR 标题也被校验（CI workflow `pr-title`）**：本地钩子只在你自己敲 `git commit` 时运行，而 PR 标题是 GitHub 在合并时用来生成提交 subject 的，**本地钩子结构上看不到它**——这一步只能由 CI 做（语言规则见 §提交规范）。`tools/jobws.py lint pr-title` 经 `PR_TITLE` 环境变量取标题，不拼进 `run:`：PR 标题是外部可控输入，拼进 shell 等于开后门。违规时 CI 红，`gh pr edit <编号> --title "feat(scope): 中文说明"` 即可——这个 workflow 单独一份并显式订阅了 `edited`，因为 `pull_request` 默认只触发 opened / synchronize / reopened，**改标题默认不会重跑**，那样「按提示改标题」就清不掉红叉（2026-09-10 实测踩到）。
+- **开 PR 前先本地预检标题（同一套实现，一秒钟省一轮返工）**：`python tools/jobws.py lint pr-title --title "<你准备用的标题>"`。CI 才是硬闸，但本地预检能把「开完 PR 才发现标题违规」提前到按下回车之前（2026-09-12 实测：scope 写成 `feat(api,ui)`——scope 正则不含逗号，本地两笔提交都合规、PR 标题到 CI 才红）。
 - **PR 的粒度是「一个可独立验收的批次」，不是「一次提交」**：分支内可以多次小步提交，全部完成且 `npm run build` / 测试绿之后再开一次 PR。例：P1 的三批页面迁移 = 三个 PR。
 - 分支命名（PR 路径）：`feat/<issue号>-<slug>`、`fix/<issue号>-<slug>`、`docs/<slug>`；存活 ≤ 1–2 天，合完即删。
 - 兜底（出错了怎么办）：数据快照备份 + `git revert`——squash 提交可整体回滚，不污染主干历史。
@@ -119,7 +119,7 @@
 - 本文件与 [AGENTS.md](AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
-- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/init_workspace.py --target demo --demo`）。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
 
 ## 开发辅助工具（MCP / 代码图谱，开发者与 AI 用，非产品）
 
@@ -148,12 +148,12 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 ## 文案与 i18n（界面文字一律走 t()）
 
 - **界面文案一律走 `t()`**：key 加进 `web/frontend/src/i18n/locales/zh-CN.ts`（源语言，key 的单一真值）；`en.ts` 用 `satisfies Record<TranslationKey, string>` 在**编译期**钉住两边 key 集合一致——多一个、少一个、拼错一个都直接报错（不靠人盯）。
-- **四类不翻**：代码注释（中文注释是本项目文档惯例）；领域数据（阶段 / 批次 / 轮次 / 方向 / 终态枚举、CSV 列名、接口中文字段名——它们与 `tools/tracker.py` 和工作区文件是同一套字面量，翻了就与历史数据、CLI 对不上）；用户自己的内容；工作区里的真实文件名与目录名（保留原样，或拆 key 把它夹在中间）。
+- **四类不翻**：代码注释（中文注释是本项目文档惯例）；领域数据（阶段 / 批次 / 轮次 / 方向 / 终态枚举、CSV 列名、接口中文字段名——它们与 `tools/jobws.py track` 和工作区文件是同一套字面量，翻了就与历史数据、CLI 对不上）；用户自己的内容；工作区里的真实文件名与目录名（保留原样，或拆 key 把它夹在中间）。
 - **容器组件的文案由调用方传**：如 `FormField` 的 label/hint——组件自身写死一句默认中文同样算硬编码（`emptyLabel ?? t("…")` 才是对的写法）。
 - **模块级常量表里不能调 `t()`**：改成存 `labelKey: TranslationKey`（`import type { TranslationKey }`）——类型标注是编译期护栏，渲染处再 `t()`。
 - **后端错误不猜语言**：抛 `ApiError(status, code, detail, **params)`（`web/backend/apierror.py`），`detail` 保留中文原文（调试与 issue 都读它），界面文案由前端按 `err.<code>` 查语言包，查不到回落 detail。code 命名 `<域>.<语义>`，**同一语义必须复用同一 code**；用户可见的动态值（阶段名、目录名、id）走 `params`，不要在文案里写死。
-- **自动检查**：`python tools/check_i18n_hardcode.py`（CI 跑，本地随手可跑；命中即拦）。它一起查四类问题，共同点是**漏了界面都会显示 key 名或冒出另一种语言的字**，而 tsc 与 lint 全都看不见：① 硬编码中文；② 复数 key 漏传 `count`；③ `t()` 里的 key 不存在；④ **硬编码英文**（反向盲区：中文界面下冒出英文——`t()` 之外的 JSX 裸文本、`title`/`aria-label`/`alt`/`placeholder` 字面量，以及 Electron 的窗口/对话框文案键）。④ 的起步范围只有 `web/frontend/src/pages/**` 与 `web/electron/**`，且主进程语言包 `web/electron/i18n.js` 与前端语言包同理按路径豁免；范围窄是有意的（误报会让人开始往清单里塞假条目，检查随即失效）。**它刻意不覆盖**的形态写在同一段实现注释里：表达式里的字符串字面量（`placeholder={x || "imap.qq.com"}`、`{cond && "Yes"}`）、白名单之外的属性、非 JSX 裸文本（如 `<option>INBOX</option>`）、跨行属性值。别把"检查通过"读成"没有英文残留"。
-- **放行数据类命中**：登记进 `tools/i18n_hardcode_allowlist.txt`：`路径 = 片段1|片段2  # 理由`；**英文命中写在 `en:` 段**（`en:路径 = 片段  # 理由`）——两套豁免互不通用，写错段等于没写；前缀**必须小写**。同一文件可分多行登记（每行写自己的理由），解析时是**合并**。**只放行列出来的片段，不整文件放行**——整文件豁免曾让一个已翻译文件里藏的 4 处漏翻（列头、差异标签、按钮 tooltip）全绿通过。清单是"现状存档"：某句中文翻掉了、文件删了，必须同步删，否则脚本报「片段已不再出现 / 文件已无命中」（留着会给将来的同名中文预授权）。重新生成草稿：`python tools/check_i18n_hardcode.py --print-allowlist`，理由要人写。
+- **自动检查**：`python tools/jobws.py lint i18n`（CI 跑，本地随手可跑；命中即拦）。它一起查四类问题，共同点是**漏了界面都会显示 key 名或冒出另一种语言的字**，而 tsc 与 lint 全都看不见：① 硬编码中文；② 复数 key 漏传 `count`；③ `t()` 里的 key 不存在；④ **硬编码英文**（反向盲区：中文界面下冒出英文——`t()` 之外的 JSX 裸文本、`title`/`aria-label`/`alt`/`placeholder` 字面量，以及 Electron 的窗口/对话框文案键）。④ 的起步范围只有 `web/frontend/src/pages/**` 与 `web/electron/**`，且主进程语言包 `web/electron/i18n.js` 与前端语言包同理按路径豁免；范围窄是有意的（误报会让人开始往清单里塞假条目，检查随即失效）。**它刻意不覆盖**的形态写在同一段实现注释里：表达式里的字符串字面量（`placeholder={x || "imap.qq.com"}`、`{cond && "Yes"}`）、白名单之外的属性、非 JSX 裸文本（如 `<option>INBOX</option>`）、跨行属性值。别把"检查通过"读成"没有英文残留"。
+- **放行数据类命中**：登记进 `tools/i18n_hardcode_allowlist.txt`：`路径 = 片段1|片段2  # 理由`；**英文命中写在 `en:` 段**（`en:路径 = 片段  # 理由`）——两套豁免互不通用，写错段等于没写；前缀**必须小写**。同一文件可分多行登记（每行写自己的理由），解析时是**合并**。**只放行列出来的片段，不整文件放行**——整文件豁免曾让一个已翻译文件里藏的 4 处漏翻（列头、差异标签、按钮 tooltip）全绿通过。清单是"现状存档"：某句中文翻掉了、文件删了，必须同步删，否则脚本报「片段已不再出现 / 文件已无命中」（留着会给将来的同名中文预授权）。重新生成草稿：`python tools/jobws.py lint i18n --print-allowlist`，理由要人写。
 - **验证**：改动前端后跑 `npx tsc -b` + `npx eslint .`；`npm run build` 交给 CI（本地 vite 会重写 `dist/` 的数百个文件）。
 
 ## 代码卫生（借鉴反屎山清单，精简为四人条款）

@@ -42,7 +42,7 @@ compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作�
 不确定时可先查：
 
 ```
-python tools/jd_score.py --show-profile --domain <X> --direction <Y>
+python tools/jobws.py jd --show-profile --domain <X> --direction <Y>
 ```
 
 方向不属于当前领域 → 回退该领域第一个方向，并在解析卡末尾标注「结论仅供参考」。
@@ -69,7 +69,7 @@ python tools/jd_score.py --show-profile --domain <X> --direction <Y>
 ### 5. 校验并出结论
 
 ```
-python tools/jd_score.py "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" \
+python tools/jobws.py jd "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" \
     --workspace <工作区> --domain <X> --direction <Y>
 ```
 
@@ -86,7 +86,7 @@ python tools/jd_score.py "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.m
 解析卡通过后，可选做差距分析——它把「补关键词」拆成两类，直接服务诚实红线：
 
 ```
-python tools/jd_score.py --gap --resume <版本> "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" --workspace <工作区>
+python tools/jobws.py jd --gap --resume <版本> "<工作区>/01_岗位池/<公司>_<岗位>/解析卡.md" --workspace <工作区>
 ```
 
 输出三分：

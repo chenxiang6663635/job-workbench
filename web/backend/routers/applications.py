@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """投递追踪表增删改查。
 
-复用 tools/tracker.py 的读写与校验函数（read_rows/write_rows/check_date/
+复用 tools/jobws.py track 的读写与校验函数（read_rows/write_rows/check_date/
 check_direction/next_id/sort_key），Web 层只做 HTTP 编排与文件锁。
 写操作全部持锁——write_rows 是全量重读重写，并发会互相覆盖。
 

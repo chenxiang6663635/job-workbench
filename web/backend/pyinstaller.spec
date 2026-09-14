@@ -49,7 +49,11 @@ if os.path.isdir(_tools_src):
 #    同名的文件（types.py / json.py 这种），会**静默遮蔽**同名模块。命名前先搜一遍。
 # _TOOLS_SKIP 只排纯 CI/开发脚本（web/backend 全仓搜过，不引用它们）；将来后端若真的
 # 要用，把名字从元组里拿出来即可——漏了会在 CI 的打包冒烟那步暴露。
-_TOOLS_SKIP = ("check_", "install_", "commit_header")
+# jobws 是**命令行**统一入口：桌面应用不走它（后端直接 import 各领域模块），
+# 但它顶层 import 了 check_* / install_* 这些纯开发脚本，若让它进图就会把它们
+# 一并拖进依赖图。所以连它一起排除——tools/ 下的 .py 仍随 datas 全量复制，
+# 打包版里需要时照样能 import（此时被它 import 的模块已在图中）。
+_TOOLS_SKIP = ("check_", "install_", "commit_header", "jobws")
 tools_modules = []
 if os.path.isdir(_tools_src):
     tools_modules = sorted(

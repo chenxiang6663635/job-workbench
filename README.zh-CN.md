@@ -60,10 +60,10 @@
 
 ```bash
 # 1. 初始化工作区（生成六个模块 + 档案模板 + 领域插件）
-python tools/init_workspace.py --target my_job_hunt --domain software-backend
+python tools/jobws.py init --target my_job_hunt --domain software-backend
 
 # 2. 分发 skills 到你的 AI CLI（CodeBuddy / Claude Code / 跨运行时 ~/.agents/skills/）
-python tools/install_skills.py --target user
+python tools/jobws.py skills install --target user
 
 # 3. 填写 my_job_hunt/AGENTS.md
 #    第三节的硬门槛事实必填——不填则 JD 硬门槛判定会卡住（设计如此，不允许猜测）

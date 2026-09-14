@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """投递后的进展：面试 CRUD + ICS 导出、联系人、Offer 事实、版本谱系。
 
-复用 tools/tracker.py 的读写函数（read_interviews/read_contacts/
+复用 tools/jobws.py track 的读写函数（read_interviews/read_contacts/
 read_offers/next_*_id/append_history），Web 层只做 HTTP 编排。
 写操作与主表共用 tracker.lock——面试与 offer 的 add 会向 history.csv
 追加时间线，与主表写并发时必须互斥。

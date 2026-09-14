@@ -54,9 +54,9 @@ JD 会改、简历会迭代、记忆会模糊——归档是对抗这三者的�
 ## 常用命令
 
 ```
-python tools/tracker.py list --due-within 7     # 最近七天要处理什么
-python tools/tracker.py update --id A001 --stage 一面 --next "准备口述" --next-date 2026-09-10
-python tools/report.py                          # 生成看板
+python tools/jobws.py track list --due-within 7     # 最近七天要处理什么
+python tools/jobws.py track update --id A001 --stage 一面 --next "准备口述" --next-date 2026-09-10
+python tools/jobws.py report                          # 生成看板
 ```
 
 `update` 只能改阶段、下次动作、日期、备注、评分。**公司与岗位不可改**——需要改则新建一条，把旧的标为已放弃。

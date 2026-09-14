@@ -28,19 +28,19 @@ jobs:
       # 不合规或重名的技能装到宿主侧只有两种下场（被跳过 / 被静默覆盖），
       # 两种都不报错，所以必须在 CI 这一头拦住。
       - name: 校验 skills（合规 + 无重名）
-        run: python tools/check_skills.py
+        run: python tools/jobws.py skills check
 
       # 界面文案的硬编码检查：i18n 抽完之后，这一条没有别的机制能拦——新增页面
       # 一个字没翻译，lint 与 tsc 都是绿的，只有英文用户点进去才会发现。
       # 与 pytest 共用同一实现（tools/check_i18n_hardcode.py），口径只有一处。
       - name: 校验界面硬编码中文
-        run: python tools/check_i18n_hardcode.py
+        run: python tools/jobws.py lint i18n
 
       # 界面 token 一致性：旧调色板类名写回来时 Tailwind 不报错（样式只是静默
       # 失效），tsc 与 eslint 也看不见类名字符串——只有这条扫描能拦。
       # 与 check_i18n_hardcode.py 同一种范式：判定唯一实现，CI 与 pytest 共用。
       - name: 校验界面 token 一致性
-        run: python tools/check_ui_tokens.py
+        run: python tools/jobws.py lint ui-tokens
 
   mcp:
     name: MCP 包（3.12）
@@ -121,7 +121,7 @@ jobs:
 
       # 后端同源托管 web/frontend/dist，冒烟跑的就是它；demo 工作区提供满数据页面
       - name: 初始化 demo 工作区
-        run: python tools/init_workspace.py --target demo --demo
+        run: python tools/jobws.py init --target demo --demo
 
       - name: 安装 Node 20
         uses: actions/setup-node@v7

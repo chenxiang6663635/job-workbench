@@ -563,7 +563,7 @@ export default {
   "err.ws.empty": "`ws` must not be empty (omit it to use the default workspace)",
   "err.ws.mustBeRelative": "workspace must be a relative path",
   "err.ws.outOfRange": "workspace is outside the allowed roots",
-  "err.ws.notFound": "Workspace not found: {{name}} (run tools/init_workspace.py first)",
+  "err.ws.notFound": "Workspace not found: {{name}} (run tools/jobws.py init first)",
   "err.path.illegalSegment": "Illegal path segment: {{part}}",
   "err.path.escape": "Path escapes the workspace",
 

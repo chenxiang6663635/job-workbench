@@ -134,7 +134,7 @@ def workspace_dir(request: Request, ws: str = Query(default=None, description="�
     if not os.path.isdir(full):
         raise ApiError(
             404, "ws.notFound",
-            "工作区不存在: %s（先运行 tools/init_workspace.py）" % ws,
+            "工作区不存在: %s（先运行 tools/jobws.py init）" % ws,
             name=ws,
         )
 

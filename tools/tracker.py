@@ -1651,7 +1651,7 @@ def main():
     WORKSPACE = os.path.abspath(args.workspace)
     if not os.path.isdir(WORKSPACE):
         print("错误：工作区不存在 %s" % WORKSPACE)
-        print("先运行 python tools/init_workspace.py 初始化。")
+        print("先运行 python tools/jobws.py init 初始化。")
         return 1
 
     if not args.cmd:
@@ -1674,4 +1674,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # 入口已统一到 tools/jobws.py：直接运行本文件不再执行功能，
+    # 只给一条可复制的迁移命令——不保留旧别名，但也不让人对着静默退出发愣。
+    print("该脚本已合并进统一入口，请改用：python tools/jobws.py track ...")
+    print("查看全部命令：python tools/jobws.py --help")
+    sys.exit(2)

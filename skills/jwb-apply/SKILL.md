@@ -36,13 +36,13 @@ compatibility: Python 3.8+；需仓库内 tools/ 脚本与已初始化的工作�
 ### 3. 生成 PDF 并 ATS 校验
 
 ```
-python tools/resume_build.py --workspace <工作区> --version <版本>
+python tools/jobws.py resume --workspace <工作区> --version <版本>
 ```
 
 走数据驱动「标准版式」时（生成源是 `source/resume_<版本>.json`）：
 
 ```
-python tools/resume_build.py render --workspace <工作区> --version <版本>
+python tools/jobws.py resume render --workspace <工作区> --version <版本>
 ```
 
 三项全过才算成功：
@@ -68,7 +68,7 @@ python tools/resume_build.py render --workspace <工作区> --version <版本>
 ### 5. 写入追踪表
 
 ```
-python tools/tracker.py --workspace <工作区> add \
+python tools/jobws.py track --workspace <工作区> add \
     --company "<公司>" --role "<岗位>" --direction <方向> \
     --batch <批次> --source <来源> --deadline <YYYY-MM-DD> \
     --applied <YYYY-MM-DD> --stage 已投 --resume <版本> --score <评分> \

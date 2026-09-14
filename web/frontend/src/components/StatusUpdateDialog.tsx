@@ -35,7 +35,12 @@ interface Props {
   applications: Application[];
   onClose: () => void;
   onApplied: () => void;
-  /** 预填原文（如从 IMAP 拉取的邮件正文）；用户仍可编辑后再解析 */
+  /** 预填原文（如从 IMAP 拉取的邮件正文）；用户仍可编辑后再解析。
+   *
+   * **契约（issue #50 m3）：只在挂载时读取一次**——它喂给 `useState` 的初值，
+   * 同一实例上后来换值不会生效。调用方要么条件渲染（当前做法），要么在换内容时
+   * 换 `key`（`Applications.tsx` 已显式传 `key`）。这不是可选项：漏了它，
+   * 界面会静默沿用上一次的原文，而这正是"把邮件写进另一条记录"的起点。 */
   initialText?: string;
 }
 

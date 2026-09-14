@@ -365,6 +365,9 @@ export default function Applications() {
 
       {showStatus && (
         <StatusUpdateDialog
+          // key 显式化「初始值只读一次」的契约（issue #50 m3）：换 draft 就换实例，
+          // 而不是让组件静默沿用上一次的原文（那会把邮件写进另一条记录）
+          key={statusDraft}
           applications={items}
           onClose={() => {
             setShowStatus(false);

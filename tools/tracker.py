@@ -959,6 +959,11 @@ def _tracking_targets(workspace=None):
             os.path.join(ws, "05_投递追踪", "history.csv")]
 
 
+# 公开别名：MCP 包（另一棵树）要用它——跨包伸手拿下划线名是坏味道，
+# 一旦这里改签名那边会静默失配（独立审查 m9）。
+tracking_targets = _tracking_targets
+
+
 def _validate_add_fields(fields, workspace=None):
     """新增字段的校验（与命令行同一口径，预览与落盘两段共用）。
 

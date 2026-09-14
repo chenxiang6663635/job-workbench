@@ -53,10 +53,22 @@ def _csv_bytes(ws):
     return (ws / "05_投递追踪" / "tracker.csv").read_bytes()
 
 
+def _tracking_snapshot(ws):
+    """整个 `05_投递追踪` 目录的快照（相对路径 → 字节）。
+
+    只断言 tracker.csv 是不够的：预览若顺手写了 history.csv、或建了隔离目录，
+    那种盲区**照样绿**（独立审查 m4）。快照把这块网补上。
+    """
+    root = ws / "05_投递追踪"
+    return {str(path.relative_to(root)): path.read_bytes()
+            for path in sorted(root.rglob("*")) if path.is_file()}
+
+
 def test_add_preview_is_byte_identical_then_apply_writes(tmp_path):
     """新增：预览字节级不变；凭令牌落盘后记录与时间线都在。"""
     ws = _make_ws(tmp_path)
     before = _csv_bytes(ws)
+    snapshot = _tracking_snapshot(ws)
 
     errors, plan = tracker.preview_add(_add_args(), str(ws))
     assert errors == [] and plan
@@ -64,6 +76,7 @@ def test_add_preview_is_byte_identical_then_apply_writes(tmp_path):
                              plan["summary"], plan["diff"], plan["targets"])
 
     assert _csv_bytes(ws) == before, "预览阶段必须字节级不变"
+    assert _tracking_snapshot(ws) == snapshot, "预览阶段整个追踪目录都不许动"
 
     result = approval.apply(token["token"])
 
@@ -107,6 +120,7 @@ def test_import_preview_is_byte_identical_then_apply_writes(tmp_path):
     ws = _make_ws(tmp_path)
     before = _csv_bytes(ws)
 
+    snapshot = _tracking_snapshot(ws)
     csv_rows = [{"公司": "示例公司甲", "岗位": "示例岗位乙", "方向": "backend",
                  "批次": "正式批", "当前阶段": "待投"}]
     preview = tracker.preview_import(csv_rows, workspace=str(ws))
@@ -115,6 +129,7 @@ def test_import_preview_is_byte_identical_then_apply_writes(tmp_path):
                              "导入 1 条投递记录", ["| 状态 |"], [])
 
     assert _csv_bytes(ws) == before, "预览阶段必须字节级不变"
+    assert _tracking_snapshot(ws) == snapshot, "预览阶段整个追踪目录都不许动"
 
     result = approval.apply(token["token"])
 

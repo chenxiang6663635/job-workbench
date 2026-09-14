@@ -105,6 +105,13 @@ def test_expired_token_is_rejected(tokens, workspace, fake_op):
     assert "过期" in str(ei.value)
     assert not fake_op
 
+    # 过期检查在"取走令牌"之后——令牌被烧掉是**有意**的（先取走才防得住重放），
+    # 所以第二次拿到的是"找不到"而不是"过期"。这条语义钉死：将来若有人为了
+    # "不浪费令牌"把删除挪到过期检查之后，这里会红（独立审查 M3）。
+    with pytest.raises(approval.ApprovalError) as ei:
+        approval.apply(result["token"])
+    assert "找不到这个令牌" in str(ei.value)
+
 
 def test_token_is_bound_to_its_workspace(tokens, workspace, fake_op, tmp_path):
     """令牌是发给"这个工作区"的确认书，不能拿去给别的工作区用。"""

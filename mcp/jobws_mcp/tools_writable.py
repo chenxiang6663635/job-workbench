@@ -63,7 +63,7 @@ def preview_import_applications(workspace, csv_text):
     result = approval.preview(
         "track.import", workspace, {"preview": preview},
         "导入 %d 条投递记录" % len(preview["ok"]), diff,
-        tracker._tracking_targets(workspace))
+        tracker.tracking_targets(workspace))
     return {
         "ok": True,
         "token": result["token"],

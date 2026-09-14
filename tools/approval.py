@@ -70,6 +70,9 @@ def _store_dir():
 
     刻意**不放工作区**：预览阶段连一个目录都不该在工作区里建（硬性第 1 条）；
     也刻意不放仓库：多个工作区共用同一份代码时互不干扰。
+
+    澄清一句：「预览不落盘」指的是**不碰用户数据**——预览会在系统临时目录里建
+    这个目录、写一份令牌，那是协议自身的簿记，与工作区无关（独立审查 M2）。
     """
     path = os.path.join(tempfile.gettempdir(), "jobws-approvals")
     os.makedirs(path, exist_ok=True)
@@ -206,7 +209,7 @@ def main(argv=None):
         print("拒绝：%s" % exc)
         return 1
 
-    print("已执行：%s" % result.get("summary") or result.get("operation", ""))
+    print("已执行：%s" % (result.get("summary") or result.get("operation") or ""))
     if result.get("id"):
         print("记录 id：%s" % result["id"])
     if result.get("written") is not None:

@@ -130,3 +130,23 @@ def test_preview_import_with_error_rows_gives_no_token(ws):
     assert data["ok"] is False
     assert "token" not in data
     assert data["error_rows"]
+
+
+def test_apply_reports_conflict_as_readable_error(ws):
+    """预览之后数据变了：apply_approval 返回 ok=False 与冲突理由，不是抛栈。
+
+    宿主拿到的是可读的拒绝理由（ApprovalConflict 是 ApprovalError 子类，
+    在这一层被捕获），所以模型能自己决定"重新预览"而不是崩掉。
+    """
+    data = tools_writable.preview_add_application(ws, **{
+        "公司": "示例公司甲", "岗位": "示例岗位乙", "方向": "backend",
+        "批次": "正式批", "当前阶段": "待投"})
+
+    tracker.apply_approved_add({"fields": {
+        "公司": "示例公司甲", "岗位": "示例岗位乙", "方向": "backend",
+        "批次": "正式批", "当前阶段": "待投"}}, ws)   # 模拟"别处先写了一条"
+
+    result = tools_writable.apply_approval(ws, data["token"])
+
+    assert result["ok"] is False
+    assert any("已存在相同公司+岗位" in problem for problem in result["errors"])

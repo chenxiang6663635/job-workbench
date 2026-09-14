@@ -98,7 +98,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | Path | Purpose |
 |---|---|
 | `template/` | Generic skeleton: profile templates, empty workspace, domain plugins |
-| `skills/` | The five job-hunting workflows + the coach scoring standard, and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
+| `skills/` | The four job-hunting workflows + the coach scoring standard, and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
 | `tools/` | Six Python scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (seven pages), same data files as the CLI |
 | `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |

@@ -59,11 +59,13 @@ def test_codex_argv_carries_only_ascii_nav_line():
 
 
 def test_claude_flags_deny_write_tools():
-    """allowedTools 是「免询问」而非「仅允许」——写/执行类工具必须显式拉黑（M1）。"""
+    """allowedTools 是「免询问」而非「仅允许」——写/执行类工具显式拉黑（精确集合），
+    且隔断 MCP 配置（用户授权过的 MCP 写工具不得绕过，M1 两轮）。"""
     argv = review._claude_cmd("claude")
-    denied = argv[argv.index("--disallowedTools") + 1:argv.index("--output-format")]
-    for tool in ("Bash", "Edit", "Write"):
-        assert tool in denied
+    denied = argv[argv.index("--disallowedTools") + 1:argv.index("--strict-mcp-config")]
+    assert denied == ["Bash", "Edit", "Write", "NotebookEdit"]
+    assert "--strict-mcp-config" in argv
+    assert "--mcp-config" not in argv
     nav = argv[argv.index("-p") + 1]
     assert "\n" not in nav
     assert nav.isascii()

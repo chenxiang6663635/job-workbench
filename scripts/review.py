@@ -125,10 +125,13 @@ _NAV = "Read the file at %s and follow its instructions." % os.path.relpath(PROM
 
 def _claude_cmd(exe):
     # allowedTools 是「免询问」而不是「仅允许」（用户级 settings 可能另有授权），
-    # 所以显式把执行/改写类工具拉黑——双保险（跨宿主审查 M1，2026-09-14）。
+    # 所以显式把执行/改写类工具拉黑；`--strict-mcp-config` 且**不给**
+    # `--mcp-config` = 不加载任何 MCP 服务器——否则用户在别处授权过的 MCP 写
+    # 工具可以绕过黑名单（跨宿主审查 M1 两轮，2026-09-14）。
     return [exe, "-p", _NAV,
             "--allowedTools", "Read", "Grep", "Glob",
             "--disallowedTools", "Bash", "Edit", "Write", "NotebookEdit",
+            "--strict-mcp-config",
             "--output-format", "text"]
 
 

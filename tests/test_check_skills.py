@@ -214,6 +214,20 @@ def test_yaml_unsafe_colon_in_description_is_rejected(tmp_path):
     assert any("半角冒号" in p for p in item["problems"])
 
 
+def test_quoted_colon_in_description_is_still_rejected(tmp_path):
+    """引号包裹**不**豁免 `: ` 检查——这是有意的仓库额外限制。
+
+    跨宿主审查第三轮指出「合法引号字符串会被误拒」：本仓库刻意不支持引号
+    写法（单行解析器没有引号语义，支持一半比不支持更危险），描述文案统一
+    不用半角冒号+空格。把这条边界固定下来。
+    """
+    _make(tmp_path, "jwb-x", body=(
+        '---\nname: jwb-x\ndescription: "Use when 做事。English triggers: review"\n'
+        "compatibility: ok\n---\n"))
+    item = inspect_skills(str(tmp_path))[0]
+    assert any("半角冒号" in p for p in item["problems"])
+
+
 def test_repo_skills_are_compliant():
     """真实 skills/ 必须合规。
 

@@ -159,8 +159,10 @@ def _is_our_service(port):
 def _should_open_browser():
     """独立运行/双击 exe 时默认自动开界面（web 形态）。
     JOBWS_NO_BROWSER=1 关掉它——桌面端（Electron 已托着窗口）与 UI 冒烟都不需要再弹
-    一个系统浏览器。此前桌面端漏传该变量，安装版启动会多开一个浏览器窗口。"""
-    return not os.environ.get("JOBWS_NO_BROWSER")
+    一个系统浏览器。此前桌面端漏传该变量，安装版启动会多开一个浏览器窗口。
+    只认 "1"（容错首尾空白）："0" / "false" 这类直觉上表示「要开」的取值
+    不应被静默改判为关闭（独立审查 M-1）。"""
+    return os.environ.get("JOBWS_NO_BROWSER", "").strip() != "1"
 
 
 def _open_browser_later(url, delay=1.5):

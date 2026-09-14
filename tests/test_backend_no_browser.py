@@ -22,6 +22,15 @@ def test_defaults_to_open(monkeypatch):
 
 
 def test_disabled_by_env(monkeypatch):
-    """桌面端/CI：环境变量置 1 时不再弹浏览器。"""
+    """桌面端/CI：置 1 时不再弹浏览器（容错首尾空白）。"""
     monkeypatch.setenv("JOBWS_NO_BROWSER", "1")
     assert main._should_open_browser() is False
+    monkeypatch.setenv("JOBWS_NO_BROWSER", " 1 ")
+    assert main._should_open_browser() is False
+
+
+def test_other_values_keep_browser(monkeypatch):
+    """只认 "1"：0 / false / 空串等直觉上表示「要开」的取值保持开，不被静默改判。"""
+    for value in ("0", "false", "no", "", " "):
+        monkeypatch.setenv("JOBWS_NO_BROWSER", value)
+        assert main._should_open_browser() is True, "value=%r" % value

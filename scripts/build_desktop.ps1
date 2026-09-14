@@ -17,7 +17,7 @@ Write-Host "=== 求职工作台 · 桌面安装包构建 ===" -ForegroundColor C
 #    不传 -Py 时由子脚本自行探测（按依赖验证候选 + 扫 conda 环境）——注意不能透传空串：
 #    PowerShell 收到「-Py 后无值」会直接报 Missing an argument，探测逻辑就走不到了。
 $extra = @()
-if ($Py) { $extra = @("-Py", $Py) }
+if (-not [string]::IsNullOrWhiteSpace($Py)) { $extra = @("-Py", $Py) }
 & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "build_backend_exe.ps1") @extra
 if ($LASTEXITCODE -ne 0) {
     Write-Host "后端 exe 构建失败，终止" -ForegroundColor Red

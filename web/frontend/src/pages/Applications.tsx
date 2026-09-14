@@ -245,7 +245,7 @@ export default function Applications() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {error && (
         <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <span>{error}</span>

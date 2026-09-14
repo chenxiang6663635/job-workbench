@@ -45,6 +45,7 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+import init_workspace  # noqa: E402
 import tracker  # noqa: E402
 
 # 令牌有效期（秒）：够用户读完一份差异表，又不至于让"很久以前的那次预览"被当成
@@ -187,7 +188,9 @@ def apply(token, workspace=None):
 # 只登记**已实现**的操作——没实现的不会走到这里（也没有路径能生成它的令牌）。
 _OPERATIONS = {
     "track.add": tracker.apply_approved_add,
+    "track.update": tracker.apply_approved_update,
     "track.import": tracker.apply_approved_import,
+    "init": init_workspace.apply_approved_init,
 }
 
 

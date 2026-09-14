@@ -191,6 +191,179 @@ def print_next_steps(target_name, demo=False):
     print("各模块用途见 %s/README.md" % target_name)
 
 
+def _display_path(path, base):
+    """展示用路径：同盘给相对路径，跨盘退回绝对路径。
+
+    `os.path.relpath` 跨盘会直接抛 `ValueError`——仓库在 D 盘、临时工作区在 C 盘
+    时就会炸（本次实测：测试里的目标目录都在 tmp_path）。
+    """
+    try:
+        return os.path.relpath(path, base)
+    except ValueError:
+        return path
+
+
+def _plan_tree(src, dst, overwrite=False):
+    """只读遍历：算出复制时**会新建**与**会覆盖**哪些文件（**不落盘**）。
+
+    判定规则与 `copy_tree` 保持一致（默认跳过已存在文件，overwrite=True 才覆盖，
+    子目录会被创建）——否则「预览说会覆盖 3 个」和「实际覆盖了 5 个」就开始
+    各说各话。真正的复制仍由 `copy_tree` 执行。
+    """
+    creates, replaces = [], []
+    for item in sorted(os.listdir(src)):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            sub_creates, sub_replaces = _plan_tree(s, d, overwrite)
+            creates.extend(sub_creates)
+            replaces.extend(sub_replaces)
+        elif os.path.isfile(d):
+            if overwrite:
+                replaces.append(d)
+        else:
+            creates.append(d)
+    return creates, replaces
+
+
+def plan_init(target, domain=None, demo=False):
+    """算一遍初始化将做什么（**不落盘**）：返回 (errors, plan)。
+
+    plan 里两份清单分别对应「新建」与「覆盖」——**覆盖清单才是重点**：demo 数据
+    落在一个已经填了真实数据的工作区上就是数据丢失，用户必须在落盘**之前**看到它。
+    """
+    ws_src = os.path.join(TEMPLATE, "workspace")
+    if not os.path.isdir(ws_src):
+        return ["找不到模板骨架 %s" % ws_src], None
+
+    creates, replaces = [], []
+    for module in MODULES:
+        src = os.path.join(ws_src, module)
+        if os.path.isdir(src):
+            sub_creates, sub_replaces = _plan_tree(src, os.path.join(target, module))
+            creates.extend(sub_creates)
+            replaces.extend(sub_replaces)
+
+    readme_dst = os.path.join(target, "README.md")
+    if (os.path.isfile(os.path.join(ws_src, "README.md"))
+            and not os.path.isfile(readme_dst)):
+        creates.append(readme_dst)
+
+    agents_dst = os.path.join(target, "AGENTS.md")
+    if (os.path.isfile(os.path.join(TEMPLATE, "AGENTS.example.md"))
+            and not os.path.isfile(agents_dst)):
+        creates.append(agents_dst)
+
+    effective_domain = domain or (DEMO_DEFAULT_DOMAIN if demo else None)
+    if effective_domain:
+        domain_src = os.path.join(PROFILES, effective_domain)
+        if not os.path.isdir(domain_src):
+            return ["找不到领域插件 `%s`（可用：%s）"
+                    % (effective_domain, "、".join(list_domains()))], None
+        sub_creates, sub_replaces = _plan_tree(domain_src, os.path.join(target, "config"))
+        creates.extend(sub_creates)
+        replaces.extend(sub_replaces)
+
+    if demo:
+        if not os.path.isdir(DEMO):
+            return ["找不到 demo 数据骨架 %s" % DEMO], None
+        sub_creates, sub_replaces = _plan_tree(DEMO, target, overwrite=True)
+        creates.extend(sub_creates)
+        replaces.extend(sub_replaces)
+
+    name = os.path.basename(target.rstrip("\\/")) or target
+    summary = "初始化工作区 %s：新建 %d 个文件" % (name, len(creates))
+    if replaces:
+        summary += "，**覆盖 %d 个已存在的文件**" % len(replaces)
+
+    diff = ["| 状态 | 文件 |", "|---|---|"]
+    for path in replaces:
+        diff.append("| **将覆盖** | %s |" % _display_path(path, ROOT))
+    diff.append("| 将新建 | %d 个文件（首个：%s） |" % (
+        len(creates), _display_path(creates[0], ROOT) if creates else "—"))
+
+    return [], {
+        "payload": {"target": os.path.abspath(target), "domain": effective_domain,
+                    "demo": bool(demo)},
+        "summary": summary,
+        "diff": diff,
+        "targets": [os.path.abspath(target)],
+    }
+
+
+def _run_init(target, domain, demo):
+    """真正执行初始化（落盘），返回 (created, replaced) 两份文件清单。
+
+    清单来自 `_plan_tree`——与预览同一份判定规则，所以「预览说会覆盖 N 个」
+    与「实际覆盖了 N 个」不会各说各话。
+    """
+    created, replaced = [], []
+    ws_src = os.path.join(TEMPLATE, "workspace")
+    for module in MODULES:
+        src = os.path.join(ws_src, module)
+        if not os.path.isdir(src):
+            continue
+        dst = os.path.join(target, module)
+        creates, replaces = _plan_tree(src, dst)
+        copy_tree(src, dst)
+        created.extend(creates)
+        replaced.extend(replaces)
+
+    readme_src = os.path.join(ws_src, "README.md")
+    readme_dst = os.path.join(target, "README.md")
+    if os.path.isfile(readme_src) and not os.path.isfile(readme_dst):
+        copy_tree_file(readme_src, readme_dst)
+        created.append(readme_dst)
+
+    agents_src = os.path.join(TEMPLATE, "AGENTS.example.md")
+    agents_dst = os.path.join(target, "AGENTS.md")
+    if os.path.isfile(agents_src) and not os.path.isfile(agents_dst):
+        shutil.copy2(agents_src, agents_dst)
+        created.append(agents_dst)
+
+    if domain:
+        domain_src = os.path.join(PROFILES, domain)
+        if os.path.isdir(domain_src):
+            dst = os.path.join(target, "config")
+            creates, replaces = _plan_tree(domain_src, dst)
+            copy_tree(domain_src, dst)
+            created.extend(creates)
+            replaced.extend(replaces)
+
+    if demo and os.path.isdir(DEMO):
+        creates, replaces = _plan_tree(DEMO, target, overwrite=True)
+        copy_tree(DEMO, target, overwrite=True)
+        created.extend(creates)
+        replaced.extend(replaces)
+
+    return created, replaced
+
+
+def apply_approved_init(payload, workspace=None):
+    """两段式的第二步：真正初始化工作区。
+
+    落盘前重新检查一次目标目录：预览之后它可能被填了东西——那时候"将覆盖 N 个
+    文件"的承诺已经不成立，拒绝比继续安全（ConflictError → 请重新预览）。
+    """
+    import tracker  # 冲突语义只有一处定义；init 与 tracker 无循环依赖
+
+    target = payload.get("target")
+    if not target or not os.path.isabs(target):
+        raise tracker.ConflictError("令牌里的目标路径不可用——请重新预览。")
+    if os.path.exists(target) and os.listdir(target):
+        raise tracker.ConflictError(
+            "目标目录 %s 在预览之后被填了内容——为免覆盖，已拒绝。请重新预览。"
+            % os.path.basename(target.rstrip("\\/")))
+
+    domain = payload.get("domain")
+    demo = bool(payload.get("demo"))
+    created, replaced = _run_init(target, domain, demo)
+    return {"written": len(created),
+            "summary": "已初始化 %s（新建 %d 个文件，覆盖 %d 个）"
+                       % (os.path.basename(target.rstrip("\\/")) or target,
+                          len(created), len(replaced))}
+
+
 def main():
     parser = argparse.ArgumentParser(description="初始化个人工作区")
     parser.add_argument("--target", default="personal", help="目标目录名，相对仓库根")
@@ -198,6 +371,9 @@ def main():
     parser.add_argument("--demo", action="store_true",
                         help="额外铺上占位 demo 数据（8 投递 / 3 面试 / 2 联系人 / 1 Offer）")
     parser.add_argument("--force", action="store_true", help="目标已存在时仍继续")
+    parser.add_argument("--preview", action="store_true",
+                        help="只预览将新建 / 覆盖哪些文件（不落盘）；"
+                             "确认后用 python tools/jobws.py apply <令牌> 执行")
     args = parser.parse_args()
 
     target = os.path.join(ROOT, args.target)
@@ -206,6 +382,23 @@ def main():
         print("目标目录已存在且不为空：%s" % args.target)
         print("加 --force 覆盖，或换一个 --target 名称。")
         return 1
+
+    if getattr(args, "preview", False):
+        import approval
+        errors, plan = plan_init(target, args.domain, args.demo)
+        if errors:
+            for problem in errors:
+                print("错误：%s" % problem)
+            return 1
+        result = approval.preview("init", target, plan["payload"], plan["summary"],
+                                  plan["diff"], plan["targets"])
+        print("## 预览（未写入）\n")
+        print(result["summary"])
+        for line in plan["diff"]:
+            print(line)
+        print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
+        print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
+        return 0
 
     ws_src = os.path.join(TEMPLATE, "workspace")
     if not os.path.isdir(ws_src):

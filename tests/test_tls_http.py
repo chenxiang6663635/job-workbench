@@ -33,7 +33,9 @@ from apierror import ApiError  # noqa: E402
 
 class _BrokenStore:
     @staticmethod
-    def boom():
+    def boom(cafile=None):
+        # 签名收下 cafile：回退路径会以 `create_default_context(cafile=…)` 调替身，
+        # 无参签名会 TypeError 冒泡、绕过"拒绝"这条底线（独立审查 MINOR-4）。
         raise ssl.SSLError("[ASN1: NOT_ENOUGH_DATA] not enough data")
 
 

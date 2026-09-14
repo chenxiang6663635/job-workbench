@@ -112,10 +112,13 @@ def _context_from_builtin_ca():
     只是信任根不是本机库。因此这里返回的上下文**不需要**任何环境变量，也**不是**
     降级；certifi 缺失或它自身加载失败时返回 None，由调用方继续走「拒绝 / 显式降级」。
     """
-    cafile = _builtin_ca_file()
-    if not cafile:
-        return None
     try:
+        cafile = _builtin_ca_file()
+        if not cafile:
+            return None
         return ssl.create_default_context(cafile=cafile)
     except (ssl.SSLError, OSError):
+        # 取路径与建上下文都包在同一个 try 里：certifi 自身出意外（路径取值抛
+        # OSError）时也走"返回 None → 拒绝"，别让兜底那条路自己冒泡成 500
+        # （独立审查 MINOR-1）。
         return None

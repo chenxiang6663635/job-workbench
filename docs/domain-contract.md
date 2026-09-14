@@ -9,7 +9,8 @@
 三层架构里的领域层：`template/profiles/<domain-id>/`。
 
 - `jobws init --domain <id>` 把插件整树复制进工作区 `<workspace>/config/`——**已存在的文件不会被覆盖**，对已有工作区重复 init 不会冲掉你改过的词典；
-- 评分与复盘按 **ID** 查找：工作区 `config/` 优先，回退到插件目录（`resolve_profile`）；
+- 评分（`jd_score`）按 **ID** 查找：工作区 `config/` 优先，回退到插件目录（`resolve_profile`）；
+- 复盘聚类（`report`）只读工作区 `config/failure_keywords.txt`，**不做插件回退**；文件缺失时退化为按「状态原因」原文频次统计（绝不虚构分类名）；
 - 因此「新增领域」= 新增一个目录。仓库里没有任何 `if domain == ...` 分支——这是架构承诺，`lint domains` 与一条「真实插件必须合规」的测试一起守着它。
 
 现成参考实现：`software-backend/`（软件后端与数据工程）、`hvac-cooling/`（暖通制冷与数据中心冷却）。

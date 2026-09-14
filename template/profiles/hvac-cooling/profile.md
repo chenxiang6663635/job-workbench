@@ -29,7 +29,7 @@ hvac-cooling/
 
 ## 如何新增领域
 
-在 `template/profiles/` 下新建 `<domain-id>/`，按同样三件套组织，无需改动任何 Python 代码。脚本按 ID 查找目录，找不到则报错并列出可用插件。
+在 `template/profiles/` 下新建 `<domain-id>/`，按同样结构组织（profile / lexicon / failure_keywords / directions），无需改动任何 Python 代码。脚本按 ID 查找目录，找不到则报错并列出可用插件。契约全文与校验方式见 `docs/domain-contract.md`；提交前跑 `jobws lint domains`。
 
 ## 维护记录
 

@@ -19,7 +19,7 @@
     python tools/jobws.py release check                      # 按 package.json 版本查
     python tools/jobws.py release check --tag v0.3.0         # 校验 tag 一致 + 段存在
     python tools/jobws.py release check --notes-out out.md   # 抽段落盘（CI 用）
-退出码：0 通过；1 检查未过；2 文件缺失/用法错误。
+退出码：0 通过；1 检查未过（版本不一致 / CHANGELOG 段缺失）；2 文件缺失或读取失败。
 """
 
 from __future__ import print_function
@@ -105,8 +105,27 @@ def main():
                         help="把 Release 说明写到该文件（CI 用）")
     args = parser.parse_args()
 
-    version = args.version or read_version()
-    print("版本：%s（来源：%s）" % (version, "参数" if args.version else "package.json"))
+    if not os.path.isfile(PACKAGE_JSON):
+        print("错误：找不到 %s（版本号唯一来源）" % PACKAGE_JSON)
+        return 2
+    if not os.path.isfile(CHANGELOG):
+        print("错误：找不到 %s" % CHANGELOG)
+        return 2
+    try:
+        real = read_version()
+    except (OSError, ValueError) as exc:
+        print("错误：读取 %s 失败：%s" % (PACKAGE_JSON, exc))
+        return 2
+
+    # --version 只是「显式声明」的通道（CI 从 package.json 读出后原样传回），
+    # 不得与仓库当前版本不一致——否则预检可被一个手滑的参数绕过；预检的信任
+    # 基础就是「始终核对真实版本」（跨宿主审查 MAJOR，2026-09-14）。
+    if args.version and args.version != real:
+        print("版本参数（%s）与 web/electron/package.json（%s）不一致——"
+              "预检对象必须是仓库当前版本；bump 后再跑。" % (args.version, real))
+        return 1
+    version = real
+    print("版本：%s（web/electron/package.json）" % version)
 
     ok, lines, notes = check(version, tag=args.tag)
     for line in lines:

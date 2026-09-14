@@ -81,6 +81,12 @@ def _check_failure_keywords(path):
         if not category.strip() or not words.strip():
             problems.append("failure_keywords.txt 第 %d 行 `=` 两侧都要有内容：%s"
                             % (number, stripped))
+            continue
+        # 消费端（report 的聚类）按逗号分词后会丢弃空词——`类别=,,,` 在校验层
+        # 看着"有内容"、到复盘侧却是空类别（跨宿主审查 MINOR，2026-09-14）。
+        if not any(part.strip() for part in words.split(",")):
+            problems.append("failure_keywords.txt 第 %d 行没有任何有效关键词（只有逗号）：%s"
+                            % (number, stripped))
     return problems
 
 

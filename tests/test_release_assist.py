@@ -108,3 +108,31 @@ def test_read_version_matches_package_json():
     version = release_assist.read_version()
     parts = version.split(".")
     assert len(parts) == 3 and all(part.isdigit() for part in parts)
+
+
+def test_main_rejects_version_argument_mismatch(tmp_path, monkeypatch, capsys):
+    """--version 与 package.json 不一致时不得放行——预检不能被一个参数绕过（M1）。"""
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(SAMPLE, encoding="utf-8")
+    monkeypatch.setattr(release_assist, "CHANGELOG", str(changelog))
+    real = release_assist.read_version()
+    fake = "0.0.1" if real != "0.0.1" else "0.0.2"
+    monkeypatch.setattr(sys, "argv",
+                        ["release_assist", "--version", fake, "--tag", "v" + fake])
+    assert release_assist.main() == 1
+    assert "不一致" in capsys.readouterr().out
+
+
+def test_main_missing_changelog_exits_two(tmp_path, monkeypatch, capsys):
+    """文件缺失 → 退出码 2（模块 docstring 的契约；M3）。"""
+    monkeypatch.setattr(release_assist, "CHANGELOG", str(tmp_path / "nope.md"))
+    monkeypatch.setattr(sys, "argv", ["release_assist"])
+    assert release_assist.main() == 2
+    assert "找不到" in capsys.readouterr().out
+
+
+def test_main_missing_package_json_exits_two(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(release_assist, "PACKAGE_JSON", str(tmp_path / "nope.json"))
+    monkeypatch.setattr(sys, "argv", ["release_assist"])
+    assert release_assist.main() == 2
+    assert "找不到" in capsys.readouterr().out

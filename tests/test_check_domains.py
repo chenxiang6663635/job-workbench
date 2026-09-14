@@ -97,6 +97,13 @@ def test_bad_failure_keywords_line_is_reported(tmp_path):
     assert "第 4 行" in _problems_text(item)
 
 
+def test_comma_only_keywords_are_reported(tmp_path):
+    """`类别=,,,` 在消费端（report 聚类）分词后是空类别——校验层必须拦住。"""
+    root = _make(tmp_path, keywords="# 注释\n类别一=,,,\n")
+    item = inspect_domains(str(root))[0]
+    assert "没有任何有效关键词" in _problems_text(item)
+
+
 def test_profile_id_mismatch_is_reported(tmp_path):
     root = _make(tmp_path, profile_id="some-other-id")
     item = inspect_domains(str(root))[0]

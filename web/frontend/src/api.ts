@@ -529,6 +529,22 @@ export const INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"];
 export const INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"];
 
 // 全局当前工作区（相对仓库根，如 personal）。空 = 用后端默认。
+/** 新建工作区的预览结果（两段式的第一步：不落盘，只登记一次性令牌）。 */
+export type WorkspacePreviewResult = {
+  token: string;
+  summary: string;
+  diff: string[];
+  path: string;
+  expiresAt: number;
+};
+
+/** 凭令牌创建后的结果。 */
+export type WorkspaceApplyResult = {
+  created: number;
+  summary: string;
+  path: string;
+};
+
 export let currentWorkspace = "";
 export function setWorkspace(ws: string) {
   currentWorkspace = ws;

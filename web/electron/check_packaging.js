@@ -47,6 +47,22 @@ for (const f of files) {
   }
 }
 
+// preload 走的是字符串路径（不是 require），上面那个相对依赖扫描看不到它：
+// 漏登记时源码形态照跑（路径能解析）、安装版一启动就崩——与 zoom.js 那次同类。
+// 只认 path.join(__dirname, "x.js") 这一种写法；将来写法变了，正则匹配不到就
+// 静默跳过，宁可漏报也不误报（误报会把守卫变成噪音，然后被绕过）。
+for (const m of mainSrc.matchAll(/preload:\s*path\.join\(\s*__dirname\s*,\s*['"]([^'"]+)['"]\s*\)/g)) {
+  const rel = m[1].split(path.sep).join("/");
+  if (!fs.existsSync(path.join(dir, rel))) {
+    problems.push(`webPreferences.preload points at ${rel}, but no such file exists under web/electron/`);
+    continue;
+  }
+  if (!files.includes(rel)) {
+    problems.push(
+      `webPreferences.preload points at ${rel}, but it is not listed in build.files — the packaged app's preference channel would be missing`);
+  }
+}
+
 if (problems.length) {
   console.error("check_packaging: FAIL");
   for (const p of problems) console.error(`  - ${p}`);

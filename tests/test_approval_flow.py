@@ -11,6 +11,7 @@
 """
 
 import argparse
+import contextlib
 import io
 import os
 import sys
@@ -266,3 +267,46 @@ def test_init_force_path_survives_apply(tmp_path):
     assert result["written"] > 0
     tracker_csv = (target / "05_投递追踪" / "tracker.csv").read_text(encoding="utf-8-sig")
     assert "我自己的数据" not in tracker_csv, "demo 数据应已覆盖旧内容"
+
+
+def test_import_apply_holds_tracker_lock(tmp_path, monkeypatch):
+    """导入的落盘段必须在 `tracker.lock` 内（独立审查 M1）。
+
+    「读最新 → 重校验 → 写」若不互斥，两次并发落盘会各自算出同一个 next_id、
+    后写覆盖前写。这里不走"真并发"（时序断言在 CI 上不可靠），而是证明**写入
+    确实发生在锁内**：把 file_lock 换成带状态的包装，write_rows 被调用的那一
+    刻断言"锁正持有"——把 with 去掉，这条即红。
+    """
+    ws = _make_ws(tmp_path)
+    csv_rows, _unknown = tracker.parse_import_csv(
+        "公司,岗位,方向,批次,当前阶段\n示例公司甲,示例岗位乙,backend,正式批,待投\n")
+    preview = tracker.preview_import(csv_rows, workspace=str(ws))
+    plan = tracker.plan_import(preview, str(ws))
+    token = approval.preview("track.import", str(ws), plan["payload"],
+                             plan["summary"], plan["diff"], plan["targets"])
+
+    state = {"locked": False}
+    real_lock = tracker.file_lock
+
+    @contextlib.contextmanager
+    def spy_lock(path, timeout=10.0):
+        with real_lock(path, timeout):
+            state["locked"] = True
+            try:
+                yield
+            finally:
+                state["locked"] = False
+
+    real_write = tracker.write_rows
+
+    def spy_write(rows, workspace=None):
+        assert state["locked"], "写入必须发生在 tracker.lock 内（独立审查 M1）"
+        return real_write(rows, workspace)
+
+    monkeypatch.setattr(tracker, "file_lock", spy_lock)
+    monkeypatch.setattr(tracker, "write_rows", spy_write)
+
+    result = approval.apply(token["token"])
+
+    assert result["written"] == 1
+    assert state["locked"] is False, "锁必须释放"

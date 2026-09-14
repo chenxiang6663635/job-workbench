@@ -56,19 +56,17 @@ def preview_import_applications(workspace, csv_text):
                            for item in preview["error"]],
         }
 
-    diff = ["| 状态 | 行 | 公司 | 岗位 |", "|---|---|---|---|"]
-    for item in preview["ok"]:
-        diff.append("| 将新增 | %d | %s | %s |" % (
-            item["line"], item["row"].get("公司", ""), item["row"].get("岗位", "")))
+    # 载荷与差异表的构造只此一份（tracker.plan_import）——CLI / 网页端 / 本工具
+    # 共用，避免三处各拼一份之后「预览说 X、落盘写 Y」（独立审查 M2）。
+    plan = tracker.plan_import(preview, workspace)
     result = approval.preview(
-        "track.import", workspace, {"preview": preview},
-        "导入 %d 条投递记录" % len(preview["ok"]), diff,
-        tracker.tracking_targets(workspace))
+        "track.import", workspace, plan["payload"],
+        plan["summary"], plan["diff"], plan["targets"])
     return {
         "ok": True,
         "token": result["token"],
         "summary": result["summary"],
-        "diff": diff,
+        "diff": plan["diff"],
         "duplicates": len(preview["duplicate"]),
         "expires_at": result["expires_at"],
         "unknown_columns": unknown,

@@ -150,3 +150,30 @@ def test_apply_reports_conflict_as_readable_error(ws):
 
     assert result["ok"] is False
     assert any("已存在相同公司+岗位" in problem for problem in result["errors"])
+
+
+def test_import_preview_reuses_plan_import(ws, monkeypatch):
+    """diff / 载荷的构造必须来自 `tracker.plan_import`（单一事实源）。
+
+    CLI / 网页端 / 本工具三处各拼一份 diff 的话，表头或列一改就漂移——独立
+    审查 M2 抓到的正是本函数曾手搓第二份。这里用「标记注入」证明复用：
+    plan_import 的输出带上标记，工具返回的 diff / summary 必须跟着带
+    （若哪天回退成手搓，标记消失，这条即红）。
+    """
+    real_plan = tracker.plan_import
+
+    def marked(preview, workspace=None):
+        plan = real_plan(preview, workspace)
+        plan["diff"] = plan["diff"] + ["| 标记 |"]
+        plan["summary"] = "标记：" + plan["summary"]
+        return plan
+
+    monkeypatch.setattr(tracker, "plan_import", marked)
+
+    csv_text = ("公司,岗位,方向,批次,当前阶段\n"
+                "示例公司甲,示例岗位乙,backend,正式批,待投\n")
+    data = tools_writable.preview_import_applications(ws, csv_text)
+
+    assert data["ok"] is True, data
+    assert data["diff"][-1] == "| 标记 |", "diff 必须经由 tracker.plan_import 构造"
+    assert data["summary"].startswith("标记：")

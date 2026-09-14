@@ -36,6 +36,14 @@ import sys
 # Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 from datetime import date, datetime
 
+# 同目录模块的自举（与 tools/approval.py 同一手法）：tools/ 不在 sys.path 时
+# 也能解析 filelock。file_lock 是「读最新 → 重校验 → 写」整段互斥的唯一实现。
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
+from filelock import file_lock  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
 
@@ -979,6 +987,19 @@ def _tracking_targets(workspace=None):
 tracking_targets = _tracking_targets
 
 
+def _lock_path(workspace=None):
+    """写类操作的互斥锁文件：<工作区>/05_投递追踪/tracker.lock（与 Web 层同一把锁）。
+
+    三个 apply_approved_* 在锁内做「读最新 → 重校验 → 写」整段——否则并发的
+    两次落盘会各自算出同一个 next_id，后写覆盖前写（独立审查 M1）。锁文件所在
+    目录按需创建：全新工作区第一次导入时它还不存在。
+    """
+    ws = resolve_ws(workspace)
+    tracking_dir = os.path.join(ws, "05_投递追踪")
+    os.makedirs(tracking_dir, exist_ok=True)
+    return os.path.join(tracking_dir, "tracker.lock")
+
+
 def _validate_add_fields(fields, workspace=None):
     """新增字段的校验（与命令行同一口径，预览与落盘两段共用）。
 
@@ -1075,23 +1096,26 @@ def apply_approved_add(payload, workspace=None):
     """
     ws = resolve_ws(workspace)
     fields = dict(payload.get("fields") or {})
-    errors = _validate_add_fields(fields, ws)
-    if errors:
-        raise ConflictError("预览之后数据有变化，已拒绝写入：%s（请重新预览）"
-                            % "；".join(errors))
-    rows = read_rows(ws)
-    record = {field: "" for field in FIELDS}
-    record.update(fields)
-    record["id"] = next_id(rows)
-    rows.append(record)
-    write_rows(rows, ws)
-    # 时间线：新建也入账，作为停留天数与首次活动的基准
-    append_history([{"id": record["id"], "字段": "创建", "原值": "",
-                     "新值": "%s %s（%s）" % (record["公司"], record["岗位"],
-                                         record["当前阶段"])}], ws)
-    return {"id": record["id"], "written": 1,
-            "summary": "已新增 %s %s（id=%s）" % (record["公司"], record["岗位"],
-                                                  record["id"])}
+    # 「读最新 → 重校验 → 写」整段持锁：与 Web 直写路径同一把锁，防止并发的
+    # 两次落盘各自算出同一个 next_id（后写覆盖前写）——详见 _lock_path。
+    with file_lock(_lock_path(ws)):
+        errors = _validate_add_fields(fields, ws)
+        if errors:
+            raise ConflictError("预览之后数据有变化，已拒绝写入：%s（请重新预览）"
+                                % "；".join(errors))
+        rows = read_rows(ws)
+        record = {field: "" for field in FIELDS}
+        record.update(fields)
+        record["id"] = next_id(rows)
+        rows.append(record)
+        write_rows(rows, ws)
+        # 时间线：新建也入账，作为停留天数与首次活动的基准
+        append_history([{"id": record["id"], "字段": "创建", "原值": "",
+                         "新值": "%s %s（%s）" % (record["公司"], record["岗位"],
+                                             record["当前阶段"])}], ws)
+        return {"id": record["id"], "written": 1,
+                "summary": "已新增 %s %s（id=%s）" % (record["公司"], record["岗位"],
+                                                      record["id"])}
 
 
 def apply_approved_import(payload, workspace=None):
@@ -1104,7 +1128,9 @@ def apply_approved_import(payload, workspace=None):
     preview = payload.get("preview")
     if not isinstance(preview, dict):
         raise ConflictError("令牌里的导入预览数据不完整——请重新预览。")
-    written = commit_import(preview, ws)
+    # commit_import 的「按锁内最新主表重校验 + 写入」必须在锁内整段完成
+    with file_lock(_lock_path(ws)):
+        written = commit_import(preview, ws)
     if written < 0:
         raise ConflictError("预览之后出现了新的重复行，整批未写入。请重新预览。")
     return {"written": written, "summary": "已导入 %d 条投递记录" % written}
@@ -1234,30 +1260,32 @@ def apply_approved_update(payload, workspace=None):
     ws = resolve_ws(workspace)
     app_id = payload.get("id")
     changes = dict(payload.get("changes") or {})
-    rows = read_rows(ws)
-    target = _find_by_id(rows, app_id)
-    if target is None:
-        raise ConflictError("记录 `%s` 不存在了（预览之后被改过 id 或删除）——请重新预览。"
-                            % app_id)
-    errors = _validate_update(target, changes, ws)
-    if errors:
-        raise ConflictError("预览之后数据有变化，已拒绝写入：%s（请重新预览）"
-                            % "；".join(errors))
+    with file_lock(_lock_path(ws)):
+        rows = read_rows(ws)
+        target = _find_by_id(rows, app_id)
+        if target is None:
+            raise ConflictError("记录 `%s` 不存在了（预览之后被改过 id 或删除）——请重新预览。"
+                                % app_id)
+        errors = _validate_update(target, changes, ws)
+        if errors:
+            raise ConflictError("预览之后数据有变化，已拒绝写入：%s（请重新预览）"
+                                % "；".join(errors))
 
-    before = dict(target)
-    for field, value in changes.items():
-        target[field] = value
-    write_rows(rows, ws)
-    append_history(diff_entries(app_id, before, target), ws)
-    # 回传**实际**差异：预览到确认之间可能隔了很久，主表里的"原值"未必还是预览
-    # 时那个——展示落盘时的真实前后值才算数（独立审查 MAJOR-2）。
-    diff = ["| 字段 | 原值 | 新值 |", "|---|---|---|"]
-    for field in sorted(changes):
-        diff.append("| %s | %s | %s |" % (
-            field, before.get(field, "") or "（空）", target.get(field, "") or "（空）"))
-    return {"id": app_id, "diff": diff,
-            "summary": "已更新 %s（%s %s）" % (app_id, target.get("公司", ""),
-                                            target.get("岗位", ""))}
+        before = dict(target)
+        for field, value in changes.items():
+            target[field] = value
+        write_rows(rows, ws)
+        append_history(diff_entries(app_id, before, target), ws)
+        # 回传**实际**差异：预览到确认之间可能隔了很久，主表里的"原值"未必还是预览
+        # 时那个——展示落盘时的真实前后值才算数（独立审查 MAJOR-2）。
+        diff = ["| 字段 | 原值 | 新值 |", "|---|---|---|"]
+        for field in sorted(changes):
+            diff.append("| %s | %s | %s |" % (
+                field, before.get(field, "") or "（空）",
+                target.get(field, "") or "（空）"))
+        return {"id": app_id, "diff": diff,
+                "summary": "已更新 %s（%s %s）" % (app_id, target.get("公司", ""),
+                                                target.get("岗位", ""))}
 
 
 def cmd_update(args):

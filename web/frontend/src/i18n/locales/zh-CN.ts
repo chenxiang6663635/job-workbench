@@ -295,6 +295,8 @@ const zhCN = {
   // 岗位池页。排序维度、筛选下拉、新建/投递表单、空态与错误提示全部走 t()；
   // 「未投递 / 流程中 / 已终态」作为**筛选 label** 是 UI 文案（翻），
   // 但记录的 applyState 取值仍是同一串中文（不翻）——两处不共用同一个 key。
+  // 分段控件（ui/segmented）需要一个组名——没有它，读屏读出来就是"一组无名单选"
+  "job.sortAria": "排序方式",
   "job.sortDir": "目录名",
   "job.sortState": "投递状态",
   "job.sortRecent": "最近更新",
@@ -440,6 +442,7 @@ const zhCN = {
   "settings.snapshotNote": "快照刻意存放在工作区之外——与源数据同盘同目录的备份会被误删、被 git、被同步工具一并波及。导出包含简历与个人信息，不含应用外的快照。",
 
   // 简历工坊页
+  "resume.modeAria": "编辑模式",
   "resume.modeStd": "标准版式",
   "resume.modeAdvanced": "高级模板",
   "resume.importResume": "导入简历",

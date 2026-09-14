@@ -28,7 +28,7 @@ jobs:
       # 不合规或重名的技能装到宿主侧只有两种下场（被跳过 / 被静默覆盖），
       # 两种都不报错，所以必须在 CI 这一头拦住。
       - name: 校验 skills（合规 + 无重名）
-        run: python tools/check_skills.py
+        run: python tools/jobws.py skills check
 
       # 界面文案的硬编码检查：i18n 抽完之后，这一条没有别的机制能拦——新增页面
       # 一个字没翻译，lint 与 tsc 都是绿的，只有英文用户点进去才会发现。
@@ -121,7 +121,7 @@ jobs:
 
       # 后端同源托管 web/frontend/dist，冒烟跑的就是它；demo 工作区提供满数据页面
       - name: 初始化 demo 工作区
-        run: python tools/init_workspace.py --target demo --demo
+        run: python tools/jobws.py init --target demo --demo
 
       - name: 安装 Node 20
         uses: actions/setup-node@v7

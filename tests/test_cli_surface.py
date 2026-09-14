@@ -15,6 +15,7 @@
 """
 
 import os
+import subprocess
 import sys
 
 import pytest
@@ -29,14 +30,15 @@ import check_skills  # noqa: E402
 import commit_header  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
+import jobws  # noqa: E402
 import jd_score  # noqa: E402
 import report  # noqa: E402
 import resume_build  # noqa: E402
 import tracker  # noqa: E402
 
 # 有 CLI 面的入口（commit_header 是纯库，不在此列，见文末那条断言）
-CLI_MODULES = [tracker, report, resume_build, jd_score,
-               init_workspace, install_skills, check_skills, check_pr_title]
+CLI_MODULES = [["track"], ["report"], ["resume"], ["jd"], ["init"],
+               ["skills", "install"], ["skills", "check"], ["lint", "pr-title"]]
 
 TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
                        "interview", "contact", "offer", "import", "check"]
@@ -55,24 +57,18 @@ def _isolate_module_globals(monkeypatch):
     monkeypatch.delenv("PR_TITLE", raising=False)
 
 
-def _invoke(monkeypatch, capsys, module, argv):
-    """进程内跑一次 CLI，返回 (退出码, 输出)。
+def _invoke_jobws(monkeypatch, capsys, argv):
+    """经过**统一入口**调用一次命令：argv 形如 ["track", "list", ...]。
 
-    统一处理两种收尾方式：`return <code>` 与 argparse 的 `SystemExit`。
-    后者在 `--help`（0）与用法错误（2）时都会出现，写测试时最容易漏。
+    B8 之后 CLI 面由 tools/jobws.py 承载，安全网必须跟着改指向——否则这些断言
+    测的是各模块的 main()，而用户与 CI 实际走的是 jobws，等于网还在、鱼换了道。
     """
-    monkeypatch.setattr(sys, "argv", [module.__name__] + list(argv))
-    code = 0
+    monkeypatch.setattr(sys, "argv", ["jobws"] + list(argv))
     try:
-        result = module.main()
+        result = jobws.main()
         code = 0 if result is None else result
     except SystemExit as exc:
-        if exc.code is None:
-            code = 0
-        elif isinstance(exc.code, int):
-            code = exc.code
-        else:
-            code = 1
+        code = 0 if exc.code is None else exc.code
     captured = capsys.readouterr()
     return code, captured.out + captured.err
 
@@ -86,16 +82,16 @@ def _make_ws(tmp_path):
 
 # --- 1. 每个入口都能被 --help 叫醒 -------------------------------------------
 
-@pytest.mark.parametrize("module", CLI_MODULES, ids=lambda m: m.__name__)
+@pytest.mark.parametrize("module", CLI_MODULES, ids=lambda m: " ".join(m))
 def test_help_exits_zero(module, monkeypatch, capsys):
-    code, out = _invoke(monkeypatch, capsys, module, ["--help"])
+    code, out = _invoke_jobws(monkeypatch, capsys, module + ["--help"])
     assert code == 0, out
     assert "usage" in out.lower(), out
 
 
 @pytest.mark.parametrize("sub", TRACKER_SUBCOMMANDS)
 def test_tracker_subcommand_help_exits_zero(sub, monkeypatch, capsys):
-    code, out = _invoke(monkeypatch, capsys, tracker, [sub, "--help"])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [sub, "--help"])
     assert code == 0, out
     assert "usage" in out.lower(), out
 
@@ -103,7 +99,7 @@ def test_tracker_subcommand_help_exits_zero(sub, monkeypatch, capsys):
 # --- 2. 参数名钉住（搬家最容易丢的东西）--------------------------------------
 
 def test_tracker_add_option_names_are_pinned(monkeypatch, capsys):
-    _code, out = _invoke(monkeypatch, capsys, tracker, ["add", "--help"])
+    _code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + ["add", "--help"])
     for option in ("--company", "--role", "--direction", "--batch", "--source",
                    "--deadline", "--applied", "--stage", "--reason", "--next",
                    "--next-date", "--resume", "--score", "--archive", "--note"):
@@ -111,21 +107,21 @@ def test_tracker_add_option_names_are_pinned(monkeypatch, capsys):
 
 
 def test_tracker_import_keeps_dry_run(monkeypatch, capsys):
-    _code, out = _invoke(monkeypatch, capsys, tracker, ["import", "--help"])
+    _code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + ["import", "--help"])
     assert "--file" in out and "--dry-run" in out
 
 
 def test_interview_contact_offer_keep_their_positional_action(monkeypatch, capsys):
     """这三组是「位置参数 action + 四个取值」的形态，搬家时最容易被改成子子命令。"""
     for sub in ("interview", "contact", "offer"):
-        _code, out = _invoke(monkeypatch, capsys, tracker, [sub, "--help"])
+        _code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [sub, "--help"])
         for action in ("add", "list", "show", "update"):
             assert action in out, "%s 少了 action %s" % (sub, action)
 
 
 def test_tracker_keeps_top_level_workspace(monkeypatch, capsys):
     """--workspace 只在顶层（子命令之前）。B8 统一入口时这条语义要保留。"""
-    _code, out = _invoke(monkeypatch, capsys, tracker, ["--help"])
+    _code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + ["--help"])
     assert "--workspace" in out
 
 
@@ -133,7 +129,7 @@ def test_tracker_keeps_top_level_workspace(monkeypatch, capsys):
 
 def test_usage_error_exits_two(monkeypatch, capsys):
     """jd_score 既没给 card 也没给 --show-profile → parser.error → 退出码 2。"""
-    code, _out = _invoke(monkeypatch, capsys, jd_score, [])
+    code, _out = _invoke_jobws(monkeypatch, capsys, ["jd"] + [])
     assert code == 2
 
 
@@ -145,7 +141,7 @@ def test_tracker_without_subcommand_returns_one(tmp_path, monkeypatch, capsys):
     在本机走「打印帮助」分支、在 CI 走「工作区不存在」分支，断言会随机器变红。
     """
     ws = _make_ws(tmp_path)
-    code, out = _invoke(monkeypatch, capsys, tracker, ["--workspace", str(ws)])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + ["--workspace", str(ws)])
     assert code == 1
     assert "usage" in out.lower()
 
@@ -158,19 +154,16 @@ def test_resume_build_rejects_unknown_command(tmp_path, monkeypatch, capsys):
     所以这里连错误文案一起钉住。
     """
     ws = _make_ws(tmp_path)
-    code, out = _invoke(monkeypatch, capsys, resume_build,
-                        ["--workspace", str(ws), "not-a-command"])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["resume"] + ["--workspace", str(ws), "not-a-command"])
     assert code == 1
     assert "未知子命令" in out, out
 
 
 def test_check_pr_title_exit_codes(monkeypatch, capsys):
-    assert _invoke(monkeypatch, capsys, check_pr_title,
-                   ["--title", "feat(x): 中文说明"])[0] == 0
-    assert _invoke(monkeypatch, capsys, check_pr_title,
-                   ["--title", "english only subject"])[0] == 1
+    assert _invoke_jobws(monkeypatch, capsys, ["lint", "pr-title"] + ["--title", "feat(x): 中文说明"])[0] == 0
+    assert _invoke_jobws(monkeypatch, capsys, ["lint", "pr-title"] + ["--title", "english only subject"])[0] == 1
     # 既没给 --title 也没设 PR_TITLE → 退出码 2（与用法错误同档）
-    assert _invoke(monkeypatch, capsys, check_pr_title, [])[0] == 2
+    assert _invoke_jobws(monkeypatch, capsys, ["lint", "pr-title"] + [])[0] == 2
 
 
 def test_init_workspace_refuses_to_overwrite_without_force(tmp_path, monkeypatch, capsys):
@@ -179,7 +172,7 @@ def test_init_workspace_refuses_to_overwrite_without_force(tmp_path, monkeypatch
     occupied = tmp_path / "ws"
     occupied.mkdir()
     (occupied / "occupant.txt").write_text("x", encoding="utf-8")
-    code, _out = _invoke(monkeypatch, capsys, init_workspace, ["--target", "ws"])
+    code, _out = _invoke_jobws(monkeypatch, capsys, ["init"] + ["--target", "ws"])
     assert code == 1
     assert (occupied / "occupant.txt").exists()  # 没被动过
 
@@ -188,7 +181,7 @@ def test_init_workspace_refuses_to_overwrite_without_force(tmp_path, monkeypatch
 
 def test_tracker_add_writes_row_and_history(tmp_path, monkeypatch, capsys):
     ws = _make_ws(tmp_path)
-    code, out = _invoke(monkeypatch, capsys, tracker, [
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
         "--workspace", str(ws), "add",
         "--company", "示例公司", "--role", "示例岗位",
         "--direction", "other", "--batch", "正式批",
@@ -201,20 +194,19 @@ def test_tracker_add_writes_row_and_history(tmp_path, monkeypatch, capsys):
 
 def test_tracker_list_reads_back_what_add_wrote(tmp_path, monkeypatch, capsys):
     ws = _make_ws(tmp_path)
-    _invoke(monkeypatch, capsys, tracker, [
+    _invoke_jobws(monkeypatch, capsys, ["track"] + [
         "--workspace", str(ws), "add",
         "--company", "示例公司", "--role", "示例岗位",
         "--direction", "other", "--batch", "正式批",
     ])
-    code, out = _invoke(monkeypatch, capsys, tracker, ["--workspace", str(ws), "list"])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + ["--workspace", str(ws), "list"])
     assert code == 0, out
     assert "示例公司" in out
 
 
 def test_tracker_rejects_missing_workspace(tmp_path, monkeypatch, capsys):
     """工作区不存在 → 返回 1，而不是在别处建一个目录。"""
-    code, _out = _invoke(monkeypatch, capsys, tracker,
-                         ["--workspace", str(tmp_path / "nope"), "list"])
+    code, _out = _invoke_jobws(monkeypatch, capsys, ["track"] + ["--workspace", str(tmp_path / "nope"), "list"])
     assert code == 1
 
 
@@ -222,12 +214,12 @@ def test_report_stdout_prints_and_does_not_write_a_file(tmp_path, monkeypatch, c
     """先真的写一条记录进去，否则 report 会提前返回「追踪表尚未创建」——
     那样这条用例只是在测一个空断言（写盘路径压根没跑到）。"""
     ws = _make_ws(tmp_path)
-    _invoke(monkeypatch, capsys, tracker, [
+    _invoke_jobws(monkeypatch, capsys, ["track"] + [
         "--workspace", str(ws), "add",
         "--company", "示例公司", "--role", "示例岗位",
         "--direction", "other", "--batch", "正式批",
     ])
-    code, out = _invoke(monkeypatch, capsys, report, ["--workspace", str(ws), "--stdout"])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["report"] + ["--workspace", str(ws), "--stdout"])
     assert code == 0
     # 断言「真的走了生成路径」：看板是聚合报表，不会列出公司名，
     # 所以钉的是「出看板了」且「不是那条尚未创建的提前返回」
@@ -237,8 +229,7 @@ def test_report_stdout_prints_and_does_not_write_a_file(tmp_path, monkeypatch, c
 
 
 def test_check_skills_passes_on_repo_skills(monkeypatch, capsys):
-    code, out = _invoke(monkeypatch, capsys, check_skills,
-                        ["--root", os.path.join(ROOT, "skills")])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["skills", "check"] + ["--root", os.path.join(ROOT, "skills")])
     assert code == 0, out
 
 
@@ -251,8 +242,7 @@ def test_install_skills_dry_run_validates_but_writes_nothing(monkeypatch, capsys
     target = os.path.join(ROOT, ".codebuddy", "skills")
     before = sorted(os.listdir(target)) if os.path.isdir(target) else None
 
-    code, out = _invoke(monkeypatch, capsys, install_skills,
-                        ["--target", "codebuddy", "--dry-run"])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["skills", "install"] + ["--target", "codebuddy", "--dry-run"])
     assert code == 0, out
     assert "校验通过" in out, out
     assert "将复制（演练）" in out, out
@@ -264,12 +254,12 @@ def test_install_skills_dry_run_validates_but_writes_nothing(monkeypatch, capsys
 def test_tracker_update_changes_stage_and_records_history(tmp_path, monkeypatch, capsys):
     """update 是仅次于 add 的高频子命令，且它同时写主表与时间线。"""
     ws = _make_ws(tmp_path)
-    _invoke(monkeypatch, capsys, tracker, [
+    _invoke_jobws(monkeypatch, capsys, ["track"] + [
         "--workspace", str(ws), "add",
         "--company", "示例公司", "--role", "示例岗位",
         "--direction", "other", "--batch", "正式批",
     ])
-    code, out = _invoke(monkeypatch, capsys, tracker, [
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
         "--workspace", str(ws), "update", "--id", "A001", "--stage", "已投",
     ])
     assert code == 0, out
@@ -296,11 +286,27 @@ def test_jd_score_prints_a_verdict_for_a_real_card(tmp_path, monkeypatch, capsys
     card = job / "解析卡.md"
     card.write_text(_scored_card(80, (24, 20, 24, 12)), encoding="utf-8")
 
-    code, out = _invoke(monkeypatch, capsys, jd_score,
-                        [str(card), "--workspace", str(ws)])
+    code, out = _invoke_jobws(monkeypatch, capsys, ["jd"] + [str(card), "--workspace", str(ws)])
     assert code == 0, out
     assert "80" in out, out
     assert "强烈建议投" in out, out
+
+
+def test_legacy_script_paths_only_print_migration_hint():
+    """旧路径不再执行功能：只给一条可复制的新命令，并以退出码 2 结束。
+
+    这条钉的是「不保留旧别名」的**另一半**——不是让旧命令静默退出 0（那更危险：
+    用户以为执行了、其实什么都没做），而是明确失败并指出该改用什么。
+    """
+    for script in ("tracker", "report", "resume_build", "jd_score",
+                   "init_workspace", "install_skills", "check_skills",
+                   "check_pr_title"):
+        path = os.path.join(TOOLS, script + ".py")
+        proc = subprocess.run([sys.executable, path], stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, encoding="utf-8",
+                              errors="replace")
+        assert proc.returncode == 2, "%s 应以退出码 2 结束" % script
+        assert "jobws" in proc.stdout, "%s 应给出 jobws 迁移提示" % script
 
 
 # --- 5. 记录下来供 B8 用的事实 ----------------------------------------------

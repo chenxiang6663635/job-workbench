@@ -18,6 +18,21 @@
 
 ### Changed
 
+- **命令行入口统一为 `jobws`（破坏性变更）**：`tools/` 下 8 个脚本不再各自可执行，统一走 `python tools/jobws.py <命令>`。**参数名、子命令、退出码（0 通过 / 1 业务失败 / 2 用法或配置错误）全部不变**，只有入口名变了。迁移对照：
+
+  | 旧用法 | 新用法 |
+  |---|---|
+  | `python tools/tracker.py …` | `python tools/jobws.py track …` |
+  | `python tools/report.py …` | `python tools/jobws.py report …` |
+  | `python tools/resume_build.py …` | `python tools/jobws.py resume …` |
+  | `python tools/jd_score.py …` | `python tools/jobws.py jd …` |
+  | `python tools/init_workspace.py …` | `python tools/jobws.py init …` |
+  | `python tools/install_skills.py …` | `python tools/jobws.py skills install …` |
+  | `python tools/check_skills.py …` | `python tools/jobws.py skills check …` |
+  | `python tools/check_pr_title.py` | `python tools/jobws.py lint pr-title` |
+
+  直接运行旧脚本**不再执行任何功能**，会打印上表对应的新命令并以退出码 2 结束——不静默失败。`jobws --help` 列出全部命令，`jobws track --help` 看追踪表的 10 个子命令（子命令与参数照旧，例如 `jobws track list --stage 一面`）。桌面应用不受影响（它直接调用领域函数，不走命令行）。
+
 - **安装器改为向导式（#82）**：双击安装包会出现向导，可以**自选安装位置**（含换盘）并选择「为所有用户 / 仅为我」；静默安装（`/S`，配 `/D=<目录>` 指定位置）仍可用；卸载仍保留 `%APPDATA%` 里的用户数据。**升级提示**：已装旧版的机器升级时**请沿默认选项**（「仅为我」+ 原目录）——选「所有用户」会装到 `Program Files` 并与旧安装分叉。应用内自动更新不受影响：它走静默安装，不会把向导弹到你面前。
 - **设置页新增「界面大小」滑块（#84）**：拖动即预览整个界面（含文字）的缩放，松手记住、重启沿用；快捷键 `Ctrl +` / `Ctrl -` / `Ctrl 0` 照旧可用，滑块与快捷键互相同步。此前缩放只有快捷键、界面里没有任何入口（菜单栏是隐藏的），等同于「按了没反应」。（浏览器里打开 Web 形态时该项显示为一句说明，用浏览器自身的缩放即可。）
 

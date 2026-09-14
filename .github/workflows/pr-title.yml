@@ -39,4 +39,5 @@ jobs:
       - name: 校验 PR 标题
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: python tools/check_pr_title.py
+        # 走统一入口 tools/jobws.py（8 个脚本的 CLI 外壳已合并，旧路径只给迁移提示）
+        run: python tools/jobws.py lint pr-title

@@ -50,22 +50,57 @@ for (const vp of VIEWPORTS) {
   });
 }
 
-test("七个页面的内容区宽度一致（宽度漂移是切页时肉眼可见的跳变）", async ({ page }) => {
-  // 2026-09-13 实测到的缺陷：设置页自带 max-w-2xl —— 内容区 672px，其余六页 1232px，
-  // 来回切 tab 时内容宽度整块跳变。宽度这种"看起来只是不好看"的问题没人会盯着，
-  // 所以把它变成机检：**七页取到的宽度必须只有一个取值**。
+test("页面几何一致：根容器与 main 同宽、纵向节奏全站一致", async ({ page }) => {
+  // 钉住两类"没人会盯着看"的漂移：
+  // ① **页面根容器比 main 的内容盒窄**——2026-09-13 实测：设置页自带 max-w-2xl，
+  //    内容区 672px，其余六页 1232px，切 tab 时宽度整块跳变；
+  // ② **根容器内前两个可见子元素的间距不一致**——同日实测：简历页有三个根分支
+  //    （高级模板 / 无版本 / 主分支），只改主分支会让另外两条仍是旧间距
+  //    （独立审查抓到的 MAJOR：那是"无版本"用户首屏就会走到的路径）。
+  //
+  // **这条断言的能力边界**（别把它读成万能）：它只管**根容器**这一层。若某页把内容
+  // 包进内层的 `mx-auto max-w-3xl`（超宽屏下居中窄栏是合理设计），它不会拦——
+  // 那属于内层容器的事，也不该由它管。
   await page.setViewportSize({ width: 1440, height: 900 });
   const widths: Record<string, number> = {};
+  const gaps: Record<string, number | string> = {};
   for (const key of PAGES) {
     await openPage(page, key);
-    widths[key] = await page.evaluate(() => {
-      const content = document.querySelector("main")?.firstElementChild;
-      return content ? Math.round(content.getBoundingClientRect().width) : -1;
+    const m = await page.evaluate(() => {
+      const main = document.querySelector("main");
+      const root = main?.firstElementChild;
+      if (!main || !root) return { root: -1, box: -1, gap: "n/a" };
+      const cs = getComputedStyle(main);
+      const box = Math.round(
+        main.getBoundingClientRect().width -
+          parseFloat(cs.paddingLeft) -
+          parseFloat(cs.paddingRight),
+      );
+      const kids = [...root.children].filter((e) => e.getBoundingClientRect().height > 0);
+      const gap =
+        kids.length < 2
+          ? "n/a"
+          : Math.round(
+              kids[1].getBoundingClientRect().top - kids[0].getBoundingClientRect().bottom,
+            );
+      return { root: Math.round(root.getBoundingClientRect().width), box, gap };
     });
+    expect(m.root, `${key} 的根容器比 main 的内容盒窄（宽度漂移）`).toBe(m.box);
+    widths[key] = m.root;
+    gaps[key] = m.gap;
   }
+  expect(new Set(Object.values(widths)).size, `内容区宽度不一致：${JSON.stringify(widths)}`).toBe(1);
+
+  // 纵向节奏：只比较量得到的页面，但要求"量得到的"足够多——否则某个页面悄悄变成
+  // 单子元素（比如被错误地整块条件渲染）会以"n/a"的形式把这条检查虚化掉。
+  const numeric = Object.entries(gaps).filter(([, g]) => typeof g === "number");
   expect(
-    new Set(Object.values(widths)).size,
-    `内容区宽度不一致：${JSON.stringify(widths)}`,
+    numeric.length,
+    `能量到纵向节奏的页面太少，检查被虚化：${JSON.stringify(gaps)}`,
+  ).toBeGreaterThanOrEqual(5);
+  expect(
+    new Set(numeric.map(([, g]) => g)).size,
+    `纵向节奏不一致（各页根容器内首两段的间距）：${JSON.stringify(gaps)}`,
   ).toBe(1);
 });
 

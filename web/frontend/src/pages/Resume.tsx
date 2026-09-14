@@ -264,7 +264,7 @@ export default function Resume() {
 
   if (mode === "advanced") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         {errorBanner}
         {modeBar}
         <ResumeTemplates />
@@ -274,7 +274,7 @@ export default function Resume() {
 
   if (!version) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         {errorBanner}
         {modeBar}
         <Card className="border-dashed p-10 text-center">

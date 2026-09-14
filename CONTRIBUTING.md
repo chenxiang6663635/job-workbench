@@ -101,8 +101,9 @@
 1. **冒烟验证**（CI 已跑全量自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开七个页面各操作一遍。
 2. bump 版本号（`web/electron/package.json`）。
 3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为版本号 + ISO 日期。
-4. `git tag -a v0.1.0 -m "..."` 并提交。
-5. 构建产物按版本归档到仓库外目录（产物已被 .gitignore 排除）。
+4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v0.3.0`——校验 tag 与 package.json 一致、CHANGELOG 有该版本段，并预览将发布出去的 Release 说明（与 CI 同一实现；红着就别打 tag）。
+5. `git tag -a v0.1.0 -m "..."` 并提交。
+6. 构建产物按版本归档到仓库外目录（产物已被 .gitignore 排除）。
 
 **hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再打新 patch tag。**不**从旧 tag 拉 hotfix 分支。
 **撤回坏版本**：递增到更高版本号重发；重发同名版本无效。

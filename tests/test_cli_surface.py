@@ -41,7 +41,8 @@ import tracker  # noqa: E402
 
 # 有 CLI 面的入口（commit_header 是纯库，不在此列，见文末那条断言）
 CLI_MODULES = [["track"], ["report"], ["resume"], ["jd"], ["init"],
-               ["skills", "install"], ["skills", "check"], ["lint", "pr-title"]]
+               ["skills", "install"], ["skills", "check"], ["lint", "pr-title"],
+               ["lint", "domains"], ["release", "check"]]
 
 TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
                        "interview", "contact", "offer", "import", "check"]
@@ -236,6 +237,19 @@ def test_check_skills_passes_on_repo_skills(monkeypatch, capsys):
     assert code == 0, out
 
 
+def test_domain_and_release_checks_pass_on_repo(monkeypatch, capsys):
+    """两条新入口的真实路径（与 CI 同一命令）：真仓库的插件与 CHANGELOG 都应过。
+
+    注意一处**刻意的连带**：release check 读的是当前 package.json 版本——发布
+    流程若「bump 了版本、还没落 CHANGELOG 段」，这条会红。那不是假阳性：版本
+    bump 与落章本就该在同一个 PR 里（CONTRIBUTING 发布步骤 2→3 相邻）。
+    """
+    code, out = _invoke_jobws(monkeypatch, capsys, ["lint", "domains"])
+    assert code == 0, out
+    code, out = _invoke_jobws(monkeypatch, capsys, ["release", "check"])
+    assert code == 0, out
+
+
 def test_install_skills_dry_run_validates_but_writes_nothing(monkeypatch, capsys):
     """--dry-run 的要点是「**先校验**、只不复制」（install_skills.py 的注释写明了）。
 
@@ -330,10 +344,11 @@ def test_dispatch_exit_codes(argv, expected, monkeypatch, capsys):
 
 
 def test_command_map_covers_every_merged_module():
-    """11 个命令全部有映射，且每个模块仍然真的暴露 main()。
+    """13 个命令全部有映射，且每个模块仍然真的暴露 main()。
 
     安全网改走 jobws 之后，命令到模块的映射只由 TARGETS / SUB_TARGETS 单方保证；
-    这里从「模块侧」反查一遍，免得改映射时悄悄漏掉一个。
+    这里从「模块侧」反查一遍，免得改映射时悄悄漏掉一个。数字改动必须显式经过
+    这行断言——新增命令时连 CLI_MODULES 的 --help 冒烟一起补（那是刻意的摩擦）。
     """
     mapped = {}
     for name, module, _help in jobws.TARGETS:
@@ -341,7 +356,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 11, sorted(mapped)
+    assert len(mapped) == 13, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

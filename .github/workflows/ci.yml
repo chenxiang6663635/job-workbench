@@ -42,6 +42,12 @@ jobs:
       - name: 校验界面 token 一致性
         run: python tools/jobws.py lint ui-tokens
 
+      # 领域插件合规：「新增领域不改代码」是架构承诺，但语法错、缺文件、词典
+      # 分层缺失都不会让任何现有测试变红——只有这条校验能拦住（契约见
+      # docs/domain-contract.md，本地同一命令）。
+      - name: 校验领域插件（结构 + 词典可解析）
+        run: python tools/jobws.py lint domains
+
   # 支持矩阵：主干声明下限 3.8、上限按 3.12 验证——两个版本都真跑一遍测试。
   # **刻意不用 matrix**：matrix 会给 job 显示名加 "(3.8)" 这类后缀，而
   # 「后端测试（pytest）」是分支保护的必需检查，名字一变，main 上的 PR 会全部

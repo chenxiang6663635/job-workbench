@@ -11,6 +11,9 @@ for contributors and for anyone evaluating the project's health.
   discipline lives in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - Every release gets a changelog entry ([CHANGELOG.md](../CHANGELOG.md)) and
   GitHub release notes.
+- **Before tagging**, run `python tools/jobws.py release check --tag vX.Y.Z`
+  locally: it validates the tag/version match and the CHANGELOG section, and
+  prints the release notes CI will publish (same implementation).
 
 ## Issue triage
 

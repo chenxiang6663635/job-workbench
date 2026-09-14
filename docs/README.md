@@ -63,11 +63,11 @@
 | [`../template/profiles/hvac-cooling/profile.md`](../template/profiles/hvac-cooling/profile.md) | 暖通制冷与数据中心冷却插件 |
 | [`../template/profiles/software-backend/profile.md`](../template/profiles/software-backend/profile.md) | 软件后端与数据工程插件（用于验证跨领域可扩展性） |
 
-新增领域只需新增一个插件目录，无需改代码，见通用设计文档第 5 节。
+新增领域只需新增一个插件目录，无需改代码——**契约全文见 [`domain-contract.md`](domain-contract.md)**（结构、格式、边界与校验方式）；提交前跑 `python tools/jobws.py lint domains`（CI 同一实现）。
 
 ## 技能文件（工作流定义）
 
-`../skills/` 下五个：`jwb-recruit-coach`（评分标准与红线）、`jwb-jd`、`jwb-apply`、`jwb-track`、`jwb-resume`。
+`../skills/` 下八个：五个求职向——`jwb-recruit-coach`（评分标准与红线）、`jwb-jd`、`jwb-apply`、`jwb-track`、`jwb-resume`；三个开发向——`jwb-cli-contract`（CLI 契约）、`jwb-api-review`（API 审查）、`jwb-mcp-server`（MCP 指南）。
 
 这些既是 AI 可加载的技能，也是各工作流的规格说明——读它们等于读流程定义。
 

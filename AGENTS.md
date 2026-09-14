@@ -54,4 +54,4 @@
 
 ## 新增领域
 
-在 `template/profiles/` 下新建 `<domain-id>/`，含 `profile.md`、`lexicon.md`、`directions/*.md`。无需改动任何 Python 代码——脚本按 ID 查找目录。
+在 `template/profiles/` 下新建 `<domain-id>/`，含 `profile.md`、`lexicon.md`、`failure_keywords.txt`、`directions/*.md`。无需改动任何 Python 代码——脚本按 ID 查找目录。**契约与校验**：全文见 `docs/domain-contract.md`；提交前跑 `python tools/jobws.py lint domains`（CI 同一实现）。

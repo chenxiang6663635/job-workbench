@@ -175,8 +175,8 @@ def main():
         if sys.stdout.encoding.lower() != "utf-8":
             try:
                 sys.stdout.reconfigure(encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as exc:  # 只影响显示层——但要说一声（禁静默吞错）
+                print("注意：stdout 切换 UTF-8 失败（%s）" % exc, file=sys.stderr)
 
     try:
         prompt, diff_size = _prepare(args.base, args.head)

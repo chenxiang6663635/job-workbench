@@ -21,6 +21,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import socket
 
 from typing import Optional
 
@@ -32,6 +33,7 @@ from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
 from filelock import file_lock
+from redact import mask_secret
 
 router = APIRouter(prefix="/api/imap")
 
@@ -84,12 +86,57 @@ def _read_config(path):
 
 
 def _mask_password(password):
-    """授权码脱敏：只显示末 4 位；空值原样返回。"""
-    if not password:
-        return ""
-    if len(password) <= 4:
-        return "****"
-    return "*" * (len(password) - 4) + password[-4:]
+    """授权码脱敏。实现已收进 `redact.mask_secret`（issue #50 m2：与 Provider 的
+    `_mask_key` 逐字相同，抽公共模块）；保留私名只因为调用点读起来更贴域。"""
+    return mask_secret(password)
+
+
+# DNS 名字的通用上限（RFC 1035：253 个字符）
+MAX_HOST_LEN = 253
+
+
+def _is_ipv6_literal(host):
+    """是不是 IPv6 字面量（`[::1]` 或 `::1`）——含冒号但**不是** host:port。"""
+    candidate = host[1:-1] if host.startswith("[") and host.endswith("]") else host
+    try:
+        socket.inet_pton(socket.AF_INET6, candidate)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _check_host_shape(host):
+    """使用前的 host 形状校验（issue #50 A1），返回原值。
+
+    为什么是"使用前"而不只是"保存时"：保存校验是后加的，老配置里可能已经存着
+    坏值；而且留空 host 时推断出来的值也该走同一道关。坏值最终都会在 `_connect`
+    里变成"连不上 993 端口"——那句话对用户没有任何指向性，真正的原因（把
+    `https://` 或 `host:port` 整段粘了进来）必须在**换得出正确说法的地方**报出来。
+
+    分三个 code 而不是一个通用 code：三种形状问题的**出路不一样**（去掉协议头 /
+    端口填另一栏 / 只填主机名），合成一句话等于把可操作的指引磨成一句废话，
+    英文界面也只能渲染成同一段含糊文案。
+    """
+    if len(host) > MAX_HOST_LEN:
+        raise ApiError(422, "imap.hostTooLong",
+                       "服务器地址过长（%d 字符，上限 %d）：只填主机名，不要带路径"
+                       % (len(host), MAX_HOST_LEN),
+                       length=len(host))
+    if "://" in host:
+        raise ApiError(422, "imap.hostMalformed",
+                       "服务器地址不要带协议头：去掉 http:// 或 https://，"
+                       "只填主机名（如 imap.qq.com）")
+    if "/" in host:
+        raise ApiError(422, "imap.hostMalformed",
+                       "服务器地址不能含斜杠：只填主机名，路径不要写进来")
+    if any(ch.isspace() for ch in host):
+        raise ApiError(422, "imap.hostMalformed",
+                       "服务器地址不能含空格：请检查是否多粘了一段")
+    if ":" in host and not _is_ipv6_literal(host):
+        raise ApiError(422, "imap.hostPortInline",
+                       "端口请填在「端口」栏：地址里不要写成 host:port"
+                       "（例如 imap.qq.com:993 应拆成两栏）")
+    return host
 
 
 def _public(cfg):
@@ -113,7 +160,8 @@ def _resolve_host(cfg):
         raise ApiError(
             400, "imap.hostUnknown",
             "IMAP 服务器地址为空且无法按邮箱域名推断：请在设置里手填服务器地址")
-    return host
+    # 推断出来的值也走同一道形状校验：坏值的终点都一样（连接期一句"连不上"）
+    return _check_host_shape(host)
 
 
 @router.get("")
@@ -141,7 +189,9 @@ def save_imap(body: SaveImap, ws: str = Depends(workspace_dir)):
 
     with file_lock(_lock_path(ws)):
         cfg = _read_config(path)
-        cfg["host"] = body.host.strip()
+        raw_host = body.host.strip()
+        # 留空是合法输入（表示"按邮箱域名推断"）；非空则先过形状校验
+        cfg["host"] = _check_host_shape(raw_host) if raw_host else ""
         cfg["port"] = body.port
         cfg["user"] = body.user.strip()
         cfg["folder"] = body.folder.strip() or imap_fetch.DEFAULT_FOLDER

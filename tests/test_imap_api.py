@@ -131,6 +131,74 @@ def test_test_endpoint_reports_the_folder_count(tmp_path, client, monkeypatch):
     assert res.json()["messageCount"] == 42
 
 
+# --- 2b. host 形状校验（issue #50 A1）----------------------------------------
+# 判据：坏地址要在**使用前**被拦住。拖到连接期的代价不是"多一个错"，而是错得
+# 看不懂——用户看到的是"连不上 993 端口"，而真正的原因是他把 https:// 也贴了进来。
+
+def test_save_rejects_a_host_with_a_scheme(tmp_path, client):
+    res = _save(client, host="https://imap.example.com")
+    assert res.status_code == 422
+    body = res.json()
+    assert body["error_code"] == "imap.hostMalformed"
+    assert "协议" in body["detail"]
+
+
+def test_save_rejects_a_host_with_a_slash(tmp_path, client):
+    res = _save(client, host="imap.example.com/path")
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "imap.hostMalformed"
+
+
+def test_save_rejects_a_host_with_whitespace(tmp_path, client):
+    res = _save(client, host="imap example.com")
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "imap.hostMalformed"
+
+
+def test_save_rejects_host_and_port_written_together(tmp_path, client):
+    """`host:port` 连写要直接指出「端口填端口栏」，而不是拖到连接期。"""
+    res = _save(client, host="imap.example.com:993")
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "imap.hostPortInline"
+
+
+def test_save_rejects_an_over_long_host(tmp_path, client):
+    host = ("a" * 250) + ".example.com"
+    res = _save(client, host=host)
+    assert res.status_code == 422
+    body = res.json()
+    assert body["error_code"] == "imap.hostTooLong"
+    assert body["error_params"]["length"] == len(host)
+
+
+def test_save_accepts_an_ipv6_literal(tmp_path, client):
+    """IPv6 字面量**含冒号但不是** host:port —— 不能误伤。"""
+    assert _save(client, host="[::1]").status_code == 200
+
+
+def test_save_still_allows_an_empty_host(tmp_path, client):
+    """留空是合法输入（表示"按邮箱域名推断"）——校验不能把这条路堵死。"""
+    assert _save(client, host="").status_code == 200
+
+
+def test_fetch_rejects_a_stored_host_with_a_scheme(tmp_path, client, monkeypatch):
+    """老配置里已经存了坏值：使用时也要拦住，且**不发起连接**。"""
+    path = _config_path(tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    io.open(str(path), "w", encoding="utf-8").write(json.dumps({
+        "host": "https://imap.example.com", "port": 993,
+        "user": "me@example.com", "password": "auth-code-1234", "folder": "INBOX"}))
+    called = []
+    monkeypatch.setattr(imap_fetch, "fetch_messages",
+                        lambda *a, **k: called.append(1) or [])
+
+    res = client.post("/api/imap/fetch", params={"ws": WS}, json={})
+
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "imap.hostMalformed"
+    assert called == [], "形状不合法时不该发起连接"
+
+
 # --- 3. 拉取：只读取样，dry-run ----------------------------------------------
 
 def test_fetch_requires_config(tmp_path, client):

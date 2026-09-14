@@ -342,6 +342,30 @@ def test_connect_passes_ssl_context_to_imaplib(monkeypatch):
     assert captured["ssl_context"] is ctx
 
 
+def test_probe_runs_before_the_tls_connection(monkeypatch):
+    """先探测、再 TLS 建连——顺序本身是设计（issue #50 S1 的结论）。
+
+    3.8 基线上 `imaplib.IMAP4_SSL` 没有 `timeout` 参数（3.9+ 才有），探测是
+    "坏地址要在 15 秒内失败"的唯一手段。这条断言的作用是：谁要删掉探测，必须先
+    面对"删了会怎样"这个问题（否则坏地址会挂到系统 TCP 超时，几十秒起）。
+    基线升到 3.9+ 之后可以改成 `IMAP4_SSL(timeout=...)` 并删掉本用例。
+    """
+    order = []
+    monkeypatch.setattr(imap_fetch, "_probe_tcp", lambda host, port: order.append("probe"))
+    monkeypatch.setattr(ssl, "create_default_context",
+                        lambda: ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
+
+    def _fake_imap_ssl(host, port, ssl_context=None):
+        order.append("connect")
+        return object()
+
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", _fake_imap_ssl)
+
+    imap_fetch._connect("host", 993)
+
+    assert order == ["probe", "connect"]
+
+
 def test_certificate_verify_failure_gets_its_own_message(monkeypatch):
     """证书不被信任 ≠ 地址写错：消息必须分开，且不给降级出口。"""
     monkeypatch.setattr(imap_fetch, "_probe_tcp", lambda host, port: None)

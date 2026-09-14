@@ -13,13 +13,17 @@ CONTRIBUTING 的流程门禁要求每批 PR 做双轨审查，其中第二轨必
     python scripts/review.py --host claude        # 指定宿主：claude / codex
     python scripts/review.py --dry-run            # 只准备 diff 与提示词，不调宿主
 
-原理（三个刻意选择）：
+原理（四个刻意选择）：
 
 - **不把 diff 喂进命令行**：大 diff 会被入参上限截断，审查方拿到的必须是完整
   改动。脚本先把 `git diff base...head -U10` 落成 `tmp_review_diff.patch`
   （根目录 tmp_ 前缀，已 gitignore），提示词里给它**路径**，让审查方自己读。
 - **提示词是资产不是即兴**：模板在 `scripts/review_prompt.md`，与 CodeBuddy
   子代理轨用的是同一套判据——跨宿主也仍然是「同一条轨道」。
+- **提示词也走文件**：渲染后的提示词落盘 `tmp_review_prompt.md`，命令行只带
+  一行 ASCII 导航语。实证（2026-09-14）：Windows 上 codex 常是 npm 的
+  `.CMD` 包装，多行参数会被 cmd.exe 在第一个换行处截断——审查方只收到标题
+  一行；文件导航同时躲开这个坑与 cmd 代码页对中文参数的影响。
 - **只读**：脚本只跑只读 git 子命令（`rev-parse` / `diff` / `log`），绝不
   checkout / reset / stash——审查不该改变被审查的工作区。
 
@@ -27,6 +31,8 @@ CONTRIBUTING 的流程门禁要求每批 PR 做双轨审查，其中第二轨必
 
 - 独立性来自**上下文隔离**（全新会话、不带本轮结论）；要模型多样性就换宿主。
 - 第二宿主 CLI 需自行安装并登录；本机实测 claude / codex 均可用（copilot 未接）。
+  **改动任一宿主分支后都要实跑一次**——两个分支的坑不同（.CMD 参数截断就是
+  只在实跑时暴露的那类）。
 - codex 分支默认 `--ignore-user-config`：审查要确定性，且用户 config.toml 的
   版本不兼容字段（如 `service_tier`）不该卡住门禁；auth 走 CODEX_HOME 不受影响。
 - 输出是**审查意见**，采纳与否由作者判断——与子代理轨同一条纪律：findings 可
@@ -48,6 +54,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROMPT_FILE = os.path.join(ROOT, "scripts", "review_prompt.md")
 DIFF_FILE = os.path.join(ROOT, "tmp_review_diff.patch")
+PROMPT_OUT = os.path.join(ROOT, "tmp_review_prompt.md")
 
 
 def _git(args):
@@ -78,18 +85,25 @@ def _prepare(base, head):
     }
     for key, value in replacements.items():
         prompt = prompt.replace(key, value)
+    with open(PROMPT_OUT, "w", encoding="utf-8") as handle:
+        handle.write(prompt)
     return prompt, len(diff_text)
 
 
-def _claude_cmd(exe, prompt):
-    # Read/Grep/Glob 足够：读 diff、读源码、搜同源位置（不给 Bash——只读排查由此保证）
-    return [exe, "-p", prompt, "--allowedTools", "Read", "Grep", "Glob",
+# 两个宿主都走「文件导航」：提示词已落盘（PROMPT_OUT），命令行只带一行 ASCII
+# 导航语（含换行的长参数会被 `.CMD` 包装截断、中文参数会受 cmd 代码页影响）。
+_NAV = "Read the file at %s and follow its instructions." % os.path.relpath(PROMPT_OUT, ROOT)
+
+
+def _claude_cmd(exe):
+    # Read/Grep/Glob 足够：读提示词、读 diff、读源码（不给 Bash——只读排查由此保证）
+    return [exe, "-p", _NAV, "--allowedTools", "Read", "Grep", "Glob",
             "--output-format", "text"]
 
 
-def _codex_cmd(exe, prompt):
+def _codex_cmd(exe):
     return [exe, "exec", "-s", "read-only", "-C", ROOT,
-            "--skip-git-repo-check", "--ephemeral", "--ignore-user-config", prompt]
+            "--skip-git-repo-check", "--ephemeral", "--ignore-user-config", _NAV]
 
 
 HOSTS = [("claude", _claude_cmd), ("codex", _codex_cmd)]
@@ -140,15 +154,16 @@ def main():
     name, exe, build = picked
 
     print("diff 已落盘：%s（%d 字节）" % (DIFF_FILE, diff_size))
+    print("提示词已落盘：%s" % PROMPT_OUT)
     print("第二宿主：%s（%s）" % (name, exe))
     if args.dry_run:
-        print("--- 提示词（将原样传给宿主）---")
+        print("--- 提示词（已落盘；命令行只传一行导航语）---")
         print(prompt)
         print("--- dry-run 结束：未调用宿主 ---")
         return 0
 
     print("开始独立审查（只读；输出即时可见）…")
-    proc = subprocess.run(build(exe, prompt), cwd=ROOT)
+    proc = subprocess.run(build(exe), cwd=ROOT)
     if proc.returncode != 0:
         print("宿主退出码 %d——审查未完成。" % proc.returncode)
         return 1

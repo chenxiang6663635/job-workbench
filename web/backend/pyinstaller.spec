@@ -41,13 +41,38 @@ if os.path.isdir(_tools_src):
 # 不会被收集。v0.2.2 就是这么丢的 `imaplib`（打包版后端一启动就 ModuleNotFoundError）；
 # 而 CI 只构建不运行产物，所以全绿。手写模块名治不了本（曾只写 tracker/jd_score，
 # 新加的 imap_fetch 照样漏），因此这里**自动枚举**：新增 tools 模块自动进分析图。
+#
+# 两条纪律（2026-09-13 独立审查提出）：
+# 1) tools/ 内部的交叉导入（report→tracker、status_parse→tracker）能否进图，
+#    同样只取决于 pathex 那一处——挪它之前先想清楚；
+# 2) pathex 把 tools/ 放到了模块搜索路径前面：若将来在 tools/ 下建与标准库/三方
+#    同名的文件（types.py / json.py 这种），会**静默遮蔽**同名模块。命名前先搜一遍。
+# _TOOLS_SKIP 只排纯 CI/开发脚本（web/backend 全仓搜过，不引用它们）；将来后端若真的
+# 要用，把名字从元组里拿出来即可——漏了会在 CI 的打包冒烟那步暴露。
+_TOOLS_SKIP = ("check_", "install_", "commit_header")
 tools_modules = []
 if os.path.isdir(_tools_src):
     tools_modules = sorted(
         os.path.splitext(name)[0]
         for name in os.listdir(_tools_src)
-        if name.endswith(".py") and name != "__init__.py"
+        if name.endswith(".py")
+        and name != "__init__.py"
+        and not name.startswith(_TOOLS_SKIP)
     )
+
+# template/ 必须随包：tools 里的 jd_score / resume_build 按 `__file__` 向上两级定位
+# `ROOT/template/...`（打包后即 _internal/template/，它们源码里就是这么写的）。
+# 缺了它，gap 分析（resolve_profile 读 template/profiles）与简历渲染（load_template 读
+# std_resume.html）只会在**请求时**才炸——比 imaplib 那种启动即崩更隐蔽，故一并补上
+# （2026-09-13 独立审查 MAJOR-1）。
+_template_src = os.path.join(REPO_ROOT, "template")
+if os.path.isdir(_template_src):
+    for name in sorted(os.listdir(_template_src)):
+        src = os.path.join(_template_src, name)
+        if os.path.isfile(src):
+            tools_datas.append((src, "template"))
+        elif os.path.isdir(src):
+            tools_datas.append((src, os.path.join("template", name)))
 
 # uvicorn 的动态导入必须显式声明，否则打包后启动即失败（业界公认的坑）
 uvicorn_hidden = [

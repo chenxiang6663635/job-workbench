@@ -105,6 +105,8 @@ test("页面几何一致：根容器与 main 同宽、纵向节奏全站一致",
 });
 
 test("岗位池排序与简历模式切换是原生单选组：方向键可切换", async ({ page }) => {
+  // 用 `.focus()` 而不是 `.click()`：输入框是 `sr-only`（1px、被裁切），Playwright 的
+  // 点击可用性检查会判它 "outside of the viewport" 而超时——要"点"就点它的 label。
   // 这两处原来是 ui/tabs 当"单选开关"用：触发器带 aria-controls 指向不存在的内容面板
   // （axe 的 aria-valid-attr-value 报的就是它）。换成 ui/segmented 后用原生 radio，
   // 方向键切换与分组语义由浏览器给出——这条用例钉住"方向键真的能切"。

@@ -42,6 +42,7 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 import approval  # noqa: E402
+import check_domains  # noqa: E402
 import check_i18n_hardcode  # noqa: E402
 import check_pr_title  # noqa: E402
 import check_skills  # noqa: E402
@@ -49,6 +50,7 @@ import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jd_score  # noqa: E402
+import release_assist  # noqa: E402
 import report  # noqa: E402
 import resume_build  # noqa: E402
 import tracker  # noqa: E402
@@ -62,21 +64,25 @@ TARGETS = [
     ("jd", jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
+    ("release", None, "发版辅助（check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
-    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token）"),
+    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件）"),
 ]
 
 # (顶层命令, 子命令) -> 模块
 SUB_TARGETS = {
     ("skills", "install"): install_skills,
     ("skills", "check"): check_skills,
+    ("release", "check"): release_assist,
     ("lint", "pr-title"): check_pr_title,
     ("lint", "i18n"): check_i18n_hardcode,
     ("lint", "ui-tokens"): check_ui_tokens,
+    ("lint", "domains"): check_domains,
 }
 
 SUB_CHOICES = {"skills": ["install", "check"],
-               "lint": ["pr-title", "i18n", "ui-tokens"]}
+               "release": ["check"],
+               "lint": ["pr-title", "i18n", "ui-tokens", "domains"]}
 
 HELP_FLAGS = ("-h", "--help")
 
@@ -127,6 +133,16 @@ def _exit_code(exc):
 
 
 def main(argv=None):
+    # Windows 控制台默认 GBK；输出被 PowerShell 管道接走（`| Select-Object` 等）
+    # 时按 locale 编码，中文会变乱码。与 scripts/review.py、scripts/smoke_backend_exe.py
+    # 同款处理：显式改 UTF-8（CI 的 Linux 环境本就是 UTF-8，无行为变化）。
+    if sys.stdout is not None and getattr(sys.stdout, "encoding", None):
+        if sys.stdout.encoding.lower() != "utf-8":
+            try:
+                sys.stdout.reconfigure(encoding="utf-8")
+            except Exception:
+                pass
+
     parser = build_parser()
     # parse_known_args 而不是 REMAINDER：subparser 里用 REMAINDER 收集剩余参数时，
     # `--help` 会被当成未识别选项回传到顶层（argparse 的已知组合坑），结果

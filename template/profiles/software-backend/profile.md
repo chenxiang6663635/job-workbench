@@ -13,10 +13,11 @@
 
 ```
 software-backend/
-├── profile.md        本文件：插件元信息
-├── lexicon.md        三级词典，两个方向共用
+├── profile.md            本文件：插件元信息
+├── lexicon.md            三级词典，两个方向共用
+├── failure_keywords.txt  失败原因聚类关键词表
 └── directions/
-    ├── backend.md    方向锚点表 + 方向特有词
+    ├── backend.md        方向锚点表 + 方向特有词
     └── data.md
 ```
 
@@ -26,7 +27,7 @@ software-backend/
 
 ## 如何新增领域
 
-在 `template/profiles/` 下新建 `<domain-id>/`，按同样三件套组织，无需改动任何 Python 代码。
+在 `template/profiles/` 下新建 `<domain-id>/`，按同样结构组织（profile / lexicon / failure_keywords / directions），无需改动任何 Python 代码。契约全文与校验方式见 `docs/domain-contract.md`；提交前跑 `jobws lint domains`。
 
 ## 维护记录
 

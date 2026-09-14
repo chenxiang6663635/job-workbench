@@ -13,10 +13,11 @@
 
 ```
 hvac-cooling/
-├── profile.md        本文件：插件元信息
-├── lexicon.md        三级词典，两个方向共用
+├── profile.md            本文件：插件元信息
+├── lexicon.md            三级词典，两个方向共用
+├── failure_keywords.txt  失败原因聚类关键词表
 └── directions/
-    ├── datacenter.md 方向锚点表 + 方向特有词
+    ├── datacenter.md     方向锚点表 + 方向特有词
     └── hvac.md
 ```
 

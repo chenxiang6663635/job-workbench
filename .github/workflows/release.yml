@@ -79,39 +79,26 @@ jobs:
             Write-Host "手动触发（非 tag），跳过 tag 一致性校验"
           }
 
+      - name: 安装 Python 3.8
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.8"
+
       # CHANGELOG 是「使用者可见变更」的唯一台账（CONTRIBUTING 的规定）。缺条目就拒绝
       # 发布——这正是本批次要修的那类漂移：v0.1.1 之后 5 个 feat 一条都没记。
+      # 抽取与校验的**唯一实现**在 tools/release_assist.py：本地预检
+      # `jobws release check --tag vX`（打 tag 前跑）与这里同源；顺带修掉了旧内联
+      # pwsh 里「$a[0..-1] 反向取值」那类只在边界触发的坑（v0.2.2 演练记录在案）。
       - name: 校验 CHANGELOG 有该版本条目并抽出发布说明
         shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           $ErrorActionPreference = "Stop"
-          $lines = Get-Content CHANGELOG.md -Encoding UTF8
-          $start = ($lines | Select-String -Pattern "^## \[$([regex]::Escape($env:VERSION))\]" | Select-Object -First 1)
-          if (-not $start) {
-            throw "CHANGELOG.md 里没有 [$($env:VERSION)] 段。把它从 [Unreleased] 落成 [$($env:VERSION)] 再打 tag。"
-          }
-
-          # 抽出该版本段落作为 Release 说明，避免发布时再手抄一遍
-          $rest = $lines[($start.LineNumber - 1)..($lines.Count - 1)]
-          $end = ($rest | Select-Object -Skip 1 | Select-String -Pattern "^## \[" | Select-Object -First 1)
-
-          # 下限必须显式夹到 0：下一条 ## 若与段头之间没有空行，LineNumber-2 会等于 -1，
-          # 而 PowerShell 的 $a[0..-1] 不是"取不到"，是**头一行 + 最后一行**（反向取值），
-          # 会把发布说明写成垃圾——不报错，只是内容错了。
-          $last = if ($end) { [Math]::Max(0, $end.LineNumber - 2) } else { $rest.Count - 1 }
-          $body = $rest[0..$last]
-
           # 放在工作区根而不是 RUNNER_TEMP：这个文件要随 artifact 传到 publish job，
           # 两个路径必须同源同层级，否则 artifact 内部路径不可预测。
-          $body | Set-Content release-notes.md -Encoding UTF8
-          Write-Host "已抽出 $($body.Count) 行作为 Release 说明"
-
-      - name: 安装 Python 3.8
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.8"
+          python tools/jobws.py release check --version "$env:VERSION" --notes-out release-notes.md
+          if ($LASTEXITCODE -ne 0) { throw "release check 失败（exit $LASTEXITCODE）——按上文提示修 CHANGELOG 后重跑" }
 
       # PyInstaller 不在 requirements.txt 里（它只是构建期依赖，不该打给终端用户）。
       # 上限按本仓库既有惯例（fastapi<0.116 那样）钉到主版本，不钉死小版本：

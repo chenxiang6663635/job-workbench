@@ -529,6 +529,22 @@ export const INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"];
 export const INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"];
 
 // 全局当前工作区（相对仓库根，如 personal）。空 = 用后端默认。
+/** 新建工作区的预览结果（两段式的第一步：不落盘，只登记一次性令牌）。 */
+export type WorkspacePreviewResult = {
+  token: string;
+  summary: string;
+  diff: string[];
+  path: string;
+  expiresAt: number;
+};
+
+/** 凭令牌创建后的结果。 */
+export type WorkspaceApplyResult = {
+  created: number;
+  summary: string;
+  path: string;
+};
+
 export let currentWorkspace = "";
 export function setWorkspace(ws: string) {
   currentWorkspace = ws;
@@ -656,6 +672,28 @@ export const api = {
     request<ImportPreviewResult | ImportCommitResult>("/applications/import", {
       method: "POST",
       body: { csv, mode },
+    }),
+
+  // --- 工作区：新建同样是两段式（预览拿令牌 → apply 落盘）---
+  // 与命令行共用同一份实现：`/preview` 只算清单并登记一次性令牌（不落盘），
+  // `/apply` 才真正创建。前端负责把 diff 展示给用户、拿到确认再往下走。
+  listDomains: () =>
+    request<{ items: { id: string; isDemoDefault: boolean }[]; demoDefault: string }>(
+      "/workspaces/domains"
+    ),
+
+  previewWorkspace: (body: {
+    name: string;
+    domain?: string;
+    demo?: boolean;
+    force?: boolean;
+  }) =>
+    request<WorkspacePreviewResult>("/workspaces/preview", { method: "POST", body }),
+
+  applyWorkspace: (token: string) =>
+    request<WorkspaceApplyResult>("/workspaces/apply", {
+      method: "POST",
+      body: { token },
     }),
 
   // 原文 → 状态建议（B11）：**只读**，不动追踪表、不写时间线。

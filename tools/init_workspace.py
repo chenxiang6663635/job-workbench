@@ -226,8 +226,11 @@ def _plan_tree(src, dst, overwrite=False):
     return creates, replaces
 
 
-def plan_init(target, domain=None, demo=False):
+def plan_init(target, domain=None, demo=False, force=False):
     """算一遍初始化将做什么（**不落盘**）：返回 (errors, plan)。
+
+    force 会被记进载荷：它代表"用户已经知道目标目录非空"——apply 时据此决定
+    是拒绝（安全默认）还是继续（用户明说过了）。
 
     plan 里两份清单分别对应「新建」与「覆盖」——**覆盖清单才是重点**：demo 数据
     落在一个已经填了真实数据的工作区上就是数据丢失，用户必须在落盘**之前**看到它。
@@ -284,7 +287,7 @@ def plan_init(target, domain=None, demo=False):
 
     return [], {
         "payload": {"target": os.path.abspath(target), "domain": effective_domain,
-                    "demo": bool(demo)},
+                    "demo": bool(demo), "force": bool(force)},
         "summary": summary,
         "diff": diff,
         "targets": [os.path.abspath(target)],
@@ -344,13 +347,15 @@ def apply_approved_init(payload, workspace=None):
 
     落盘前重新检查一次目标目录：预览之后它可能被填了东西——那时候"将覆盖 N 个
     文件"的承诺已经不成立，拒绝比继续安全（ConflictError → 请重新预览）。
+    用户当初就是对着非空目录预览的（`--force`，载荷里记着）时不受此限。
     """
     import tracker  # 冲突语义只有一处定义；init 与 tracker 无循环依赖
 
     target = payload.get("target")
     if not target or not os.path.isabs(target):
         raise tracker.ConflictError("令牌里的目标路径不可用——请重新预览。")
-    if os.path.exists(target) and os.listdir(target):
+    if (os.path.exists(target) and os.listdir(target)
+            and not payload.get("force")):
         raise tracker.ConflictError(
             "目标目录 %s 在预览之后被填了内容——为免覆盖，已拒绝。请重新预览。"
             % os.path.basename(target.rstrip("\\/")))
@@ -385,7 +390,7 @@ def main():
 
     if getattr(args, "preview", False):
         import approval
-        errors, plan = plan_init(target, args.domain, args.demo)
+        errors, plan = plan_init(target, args.domain, args.demo, args.force)
         if errors:
             for problem in errors:
                 print("错误：%s" % problem)

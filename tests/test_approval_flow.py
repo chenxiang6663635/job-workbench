@@ -241,3 +241,27 @@ def test_init_preview_surfaces_overwrites(tmp_path):
     assert errors == []
     assert "覆盖" in plan["summary"]
     assert any("将覆盖" in line for line in plan["diff"]), plan["diff"]
+
+
+def test_init_force_path_survives_apply(tmp_path):
+    """对着非空目录（`--force`）的两段式也要能走通。
+
+    安全默认是"目标非空就拒绝"，但用户当初**就是**对着非空目录预览的——载荷里
+    记着 force，apply 不该反悔；否则这条路根本走不通（`-force` 形同虚设）。
+    """
+    target = tmp_path / "ws"
+    (target / "05_投递追踪").mkdir(parents=True)
+    (target / "05_投递追踪" / "tracker.csv").write_text(
+        "id,公司\nA001,我自己的数据\n", encoding="utf-8")
+
+    errors, plan = init_workspace.plan_init(str(target), demo=True, force=True)
+    assert errors == []
+    assert plan["payload"]["force"] is True
+
+    token = approval.preview("init", str(target), plan["payload"], plan["summary"],
+                             plan["diff"], plan["targets"])
+    result = approval.apply(token["token"])
+
+    assert result["written"] > 0
+    tracker_csv = (target / "05_投递追踪" / "tracker.csv").read_text(encoding="utf-8-sig")
+    assert "我自己的数据" not in tracker_csv, "demo 数据应已覆盖旧内容"

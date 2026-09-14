@@ -16,6 +16,12 @@ const HEALTH_URL = `http://127.0.0.1:${BACKEND_PORT}/api/health`;
 const HEARTBEAT_INTERVAL = 500; // ms
 const HEARTBEAT_TIMEOUT = 30000; // ms
 
+// 后端默认「启动后自动用系统浏览器打开界面」（独立运行的 web 形态，见 backend/main.py 的
+// _should_open_browser）。桌面端由 Electron 托着窗口，后端再弹一个浏览器就是多开一个界面——
+// 必须显式关掉。此前漏传该变量：打包版每次启动，系统浏览器都会跟着冒出来一个。
+// 有意覆盖为 "1"（不尊重外部已设的其它取值）：桌面壳托窗口是既定形态，不设例外。
+const BACKEND_ENV = { ...process.env, JOBWS_NO_BROWSER: "1" };
+
 let backendProcess = null;
 let backendReady = false;
 
@@ -251,6 +257,7 @@ function startBackend() {
       cwd: path.dirname(exe),
       stdio: "pipe",
       detached: false,
+      env: BACKEND_ENV,
     });
   } else {
     const python = detectPython();
@@ -264,6 +271,7 @@ function startBackend() {
       cwd: BACKEND_DIR,
       stdio: "pipe",
       detached: false,
+      env: BACKEND_ENV,
     });
   }
 

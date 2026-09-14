@@ -156,6 +156,15 @@ def _is_our_service(port):
         return False
 
 
+def _should_open_browser():
+    """独立运行/双击 exe 时默认自动开界面（web 形态）。
+    JOBWS_NO_BROWSER=1 关掉它——桌面端（Electron 已托着窗口）与 UI 冒烟都不需要再弹
+    一个系统浏览器。此前桌面端漏传该变量，安装版启动会多开一个浏览器窗口。
+    只认 "1"（容错首尾空白）："0" / "false" 这类直觉上表示「要开」的取值
+    不应被静默改判为关闭（独立审查 M-1）。"""
+    return os.environ.get("JOBWS_NO_BROWSER", "").strip() != "1"
+
+
 def _open_browser_later(url, delay=1.5):
     """服务就绪前预约打开浏览器（uvicorn.run 会阻塞主线程，用定时器异步开）。"""
     import threading
@@ -182,8 +191,9 @@ if __name__ == "__main__":
             if _is_our_service(args.port):
                 # 已有本工作台服务在跑（可能是 dev 后端或另一个实例）：直接复用，开界面即可
                 print("检测到服务已在运行，直接打开界面：%s" % url)
-                import webbrowser
-                webbrowser.open(url)
+                if _should_open_browser():
+                    import webbrowser
+                    webbrowser.open(url)
                 _pause_if_frozen()
                 sys.exit(0)
             print("错误：端口 %d 已被其他程序占用，无法启动。" % args.port)
@@ -193,8 +203,9 @@ if __name__ == "__main__":
 
         # 双击 exe 场景：启动成功后自动打开浏览器界面。
         # JOBWS_NO_BROWSER=1 关掉它——UI 冒烟（Playwright）会自己拉起后端，
-        # 每跑一次就弹一个浏览器窗口既干扰开发、也会在 CI 上留下无谓的进程。
-        if not os.environ.get("JOBWS_NO_BROWSER"):
+        # 每跑一次就弹一个浏览器窗口既干扰开发、也会在 CI 上留下无谓的进程；
+        # 桌面端（Electron）同理。
+        if _should_open_browser():
             _open_browser_later(url)
         uvicorn.run(app, host=args.host, port=args.port)
     except Exception as e:  # noqa: BLE001 —— 双击场景必须给人话而非闪退

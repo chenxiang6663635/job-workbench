@@ -522,7 +522,6 @@ const zhCN = {
   // 关于卡片：版本 / 构建日期 / 运行平台（时间戳体系 2026-09-15）
   "settings.aboutTitle": "关于",
   "settings.aboutVersion": "版本",
-  "settings.aboutBuild": "构建日期",
   "settings.aboutPlatform": "运行平台",
   "settings.aboutUnknown": "未知",
   "settings.aboutNote": "本地优先、无遥测——版本信息与数据都只在这台机器上。",

@@ -334,8 +334,6 @@ export interface SystemPaths {
   lastBackup: string | null;
   /** 应用版本（机器形态 YY.M.D，如 26.9.15）；未注入且读不到时为 ""（界面显示「未知」） */
   appVersion: string;
-  /** 构建日期（打包链注入，缺失为 ""）；界面按「有则显示」处理 */
-  buildDate: string;
   /** 运行平台（sys.platform：win32 / darwin / linux） */
   platform: string;
   telemetry: boolean;

@@ -476,7 +476,6 @@ export default {
   // About card: version / build date / platform (timestamp versioning, 2026-09-15)
   "settings.aboutTitle": "About",
   "settings.aboutVersion": "Version",
-  "settings.aboutBuild": "Build date",
   "settings.aboutPlatform": "Platform",
   "settings.aboutUnknown": "Unknown",
   "settings.aboutNote": "Local-first, no telemetry — your version info and your data stay on this machine.",

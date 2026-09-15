@@ -188,11 +188,12 @@ def system_paths(ws: str = Depends(workspace_dir)):
             [f for f in os.listdir(snap_dir) if f.endswith(".zip")]
         ) if os.path.isdir(snap_dir) else 0,
         "lastBackup": last,
-        # 「关于」区块（时间戳体系 2026-09-15）：版本 / 构建日期 / 运行平台。
+        # 「关于」区块（时间戳体系 2026-09-15）：版本 / 运行平台。
         # 版本优先级：打包链注入的环境变量 → 仓库 package.json（开发模式）；
-        # 构建日期与版本都可能为空串（未注入时），前端按"有则显示"处理。
+        # 两者都不可用时为空串，前端按"有则显示"处理。
+        # 这里曾经还有 buildDate（读 JOBWS_BUILD_DATE），但全仓没有任何生产方
+        # （打包链与 main.js 都不设置它）——死字段不留，已删（第二轨 MAJOR-2）。
         "appVersion": _app_version(),
-        "buildDate": os.environ.get("JOBWS_BUILD_DATE", "").strip(),
         "platform": sys.platform,
         # 无遥测声明：本地优先产品的信任基石，UI 直接展示
         "telemetry": False,

@@ -88,8 +88,8 @@
 语义化版本号已弃用（0.x 的 minor/patch 映射、`v1.0.0` 的提法一并作废）。现行规则：
 
 - **双形态**：
-  - **发布号**（tag / CHANGELOG 段名 / 界面显示）= `YY.MM.DD.N`——`YY` 两位数年份、`MM` 月、`DD` 日、`N` 当天第几次发布（从 1 起）。例：`26.09.15.1`。
-  - **机器版本**（`web/electron/package.json` 的 `version`、`latest.yml`、产物文件名）= `YY.M.D`（同日的三段形式，如 `26.9.15`）。**不带 N**——实测 electron-builder 会把 build metadata（`+N`）在产物文件名与 latest.yml 两处剥离，且 electron-updater 对非 semver 直接抛 `ERR_UPDATER_INVALID_VERSION`。
+  - **发布号**（tag / CHANGELOG 段名）= `YY.MM.DD.N`——`YY` 两位数年份、`MM` 月、`DD` 日、`N` 当天第几次发布（从 1 起）。例：`26.09.15.1`。
+  - **机器版本**（`web/electron/package.json` 的 `version`、`latest.yml`、产物文件名、界面「关于」区块）= `YY.M.D`（同日的三段形式，如 `26.9.15`）。**不带 N**——实测 electron-builder 会把 build metadata（`+N`）在产物文件名与 latest.yml 两处剥离，且 electron-updater 对非 semver 直接抛 `ERR_UPDATER_INVALID_VERSION`。**界面显示的也是机器版本**：N 只在打 tag 那一刻才存在，运行时无从派生；要对回发布号请查 tag 或 CHANGELOG 段名（曾把「界面显示」写进发布号那条，与实现冲突，已订正——第二轨 MAJOR-1）。
 - **生成**：`python tools/jobws.py release version` 打印"若今天发布"的号（按发布当日生成；同日已有 tag 时 N 递增，读 `git tag` 序列，不落状态文件）。**写入 `package.json` 仍由人工 bump**（发布流程第 2 步），`release check` 把关。
 - **唯一来源**：`web/electron/package.json` 的 `version`（机器版本形态）；发布号由机器版本 + 当日 tag 派生，不存在第二套真值源。
 - **tag 约定**：`v<发布号>`（如 `v26.09.15.1`）；**CHANGELOG 段名 = 发布号**。tag 与机器版本的比对规则 = **日期三段一致**（`release_assist.version_matches_tag`，本地与 CI 同源）；同日多版在机器层不可区分，属已知取舍。

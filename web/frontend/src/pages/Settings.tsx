@@ -551,9 +551,10 @@ export default function Settings() {
           </div>
         </Card>
 
-        {/* 关于：应用版本 / 构建日期 / 运行平台（时间戳体系 2026-09-15）。数据来自
-            /api/system/paths 的 appVersion / buildDate / platform——打包版由 Electron
-            注入版本、开发模式后端回退读 package.json；缺失显示「未知」，不编造。 */}
+        {/* 关于：应用版本 / 运行平台（时间戳体系 2026-09-15）。数据来自 /api/system/paths
+            的 appVersion / platform——打包版由 Electron 注入版本、开发模式后端回退读
+            package.json；缺失显示「未知」，不编造。显示的是**机器版本**（YY.M.D）：
+            N 只在打 tag 那一刻存在，运行时无从派生，发布号请查 tag / CHANGELOG 段名。 */}
         <Card className="space-y-4 p-5">
           <CardHeader className="p-0">
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -578,12 +579,6 @@ export default function Settings() {
                 </span>
               </p>
               <dl className="space-y-1 text-[11px] text-muted-foreground">
-                {paths.buildDate && (
-                  <div className="flex flex-wrap gap-1.5">
-                    <dt className="text-muted-foreground/80">{t("settings.aboutBuild")}</dt>
-                    <dd className="tabular-nums text-foreground/80">{paths.buildDate}</dd>
-                  </div>
-                )}
                 <div className="flex flex-wrap gap-1.5">
                   <dt className="text-muted-foreground/80">{t("settings.aboutPlatform")}</dt>
                   <dd className="text-foreground/80">

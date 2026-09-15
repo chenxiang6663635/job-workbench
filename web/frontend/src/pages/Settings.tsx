@@ -7,6 +7,7 @@ import {
   FolderOpen,
   HardDrive,
   Inbox,
+  Info,
   KeyRound,
   Languages,
   Monitor,
@@ -548,6 +549,55 @@ export default function Settings() {
               <FolderOpen size={15} /> {t("settings.openDataRoot")}
             </Button>
           </div>
+        </Card>
+
+        {/* 关于：应用版本 / 构建日期 / 运行平台（时间戳体系 2026-09-15）。数据来自
+            /api/system/paths 的 appVersion / buildDate / platform——打包版由 Electron
+            注入版本、开发模式后端回退读 package.json；缺失显示「未知」，不编造。 */}
+        <Card className="space-y-4 p-5">
+          <CardHeader className="p-0">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Info size={16} className="text-primary" /> {t("settings.aboutTitle")}
+            </CardTitle>
+          </CardHeader>
+
+          {pathsError ? (
+            <p className="text-[11px] text-destructive">
+              {t("settings.pathsFailed", { error: pathsError })}
+            </p>
+          ) : !paths ? (
+            <Skeleton className="h-10 w-full" />
+          ) : (
+            <div className="space-y-1.5">
+              <p className="flex flex-wrap items-baseline gap-2">
+                <span className="text-[11px] text-muted-foreground/80">
+                  {t("settings.aboutVersion")}
+                </span>
+                <span className="text-lg font-semibold tabular-nums text-foreground">
+                  {paths.appVersion || t("settings.aboutUnknown")}
+                </span>
+              </p>
+              <dl className="space-y-1 text-[11px] text-muted-foreground">
+                {paths.buildDate && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <dt className="text-muted-foreground/80">{t("settings.aboutBuild")}</dt>
+                    <dd className="tabular-nums text-foreground/80">{paths.buildDate}</dd>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  <dt className="text-muted-foreground/80">{t("settings.aboutPlatform")}</dt>
+                  <dd className="text-foreground/80">
+                    {({ win32: "Windows", darwin: "macOS", linux: "Linux" } as Record<string, string>)[
+                      paths.platform
+                    ] || paths.platform || t("settings.aboutUnknown")}
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+                {t("settings.aboutNote")}
+              </p>
+            </div>
+          )}
         </Card>
 
         <Card className="space-y-4 p-5">

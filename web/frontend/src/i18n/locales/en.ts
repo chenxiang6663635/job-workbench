@@ -473,6 +473,14 @@ export default {
   "settings.modeUserHint": "Stored in your system user folder (fallback when the install folder is not writable).",
   "settings.openDataRoot": "Open data root",
 
+  // About card: version / build date / platform (timestamp versioning, 2026-09-15)
+  "settings.aboutTitle": "About",
+  "settings.aboutVersion": "Version",
+  "settings.aboutBuild": "Build date",
+  "settings.aboutPlatform": "Platform",
+  "settings.aboutUnknown": "Unknown",
+  "settings.aboutNote": "Local-first, no telemetry — your version info and your data stay on this machine.",
+
   "resume.modeAria": "Editing mode",
   "resume.modeStd": "Standard",
   "resume.modeAdvanced": "Advanced templates",

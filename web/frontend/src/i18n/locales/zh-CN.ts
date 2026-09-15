@@ -82,6 +82,24 @@ const zhCN = {
   "a4.previewTitle": "简历预览",
   "a4.scaledNotice": "预览已缩放至 {{percent}}%（布局与生成 PDF 一致）",
 
+  // 题库（questions.csv）双视图：我的题库 = 要准备的题，被问过的 = 发生过的事实。
+  // 状态 / 领域 / 来源这些中文取值就是工作区里的真实数据，不翻译（翻了等于改名）。
+  "bank.tabMyBank": "我的题库",
+  "bank.tabAsked": "被问过的",
+  "bank.searchPlaceholder": "搜题目、要点或标签…",
+  "bank.statusFilter": "按状态筛选",
+  "bank.allStatus": "全部状态",
+  "bank.import": "从 03_面试准备 导入",
+  "bank.importing": "解析中…",
+  "bank.confirmImport": "确认导入",
+  "bank.emptyNoData": "题库还是空的",
+  "bank.emptyHintNoData":
+    "用上面的「导入」把 03_面试准备 里的 Markdown 收进来，或用 jobws bank add 加题",
+  "bank.emptyNoMatch": "没有符合条件的题",
+  "bank.emptyHintNoMatch": "换个关键词，或把状态筛选调回「全部状态」",
+  "bank.count_one": "{{count}} 道",
+  "bank.count_other": "{{count}} 道",
+
   "question.searchPlaceholder": "搜问题、回答或复盘关键词…",
   "question.searching": "检索中…",
   "question.roundMissing": "未填轮次",

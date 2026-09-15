@@ -221,6 +221,41 @@ export interface QuestionGroup {
   total: number;
 }
 
+// 我的题库 `questions.csv` 的一行。字段名是**工作区里的真实列名**（与 CSV 表头、
+// CLI、后端、`track check` 四处同一个字面量）——按 i18n 的「四类不翻」约定不翻译：
+// 翻了就等于给数据改名，四处会静默失配。
+export interface BankQuestion {
+  题目id: string;
+  题目: string;
+  领域: string;
+  科目: string;
+  标签: string;
+  难度: string;
+  答案要点: string;
+  来源: string;
+  关联公司: string;
+  关联岗位: string;
+  状态: string;
+  创建日期: string;
+  最近复习: string;
+  备注: string;
+}
+
+export interface BankListResult {
+  items: BankQuestion[];
+  total: number;
+  counts: Record<string, number>;
+  filters: { domain: string; subject: string; status: string; keyword: string };
+}
+
+// 1a 导入的预览结果：只有令牌与差异表，**没有**落盘——写通道统一走 applyApproval
+export interface BankImportPreview {
+  token: string;
+  summary: string;
+  diff: string[];
+  expiresAt: number;
+}
+
 // 岗位池 ↔ 投递追踪联动（后端 B1 / 前端 B2）
 // company / role **只用于展示**（解析卡「基本信息」优先，读不到回退目录名拆分）。
 // 关联匹配键一律是目录名——解析卡里填的常是给人看的详细描述，当键会与追踪表系统性失配。
@@ -824,6 +859,21 @@ export const api = {
     request<{ groups: QuestionGroup[]; total: number; keyword: string }>(
       `/progress/question-bank${q ? `?q=${encodeURIComponent(q)}` : ""}`
     ),
+
+  // 我的题库（questions.csv）：筛选参数交给后端，前端不拉全量再过滤
+  bankQuestions: (params?: { domain?: string; subject?: string; status?: string; q?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.domain) q.set("domain", params.domain);
+    if (params?.subject) q.set("subject", params.subject);
+    if (params?.status) q.set("status", params.status);
+    if (params?.q) q.set("q", params.q);
+    const qs = q.toString();
+    return request<BankListResult>(`/progress/questions${qs ? `?${qs}` : ""}`);
+  },
+
+  // 从 03_面试准备/**/*.md 导入的预览（只读解析；落盘走 applyApproval）
+  previewQuestionImport: () =>
+    request<BankImportPreview>("/progress/questions/preview-import"),
 
   updateInterview: (id: string, body: Partial<Interview>) =>
     request<Interview & { _changed?: string[] }>(

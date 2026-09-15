@@ -50,6 +50,7 @@ import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jd_score  # noqa: E402
+import question_bank  # noqa: E402
 import release_assist  # noqa: E402
 import report  # noqa: E402
 import resume_build  # noqa: E402
@@ -59,6 +60,7 @@ import tracker  # noqa: E402
 # 模块为 None 表示这一层还有子命令（见 SUB_TARGETS）。
 TARGETS = [
     ("track", tracker, "投递追踪：增删查改、面试/联系人/offer、导入与自检"),
+    ("bank", question_bank, "题库：list 查、add 加题、import 从 03_面试准备 导入（写操作走两段式）"),
     ("report", report, "复盘与统计（转化率、停留时长、失败归因）"),
     ("resume", resume_build, "按岗位生成投递材料"),
     ("jd", jd_score, "JD 解析与岗位评分"),

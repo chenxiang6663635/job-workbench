@@ -392,7 +392,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 14, sorted(mapped)
+    assert len(mapped) == 15, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

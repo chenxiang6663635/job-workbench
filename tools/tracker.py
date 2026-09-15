@@ -160,6 +160,19 @@ TALK_FIELDS = [
 TALK_FORMS = ["线上", "线下", "其他"]
 TALK_ATTEND = ["待定", "参加", "不参加"]
 
+# 题库：与面试记录**分开**——面试表记"被问过的事实"，题库记"要准备的题"。
+# 打通靠「来源=面试记录 + 关联公司/岗位」溯源，不并表：并表会让要准备的题被
+# 只发生过一次的题淹没，复习状态（未看/看过/会了）也无处安放。
+QUESTION_FILE = "questions.csv"
+QUESTION_FIELDS = [
+    "题目id", "题目", "领域", "科目", "标签", "难度", "答案要点",
+    "来源", "关联公司", "关联岗位", "状态", "创建日期", "最近复习", "备注",
+]
+QUESTION_STATUS = ["未看", "看过", "会了"]
+QUESTION_ORIGINS = ["自拟", "笔试回忆", "面试记录", "导入"]
+# 难度可留空：多数题先不标难度，标了的用于"先看难的"
+QUESTION_DIFFICULTY = ["", "易", "中", "难"]
+
 # 招聘方联系人：独立 CSV（一对多）。跟进有节奏的招聘流程靠联系人记录维系。
 CONTACT_FILE = "contacts.csv"
 CONTACT_FIELDS = [
@@ -340,6 +353,13 @@ def run_check(workspace=None):
             required=["宣讲会id"],        # 关联记录可空（还没投递的活动也能记）
             enums=[("形式", TALK_FORMS), ("是否参加", TALK_ATTEND)],
             with_fk=True)          # 时间同样是宽松格式，不套日期校验
+    # 题库不挂外键：关联的是"公司名/岗位名"（自由文本，可能还没进投递表）
+    inspect(QUESTION_FILE,
+            required=["题目id"],
+            enums=[("状态", QUESTION_STATUS), ("来源", QUESTION_ORIGINS),
+                   ("难度", QUESTION_DIFFICULTY)],
+            dates=["创建日期", "最近复习"],
+            with_fk=False)
     inspect(CONTACT_FILE,
             required=["联系人id"],
             dates=["最近联系", "下次跟进"],

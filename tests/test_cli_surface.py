@@ -35,6 +35,7 @@ import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jobws  # noqa: E402
 import jd_score  # noqa: E402
+import release_assist  # noqa: E402  （`release version` 的号要走同一套判定函数）
 import report  # noqa: E402
 import resume_build  # noqa: E402
 import tracker  # noqa: E402
@@ -251,6 +252,11 @@ def test_domain_and_release_checks_pass_on_repo(monkeypatch, capsys):
     code, out = _invoke_jobws(monkeypatch, capsys, ["release", "check"])
     assert code in (0, 1), out
     assert "版本：" in out, out
+    # 同为退出码 1 也要区分原因：「段缺失」（未落章，正常）与「读取失败」（真错）
+    # 不能混为一谈——否则这条例句对抽取逻辑漂移已经失去意义（第二轨 MINOR-13）。
+    if code == 1:
+        assert "CHANGELOG" in out, out
+        assert "读取" not in out, out
 
 
 def test_release_version_prints_next_timestamp_number(monkeypatch, capsys):
@@ -261,6 +267,11 @@ def test_release_version_prints_next_timestamp_number(monkeypatch, capsys):
     assert lines, out
     number = lines[0].split("：", 1)[1].strip()
     assert len(number.split(".")) == 4, number          # YY.MM.DD.N
+    # 只数段数钉不住任何东西——走同一套判定函数，把月/日的取值范围也验上；
+    # 且不依赖"测试跑在当天"，避免跨日 flaky（第二轨 MINOR-14）。
+    parsed = release_assist.version_tuple(number)
+    assert parsed is not None, number
+    assert parsed[3] >= 1, number                       # N 从 1 起
     assert "当前 package.json 版本：" in out, out
 
 

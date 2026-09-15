@@ -27,7 +27,7 @@ import jd_score  # noqa: E402  （tools/ 经 paths.py 加进 sys.path）
 import report  # noqa: E402
 import tracker  # noqa: E402
 
-# 列表默认精简：全字段 16 列对宿主是噪声，verbose=True 才给全量
+# 列表默认精简：全字段（17 列）对宿主是噪声，verbose=True 才给全量
 CORE_FIELDS = ["id", "公司", "岗位", "方向", "批次", "截止日期", "投递日期",
                "当前阶段", "下次动作", "下次动作日期", "评分"]
 

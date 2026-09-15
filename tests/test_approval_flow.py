@@ -48,11 +48,13 @@ def _make_ws(tmp_path):
 
 
 def _add_args(**overrides):
+    # 参数表与 tracker.build_parser 的 add 子命令一致（含 v0.4.0-A 的 --link）——
+    # 少一个属性会让 preview_add 直接 AttributeError，这里就是那道对齐检查
     base = dict(
         company="示例公司甲", role="示例岗位乙", direction="backend", batch="正式批",
         source=None, deadline=None, applied=None, stage="待投", reason=None,
         next=None, next_date=None, resume=None, score=None, archive=None,
-        note=None, preview=True,
+        note=None, link=None, preview=True,
     )
     base.update(overrides)
     return argparse.Namespace(**base)

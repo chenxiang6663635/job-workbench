@@ -45,7 +45,7 @@ CLI_MODULES = [["track"], ["report"], ["resume"], ["jd"], ["init"],
                ["lint", "domains"], ["release", "check"]]
 
 TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
-                       "interview", "contact", "offer", "import", "check"]
+                       "interview", "talk", "contact", "offer", "import", "check"]
 
 
 @pytest.fixture(autouse=True)
@@ -282,6 +282,17 @@ def test_tracker_update_changes_stage_and_records_history(tmp_path, monkeypatch,
     assert code == 0, out
     assert tracker.read_rows(str(ws))[0]["当前阶段"] == "已投"
     assert [h["字段"] for h in tracker.read_history(str(ws))] == ["创建", "当前阶段"]
+
+
+def test_tracker_talk_add_writes_row(tmp_path, monkeypatch, capsys):
+    """talk 是与 interview 平级的独立子命令：真实落一条，证明接线完整。"""
+    ws = _make_ws(tmp_path)
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
+        "--workspace", str(ws), "talk", "add",
+        "--company", "示例公司", "--form", "线上",
+    ])
+    assert code == 0, out
+    assert [r["公司"] for r in tracker.read_talks(str(ws))] == ["示例公司"]
 
 
 def _scored_card(total, dims):

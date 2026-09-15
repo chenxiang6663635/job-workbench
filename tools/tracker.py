@@ -88,7 +88,7 @@ def csv_path(workspace=None):
 
 # 输出时保持固定字段顺序
 FIELDS = [
-    "id", "公司", "岗位", "方向", "批次", "来源", "截止日期", "投递日期",
+    "id", "公司", "岗位", "方向", "批次", "来源", "链接", "截止日期", "投递日期",
     "当前阶段", "状态原因", "下次动作", "下次动作日期", "简历版本", "评分",
     "归档目录", "备注",
 ]
@@ -97,10 +97,19 @@ FIELDS = [
 # 校验时动态读取 <工作区>/config/directions/*.md，读不到则放行（只记录不拦截）。
 DIRECTIONS = ["other"]
 BATCHES = ["提前批", "正式批", "补录"]
-SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推", "其他"]
+# 「宣讲会 / 招聘会」在「内推」之后、其他之前：它们是活动类来源，
+# 与「这条投递从哪来」的语义一起，供宣讲会表（talks.csv）的「关联记录」对齐。
+SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推",
+           "宣讲会", "招聘会", "其他"]
 
-# 正常流转顺序；终态单独处理
-STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "offer", "签约"]
+# 正常流转顺序；终态单独处理。
+# **顺序即单调优先级**（status_parse.stage_rank 按本表下标比大小），
+# 新增值必须想清楚「谁更强」——放错位置会让「AI面 → 一面」这类正常推进
+# 被误判成"不强于当前"，用户会在确认框里看到不合理的拒绝理由。
+# 「测评」排在「笔试」前：在线测评（性格/行测）多在笔试之前发出；
+# 「AI面 / 群面」排在「一面」前：它们是真人单面之前的初筛环节。
+STAGES = ["待投", "已投", "测评", "笔试", "AI面", "群面", "一面", "二面", "三面",
+          "HR面", "终面", "offer", "签约"]
 # 终态。注意语义差异：「已挂/已放弃」是被拒或放弃（失败），
 # 「我拒绝的 offer」是用户主动拒绝（双向选择）——复盘归因时必须分开统计，
 # 拒绝不该被算成"失败"，它可能意味着拿到了更好的。
@@ -110,7 +119,7 @@ FAIL_STAGES = ["已挂", "已放弃"]
 
 # update 只允许改这些字段，公司与岗位不可改（改则需新建记录并作废原记录）
 UPDATABLE = ["当前阶段", "状态原因", "下次动作", "下次动作日期", "备注", "评分",
-             "投递日期", "截止日期"]
+             "投递日期", "截止日期", "链接"]
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -129,13 +138,27 @@ STALE_DAYS = 14
 # 当前状态快照语义。以「关联记录」外键指回 tracker.csv 的 id。
 INTERVIEW_FILE = "interviews.csv"
 INTERVIEW_FIELDS = [
-    "面试id", "关联记录", "公司", "岗位", "轮次", "面试时间", "形式",
+    "面试id", "关联记录", "公司", "岗位", "轮次", "面试时间", "形式", "链接",
     "面试官", "问题记录", "我的回答要点", "复盘与改进", "结果",
 ]
 # 公司/岗位为冗余快照：关联记录可空（内推、未录入的面试也要能记）
-INTERVIEW_ROUNDS = ["笔试", "一面", "二面", "三面", "HR面", "终面", "其他"]
+# 轮次顺序与 STAGES 的流转顺序保持同一逻辑（先测评/笔试、再初筛、最后真人轮与终面），
+# 下拉展示时两处一致，用户不需要记两套次序。
+INTERVIEW_ROUNDS = ["测评", "笔试", "AI面", "群面", "一面", "二面", "三面",
+                    "HR面", "终面", "其他"]
 INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"]
 INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"]
+
+# 宣讲会 / 招聘会：独立 CSV（一对多）。「关联记录」指回 tracker.csv 的 id，
+# 承担「这家公司我有投递记录」这层关系；主表「来源」里的 宣讲会/招聘会
+# 表示「这条投递是从那场活动来的」——两者语义不同，不共用一列。
+TALK_FILE = "talks.csv"
+TALK_FIELDS = [
+    "宣讲会id", "公司", "时间", "形式", "地点或链接", "关联记录",
+    "是否参加", "收获", "备注",
+]
+TALK_FORMS = ["线上", "线下", "其他"]
+TALK_ATTEND = ["待定", "参加", "不参加"]
 
 # 招聘方联系人：独立 CSV（一对多）。跟进有节奏的招聘流程靠联系人记录维系。
 CONTACT_FILE = "contacts.csv"
@@ -274,8 +297,11 @@ def run_check(workspace=None):
                 required=["id", "公司", "岗位", "方向", "批次", "当前阶段"],
                 dates=["截止日期", "投递日期", "下次动作日期"],
                 # 方向不做枚举校验：合法方向取决于工作区装入的插件，动态的
+                # 来源也在校验之列：CLI 与导入都会拦脏值，手改 CSV 绕过它们，
+                # 自检是最后一道拦网（此前来源只在写入口校验，脏值无人拦）。
                 enums=[("当前阶段", STAGES + TERMINAL_STAGES),
-                       ("批次", BATCHES)],
+                       ("批次", BATCHES),
+                       ("来源", SOURCES)],
                 fk_ids=None, issues=issues)
             fk_ids = set((r.get("id") or "").strip() for r in main_rows)
             files.append({"file": "tracker.csv", "ok": not issues,
@@ -310,6 +336,10 @@ def run_check(workspace=None):
             enums=[("轮次", INTERVIEW_ROUNDS), ("形式", INTERVIEW_FORMS),
                    ("结果", INTERVIEW_RESULTS)],
             with_fk=True)          # 面试时间是宽松格式（可含 HH:MM），不套日期校验
+    inspect(TALK_FILE,
+            required=["宣讲会id"],        # 关联记录可空（还没投递的活动也能记）
+            enums=[("形式", TALK_FORMS), ("是否参加", TALK_ATTEND)],
+            with_fk=True)          # 时间同样是宽松格式，不套日期校验
     inspect(CONTACT_FILE,
             required=["联系人id"],
             dates=["最近联系", "下次跟进"],
@@ -615,6 +645,44 @@ def next_interview_id(rows):
 def find_interview(rows, interview_id):
     for row in rows:
         if (row.get("面试id") or "").strip() == interview_id:
+            return row
+    return None
+
+
+def talk_path(workspace=None):
+    return os.path.join(resolve_ws(workspace), "05_投递追踪", TALK_FILE)
+
+
+def read_talks(workspace=None, app_id=None):
+    """读取宣讲会记录。app_id 非空时只返回关联该岗位记录的活动。"""
+    path = talk_path(workspace)
+    if not os.path.isfile(path):
+        return []
+    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
+        rows = [dict(row) for row in csv.DictReader(f)]
+    if app_id:
+        rows = [r for r in rows if (r.get("关联记录") or "").strip() == app_id]
+    return rows
+
+
+def write_talks(rows, workspace=None):
+    """全量重写宣讲会表（原子写）。"""
+    _atomic_write_csv(talk_path(workspace), rows, TALK_FIELDS, "utf-8-sig")
+
+
+def next_talk_id(rows):
+    """生成下一个宣讲会 ID（T001 起）。"""
+    max_num = 0
+    for row in rows:
+        m = re.match(r"^T(\d+)$", (row.get("宣讲会id") or "").strip())
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    return "T%03d" % (max_num + 1)
+
+
+def find_talk(rows, talk_id):
+    for row in rows:
+        if (row.get("宣讲会id") or "").strip() == talk_id:
             return row
     return None
 
@@ -1018,7 +1086,10 @@ def _validate_add_fields(fields, workspace=None):
     batch = fields.get("批次") or ""
     if batch not in BATCHES:
         errors.append("`--batch` 必须是 %s 之一，实际为 `%s`" % ("/".join(BATCHES), batch))
-    source = fields.get("来源") or ""
+    # strip 后再判：与 import / Web API / run_check 三处同一口径。
+    # 注意：落盘值的归一在 preview_add_fields 完成（本函数只负责判定）——
+    # 绕过它直接拿返回字段落盘的调用方，需自行 strip。
+    source = (fields.get("来源") or "").strip()
     if source and source not in SOURCES:
         errors.append("`--source` 必须是 %s 之一，实际为 `%s`" % ("/".join(SOURCES), source))
     stage = fields.get("当前阶段") or ""
@@ -1057,6 +1128,11 @@ def preview_add_fields(fields, workspace=None):
     只是把命令行参数转成字段再调它——两段式的两边必须走同一份校验。
     """
     fields = {field: (fields.get(field) or "") for field in FIELDS}
+    # 「来源 / 链接」进入即归一化（去首尾空白）：枚举校验是按 strip 后的值判的，
+    # 若把带空格的原文写进 CSV，「 内推 」这类值会绕过一切枚举检查（独立审查）。
+    # 只收这两列——本批新增的口径；其它列维持现状，避免悄悄改变既有行为。
+    for field in ("来源", "链接"):
+        fields[field] = fields[field].strip()
     errors = _validate_add_fields(fields, workspace)
     if errors:
         return errors, None
@@ -1085,6 +1161,7 @@ def preview_add(args, workspace=None):
         "下次动作日期": args.next_date or "", "简历版本": args.resume or "",
         "评分": "" if args.score is None else str(args.score),
         "归档目录": args.archive or "", "备注": args.note or "",
+        "链接": args.link or "",
     }, workspace)
 
 
@@ -1228,6 +1305,10 @@ def preview_update_fields(payload, workspace=None):
     ws = resolve_ws(workspace)
     app_id = (payload.get("id") or "").strip()
     changes = dict(payload.get("changes") or {})
+    # 「链接」与新增路径同一口径：落盘前归一（校验与写入都不该看到带空格的原值；
+    # 两段式的两边都经过这里，归一后的值随载荷进令牌，落盘段不再二次处理）
+    if "链接" in changes:
+        changes["链接"] = (changes["链接"] or "").strip()
     target = _find_by_id(read_rows(ws), app_id)
     if target is None:
         return ["找不到 id 为 `%s` 的记录" % app_id], None
@@ -1294,7 +1375,7 @@ def cmd_update(args):
     for field, value in (("当前阶段", args.stage), ("状态原因", args.reason),
                          ("下次动作", args.next), ("下次动作日期", args.next_date),
                          ("备注", args.note), ("投递日期", args.applied),
-                         ("截止日期", args.deadline)):
+                         ("截止日期", args.deadline), ("链接", args.link)):
         if value is not None:
             changes[field] = value
     if args.score is not None:
@@ -1437,6 +1518,186 @@ def cmd_history(args):
             e.get("时间", ""), e.get("id", ""), e.get("字段", ""),
             e.get("原值", "") or "（空）", e.get("新值", "") or "（空）"))
     return 0
+
+
+def _validate_talk_fields(fields, workspace=None):
+    """宣讲会字段校验（预览与落盘两段共用），返回错误列表。
+
+    关联记录非空时必须存在；未关联时公司必填——与面试记录同一条纪律：
+    指到不存在的岗位或没有主语的记录，都会让列表变成读不懂的碎片。
+    """
+    errors = []
+    link = (fields.get("关联记录") or "").strip()
+    company = (fields.get("公司") or "").strip()
+    if link:
+        rows = read_rows(workspace)
+        if not any((r.get("id") or "").strip() == link for r in rows):
+            errors.append("关联记录 `%s` 不存在（先在 track 里添加这条投递）" % link)
+    elif not company:
+        errors.append("未关联记录时必须给 `--company`")
+    form = fields.get("形式") or ""
+    if form and form not in TALK_FORMS:
+        errors.append("`--form` 必须是 %s 之一，实际为 `%s`" % ("/".join(TALK_FORMS), form))
+    attend = fields.get("是否参加") or ""
+    if attend and attend not in TALK_ATTEND:
+        errors.append("`--attend` 必须是 %s 之一，实际为 `%s`" % ("/".join(TALK_ATTEND), attend))
+    return errors
+
+
+def preview_talk_fields(fields, workspace=None):
+    """按中文字段预览一次宣讲会新增（**不落盘**）：返回 (errors, plan)。"""
+    fields = {field: (fields.get(field) or "") for field in TALK_FIELDS}
+    for field in ("公司", "时间", "地点或链接", "收获", "备注"):
+        fields[field] = fields[field].strip()
+    # 关联记录存在且未填公司时从主表带出（与面试记录同款：让列表可读——
+    # 否则「T001 / 空 / 关联 A001」每条都要用户自己去主表对照公司名）
+    link = fields["关联记录"]
+    if link and not fields["公司"]:
+        src = next((r for r in read_rows(workspace)
+                    if (r.get("id") or "").strip() == link), None)
+        if src is not None:
+            fields["公司"] = (src.get("公司") or "").strip()
+    errors = _validate_talk_fields(fields, workspace)
+    if errors:
+        return errors, None
+    diff = ["| 字段 | 值 |", "|---|---|"]
+    for field in TALK_FIELDS:
+        if fields.get(field):
+            diff.append("| %s | %s |" % (field, fields[field]))
+    plan = {
+        "payload": {"fields": fields},
+        "summary": "新增宣讲会：%s（%s）" % (
+            fields["公司"], fields["时间"] or "时间待定"),
+        "diff": diff,
+        "targets": _talk_targets(workspace),
+    }
+    return [], plan
+
+
+def apply_approved_talk(payload, workspace=None):
+    """两段式的第二步：按已确认的载荷新增一条宣讲会记录。
+
+    与面试/联系人不同，宣讲会**不入主表时间线**——它不是投递流程的推进节点，
+    只是活动笔记；时间线上多出这些噪音反而看不清岗位真实进展。
+    """
+    ws = resolve_ws(workspace)
+    fields = dict(payload.get("fields") or {})
+    with file_lock(_lock_path(ws)):
+        errors = _validate_talk_fields(fields, ws)
+        if errors:
+            raise ConflictError("预览之后数据有变化，已拒绝写入：%s（请重新预览）"
+                                % "；".join(errors))
+        rows = read_talks(ws)
+        record = {field: "" for field in TALK_FIELDS}
+        record.update(fields)
+        record["宣讲会id"] = next_talk_id(rows)
+        rows.append(record)
+        write_talks(rows, ws)
+        return {"id": record["宣讲会id"], "written": 1,
+                "summary": "已新增 %s（%s）" % (record["公司"], record["宣讲会id"])}
+
+
+def _talk_targets(workspace=None):
+    """宣讲会写入会落到的文件（供令牌绑定与预览展示）。"""
+    ws = resolve_ws(workspace)
+    return [os.path.join(ws, "05_投递追踪", TALK_FILE)]
+
+
+def cmd_talk(args):
+    """宣讲会 / 招聘会：与投递记录用「关联记录」相连，时间、地点、收获都留下。"""
+    if args.action == "add":
+        fields = {
+            "公司": args.company or "", "时间": args.when or "",
+            "形式": args.form or "", "地点或链接": args.place or "",
+            "关联记录": args.app or "", "是否参加": args.attend or "待定",
+            "收获": args.gain or "", "备注": args.note or "",
+        }
+        errors, plan = preview_talk_fields(fields, WORKSPACE)
+        if errors:
+            print("## 校验失败\n")
+            for e in errors:
+                print("- %s" % e)
+            print("\n未写入 CSV。")
+            return 1
+
+        if getattr(args, "preview", False):
+            import approval
+            result = approval.preview("talk.add", WORKSPACE, plan["payload"],
+                                      plan["summary"], plan["diff"], plan["targets"])
+            print("## 预览（未写入）\n")
+            print(result["summary"])
+            print("")
+            for line in plan["diff"]:
+                print(line)
+            print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
+            print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
+            return 0
+
+        result = apply_approved_talk(plan["payload"], WORKSPACE)
+        print("## %s\n" % result["summary"])
+        for line in plan["diff"]:
+            print(line)
+        return 0
+
+    if args.action == "list":
+        rows = read_talks(app_id=args.app)
+        if not rows:
+            print("（暂无宣讲会记录）")
+            return 0
+        # 按时间倒序（最近的活动在前），空时间排最后
+        rows.sort(key=lambda r: (r.get("时间") or ""), reverse=True)
+        print("## 宣讲会 / 招聘会（共 %d 场）\n" % len(rows))
+        print("| id | 公司 | 时间 | 形式 | 地点或链接 | 是否参加 |")
+        print("|---|---|---|---|---|---|")
+        for r in rows:
+            print("| %s | %s | %s | %s | %s | %s |" % (
+                r.get("宣讲会id", ""), r.get("公司", ""),
+                r.get("时间", "") or "待定", r.get("形式", "") or "—",
+                r.get("地点或链接", "") or "—", r.get("是否参加", "")))
+        return 0
+
+    if args.action == "show":
+        rows = read_talks()
+        row = find_talk(rows, args.id)
+        if not row:
+            print("错误：找不到宣讲会 `%s`" % args.id)
+            return 1
+        for field in TALK_FIELDS:
+            print("**%s**：%s" % (field, row.get(field, "") or "（空）"))
+        return 0
+
+    if args.action == "update":
+        rows = read_talks()
+        row = find_talk(rows, args.id)
+        if not row:
+            print("错误：找不到宣讲会 `%s`" % args.id)
+            return 1
+        changed = []
+        for arg_name, field in (
+            ("when", "时间"), ("form", "形式"), ("place", "地点或链接"),
+            ("attend", "是否参加"), ("gain", "收获"), ("note", "备注"),
+        ):
+            value = getattr(args, arg_name, None)
+            if value is not None:
+                changed.append(field)
+                row[field] = value
+        # 关联记录单独处理：给出时必须指向存在的投递记录
+        if getattr(args, "app", None) is not None:
+            link = args.app.strip()
+            if link and not any((r.get("id") or "").strip() == link for r in read_rows()):
+                print("错误：找不到记录 `%s`" % link)
+                return 1
+            changed.append("关联记录")
+            row["关联记录"] = link
+        if not changed:
+            print("没有字段变化，未写入")
+            return 0
+        write_talks(rows)
+        print("已更新宣讲会 %s：%s" % (args.id, "、".join(changed)))
+        return 0
+
+    print("错误：未知动作 %s" % args.action)
+    return 1
 
 
 def cmd_contact(args):
@@ -1691,6 +1952,7 @@ def cmd_interview(args):
         row["轮次"] = args.round
         row["面试时间"] = args.when or ""
         row["形式"] = args.form or ""
+        row["链接"] = args.link or ""
         row["面试官"] = args.interviewer or ""
         row["问题记录"] = args.questions or ""
         row["我的回答要点"] = args.answers or ""
@@ -1753,7 +2015,7 @@ def cmd_interview(args):
         changed = []
         for arg_name, field in (
             ("when", "面试时间"), ("round", "轮次"), ("form", "形式"),
-            ("interviewer", "面试官"), ("questions", "问题记录"),
+            ("link", "链接"), ("interviewer", "面试官"), ("questions", "问题记录"),
             ("answers", "我的回答要点"), ("retro", "复盘与改进"),
             ("result", "结果"),
         ):
@@ -1798,6 +2060,7 @@ def build_parser():
     p_add.add_argument("--score", type=int, help="评分 0-100")
     p_add.add_argument("--archive", help="归档目录相对路径")
     p_add.add_argument("--note", help="备注")
+    p_add.add_argument("--link", help="岗位页链接（原始 URL，便于日后回看 JD）")
     p_add.add_argument("--preview", action="store_true",
                        help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
                             "确认后用 python tools/jobws.py apply <令牌> 落盘")
@@ -1812,6 +2075,7 @@ def build_parser():
     p_upd.add_argument("--deadline", help="截止日期 YYYY-MM-DD")
     p_upd.add_argument("--note", help="备注")
     p_upd.add_argument("--score", type=int, help="评分 0-100")
+    p_upd.add_argument("--link", help="岗位页链接")
     p_upd.add_argument("--preview", action="store_true",
                        help="只预览、并把这次更新登记为一次性令牌（不落盘）；"
                             "确认后用 python tools/jobws.py apply <令牌> 落盘")
@@ -1844,12 +2108,28 @@ def build_parser():
     # 面试时间允许「2026-09-05 14:00」或只有日期，故不套 DATE_RE
     p_itv.add_argument("--when", help="面试时间，如 2026-09-05 14:00")
     p_itv.add_argument("--form", choices=INTERVIEW_FORMS, help="形式")
+    p_itv.add_argument("--link", help="会议/作答链接")
     p_itv.add_argument("--interviewer", help="面试官")
     p_itv.add_argument("--questions", help="问题记录")
     p_itv.add_argument("--answers", help="我的回答要点")
     p_itv.add_argument("--retro", help="复盘与改进")
     p_itv.add_argument("--result", choices=INTERVIEW_RESULTS, default="待定",
                        help="结果，默认待定")
+
+    p_talk = sub.add_parser("talk", help="宣讲会 / 招聘会（add/list/show/update）")
+    p_talk.add_argument("action", choices=["add", "list", "show", "update"])
+    p_talk.add_argument("--id", help="宣讲会 id（show/update 必填，如 T001）")
+    p_talk.add_argument("--company", help="公司（未关联记录时必填）")
+    p_talk.add_argument("--when", help="时间，如 2026-09-20 14:00")
+    p_talk.add_argument("--form", choices=TALK_FORMS, help="形式")
+    p_talk.add_argument("--place", help="地点或链接")
+    p_talk.add_argument("--app", help="关联的记录 id（如 A001），可省略")
+    p_talk.add_argument("--attend", choices=TALK_ATTEND, help="是否参加，默认待定")
+    p_talk.add_argument("--gain", help="收获（讲了什么、聊到了什么）")
+    p_talk.add_argument("--note", help="备注")
+    p_talk.add_argument("--preview", action="store_true",
+                        help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
+                             "确认后用 python tools/jobws.py apply <令牌> 落盘")
 
     p_ct = sub.add_parser("contact", help="招聘方联系人（add/list/show/update）")
     p_ct.add_argument("action", choices=["add", "list", "show", "update"])
@@ -1915,6 +2195,7 @@ def main():
         "show": cmd_show,
         "history": cmd_history,
         "interview": cmd_interview,
+        "talk": cmd_talk,
         "contact": cmd_contact,
         "offer": cmd_offer,
         "import": cmd_import,

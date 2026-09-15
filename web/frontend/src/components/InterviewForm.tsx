@@ -30,7 +30,9 @@ import {
 import { FormField } from "./FormField";
 import { ApplicationSelect } from "./ApplicationSelect";
 
-/** 表单草稿：11 个字段收成一个对象，避免 11 组 useState + setter 散在组件里 */
+/** 表单草稿：字段收成一个对象，避免多组 useState + setter 散在组件里。
+ *  注意 `link` 是「关联的投递记录 id」，在线会议/作答地址另起名 `url`——
+ *  两个含义不同的"链接"混用一个键，迟早会把会议地址写进外键列。 */
 type Draft = {
   link: string;
   company: string;
@@ -38,6 +40,7 @@ type Draft = {
   round: string;
   when: string;
   form: string;
+  url: string;
   interviewer: string;
   questions: string;
   answers: string;
@@ -52,6 +55,7 @@ const EMPTY: Draft = {
   round: "一面",
   when: "",
   form: "视频",
+  url: "",
   interviewer: "",
   questions: "",
   answers: "",
@@ -145,6 +149,14 @@ function InterviewFields({
           onChange={(v) => set("result", v)}
         />
       </FormField>
+      {/* 会议/作答链接：在线面试与线上笔试的入会地址。放整行——URL 长，半栏放不下 */}
+      <FormField label={t("interview.meetingUrl")} className="col-span-2">
+        <Input
+          value={d.url}
+          onChange={(e) => set("url", e.target.value)}
+          placeholder={t("interview.meetingUrlPlaceholder")}
+        />
+      </FormField>
       <FormField label={t("interview.interviewerLabel")} className="col-span-2">
         <Input value={d.interviewer} onChange={(e) => set("interviewer", e.target.value)} />
       </FormField>
@@ -221,6 +233,7 @@ export default function InterviewForm({
         // datetime-local 产生 "2026-09-05T14:00"，换成与 CSV 一致的空格分隔
         面试时间: d.when.replace("T", " "),
         形式: d.form,
+        链接: d.url,
         面试官: d.interviewer,
         问题记录: d.questions,
         我的回答要点: d.answers,

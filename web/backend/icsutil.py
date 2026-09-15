@@ -159,3 +159,39 @@ def events_from_interviews(interviews):
             "description": "\n".join(parts),
         })
     return events
+
+
+def events_from_talks(talks):
+    """宣讲会 / 招聘会记录 → ICS 事件。没有时间的跳过（日程必须有确定时间）。"""
+    events = []
+    for row in talks:
+        parsed = parse_when(row.get("时间", ""))
+        if not parsed:
+            continue
+        start, has_time = parsed
+        # 只有日期没有时刻的，按当天 10:00 占位（与面试同口径）
+        if not has_time:
+            start = start.replace(hour=10, minute=0)
+
+        company = (row.get("公司") or "").strip()
+        title = ("%s 宣讲会/招聘会" % company) if company else "宣讲会/招聘会"
+
+        parts = []
+        if row.get("形式"):
+            parts.append("形式：%s" % row["形式"])
+        if row.get("地点或链接"):
+            parts.append("地点/链接：%s" % row["地点或链接"])
+        if row.get("是否参加"):
+            parts.append("是否参加：%s" % row["是否参加"])
+        if row.get("关联记录"):
+            parts.append("关联记录：%s" % row["关联记录"])
+
+        events.append({
+            "uid": "talk-%s@job-workbench" % (row.get("宣讲会id") or ""),
+            "title": title,
+            "start": start,
+            "end": start + timedelta(hours=1),
+            "location": (row.get("地点或链接") or "").strip(),
+            "description": "\n".join(parts),
+        })
+    return events

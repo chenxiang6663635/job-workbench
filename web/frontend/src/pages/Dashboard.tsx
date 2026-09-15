@@ -32,15 +32,21 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 
-// 数据可视化色板：阶段语义色，独立于主题 token（换主题不改图表语义）
+// 数据可视化色板：阶段语义色，独立于主题 token（换主题不改图表语义）。
+// 未登记的阶段会回退主色（见漏斗渲染的 ?? 兜底）——新增阶段时同步补在这里，
+// 否则漏斗图里它会与所有未登记值同色、分不清。
 const STAGE_COLORS: Record<string, string> = {
   待投: "#64748b",
   已投: "#38bdf8",
+  测评: "#60a5fa",
   笔试: "#818cf8",
+  AI面: "#8b5cf6",
+  群面: "#a855f7",
   一面: "#a78bfa",
   二面: "#c084fc",
   三面: "#e879f9",
   HR面: "#f472b6",
+  终面: "#fb7185",
   offer: "#34d399",
   签约: "#10b981",
   已挂: "#f87171",

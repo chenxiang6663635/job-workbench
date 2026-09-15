@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
+  ExternalLink,
   FileUp,
   Inbox,
   Mail,
@@ -15,6 +16,7 @@ import {
   api,
   BATCHES,
   DIRECTIONS,
+  SOURCES,
   STAGES,
   TERMINAL,
   type Application,
@@ -40,6 +42,8 @@ import { Skeleton } from "../components/ui/skeleton";
 
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
 const ALL = "__all__";
+// 新建表单的「来源」是可选字段：空值也用哨兵表达（见「不填」选项）
+const NONE = "__none__";
 
 // 静默阈值与后端 tracker.STALE_DAYS 一致；停留超过该值高亮
 const STALE_DAYS = 14;
@@ -161,10 +165,26 @@ export default function Applications() {
     岗位: "",
     方向: "hvac",
     批次: "正式批",
+    来源: "",
+    链接: "",
     评分: 60,
     截止日期: "",
     当前阶段: "待投",
   });
+  // 「没有下一步动作」引导（v0.4.0-A）：进行中（非终态）但没填「下次动作」的记录
+  const [showMissingOnly, setShowMissingOnly] = useState(false);
+  const missingNext = useMemo(
+    () =>
+      items.filter(
+        (it) => !TERMINAL.includes(it.当前阶段) && !(it.下次动作 || "").trim()
+      ),
+    [items]
+  );
+  // 全部补齐后自动退出「只看缺下一步」视图，避免停在空表格上
+  useEffect(() => {
+    if (showMissingOnly && missingNext.length === 0) setShowMissingOnly(false);
+  }, [showMissingOnly, missingNext.length]);
+  const visibleItems = showMissingOnly ? missingNext : items;
 
   const load = () => {
     setLoading(true);
@@ -208,6 +228,8 @@ export default function Applications() {
           岗位: "",
           方向: "hvac",
           批次: "正式批",
+          来源: "",
+          链接: "",
           评分: 60,
           截止日期: "",
           当前阶段: "待投",
@@ -344,6 +366,21 @@ export default function Applications() {
         </Button>
       </div>
 
+      {/* 「没有下一步动作」引导（A7）：把缺项摆到眼前，一键切到筛选视图 */}
+      {!loading && missingNext.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
+          <span className="text-foreground">
+            {t("app.missingNextHint", { count: missingNext.length })}
+          </span>
+          <button
+            onClick={() => setShowMissingOnly((v) => !v)}
+            className="cursor-pointer font-medium text-primary hover:underline"
+          >
+            {showMissingOnly ? t("app.showAllRecords") : t("app.filterMissingNext")}
+          </button>
+        </div>
+      )}
+
       {showImport && (
         <ImportApplicationsDialog
           onClose={() => setShowImport(false)}
@@ -435,6 +472,49 @@ export default function Applications() {
                 setDraft({ ...draft, 评分: Number(e.target.value) })
               }
             />
+            {/* 来源可选：空值用哨兵表达（Radix 不接受空字符串 value），
+                真值为空时落库仍写空串——与 CLI 不加 --source 的行为一致 */}
+            <Select
+              value={draft.来源 || NONE}
+              onValueChange={(v) =>
+                setDraft({ ...draft, 来源: v === NONE ? "" : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("form.phSource")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>{t("form.sourceNone")}</SelectItem>
+                {SOURCES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {domainLabel("source", s, t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="url"
+              placeholder={t("form.phUrl")}
+              value={draft.链接}
+              onChange={(e) => setDraft({ ...draft, 链接: e.target.value })}
+              onBlur={() => {
+                // 粘贴岗位页 URL 后离开输入框时做本地推断（A5）：补全 scheme，
+                // 并在用户尚未选来源时预填。推断失败静默——它是助手，不打扰。
+                const raw = draft.链接.trim();
+                if (!raw) return;
+                api
+                  .inferUrl(raw)
+                  .then((r) => {
+                    if (!r.ok) return;
+                    setDraft((prev) => ({
+                      ...prev,
+                      链接: r.链接 || prev.链接,
+                      来源: prev.来源 || r.来源,
+                    }));
+                  })
+                  .catch(() => {});
+              }}
+            />
           </div>
           <div className="mt-4 flex gap-2">
             <Button
@@ -498,7 +578,7 @@ export default function Applications() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {items.map((it) => {
+              {visibleItems.map((it) => {
                 const isExpanded = expanded[it.id];
                 const staleDays = typeof it.stageDays === "number" ? it.stageDays : null;
                 const isStale = staleDays !== null && staleDays >= STALE_DAYS;
@@ -526,6 +606,21 @@ export default function Applications() {
                         <div className="pl-6 text-xs text-muted-foreground/70">
                           {it.岗位 || t("app.roleMissing")}
                         </div>
+                        {/* 岗位链接：有链接才出现，不新增一整列（表宽已经不小）；
+                            新标签打开，避免把追踪表上下文顶掉 */}
+                        {it.链接 && (
+                          <a
+                            href={it.链接}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={t("app.openLink")}
+                            aria-label={t("app.openLink")}
+                            className="ml-6 mt-0.5 inline-flex items-center gap-1 text-xs text-primary/80 transition-colors hover:text-primary hover:underline"
+                          >
+                            <ExternalLink size={11} />
+                            {t("app.jobLink")}
+                          </a>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-foreground">
                         {it.方向 ? domainLabel("direction", it.方向, t) : "—"}

@@ -50,14 +50,40 @@ REJECT_MARKERS = (
 OFFER_MARKERS = ("录用", "offer", "意向书", "拟录用", "入职邀请", "薪资方案")
 
 # 轮次判定：从强到弱，命中即止
-ROUND_RULES = (
-    ("三面", ("三面", "第三轮", "终面", "总监面", "总经理面")),
+#
+# 「阶段 ↔ 同义词」显式映射表：加一个新说法该动哪一行，一眼可见；顺序即
+# 建议优先级（同一封邮件命中多组词时取**最强**的那个），与 tracker.STAGES
+# 的单调顺序一致（终面 > HR面 > 三面 > 二面 > 一面 > 群面 > AI面），
+# 「建议 → 确认覆盖」不会出现自相矛盾的组合。
+INTERVIEW_SYNONYMS = (
+    # 「终面」从三面组里拆出来独立：此前「邀请您参加终面」被建议成「三面」，
+    # 用户看到的阶段名与邮件原文对不上，且「三面 → 终面」这一真实推进会
+    # 被误判成「不强于当前」（主表 STAGES 已同步补上「终面」）。
+    ("终面", ("终面", "终轮", "final")),
     ("HR面", ("hr面", "hr 面", "人力面", "hr面试", "谈薪", "薪酬", "人力")),
+    ("三面", ("三面", "第三轮", "总监面", "总经理面")),
     ("二面", ("二面", "第二轮", "复试", "专业面", "技术面")),
-    # 「邀请您参加面试」是最常见的写法之一，早期版本只收了「邀您参加面试」
-    # （无「请」字），结果这类邮件一个信号都识别不出——已在测试里钉住两种写法
-    ("一面", ("一面", "初面", "第一轮", "面试邀请", "面试安排", "面试时间",
-              "邀您参加面试", "邀请您参加面试", "面邀")),
+    ("一面", ("一面", "初面", "第一轮")),
+    ("群面", ("群面", "无领导小组", "无领导")),
+    # 「ai面」用小写登记：_hits 对中文与英文混排做大小写不敏感比较
+    # （AI面 / ai面 / Ai面 都命中），全部大写形态也由同一条路径覆盖。
+    ("AI面", ("ai面", "ai面试", "ai 面试", "智能面试")),
+)
+
+# 「面试通知」的通用措辞：**不指明轮次**，命中时兜底建议「一面」（最保守的初轮）。
+# 刻意与专指词分表、放在专指组**之后**检查——「AI面试时间安排」该走 AI面、
+# 「群面面试时间安排」该走 群面，都不该被这里的「面试时间」抢走（独立审查实测）。
+# 早期这两个词曾在「一面」组里，靠组序压过 AI面/群面，属真缺陷。
+GENERIC_INTERVIEW_MARKERS = ("面试邀请", "面试安排", "面试时间",
+                             "邀您参加面试", "邀请您参加面试", "面邀")
+
+# 「测评 / 笔试」同一条纪律：显式表 + 先「测评」后「笔试」——
+# 「在线测评 / 测评链接」此前归在笔试组（会与「测评」抢词），现在按用户口径
+# 归到「测评」；纯笔试措辞（机考 / 在线编程等）仍落「笔试」。
+# 优先级与 STAGES 一致（测评弱于笔试），枚举落盘校验都认这两个值。
+TEST_SYNONYMS = (
+    ("测评", ("测评", "在线测评", "测评链接", "性格测试", "笔试测评")),
+    ("笔试", ("笔试", "机考", "在线编程", "coding test")),
 )
 
 # 邀请类措辞。只有「弱词」需要它共现才认——「薪酬」「人力」「技术面」「复试」
@@ -71,7 +97,6 @@ WEAK_MARKERS = frozenset((
     "薪酬", "人力", "技术面", "复试", "第一轮", "第二轮", "第三轮",
 ))
 
-TEST_MARKERS = ("笔试", "在线测评", "测评链接", "机考", "在线编程", "coding test")
 APPLIED_MARKERS = ("投递成功", "简历已收到", "已收到您的简历", "感谢您的投递",
                    "感谢投递", "申请已提交", "简历评估中", "已收到您的申请")
 
@@ -98,7 +123,8 @@ def parse(text, today=None):
     """从原文里抽出信号（不涉及追踪表，纯文本规则）。
 
     返回 {"signals": [...], "dates": [...], "ambiguous": bool}，signals 按
-    「从强到弱」排列：拒信 / offer 早于面试，面试早于笔试，笔试早于「已收到简历」。
+    「从强到弱」排列：拒信 / offer 早于面试，面试早于测评/笔试，
+    测评/笔试早于「已收到简历」（同组内取序表中最强的一档，见信号词表）。
     同一条邮件里同时出现拒信与 offer 措辞时置 ambiguous 并**不给阶段建议**——
     猜错方向比不给建议更糟。
     """
@@ -118,15 +144,23 @@ def parse(text, today=None):
     if offer:
         signals.append({"kind": "offer", "stage": "offer", "evidence": offer})
 
-    for stage, markers in ROUND_RULES:
+    for stage, markers in INTERVIEW_SYNONYMS:
         hit = _round_hits(raw, markers)
         if hit:
             signals.append({"kind": "interview", "stage": stage, "evidence": hit})
             break
+    else:
+        # 专指词（含 AI面/群面）全不中时，「面试通知」的通用措辞兜底建议「一面」
+        # （见 GENERIC_INTERVIEW_MARKERS 的注释：这一步必须在专指组**之后**）
+        hit = _hits(raw, GENERIC_INTERVIEW_MARKERS)
+        if hit:
+            signals.append({"kind": "interview", "stage": "一面", "evidence": hit})
 
-    hit = _hits(raw, TEST_MARKERS)
-    if hit:
-        signals.append({"kind": "test", "stage": "笔试", "evidence": hit})
+    for stage, markers in TEST_SYNONYMS:
+        hit = _hits(raw, markers)
+        if hit:
+            signals.append({"kind": "test", "stage": stage, "evidence": hit})
+            break
 
     hit = _hits(raw, APPLIED_MARKERS)
     if hit:

@@ -723,9 +723,9 @@ const zhCN = {
   "err.sys.certStoreUnavailable": "本机证书库加载失败，无法校验证书，已拒绝连接（凭证不能在未校验的连接上发送）。排查：用 certmgr.msc 查看损坏的证书条目；确需临时跳过校验时，按功能设置 JOBWS_HTTP_TLS 或 JOBWS_IMAP_TLS=insecure（不推荐，风险自负）",
   "err.sys.certUntrusted": "证书校验失败：系统证书库不信任 {{host}} 的证书（可能自签名，也可能被中间人劫持）。不要为它关闭校验，请改用可信端点或检查网络环境",
 
-  "err.provider.baseUrlInvalid": "Base URL 必须以 http:// 或 https:// 开头",
-  "err.provider.needBaseUrl": "请先保存 Provider 的 Base URL",
-  "err.provider.needApiKey": "请先保存 Provider 的 API Key",
+  "err.provider.baseUrlInvalid": "服务地址（Base URL）必须以 http:// 或 https:// 开头",
+  "err.provider.needBaseUrl": "请先保存模型服务（Provider）的服务地址（Base URL）",
+  "err.provider.needApiKey": "请先保存模型服务（Provider）的 API 密钥（API Key）",
   "err.provider.connectHttpError": "连接失败（HTTP {{status}}）：{{hint}}",
   "err.provider.connectUnreachable": "无法连接 {{base}}：{{reason}}",
   "err.provider.connectFailed": "连接异常：{{error}}",

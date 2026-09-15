@@ -178,7 +178,7 @@ At the bottom there is also a **version lineage**: which resume version went to 
 The main arena after you apply. Four sub-tabs:
 
 - **Interviews**: three-part record (question → answer points → retro); anything still pending within 48 hours is highlighted amber; one-click export to `.ics`
-- **Question bank**: questions you have been asked, grouped by company + role, with keyword search — read what this company already asked you before the next round
+- **Question bank** (two views): **My bank** = your own editable `questions.csv` (domain / subject / status `未看·看过·会了` / answer notes), which you can fill by **read-only parsing → preview → confirm** from `03_面试准备/**/*.md` (two-phase); **Asked before** = questions you were actually asked, grouped by company + role, with keyword search — read what this company already asked you before the next round
 - **Contacts**: follow-up cadence for recruiter contacts, amber when overdue, one-click "contacted"
 - **Offer comparison**: known facts of several offers side by side. **Side by side only — no recommendation**
 

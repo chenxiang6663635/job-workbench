@@ -53,10 +53,29 @@ def test_receipt_mail_is_not_mistaken_for_a_rejection():
 
 def test_round_is_detected_from_strongest_keyword():
     assert status_parse.parse("邀请您参加第二轮面试")["signals"][0]["stage"] == "二面"
-    assert status_parse.parse("邀请您参加终面")["signals"][0]["stage"] == "三面"
+    # 「终面」自 v0.4.0-A 起独立成阶段（主表 STAGES 同步补上）：
+    # 此前被三面组吞掉，建议值与邮件原文字面不符，且「三面 → 终面」推进会打架
+    assert status_parse.parse("邀请您参加终面")["signals"][0]["stage"] == "终面"
     assert status_parse.parse("HR 邀请您沟通薪酬细节")["signals"][0]["stage"] == "HR面"
     # 大小写不该成为漏判的理由（同一批词里中英混排）
     assert status_parse.parse("HR面：邀您参加面试")["signals"][0]["stage"] == "HR面"
+
+
+def test_ai_and_group_interview_words_are_recognised():
+    """AI面 / 群面 是 v0.4.0-A 收录的新说法——此前它们一个信号都出不来。"""
+    assert status_parse.parse("邀请您参加 AI 面试")["signals"][0]["stage"] == "AI面"
+    assert status_parse.parse("恭喜进入智能面试环节")["signals"][0]["stage"] == "AI面"
+    assert status_parse.parse("邀请您参加群面")["signals"][0]["stage"] == "群面"
+    assert status_parse.parse("无领导小组讨论安排在本周五")["signals"][0]["stage"] == "群面"
+
+
+def test_generic_interview_words_do_not_outrank_specific_ones():
+    """抢词回归（独立审查 MAJOR-1）：「面试时间 / 面试安排」是通用排期措辞，
+    不得压过更专指的 AI面 / 群面——它们从「一面」组挪到兜底表就是为了这个。"""
+    assert status_parse.parse("AI面试时间：本周三")["signals"][0]["stage"] == "AI面"
+    assert status_parse.parse("群面面试安排如下")["signals"][0]["stage"] == "群面"
+    # 兜底仍然有效：不指明轮次的纯排期通知建议最保守的「一面」
+    assert status_parse.parse("面试时间：9月20日 14:00")["signals"][0]["stage"] == "一面"
 
 
 def test_common_invitation_phrasings_are_recognised():
@@ -76,9 +95,17 @@ def test_weak_words_alone_do_not_count_as_an_interview_invite():
     assert status_parse.parse("分享一下上次技术面的复盘心得")["signals"] == []
 
 
-def test_written_test_mail_suggests_test_stage():
+def test_written_test_and_assessment_are_distinguished():
+    """「在线测评 / 测评链接」归「测评」（v0.4.0-A 起独立阶段），纯笔试措辞仍归「笔试」。
+
+    两者同现时按映射表顺序取「测评」——它是流程上更早的环节，与 STAGES 顺序一致。
+    """
     parsed = status_parse.parse("请于 3 天内完成在线测评，测评链接见下。")
+    assert [s["stage"] for s in parsed["signals"]] == ["测评"]
+    parsed = status_parse.parse("请参加线上笔试，时长 90 分钟。")
     assert [s["stage"] for s in parsed["signals"]] == ["笔试"]
+    parsed = status_parse.parse("先完成在线测评，再参加笔试。")
+    assert [s["stage"] for s in parsed["signals"]] == ["测评"]
 
 
 def test_contradictory_mail_gives_no_stage():
@@ -118,10 +145,41 @@ def test_weaker_stage_cannot_override_a_stronger_one():
 
 
 def test_stronger_stage_can_override():
-    rows = [_row("A001", "示例公司", "示例岗位", "一面")]
+    rows = [_row("A001", "示例公司", "示例岗位", "三面")]
     got = _suggest("示例公司邀请您参加终面。", rows)
-    assert got["matches"][0]["建议阶段"] == "三面"
+    assert got["matches"][0]["建议阶段"] == "终面"
     assert got["matches"][0]["可覆盖"] is True
+
+
+def test_new_stages_follow_the_monotonic_order():
+    """新增阶段（测评 / AI面 / 群面）按流转顺序参与单调比较，两个方向都钉住。
+
+    这类断言的价值在"位置放错时立刻红"：AI面 若被摆到「一面」之后，
+    下面的「AI面 → 一面」推进会拿到一条不合理的拒绝理由。
+    """
+    rows = [_row("A001", "示例公司", "示例岗位", "AI面")]
+    got = _suggest("示例公司邀请您参加一面。", rows)
+    assert got["matches"][0]["建议阶段"] == "一面"
+    assert got["matches"][0]["可覆盖"] is True
+
+    # 反向：已到真人一面，AI面 通知不再回推（可能是别的流程或重复通知）
+    rows = [_row("A001", "示例公司", "示例岗位", "一面")]
+    got = _suggest("示例公司邀请您参加AI面试。", rows)
+    assert got["matches"][0]["可覆盖"] is False
+
+    # 测评弱于笔试：笔试之后收到的测评通知不把记录往回推
+    rows = [_row("A001", "示例公司", "示例岗位", "笔试")]
+    got = _suggest("示例公司：请完成在线测评。", rows)
+    assert got["matches"][0]["建议阶段"] == "测评"
+    assert got["matches"][0]["可覆盖"] is False
+
+    # 群面 在真人一面之前：群面通知能推动「已投」，但推不动「一面」
+    rows = [_row("A001", "示例公司", "示例岗位", "已投")]
+    got = _suggest("示例公司邀请您参加群面。", rows)
+    assert got["matches"][0]["可覆盖"] is True
+    rows = [_row("A001", "示例公司", "示例岗位", "一面")]
+    got = _suggest("示例公司邀请您参加群面。", rows)
+    assert got["matches"][0]["可覆盖"] is False
 
 
 @pytest.mark.parametrize("current", ["已挂", "已放弃", "我拒绝的 offer"])

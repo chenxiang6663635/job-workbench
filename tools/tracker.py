@@ -88,7 +88,7 @@ def csv_path(workspace=None):
 
 # 输出时保持固定字段顺序
 FIELDS = [
-    "id", "公司", "岗位", "方向", "批次", "来源", "截止日期", "投递日期",
+    "id", "公司", "岗位", "方向", "批次", "来源", "链接", "截止日期", "投递日期",
     "当前阶段", "状态原因", "下次动作", "下次动作日期", "简历版本", "评分",
     "归档目录", "备注",
 ]
@@ -97,10 +97,19 @@ FIELDS = [
 # 校验时动态读取 <工作区>/config/directions/*.md，读不到则放行（只记录不拦截）。
 DIRECTIONS = ["other"]
 BATCHES = ["提前批", "正式批", "补录"]
-SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推", "其他"]
+# 「宣讲会 / 招聘会」在「内推」之后、其他之前：它们是活动类来源，
+# 与「这条投递从哪来」的语义一起，供宣讲会表（talks.csv）的「关联记录」对齐。
+SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推",
+           "宣讲会", "招聘会", "其他"]
 
-# 正常流转顺序；终态单独处理
-STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "offer", "签约"]
+# 正常流转顺序；终态单独处理。
+# **顺序即单调优先级**（status_parse.stage_rank 按本表下标比大小），
+# 新增值必须想清楚「谁更强」——放错位置会让「AI面 → 一面」这类正常推进
+# 被误判成"不强于当前"，用户会在确认框里看到不合理的拒绝理由。
+# 「测评」排在「笔试」前：在线测评（性格/行测）多在笔试之前发出；
+# 「AI面 / 群面」排在「一面」前：它们是真人单面之前的初筛环节。
+STAGES = ["待投", "已投", "测评", "笔试", "AI面", "群面", "一面", "二面", "三面",
+          "HR面", "终面", "offer", "签约"]
 # 终态。注意语义差异：「已挂/已放弃」是被拒或放弃（失败），
 # 「我拒绝的 offer」是用户主动拒绝（双向选择）——复盘归因时必须分开统计，
 # 拒绝不该被算成"失败"，它可能意味着拿到了更好的。
@@ -110,7 +119,7 @@ FAIL_STAGES = ["已挂", "已放弃"]
 
 # update 只允许改这些字段，公司与岗位不可改（改则需新建记录并作废原记录）
 UPDATABLE = ["当前阶段", "状态原因", "下次动作", "下次动作日期", "备注", "评分",
-             "投递日期", "截止日期"]
+             "投递日期", "截止日期", "链接"]
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -129,11 +138,14 @@ STALE_DAYS = 14
 # 当前状态快照语义。以「关联记录」外键指回 tracker.csv 的 id。
 INTERVIEW_FILE = "interviews.csv"
 INTERVIEW_FIELDS = [
-    "面试id", "关联记录", "公司", "岗位", "轮次", "面试时间", "形式",
+    "面试id", "关联记录", "公司", "岗位", "轮次", "面试时间", "形式", "链接",
     "面试官", "问题记录", "我的回答要点", "复盘与改进", "结果",
 ]
 # 公司/岗位为冗余快照：关联记录可空（内推、未录入的面试也要能记）
-INTERVIEW_ROUNDS = ["笔试", "一面", "二面", "三面", "HR面", "终面", "其他"]
+# 轮次顺序与 STAGES 的流转顺序保持同一逻辑（先测评/笔试、再初筛、最后真人轮与终面），
+# 下拉展示时两处一致，用户不需要记两套次序。
+INTERVIEW_ROUNDS = ["测评", "笔试", "AI面", "群面", "一面", "二面", "三面",
+                    "HR面", "终面", "其他"]
 INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"]
 INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"]
 
@@ -274,8 +286,11 @@ def run_check(workspace=None):
                 required=["id", "公司", "岗位", "方向", "批次", "当前阶段"],
                 dates=["截止日期", "投递日期", "下次动作日期"],
                 # 方向不做枚举校验：合法方向取决于工作区装入的插件，动态的
+                # 来源也在校验之列：CLI 与导入都会拦脏值，手改 CSV 绕过它们，
+                # 自检是最后一道拦网（此前来源只在写入口校验，脏值无人拦）。
                 enums=[("当前阶段", STAGES + TERMINAL_STAGES),
-                       ("批次", BATCHES)],
+                       ("批次", BATCHES),
+                       ("来源", SOURCES)],
                 fk_ids=None, issues=issues)
             fk_ids = set((r.get("id") or "").strip() for r in main_rows)
             files.append({"file": "tracker.csv", "ok": not issues,
@@ -1018,7 +1033,9 @@ def _validate_add_fields(fields, workspace=None):
     batch = fields.get("批次") or ""
     if batch not in BATCHES:
         errors.append("`--batch` 必须是 %s 之一，实际为 `%s`" % ("/".join(BATCHES), batch))
-    source = fields.get("来源") or ""
+    # strip 后再判：与 import / Web API / run_check 三处同一口径。
+    # （调用方若非 preview_add_fields——当下没有，未来可能有——也不至于口径分叉）
+    source = (fields.get("来源") or "").strip()
     if source and source not in SOURCES:
         errors.append("`--source` 必须是 %s 之一，实际为 `%s`" % ("/".join(SOURCES), source))
     stage = fields.get("当前阶段") or ""
@@ -1057,6 +1074,11 @@ def preview_add_fields(fields, workspace=None):
     只是把命令行参数转成字段再调它——两段式的两边必须走同一份校验。
     """
     fields = {field: (fields.get(field) or "") for field in FIELDS}
+    # 「来源 / 链接」进入即归一化（去首尾空白）：枚举校验是按 strip 后的值判的，
+    # 若把带空格的原文写进 CSV，「 内推 」这类值会绕过一切枚举检查（独立审查）。
+    # 只收这两列——本批新增的口径；其它列维持现状，避免悄悄改变既有行为。
+    for field in ("来源", "链接"):
+        fields[field] = fields[field].strip()
     errors = _validate_add_fields(fields, workspace)
     if errors:
         return errors, None
@@ -1085,6 +1107,7 @@ def preview_add(args, workspace=None):
         "下次动作日期": args.next_date or "", "简历版本": args.resume or "",
         "评分": "" if args.score is None else str(args.score),
         "归档目录": args.archive or "", "备注": args.note or "",
+        "链接": args.link or "",
     }, workspace)
 
 
@@ -1294,7 +1317,7 @@ def cmd_update(args):
     for field, value in (("当前阶段", args.stage), ("状态原因", args.reason),
                          ("下次动作", args.next), ("下次动作日期", args.next_date),
                          ("备注", args.note), ("投递日期", args.applied),
-                         ("截止日期", args.deadline)):
+                         ("截止日期", args.deadline), ("链接", args.link)):
         if value is not None:
             changes[field] = value
     if args.score is not None:
@@ -1691,6 +1714,7 @@ def cmd_interview(args):
         row["轮次"] = args.round
         row["面试时间"] = args.when or ""
         row["形式"] = args.form or ""
+        row["链接"] = args.link or ""
         row["面试官"] = args.interviewer or ""
         row["问题记录"] = args.questions or ""
         row["我的回答要点"] = args.answers or ""
@@ -1753,7 +1777,7 @@ def cmd_interview(args):
         changed = []
         for arg_name, field in (
             ("when", "面试时间"), ("round", "轮次"), ("form", "形式"),
-            ("interviewer", "面试官"), ("questions", "问题记录"),
+            ("link", "链接"), ("interviewer", "面试官"), ("questions", "问题记录"),
             ("answers", "我的回答要点"), ("retro", "复盘与改进"),
             ("result", "结果"),
         ):
@@ -1798,6 +1822,7 @@ def build_parser():
     p_add.add_argument("--score", type=int, help="评分 0-100")
     p_add.add_argument("--archive", help="归档目录相对路径")
     p_add.add_argument("--note", help="备注")
+    p_add.add_argument("--link", help="岗位页链接（原始 URL，便于日后回看 JD）")
     p_add.add_argument("--preview", action="store_true",
                        help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
                             "确认后用 python tools/jobws.py apply <令牌> 落盘")
@@ -1812,6 +1837,7 @@ def build_parser():
     p_upd.add_argument("--deadline", help="截止日期 YYYY-MM-DD")
     p_upd.add_argument("--note", help="备注")
     p_upd.add_argument("--score", type=int, help="评分 0-100")
+    p_upd.add_argument("--link", help="岗位页链接")
     p_upd.add_argument("--preview", action="store_true",
                        help="只预览、并把这次更新登记为一次性令牌（不落盘）；"
                             "确认后用 python tools/jobws.py apply <令牌> 落盘")
@@ -1844,6 +1870,7 @@ def build_parser():
     # 面试时间允许「2026-09-05 14:00」或只有日期，故不套 DATE_RE
     p_itv.add_argument("--when", help="面试时间，如 2026-09-05 14:00")
     p_itv.add_argument("--form", choices=INTERVIEW_FORMS, help="形式")
+    p_itv.add_argument("--link", help="会议/作答链接")
     p_itv.add_argument("--interviewer", help="面试官")
     p_itv.add_argument("--questions", help="问题记录")
     p_itv.add_argument("--answers", help="我的回答要点")

@@ -35,6 +35,13 @@ function log(msg) {
   console.log(line);
   // GUI 模式下 console.log 不可见——落盘到 userData 供用户侧诊断（冒烟实测痛点）
   // 超过 1MB 轮转为 .old，避免无限增长
+  //
+  // **userData 的落点是 %APPDATA%\job-workbench，与 productName 无关**（2026-09-14
+  // 实测：productName 还是「求职工作台」时，main.log / zoom.json 就写在这里；Electron
+  // 取的是 packaged 的 `name`）。所以 productName 英文化（→ Job Workbench）**不会**
+  // 搬动日志、缩放偏好或工作区数据——后端的根也钉在同一个名字上（pathres.py 的
+  // `_user_data_dir`，那处是给「数据在哪」用的单一真值源）。要改这个目录名，两处
+  // 必须一起改，并且要交代迁移。
   try {
     const dir = app.getPath("userData");
     fs.mkdirSync(dir, { recursive: true });

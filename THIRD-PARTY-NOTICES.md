@@ -11,6 +11,7 @@
 | [uvicorn](https://github.com/encode/uvicorn) | BSD-3-Clause | ASGI 服务器 |
 | [pydantic](https://github.com/pydantic/pydantic) | MIT | 请求模型校验 |
 | [pypdf](https://github.com/py-pdf/pypdf) | BSD-3-Clause | PDF 文本抽取与校验 |
+| [certifi](https://github.com/certifi/python-certifi) | MPL-2.0 | 出网证书兜底（系统证书库不可用时随包分发的 CA 清单，仍严格校验） |
 
 ## 前端（`web/frontend/package.json`）
 
@@ -24,12 +25,16 @@
 | [TypeScript](https://github.com/microsoft/TypeScript) | Apache-2.0 | 类型系统 |
 | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) / tailwind-merge / tailwindcss-animate | MIT | 样式 |
 | [PostCSS](https://github.com/postcss/postcss) / [autoprefixer](https://github.com/postcss/autoprefixer) | MIT | CSS 后处理 |
+| [Radix UI](https://github.com/radix-ui/primitives)（`@radix-ui/react-*`） | MIT | 无障碍组件原语（对话框 / 标签页 / 下拉…） |
+| [i18next](https://github.com/i18next/i18next) / [react-i18next](https://github.com/i18next/react-i18next) | MIT | 界面双语 |
+| [clsx](https://github.com/lukeed/clsx) / [class-variance-authority](https://github.com/joe-bell/cva) / [tailwind-merge](https://github.com/dcastil/tailwind-merge) | MIT | 类名组合工具 |
 
 ## 桌面壳（可选，`web/electron/`）
 
 | 依赖 | 许可证 | 用途 |
 |---|---|---|
 | [Electron](https://github.com/electron/electron) | MIT | 桌面壳（其分发包含 Chromium 与 Node.js，各自遵循其许可） |
+| [electron-updater](https://github.com/electron-userland/electron-builder) | MIT | 自动更新（随应用分发；只向本仓库的 GitHub Release 查询版本） |
 | [electron-builder](https://github.com/electron-userland/electron-builder) | MIT | 打包工具 |
 
 ## 开发工具（不随产品分发）
@@ -38,6 +43,7 @@
 |---|---|---|
 | [git-filter-repo](https://github.com/newren/git-filter-repo) | GPL-2.0 | 历史清洗（仅维护者本地使用，不打包、不分发） |
 | [pytest](https://github.com/pytest-dev/pytest) | MIT | 测试 |
+| [PyInstaller](https://github.com/pyinstaller/pyinstaller) | GPL-2.0-or-later（附随包例外条款） | 打包后端 exe；其 bootloader 进入打包产物，例外条款允许随非自由应用分发 |
 
 ## 数据与隐私
 

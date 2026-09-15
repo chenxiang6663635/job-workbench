@@ -14,15 +14,15 @@
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.jobworkbench.app",
     "directories": {
       "output": "release"
     },
-    "productName": "求职工作台",
+    "productName": "Job Workbench",
     "artifactName": "job-workbench-setup-${version}-win64.${ext}",
     "publish": [
       {
@@ -43,7 +43,11 @@
       {
         "from": "../backend/dist/job-workbench-backend",
         "to": "backend",
-        "filter": ["**/*", "!personal/**", "!portable.txt"]
+        "filter": [
+          "**/*",
+          "!personal/**",
+          "!portable.txt"
+        ]
       }
     ],
     "win": {

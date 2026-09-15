@@ -70,7 +70,7 @@ export default function GapPanel({ dir }: { dir: string }) {
       .finally(() => setLoading(false));
   }, [dir]);
 
-  if (loading) return <Skeleton className="h-32 w-full rounded-xl" />;
+  if (loading) return <Skeleton className="h-32 w-full rounded-lg" />;
   // 差距分析失败不该是红色报错级：调性上属"这一段暂不可用"，其余页面照常用
   if (error)
     return <ErrorBanner tone="warning" message={t("gap.unavailable", { error })} />;
@@ -100,7 +100,7 @@ export default function GapPanel({ dir }: { dir: string }) {
           const Icon = s.icon;
           const items = itemsOf(s.key);
           return (
-            <Card key={s.key} className={`rounded-xl p-3.5 ${s.cardCls}`}>
+            <Card key={s.key} className={`rounded-lg p-3.5 ${s.cardCls}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Icon size={14} className={s.iconCls} />

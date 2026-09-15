@@ -226,7 +226,7 @@ export default function App() {
 
       <main className="relative mx-auto max-w-7xl px-6 pb-16 pt-24">
         {online === false ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6">
             <p className="text-sm font-medium text-destructive">
               {t("error.backend")}
             </p>

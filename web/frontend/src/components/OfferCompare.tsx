@@ -71,7 +71,7 @@ export default function OfferCompare() {
         ) : (
           <div className="flex gap-4">
             {[0, 1].map((i) => (
-              <Skeleton key={i} className="h-64 w-64 shrink-0 rounded-2xl" />
+              <Skeleton key={i} className="h-64 w-64 shrink-0 rounded-lg" />
             ))}
           </div>
         )}
@@ -118,7 +118,7 @@ export default function OfferCompare() {
           {rows.map((o) => (
             <Card
               key={o.offer_id}
-              className="w-64 shrink-0 rounded-2xl p-4 hover:-translate-y-0.5 hover:border-primary/30"
+              className="w-64 shrink-0 rounded-lg p-4 hover:-translate-y-0.5 hover:border-primary/30"
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold text-foreground">{o.公司}</p>
@@ -159,7 +159,7 @@ export default function OfferCompare() {
       </div>
 
       {/* 固定页脚：产品的伦理边界，永远不替用户做选择 */}
-      <p className="rounded-xl border border-border bg-background/60 px-4 py-3 text-center text-xs text-muted-foreground">
+      <p className="rounded-lg border border-border bg-background/60 px-4 py-3 text-center text-xs text-muted-foreground">
         {t("offer.disclaimer")}
       </p>
 

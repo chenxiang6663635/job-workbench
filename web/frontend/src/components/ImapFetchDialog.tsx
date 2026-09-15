@@ -79,7 +79,7 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="flex h-[82vh] w-full max-w-2xl flex-col gap-0 rounded-2xl p-0">
+      <DialogContent className="flex h-[82vh] w-full max-w-2xl flex-col gap-0 rounded-lg p-0">
         <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-medium">
             <Inbox size={16} className="text-primary" /> {t("imap.title")}
@@ -147,13 +147,13 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
           )}
 
           {!loading && messages && messages.length === 0 && (
-            <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
               {t("imap.empty", { range: rangeLabel })}
             </p>
           )}
 
           {!loading && messages && messages.length > 0 && filtered.length === 0 && (
-            <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
               {t("imap.emptyFiltered")}
             </p>
           )}
@@ -164,7 +164,7 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
               type="button"
               onClick={() => onUse(m.body)}
               title={t("imap.useThis")}
-              className="group flex w-full items-start gap-3 rounded-xl border border-border bg-card/60 p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-card"
+              className="group flex w-full items-start gap-3 rounded-lg border border-border bg-card/60 p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-card"
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">

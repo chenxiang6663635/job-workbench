@@ -27,7 +27,7 @@ export default function DimensionRow({
   const raw = detail?.dimensionsDetail[dimension.name]?.raw ?? [];
 
   return (
-    <div className="rounded-xl border border-border/60 bg-background/40 transition-colors hover:border-primary/30">
+    <div className="rounded-lg border border-border/60 bg-background/40 transition-colors hover:border-primary/30">
       <button
         type="button"
         onClick={onToggle}

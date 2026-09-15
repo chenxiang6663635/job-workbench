@@ -166,7 +166,7 @@ export default function OfferForm({
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6">
+      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6">
         <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0">
           <div>
             <DialogTitle>{t("offer.formTitle")}</DialogTitle>

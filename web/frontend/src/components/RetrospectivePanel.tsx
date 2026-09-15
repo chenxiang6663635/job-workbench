@@ -55,7 +55,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* 转化率：只展示到达过的阶段，空阶段不凑数 */}
-        <Card className="rounded-xl p-4">
+        <Card className="rounded-lg p-4">
           <p className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
             <ChartNoAxesColumn size={13} className="text-primary" /> {t("retro.conversionTitle")}
           </p>
@@ -92,7 +92,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
         {/* 停留 + 归因 */}
         <div className="space-y-4">
           {data.stay.length > 0 && (
-            <Card className="rounded-xl p-4">
+            <Card className="rounded-lg p-4">
               <p className="mb-2.5 text-xs font-medium text-foreground">{t("retro.stayTitle")}</p>
               <div className="space-y-1.5">
                 {data.stay.map((s) => (
@@ -113,7 +113,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
           )}
 
           {data.failure.length > 0 && (
-            <Card className="rounded-xl border-warning/25 bg-warning/5 p-4">
+            <Card className="rounded-lg border-warning/25 bg-warning/5 p-4">
               <p className="mb-2.5 text-xs font-medium text-warning">{t("retro.failureTitle")}</p>
               <div className="space-y-1.5">
                 {data.failure.map((f) => (
@@ -127,7 +127,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
           )}
 
           {data.declined.length > 0 && (
-            <Card className="rounded-xl border-success/25 bg-success/5 p-4">
+            <Card className="rounded-lg border-success/25 bg-success/5 p-4">
               <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-success">
                 <ThumbsDown size={12} /> {t("retro.declinedTitle")}
               </p>
@@ -146,7 +146,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
 
       {/* 失败原因聚类（第三批）：回答「到底败在哪一类」。
           样本不足时明确说"暂不展示"，绝不硬凑分类——凑出来的归因比没有更害人 */}
-      <Card className="rounded-xl p-4">
+      <Card className="rounded-lg p-4">
         <p className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
           <Layers size={13} className="text-primary" /> {t("retro.clusterTitle")}
           {clusters?.shown && (

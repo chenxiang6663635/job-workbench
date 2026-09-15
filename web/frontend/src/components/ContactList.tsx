@@ -91,7 +91,7 @@ export default function ContactList() {
   };
 
   const form = (
-    <Card className="space-y-3 rounded-2xl border-primary/30 p-5">
+    <Card className="space-y-3 rounded-lg border-primary/30 p-5">
       <div className="grid gap-3 sm:grid-cols-3">
         <Input placeholder={t("contact.phName")} value={name} onChange={(e) => setName(e.target.value)} />
         <Input placeholder={t("contact.phRole")} value={role} onChange={(e) => setRole(e.target.value)} />
@@ -132,11 +132,11 @@ export default function ContactList() {
       {!loaded && !error ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-xl" />
+            <Skeleton key={i} className="h-32 w-full rounded-lg" />
           ))}
         </div>
       ) : loaded && !error && rows.length === 0 ? (
-        <Card className="flex flex-col items-center rounded-2xl border-dashed p-8 text-center">
+        <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
           <UserRound size={28} className="mb-3 text-muted-foreground/70" />
           <p className="text-sm text-muted-foreground">{t("contact.emptyTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
@@ -152,7 +152,7 @@ export default function ContactList() {
             return (
               <Card
                 key={c.联系人id}
-                className={`rounded-xl p-4 transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`rounded-lg p-4 transition-all duration-200 hover:-translate-y-0.5 ${
                   st === "overdue"
                     ? "border-warning/40 bg-warning/5"
                     : "hover:border-border-strong"

@@ -44,11 +44,21 @@ export default {
         },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        /* 层级表面（批 4 三件套）：凹面 0 / 卡片 1 / 抬升 2 / 浮层 3 */
+        surface: {
+          0: "hsl(var(--elevation-0-surface))",
+          1: "hsl(var(--elevation-1-surface))",
+          2: "hsl(var(--elevation-2-surface))",
+          3: "hsl(var(--elevation-3-surface))",
+        },
       },
       /* 视觉升级：阴影、渐变与动画。全部走 CSS 变量，零运行时开销 */
       boxShadow: {
         card: "var(--shadow-card)",
         elevated: "var(--shadow-elevated)",
+        "elev-1": "var(--elevation-1-shadow)",
+        "elev-2": "var(--elevation-2-shadow)",
+        "elev-3": "var(--elevation-3-shadow)",
         "glow-primary": "0 0 0 1px hsl(var(--glow-primary) / 0.35), 0 6px 20px -6px hsl(var(--glow-primary) / 0.5)",
       },
       backgroundImage: {
@@ -66,10 +76,11 @@ export default {
       },
       animation: {
         shimmer: "shimmer 1.6s infinite",
-        "fade-in-up": "fade-in-up 0.25s ease-out",
+        "fade-in-up": "fade-in-up 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
       },
       transitionTimingFunction: {
-        premium: "cubic-bezier(0.22, 1, 0.36, 1)",
+        /* expo-out（批 4 统一）：颜色 150ms / 位移与阴影 250ms，位移 1–2px 绝不 scale */
+        premium: "cubic-bezier(0.16, 1, 0.3, 1)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -82,10 +93,13 @@ export default {
           "system-ui",
           "-apple-system",
           "Segoe UI",
+          "PingFang SC",
+          "Microsoft YaHei UI",
           "Microsoft YaHei",
           "sans-serif",
         ],
-        mono: ["JetBrains Mono", "Consolas", "monospace"],
+        /* Maple Mono：中英混排等宽（批 4 打包引入后生效；未加载时回退 JetBrains Mono） */
+        mono: ["Maple Mono", "JetBrains Mono", "Consolas", "monospace"],
       },
     },
   },

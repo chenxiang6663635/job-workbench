@@ -66,7 +66,7 @@ export default function Library() {
             <iframe
               src={view.fileUrl}
               title={view.rel}
-              className="h-[70vh] w-full rounded-xl border-0 bg-white"
+              className="h-[70vh] w-full rounded-lg border-0 bg-white"
             />
           </Card>
         ) : (

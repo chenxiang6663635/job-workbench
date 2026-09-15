@@ -150,7 +150,7 @@ function StatCard({
           <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl"
+          className="flex h-10 w-10 items-center justify-center rounded-lg"
           style={{ background: `${accent}22`, color: accent }}
         >
           {icon}

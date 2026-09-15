@@ -125,7 +125,7 @@ export default function JobDetailView({
 
           {/* JD↔简历差距清单：只依赖 JD，未评分的岗位也能看——
               往往正是"还没评分但想先知道差在哪"的时刻 */}
-          <div className="mt-4 rounded-xl border border-border bg-background/40 p-4">
+          <div className="mt-4 rounded-lg border border-border bg-background/40 p-4">
             <GapPanel dir={detail.dir} />
           </div>
         </Card>

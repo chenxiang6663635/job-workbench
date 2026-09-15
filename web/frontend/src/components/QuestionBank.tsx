@@ -183,7 +183,7 @@ function MyBank() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-surface px-2 text-xs text-foreground"
+          className="h-9 rounded-lg border border-border bg-surface-1 px-2 text-xs text-foreground"
           aria-label={t("bank.statusFilter")}
         >
           <option value="">{t("bank.allStatus")}</option>
@@ -206,7 +206,7 @@ function MyBank() {
           <p className="text-sm font-medium text-foreground">{preview.summary}</p>
           {/* diff 是后端给的 Markdown 表格文本：原样等宽展示，不做二次解析——
               解析错了比显示得丑危险得多（用户据此决定要不要落盘） */}
-          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-subtle p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
             {preview.diff.join("\n")}
           </pre>
           <div className="flex gap-2">
@@ -223,7 +223,7 @@ function MyBank() {
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-20 w-full rounded-lg" />
           ))}
         </div>
       ) : rows.length === 0 ? (
@@ -311,7 +311,7 @@ function AskedBefore() {
       {loading && !error && groups.length === 0 ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-24 w-full rounded-lg" />
           ))}
         </div>
       ) : !loading && !error && groups.length === 0 ? (
@@ -327,7 +327,7 @@ function AskedBefore() {
       ) : groups.length === 0 ? null : (
         <div className="space-y-4">
           {groups.map((g) => (
-            <Card key={`${g.公司}__${g.岗位}`} className="rounded-2xl p-4">
+            <Card key={`${g.公司}__${g.岗位}`} className="rounded-lg p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles size={14} className="text-primary" />
                 <span className="text-sm font-semibold text-foreground">{g.公司}</span>
@@ -364,7 +364,7 @@ export default function QuestionBank() {
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
+      <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
         {tabs.map((tab) => (
           <button
             key={tab.key}

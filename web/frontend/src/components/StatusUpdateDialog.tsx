@@ -162,7 +162,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="flex h-[88vh] w-full max-w-4xl flex-col gap-0 rounded-2xl p-0">
+      <DialogContent className="flex h-[88vh] w-full max-w-4xl flex-col gap-0 rounded-lg p-0">
         <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-medium">
             <Mail size={16} className="text-primary" /> {t("status.title")}
@@ -222,13 +222,13 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
           {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
           {createdNotice && (
-            <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
+            <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
               {createdNotice}
             </p>
           )}
 
           {failures.length > 0 && (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               <p className="mb-1 font-medium">{t("status.failedHeader")}</p>
               <ul className="list-disc space-y-0.5 pl-4">
                 {failures.map((f, i) => (
@@ -309,7 +309,7 @@ function SuggestionReport({
   const { t } = useTranslation();
   if (result.matches.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
         {t("status.noMatchHint")}
       </p>
     );
@@ -395,7 +395,7 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
   };
 
   return (
-    <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
+    <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
       <p className="text-sm text-muted-foreground">
         {t("status.newRecordHint")}
       </p>
@@ -489,7 +489,7 @@ function MatchCard({
   const terminal = TERMINAL.includes(stage);
   const blocked = !match.可覆盖;
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-3 shadow-sm">
+    <div className="rounded-lg border border-border bg-card/60 p-3 shadow-sm">
       <div className="flex items-start gap-3">
         <input
           type="checkbox"

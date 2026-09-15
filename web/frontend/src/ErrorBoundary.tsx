@@ -26,7 +26,7 @@ class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6">
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-6">
           <p className="text-sm font-semibold text-destructive">
             {this.props.t("error.renderFailed")}
           </p>

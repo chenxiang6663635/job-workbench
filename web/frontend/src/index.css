@@ -15,7 +15,9 @@
     --card: 222 44% 11%;
     --card-foreground: 210 40% 96%;
 
-    --popover: 222 45% 8%;
+    /* 浮层表面：批 4 修正——原值 8%（比 card 11% 更暗）是层级错误，浮层应在更高层。
+       与 elevation-3-surface 同值，见下方三件套注释 */
+    --popover: 222 42% 19%;
     --popover-foreground: 210 40% 96%;
 
     --primary: 199 89% 58%;
@@ -47,10 +49,27 @@
     --highlight: 0 0% 100%;
     --scrim: 0 0% 0%;
 
-    /* 视觉增强变量：发光主色、卡片阴影、浮起阴影、卡片渐变、页面顶部光晕 */
+    /* 视觉增强变量：发光主色、卡片渐变、页面顶部光晕 */
     --glow-primary: 199 89% 58%;
-    --shadow-card: 0 1px 2px hsl(222 47% 2% / 0.6), 0 8px 24px -8px hsl(222 47% 2% / 0.7);
-    --shadow-elevated: 0 2px 4px hsl(222 47% 2% / 0.5), 0 16px 40px -12px hsl(199 89% 30% / 0.35);
+
+    /* 层级三件套（批 4 地基，2026-09-15）：elevation-{n} = {surface, border, shadow}。
+       暗色的层次主通道是**表面明度阶梯**与**描边**，阴影只补边缘感——近黑表面上的
+       黑阴影几乎不传达深度信号；hover 一律「换 level」而不是只换 shadow。
+       浅色主题规则（未来启用）：表面恒定、只变阴影——该非对称是有意为之。 */
+    --elevation-0-surface: 222 46% 7%;
+    --elevation-1-surface: 222 44% 11%;
+    --elevation-1-border: 219 32% 20%;
+    --elevation-1-shadow: 0 1px 2px hsl(222 47% 2% / 0.45), 0 8px 24px -10px hsl(222 47% 2% / 0.55);
+    --elevation-2-surface: 222 43% 15%;
+    --elevation-2-border: 219 30% 26%;
+    --elevation-2-shadow: 0 2px 4px hsl(222 47% 2% / 0.5), 0 16px 40px -12px hsl(199 89% 30% / 0.35);
+    --elevation-3-surface: 222 42% 19%;
+    --elevation-3-border: 219 28% 32%;
+    --elevation-3-shadow: 0 4px 10px hsl(222 47% 2% / 0.5), 0 24px 56px -16px hsl(222 47% 2% / 0.65);
+
+    /* 兼容别名：既有 shadow-card / shadow-elevated 工具类自动升级到三件套 */
+    --shadow-card: var(--elevation-1-shadow);
+    --shadow-elevated: var(--elevation-3-shadow);
     --card-gradient: linear-gradient(
       180deg,
       hsl(222 44% 13%) 0%,
@@ -61,6 +80,12 @@
       hsl(199 89% 58% / 0.1) 0%,
       transparent 70%
     );
+
+    /* 动效节奏（批 4）：三档时长 + 统一 expo-out；与 tailwind 的 ease-premium 同源 */
+    --duration-fast: 150ms;
+    --duration-base: 250ms;
+    --duration-slow: 400ms;
+    --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
 
     --radius: 0.75rem;
   }
@@ -77,6 +102,13 @@ body {
   margin: 0;
   color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
+}
+
+/* 中文排版分叉（colony 模式，批 4）：汉字需要更大行高、略加字距；英文保持紧凑。
+   <html lang> 由 i18n 层在首屏与切换语言时同步（src/i18n/index.ts）。 */
+html:lang(zh) body {
+  line-height: 1.72;
+  letter-spacing: 0.012em;
 }
 
 ::-webkit-scrollbar {

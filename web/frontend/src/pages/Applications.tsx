@@ -269,7 +269,7 @@ export default function Applications() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="cursor-pointer">
             <X size={14} />
@@ -368,7 +368,7 @@ export default function Applications() {
 
       {/* 「没有下一步动作」引导（A7）：把缺项摆到眼前，一键切到筛选视图 */}
       {!loading && missingNext.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
           <span className="text-foreground">
             {t("app.missingNextHint", { count: missingNext.length })}
           </span>
@@ -416,7 +416,7 @@ export default function Applications() {
       )}
 
       {creating && (
-        <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-highlight/5 p-5">
+        <div className="rounded-lg border border-primary/30 bg-card/70 shadow-card ring-1 ring-highlight/5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input
               placeholder={t("form.phCompany")}
@@ -531,13 +531,13 @@ export default function Applications() {
       )}
 
       {loading ? (
-        <div className="space-y-2 rounded-2xl border border-border p-4">
+        <div className="space-y-2 rounded-lg border border-border p-4">
           {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium">{t("app.emptyTitle")}</p>
           <p className="text-sm text-muted-foreground">
@@ -545,7 +545,7 @@ export default function Applications() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
               <tr>

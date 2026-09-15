@@ -154,7 +154,7 @@ export default function RewritePanel({
           <div className="mt-4 space-y-3">
             {/* 校验结果：通过=绿；未通过=红且列原因，绝不静默 */}
             <div
-              className={`flex items-start gap-2 rounded-xl border px-4 py-3 ${
+              className={`flex items-start gap-2 rounded-lg border px-4 py-3 ${
                 result.ok
                   ? "border-success/30 bg-success/10"
                   : "border-destructive/40 bg-destructive/10"
@@ -188,7 +188,7 @@ export default function RewritePanel({
                 {diffs.map((d, idx) => (
                   <div
                     key={idx}
-                    className="rounded-xl border border-border bg-background/60 p-3 text-xs"
+                    className="rounded-lg border border-border bg-background/60 p-3 text-xs"
                   >
                     <p className="mb-1 font-mono text-[10px] text-muted-foreground/70">{d.path}</p>
                     <p className="leading-relaxed text-muted-foreground line-through decoration-destructive/60">

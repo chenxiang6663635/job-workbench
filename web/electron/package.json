@@ -1,6 +1,6 @@
 {
   "name": "job-workbench",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "Job Workbench desktop app — local-first job application tracker",
   "main": "main.js",
   "author": "job-workbench contributors",

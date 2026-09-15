@@ -73,6 +73,7 @@ jobws track talk update --id T001 --attend 参加
 
 - 形式：线上 / 线下 / 其他；是否参加：待定 / 参加 / 不参加
 - 未关联记录时必须给 `--company`；`--app` 指到不存在的记录会被拒绝
+- 写入支持 `--preview` 两段式（同 `track add`：预览拿令牌 → `jobws apply <令牌>` 落盘）
 - Web 端「进展」页的「宣讲会」页签可录入并导出 `.ics` 日程
 
 ## 字段约束

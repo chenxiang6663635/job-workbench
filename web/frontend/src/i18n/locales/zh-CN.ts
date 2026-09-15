@@ -317,9 +317,9 @@ const zhCN = {
   "app.healthStale": "停滞",
   "app.healthOk": "正常",
 
-  // 「没有下一步动作」引导（进行中记录缺「下次动作」时出现）
-  "app.missingNextHint_one": "{{count}} 条进行中的投递还没有「下一步动作」——补齐它，「近 7 天待办」才拉得动",
-  "app.missingNextHint_other": "{{count}} 条进行中的投递还没有「下一步动作」——补齐它，「近 7 天待办」才拉得动",
+  // 「没有下一步动作」引导（当前列表里缺「下次动作」的记录数——口径随上方筛选）
+  "app.missingNextHint_one": "当前列表里有 {{count}} 条投递还没有「下一步动作」——补齐它，「近 7 天待办」才拉得动",
+  "app.missingNextHint_other": "当前列表里有 {{count}} 条投递还没有「下一步动作」——补齐它，「近 7 天待办」才拉得动",
   "app.filterMissingNext": "只看缺下一步的",
   "app.showAllRecords": "显示全部",
 

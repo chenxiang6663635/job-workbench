@@ -292,8 +292,8 @@ export default {
   "app.healthStale": "Stalled",
   "app.healthOk": "OK",
 
-  "app.missingNextHint_one": "{{count}} active application has no next action yet — fill it in so the 7-day to-do list works",
-  "app.missingNextHint_other": "{{count}} active applications have no next action yet — fill it in so the 7-day to-do list works",
+  "app.missingNextHint_one": "{{count}} application in the current list has no next action yet — fill it in so the 7-day to-do list works",
+  "app.missingNextHint_other": "{{count}} applications in the current list have no next action yet — fill it in so the 7-day to-do list works",
   "app.filterMissingNext": "Only missing next action",
   "app.showAllRecords": "Show all",
 

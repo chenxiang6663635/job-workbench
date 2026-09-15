@@ -77,6 +77,18 @@ def test_talk_write_does_not_touch_main_table_or_timeline(tmp_path):
     assert not os.path.isfile(os.path.join(ws, "05_投递追踪", "history.csv"))
 
 
+def test_talk_apply_path_also_skips_timeline(tmp_path):
+    """两段式落盘路径（apply_approved_talk）同样不写主表时间线（独立审查建议）。"""
+    ws = _ws(tmp_path)
+    _seed_main(ws)
+    errors, plan = tracker.preview_talk_fields(
+        {"公司": "示例公司", "关联记录": "A001", "是否参加": "参加"}, ws)
+    assert errors == [] and plan
+    tracker.apply_approved_talk(plan["payload"], ws)
+    assert tracker.read_talks(ws)[0]["宣讲会id"] == "T001"
+    assert not os.path.isfile(os.path.join(ws, "05_投递追踪", "history.csv"))
+
+
 # ---- CLI --------------------------------------------------------------------
 
 def _invoke_jobws(monkeypatch, capsys, argv):

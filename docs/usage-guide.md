@@ -114,7 +114,7 @@ Rebuild the installer in one command (frontend dist → PyInstaller backend exe 
 powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 ```
 
-The output is `web/electron/release/求职工作台 Setup <version>.exe`. Smoke test: `Setup.exe /S` installs silently to the default per-user location (`/D=<dir>` overrides the folder), launch it, then check `http://127.0.0.1:8765`.
+The output is `web/electron/release/job-workbench-setup-<version>-win64.exe` (the product name is **Job Workbench**: installer and Start Menu entry are English; the window title follows the interface language). Smoke test: `<installer> /S` installs silently to the default per-user location (`/D=<dir>` overrides the folder), launch it, then check `http://127.0.0.1:8765`.
 
 ---
 

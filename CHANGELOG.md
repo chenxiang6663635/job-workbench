@@ -14,6 +14,8 @@
 
 ### Changed
 
+- **桌面壳升到 Electron 44**（`electron` 33 → 44.3.0、`electron-builder` 25 → 26.15.3）：主进程用到的 API 面很小（`BrowserWindow`、`webContents` 的缩放四件套与 `before-input-event`、`dialog`、`electron-updater`），34→44 逐版对照见 `docs/research/report_electron_33_to_44.md`，真正需要动手的是打包链路（v42 起不再由 postinstall 下载二进制）。**用户可见变化**：安装包与开始菜单的产品名由「求职工作台」改为 **Job Workbench**（英文用户不再看到中文名）；窗口标题仍跟随界面语言；**工作区数据、日志、缩放偏好的落点都不变**（都在 `%APPDATA%\job-workbench`，与产品名无关——这条不变量已写进 `main.js` 注释，免得后人再怀疑一次）。
+- **依赖告警清零**：本批连带清掉 `tar` / `app-builder-lib` / `builder-util-runtime` 的修复版本需；Dependabot 未修告警 **46 → 0**（仅剩此前按「已知未修（附理由）」dismiss 的 `extract-zip` 两条，记录在 0.3.1 段）。
 - **Python 基线从 3.8 升到 3.12**（源码路径与打包链一起）：CI 各 job 与发布流水线的构建步骤统一到 3.12；随之删掉为 3.9 兼容而留的那层妥协——`tools/imap_fetch.py` 现在直接把超时交给 `IMAP4_SSL(host, port, timeout=…)`（该参数覆盖整段会话），**「先探一条 TCP 再建连」的探测连接被删除**（issue #50 S1 记录的那条代价：每次邮箱会话多开一条连接——到此结清）。**用户数据零迁移**；用源码方式运行需要 Python 3.12+，安装包用户不受影响（应用自带运行时）。另外 `tests/conftest.py` 会在收集前拦下低于 3.12 的解释器：用错解释器跑出的测试结论是**静默不可信**的。
 
 ## [0.3.0] - 2026-09-14

@@ -117,7 +117,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 ```
 
-产物在 `web/electron/release/求职工作台 Setup <版本>.exe`。冒烟：`Setup.exe /S` 静默安装到默认的「仅为我」位置（`/D=<目录>` 可指定位置），启动后验证 `http://127.0.0.1:8765`。
+产物在 `web/electron/release/job-workbench-setup-<版本>-win64.exe`（产品名英文化为 **Job Workbench**：安装包与开始菜单项是英文；窗口标题跟随界面语言）。冒烟：`<安装包> /S` 静默安装到默认的「仅为我」位置（`/D=<目录>` 可指定位置），启动后验证 `http://127.0.0.1:8765`。
 
 ---
 

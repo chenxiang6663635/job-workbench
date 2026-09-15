@@ -125,6 +125,7 @@
 - **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
 - **解释器基线 3.12（2026-09-14 起，原先 3.8）**：CI、打包与文档都以 3.12 为准。技术要求其实只有 ≥3.9（`imaplib` 的 `timeout=`），但**支持**并验证的只有 3.12——所以 `tests/conftest.py` 会在收集前拦住更低版本：测试在错解释器上**静默不可信**，那种失败看起来像"代码坏了"。本题机器最常见的坑是 `python` 落到别的项目在用的 conda 环境（3.8），所以跑之前先 `python -V` 确认。
   - **pre-commit 快检的解释器**：钩子按 `JOBWS_PYTHON` > 仓库内 `.venv` > 运行钩子的解释器 解析；解析到的低于 3.12 时它**降级提示而不是拦提交**（那种结论不可信，CI 兜底）。维护者建议设一次：`setx JOBWS_PYTHON "<3.12 的 python>"`。
+  - **`web/start.ps1` 用同一顺序解析后端解释器**（并额外验依赖：能 `import fastapi, uvicorn` 才算数），**不依赖终端里激活了哪个环境**——终端自动激活 conda base（或其他项目环境）时不再影响本仓库的启动；`.\start.ps1 -CheckOnly` 只做预检并打印会选哪个解释器。
   - **环境约定**：本仓库用**仓库外**的一个 3.12 venv（`uv venv <路径> --python <3.12 解释器>` + `uv pip install -r web/backend/requirements-dev.txt`）。不放进仓库（上万个文件会污染仓库，也会让 Windows 上的全量测试从 12s 涨到 216s——2026-09-14 实测）；**不改动 conda 与系统 Python**（它们是别的项目的家），也不装全局 pip 包。
   - **依赖上限本批不动**：`fastapi<0.116` / `uvicorn<0.53` / `pydantic<2.10` 是 3.8 时代钉的，基线升级后**尚未放宽**——放宽会同时换掉一批运行时行为，要单独一步跑全量回归（`.github/dependabot.yml` 里 pip 的 major 忽略段已按到期条件删除，正因为留着它的理由没了）。
 

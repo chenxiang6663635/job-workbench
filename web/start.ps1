@@ -2,13 +2,20 @@
 #
 # 用法（PowerShell）：
 #   cd <仓库目录>\web
-#   .\start.ps1
+#   .\start.ps1                # 起后端 + 前端
+#   .\start.ps1 -CheckOnly     # 只做环境预检（打印会选哪个解释器）后退出
+#   .\start.ps1 -Py <python>   # 显式指定后端解释器
 #
 # 同时启动后端（FastAPI 8765）与前端（Vite 5173），等待就绪后自动打开浏览器。
 # 关闭脚本窗口会终止两个服务。
+#
+# **解释器不由"终端里碰巧激活了哪个环境"决定**（2026-09-15 实测踩到：终端自动激活的
+# conda 环境里，`python` 可能是 3.8 或没装依赖的环境，后端于是起不来/或起成半坏状态）。
+# 解析顺序：`-Py` → `JOBWS_PYTHON` → 仓库内 `.venv` → PATH 上的 python；每个候选都要
+# **验版本（≥3.9）且验依赖（能 import fastapi/uvicorn）**，都不合格就给人话报错并退出。
 
 # param 必须是脚本第一条可执行语句（PowerShell 语法要求），不能放在赋值之后
-param([string]$RepoRoot = "")
+param([string]$RepoRoot = "", [string]$Py = "", [switch]$CheckOnly)
 
 $ErrorActionPreference = "Continue"
 
@@ -73,9 +80,58 @@ Start-Sleep -Seconds 1
 
 # 依赖预检：后端需 python，前端需 node/npm。缺失时给出明确提示而非裸报错。
 Write-Host "检查运行依赖..." -ForegroundColor Cyan
-if (-not (Get-Command "python" -ErrorAction SilentlyContinue)) {
-    Write-Host "错误：未找到 python。请安装 Python 3.12+ 并加入 PATH。" -ForegroundColor Red
+
+# ── 后端解释器解析 ────────────────────────────────────────────
+# 为什么不能直接用 `python`：终端可能自动激活了 conda（或其他）环境，那里的 python
+# 要么版本不够（3.8 上 IMAP 路径会抛 TypeError），要么没装 fastapi/uvicorn——两种情况
+# 都会表现成"后端起不来"，但原因完全不同。这里按固定顺序解析并逐个验证。
+function Resolve-BackendPython {
+    $candidates = @()
+    if ($Py) { $candidates += $Py }
+    if ($env:JOBWS_PYTHON) { $candidates += $env:JOBWS_PYTHON }
+    $venvPy = Join-Path $root ".venv\Scripts\python.exe"
+    if (Test-Path $venvPy) { $candidates += $venvPy }
+    $cmd = Get-Command "python" -ErrorAction SilentlyContinue
+    if ($cmd) { $candidates += $cmd.Source }
+
+    foreach ($cand in $candidates) {
+        if (-not (Test-Path $cand)) { continue }
+        # 版本必须 ≥3.9（IMAP 路径用 imaplib 的 timeout 参数；3.12 是支持基线）
+        $ver = & $cand -c "import sys;print('%d.%d' % sys.version_info[:2])" 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $ver) { continue }
+        $parts = $ver.Trim().Split(".")
+        if ([int]$parts[0] -lt 3 -or ([int]$parts[0] -eq 3 -and [int]$parts[1] -lt 9)) {
+            Write-Host "  跳过（解释器 $ver 低于 3.9）：$cand" -ForegroundColor Yellow
+            continue
+        }
+        # 依赖也要真在：版本对了但没装 fastapi/uvicorn 的环境同样起不来
+        & $cand -c "import fastapi, uvicorn" 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  跳过（该环境缺 fastapi/uvicorn）：$cand" -ForegroundColor Yellow
+            continue
+        }
+        return $cand
+    }
+    return $null
+}
+
+$backendPy = Resolve-BackendPython
+if (-not $backendPy) {
+    Write-Host "错误：找不到可用的后端解释器（需要 Python 3.9+ 且装了 fastapi/uvicorn）。" -ForegroundColor Red
+    Write-Host "  已尝试：-Py 参数、JOBWS_PYTHON、$root\.venv、PATH 上的 python。" -ForegroundColor Red
+    Write-Host "  修法（任选其一）：" -ForegroundColor Yellow
+    Write-Host "    1) 设一次环境变量指向你的 3.12 venv，再重跑本脚本：" -ForegroundColor Yellow
+    Write-Host '       setx JOBWS_PYTHON "<venv>\Scripts\python.exe"' -ForegroundColor Yellow
+    Write-Host "    2) 在仓库外建一个 venv 并装依赖（约定见 CONTRIBUTING「解释器基线」）：" -ForegroundColor Yellow
+    Write-Host "       uv venv <路径> --python <3.12 解释器>; uv pip install --python <路径>\Scripts\python.exe -r web/backend/requirements-dev.txt" -ForegroundColor Yellow
+    Write-Host "    3) 本次显式指定：.\start.ps1 -Py <python 路径>" -ForegroundColor Yellow
     exit 1
+}
+Write-Host "  后端解释器：$backendPy" -ForegroundColor Green
+
+if ($CheckOnly) {
+    Write-Host "环境预检通过（-CheckOnly：未启动任何服务）。" -ForegroundColor Green
+    exit 0
 }
 if (-not (Get-Command "node" -ErrorAction SilentlyContinue)) {
     Write-Host "错误：未找到 node。前端（Vite）依赖 Node.js，请先安装 Node.js 18+。" -ForegroundColor Red
@@ -88,7 +144,7 @@ if (-not (Get-Command "npm.cmd" -ErrorAction SilentlyContinue) -and -not (Get-Co
 
 # 启动后端
 Write-Host "启动后端 FastAPI (8765)..." -ForegroundColor Cyan
-$backendProc = Start-Process -FilePath "python" `
+$backendProc = Start-Process -FilePath $backendPy `
     -ArgumentList "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8765" `
     -WorkingDirectory $backend -PassThru -WindowStyle Minimized
 
@@ -116,7 +172,7 @@ if (-not $ready) {
     if ($occ) {
         Write-Host "  端口 8765 被占用（PID $($occ.OwningProcess)）。若被其他服务占用，请先关闭它再重试。" -ForegroundColor Red
     }
-    Write-Host "  手动排查：cd web\backend && python -m uvicorn main:app --port 8765" -ForegroundColor Yellow
+    Write-Host "  手动排查：cd web\backend && `"$backendPy`" -m uvicorn main:app --port 8765" -ForegroundColor Yellow
     exit 1
 }
 

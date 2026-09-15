@@ -1,0 +1,51 @@
+/* Gruvbox
+   上游：Gruvbox（morhetz/gruvbox）
+   许可：MIT
+   由批 4 脚本从官方色板生成（HSL 三元组，与 :root 同构）；手改请同步 check_themes 门禁。 */
+[data-theme="gruvbox"] {
+  --background: 0 0% 16%;
+  --foreground: 43 59% 81%;
+  --card: 20 5% 22%;
+  --card-foreground: 43 59% 81%;
+  --popover: 27 10% 36%;
+  --popover-foreground: 43 59% 81%;
+  --primary: 42 95% 58%;
+  --primary-foreground: 0 0% 16%;
+  --secondary: 20 5% 22%;
+  --secondary-foreground: 43 59% 81%;
+  --muted: 20 5% 22%;
+  --muted-foreground: 35 17% 59%;
+  --destructive: 6 96% 59%;
+  --destructive-foreground: 0 0% 16%;
+  --success: 61 66% 44%;
+  --warning: 42 95% 58%;
+  --border: 22 7% 29%;
+  --border-strong: 28 11% 44%;
+  --input: 22 7% 29%;
+  --ring: 42 95% 58%;
+  --highlight: 43 59% 81%;
+  --scrim: 0 0% 0%;
+  --glow-primary: 42 95% 58%;
+  --elevation-0-surface: 195 6% 12%;
+  --elevation-1-surface: 20 5% 22%;
+  --elevation-2-surface: 22 7% 29%;
+  --elevation-3-surface: 27 10% 36%;
+  --elevation-1-border: 22 7% 29%;
+  --elevation-2-border: 27 10% 36%;
+  --elevation-3-border: 28 11% 44%;
+  --elevation-1-shadow: 0 1px 2px hsl(195 6% 12% / 0.45), 0 8px 24px -10px hsl(195 6% 12% / 0.55);
+  --elevation-2-shadow: 0 2px 4px hsl(195 6% 12% / 0.50), 0 16px 40px -12px hsl(195 6% 12% / 0.55);
+  --elevation-3-shadow: 0 4px 10px hsl(195 6% 12% / 0.50), 0 24px 56px -16px hsl(195 6% 12% / 0.60);
+  --shadow-card: var(--elevation-1-shadow);
+  --shadow-elevated: var(--elevation-3-shadow);
+  --card-gradient: linear-gradient(180deg, hsl(20 5% 24%) 0%, hsl(20 5% 22%) 100%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(42 95% 58% / 0.10) 0%, transparent 70%);
+  --chart-1: 42 95% 58%;
+  --chart-2: 157 16% 58%;
+  --chart-3: 61 66% 44%;
+  --chart-4: 27 99% 55%;
+  --chart-5: 344 47% 68%;
+  --chart-6: 104 35% 62%;
+  --chart-7: 6 96% 59%;
+  --chart-8: 43 59% 81%;
+}

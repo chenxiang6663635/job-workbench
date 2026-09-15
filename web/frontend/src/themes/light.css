@@ -1,0 +1,51 @@
+/* Light
+   上游：本仓库自制（对默认暗版的浅色化）
+   许可：MIT（本仓库）
+   由批 4 脚本从官方色板生成（HSL 三元组，与 :root 同构）；手改请同步 check_themes 门禁。 */
+[data-theme="light"] {
+  --background: 220 23% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 200 98% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 26% 95%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 214 26% 95%;
+  --muted-foreground: 215 19% 35%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 161 94% 30%;
+  --warning: 26 90% 37%;
+  --border: 214 32% 91%;
+  --border-strong: 213 27% 84%;
+  --input: 214 32% 91%;
+  --ring: 200 98% 39%;
+  --highlight: 222 47% 11%;
+  --scrim: 0 0% 0%;
+  --glow-primary: 200 98% 39%;
+  --elevation-0-surface: 214 26% 95%;
+  --elevation-1-surface: 0 0% 100%;
+  --elevation-2-surface: 0 0% 100%;
+  --elevation-3-surface: 0 0% 100%;
+  --elevation-1-border: 214 32% 91%;
+  --elevation-2-border: 214 30% 89%;
+  --elevation-3-border: 213 27% 84%;
+  --elevation-1-shadow: 0 1px 2px hsl(222 47% 11% / 0.06), 0 1px 3px hsl(222 47% 11% / 0.08);
+  --elevation-2-shadow: 0 4px 8px -2px hsl(222 47% 11% / 0.08), 0 12px 28px -8px hsl(222 47% 11% / 0.12);
+  --elevation-3-shadow: 0 8px 16px -4px hsl(222 47% 11% / 0.10), 0 24px 48px -16px hsl(222 47% 11% / 0.16);
+  --shadow-card: var(--elevation-1-shadow);
+  --shadow-elevated: var(--elevation-3-shadow);
+  --card-gradient: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 100%) 100%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(200 98% 39% / 0.08) 0%, transparent 70%);
+  --chart-1: 200 98% 39%;
+  --chart-2: 175 84% 32%;
+  --chart-3: 263 70% 50%;
+  --chart-4: 26 90% 37%;
+  --chart-5: 0 72% 51%;
+  --chart-6: 221 83% 53%;
+  --chart-7: 295 72% 40%;
+  --chart-8: 142 72% 29%;
+}

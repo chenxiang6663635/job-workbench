@@ -39,6 +39,7 @@ import { Input } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { FormField } from "../components/FormField";
+import ThemePicker from "../components/ThemePicker";
 
 export default function Settings() {
   const { t, i18n } = useTranslation();
@@ -280,6 +281,10 @@ export default function Settings() {
             ))}
           </div>
         </Card>
+
+        {/* 外观（批 4）：主题切换——与语言/大小同为「设备级」偏好（localStorage）。
+            选择即生效（只改根属性）；「跟随系统」由 lib/theme 监听系统亮暗自动切换 */}
+        <ThemePicker />
 
         {/* 界面大小：与语言同为「设备级」偏好，紧挨着放。桌面端才有偏好通道——
             浏览器直连时降级成一句说明，而不是把整张卡藏起来：藏起来会让人以为

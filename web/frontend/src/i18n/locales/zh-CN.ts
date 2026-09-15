@@ -1019,6 +1019,12 @@ const zhCN = {
   "settings.zoomHint": "快捷键同样可用：Ctrl + 放大、Ctrl - 缩小、Ctrl 0 复位。",
   "settings.zoomDesktopOnly":
     "界面大小只在桌面应用里可调；浏览器里打开时，用浏览器自己的缩放（Ctrl +/-）即可。",
+  // 外观（批 4）：主题切换。与语言/大小同为「设备级、不随工作区走」。
+  // 皮肤与配色来自开源项目（Catppuccin / Nord / Tokyo Night / Rosé Pine / Gruvbox / Everforest），
+  // 主题名保留原名不翻译——社区惯例。
+  "settings.themeTitle": "外观",
+  "settings.themeDesc": "主题与界面语言一样只影响这台机器（不随工作区导出）。「跟随系统」按系统的亮 / 暗设置自动切换；内置皮肤与配色来自 Catppuccin、Nord、Tokyo Night、Rosé Pine、Gruvbox、Everforest 等开源项目。",
+  "settings.themeSystem": "跟随系统",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

@@ -1,0 +1,51 @@
+/* Rosé Pine
+   上游：Rosé Pine（rose-pine/rose-pine）
+   许可：MIT
+   由批 4 脚本从官方色板生成（HSL 三元组，与 :root 同构）；手改请同步 check_themes 门禁。 */
+[data-theme="rose-pine"] {
+  --background: 249 22% 12%;
+  --foreground: 245 50% 91%;
+  --card: 247 23% 15%;
+  --card-foreground: 245 50% 91%;
+  --popover: 249 15% 28%;
+  --popover-foreground: 245 50% 91%;
+  --primary: 267 57% 78%;
+  --primary-foreground: 249 22% 12%;
+  --secondary: 248 25% 18%;
+  --secondary-foreground: 245 50% 91%;
+  --muted: 248 25% 18%;
+  --muted-foreground: 248 15% 61%;
+  --destructive: 343 76% 68%;
+  --destructive-foreground: 249 22% 12%;
+  --success: 189 43% 73%;
+  --warning: 35 88% 72%;
+  --border: 248 25% 18%;
+  --border-strong: 248 13% 36%;
+  --input: 248 25% 18%;
+  --ring: 267 57% 78%;
+  --highlight: 245 50% 91%;
+  --scrim: 0 0% 0%;
+  --glow-primary: 267 57% 78%;
+  --elevation-0-surface: 250 26% 9%;
+  --elevation-1-surface: 247 23% 15%;
+  --elevation-2-surface: 248 25% 18%;
+  --elevation-3-surface: 249 15% 28%;
+  --elevation-1-border: 248 25% 18%;
+  --elevation-2-border: 249 15% 28%;
+  --elevation-3-border: 248 13% 36%;
+  --elevation-1-shadow: 0 1px 2px hsl(251 26% 8% / 0.45), 0 8px 24px -10px hsl(251 26% 8% / 0.55);
+  --elevation-2-shadow: 0 2px 4px hsl(251 26% 8% / 0.50), 0 16px 40px -12px hsl(251 26% 8% / 0.55);
+  --elevation-3-shadow: 0 4px 10px hsl(251 26% 8% / 0.50), 0 24px 56px -16px hsl(251 26% 8% / 0.60);
+  --shadow-card: var(--elevation-1-shadow);
+  --shadow-elevated: var(--elevation-3-shadow);
+  --card-gradient: linear-gradient(180deg, hsl(247 23% 17%) 0%, hsl(247 23% 15%) 100%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(267 57% 78% / 0.10) 0%, transparent 70%);
+  --chart-1: 267 57% 78%;
+  --chart-2: 189 43% 73%;
+  --chart-3: 35 88% 72%;
+  --chart-4: 2 55% 83%;
+  --chart-5: 343 76% 68%;
+  --chart-6: 197 49% 38%;
+  --chart-7: 245 50% 91%;
+  --chart-8: 248 15% 61%;
+}

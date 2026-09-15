@@ -1,0 +1,51 @@
+/* Catppuccin Mocha
+   上游：Catppuccin（catppuccin/catppuccin）
+   许可：MIT
+   由批 4 脚本从官方色板生成（HSL 三元组，与 :root 同构）；手改请同步 check_themes 门禁。 */
+[data-theme="catppuccin-mocha"] {
+  --background: 240 21% 15%;
+  --foreground: 226 64% 88%;
+  --card: 237 16% 23%;
+  --card-foreground: 226 64% 88%;
+  --popover: 232 12% 39%;
+  --popover-foreground: 226 64% 88%;
+  --primary: 217 92% 76%;
+  --primary-foreground: 240 23% 9%;
+  --secondary: 237 16% 23%;
+  --secondary-foreground: 226 64% 88%;
+  --muted: 237 16% 23%;
+  --muted-foreground: 228 24% 72%;
+  --destructive: 343 81% 75%;
+  --destructive-foreground: 240 23% 9%;
+  --success: 115 54% 76%;
+  --warning: 41 86% 83%;
+  --border: 234 13% 31%;
+  --border-strong: 231 11% 47%;
+  --input: 234 13% 31%;
+  --ring: 217 92% 76%;
+  --highlight: 226 64% 88%;
+  --scrim: 240 23% 9%;
+  --glow-primary: 217 92% 76%;
+  --elevation-0-surface: 240 21% 12%;
+  --elevation-1-surface: 237 16% 23%;
+  --elevation-2-surface: 234 13% 31%;
+  --elevation-3-surface: 232 12% 39%;
+  --elevation-1-border: 234 13% 31%;
+  --elevation-2-border: 232 12% 39%;
+  --elevation-3-border: 231 11% 47%;
+  --elevation-1-shadow: 0 1px 2px hsl(240 23% 9% / 0.45), 0 8px 24px -10px hsl(240 23% 9% / 0.55);
+  --elevation-2-shadow: 0 2px 4px hsl(240 23% 9% / 0.50), 0 16px 40px -12px hsl(240 23% 9% / 0.55);
+  --elevation-3-shadow: 0 4px 10px hsl(240 23% 9% / 0.50), 0 24px 56px -16px hsl(240 23% 9% / 0.60);
+  --shadow-card: var(--elevation-1-shadow);
+  --shadow-elevated: var(--elevation-3-shadow);
+  --card-gradient: linear-gradient(180deg, hsl(237 16% 25%) 0%, hsl(237 16% 23%) 100%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(217 92% 76% / 0.10) 0%, transparent 70%);
+  --chart-1: 217 92% 76%;
+  --chart-2: 267 84% 81%;
+  --chart-3: 115 54% 76%;
+  --chart-4: 41 86% 83%;
+  --chart-5: 23 92% 75%;
+  --chart-6: 170 57% 73%;
+  --chart-7: 343 81% 75%;
+  --chart-8: 198 76% 69%;
+}

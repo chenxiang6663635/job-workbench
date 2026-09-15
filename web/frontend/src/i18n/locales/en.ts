@@ -935,6 +935,12 @@ export default {
   "settings.zoomDesc":
     "Drag to preview: the whole interface (text included) scales together, and the choice is remembered.",
   "settings.zoomHint": "Shortcuts work too: Ctrl + to enlarge, Ctrl - to shrink, Ctrl 0 to reset.",
+  // Appearance (batch 4): theme switching. Same class as language/size — device-level, not in the workspace export.
+  // Skins come from open-source projects (Catppuccin / Nord / Tokyo Night / Rosé Pine / Gruvbox / Everforest);
+  // theme names keep their original spelling.
+  "settings.themeTitle": "Appearance",
+  "settings.themeDesc": "Like the interface language, the theme affects this machine only (not exported with the workspace). \"System\" follows your OS light/dark setting automatically; built-in skins come from open-source projects — Catppuccin, Nord, Tokyo Night, Rosé Pine, Gruvbox, Everforest.",
+  "settings.themeSystem": "System",
   "settings.zoomDesktopOnly":
     "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

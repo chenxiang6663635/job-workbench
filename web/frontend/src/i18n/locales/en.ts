@@ -672,6 +672,7 @@ export default {
   "err.imap.needPassword": "Save the IMAP app password first",
   "err.imap.testFailed": "IMAP connection test failed: {{error}}",
   "err.imap.fetchFailed": "IMAP fetch failed: {{error}}",
+  "err.server.error": "Internal server error ({{error}}) — see the backend log for details",
 
   "err.progress.roundInvalid": "The round must be one of {{values}}",
   "err.progress.formInvalid": "The format must be one of {{values}}",

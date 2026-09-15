@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 
@@ -31,6 +32,51 @@ if TOOLS not in sys.path:
 
 from routers import applications, approvals, dashboard, imap, jobs, library, progress, provider, resume, system, workspace  # noqa: E402
 
+# ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
+#
+# **技术要求是 ≥3.9**：IMAP 路径把超时交给 `imaplib.IMAP4_SSL(timeout=…)`，这个参数
+# 3.9 才有。3.8 上它不是"连不上邮箱"，而是抛 `TypeError: unexpected keyword argument`
+# —— 2026-09-15 实测：界面上只看到一句裸的 "Internal Server Error"，既没有错误码也没有
+# 指向（那台机器上后端被 conda 的 3.8 启动了）。所以太旧的解释器必须**在启动时**拒绝，
+# 而不是等到用户点「拉取邮件」。
+#
+# **支持基线是 3.12**：CI 与打包只验证它；3.9–3.11 能用但未经验证，启动时给一条警告
+# 而不是拒绝——不把"未验证"说成"不能用"。
+IMAP_MIN_PY = (3, 9)
+SUPPORTED_MIN_PY = (3, 12)
+logger = logging.getLogger("jobworkbench")
+
+
+def interpreter_verdict(version_info):
+    """按解释器版本给出 ("ok" | "warn" | "refuse", 说明)。纯函数，便于测试。"""
+    current = tuple(version_info[:2])
+    if current < IMAP_MIN_PY:
+        return "refuse", (
+            "本应用需要 Python %d.%d+ 才能启动：IMAP 路径使用 imaplib 的 timeout 参数，"
+            "%d.%d 上会直接抛 TypeError。请改用 Python %d.%d 启动后端"
+            "（或使用桌面安装包——它自带运行时）。"
+            % (IMAP_MIN_PY[0], IMAP_MIN_PY[1], current[0], current[1],
+               SUPPORTED_MIN_PY[0], SUPPORTED_MIN_PY[1]))
+    if current < SUPPORTED_MIN_PY:
+        return "warn", (
+            "当前解释器 %d.%d 低于支持基线 %d.%d（CI 与打包只验证后者）：可以运行，"
+            "但未经验证——出问题请先用 %d.%d 复现。"
+            % (current[0], current[1], SUPPORTED_MIN_PY[0], SUPPORTED_MIN_PY[1],
+               SUPPORTED_MIN_PY[0], SUPPORTED_MIN_PY[1]))
+    return "ok", ""
+
+
+def _enforce_interpreter():
+    verdict, message = interpreter_verdict(sys.version_info)
+    if verdict == "refuse":
+        print("[job-workbench] 解释器不满足技术要求：" + message, file=sys.stderr)
+        raise SystemExit(2)
+    if verdict == "warn":
+        print("[job-workbench] 警告：" + message, file=sys.stderr)
+
+
+_enforce_interpreter()
+
 app = FastAPI(title="求职工作台", version="0.1.0")
 
 
@@ -46,6 +92,29 @@ async def _api_error_handler(request: Request, exc: ApiError):
     if exc.params:
         content["error_params"] = exc.params
     return JSONResponse(status_code=exc.status_code, content=content)
+
+
+@app.exception_handler(Exception)
+async def _unhandled_handler(request: Request, exc: Exception):
+    """未预期异常也必须说人话：绝不把裸 "Internal Server Error" 丢给界面。
+
+    为什么需要它（2026-09-15 实测）：后端跑在低于技术要求的解释器上时，`imaplib`
+    抛的 TypeError 没有任何一层接住，界面只看到一句英文裸 500——没有错误码、没有
+    指向，用户能做的只有猜。未捕获异常要么是我们的 bug、要么是环境错，两者都该
+    同时得到：**日志里的完整 traceback**（定位用）与**界面上的结构化人话**
+    （`server.error` + 一句可复制的说明）。这条与 `_api_error_handler` 一起构成
+    "错误一律走契约"的兜底：ApiError 是预期路径，这里是兜底路径。
+    """
+    detail = "%s: %s" % (type(exc).__name__, exc)
+    logger.exception("未捕获异常（%s %s）：%s", request.method, request.url.path, detail)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "服务器内部错误（%s）——完整信息见后端日志" % detail,
+            "error_code": "server.error",
+            "error_params": {"error": detail},
+        },
+    )
 
 
 def _apply_workspace_env(cli_workspace=None):

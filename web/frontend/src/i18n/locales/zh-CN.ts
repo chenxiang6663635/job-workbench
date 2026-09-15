@@ -742,6 +742,7 @@ const zhCN = {
   "err.imap.needPassword": "请先保存 IMAP 授权码",
   "err.imap.testFailed": "IMAP 连接测试失败：{{error}}",
   "err.imap.fetchFailed": "IMAP 拉取失败：{{error}}",
+  "err.server.error": "服务器内部错误（{{error}}）——完整信息见后端日志",
 
   "err.progress.roundInvalid": "轮次必须是 {{values}} 之一",
   "err.progress.formInvalid": "形式必须是 {{values}} 之一",

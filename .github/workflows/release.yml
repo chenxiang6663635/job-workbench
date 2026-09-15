@@ -79,10 +79,10 @@ jobs:
             Write-Host "手动触发（非 tag），跳过 tag 一致性校验"
           }
 
-      - name: 安装 Python 3.8
+      - name: 安装 Python 3.12
         uses: actions/setup-python@v7
         with:
-          python-version: "3.8"
+          python-version: "3.12"
 
       # CHANGELOG 是「使用者可见变更」的唯一台账（CONTRIBUTING 的规定）。缺条目就拒绝
       # 发布——这正是本批次要修的那类漂移：v0.1.1 之后 5 个 feat 一条都没记。
@@ -102,7 +102,8 @@ jobs:
 
       # PyInstaller 不在 requirements.txt 里（它只是构建期依赖，不该打给终端用户）。
       # 上限按本仓库既有惯例（fastapi<0.116 那样）钉到主版本，不钉死小版本：
-      # 具体小版本与 Python 3.8 的兼容性耦合，钉死了反而会在 runner 上装不上。
+      # 具体小版本与 Python 基线、runner 镜像的兼容性耦合，钉死了反而会在 runner
+      # 上装不上。
       # 解析到的实际版本由下一步打印进日志——不可复现时至少有据可查。
       # 注意不要在探测清单里加 filelock：它是仓内模块，不是 pip 依赖。
       - name: 安装后端依赖与 PyInstaller

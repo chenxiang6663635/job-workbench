@@ -29,7 +29,7 @@
 
 ## 工程约束
 
-- **Python 3.8 兼容**：脚本禁用 3.9+ 语法（`dict | dict`、`list[str]` 等运行时注解）
+- **Python 3.12 基线**（2026-09-14 从 3.8 升上来）：脚本可以用现代语法（`dict | dict`、`list[str]` 等）；CI 与打包都跑 3.12，`imaplib` 的超时直接用 `IMAP4_SSL(timeout=…)`
 - 脚本只用标准库；pypdf 仅用于 PDF 校验
 - 所有脚本接受 `--workspace`，默认 `personal/`；不得硬编码具体工作区路径
 - 脚本互不调用（除 `report.py` 导入 `tracker.py` 的读写函数），各自独立可测

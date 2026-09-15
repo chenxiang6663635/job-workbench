@@ -1,7 +1,7 @@
 ---
 name: jwb-resume
 description: Use when 用户改完简历内容后需要重新生成 PDF、校验简历页数与文本层、排查 ATS 抓取问题，或要更换简历照片时。English triggers：rebuild resume PDF, verify resume page count, ATS text layer, resume parsing, change resume photo.
-compatibility: Python 3.8+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
+compatibility: Python 3.12+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 重建简历 PDF 并校验

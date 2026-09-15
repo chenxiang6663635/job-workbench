@@ -1,7 +1,7 @@
 ---
 name: jwb-jd
 description: Use when 用户粘贴或提供岗位 JD、招聘信息、职位描述，要求判断是否值得投递、评估岗位匹配度、给岗位打分或比较多个 offer 方向时。English triggers：job description, paste a JD, is this job worth applying for, evaluate job fit, score a position, compare offer directions.
-compatibility: Python 3.8+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
+compatibility: Python 3.12+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 解析 JD 并判定是否值得投递

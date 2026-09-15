@@ -53,7 +53,7 @@ Web 只是同一份文件的另一个视图：
 
 ## 技术栈
 
-后端 FastAPI（Python 3.8 兼容，直接 import `tools/` 下现有脚本，不重复实现业务逻辑）；前端 React + TypeScript + Vite + Tailwind + recharts。
+后端 FastAPI（Python 3.12 基线，直接 import `tools/` 下现有脚本，不重复实现业务逻辑）；前端 React + TypeScript + Vite + Tailwind + recharts。
 
 ## 目录
 

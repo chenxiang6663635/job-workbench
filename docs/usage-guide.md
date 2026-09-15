@@ -16,14 +16,14 @@ Do this once. Skip it if your environment is already set up.
 
 | Software | What it is for | How to check |
 |---|---|---|
-| Python 3.8+ (conda env) | Backend and CLI scripts | `python --version` |
+| Python 3.12+ | Backend and CLI scripts | `python --version` |
 | Node.js 18+ | Frontend build | `node --version` |
 | Chrome or Edge | PDF generation (headless rendering) | Usually already present |
 
 ### Install dependencies (once each)
 
 ```bash
-# Backend (fastapi/uvicorn/pydantic are pinned to Python 3.8-compatible versions)
+# Backend (fastapi/uvicorn/pydantic keep their existing upper-bound pins; relaxing them is a separate step)
 cd <repo>\web\backend
 pip install -r requirements.txt
 

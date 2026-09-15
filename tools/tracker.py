@@ -33,7 +33,6 @@ import os
 import re
 import sys
 
-# Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 from datetime import date, datetime
 
 # 同目录模块的自举（与 tools/approval.py 同一手法）：tools/ 不在 sys.path 时

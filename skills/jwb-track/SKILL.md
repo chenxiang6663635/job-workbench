@@ -1,7 +1,7 @@
 ---
 name: jwb-track
 description: Use when 用户要查看投递进度、更新面试进展、查询最近待办、按条件筛选投递记录、统计投递情况或生成投递漏斗看板时。English triggers：application tracker, interview progress, pending to-dos, filter applications, application statistics, funnel dashboard.
-compatibility: Python 3.8+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
+compatibility: Python 3.12+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 ---
 
 # 投递追踪表查改与看板

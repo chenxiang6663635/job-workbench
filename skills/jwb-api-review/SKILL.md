@@ -1,7 +1,7 @@
 ---
 name: jwb-api-review
 description: Use when 审查或新增求职工作台后端 API 时，需要按本仓库的错误码契约、状态码语义、两段式写入与安全边界逐条核对。English triggers：API review, REST design, error codes, AIP-193, Zalando API guidelines, two-phase write.
-compatibility: 面向「开发 / 扩展本仓库后端」的场景；仓库在侧（jobws 指仓库内的 python tools/jobws.py）；Python 3.8+。
+compatibility: 面向「开发 / 扩展本仓库后端」的场景；仓库在侧（jobws 指仓库内的 python tools/jobws.py）；Python 3.12+。
 ---
 
 # 后端 API 审查清单

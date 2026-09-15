@@ -237,15 +237,21 @@ def test_test_connection_reads_no_mail_and_logs_out(monkeypatch):
     assert conn.logged_out
 
 
-def test_probe_timeout_is_wrapped(monkeypatch):
-    """3.8 没有 per-call timeout，探测层必须把超时变成人话错误而不是裸异常。"""
-    def _boom(address, timeout=None):
+def test_connect_timeout_is_wrapped(monkeypatch):
+    """连接超时必须变成人话错误，而不是裸 socket.timeout。
+
+    这条承诺原先由「先探一条 TCP」保证（3.8 时代），现在由传给 `IMAP4_SSL` 的
+    `timeout=` 保证——两种实现下用户看到的都必须是 `ImapFetchError` 且说清"超时"。
+    """
+    def _boom(host, port, timeout=None, ssl_context=None):
         raise socket.timeout("timed out")
 
-    monkeypatch.setattr(imap_fetch.socket, "create_connection", _boom)
+    monkeypatch.setattr(ssl, "create_default_context",
+                        lambda: ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", _boom)
 
     with pytest.raises(imap_fetch.ImapFetchError) as exc:
-        imap_fetch._probe_tcp("imap.example.com", 993)
+        imap_fetch._connect("imap.example.com", 993)
     assert "超时" in str(exc.value)
 
 
@@ -348,59 +354,35 @@ def test_ssl_context_insecure_downgrade_is_explicit(monkeypatch):
     assert ctx.check_hostname is False
 
 
-def test_connect_passes_ssl_context_to_imaplib(monkeypatch):
-    """钉住接线：_connect 必须把 _ssl_context() 的产物传给 IMAP4_SSL。
+def test_connect_passes_timeout_and_ssl_context_to_imaplib(monkeypatch):
+    """钉住接线：_connect 必须把 SOCKET_TIMEOUT 与 _ssl_context() 一起传给 IMAP4_SSL。
 
-    其余测试的 fake fixture 直接替换 _connect，若这里的接线断了不会被
-    任何测试发现——严格校验就形同虚设。
+    两条接线都容易被无声改坏（其余测试的 fake fixture 直接替换 `_connect`，断了不会
+    被任何测试发现），而它们各自撑着一条用户承诺：严格校验、以及"15 秒内给人话"。
     """
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     monkeypatch.setattr(ssl, "create_default_context", lambda: ctx)
-    monkeypatch.setattr(imap_fetch, "_probe_tcp", lambda host, port: None)
     captured = {}
 
-    def _fake_imap_ssl(host, port, ssl_context=None):
+    def _fake_imap_ssl(host, port, timeout=None, ssl_context=None):
         captured["ssl_context"] = ssl_context
+        captured["timeout"] = timeout
         return object()
 
     monkeypatch.setattr(imaplib, "IMAP4_SSL", _fake_imap_ssl)
     imap_fetch._connect("host", 993)
     assert captured["ssl_context"] is ctx
-
-
-def test_probe_runs_before_the_tls_connection(monkeypatch):
-    """先探测、再 TLS 建连——顺序本身是设计（issue #50 S1 的结论）。
-
-    3.8 基线上 `imaplib.IMAP4_SSL` 没有 `timeout` 参数（3.9+ 才有），探测是
-    "坏地址要在 15 秒内失败"的唯一手段。这条断言的作用是：谁要删掉探测，必须先
-    面对"删了会怎样"这个问题（否则坏地址会挂到系统 TCP 超时，几十秒起）。
-    基线升到 3.9+ 之后可以改成 `IMAP4_SSL(timeout=...)` 并删掉本用例。
-    """
-    order = []
-    monkeypatch.setattr(imap_fetch, "_probe_tcp", lambda host, port: order.append("probe"))
-    monkeypatch.setattr(ssl, "create_default_context",
-                        lambda: ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
-
-    def _fake_imap_ssl(host, port, ssl_context=None):
-        order.append("connect")
-        return object()
-
-    monkeypatch.setattr(imaplib, "IMAP4_SSL", _fake_imap_ssl)
-
-    imap_fetch._connect("host", 993)
-
-    assert order == ["probe", "connect"]
+    assert captured["timeout"] == imap_fetch.SOCKET_TIMEOUT
 
 
 def test_certificate_verify_failure_gets_its_own_message(monkeypatch):
     """证书不被信任 ≠ 地址写错：消息必须分开，且不给降级出口。"""
-    monkeypatch.setattr(imap_fetch, "_probe_tcp", lambda host, port: None)
     # 本机证书库损坏会让 _ssl_context 先崩——这里要测的是 _connect 对
     # 「证书校验失败」的包装，所以给它一个能建出来的上下文
     monkeypatch.setattr(ssl, "create_default_context",
                         lambda: ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
 
-    def _raise_verify_failed(host, port, ssl_context=None):
+    def _raise_verify_failed(host, port, timeout=None, ssl_context=None):
         raise ssl.SSLCertVerificationError("CERTIFICATE_VERIFY_FAILED")
 
     monkeypatch.setattr(imaplib, "IMAP4_SSL", _raise_verify_failed)

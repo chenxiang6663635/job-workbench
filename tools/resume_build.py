@@ -40,7 +40,6 @@ import re
 import subprocess
 import sys
 
-# Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")

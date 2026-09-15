@@ -16,16 +16,13 @@
 #    （major），而 typescript-eslint 的 peer 是 `>=4.8.4 <6.1.0`，整个分组一起红，
 #    既看不出是哪一条的问题、也不方便只放行其中几条。
 #
-# 2) **pip 的 major 逐个忽略**（不写 `"*"`——通配会把将来新加的依赖也一起静默屏蔽）。
-#    原因：后端基线是 Python 3.8，而 3.8 已 EOL、生态正在撤出（实证：#66 的 pypdf
-#    6.x 要求 `>=3.9`，装不上——不是冲突，是基线落后）。
-#    **到期条件（必须一起改）**：当 `.github/workflows/ci.yml` 的 `python-version`
-#    不再是 3.8（P4「Python 基线升级」）时，删除这段 ignore。
-#    **澄清一个容易搞错的机制**：这里 ignore 的是**版本更新**提案，**不影响安全更新**
-#    ——GitHub 官方文档：「There is no interaction between the settings specified in
-#    the dependabot.yml file and Dependabot security alerts」（安全更新走独立通道，
-#    按告警触发）。所以本段不会造成安全盲区；要收窄安全更新的范围得用 auto-triage
-#    规则，不是这里。
+# 2) **pip 的 major 忽略段已于 2026-09-14 删除**——它的到期条件写在自己原来的注释里
+#    （「当 ci.yml 的 python-version 不再是 3.8 时删除」）。基线升到 3.12 之后，
+#    「新 major 装不上」的原因（3.8 已 EOL、生态撤出；实证 #66 的 pypdf 6.x 要求
+#    >=3.9）随之消失，pip 的 major 回到「各自成 PR、逐个决策」的默认轨道。
+#    **保留一条容易搞错的机制**：dependabot.yml 的 ignore 只管**版本更新**提案，
+#    与**安全更新**无关（安全更新按告警独立触发，不存在「被 ignore 掉的安全修复」）；
+#    要收窄安全更新的范围得用 auto-triage 规则，不是这里。
 #    另：npm 侧**不**忽略 major，理由是 **major 升级需要人工决策**（Electron 属于
 #    平台级破坏性变更，必须排批次 + 桌面实机冒烟，见
 #    docs/research/report_electron_33_to_44.md）——不是为了安全更新。
@@ -47,20 +44,6 @@ updates:
       backend-python:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-    ignore:
-      # 逐个列出运行时与开发依赖（当前 requirements*.txt 全量）。将来新增依赖时
-      # 若同样受 3.8 基线所限，需手动补进这份清单——这是刻意的：不写通配，
-      # 新依赖的 major 提案就不会被悄悄屏蔽。
-      - dependency-name: "fastapi"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "uvicorn"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "pydantic"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "pypdf"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "httpx"
-        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: build
 

@@ -25,7 +25,7 @@ Markdown / CSV，不出网、不写数据。写入能力属于后续批次（写
 
 ## 安装与运行
 
-需要 Python 3.10+（MCP SDK 的要求；主干后端仍可保持 3.8，两者环境独立）。
+需要 Python 3.10+（MCP SDK 的要求；主干后端基线 3.12，两者环境独立——pydantic 依赖集互斥）。
 
 ```bash
 pip install -e ./mcp

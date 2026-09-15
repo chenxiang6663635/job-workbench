@@ -66,7 +66,8 @@ def build_server(workspace=None):
                                 applied: str = "", next_action: str = "",
                                 next_date: str = "", score: int = -1,
                                 source: str = "", resume: str = "",
-                                archive: str = "", note: str = "") -> str:
+                                archive: str = "", note: str = "",
+                                link: str = "") -> str:
         """预览新增一条投递记录（**不写入**）。
 
         返回 token 与将要写入的字段（diff）。**先把这个 diff 展示给用户**，
@@ -78,6 +79,7 @@ def build_server(workspace=None):
             "下次动作": next_action, "下次动作日期": next_date,
             "评分": "" if score is None or score < 0 else str(score),
             "来源": source, "简历版本": resume, "归档目录": archive, "备注": note,
+            "链接": link,
         })
         return json.dumps(data, ensure_ascii=False, indent=2)
 

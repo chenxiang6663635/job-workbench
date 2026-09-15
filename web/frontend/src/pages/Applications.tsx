@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
+  ExternalLink,
   FileUp,
   Inbox,
   Mail,
@@ -15,6 +16,7 @@ import {
   api,
   BATCHES,
   DIRECTIONS,
+  SOURCES,
   STAGES,
   TERMINAL,
   type Application,
@@ -40,6 +42,8 @@ import { Skeleton } from "../components/ui/skeleton";
 
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
 const ALL = "__all__";
+// 新建表单的「来源」是可选字段：空值也用哨兵表达（见「不填」选项）
+const NONE = "__none__";
 
 // 静默阈值与后端 tracker.STALE_DAYS 一致；停留超过该值高亮
 const STALE_DAYS = 14;
@@ -161,6 +165,8 @@ export default function Applications() {
     岗位: "",
     方向: "hvac",
     批次: "正式批",
+    来源: "",
+    链接: "",
     评分: 60,
     截止日期: "",
     当前阶段: "待投",
@@ -208,6 +214,8 @@ export default function Applications() {
           岗位: "",
           方向: "hvac",
           批次: "正式批",
+          来源: "",
+          链接: "",
           评分: 60,
           截止日期: "",
           当前阶段: "待投",
@@ -435,6 +443,32 @@ export default function Applications() {
                 setDraft({ ...draft, 评分: Number(e.target.value) })
               }
             />
+            {/* 来源可选：空值用哨兵表达（Radix 不接受空字符串 value），
+                真值为空时落库仍写空串——与 CLI 不加 --source 的行为一致 */}
+            <Select
+              value={draft.来源 || NONE}
+              onValueChange={(v) =>
+                setDraft({ ...draft, 来源: v === NONE ? "" : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("form.phSource")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>{t("form.sourceNone")}</SelectItem>
+                {SOURCES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {domainLabel("source", s, t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="url"
+              placeholder={t("form.phUrl")}
+              value={draft.链接}
+              onChange={(e) => setDraft({ ...draft, 链接: e.target.value })}
+            />
           </div>
           <div className="mt-4 flex gap-2">
             <Button
@@ -526,6 +560,21 @@ export default function Applications() {
                         <div className="pl-6 text-xs text-muted-foreground/70">
                           {it.岗位 || t("app.roleMissing")}
                         </div>
+                        {/* 岗位链接：有链接才出现，不新增一整列（表宽已经不小）；
+                            新标签打开，避免把追踪表上下文顶掉 */}
+                        {it.链接 && (
+                          <a
+                            href={it.链接}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={t("app.openLink")}
+                            aria-label={t("app.openLink")}
+                            className="ml-6 mt-0.5 inline-flex items-center gap-1 text-xs text-primary/80 transition-colors hover:text-primary hover:underline"
+                          >
+                            <ExternalLink size={11} />
+                            {t("app.jobLink")}
+                          </a>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-foreground">
                         {it.方向 ? domainLabel("direction", it.方向, t) : "—"}

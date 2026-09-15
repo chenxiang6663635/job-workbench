@@ -172,6 +172,38 @@ def test_unknown_stage_carries_stage_list(client):
     assert "已投" in data["error_params"]["stages"]
 
 
+def test_unknown_source_carries_source_list(client):
+    """来源与 CLI / 批量导入 / MCP 同口径：API 直连也不放行枚举外的值。
+
+    此前来源只在其它入口校验——同一份 SOURCES 拦一半，"脏值有人拦"就是空话。
+    """
+    res = client.post("/api/applications", params={"ws": WS},
+                      json=_new_app(来源="某招聘 App"))
+    assert res.status_code == 422
+    data = _body(res)
+    assert data["error_code"] == "app.sourceInvalid"
+    assert "宣讲会" in data["error_params"]["sources"]
+    assert "招聘会" in data["error_params"]["sources"]
+
+
+def test_new_source_values_are_accepted(tmp_path, client):
+    """「宣讲会 / 招聘会」是新登记的合法值——校验不能误拦。"""
+    _make_tracking(tmp_path, [])
+    res = client.post("/api/applications", params={"ws": WS},
+                      json=_new_app(公司="宣讲公司", 岗位="宣讲岗位", 来源="宣讲会"))
+    assert res.status_code == 200
+    assert res.json()["item"]["来源"] == "宣讲会"
+
+
+def test_source_whitespace_is_normalised_on_write(tmp_path, client):
+    """校验按 strip 后的值判，落盘也写 strip 后的值（独立审查 MINOR-4）。"""
+    _make_tracking(tmp_path, [])
+    res = client.post("/api/applications", params={"ws": WS},
+                      json=_new_app(公司="归一公司", 岗位="归一岗位", 来源=" 内推 "))
+    assert res.status_code == 200
+    assert res.json()["item"]["来源"] == "内推"
+
+
 # ---- 状态建议（B11）：文案来自 tools/ 的校验函数，code 由路由补 ----
 
 def test_suggest_requires_text_with_code(client):

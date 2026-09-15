@@ -21,6 +21,7 @@ export type DomainGroup =
   | "round"
   | "form"
   | "result"
+  | "source"
   | "jobState";
 
 /**

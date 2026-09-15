@@ -43,6 +43,7 @@ class NewInterview(BaseModel):
     轮次: str = "一面"
     面试时间: str = ""
     形式: str = ""
+    链接: str = ""
     面试官: str = ""
     问题记录: str = ""
     我的回答要点: str = ""
@@ -54,6 +55,7 @@ class PatchInterview(BaseModel):
     轮次: str = None
     面试时间: str = None
     形式: str = None
+    链接: str = None
     面试官: str = None
     问题记录: str = None
     我的回答要点: str = None
@@ -125,6 +127,7 @@ def create_interview(item: NewInterview, ws: str = Depends(workspace_dir)):
         row["轮次"] = item.轮次
         row["面试时间"] = (item.面试时间 or "").strip()
         row["形式"] = item.形式
+        row["链接"] = (item.链接 or "").strip()
         row["面试官"] = (item.面试官 or "").strip()
         row["问题记录"] = (item.问题记录 or "").strip()
         row["我的回答要点"] = (item.我的回答要点 or "").strip()

@@ -34,7 +34,10 @@ router = APIRouter(prefix="/api/applications")
 # PATCH 允许更新的字段，与 CLI 的 UPDATABLE 保持单一事实源；公司与岗位不可改
 UPDATABLE = tracker.UPDATABLE
 
-STAGES = ["待投", "已投", "笔试", "一面", "二面", "三面", "HR面", "offer", "签约"]
+# 阶段枚举同样以 tracker.STAGES 为单一事实源——此处曾复制过一份字面量，
+# 加「AI面 / 群面 / 测评 / 终面」时它就与 CLI 漂移（校验放行、CLI 拒绝）；
+# 现在只留一个来源，两处同增同减。
+STAGES = tracker.STAGES
 TERMINAL = tracker.TERMINAL_STAGES
 
 # 排序键。default 与 CLI 的 list 一致（终态沉底、按下次动作日期升序）
@@ -54,6 +57,7 @@ class NewApplication(BaseModel):
     方向: str
     批次: str
     来源: str = ""
+    链接: str = ""
     截止日期: str = ""
     投递日期: str = ""
     当前阶段: str = "待投"
@@ -77,6 +81,7 @@ class PatchApplication(BaseModel):
     评分: int = None
     投递日期: str = None
     截止日期: str = None
+    链接: str = None
 
 
 def _find(rows, app_id):
@@ -163,6 +168,12 @@ def _validate_dates(app: NewApplication):
         raise ApiError(422, "app.stageInvalid",
                        "当前阶段必须是 %s 之一" % "/".join(STAGES + TERMINAL),
                        stages="/".join(STAGES + TERMINAL))
+    # 来源与 CLI / 批量导入 / MCP 同口径：界面下拉是受控的，但 API 是契约层——
+    # 同一份 SOURCES 只在部分写入口拦截，"脏值有人拦"就还是空话
+    if (app.来源 or "").strip() and app.来源.strip() not in tracker.SOURCES:
+        raise ApiError(422, "app.sourceInvalid",
+                       "来源必须是 %s 之一" % "/".join(tracker.SOURCES),
+                       sources="/".join(tracker.SOURCES))
     errs = tracker.check_reason_required(app.当前阶段, app.状态原因)
     if errs:
         raise ApiError(422, "app.reasonRequired", errs[0], stage=app.当前阶段)
@@ -336,7 +347,10 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
             "岗位": role,
             "方向": app.方向,
             "批次": app.批次,
-            "来源": app.来源,
+            # 校验按 strip 后的值判，落盘也写 strip 后的值——否则「 内推 」能过校验
+            # 却把带空格的原值写进 CSV，与 CLI / 导入两条链路口径不一致
+            "来源": (app.来源 or "").strip(),
+            "链接": (app.链接 or "").strip(),
             "截止日期": app.截止日期,
             "投递日期": app.投递日期,
             "当前阶段": app.当前阶段,

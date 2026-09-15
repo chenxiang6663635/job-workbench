@@ -206,6 +206,17 @@ export default function InterviewList() {
                     {current.面试时间 && ` · ${current.面试时间}`}
                     {current.面试官 && ` · ${t("interview.interviewer", { value: current.面试官 })}`}
                   </p>
+                  {/* 会议/作答链接：点开去开会或做题。无链接的历史记录不占位 */}
+                  {current.链接 && (
+                    <a
+                      href={current.链接}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-0.5 inline-block text-xs text-primary hover:underline"
+                    >
+                      {t("interview.meetingUrlLink")}
+                    </a>
+                  )}
                 </div>
                 <Select
                   value={current.结果}

@@ -115,6 +115,8 @@ export interface Application {
   方向: string;
   批次: string;
   来源: string;
+  /** 岗位页原始链接（可从「新增投递」表单或 CLI --link 写入，可空） */
+  链接: string;
   截止日期: string;
   投递日期: string;
   当前阶段: string;
@@ -373,6 +375,8 @@ export interface Interview {
   轮次: string;
   面试时间: string;
   形式: string;
+  /** 会议/作答链接（在线面试的入会地址、笔试作答页等，可空） */
+  链接: string;
   面试官: string;
   问题记录: string;
   我的回答要点: string;
@@ -460,14 +464,21 @@ export interface ImportResult {
   model: string;
 }
 
+// 顺序与 tools/tracker.py 的 STAGES + TERMINAL_STAGES 逐一对应（阶段流转顺序）。
+// 这里的每个值都会出现在筛选与行内下拉里；新增值必须同批更新 tracker.py——
+// 后端落盘校验只认那份真值源，两处漂移会出现「下拉能选、保存被拒」。
 export const STAGES = [
   "待投",
   "已投",
+  "测评",
   "笔试",
+  "AI面",
+  "群面",
   "一面",
   "二面",
   "三面",
   "HR面",
+  "终面",
   "offer",
   "签约",
   "已挂",
@@ -523,13 +534,17 @@ export interface ImapFetchResult {
 }
 
 export const BATCHES = ["提前批", "正式批", "补录"];
+// 来源枚举，与后端 tracker.SOURCES 和「来源」自检校验一致（单一真值源在后端）。
+export const SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推",
+  "宣讲会", "招聘会", "其他"];
 // 方向 ID 取决于工作区装入的领域插件（后端 available_directions 动态读
 // <工作区>/config/directions/*.md）。此处是前端可选项的默认清单，与 Applications 页共用一份，
 // 避免两页各写一份后漂移；后端在插件不可用时对未知方向放行。
 export const DIRECTIONS = ["datacenter", "hvac", "other"];
 
 // 面试记录枚举，与后端 tracker.INTERVIEW_* 一致（单一事实源在 tools/jobws.py track）
-export const INTERVIEW_ROUNDS = ["笔试", "一面", "二面", "三面", "HR面", "终面", "其他"];
+export const INTERVIEW_ROUNDS = ["测评", "笔试", "AI面", "群面", "一面", "二面",
+  "三面", "HR面", "终面", "其他"];
 export const INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"];
 export const INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"];
 

@@ -13,7 +13,10 @@ import { ErrorBanner } from "./ErrorBanner";
 // 这是「数据值 → 样式」的映射（与 badgeVariants.ts 同类）：key 是工作区里的真实
 // 轮次取值，动它等于给数据改名，所以不翻译；只有「没填轮次」这个兜底占位才译。
 const ROUND_VARIANT: Record<string, "default" | "secondary" | "success"> = {
+  测评: "secondary",
   笔试: "secondary",
+  AI面: "default",
+  群面: "default",
   一面: "default",
   二面: "default",
   三面: "default",

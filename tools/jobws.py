@@ -64,16 +64,31 @@ TARGETS = [
     ("jd", jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
-    ("release", None, "发版辅助（check 预检与 Release 说明抽取）"),
+    ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
     ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件）"),
 ]
+
+class _ReleaseVersionTarget(object):
+    """`release version` 的薄入口：转给 release_assist.print_next_version。
+
+    为什么单独一个目标对象：同一个模块承载两个子命令时，_dispatch 拼出的 argv
+    里**没有子命令名**（`release check` 不带参数也是合法调用），模块无法自行区分。
+    """
+
+    __name__ = "release_assist"  # _dispatch 用它拼 sys.argv[0]（诊断显示用）
+
+    @staticmethod
+    def main():
+        return release_assist.print_next_version()
+
 
 # (顶层命令, 子命令) -> 模块
 SUB_TARGETS = {
     ("skills", "install"): install_skills,
     ("skills", "check"): check_skills,
     ("release", "check"): release_assist,
+    ("release", "version"): _ReleaseVersionTarget,
     ("lint", "pr-title"): check_pr_title,
     ("lint", "i18n"): check_i18n_hardcode,
     ("lint", "ui-tokens"): check_ui_tokens,
@@ -81,7 +96,7 @@ SUB_TARGETS = {
 }
 
 SUB_CHOICES = {"skills": ["install", "check"],
-               "release": ["check"],
+               "release": ["check", "version"],
                "lint": ["pr-title", "i18n", "ui-tokens", "domains"]}
 
 HELP_FLAGS = ("-h", "--help")

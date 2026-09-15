@@ -13,11 +13,11 @@
 
 抽取规则（与 release.yml 旧实现逐字对齐）：取 `## [<ver>]` 段头到下一个
 `## [` 之前的全部行（含段头），去掉尾部空行；没有该段则失败并提示先落章。
-只认精确版本号：`[0.3.0]` 与 `[0.3.0-beta]` 是两回事。
+只认精确段名：`[26.09.15.1]` 与 `[26.09.15.2]` 是两回事。
 
 用法（入口已统一，见 tools/jobws.py）：
-    python tools/jobws.py release check                      # 按 package.json 版本查
-    python tools/jobws.py release check --tag v0.3.0         # 校验 tag 一致 + 段存在
+    python tools/jobws.py release version                    # 打印"今日若发布"的时间戳号
+    python tools/jobws.py release check --tag v26.09.15.1    # 校验 tag 与版本一致 + 段存在
     python tools/jobws.py release check --notes-out out.md   # 抽段落盘（CI 用）
 退出码：0 通过；1 检查未过（版本不一致 / CHANGELOG 段缺失）；2 文件缺失或读取失败。
 """
@@ -25,15 +25,26 @@
 from __future__ import print_function
 
 import argparse
+import datetime
 import io
 import json
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PACKAGE_JSON = os.path.join(ROOT, "web", "electron", "package.json")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
+
+# 时间戳版本号（2026-09-15 体系切换）：
+# - 发布号（tag / CHANGELOG 段名 / 界面显示）= YY.MM.DD.N（如 26.09.15.1）；
+# - 机器版本（package.json / latest.yml / 产物文件名）= YY.M.D（如 26.9.15）。
+# 机器版本为什么不带 N：实测 electron-builder 会把 build metadata（`+N`）在
+# 产物文件名与 latest.yml 两处剥离（26.9.15+1 → 26.9.15），且 electron-updater
+# 对非 semver 直接抛 ERR_UPDATER_INVALID_VERSION（AppUpdater.js:212-217）。
+_TS_FULL = re.compile(r"^(\d{2})\.(\d{2})\.(\d{2})\.(\d+)$")
+_TS_MACHINE = re.compile(r"^(\d{2})\.(\d{1,2})\.(\d{1,2})$")
 
 
 def read_version():
@@ -50,6 +61,50 @@ def read_version():
     if not isinstance(version, str) or not version.strip():
         raise ValueError("package.json 的 version 缺失或不是字符串")
     return version.strip()
+
+
+def version_tuple(raw):
+    """解析时间戳版本号为 (yy, mm, dd, n)；机器形态的 n 为 None。非本体系返回 None。
+
+    拒绝 prerelease（`26.9.15-1`）与 build metadata（`26.9.15+1`）：前者会让
+    electron-builder 生成非 latest 通道文件，后者会被工具链剥离（见常量区注释）。
+    """
+    if not isinstance(raw, str):
+        return None
+    text = raw.strip()
+    match = _TS_FULL.match(text)
+    if match:
+        return tuple(int(part) for part in match.groups())
+    match = _TS_MACHINE.match(text)
+    if match:
+        yy, mm, dd = match.groups()
+        return (int(yy), int(mm), int(dd), None)
+    return None
+
+
+def next_version(today, existing_tags):
+    """按发布当日生成 `YY.MM.DD.N`；同日已有 tag 时 N 递增（读既有 tag 序列，不落状态文件）。"""
+    ymd = (today.year % 100, today.month, today.day)
+    used = []
+    for tag in existing_tags or []:
+        parsed = version_tuple(tag[1:] if tag.startswith("v") else tag)
+        if parsed and parsed[:3] == ymd and parsed[3] is not None:
+            used.append(parsed[3])
+    number = max(used) + 1 if used else 1
+    return "%02d.%02d.%02d.%d" % (ymd[0], ymd[1], ymd[2], number)
+
+
+def version_matches_tag(tag, package_version):
+    """闸1 判定：**日期三段一致**。N 不参与——机器版本（YY.M.D）表达不了 N
+    （build metadata 会被 electron-builder 剥离）；同日多版在机器层不可区分是
+    已知取舍，N 只用于 tag / CHANGELOG / 界面命名。"""
+    tag_parsed = version_tuple(tag[1:] if tag.startswith("v") else tag)
+    pkg_parsed = version_tuple(package_version)
+    return (
+        tag_parsed is not None
+        and pkg_parsed is not None
+        and tag_parsed[:3] == pkg_parsed[:3]
+    )
 
 
 def find_section(changelog_text, version):
@@ -80,16 +135,21 @@ def check(version, tag=None, changelog_path=None):
 
     CHANGELOG 不存在或读取失败（权限 / 占用 / 坏编码）时抛 OSError——由入口层
     映射为退出码 2（契约：文件缺失或读取失败 → 2）。
+
+    时间戳体系（2026-09-15）：tag 与机器版本的比对走 version_matches_tag
+    （日期三段，N 不参与）；CHANGELOG 段名是**发布号**（如 26.09.15.1），
+    有 tag 时用 tag 的号作段名，无 tag（纯本地按机器版本预检）才退回机器形态。
     """
     lines = []
     ok = True
     if tag:
-        if tag == "v" + version:
-            lines.append("tag 与 package.json 版本一致：%s" % tag)
+        if version_matches_tag(tag, version):
+            lines.append("tag 与版本一致：%s ↔ %s（机器版本）" % (tag, version))
         else:
             ok = False
             lines.append("tag 与 package.json 版本不一致：tag=%s，package.json=%s。"
-                         "先 bump 版本号再打 tag。" % (tag, version))
+                         "先 bump 版本号再打 tag（比对规则见 version_matches_tag）。"
+                         % (tag, version))
 
     path = changelog_path or CHANGELOG
     if not os.path.isfile(path):
@@ -97,19 +157,44 @@ def check(version, tag=None, changelog_path=None):
     with io.open(path, "r", encoding="utf-8-sig") as handle:
         text = handle.read()
 
-    notes = find_section(text, version)
+    section_name = tag[1:] if tag and tag.startswith("v") else version
+    notes = find_section(text, section_name)
     if notes is None:
         ok = False
         lines.append("CHANGELOG.md 里没有 [%s] 段。把它从 [Unreleased] 落成 [%s] "
-                     "再打 tag。" % (version, version))
+                     "再打 tag。" % (section_name, section_name))
     else:
         lines.append("CHANGELOG 段存在：## [%s]（%d 行将作为 Release 说明）"
-                     % (version, notes.count("\n") + 1))
+                     % (section_name, notes.count("\n") + 1))
     return ok, lines, notes
 
 
+def print_next_version():
+    """打印「若今天发布」的时间戳号（只读；写入 package.json 由人工 bump + check 把关）。
+
+    N 的递增来源 = 仓库既有 tag 序列（`git tag --list v*`），不落状态文件；
+    读 tag 失败（不在仓库 / git 不可用）时按「无同日 tag」处理并给出警告。
+    """
+    parser = argparse.ArgumentParser(
+        prog="jobws release version",
+        description="打印「若今天发布」的时间戳号（YY.MM.DD.N）与当前 package.json 版本。")
+    parser.parse_args()  # 只认 -h/--help；多余参数按用法错误退出（2）
+
+    tags = []
+    try:
+        out = subprocess.check_output(
+            ["git", "tag", "--list", "v*"], cwd=ROOT, text=True)
+        tags = [line.strip() for line in out.splitlines() if line.strip()]
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print("警告：读取 git tag 失败（%s）——按无同日 tag 处理" % exc)
+    today = datetime.date.today()
+    print("今日版本号：%s" % next_version(today, tags))
+    print("当前 package.json 版本：%s" % read_version())
+    return 0
+
+
 def main():
-    parser = argparse.ArgumentParser(description="发布预检与 Release 说明抽取")
+    parser = argparse.ArgumentParser(description="发布预检、当日号生成与 Release 说明抽取")
     parser.add_argument("--version", default=None,
                         help="版本号（默认读 web/electron/package.json）")
     parser.add_argument("--tag", default=None,

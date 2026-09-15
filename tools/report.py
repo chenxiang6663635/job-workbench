@@ -20,7 +20,6 @@ import re
 import sys
 from datetime import date, timedelta
 
-# Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

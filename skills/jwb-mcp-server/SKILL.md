@@ -1,7 +1,7 @@
 ---
 name: jwb-mcp-server
 description: Use when 为求职工作台或类似的本地优先工具构建、维护 MCP server（stdio 形态）时，需要按只读优先、写入确认、越界拒绝与可测试性约定行事。English triggers：MCP server, stdio, tool design, host integration, local-first tools.
-compatibility: 需要 Python 3.10+（MCP SDK 要求；与主干 3.8 环境刻意隔离）；仓库在侧（领域层在仓库内）；jobws 指仓库内的 python tools/jobws.py。
+compatibility: 需要 Python 3.10+（MCP SDK 要求；与主干 3.12 环境刻意隔离）；仓库在侧（领域层在仓库内）；jobws 指仓库内的 python tools/jobws.py。
 ---
 
 # MCP server 构建与维护（stdio 形态）

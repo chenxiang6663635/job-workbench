@@ -14,8 +14,11 @@
 错误口径：网络与协议异常统一包成 `ImapFetchError`（人话消息，绝不含凭证），
 由调用方决定 HTTP 状态码。
 
-Python 3.8 兼容说明：不传 `imaplib.IMAP4_SSL(timeout=...)`（3.9+ 才有）；
-socket 超时在连接建立后由 `conn.sock.settimeout()` 覆盖后续命令。
+超时口径（2026-09-14 基线升到 3.12 后收紧）：连接直接用
+`IMAP4_SSL(host, port, timeout=SOCKET_TIMEOUT)`——该参数经
+`socket.create_connection` 落到 socket 上，**整段会话（connect / login / select /
+fetch）共用同一个超时**，不再需要先前那一步「先探一条 TCP 再建连」的 3.8 妥协
+（issue #50 S1 的代价：一次会话两条连接）。
 """
 
 from __future__ import annotations
@@ -183,31 +186,6 @@ def extract_body(msg):
     return text
 
 
-def _probe_tcp(host, port):
-    """带超时的 TCP 可达性探测。
-
-    3.8 的 imaplib 不接受 timeout 参数（3.9+ 才有），若不做这一步，
-    连接不可达主机时 `connect()` 可能在系统默认 TCP 超时前一直阻塞。
-
-    **代价与取舍（issue #50 S1 的结论：保留探测）**：一次会话因此产生**两条**
-    TCP 连接（探测 + TLS 建连），对连接频率敏感的邮箱理论上可能视为异常。
-    替代方案「只在 connect 失败时再补救超时」在 3.8 上做不到——imaplib 拿不到
-    超时参数，等它返回时已经阻塞完了，补救没有意义；临时改
-    `socket.setdefaulttimeout()` 是进程级副作用，会波及 FastAPI 线程池里的其它
-    请求。所以这里是**用一条多余连接换"15 秒内一定给出人话"**。
-    什么时候可以去掉它：基线升到 3.9+ 后改用 `IMAP4_SSL(host, port, timeout=…)`
-    ——v0.4 候选里的 Python 3.12 升级就是那个时机（届时本注释与
-    `tests/test_imap_fetch.py::test_probe_runs_before_the_tls_connection` 一起删）。
-    """
-    try:
-        probe = socket.create_connection((host, port), timeout=SOCKET_TIMEOUT)
-        probe.close()
-    except socket.timeout:
-        raise ImapFetchError("连接超时：%s:%s 在 %d 秒内无响应" % (host, port, SOCKET_TIMEOUT))
-    except OSError as exc:
-        raise ImapFetchError("无法连接 %s:%s：%s" % (host, port, exc))
-
-
 def _ssl_context():
     """显式 TLS 上下文：默认严格校验（系统证书库 + 主机名）。
 
@@ -228,11 +206,16 @@ def _ssl_context():
 
 
 def _connect(host, port):
-    """建立会话。3.8 兼容：不传 imaplib 的 timeout 参数（3.9+ 才有）；
-    TLS 校验策略见 `_ssl_context`。"""
-    _probe_tcp(host, port)
+    """建立会话：connect 与后续命令共用一个超时。
+
+    `timeout=` 由 imaplib 交给 `socket.create_connection`，落在 socket 上——
+    因此 login / select / fetch 全程沿用，不再需要连接后单独 `settimeout()`，
+    也不需要 3.8 时代的探测连接（见模块 docstring 的超时口径）。
+    TLS 校验策略见 `_ssl_context`。
+    """
     try:
-        conn = imaplib.IMAP4_SSL(host, port, ssl_context=_ssl_context())
+        conn = imaplib.IMAP4_SSL(host, port, timeout=SOCKET_TIMEOUT,
+                                 ssl_context=_ssl_context())
     except ssl.SSLError as exc:
         if "CERTIFICATE_VERIFY_FAILED" in str(exc):
             # 与「地址写错」是两回事：证书不被信任可能是自签名，也可能是劫持——
@@ -242,15 +225,12 @@ def _connect(host, port):
                 "劫持）。不要为它关闭校验。" % host)
         raise ImapFetchError(
             "TLS 握手失败：%s（检查服务器地址与端口，SSL 端口通常为 993）" % exc)
-    except (socket.timeout, OSError) as exc:
+    except socket.timeout:
+        # 坏地址 / 被丢包的服务器：必须落在「15 秒内给人话」这条承诺上，
+        # 而不是等到系统 TCP 超时（原先由探测连接保证，现在由 timeout= 保证）
+        raise ImapFetchError("连接超时：%s:%s 在 %d 秒内无响应" % (host, port, SOCKET_TIMEOUT))
+    except OSError as exc:
         raise ImapFetchError("无法连接 %s:%s：%s" % (host, port, exc))
-    # 连接建立后设 socket 超时，覆盖 login / select / fetch 全程
-    sock = getattr(conn, "sock", None)
-    if sock is not None:
-        try:
-            sock.settimeout(SOCKET_TIMEOUT)
-        except Exception:
-            pass
     return conn
 
 

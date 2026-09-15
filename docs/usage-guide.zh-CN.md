@@ -16,14 +16,14 @@ English（主版）：[`usage-guide.md`](usage-guide.md) ｜ 本文件是简体�
 
 | 软件 | 用途 | 检查命令 |
 |---|---|---|
-| Python 3.8+（conda 环境） | 后端与 CLI 脚本 | `python --version` |
+| Python 3.12+ | 后端与 CLI 脚本 | `python --version` |
 | Node.js 18+ | 前端构建 | `node --version` |
 | Chrome 或 Edge | PDF 生成（headless 渲染） | 一般自带 |
 
 ### 安装依赖（各一次）
 
 ```bash
-# 后端依赖（fastapi/uvicorn/pydantic 已锁 3.8 兼容版本）
+# 后端依赖（fastapi/uvicorn/pydantic 沿用既有的上限钉法；放宽单独排期）
 cd <仓库目录>\web\backend
 pip install -r requirements.txt
 

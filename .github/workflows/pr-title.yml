@@ -26,10 +26,10 @@ jobs:
 
       # 与后端 job 一致地钉住解释器版本。runner 上确实有 python（这个 job 跑通过），
       # 但「恰好有」不等于「保证有」——闸门不该依赖镜像的隐式行为。
-      - name: 安装 Python 3.8
+      - name: 安装 Python 3.12
         uses: actions/setup-python@v7
         with:
-          python-version: "3.8"
+          python-version: "3.12"
 
       # 本地 pre-commit / commit-msg 只在开发者自己敲 git commit 时运行，而
       # squash 合并的提交 subject 是 GitHub 用 PR 标题现场生成的——本地钩子

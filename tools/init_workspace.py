@@ -32,7 +32,6 @@ import os
 import shutil
 import sys
 
-# Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "template")
@@ -70,7 +69,10 @@ def copy_tree_file(src, dst):
 
 
 def copy_tree(src, dst, overwrite=False):
-    """Python 3.8 兼容的目录复制（dirs_exist_ok 是 3.8+，此处自行实现）。
+    """按 overwrite 语义复制目录树。
+
+    不用 `shutil.copytree`：它给不出「覆盖了哪些文件」这份清单，而调用方必须把
+    覆盖这件事说出口（见下）。
 
     overwrite=False（默认）用于模板骨架：已存在的文件不动，避免覆盖用户内容。
     overwrite=True 用于 demo 数据：它要覆盖模板里的同名空骨架（如 tracker.csv）。

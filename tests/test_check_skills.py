@@ -17,7 +17,7 @@ from check_skills import describe, inspect_skills  # noqa: E402
 GOOD = """---
 name: {name}
 description: Use when 用户要做某件事时。English triggers：do a thing.
-compatibility: Python 3.8+；需仓库内 tools/ 脚本。
+compatibility: Python 3.12+；需仓库内 tools/ 脚本。
 ---
 
 # 标题

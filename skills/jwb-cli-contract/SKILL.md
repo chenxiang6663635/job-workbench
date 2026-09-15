@@ -1,7 +1,7 @@
 ---
 name: jwb-cli-contract
 description: Use when 设计、新增或审查 jobws 命令行命令时，需要遵守本工作台既有的 CLI 契约（退出码三态、两段式写入、stdout/stderr 纪律、默认行为兼容）。English triggers：CLI design, command contract, clig.dev, exit codes, two-phase write, breaking change.
-compatibility: jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；面向「开发 / 扩展本仓库」的场景；Python 3.8+。
+compatibility: jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；面向「开发 / 扩展本仓库」的场景；Python 3.12+。
 ---
 
 # jobws CLI 契约（新增命令时照此办）

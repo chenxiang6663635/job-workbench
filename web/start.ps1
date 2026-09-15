@@ -74,7 +74,7 @@ Start-Sleep -Seconds 1
 # 依赖预检：后端需 python，前端需 node/npm。缺失时给出明确提示而非裸报错。
 Write-Host "检查运行依赖..." -ForegroundColor Cyan
 if (-not (Get-Command "python" -ErrorAction SilentlyContinue)) {
-    Write-Host "错误：未找到 python。请安装 Python 3.8+ 并加入 PATH。" -ForegroundColor Red
+    Write-Host "错误：未找到 python。请安装 Python 3.12+ 并加入 PATH。" -ForegroundColor Red
     exit 1
 }
 if (-not (Get-Command "node" -ErrorAction SilentlyContinue)) {

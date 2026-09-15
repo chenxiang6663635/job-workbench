@@ -35,7 +35,6 @@ import os
 import shutil
 import sys
 
-# Python 3.8 兼容：不使用 dict | dict、list[str] 等 3.9+ 注解
 
 # 同目录的 check_skills 是校验的唯一实现：这里不重写一套规则
 # （两份实现迟早分叉，而分叉掉的那一半正好就是没拦住的那一半）

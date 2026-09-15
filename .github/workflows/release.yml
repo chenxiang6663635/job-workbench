@@ -27,6 +27,10 @@ on:
         description: "只构建与校验，不创建 Release"
         type: boolean
         default: true
+      tag:
+        description: "演练用：模拟的 tag（如 v26.09.15.1）——校验 tag 比对与 CHANGELOG 段；真实发布（tag push）不需要填"
+        type: string
+        default: ""
 
 # 默认最小权限。publish job 单独提权。
 permissions:
@@ -65,6 +69,8 @@ jobs:
       - name: 读取版本号并校验 tag 一致
         id: version
         shell: pwsh
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = "Stop"
           $version = (Get-Content web/electron/package.json -Raw -Encoding UTF8 | ConvertFrom-Json).version
@@ -74,6 +80,7 @@ jobs:
 
           # 用 $env:GITHUB_REF 而不是把 ${{ github.ref }} 拼进脚本：外部可控的值
           # 经 shell 文本传递等于给它一次解释机会（本仓库 CONTRIBUTING 有此规定）。
+          # 演练路径（workflow_dispatch 的 tag 输入）同样经 env 传入，不拼字符串。
           if ($env:GITHUB_REF -like "refs/tags/*") {
             $tag = $env:GITHUB_REF -replace "^refs/tags/", ""
             Write-Host "tag = $tag"
@@ -81,8 +88,14 @@ jobs:
             if ($LASTEXITCODE -ne 0) {
               throw "release check 失败（exit $LASTEXITCODE）——tag 与版本不一致或 CHANGELOG 缺段，按上文提示修"
             }
+          } elseif ($env:TAG_INPUT) {
+            Write-Host "演练 tag = $($env:TAG_INPUT)（workflow_dispatch 输入，仅校验不发布）"
+            python tools/jobws.py release check --tag $env:TAG_INPUT
+            if ($LASTEXITCODE -ne 0) {
+              throw "release check 失败（exit $LASTEXITCODE）——演练 tag 与版本不一致或 CHANGELOG 缺段，按上文提示修"
+            }
           } else {
-            Write-Host "手动触发（非 tag），跳过 tag 一致性校验"
+            Write-Host "手动触发（非 tag、未提供演练 tag），跳过 tag 一致性校验"
           }
 
       - name: 安装 Python 3.12
@@ -99,15 +112,19 @@ jobs:
         shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          TAG_INPUT: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = "Stop"
           # CHANGELOG 段名是【发布号】（如 26.09.15.1），不是机器版本（26.9.15）——
-          # 有 tag 时带 --tag 让 release check 用 tag 的号查段；手动触发（无 tag）
-          # 才退回机器版本形态（演练时按需先在 CHANGELOG 落好对应段）。
-          $checkArgs = @("release", "check", "--version", $env:VERSION)
+          # 有 tag（真实 push 或演练输入）时带 --tag 让 release check 用 tag 的号查段。
+          $tagValue = ""
           if ($env:GITHUB_REF -like "refs/tags/*") {
-            $checkArgs += @("--tag", ($env:GITHUB_REF -replace "^refs/tags/", ""))
+            $tagValue = $env:GITHUB_REF -replace "^refs/tags/", ""
+          } elseif ($env:TAG_INPUT) {
+            $tagValue = $env:TAG_INPUT
           }
+          $checkArgs = @("release", "check", "--version", $env:VERSION)
+          if ($tagValue) { $checkArgs += @("--tag", $tagValue) }
           # 放在工作区根而不是 RUNNER_TEMP：这个文件要随 artifact 传到 publish job，
           # 两个路径必须同源同层级，否则 artifact 内部路径不可预测。
           $checkArgs += @("--notes-out", "release-notes.md")

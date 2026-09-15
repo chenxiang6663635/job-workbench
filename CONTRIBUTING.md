@@ -106,7 +106,7 @@
 2. **生成当日号并 bump 机器版本**：`python tools/jobws.py release version` 取"今日发布号"（`YY.MM.DD.N`）→ 把 `web/electron/package.json` 的 `version` 写为同日的 `YY.M.D`。
 3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为**发布号** + ISO 日期（段名与 tag 同名）。
 4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v26.09.15.1`——校验 tag 与机器版本"日期三段一致"、CHANGELOG 有该发布号段，并预览将发布的 Release 说明（与 CI 同一实现；红着就别打 tag）。
-5. `workflow_dispatch` dry_run 演练（产出 exe + `latest.yml` 与说明，不碰 Release）→ 通过后再 `git tag -a v26.09.15.1 -m "..."` 并推送。
+5. **dry_run 演练**：`gh workflow run release.yml -f dry_run=true -f tag=v<发布号>`（产出 exe + `latest.yml` 与说明，不碰 Release；`tag` 输入用于校验 CHANGELOG 段与版本比对——**需在第 3 步落章之后跑**）→ 通过后再 `git tag -a v<发布号> -m "..."` 并推送。
 6. 发布后核验 `gh release view --json assets`（安装包 + `latest.yml` 都在）并**真下载一次**；构建产物按发布号归档到仓库外目录（产物已被 .gitignore 排除）。
 
 **hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再按当日生成新号发布（同日再发 N 递增）。**不**从旧 tag 拉 hotfix 分支。

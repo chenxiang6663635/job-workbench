@@ -220,3 +220,28 @@ def test_scan_reports_unreadable_and_empty_files(ws):
     items = question_bank.scan_markdown(ws, skipped=skipped)
     assert [i["题目"] for i in items] == ["TCP"]
     assert any("empty.md" in path for path, _reason in skipped)
+
+
+def test_approval_registry_knows_question_operations():
+    """两段式注册表里必须有 question 的三项操作：漏写一行，全仓测试不会红，
+    但用户确认落盘时才发现"操作不存在"（第二轨盲区 A——注册表是唯一防线）。"""
+    import approval
+    for op in ("question.add", "question.update", "question.import"):
+        assert op in approval._OPERATIONS, op
+        assert callable(approval._OPERATIONS[op]), op
+
+
+def test_run_check_flags_bad_question_status(ws):
+    """手改 CSV 填了枚举外的状态时，`track check` 是最后一道拦网（与 talks 同款）。
+
+    第二轨盲区 B：新增 questions.csv 的 inspect 注册若写错列名，没有这条会全绿。
+    """
+    _add(ws, "TCP", "技术面")
+    path = question_bank.question_path(ws)
+    with io.open(path, "r", encoding="utf-8-sig", newline="") as handle:
+        text = handle.read()
+    with io.open(path, "w", encoding="utf-8-sig", newline="") as handle:
+        handle.write(text.replace(",未看,", ",已会了,"))   # 模仿用户手改 CSV
+    result = tracker.run_check(ws)
+    item = next(f for f in result["files"] if f["file"] == tracker.QUESTION_FILE)
+    assert any("状态" in issue and "已会了" in issue for issue in item["issues"]), item

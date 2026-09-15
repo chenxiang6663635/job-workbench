@@ -20,7 +20,14 @@ const HEARTBEAT_TIMEOUT = 30000; // ms
 // _should_open_browser）。桌面端由 Electron 托着窗口，后端再弹一个浏览器就是多开一个界面——
 // 必须显式关掉。此前漏传该变量：打包版每次启动，系统浏览器都会跟着冒出来一个。
 // 有意覆盖为 "1"（不尊重外部已设的其它取值）：桌面壳托窗口是既定形态，不设例外。
-const BACKEND_ENV = { ...process.env, JOBWS_NO_BROWSER: "1" };
+//
+// 另注入 JOBWS_APP_VERSION（= app.getVersion()，即 asar 内 package.json 的版本）：
+// 设置页「关于」区块显示版本号的数据源，后端 /api/system/paths 读取；开发模式下
+// 后端回退读仓库 web/electron/package.json——两路同源同值。做成函数、到真正拉起
+// 后端时才求值：避免在模块加载阶段依赖 app 的初始化状态。
+function backendEnv() {
+  return { ...process.env, JOBWS_NO_BROWSER: "1", JOBWS_APP_VERSION: app.getVersion() };
+}
 
 let backendProcess = null;
 let backendReady = false;
@@ -264,7 +271,7 @@ function startBackend() {
       cwd: path.dirname(exe),
       stdio: "pipe",
       detached: false,
-      env: BACKEND_ENV,
+      env: backendEnv(),
     });
   } else {
     const python = detectPython();
@@ -278,7 +285,7 @@ function startBackend() {
       cwd: BACKEND_DIR,
       stdio: "pipe",
       detached: false,
-      env: BACKEND_ENV,
+      env: backendEnv(),
     });
   }
 

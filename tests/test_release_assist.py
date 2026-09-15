@@ -8,6 +8,7 @@
 
 import os
 import sys
+from datetime import date
 
 import pytest
 
@@ -67,14 +68,15 @@ def test_find_section_handles_empty_section():
 
 
 def test_check_reports_tag_mismatch(tmp_path):
+    """tag（旧体系 v0.2.2）与新体系机器版本 26.9.15 不一致；段名取 tag 的号，段本身存在。"""
     changelog = tmp_path / "CHANGELOG.md"
     changelog.write_text(SAMPLE, encoding="utf-8")
     ok, lines, notes = release_assist.check(
-        "0.3.0", tag="v0.2.2", changelog_path=str(changelog))
+        "26.9.15", tag="v0.2.2", changelog_path=str(changelog))
     assert not ok
     assert any("不一致" in line for line in lines)
-    # 段本身存在：说明不一致是**单独**报的，而不是被段缺失掩盖
-    assert notes is not None and notes.startswith("## [0.3.0]")
+    # 段本身存在（段名 = tag 的号 0.2.2）：说明不一致是**单独**报的，而不是被段缺失掩盖
+    assert notes is not None and notes.startswith("## [0.2.2]")
 
 
 def test_check_reports_missing_section(tmp_path):
@@ -88,12 +90,13 @@ def test_check_reports_missing_section(tmp_path):
 
 
 def test_check_passes_with_released_version(tmp_path):
+    """时间戳体系：机器版本 26.9.15 + tag v26.09.15.1 + CHANGELOG 段 [26.09.15.1]。"""
     changelog = tmp_path / "CHANGELOG.md"
-    changelog.write_text(SAMPLE, encoding="utf-8")
+    changelog.write_text(SAMPLE.replace("[0.2.2]", "[26.09.15.1]"), encoding="utf-8")
     ok, lines, notes = release_assist.check(
-        "0.2.2", tag="v0.2.2", changelog_path=str(changelog))
+        "26.9.15", tag="v26.09.15.1", changelog_path=str(changelog))
     assert ok
-    assert notes.startswith("## [0.2.2]")
+    assert notes.startswith("## [26.09.15.1]")
 
 
 def test_repo_changelog_smoke():
@@ -106,10 +109,10 @@ def test_repo_changelog_smoke():
 
 
 def test_read_version_matches_package_json():
-    """版本号唯一来源可达：read_version() 能读到合法 semver。"""
+    """版本号唯一来源可达：read_version() 能读到可解析的**时间戳机器形态**（YY.M.D）。"""
     version = release_assist.read_version()
-    parts = version.split(".")
-    assert len(parts) == 3 and all(part.isdigit() for part in parts)
+    parsed = release_assist.version_tuple(version)
+    assert parsed is not None and parsed[3] is None
 
 
 def test_main_rejects_version_argument_mismatch(tmp_path, monkeypatch, capsys):
@@ -164,3 +167,55 @@ def test_check_raises_when_changelog_missing(tmp_path):
     """check 的库契约：路径不存在抛 FileNotFoundError（入口层映射 2；第三轮 M）。"""
     with pytest.raises(FileNotFoundError):
         release_assist.check("0.2.2", changelog_path=str(tmp_path / "nope.md"))
+
+
+# ---- 时间戳版本号（2026-09-15 体系切换：机器版本 YY.M.D / 发布号 YY.MM.DD.N）----
+
+
+def test_version_tuple_accepts_tag_and_machine_forms():
+    assert release_assist.version_tuple("26.09.15.1") == (26, 9, 15, 1)   # tag/CHANGELOG 形态
+    assert release_assist.version_tuple("26.09.15.3") == (26, 9, 15, 3)
+    assert release_assist.version_tuple("26.9.15") == (26, 9, 15, None)   # package.json 形态
+    assert release_assist.version_tuple("0.3.2") is None                  # 旧语义化号不认
+    assert release_assist.version_tuple("26.9.15-1") is None              # prerelease 明确拒绝
+    assert release_assist.version_tuple("26.9.15+1") is None              # build metadata 明确拒绝（实测会被剥离）
+
+
+def test_next_version_first_of_day():
+    assert release_assist.next_version(date(2026, 9, 15), []) == "26.09.15.1"
+
+
+def test_next_version_increments_within_same_day():
+    tags = ["v26.09.15.1", "v26.09.15.2", "v26.09.14.7"]
+    assert release_assist.next_version(date(2026, 9, 15), tags) == "26.09.15.3"
+
+
+def test_next_version_ignores_other_days_and_foreign_tags():
+    tags = ["v26.09.14.9", "v0.3.2", "not-a-tag"]
+    assert release_assist.next_version(date(2026, 10, 5), tags) == "26.10.05.1"
+
+
+def test_version_matches_tag_compares_date_only():
+    """比对日期三段；N 不参与（机器版本表达不了 N——build metadata 会被 electron-builder 剥离）。"""
+    assert release_assist.version_matches_tag("v26.09.15.1", "26.9.15")
+    assert release_assist.version_matches_tag("v26.09.15.2", "26.9.15")   # 同日多版：机器层不可区分（已知取舍）
+    assert not release_assist.version_matches_tag("v26.09.16.1", "26.9.15")
+    assert not release_assist.version_matches_tag("v0.3.2", "26.9.15")
+
+
+def test_check_accepts_machine_version_against_timestamp_tag(tmp_path):
+    """package.json 是 26.9.15（机器形态），tag 是 v26.09.15.1 —— 判为一致；段名用发布号。"""
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(SAMPLE.replace("[0.2.2]", "[26.09.15.1]"), encoding="utf-8")
+    ok, lines, notes = release_assist.check(
+        "26.9.15", tag="v26.09.15.1", changelog_path=str(changelog))
+    assert ok and notes.startswith("## [26.09.15.1]")
+
+
+def test_check_rejects_wrong_date(tmp_path):
+    """日期不同（26.9.15 vs v26.09.16.1）→ 不一致（段 [26.09.16.1] 不存在，两处都报）。"""
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(SAMPLE, encoding="utf-8")
+    ok, lines, notes = release_assist.check(
+        "26.9.15", tag="v26.09.16.1", changelog_path=str(changelog))
+    assert not ok and any("不一致" in line for line in lines)

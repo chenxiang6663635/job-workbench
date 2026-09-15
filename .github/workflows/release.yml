@@ -27,6 +27,10 @@ on:
         description: "只构建与校验，不创建 Release"
         type: boolean
         default: true
+      tag:
+        description: "演练用：模拟的 tag（如 v26.09.15.1）——校验 tag 比对与 CHANGELOG 段；真实发布（tag push）不需要填"
+        type: string
+        default: ""
 
 # 默认最小权限。publish job 单独提权。
 permissions:
@@ -54,12 +58,26 @@ jobs:
           # 拉的任何代码都能拿它直接 push。构建链不需要凭证，一律不带。
           persist-credentials: false
 
+      # 先钉解释器再跑闸：两道闸都调 `jobws`（release_assist）——用 runner 自带的
+      # python 等于把发布判据押在一个未钉版的解释器上（第二轨 MINOR-6）。
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
       # 版本号唯一来源是 web/electron/package.json（CONTRIBUTING 的规定）。
       # tag 与它不一致时直接停下：资产名 job-workbench-setup-<ver>-win64.exe 里的 ver
       # 取自 package.json，若两者不同，用户下载到的东西名字与实际版本就对不上。
+      #
+      # 时间戳体系（2026-09-15）：tag 是【发布号】（v26.09.15.1），package.json 是
+      # 【机器版本】（26.9.15，三段）——两者**不是逐字相等**，判定走唯一实现
+      # tools/release_assist.py 的 version_matches_tag（日期三段一致），本地预检
+      # 与 CI 同源，不再在这里内联拼串比较。
       - name: 读取版本号并校验 tag 一致
         id: version
         shell: pwsh
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = "Stop"
           $version = (Get-Content web/electron/package.json -Raw -Encoding UTF8 | ConvertFrom-Json).version
@@ -69,20 +87,23 @@ jobs:
 
           # 用 $env:GITHUB_REF 而不是把 ${{ github.ref }} 拼进脚本：外部可控的值
           # 经 shell 文本传递等于给它一次解释机会（本仓库 CONTRIBUTING 有此规定）。
+          # 演练路径（workflow_dispatch 的 tag 输入）同样经 env 传入，不拼字符串。
           if ($env:GITHUB_REF -like "refs/tags/*") {
             $tag = $env:GITHUB_REF -replace "^refs/tags/", ""
             Write-Host "tag = $tag"
-            if ($tag -ne "v$version") {
-              throw "tag 与 package.json 版本不一致：tag=$tag，package.json=$version。先 bump 版本号再打 tag。"
+            python tools/jobws.py release check --tag $tag
+            if ($LASTEXITCODE -ne 0) {
+              throw "release check 失败（exit $LASTEXITCODE）——tag 与版本不一致或 CHANGELOG 缺段，按上文提示修"
+            }
+          } elseif ($env:TAG_INPUT) {
+            Write-Host "演练 tag = $($env:TAG_INPUT)（workflow_dispatch 输入，仅校验不发布）"
+            python tools/jobws.py release check --tag $env:TAG_INPUT
+            if ($LASTEXITCODE -ne 0) {
+              throw "release check 失败（exit $LASTEXITCODE）——演练 tag 与版本不一致或 CHANGELOG 缺段，按上文提示修"
             }
           } else {
-            Write-Host "手动触发（非 tag），跳过 tag 一致性校验"
+            Write-Host "手动触发（非 tag、未提供演练 tag），跳过 tag 一致性校验"
           }
-
-      - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
 
       # CHANGELOG 是「使用者可见变更」的唯一台账（CONTRIBUTING 的规定）。缺条目就拒绝
       # 发布——这正是本批次要修的那类漂移：v0.1.1 之后 5 个 feat 一条都没记。
@@ -93,11 +114,23 @@ jobs:
         shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          TAG_INPUT: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = "Stop"
+          # CHANGELOG 段名是【发布号】（如 26.09.15.1），不是机器版本（26.9.15）——
+          # 有 tag（真实 push 或演练输入）时带 --tag 让 release check 用 tag 的号查段。
+          $tagValue = ""
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tagValue = $env:GITHUB_REF -replace "^refs/tags/", ""
+          } elseif ($env:TAG_INPUT) {
+            $tagValue = $env:TAG_INPUT
+          }
+          $checkArgs = @("release", "check", "--version", $env:VERSION)
+          if ($tagValue) { $checkArgs += @("--tag", $tagValue) }
           # 放在工作区根而不是 RUNNER_TEMP：这个文件要随 artifact 传到 publish job，
           # 两个路径必须同源同层级，否则 artifact 内部路径不可预测。
-          python tools/jobws.py release check --version "$env:VERSION" --notes-out release-notes.md
+          $checkArgs += @("--notes-out", "release-notes.md")
+          python tools/jobws.py @checkArgs
           if ($LASTEXITCODE -ne 0) { throw "release check 失败（exit $LASTEXITCODE）——按上文提示修 CHANGELOG 后重跑" }
 
       # PyInstaller 不在 requirements.txt 里（它只是构建期依赖，不该打给终端用户）。

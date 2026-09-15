@@ -332,6 +332,10 @@ export interface SystemPaths {
   snapshotDir: string;
   snapshotCount: number;
   lastBackup: string | null;
+  /** 应用版本（机器形态 YY.M.D，如 26.9.15）；未注入且读不到时为 ""（界面显示「未知」） */
+  appVersion: string;
+  /** 运行平台（sys.platform：win32 / darwin / linux） */
+  platform: string;
   telemetry: boolean;
   note: string;
 }

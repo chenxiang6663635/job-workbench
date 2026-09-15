@@ -23,23 +23,50 @@ A living document. Each item links to a tracking issue; finished items move to t
 - [x] [#4](https://github.com/chenxiang6663635/job-workbench/issues/4) — Expand privacy & anti-fabrication regression coverage as the Web surface grows — **shipped in PR #32**: portability resolution, CSV-import privacy & atomicity, and doc relative-link reachability (three previously untested surfaces)
 - [x] **Release automation** — shipped in PR #23: tag (`v*`) triggers the Windows build and attaches the installer to the Release, so the v0.1.1 asset drift is now structurally impossible; the v0.2.0 release will be its first real run
 
-## Registered next (2026-09-14, out of the v0.3.0 closeout review)
+## Registered next (2026-09-15, single-release plan)
 
-Each item lands as its own batch with its own PR — nothing here is half-done in code.
+**Release practice changed on 2026-09-15**: version numbers are timestamps — the release number is
+`YY.MM.DD.N` (generated on release day, `N` increments for repeat releases on the same day), the
+machine-readable `package.json` version is that day's `YY.M.D`, and the tag is `v<release number>`
+(see [CONTRIBUTING.md](CONTRIBUTING.md), section 版本号体系). There is a **single release node**:
+every batch below lands before it, none of them ships on its own, and the whole plan goes out as
+**one timestamped release**. Each batch still lands as its own PR.
 
-- [ ] **Dependency refresh** — the frontend build chain (vite) and the desktop toolchain (electron / electron-builder, which carries most of the open advisory count); one advisory has no upstream fix and gets dismissed with a written reason instead of pretending it is handled.
-- [ ] **Python 3.12 runtime baseline** — unlocks `IMAP4_SSL(timeout=…)` and lets the extra probe connection (and its test) be deleted; the packaged backend is rebuilt on 3.12 and smoke-tested on a real install.
-- [ ] **Agent & MCP line** — write tools for update / interview / questions / talks move from "the host is politely asked to show the diff" to **protocol-level confirmation** (multi-round-trip + signed request state); workspace files exposed as MCP resources; built-in prompt templates; the modern protocol with legacy compatibility kept.
-- [ ] **Plugin line** — the eight skills move onto the cross-host standard distribution channel and get a progressive-disclosure structure; the plugin shell grows from skills-only to commands + subagents; hooks get evaluated cautiously (local, auditable, default off).
-- [ ] **Tracker & question bank** — links on applications and interviews, a talks table of its own, and the question bank stops being a mirror of interview records: a first-class personal bank with import/export, a wrong-answer book and a "due today" review.
-- [ ] **Exams track** — stage names become per-track configuration (defaults identical to today, so an existing workspace changes in no way) so 考公 flows through the same workbench instead of a parallel one.
-- [ ] **Maintainer housekeeping** — the remaining post-release follow-ups (private incident follow-ups, stale local tooling directories, archiving superseded plans) stay tracked outside this file.
+- [x] **Versioning switch** (first) — timestamp release numbers end to end: the generator and the
+  derived tag check in `tools/release_assist.py` (`jobws release version`), the release-workflow
+  gates, the changelog / contributing rules, and an **about card in settings** showing the running
+  (machine) version and platform. **Build date was dropped**: nothing ever produced
+  `JOBWS_BUILD_DATE`, so the field could only render as empty (found in review, 2026-09-15).
+- [ ] **Question bank** — stops being a mirror of interview records: a first-class personal bank
+  with import/export (CSV and workspace Markdown, preview-then-apply with a one-shot token), a
+  wrong-answer book and a "due today" review; the talks table follow-ups land alongside.
+- [ ] **UI visual pass** — background depth, typography scale, seven-page polish and number
+  rendering (tabular figures); the acceptance bar is "a screenshot diff you can point at", carried
+  over from the earlier visual-polish plan (whose token and primitive layers already shipped).
+- [ ] **Agent & MCP line** — write tools move to **protocol-level confirmation** (multi-round-trip
+  + signed request state, four rejection classes tested) and the domain layer is extracted into an
+  installable package with a standalone-install smoke in CI; then workspace files become MCP
+  resources, prompt templates ship, and the modern protocol is kept with legacy compatibility.
+- [ ] **Exams track** — stage names become per-track configuration (defaults identical to today,
+  so an existing workspace changes in no way) so 考公 flows through the same workbench instead of
+  a parallel one; the question bank grows exam subject presets.
+- [ ] **Mail structuring** — extract candidate facts from message bodies (times, meeting links,
+  stages, companies) into suggestion cards that only write after row-by-row confirmation; no
+  background workers, ever.
+- [ ] **Skills & plugin distribution** — the eight skills move onto the cross-host standard
+  distribution channel with progressive disclosure; the plugin shell grows from skills-only to
+  commands + subagents; hooks stay local, auditable and off by default.
+
+**Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
+is stable for daily use and the workspace format promises **backward compatibility** — new columns
+and tables are read as empty when missing and written with unified headers, so no user-side
+conversion is ever required.
 
 ## Later
 
 - [x] Third-party domain profiles — **shipped in v0.3.0** (PR #103): [`docs/domain-contract.md`](docs/domain-contract.md) is the contribution contract and `jobws lint domains` validates a third-party profile (structure + dictionaries parse), so a new industry plugs in without touching core code
 - [x] **English UI (i18n)** — **shipped 2026-09-13** (details in the [changelog](CHANGELOG.md)): bilingual 简体中文 / English with a header switch, first run follows the system language, choice remembered; the domain enum *values* stay Chinese on purpose (shared contract with the CLI and your data). Closed [#19](https://github.com/chenxiang6663635/job-workbench/issues/19)
-- [x] Richer maintainer automation — **partly shipped in v0.3.0** (PR #103): `jobws release check --tag vX.Y.Z` validates the tag/version match and the changelog section, and prints the release notes CI will publish (the workflow assembles the Release body from the changelog). Anything beyond that still has to pay for itself
+- [x] Richer maintainer automation — **partly shipped in v0.3.0** (PR #103): `jobws release check --tag v26.09.15.1` validates the tag/version match (since 2026-09-15: the date-part rule of the timestamp scheme) and the changelog section, and prints the release notes CI will publish (the workflow assembles the Release body from the changelog). Anything beyond that still has to pay for itself
 - Accessibility and localization beyond zh-CN / en
 - [x] Desktop auto-update (electron-updater) — **shipped in v0.2.1** (asks twice: download, then restart; the first updater-enabled version still needed one manual install)
 - [x] **Real-time application status** — **shipped in v0.3.0**: the research (2026-09-11) found that no recruiting platform exposes a candidate-facing status API, so the answer is local — *paste the email* → parse (which record, what to change, and the sentence it came from) → confirm row by row → write, with a read-only IMAP pull as the optional sync on top (verified against a real mailbox, 2026-09-14). Extending the extraction to times, meeting links and talks is registered below

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -53,6 +54,27 @@ RETENTION_RULES = [
     (86400 * 30, 86400),     # 30 天内：每天至多一份
 ]
 WEEKLY_INTERVAL = 86400 * 7  # 更老：每周至多一份
+
+
+def _app_version():
+    """应用版本（机器形态 YY.M.D，如 26.9.15）。
+
+    打包版：主进程拉起后端时注入 JOBWS_APP_VERSION（= Electron app.getVersion()）；
+    开发模式：回退读仓库 web/electron/package.json 的 version。
+    两条都不可用时返回空串——「关于」区块据此显示「未知」，不编造版本。
+    """
+    injected = os.environ.get("JOBWS_APP_VERSION", "").strip()
+    if injected:
+        return injected
+    from deps import ROOT  # 函数内 import：本模块别处不依赖 deps
+    pkg = os.path.join(ROOT, "web", "electron", "package.json")
+    try:
+        with io.open(pkg, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return ""
+    version = data.get("version") if isinstance(data, dict) else None
+    return version.strip() if isinstance(version, str) else ""
 
 
 def _snapshot_dir(ws):
@@ -166,6 +188,13 @@ def system_paths(ws: str = Depends(workspace_dir)):
             [f for f in os.listdir(snap_dir) if f.endswith(".zip")]
         ) if os.path.isdir(snap_dir) else 0,
         "lastBackup": last,
+        # 「关于」区块（时间戳体系 2026-09-15）：版本 / 运行平台。
+        # 版本优先级：打包链注入的环境变量 → 仓库 package.json（开发模式）；
+        # 两者都不可用时为空串，前端按"有则显示"处理。
+        # 这里曾经还有 buildDate（读 JOBWS_BUILD_DATE），但全仓没有任何生产方
+        # （打包链与 main.js 都不设置它）——死字段不留，已删（第二轨 MAJOR-2）。
+        "appVersion": _app_version(),
+        "platform": sys.platform,
         # 无遥测声明：本地优先产品的信任基石，UI 直接展示
         "telemetry": False,
         "note": "全部数据只存在你这台机器，无遥测、无上传。",

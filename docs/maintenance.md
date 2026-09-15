@@ -7,13 +7,17 @@ for contributors and for anyone evaluating the project's health.
 
 - Releases are cut when there is something meaningful to ship, typically every
   1–3 weeks. No fixed calendar.
-- Versioning: semver; during 0.x, breaking changes bump the minor. The full
-  discipline lives in [CONTRIBUTING.md](../CONTRIBUTING.md).
+- Versioning: **timestamp**, not semver — release number `YY.MM.DD.N` (tag and
+  CHANGELOG section name), machine version `YY.M.D` (`web/electron/package.json`,
+  artifact name, `latest.yml`, and the About card in the UI). The full discipline
+  lives in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - Every release gets a changelog entry ([CHANGELOG.md](../CHANGELOG.md)) and
   GitHub release notes.
-- **Before tagging**, run `python tools/jobws.py release check --tag vX.Y.Z`
-  locally: it validates the tag/version match and the CHANGELOG section, and
-  prints the release notes CI will publish (same implementation).
+- **Before tagging**, run `python tools/jobws.py release check --tag v26.09.15.1`
+  locally: it validates the tag/version match (date triple) and the CHANGELOG
+  section, and prints the release notes CI will publish (same implementation).
+- Releases are cut once, at the end of a plan cycle — intermediate branches are
+  merged without bumping, tagging, or building an installer.
 
 ## Issue triage
 

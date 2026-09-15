@@ -35,6 +35,7 @@ import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jobws  # noqa: E402
 import jd_score  # noqa: E402
+import release_assist  # noqa: E402  （`release version` 的号要走同一套判定函数）
 import report  # noqa: E402
 import resume_build  # noqa: E402
 import tracker  # noqa: E402
@@ -42,7 +43,7 @@ import tracker  # noqa: E402
 # 有 CLI 面的入口（commit_header 是纯库，不在此列，见文末那条断言）
 CLI_MODULES = [["track"], ["report"], ["resume"], ["jd"], ["init"],
                ["skills", "install"], ["skills", "check"], ["lint", "pr-title"],
-               ["lint", "domains"], ["release", "check"]]
+               ["lint", "domains"], ["release", "check"], ["release", "version"]]
 
 TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
                        "interview", "talk", "contact", "offer", "import", "check"]
@@ -238,16 +239,40 @@ def test_check_skills_passes_on_repo_skills(monkeypatch, capsys):
 
 
 def test_domain_and_release_checks_pass_on_repo(monkeypatch, capsys):
-    """两条新入口的真实路径（与 CI 同一命令）：真仓库的插件与 CHANGELOG 都应过。
+    """两条入口的真实路径（与 CI 同一命令）：真仓库的插件清单必须过；
+    release check 只要求**可执行且给出结论**。
 
-    注意一处**刻意的连带**：release check 读的是当前 package.json 版本——发布
-    流程若「bump 了版本、还没落 CHANGELOG 段」，这条会红。那不是假阳性：版本
-    bump 与落章本就该在同一个 PR 里（CONTRIBUTING 发布步骤 2→3 相邻）。
+    时间戳体系（2026-09-15）之后，package.json 的版本是"下一个待发布"的机器形态
+    （如 26.9.15），而 CHANGELOG 段要等**发布时**才落章——因此「未落章 → 退出码 1」
+    是正常状态，不是缺陷（旧体系"bump 与落章必须同 PR"的假设已随单一发布节点作废）。
+    真错是退出码 2（文件缺失/读取失败）。
     """
     code, out = _invoke_jobws(monkeypatch, capsys, ["lint", "domains"])
     assert code == 0, out
     code, out = _invoke_jobws(monkeypatch, capsys, ["release", "check"])
+    assert code in (0, 1), out
+    assert "版本：" in out, out
+    # 同为退出码 1 也要区分原因：「段缺失」（未落章，正常）与「读取失败」（真错）
+    # 不能混为一谈——否则这条例句对抽取逻辑漂移已经失去意义（第二轨 MINOR-13）。
+    if code == 1:
+        assert "CHANGELOG" in out, out
+        assert "读取" not in out, out
+
+
+def test_release_version_prints_next_timestamp_number(monkeypatch, capsys):
+    """`jobws release version`：打印「今日若发布」的号（YY.MM.DD.N）与当前机器版本。"""
+    code, out = _invoke_jobws(monkeypatch, capsys, ["release", "version"])
     assert code == 0, out
+    lines = [line for line in out.splitlines() if "今日版本号：" in line]
+    assert lines, out
+    number = lines[0].split("：", 1)[1].strip()
+    assert len(number.split(".")) == 4, number          # YY.MM.DD.N
+    # 只数段数钉不住任何东西——走同一套判定函数，把月/日的取值范围也验上；
+    # 且不依赖"测试跑在当天"，避免跨日 flaky（第二轨 MINOR-14）。
+    parsed = release_assist.version_tuple(number)
+    assert parsed is not None, number
+    assert parsed[3] >= 1, number                       # N 从 1 起
+    assert "当前 package.json 版本：" in out, out
 
 
 def test_install_skills_dry_run_validates_but_writes_nothing(monkeypatch, capsys):
@@ -355,7 +380,7 @@ def test_dispatch_exit_codes(argv, expected, monkeypatch, capsys):
 
 
 def test_command_map_covers_every_merged_module():
-    """13 个命令全部有映射，且每个模块仍然真的暴露 main()。
+    """14 个命令全部有映射，且每个模块仍然真的暴露 main()。
 
     安全网改走 jobws 之后，命令到模块的映射只由 TARGETS / SUB_TARGETS 单方保证；
     这里从「模块侧」反查一遍，免得改映射时悄悄漏掉一个。数字改动必须显式经过
@@ -367,7 +392,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 13, sorted(mapped)
+    assert len(mapped) == 14, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

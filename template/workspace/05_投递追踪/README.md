@@ -7,6 +7,9 @@
 | 文件 | 说明 |
 |---|---|
 | `tracker.csv` | 追踪表。首次 `jobws track add` 时自动创建，不要手工编辑 |
+| `interviews.csv` | 面试记录。首次 `jobws track interview add` 时自动创建 |
+| `talks.csv` | 宣讲会 / 招聘会。首次 `jobws track talk add` 时自动创建 |
+| `questions.csv` | 面试题库。首次 `jobws bank add`（或 `bank import`）时自动创建 |
 | `_示例_tracker.csv` | **仅用于查看字段长什么样**，可随时删除。脚本不会读它 |
 | `看板.md` | `jobws report` 生成的漏斗看板，每次运行覆盖 |
 | `applications/<公司>_<岗位>/` | 每次投递归档 |

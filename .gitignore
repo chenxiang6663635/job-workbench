@@ -35,8 +35,10 @@ test_ws/
 #   python tools/init_workspace.py --target demo-shots --demo  ← 本机拍 README 截图用
 # 数据骨架在 template/demo/。任何需要 demo 工作区的流程都应跑这条命令重建，不要手工
 # 攒数据——手工产物与命令产物一旦分叉，截图就不再代表首次体验。
-demo/
-demo-shots/
+# 前导斜杠是关键：不带时 `demo/` 会匹配任意深度的同名目录，把 template/demo/
+# （骨架源，必须入库）一起忽略——往骨架里加文件时会静默漏提交。
+/demo/
+/demo-shots/
 
 # 开发辅助工具的本地索引产物（运行时生成，clone 后跑 scripts/index_dev_tools.ps1 重建）
 # 均可能含数十 MB 解析缓存，不进版本管理；另注意：这些目录索引的是本机个人工作区的代码，

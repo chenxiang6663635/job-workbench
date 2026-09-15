@@ -204,6 +204,15 @@ def test_source_whitespace_is_normalised_on_write(tmp_path, client):
     assert res.json()["item"]["来源"] == "内推"
 
 
+def test_link_whitespace_is_normalised_on_patch(tmp_path, client):
+    """PATCH 路径与新增路径同一口径：带空格的链接在写盘前归一（独立审查 m1）。"""
+    _make_tracking(tmp_path, [ONE_ROW])
+    res = client.patch("/api/applications/A001", params={"ws": WS},
+                       json={"链接": " https://example.com/job/9 "})
+    assert res.status_code == 200
+    assert res.json()["item"]["链接"] == "https://example.com/job/9"
+
+
 # ---- 状态建议（B11）：文案来自 tools/ 的校验函数，code 由路由补 ----
 
 def test_suggest_requires_text_with_code(client):

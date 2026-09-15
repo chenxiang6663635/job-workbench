@@ -157,6 +157,9 @@ def update_interview(
     _validate_enum(item.轮次, item.形式, item.结果)
 
     updates = {k: v for k, v in item.dict().items() if v is not None}
+    # 「链接」与新增路径同一口径：落盘前 strip（否则变更比较也会被空白搅乱）
+    if "链接" in updates:
+        updates["链接"] = (updates["链接"] or "").strip()
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 

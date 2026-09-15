@@ -534,7 +534,8 @@ export interface ImapFetchResult {
 }
 
 export const BATCHES = ["提前批", "正式批", "补录"];
-// 来源枚举，与后端 tracker.SOURCES 和「来源」自检校验一致（单一真值源在后端）。
+// 来源枚举：校验只认后端 tracker.SOURCES 那一份，这里是展示用的同步副本——
+// 新增来源必须同批改 tracker.py，否则会出现「下拉能选、保存被拒」。
 export const SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推",
   "宣讲会", "招聘会", "其他"];
 // 方向 ID 取决于工作区装入的领域插件（后端 available_directions 动态读

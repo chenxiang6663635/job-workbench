@@ -392,6 +392,9 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
                 raise ApiError(422, "app.dateFormat", errs[0], label=label, value=field)
 
     updates = {k: v for k, v in patch.model_dump().items() if v is not None and k in UPDATABLE}
+    # 「链接」与新增路径同一口径：落盘前 strip——否则「 https://… 」带空格原样进 CSV
+    if "链接" in updates:
+        updates["链接"] = str(updates["链接"]).strip()
     if not updates:
         raise ApiError(422, "app.noFieldsToUpdate", "没有提供任何要更新的字段")
 

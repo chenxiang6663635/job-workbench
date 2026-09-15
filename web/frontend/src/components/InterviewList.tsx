@@ -206,12 +206,15 @@ export default function InterviewList() {
                     {current.面试时间 && ` · ${current.面试时间}`}
                     {current.面试官 && ` · ${t("interview.interviewer", { value: current.面试官 })}`}
                   </p>
-                  {/* 会议/作答链接：点开去开会或做题。无链接的历史记录不占位 */}
+                  {/* 会议/作答链接：点开去开会或做题。无链接的历史记录不占位；
+                      title 与 aria-label 与岗位链接（Applications 表格）对齐 */}
                   {current.链接 && (
                     <a
                       href={current.链接}
                       target="_blank"
                       rel="noreferrer"
+                      title={t("interview.meetingUrlLink")}
+                      aria-label={t("interview.meetingUrlLink")}
                       className="mt-0.5 inline-block text-xs text-primary hover:underline"
                     >
                       {t("interview.meetingUrlLink")}

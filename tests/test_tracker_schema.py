@@ -166,6 +166,19 @@ def test_preview_add_normalises_source_whitespace(tmp_path):
     assert plan["payload"]["fields"]["来源"] == "内推"
 
 
+def test_preview_update_normalises_link_whitespace(tmp_path):
+    """update 与 add 同一口径：链接在任何写路径都 strip 后落盘（独立审查 m1）。"""
+    ws = _ws(tmp_path)
+    row = {field: "" for field in tracker.FIELDS}
+    row.update({"id": "A001", "公司": "示例公司", "岗位": "示例岗位",
+                "方向": "other", "批次": "正式批", "当前阶段": "已投"})
+    tracker.write_rows([row], ws)
+    errors, plan = tracker.preview_update_fields(
+        {"id": "A001", "changes": {"链接": " https://example.com/j "}}, ws)
+    assert errors == [] and plan
+    assert plan["payload"]["changes"]["链接"] == "https://example.com/j"
+
+
 # --- 4. 单调性回归（解析器与词表共用口径）------------------------------------
 
 def test_stage_rank_follows_the_new_order():

@@ -157,6 +157,24 @@ def test_skeleton_is_committed_in_repo():
     assert missing == [], "demo 骨架缺文件：%s" % missing
 
 
+def test_skeleton_csv_headers_track_current_fields():
+    """骨架 CSV 的列头必须与当前 FIELDS / INTERVIEW_FIELDS 一致。
+
+    示例文件是「字段长什么样」的最直观文档；它落后于真值源时，用户会照着旧列集
+    理解数据（v0.4.0-A 独立审查发现模板 README 与示例曾停在旧枚举/旧字段）。
+    """
+    checks = [
+        (os.path.join("workspace", "05_投递追踪", "_示例_tracker.csv"), tracker.FIELDS),
+        (os.path.join("demo", "05_投递追踪", "tracker.csv"), tracker.FIELDS),
+        (os.path.join("demo", "05_投递追踪", "interviews.csv"), tracker.INTERVIEW_FIELDS),
+    ]
+    for rel, fields in checks:
+        path = os.path.join(ROOT, "template", rel)
+        with open(path, "r", encoding="utf-8-sig", newline="") as fh:
+            header = next(csv.reader(fh))
+        assert header == fields, "%s 的列头与当前字段集不一致：%s" % (rel, header)
+
+
 def test_demo_missing_skeleton_fails_readably(tmp_path, monkeypatch, capsys):
     """骨架被删/改名时要给出可读错误并返回 1，而不是抛栈。"""
     monkeypatch.setattr(init_workspace, "DEMO", os.path.join(str(tmp_path), "已删除骨架"))

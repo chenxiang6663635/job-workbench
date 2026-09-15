@@ -1034,7 +1034,8 @@ def _validate_add_fields(fields, workspace=None):
     if batch not in BATCHES:
         errors.append("`--batch` 必须是 %s 之一，实际为 `%s`" % ("/".join(BATCHES), batch))
     # strip 后再判：与 import / Web API / run_check 三处同一口径。
-    # （调用方若非 preview_add_fields——当下没有，未来可能有——也不至于口径分叉）
+    # 注意：落盘值的归一在 preview_add_fields 完成（本函数只负责判定）——
+    # 绕过它直接拿返回字段落盘的调用方，需自行 strip。
     source = (fields.get("来源") or "").strip()
     if source and source not in SOURCES:
         errors.append("`--source` 必须是 %s 之一，实际为 `%s`" % ("/".join(SOURCES), source))
@@ -1251,6 +1252,10 @@ def preview_update_fields(payload, workspace=None):
     ws = resolve_ws(workspace)
     app_id = (payload.get("id") or "").strip()
     changes = dict(payload.get("changes") or {})
+    # 「链接」与新增路径同一口径：落盘前归一（校验与写入都不该看到带空格的原值；
+    # 两段式的两边都经过这里，归一后的值随载荷进令牌，落盘段不再二次处理）
+    if "链接" in changes:
+        changes["链接"] = (changes["链接"] or "").strip()
     target = _find_by_id(read_rows(ws), app_id)
     if target is None:
         return ["找不到 id 为 `%s` 的记录" % app_id], None

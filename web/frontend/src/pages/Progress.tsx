@@ -1,17 +1,19 @@
 import { useState } from "react";
-import { BookOpen, CalendarClock, Scale, Users } from "lucide-react";
+import { BookOpen, CalendarClock, Megaphone, Scale, Users } from "lucide-react";
 import ContactList from "../components/ContactList";
 import InterviewList from "../components/InterviewList";
 import OfferCompare from "../components/OfferCompare";
 import QuestionBank from "../components/QuestionBank";
+import TalkList from "../components/TalkList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
-type SubTab = "interviews" | "contacts" | "offers" | "questions";
+type SubTab = "interviews" | "talks" | "contacts" | "offers" | "questions";
 
 const SUBTABS: { key: SubTab; labelKey: TranslationKey; icon: React.ReactNode }[] = [
   { key: "interviews", labelKey: "progress.interviews", icon: <CalendarClock size={15} /> },
+  { key: "talks", labelKey: "progress.talks", icon: <Megaphone size={15} /> },
   { key: "questions", labelKey: "progress.questions", icon: <BookOpen size={15} /> },
   { key: "contacts", labelKey: "progress.contacts", icon: <Users size={15} /> },
   { key: "offers", labelKey: "progress.offers", icon: <Scale size={15} /> },
@@ -40,6 +42,9 @@ export default function Progress() {
         </TabsList>
         <TabsContent value="interviews">
           <InterviewList />
+        </TabsContent>
+        <TabsContent value="talks">
+          <TalkList />
         </TabsContent>
         <TabsContent value="questions">
           <QuestionBank />

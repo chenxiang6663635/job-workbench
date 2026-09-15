@@ -389,6 +389,19 @@ export interface GapTerm {
   level: string;
 }
 
+// 宣讲会 / 招聘会（v0.4.0-A）：独立表 talks.csv，与投递记录用「关联记录」相连。
+export interface Talk {
+  宣讲会id: string;
+  公司: string;
+  时间: string;
+  形式: string;
+  地点或链接: string;
+  关联记录: string;
+  是否参加: string;
+  收获: string;
+  备注: string;
+}
+
 export interface GapResult {
   jd: string;
   resume: string;
@@ -548,6 +561,10 @@ export const INTERVIEW_ROUNDS = ["测评", "笔试", "AI面", "群面", "一面"
   "三面", "HR面", "终面", "其他"];
 export const INTERVIEW_FORMS = ["现场", "视频", "电话", "其他"];
 export const INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"];
+
+// 宣讲会 / 招聘会枚举，与后端 tracker.TALK_* 一致（单一事实源在 tools/tracker.py）
+export const TALK_FORMS = ["线上", "线下", "其他"];
+export const TALK_ATTEND = ["待定", "参加", "不参加"];
 
 // 全局当前工作区（相对仓库根，如 personal）。空 = 用后端默认。
 /** 新建工作区的预览结果（两段式的第一步：不落盘，只登记一次性令牌）。 */
@@ -805,6 +822,28 @@ export const api = {
 
   interviewIcsUrl: () => {
     const base = "/api/progress/interviews.ics";
+    return currentWorkspace
+      ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
+      : base;
+  },
+
+  // 宣讲会 / 招聘会（v0.4.0-A）
+  listTalks: (app?: string) =>
+    request<{ rows: Talk[]; total: number }>(
+      `/progress/talks${app ? `?app=${encodeURIComponent(app)}` : ""}`
+    ),
+
+  createTalk: (body: Partial<Talk>) =>
+    request<Talk>("/progress/talks", { method: "POST", body }),
+
+  updateTalk: (id: string, body: Partial<Talk>) =>
+    request<Talk & { _changed?: string[] }>(
+      `/progress/talks/${encodeURIComponent(id)}`,
+      { method: "PATCH", body }
+    ),
+
+  talksIcsUrl: () => {
+    const base = "/api/progress/talks.ics";
     return currentWorkspace
       ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
       : base;

@@ -60,6 +60,21 @@ jobws track interview update --id I001 --result 通过 --retro "..."
 - `--link` 存会议/作答链接（在线面试的入会地址、线上笔试的作答页）
 - Web 端「进展」页可录入面试并导出 `.ics` 日程（提前 1 小时提醒）
 
+## 宣讲会 / 招聘会
+
+宣讲会与投递记录用「关联记录」相连（`关联记录` 指回 tracker.csv 的 id），存独立文件 `05_投递追踪/talks.csv`（`宣讲会id` 从 T001 起）。它们是投递之前最早的信息入口，**不推进任何阶段、也不入主表时间线**。
+
+```
+jobws track talk add --company 某公司 --when "2026-09-20 14:00" --form 线上 --attend 待定 --gain "讲了流程"
+jobws track talk add --app A001 --attend 参加     # 关联已有投递记录（公司自动带出）
+jobws track talk list                             # 时间倒序
+jobws track talk update --id T001 --attend 参加
+```
+
+- 形式：线上 / 线下 / 其他；是否参加：待定 / 参加 / 不参加
+- 未关联记录时必须给 `--company`；`--app` 指到不存在的记录会被拒绝
+- Web 端「进展」页的「宣讲会」页签可录入并导出 `.ics` 日程
+
 ## 字段约束
 
 | 字段 | 取值 |

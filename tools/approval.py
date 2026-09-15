@@ -190,6 +190,7 @@ _OPERATIONS = {
     "track.add": tracker.apply_approved_add,
     "track.update": tracker.apply_approved_update,
     "track.import": tracker.apply_approved_import,
+    "talk.add": tracker.apply_approved_talk,
     "init": init_workspace.apply_approved_init,
 }
 

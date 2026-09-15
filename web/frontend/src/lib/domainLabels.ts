@@ -22,6 +22,8 @@ export type DomainGroup =
   | "form"
   | "result"
   | "source"
+  | "talkForm"
+  | "talkAttend"
   | "jobState";
 
 /**

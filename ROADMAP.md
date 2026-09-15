@@ -32,10 +32,11 @@ machine-readable `package.json` version is that day's `YY.M.D`, and the tag is `
 every batch below lands before it, none of them ships on its own, and the whole plan goes out as
 **one timestamped release**. Each batch still lands as its own PR.
 
-- [ ] **Versioning switch** (first) — timestamp release numbers end to end: the generator and the
+- [x] **Versioning switch** (first) — timestamp release numbers end to end: the generator and the
   derived tag check in `tools/release_assist.py` (`jobws release version`), the release-workflow
   gates, the changelog / contributing rules, and an **about card in settings** showing the running
-  version (plus build date and platform).
+  (machine) version and platform. **Build date was dropped**: nothing ever produced
+  `JOBWS_BUILD_DATE`, so the field could only render as empty (found in review, 2026-09-15).
 - [ ] **Question bank** — stops being a mirror of interview records: a first-class personal bank
   with import/export (CSV and workspace Markdown, preview-then-apply with a one-shot token), a
   wrong-answer book and a "due today" review; the talks table follow-ups land alongside.

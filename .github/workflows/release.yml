@@ -58,6 +58,13 @@ jobs:
           # 拉的任何代码都能拿它直接 push。构建链不需要凭证，一律不带。
           persist-credentials: false
 
+      # 先钉解释器再跑闸：两道闸都调 `jobws`（release_assist）——用 runner 自带的
+      # python 等于把发布判据押在一个未钉版的解释器上（第二轨 MINOR-6）。
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
       # 版本号唯一来源是 web/electron/package.json（CONTRIBUTING 的规定）。
       # tag 与它不一致时直接停下：资产名 job-workbench-setup-<ver>-win64.exe 里的 ver
       # 取自 package.json，若两者不同，用户下载到的东西名字与实际版本就对不上。
@@ -97,11 +104,6 @@ jobs:
           } else {
             Write-Host "手动触发（非 tag、未提供演练 tag），跳过 tag 一致性校验"
           }
-
-      - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
 
       # CHANGELOG 是「使用者可见变更」的唯一台账（CONTRIBUTING 的规定）。缺条目就拒绝
       # 发布——这正是本批次要修的那类漂移：v0.1.1 之后 5 个 feat 一条都没记。

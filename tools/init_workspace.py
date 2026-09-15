@@ -14,7 +14,7 @@
     4. 若指定 --demo，再把 template/demo/ 的占位数据铺上去（覆盖空骨架）
 
 --demo 的意义：开箱就能看到填满数据的界面（8 条投递 / 3 场面试 / 2 位联系人 /
-1 个 Offer / 2 张解析卡 / 1 份简历），用于评估、截图与教学。数据全部是占位
+1 个 Offer / 3 场宣讲会 / 6 道题 / 2 张解析卡 / 1 份简历），用于评估、截图与教学。数据全部是占位
 （示例科技、云帆智算、13800000000、sample@example.com），不含任何真实信息。
 demo 数据的「方向」字段用的是 software-backend 插件的 direction id，因此
 --demo 未显式指定 --domain 时会默认装入该插件。
@@ -126,6 +126,8 @@ def demo_counts():
         "interviews": rows("05_投递追踪/interviews.csv"),
         "contacts": rows("05_投递追踪/contacts.csv"),
         "offers": rows("05_投递追踪/offers.csv"),
+        "talks": rows("05_投递追踪/talks.csv"),
+        "questions": rows("05_投递追踪/questions.csv"),
         "jobs": dirs("01_岗位池"),
         "resumes": dirs("02_简历工坊/source", suffix=".json"),
     }
@@ -338,7 +340,8 @@ def main():
     parser.add_argument("--target", default="personal", help="目标目录名，相对仓库根")
     parser.add_argument("--domain", help="要装入的领域插件 ID，如 hvac-cooling")
     parser.add_argument("--demo", action="store_true",
-                        help="额外铺上占位 demo 数据（8 投递 / 3 面试 / 2 联系人 / 1 Offer）")
+                        help="额外铺上占位 demo 数据（8 投递 / 3 面试 / 2 联系人 / "
+                             "1 Offer / 3 宣讲会 / 6 道题）")
     parser.add_argument("--force", action="store_true", help="目标已存在时仍继续")
     parser.add_argument("--preview", action="store_true",
                         help="只预览将新建 / 覆盖哪些文件（不落盘）；"
@@ -397,9 +400,11 @@ def main():
             print("      注：tracker check 不校验方向，校验它的是 tracker add 与 list --direction。")
         counts = demo_counts()
         print("已装入 demo 数据（全部为占位信息，可放心截图）")
-        print("  已装入：%d 条投递 / %d 场面试 / %d 位联系人 / %d 个 Offer / %d 张解析卡 / %d 份简历"
+        print("  已装入：%d 条投递 / %d 场面试 / %d 位联系人 / %d 个 Offer / "
+              "%d 场宣讲会 / %d 道题 / %d 张解析卡 / %d 份简历"
               % (counts["tracker"], counts["interviews"], counts["contacts"],
-                 counts["offers"], counts["jobs"], counts["resumes"]))
+                 counts["offers"], counts["talks"], counts["questions"],
+                 counts["jobs"], counts["resumes"]))
     if replaced:
         print("")
         print("注意：以下 %d 个文件本来已存在，已被 demo 数据覆盖：" % len(replaced))

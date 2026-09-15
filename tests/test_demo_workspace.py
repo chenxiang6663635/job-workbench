@@ -38,6 +38,7 @@ PLACEHOLDER_EMAIL = "sample@example.com"
 PLACEHOLDER_ORGS = {
     "示例科技", "云帆智算", "星河物流", "蓝湖数科",
     "极光支付", "青梧文档", "白泽安全", "沧澜云",
+    "校园双选会（秋季）",   # talks.csv 里未关联投递的活动记录（多公司场合）
 }
 PLACEHOLDER_PEOPLE = {"示例同学", "李工", "王老师", "张工", "陈工"}
 PLACEHOLDER_SCHOOLS = {"示例大学"}
@@ -45,6 +46,7 @@ PLACEHOLDER_SCHOOLS = {"示例大学"}
 # 逐列指定白名单：列名写错时下面「一条都没检查到」的断言会立刻失败
 IDENTITY_COLUMNS = {
     "公司": PLACEHOLDER_ORGS,
+    "关联公司": PLACEHOLDER_ORGS,
     "姓名": PLACEHOLDER_PEOPLE,
     "面试官": PLACEHOLDER_PEOPLE,
 }
@@ -59,6 +61,8 @@ EXPECTED_DATA_FILES = [
     "05_投递追踪/contacts.csv",
     "05_投递追踪/offers.csv",
     "05_投递追踪/history.csv",
+    "05_投递追踪/talks.csv",
+    "05_投递追踪/questions.csv",
     "02_简历工坊/source/resume_backend.json",
 ]
 
@@ -99,6 +103,20 @@ def _read(path):
 def test_demo_creates_all_data_files(demo_ws):
     for rel in EXPECTED_DATA_FILES:
         assert os.path.isfile(os.path.join(demo_ws, rel)), "缺少 %s" % rel
+
+
+def test_demo_data_tables_have_rows(demo_ws):
+    """两表不能只剩表头——「满数据工作区」的承诺要有实际行数背书。
+
+    第二轨 MINOR：只断言「文件存在 + 表头正确」时，数据被清空成只剩表头
+    仍会全绿——条数锁在这里（往 demo 加数据时显式改这条）。
+    """
+    tracking = os.path.join(demo_ws, "05_投递追踪")
+    for name, expected in (("talks.csv", 3), ("questions.csv", 6)):
+        with open(os.path.join(tracking, name), "r",
+                  encoding="utf-8-sig", newline="") as fh:
+            count = len(list(csv.DictReader(fh)))
+        assert count == expected, "%s 应有 %d 行数据，实际 %d" % (name, expected, count)
 
 
 def test_demo_creates_two_parsed_job_cards(demo_ws):
@@ -167,6 +185,9 @@ def test_skeleton_csv_headers_track_current_fields():
         (os.path.join("workspace", "05_投递追踪", "_示例_tracker.csv"), tracker.FIELDS),
         (os.path.join("demo", "05_投递追踪", "tracker.csv"), tracker.FIELDS),
         (os.path.join("demo", "05_投递追踪", "interviews.csv"), tracker.INTERVIEW_FIELDS),
+        (os.path.join("demo", "05_投递追踪", "talks.csv"), tracker.TALK_FIELDS),
+        (os.path.join("demo", "05_投递追踪", "questions.csv"),
+         tracker.QUESTION_FIELDS),
     ]
     for rel, fields in checks:
         path = os.path.join(ROOT, "template", rel)
@@ -187,6 +208,8 @@ def test_plain_init_has_no_filled_tracker(tmp_path, monkeypatch):
     assert _run_init(monkeypatch, tmp_path, ["--target", "plain"]) == 0
     plain = os.path.join(str(tmp_path), "plain", "05_投递追踪")
     assert not os.path.isfile(os.path.join(plain, "tracker.csv"))
+    assert not os.path.isfile(os.path.join(plain, "talks.csv"))
+    assert not os.path.isfile(os.path.join(plain, "questions.csv"))
     assert os.path.isfile(os.path.join(plain, "_示例_tracker.csv"))
 
 
@@ -223,7 +246,8 @@ def test_demo_identity_fields_are_allowlisted(demo_ws):
     """demo 里的公司/人名必须都在占位白名单里（手机号正则挡不住真实公司名）。"""
     tracking = os.path.join(demo_ws, "05_投递追踪")
     checked = 0
-    for name in ("tracker.csv", "interviews.csv", "contacts.csv", "offers.csv"):
+    for name in ("tracker.csv", "interviews.csv", "contacts.csv", "offers.csv",
+                 "talks.csv", "questions.csv"):
         with open(os.path.join(tracking, name), "r", encoding="utf-8-sig", newline="") as fh:
             for row in csv.DictReader(fh):
                 for column, allowed in IDENTITY_COLUMNS.items():

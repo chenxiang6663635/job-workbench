@@ -77,6 +77,25 @@ export default {
   "a4.previewTitle": "Resume preview",
   "a4.scaledNotice": "Preview scaled to {{percent}}% (layout matches the generated PDF)",
 
+  // Question bank (questions.csv), two views: my bank = what to prepare,
+  // asked before = what actually happened. Status/domain/origin values are the real
+  // data in the workspace — translating them would be renaming the data.
+  "bank.tabMyBank": "My bank",
+  "bank.tabAsked": "Asked before",
+  "bank.searchPlaceholder": "Search questions, notes, or tags…",
+  "bank.statusFilter": "Filter by status",
+  "bank.allStatus": "Any status",
+  "bank.import": "Import from 03_面试准备",
+  "bank.importing": "Parsing…",
+  "bank.confirmImport": "Confirm import",
+  "bank.emptyNoData": "Your question bank is empty",
+  "bank.emptyHintNoData":
+    "Use Import above to pull in Markdown from 03_面试准备, or add one with jobws bank add",
+  "bank.emptyNoMatch": "No questions match",
+  "bank.emptyHintNoMatch": "Try another keyword, or set the status filter back to Any",
+  "bank.count_one": "{{count}} question",
+  "bank.count_other": "{{count}} questions",
+
   "question.searchPlaceholder": "Search questions, answers, or retrospectives…",
   "question.searching": "Searching…",
   "question.roundMissing": "Round not set",
@@ -697,6 +716,9 @@ export default {
 
   "err.lib.unknownSection": "Unknown library section: {{section}}",
   "err.lib.fileNotFound": "File not found: {{rel}}",
+
+  // Question bank import (1a): parsing Markdown from 03_面试准备; reasons come back verbatim
+  "err.question.importFailed": "Cannot import from {{module}}: {{reason}}",
 
   "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",

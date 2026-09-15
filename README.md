@@ -59,7 +59,8 @@ All pages below run on generated demo data (`init_workspace.py --demo`); compani
 
 ```bash
 # 0. Just want to look around first? One command gives you a filled demo workspace
-#    (8 applications / 3 interviews / 2 contacts / 1 offer, all placeholder data)
+#    (8 applications / 3 interviews / 2 contacts / 1 offer / 3 talks & job fairs
+#     / 6 question-bank items, all placeholder data)
 python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)

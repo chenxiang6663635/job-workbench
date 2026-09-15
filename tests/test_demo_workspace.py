@@ -105,6 +105,20 @@ def test_demo_creates_all_data_files(demo_ws):
         assert os.path.isfile(os.path.join(demo_ws, rel)), "缺少 %s" % rel
 
 
+def test_demo_data_tables_have_rows(demo_ws):
+    """两表不能只剩表头——「满数据工作区」的承诺要有实际行数背书。
+
+    第二轨 MINOR：只断言「文件存在 + 表头正确」时，数据被清空成只剩表头
+    仍会全绿——条数锁在这里（往 demo 加数据时显式改这条）。
+    """
+    tracking = os.path.join(demo_ws, "05_投递追踪")
+    for name, expected in (("talks.csv", 3), ("questions.csv", 6)):
+        with open(os.path.join(tracking, name), "r",
+                  encoding="utf-8-sig", newline="") as fh:
+            count = len(list(csv.DictReader(fh)))
+        assert count == expected, "%s 应有 %d 行数据，实际 %d" % (name, expected, count)
+
+
 def test_demo_creates_two_parsed_job_cards(demo_ws):
     """岗位池里要有解析卡 + JD 原文，否则岗位页是空的，demo 就没意义。"""
     pool = os.path.join(demo_ws, "01_岗位池")

@@ -340,7 +340,8 @@ def main():
     parser.add_argument("--target", default="personal", help="目标目录名，相对仓库根")
     parser.add_argument("--domain", help="要装入的领域插件 ID，如 hvac-cooling")
     parser.add_argument("--demo", action="store_true",
-                        help="额外铺上占位 demo 数据（8 投递 / 3 面试 / 2 联系人 / 1 Offer）")
+                        help="额外铺上占位 demo 数据（8 投递 / 3 面试 / 2 联系人 / "
+                             "1 Offer / 3 宣讲会 / 6 道题）")
     parser.add_argument("--force", action="store_true", help="目标已存在时仍继续")
     parser.add_argument("--preview", action="store_true",
                         help="只预览将新建 / 覆盖哪些文件（不落盘）；"

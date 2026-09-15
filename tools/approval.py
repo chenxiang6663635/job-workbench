@@ -193,6 +193,7 @@ _OPERATIONS = {
     "track.import": tracker.apply_approved_import,
     "talk.add": tracker.apply_approved_talk,
     "question.add": question_bank.apply_approved_add,
+    "question.update": question_bank.apply_approved_update,
     "question.import": question_bank.apply_approved_import,
     "init": init_workspace.apply_approved_init,
 }

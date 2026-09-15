@@ -192,3 +192,31 @@ def test_apply_rejects_all_duplicate_payload(ws):
     with pytest.raises(tracker.ConflictError):
         question_bank.apply_approved_import(
             {"items": [{"题目": "TCP", "领域": "技术面"}]}, ws)
+
+
+def test_update_changes_status_and_stamps_review_date(ws):
+    """状态改为「会了」时自动记最近复习——复习过就该有日期，不靠用户另填一次。"""
+    _add(ws, "TCP", "技术面")
+    errors, plan = question_bank.preview_update_fields("Q001", {"状态": "会了"}, ws)
+    assert not errors, errors
+    question_bank.apply_approved_update(plan["payload"], ws)
+    row = question_bank.read_questions(ws)[0]
+    assert row["状态"] == "会了"
+    assert row["最近复习"]
+
+
+def test_update_rejects_unknown_id(ws):
+    errors, plan = question_bank.preview_update_fields("Q999", {"状态": "看过"}, ws)
+    assert plan is None
+    assert any("找不到" in e for e in errors)
+
+
+def test_scan_reports_unreadable_and_empty_files(ws):
+    """读不动 / 没有正文的文件必须进跳过清单——在"预览即承诺"的两段式里，
+    少给题比报错更危险（用户会以为就这些）。"""
+    _write_md(ws, "技术面/tcp.md", "# TCP\n\n要点。\n")
+    _write_md(ws, "技术面/empty.md", "")
+    skipped = []
+    items = question_bank.scan_markdown(ws, skipped=skipped)
+    assert [i["题目"] for i in items] == ["TCP"]
+    assert any("empty.md" in path for path, _reason in skipped)

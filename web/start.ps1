@@ -88,7 +88,20 @@ Write-Host "检查运行依赖..." -ForegroundColor Cyan
 function Resolve-BackendPython {
     $candidates = @()
     if ($Py) { $candidates += $Py }
-    if ($env:JOBWS_PYTHON) { $candidates += $env:JOBWS_PYTHON }
+    if ($env:JOBWS_PYTHON) {
+        $candidates += $env:JOBWS_PYTHON
+    } else {
+        # `setx JOBWS_PYTHON ...` 只对**新开**的终端生效。刚设完、还在同一个终端里跑本脚本时，
+        # 进程环境里并没有它——用户会以为"设置了却没生效"。所以这里把**已保存的用户级设置**
+        # 也当候选（本次会话显式设的 $env:JOBWS_PYTHON 优先级更高，走上面的分支）。
+        try {
+            $persisted = [Environment]::GetEnvironmentVariable("JOBWS_PYTHON", "User")
+            if ($persisted) {
+                $candidates += $persisted
+                Write-Host "  提示：本次终端还没刷新环境变量，先用 setx 保存的值试试。" -ForegroundColor DarkGray
+            }
+        } catch { }
+    }
     $venvPy = Join-Path $root ".venv\Scripts\python.exe"
     if (Test-Path $venvPy) { $candidates += $venvPy }
     $cmd = Get-Command "python" -ErrorAction SilentlyContinue
@@ -118,7 +131,7 @@ function Resolve-BackendPython {
 $backendPy = Resolve-BackendPython
 if (-not $backendPy) {
     Write-Host "错误：找不到可用的后端解释器（需要 Python 3.9+ 且装了 fastapi/uvicorn）。" -ForegroundColor Red
-    Write-Host "  已尝试：-Py 参数、JOBWS_PYTHON、$root\.venv、PATH 上的 python。" -ForegroundColor Red
+    Write-Host "  已尝试：-Py 参数、JOBWS_PYTHON（含 setx 保存的用户级设置）、$root\.venv、PATH 上的 python。" -ForegroundColor Red
     Write-Host "  修法（任选其一）：" -ForegroundColor Yellow
     Write-Host "    1) 设一次环境变量指向你的 3.12 venv，再重跑本脚本：" -ForegroundColor Yellow
     Write-Host '       setx JOBWS_PYTHON "<venv>\Scripts\python.exe"' -ForegroundColor Yellow

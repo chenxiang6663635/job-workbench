@@ -7,7 +7,7 @@
 与 package.json 版本不一致）留到「tag 已经推上去了」才发现。本模块把这两件
 事收敛成一条命令，本地与 CI 同源：
 
-- 本地（打 tag **前**）：`jobws release check --tag v0.3.0` —— 红着就别打 tag。
+- 本地（打 tag **前**）：`jobws release check --tag v26.09.15.1` —— 红着就别打 tag。
 - CI（release.yml 的抽段步骤）：`jobws release check --version <ver>
   --notes-out release-notes.md` —— 与本地同一实现，不再维护第二份 pwsh。
 
@@ -43,8 +43,11 @@ CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 # 机器版本为什么不带 N：实测 electron-builder 会把 build metadata（`+N`）在
 # 产物文件名与 latest.yml 两处剥离（26.9.15+1 → 26.9.15），且 electron-updater
 # 对非 semver 直接抛 ERR_UPDATER_INVALID_VERSION（AppUpdater.js:212-217）。
-_TS_FULL = re.compile(r"^(\d{2})\.(\d{2})\.(\d{2})\.(\d+)$")
-_TS_MACHINE = re.compile(r"^(\d{2})\.(\d{1,2})\.(\d{1,2})$")
+# 发布号 YY.MM.DD.N（月日两位、补零）与机器版本 YY.M.D（月日不补零）。月/日都做
+# 取值范围校验：`26.99.99` 不是日期，放它进 next_version / version_matches_tag
+# 的日期三段比对等于把一段非法输入当时间戳用（第二轨审查 MINOR-4）。
+_TS_FULL = re.compile(r"^(\d{2})\.(0[1-9]|1[0-2])\.(0[1-9]|[12]\d|3[01])\.(\d+)$")
+_TS_MACHINE = re.compile(r"^(\d{2})\.(0?[1-9]|1[0-2])\.(0?[1-9]|[12]\d|3[01])$")
 
 
 def read_version():
@@ -157,7 +160,10 @@ def check(version, tag=None, changelog_path=None):
     with io.open(path, "r", encoding="utf-8-sig") as handle:
         text = handle.read()
 
-    section_name = tag[1:] if tag and tag.startswith("v") else version
+    # 段名以 tag 为准（发布号 = tag 去掉 v 前缀）；没给 tag 才退回版本号。
+    # 不带 v 前缀的 tag 也要按 tag 处理——退回机器版本会报出误导性的段名
+    # （`没有 [26.9.15] 段`，而实际缺的是发布号段；第二轨审查 MINOR-3）。
+    section_name = (tag[1:] if tag.startswith("v") else tag) if tag else version
     notes = find_section(text, section_name)
     if notes is None:
         ok = False
@@ -189,7 +195,13 @@ def print_next_version():
         print("警告：读取 git tag 失败（%s）——按无同日 tag 处理" % exc)
     today = datetime.date.today()
     print("今日版本号：%s" % next_version(today, tags))
-    print("当前 package.json 版本：%s" % read_version())
+    try:
+        print("当前 package.json 版本：%s" % read_version())
+    except (OSError, ValueError) as exc:
+        # 与 main() 同口径：文件缺失或读取失败 → 退出码 2
+        # （旧实现会让 ValueError 直接抛栈、退出 1；第二轨审查 MINOR-5）
+        print("错误：读取 %s 失败：%s" % (PACKAGE_JSON, exc))
+        return 2
     return 0
 
 
@@ -198,7 +210,7 @@ def main():
     parser.add_argument("--version", default=None,
                         help="版本号（默认读 web/electron/package.json）")
     parser.add_argument("--tag", default=None,
-                        help="tag 名（给了就校验与版本一致），如 v0.3.0")
+                        help="tag 名（给了就校验与版本一致），如 v26.09.15.1")
     parser.add_argument("--notes-out", default=None,
                         help="把 Release 说明写到该文件（CI 用）")
     args = parser.parse_args()

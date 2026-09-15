@@ -22,6 +22,7 @@ from pydantic import BaseModel
 import approval
 import status_parse
 import tracker
+import url_infer
 from apierror import ApiError
 from deps import DIR_TRACKING, workspace_dir
 from filelock import file_lock
@@ -432,6 +433,25 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
         tracker.append_history(tracker.diff_entries(app_id, before, target), ws)
 
     return {"item": target}
+
+
+# ---------------------------------------------------------------------------
+# 链接推断（v0.4.0-A 的 A5）：粘贴岗位页 URL → 本地推断可预填的值。
+# 纯函数在 tools/url_infer.py；只读、不联网、无锁——它不碰任何数据。
+# ---------------------------------------------------------------------------
+
+class InferUrlRequest(BaseModel):
+    url: str = ""
+
+
+@router.post("/infer-url")
+def infer_url(item: InferUrlRequest):
+    """从粘贴的链接做本地推断（只读、不联网）。
+
+    返回 {"ok", "链接", "来源", "说明"}：ok=False 表示不是一条可识别的 URL；
+    「来源」为空表示不猜（未知域名）——它是预填助手，绝不阻拦用户手填。
+    """
+    return url_infer.infer_from_url(item.url)
 
 
 # ---------------------------------------------------------------------------

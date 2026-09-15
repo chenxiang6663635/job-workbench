@@ -171,6 +171,20 @@ export default function Applications() {
     截止日期: "",
     当前阶段: "待投",
   });
+  // 「没有下一步动作」引导（v0.4.0-A）：进行中（非终态）但没填「下次动作」的记录
+  const [showMissingOnly, setShowMissingOnly] = useState(false);
+  const missingNext = useMemo(
+    () =>
+      items.filter(
+        (it) => !TERMINAL.includes(it.当前阶段) && !(it.下次动作 || "").trim()
+      ),
+    [items]
+  );
+  // 全部补齐后自动退出「只看缺下一步」视图，避免停在空表格上
+  useEffect(() => {
+    if (showMissingOnly && missingNext.length === 0) setShowMissingOnly(false);
+  }, [showMissingOnly, missingNext.length]);
+  const visibleItems = showMissingOnly ? missingNext : items;
 
   const load = () => {
     setLoading(true);
@@ -352,6 +366,21 @@ export default function Applications() {
         </Button>
       </div>
 
+      {/* 「没有下一步动作」引导（A7）：把缺项摆到眼前，一键切到筛选视图 */}
+      {!loading && missingNext.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
+          <span className="text-foreground">
+            {t("app.missingNextHint", { count: missingNext.length })}
+          </span>
+          <button
+            onClick={() => setShowMissingOnly((v) => !v)}
+            className="cursor-pointer font-medium text-primary hover:underline"
+          >
+            {showMissingOnly ? t("app.showAllRecords") : t("app.filterMissingNext")}
+          </button>
+        </div>
+      )}
+
       {showImport && (
         <ImportApplicationsDialog
           onClose={() => setShowImport(false)}
@@ -468,6 +497,23 @@ export default function Applications() {
               placeholder={t("form.phUrl")}
               value={draft.链接}
               onChange={(e) => setDraft({ ...draft, 链接: e.target.value })}
+              onBlur={() => {
+                // 粘贴岗位页 URL 后离开输入框时做本地推断（A5）：补全 scheme，
+                // 并在用户尚未选来源时预填。推断失败静默——它是助手，不打扰。
+                const raw = draft.链接.trim();
+                if (!raw) return;
+                api
+                  .inferUrl(raw)
+                  .then((r) => {
+                    if (!r.ok) return;
+                    setDraft((prev) => ({
+                      ...prev,
+                      链接: r.链接 || prev.链接,
+                      来源: prev.来源 || r.来源,
+                    }));
+                  })
+                  .catch(() => {});
+              }}
             />
           </div>
           <div className="mt-4 flex gap-2">
@@ -532,7 +578,7 @@ export default function Applications() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {items.map((it) => {
+              {visibleItems.map((it) => {
                 const isExpanded = expanded[it.id];
                 const staleDays = typeof it.stageDays === "number" ? it.stageDays : null;
                 const isStale = staleDays !== null && staleDays >= STALE_DAYS;

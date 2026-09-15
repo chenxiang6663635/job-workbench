@@ -317,6 +317,12 @@ const zhCN = {
   "app.healthStale": "停滞",
   "app.healthOk": "正常",
 
+  // 「没有下一步动作」引导（进行中记录缺「下次动作」时出现）
+  "app.missingNextHint_one": "{{count}} 条进行中的投递还没有「下一步动作」——补齐它，「近 7 天待办」才拉得动",
+  "app.missingNextHint_other": "{{count}} 条进行中的投递还没有「下一步动作」——补齐它，「近 7 天待办」才拉得动",
+  "app.filterMissingNext": "只看缺下一步的",
+  "app.showAllRecords": "显示全部",
+
   // 新建记录表单的占位（与 contact.ph* 分开：那里是联系人，这里是投递）
   "form.phCompany": "公司名称",
   "form.phRole": "岗位名称",

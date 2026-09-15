@@ -710,6 +710,13 @@ export const api = {
       body,
     }),
 
+  // 链接推断（v0.4.0-A）：本地纯函数，只读（补 scheme、尽力识别来源）
+  inferUrl: (url: string) =>
+    request<{ ok: boolean; 链接: string; 来源: string; 说明: string[] }>(
+      "/applications/infer-url",
+      { method: "POST", body: { url } }
+    ),
+
   // CSV 批量导入（第一批）：两阶段。preview 返回差异表不动数据；commit 才写入
   importApplications: (
     csv: string,

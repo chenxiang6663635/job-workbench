@@ -74,10 +74,8 @@
 
 格式：`<type>(<scope>): <描述>`
 
-- `feat`：新功能 → 版本号 minor 位 +1
-- `fix`：修 bug → patch 位 +1
-- `docs` / `chore` / `refactor` / `data` / `job`：不触发版本号
-- 破坏性变更：`!` 后缀或正文 `BREAKING CHANGE:` 段
+- `feat` / `fix` / `docs` / `chore` / `refactor` / `data` / `job`：**都不触发版本号变化**——时间戳体系下版本号按"发布当日"生成（见 §版本号体系），不再由提交类型推导。
+- 破坏性变更：`!` 后缀或正文 `BREAKING CHANGE:` 段；落地时写进该版 CHANGELOG 的「破坏性变更」小节（版本号本身不再表达破坏性）。
 - **数据操作与代码分开提交**：往工作区录入数据的提交用 `data:` / `job:` 前缀，不与功能提交混合
 - **语言：提交 subject 与 PR 标题一律中文，正文也用中文**。PR 标题在 squash 合并后会**直接成为主干上的提交 subject**，所以这两处是同一条规则的两半——只约定提交信息而漏掉 PR 标题，就会出现「作者本地提交是中文、合并进主干却变成英文」的混排（实证：PR #15 / #16 的英文标题以 `53e7b04` / `b774cce` 落进 main，夹在前后中文提交之间）。subject 与标题由钩子 + CI 机检（见 §提交流程）；**PR 正文不机检**——正文里必然有代码块、type 枚举与英文术语，机器判定只会做出一个被绕过或被抱怨的噪音闸，这部分靠双轨审查。issue / PR 模板里的英文表头是给外部反馈者的**填空提示**，不是正文语言要求；面向英文读者的 README / docs 英文版另论。
 - **合并方式**：`main` 开了 `required_linear_history`，所以只有 squash 与 rebase 两条路。**用 squash**——rebase 会把分支里每条提交的原始 subject 原样铺进主干，PR 标题那道闸就完全绕过了（本地 commit-msg 闸此时是唯一拦截点）。
@@ -85,28 +83,34 @@
     1. **在 squash 对话框里手动改掉最终的提交信息**：那既不改 PR 标题、也不触发 `edited`，校验不会重跑——英文 subject 照样落进 main。机制上拦不住（`pull_request` 事件看不到你合并时手填的那段），所以规矩是**合的时候不要动默认的提交信息**。
     2. **校验脚本与被校验对象同源同 PR**：workflow 与 `tools/*.py` 都取自 PR 自己的分支，所以一个 PR 可以顺手把判定放宽（把 CJK 正则改成 `.*`）而 CI 依旧全绿。单人仓库没有第二个审批人，实际防线是 `tests/` 里钉住的行为——放宽正则会让那批用例立刻红。**改判定规则时必须同步改测试并写明理由**，这就是这条防线起作用的唯一方式。
 
-## 版本规则（0.x 简化 semver）
+## 版本号体系（时间戳，2026-09-15 起）
 
-- 版本号唯一来源：`web/electron/package.json` 的 `version` 字段。
-- `feat` → `0.x.0`；`fix` → `0.x.y+1`；破坏性变更 → 新增 `0.x` 段并写入 CHANGELOG。
-- 升 `1.0.0` 的时机：**自用稳定 + 承诺本地数据向后兼容**。不要用 major 号表达"功能变多"。
-- **例外（2026-09-13 定）：`v0.2.2` 走 patch 位，尽管它里面有 `feat`**（双语界面、桌面缩放等）。理由是保住版本语义的**单一用途**——`v0.3.0` 已被规划为「`jobws` 迁移」那条破坏性主线，CLI 改名的迁移说明需要独立一个版本讲清楚；把一个只改界面与安全行为的版本插进 minor 位，会让"0.3.0 里有破坏性变更"这条提示变模糊。
-  **边界（可核对，不靠感觉）**：例外只覆盖"**不含破坏性变更**的纯界面 / 安全 / 修 bug 批"；一旦某版带破坏性变更，仍按上一条新增 `0.x` 段。适用时**该版 CHANGELOG 段首必须写明这两条**（① 本版不含破坏性变更；② 为什么不能进 minor 位）——把"这批算不算界面类"的主观判断，落成页面上一句可核对的声明。**不许把这条例外当成"下次也可以跳号"的先例**：它是一次性的，理由写在 CHANGELOG 的 0.2.2 段里。
-- 当前版本：**0.2.2**（tag 序列：`v0.1.0` 2026-09-08 → `v0.1.1` → `v0.2.0` → `v0.2.1` → `v0.2.2`，实际值以 `web/electron/package.json` 为准）。后续按规则 bump 并打新 tag。
+语义化版本号已弃用（0.x 的 minor/patch 映射、`v1.0.0` 的提法一并作废）。现行规则：
+
+- **双形态**：
+  - **发布号**（tag / CHANGELOG 段名 / 界面显示）= `YY.MM.DD.N`——`YY` 两位数年份、`MM` 月、`DD` 日、`N` 当天第几次发布（从 1 起）。例：`26.09.15.1`。
+  - **机器版本**（`web/electron/package.json` 的 `version`、`latest.yml`、产物文件名）= `YY.M.D`（同日的三段形式，如 `26.9.15`）。**不带 N**——实测 electron-builder 会把 build metadata（`+N`）在产物文件名与 latest.yml 两处剥离，且 electron-updater 对非 semver 直接抛 `ERR_UPDATER_INVALID_VERSION`。
+- **生成**：`python tools/jobws.py release version` 打印"若今天发布"的号（按发布当日生成；同日已有 tag 时 N 递增，读 `git tag` 序列，不落状态文件）。**写入 `package.json` 仍由人工 bump**（发布流程第 2 步），`release check` 把关。
+- **唯一来源**：`web/electron/package.json` 的 `version`（机器版本形态）；发布号由机器版本 + 当日 tag 派生，不存在第二套真值源。
+- **tag 约定**：`v<发布号>`（如 `v26.09.15.1`）；**CHANGELOG 段名 = 发布号**。tag 与机器版本的比对规则 = **日期三段一致**（`release_assist.version_matches_tag`，本地与 CI 同源）；同日多版在机器层不可区分，属已知取舍。
+- **破坏性变更**：不再由版本号承载——写进该版 CHANGELOG 的「破坏性变更」小节 + 段首「升级须知」（影响与迁移步骤）。
+- **发布纪律（2026-09-15 起）**：**单一发布节点**——中间批次不 bump / 不 tag / 不 Release / 不出安装包；全部批次做完后只发布一次，号在发布当日生成。
+- **其它 version 字段（私有 / 独立包，不参与发布）**：`web/frontend/package.json` 与 `mcp/pyproject.toml` 的 `version` 是各自包的私有字段，**不得与发布号联动**；`.codebuddy-plugin/marketplace.json` 无 version 字段。
+- **当代参考**：tag 序列从 `v0.1.0`（2026-09-08）到 `v0.3.2`（2026-09-14）为语义化时代；**下一个版本是首个时间戳版本**（号 = 发布当日生成），实际值一律以 `web/electron/package.json` 与 `git tag` 为准。
 
 ## 发布流程（手动归档）
 
-从 `main` 打 tag，不从分支发：
+从 `main` 打 tag，不从分支发（**单一发布节点**：中间不发布，见 §版本号体系）：
 
-1. **冒烟验证**（CI 已跑全量自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开七个页面各操作一遍。
-2. bump 版本号（`web/electron/package.json`）。
-3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为版本号 + ISO 日期。
-4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v0.3.0`——校验 tag 与 package.json 一致、CHANGELOG 有该版本段，并预览将发布出去的 Release 说明（与 CI 同一实现；红着就别打 tag）。
-5. `git tag -a v0.1.0 -m "..."` 并提交。
-6. 构建产物按版本归档到仓库外目录（产物已被 .gitignore 排除）。
+1. **冒烟验证**（CI 已跑全量自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开七个页面各操作一遍；UI 相关批按截图对比验收（能指出可见差异）。
+2. **生成当日号并 bump 机器版本**：`python tools/jobws.py release version` 取"今日发布号"（`YY.MM.DD.N`）→ 把 `web/electron/package.json` 的 `version` 写为同日的 `YY.M.D`。
+3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为**发布号** + ISO 日期（段名与 tag 同名）。
+4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v26.09.15.1`——校验 tag 与机器版本"日期三段一致"、CHANGELOG 有该发布号段，并预览将发布的 Release 说明（与 CI 同一实现；红着就别打 tag）。
+5. `workflow_dispatch` dry_run 演练（产出 exe + `latest.yml` 与说明，不碰 Release）→ 通过后再 `git tag -a v26.09.15.1 -m "..."` 并推送。
+6. 发布后核验 `gh release view --json assets`（安装包 + `latest.yml` 都在）并**真下载一次**；构建产物按发布号归档到仓库外目录（产物已被 .gitignore 排除）。
 
-**hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再打新 patch tag。**不**从旧 tag 拉 hotfix 分支。
-**撤回坏版本**：递增到更高版本号重发；重发同名版本无效。
+**hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再按当日生成新号发布（同日再发 N 递增）。**不**从旧 tag 拉 hotfix 分支。
+**撤回坏版本**：用新号重发（同日递增 N 或次日新号）；重发同名版本无效。
 
 **自动更新不做**：仓库已公开（2026-09-08 推送），剩余阻碍是代码签名（macOS 必需）；分发仍走手动安装包。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
 

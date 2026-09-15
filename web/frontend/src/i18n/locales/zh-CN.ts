@@ -765,6 +765,9 @@ const zhCN = {
   "err.lib.unknownSection": "未知素材库分类：{{section}}",
   "err.lib.fileNotFound": "文件不存在：{{rel}}",
 
+  // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
+  "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",
+
   "err.sys.unknownTarget": "只支持 workspace / snapshots / dataRoot（收到 {{target}}）",
   "err.sys.openFailed": "打开失败：{{error}}",
   // 出网 TLS（issue #59）：证书库不可用与证书不被信任是两回事——前者给降级出路，

@@ -698,6 +698,9 @@ export default {
   "err.lib.unknownSection": "Unknown library section: {{section}}",
   "err.lib.fileNotFound": "File not found: {{rel}}",
 
+  // Question bank import (1a): parsing Markdown from 03_面试准备; reasons come back verbatim
+  "err.question.importFailed": "Cannot import from {{module}}: {{reason}}",
+
   "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",
   "err.sys.certStoreUnavailable": "The system certificate store could not be loaded, so the certificate cannot be verified and the connection was refused (credentials must not travel over an unverified connection). To investigate, look for broken entries with certmgr.msc; if you really must skip verification for now, set JOBWS_HTTP_TLS or JOBWS_IMAP_TLS to insecure for that path (not recommended)",

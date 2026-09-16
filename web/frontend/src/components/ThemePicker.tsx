@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
 import { SYSTEM_ID, getThemeChoice, listThemes, setThemeChoice } from "../lib/theme";
+import { FONTS, getFontChoice, setFontChoice } from "../lib/theme";
 import ThemeEditor from "./ThemeEditor";
 
 // 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口。
@@ -15,6 +16,7 @@ export default function ThemePicker() {
   const [choice, setChoice] = useState(getThemeChoice());
   const [themes, setThemes] = useState(listThemes());
   const [editing, setEditing] = useState(false);
+  const [font, setFont] = useState(getFontChoice());
 
   const onPick = (id: string) => {
     setChoice(id);
@@ -90,6 +92,34 @@ export default function ThemePicker() {
       </div>
 
       {editing && <ThemeEditor onSaved={refresh} />}
+
+      {/* 字体方案（4g）：只改 html[data-font]，栈本体在 index.css 的变量里 */}
+      <div className="border-t border-border pt-3">
+        <p className="mb-2 text-xs font-medium text-foreground">
+          {t("settings.fontTitle")}
+        </p>
+        <div
+          className="flex flex-wrap gap-2"
+          role="radiogroup"
+          aria-label={t("settings.fontTitle")}
+        >
+          {FONTS.map((item) => (
+            <Button
+              key={item.id}
+              variant={font === item.id ? "default" : "outline"}
+              size="sm"
+              className="h-7 px-3 text-xs"
+              aria-pressed={font === item.id}
+              onClick={() => {
+                setFont(item.id);
+                setFontChoice(item.id);
+              }}
+            >
+              {item.id === "system" ? t("settings.fontSystem") : item.label}
+            </Button>
+          ))}
+        </div>
+      </div>
     </Card>
   );
 }

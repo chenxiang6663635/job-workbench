@@ -1058,6 +1058,9 @@ const zhCN = {
   "settings.themeDeleted": "已删除",
   "settings.themeReadFailed": "读不到当前主题变量（getComputedStyle 为空）",
   "settings.themeResetFromCurrent": "从当前主题重新开始",
+  // 字体方案（4g）：Inter 本地打包；系统栈不加载 webfont（启动更快）
+  "settings.fontTitle": "字体方案",
+  "settings.fontSystem": "系统字体（更快）",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

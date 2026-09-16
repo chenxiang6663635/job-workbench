@@ -88,18 +88,10 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: [
-          "Inter",
-          "system-ui",
-          "-apple-system",
-          "Segoe UI",
-          "PingFang SC",
-          "Microsoft YaHei UI",
-          "Microsoft YaHei",
-          "sans-serif",
-        ],
-        /* Maple Mono：中英混排等宽（批 4 打包引入后生效；未加载时回退 JetBrains Mono） */
-        mono: ["Maple Mono", "JetBrains Mono", "Consolas", "monospace"],
+        /* 字体方案（批 4，4g）：栈本体在 index.css 的 CSS 变量里——设置页可在
+           「默认（Inter，本地打包）」与「系统」之间切换，不重建、不改配置 */
+        sans: ["var(--font-sans-stack)", "sans-serif"],
+        mono: ["var(--font-mono-stack)", "monospace"],
       },
     },
   },

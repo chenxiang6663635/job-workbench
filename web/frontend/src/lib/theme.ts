@@ -284,3 +284,49 @@ function normalizeVars(vars: Record<string, unknown>): Record<string, string> {
   }
   return out;
 }
+
+// --- 字体方案（批 4，4g）----------------------------------------------------
+//
+// 两套：default = Inter Variable（本地打包，拉丁 UI 与数字最佳）；
+// system = 纯系统栈（不加载 webfont，启动更快、离线更轻）。
+// 实现只写 html[data-font]——栈本体在 index.css 的 --font-sans-stack 变量里。
+
+const FONT_KEY = "jobws.font";
+
+export interface FontOption {
+  id: string;
+  label: string;
+}
+
+export const FONTS: FontOption[] = [
+  { id: "default", label: "Inter" },
+  { id: "system", label: "System UI" },
+];
+
+export function getFontChoice(): string {
+  try {
+    return localStorage.getItem(FONT_KEY) === "system" ? "system" : "default";
+  } catch {
+    return "default";
+  }
+}
+
+export function applyFont(choice: string): void {
+  const root = document.documentElement;
+  if (choice === "system") root.setAttribute("data-font", "system");
+  else root.removeAttribute("data-font");
+}
+
+export function setFontChoice(id: string): void {
+  const safe = id === "system" ? "system" : "default";
+  try {
+    localStorage.setItem(FONT_KEY, safe);
+  } catch {
+    // 同主题：持久化失败只影响下次启动
+  }
+  applyFont(safe);
+}
+
+export function applyStoredFont(): void {
+  applyFont(getFontChoice());
+}

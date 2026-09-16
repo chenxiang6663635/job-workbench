@@ -98,6 +98,13 @@
     --duration-slow: 400ms;
     --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
 
+    /* 字体方案（批 4，4g）：UI 字体栈走变量——设置页可切「默认（Inter）」与
+       「系统」；等宽槽优先 Maple Mono（本地打包，中英混排等宽 + Nerd Font）。
+       中文不内置（体积 10–30MB 级），由栈内系统字体承接。 */
+    --font-sans-stack: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI",
+      "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    --font-mono-stack: "Maple Mono", "JetBrains Mono", Consolas, monospace;
+
     --radius: 0.75rem;
   }
 }
@@ -120,6 +127,12 @@ body {
 html:lang(zh) body {
   line-height: 1.72;
   letter-spacing: 0.012em;
+}
+
+/* 字体方案：系统栈（不加载 webfont）——launch 更快，少一份字体下载 */
+html[data-font="system"] {
+  --font-sans-stack: system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
 }
 
 ::-webkit-scrollbar {

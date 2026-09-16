@@ -974,6 +974,9 @@ export default {
   "settings.themeDeleted": "Deleted",
   "settings.themeReadFailed": "Could not read the current theme variables (getComputedStyle empty)",
   "settings.themeResetFromCurrent": "Restart from the active theme",
+  // Typeface (4g): Inter is bundled locally; the system stack skips webfont loading.
+  "settings.fontTitle": "Typeface",
+  "settings.fontSystem": "System fonts (faster)",
   "settings.zoomDesktopOnly":
     "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

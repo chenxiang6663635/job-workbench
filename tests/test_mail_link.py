@@ -42,3 +42,22 @@ def test_whitespace_is_treated_as_absent():
     assert mail_link.build_open_link("  ", "  ")["kind"] == "none"
     got = mail_link.build_open_link("  a@b.c  ")
     assert got["url"].endswith("a%40b.c")
+
+
+def test_custom_link_requires_http_scheme():
+    """审查 m-3：非 http(s) 的自粘串（错字/纯文本/javascript:）宁降级 none，不进 href。"""
+    assert mail_link.build_open_link("", "javascript:alert(1)") == {
+        "kind": "none", "url": None}
+    assert mail_link.build_open_link("", "outlook 邮件，点这个") == {
+        "kind": "none", "url": None}
+    got = mail_link.build_open_link("a@b.c", "http://intranet.example/mail/123")
+    assert got["kind"] == "custom"
+    assert got["url"] == "http://intranet.example/mail/123"
+
+
+def test_gmail_link_normalizes_angle_brackets():
+    """审查 M-1 读路径兜底：历史脏数据（带 `<>`）也能构造出有效深链。"""
+    got = mail_link.build_open_link("<abc@example.com>")
+    assert got["kind"] == "gmail"
+    assert got["url"] == ("https://mail.google.com/mail/#search/"
+                          "rfc822msgid%3Aabc%40example.com")

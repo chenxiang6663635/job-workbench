@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""邮件记录（批 4.5）：数据层、CLI 与 schema 自检的最小闭环（API 段后续补）。
+"""邮件记录（批 4.5）：数据层 / CLI / schema 自检 / API 四段式。
 
 钉住的核心口径（每条都对应一个真实会出事的场景）：
 
@@ -72,6 +72,24 @@ def test_validate_mail_fields(tmp_path):
 def test_validate_rejects_duplicate_message_id(tmp_path):
     ws = _ws(tmp_path)
     tracker.write_mails([{"邮件id": "M001", "消息id": "abc@example.com",
+                          "主题": "一"}], ws)
+    errors = tracker._validate_mail_fields(
+        {"消息id": "abc@example.com", "主题": "二"}, ws)
+    assert any("已记录过" in e for e in errors)
+
+
+def test_preview_normalizes_message_id_angle_brackets(tmp_path):
+    """「消息id」任何入口进来都是规范值（去 `<>`）：带尖括号落库 = 失效深链 + 绕过去重。"""
+    ws = _ws(tmp_path)
+    errors, plan = tracker.preview_mail_fields(
+        {"主题": "面试通知", "消息id": "<abc@example.com>"}, ws)
+    assert errors == [], errors
+    assert plan["payload"]["fields"]["消息id"] == "abc@example.com"
+
+
+def test_duplicate_detection_is_angle_bracket_insensitive(tmp_path):
+    ws = _ws(tmp_path)
+    tracker.write_mails([{"邮件id": "M001", "消息id": "<abc@example.com>",
                           "主题": "一"}], ws)
     errors = tracker._validate_mail_fields(
         {"消息id": "abc@example.com", "主题": "二"}, ws)
@@ -227,6 +245,16 @@ def client(tmp_path, monkeypatch):
 
 
 WS = "ws-ok"
+
+
+def test_api_mail_normalizes_message_id(tmp_path, client):
+    """审查 M-1：Web 入口带 `<>` 的 Message-ID 也落成规范值（失效深链 + 绕过去重的口子）。"""
+    _seed_main(os.path.join(str(tmp_path), WS))
+    res = client.post("/api/progress/mails", params={"ws": WS},
+                      json={"主题": "笔试通知", "消息id": "<api-1@example.com>"})
+    assert res.status_code == 201, res.text
+    assert res.json()["消息id"] == "api-1@example.com"
+    assert res.json()["_openLink"]["url"].endswith("api-1%40example.com")
 
 
 def test_api_mail_create_list_and_patch(tmp_path, client):

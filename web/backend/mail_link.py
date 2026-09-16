@@ -33,9 +33,13 @@ def build_open_link(message_id, webmail_link=""):
     - none：无可用深链——前端降级为「打开邮箱 + 复制主题搜索」提示。
     """
     custom = (webmail_link or "").strip()
-    if custom:
+    # 只接受 http(s) 链接：错字、纯文本乃至 javascript: 一律降级 none——宁可让
+    # 用户走「复制主题搜索」，也不把可能失效/危险的东西塞进 <a href>（审查 m-3）。
+    if custom and (custom.startswith("http://") or custom.startswith("https://")):
         return {"kind": "custom", "url": custom}
     mid = (message_id or "").strip()
+    if len(mid) >= 2 and mid.startswith("<") and mid.endswith(">"):
+        mid = mid[1:-1].strip()  # 读路径兜底历史脏数据，与 tracker.normalize_message_id 同口径
     if not mid:
         return {"kind": "none", "url": None}
     return {"kind": "gmail", "url": GMAIL_SEARCH_PREFIX + urllib.parse.quote(mid, safe="")}

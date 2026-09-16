@@ -1680,6 +1680,19 @@ def _talk_targets(workspace=None):
     return [os.path.join(ws, "05_投递追踪", TALK_FILE)]
 
 
+def normalize_message_id(text):
+    """Message-ID 规范化：去首尾空白与包裹的 `<>`。
+
+    mails.csv 只存规范值——去重与 Gmail 深链（rfc822msgid）都按它比对/构造；
+    Gmail「显示原始邮件」给的是 `<...>` 全文，任何入口带尖括号进来都会产出
+    失效深链并绕过去重（批 4.5 独立审查 M-1）。
+    """
+    value = (text or "").strip()
+    if len(value) >= 2 and value.startswith("<") and value.endswith(">"):
+        value = value[1:-1].strip()
+    return value
+
+
 def _validate_mail_fields(fields, workspace=None):
     """邮件字段校验（预览与落盘两段共用），返回错误列表。
 
@@ -1702,10 +1715,10 @@ def _validate_mail_fields(fields, workspace=None):
     tag = fields.get("标签") or ""
     if tag and tag not in MAIL_TAGS:
         errors.append("`--tag` 必须是 %s 之一，实际为 `%s`" % ("/".join(MAIL_TAGS), tag))
-    msg_id = (fields.get("消息id") or "").strip()
+    msg_id = normalize_message_id(fields.get("消息id"))
     if msg_id:
         rows = read_mails(workspace)
-        if any((r.get("消息id") or "").strip() == msg_id for r in rows):
+        if any(normalize_message_id(r.get("消息id")) == msg_id for r in rows):
             errors.append("这封邮件（消息id `%s`）已记录过，不要重复导入" % msg_id)
     return errors
 
@@ -1713,8 +1726,9 @@ def _validate_mail_fields(fields, workspace=None):
 def preview_mail_fields(fields, workspace=None):
     """按中文字段预览一次邮件新增（**不落盘**）：返回 (errors, plan)。"""
     fields = {field: (fields.get(field) or "") for field in MAIL_FIELDS}
-    for field in ("消息id", "关联记录", "主题", "发件人", "日期", "webmail链接"):
+    for field in ("关联记录", "主题", "发件人", "日期", "webmail链接"):
         fields[field] = fields[field].strip()
+    fields["消息id"] = normalize_message_id(fields.get("消息id"))
     errors = _validate_mail_fields(fields, workspace)
     if errors:
         return errors, None

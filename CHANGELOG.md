@@ -28,7 +28,7 @@
 - **内置字体本地打包 + 两套字体方案**：Inter（拉丁）与 Maple Mono（中英混排等宽数字，含 Nerd Font 图标）随应用打包、离线可用；「外观」卡可在 Inter 与系统字体间切换。中文界面按语言分叉行高与字距。
 - **工作区偏好与体检（`jobws prefs`）**：`prefs get / set`（theme / font / resume_style，白名单校验 + 原子写）与 `prefs doctor`（环境体检 + 推荐终端字体清单：Maple Mono / JetBrains Mono / 更纱黑体）。主题门禁 `jobws lint themes`（完整性 / 对比度 / 明度阶梯）进 CI。
 - **简历「版式 + 风格」双轴可换**：标准版式目录 `02_简历工坊/templates/*.html`——每个文件即一套版式，内置经典 / 紧凑（`std_compact`，多内容压一页）/ 强调（`std_accent`，标题底纹）三套，**共享同一套占位符骨架**（占位符契约测试锁死），全部单栏、全部过 ATS 三项；第三方放合规 HTML 进目录即出现在列表。CLI `resume render --template <id>`；风格（强调色）与版式正交：`--resume-accent`（预设名或 `#hex`）。网页端「简历工坊 → 标准版式」新增版式下拉与强调色色板（石墨灰 / 商务蓝 / 深墨绿 / 酒红），切换即刷新预览，**生成的 PDF 与预览同源**。
-- **邮件台账（`mails.csv`）与 `track mail`**：往来邮件成为一等数据——`邮箱拉取`结果补带 Message-ID，拉取列表可**一键记入台账**；手工添加与 CLI 写入走两段式（`--preview` → `jobws apply`）。**「打开原邮件」诚实分级**：自粘链接优先；Gmail 由 Message-ID 构造搜索深链；Outlook / QQ / 163 / 企业微信 / 飞书 / iCloud 无可用深链——给「复制主题去邮箱搜索」，不造假链接。**邮件不自动改阶段**。进展页新增「邮件」页签；`track check` 覆盖新表（枚举 / 外键 / 主题必填 / 消息id 去重）。
+- **邮件台账（`mails.csv`）与 `track mail`**：往来邮件成为一等数据——`邮箱拉取`结果补带 Message-ID（拉取列表可**一键记入台账**）；CLI 写入支持 `--preview` 两段式（预览拿令牌 → `jobws apply` 落盘），Web 表单为确认后直写。**「打开原邮件」诚实分级**：自粘链接优先；Gmail 由 Message-ID 构造搜索深链；Outlook / QQ / 163 / 企业微信 / 飞书 / iCloud 无可用深链——给「复制主题去邮箱搜索」，不造假链接。**邮件不自动改阶段**。进展页新增「邮件」页签；`track check` 覆盖新表（枚举 / 外键 / 主题必填 / 消息id 去重）。
 
 ### Changed
 

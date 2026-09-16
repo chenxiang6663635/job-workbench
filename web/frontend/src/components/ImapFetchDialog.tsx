@@ -50,6 +50,9 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
   const [messages, setMessages] = useState<ImapMessage[] | null>(null);
   // 已记入台账的邮件（按 uid）：按钮原地变「已记录」——后端还有消息id 去重兜底
   const [recorded, setRecorded] = useState<Record<string, boolean>>({});
+  // in-flight 的记录请求（防连点，审查 m-2）：pending 期间按钮禁用，成功才标记
+  // recorded——无 Message-ID 的邮件没有后端去重兜底，连点会落两条一模一样的行
+  const [recordingUid, setRecordingUid] = useState<string | null>(null);
   const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -190,16 +193,21 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
                 {onRecord && (
                   <button
                     type="button"
-                    disabled={!!recorded[m.uid]}
+                    disabled={!!recorded[m.uid] || recordingUid === m.uid}
                     aria-label={t("imap.recordTitle")}
                     title={t("imap.recordTitle")}
-                    onClick={() =>
+                    onClick={() => {
+                      if (recordingUid) return;
+                      setRecordingUid(m.uid);
                       onRecord(m)
                         .then(() =>
                           setRecorded((prev) => ({ ...prev, [m.uid]: true }))
                         )
                         .catch((e: Error) => setError(e.message))
-                    }
+                        .finally(() =>
+                          setRecordingUid((cur) => (cur === m.uid ? null : cur))
+                        );
+                    }}
                     className="cursor-pointer text-muted-foreground/70 transition-colors hover:text-primary disabled:cursor-default disabled:text-success"
                   >
                     {recorded[m.uid] ? <Check size={16} /> : <MailPlus size={16} />}

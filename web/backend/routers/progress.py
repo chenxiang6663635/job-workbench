@@ -415,7 +415,7 @@ def create_mail(item: NewMail, ws: str = Depends(workspace_dir)):
 
     link = (item.关联记录 or "").strip()
     subject = (item.主题 or "").strip()
-    message_id = (item.消息id or "").strip()
+    message_id = tracker.normalize_message_id(item.消息id)
     if not subject:
         raise ApiError(422, "progress.mailSubjectRequired", "邮件主题必填")
 
@@ -427,7 +427,7 @@ def create_mail(item: NewMail, ws: str = Depends(workspace_dir)):
                                "找不到关联记录 %s" % link, id=link)
         rows = tracker.read_mails(ws)
         # 同一封邮件不许导两遍：列表会长出一模一样的行，且深链指向同一封
-        if message_id and any((r.get("消息id") or "").strip() == message_id
+        if message_id and any(tracker.normalize_message_id(r.get("消息id")) == message_id
                               for r in rows):
             raise ApiError(422, "progress.mailDuplicate",
                            "这封邮件（消息id %s）已记录过" % message_id,

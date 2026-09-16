@@ -26,6 +26,13 @@
 #    另：npm 侧**不**忽略 major，理由是 **major 升级需要人工决策**（Electron 属于
 #    平台级破坏性变更，必须排批次 + 桌面实机冒烟，见
 #    docs/research/report_electron_33_to_44.md）——不是为了安全更新。
+#
+# 3) **已知会反复出现的「装不上」major（2026-09-16 #114）**：`@vitejs/plugin-react`
+#    的 6.x 把 peer 提到 `vite: ^8.0.0`（并把 Babel 链换成 @rolldown），而仓库当前是
+#    vite 6.4.3——**在 Vite 升到 8 之前，这条 major PR 每次都会被提出、每次都要关**。
+#    仍然不给 ignore：理由同 (2)，major 要人工决策，而「Vite 8 迁移」是一个要排批次的
+#    真实任务（含 eslint / breaking change / 50 项 UI 冒烟回归），不是一条可静默忽略的噪声。
+#    正确的到期条件是「vite 升到 8.x 时」——那时这条 PR 会自然变成可合并的。
 version: 2
 updates:
   - package-ecosystem: github-actions

@@ -1,6 +1,8 @@
 import { useId } from "react";
 import { ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { Bar } from "./ui/bar";
+import { Num } from "./ui/number";
 import { abilityBadgeVariant, evidenceBadgeVariant } from "./badgeVariants";
 import type { JobDetail } from "../api";
 import { useTranslation } from "react-i18next";
@@ -43,16 +45,16 @@ export default function DimensionRow({
             />
             <span className="text-xs text-muted-foreground">{dimension.name}</span>
           </div>
-          <span className="font-mono text-xs text-muted-foreground">
+          <Num muted className="text-xs">
             {dimension.score} / {dimension.max}
-          </span>
+          </Num>
         </div>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary/60">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-700"
-            style={{ width: `${(dimension.score / dimension.max) * 100}%` }}
-          />
-        </div>
+        <Bar
+          value={dimension.score / dimension.max}
+          height="sm"
+          color="linear-gradient(90deg, hsl(var(--primary) / 0.6), hsl(var(--primary)))"
+          className="mt-1.5"
+        />
       </button>
 
       {expanded && (

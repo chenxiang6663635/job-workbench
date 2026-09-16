@@ -135,7 +135,7 @@ export default function OfferCompare() {
                     <div key={f.key} className="flex items-start justify-between gap-2 text-xs">
                       <span className="shrink-0 text-muted-foreground">{t(f.labelKey)}</span>
                       <span
-                        className={`text-right ${soon ? "font-medium text-warning" : "text-foreground"}`}
+                        className={`text-right tabular-nums ${soon ? "font-medium text-warning" : "text-foreground"}`}
                       >
                         {value || <span className="text-muted-foreground/70">—</span>}
                       </span>

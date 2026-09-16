@@ -29,35 +29,39 @@ import { EmptyOnboarding } from "../components/OnboardingWizard";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
 import { Badge } from "../components/ui/badge";
+import { Bar as BarTrack } from "../components/ui/bar";
 import { Button } from "../components/ui/button";
+import { Num, StatValue } from "../components/ui/number";
 import { Skeleton } from "../components/ui/skeleton";
 
-// 数据可视化色板：阶段语义色，独立于主题 token（换主题不改图表语义）。
+// 数据可视化色板（批 4 起走主题 token）：阶段语义映射到 --chart-* 与状态色——
+// 图表与卡片同一套色源，换主题时跟着走（内联值不再出现，check_themes 验对比度）。
 // 未登记的阶段会回退主色（见漏斗渲染的 ?? 兜底）——新增阶段时同步补在这里，
 // 否则漏斗图里它会与所有未登记值同色、分不清。
 const STAGE_COLORS: Record<string, string> = {
-  待投: "#64748b",
-  已投: "#38bdf8",
-  测评: "#60a5fa",
-  笔试: "#818cf8",
-  AI面: "#8b5cf6",
-  群面: "#a855f7",
-  一面: "#a78bfa",
-  二面: "#c084fc",
-  三面: "#e879f9",
-  HR面: "#f472b6",
-  终面: "#fb7185",
-  offer: "#34d399",
-  签约: "#10b981",
-  已挂: "#f87171",
-  已放弃: "#94a3b8",
+  待投: "hsl(var(--chart-6))",
+  已投: "hsl(var(--chart-1))",
+  测评: "hsl(var(--chart-7))",
+  笔试: "hsl(var(--chart-7))",
+  AI面: "hsl(var(--chart-5))",
+  群面: "hsl(var(--chart-5))",
+  一面: "hsl(var(--chart-5))",
+  二面: "hsl(var(--chart-5))",
+  三面: "hsl(var(--chart-5))",
+  HR面: "hsl(var(--chart-4))",
+  终面: "hsl(var(--chart-4))",
+  offer: "hsl(var(--chart-2))",
+  签约: "hsl(var(--chart-2))",
+  已挂: "hsl(var(--destructive))",
+  已放弃: "hsl(var(--muted-foreground))",
 };
 
-// 投递状态语义色（分布图用）：与阶段色同源思路——图表语义独立于主题 token
+// 投递状态语义色（分布图用）：同源 token——未投递取描边档（最弱）、
+// 流程中取主序列色、已终态取末位序列色。
 const APPLY_STATE_COLORS = {
-  未投递: "#475569",
-  流程中: "#38bdf8",
-  已终态: "#94a3b8",
+  未投递: "hsl(var(--border-strong))",
+  流程中: "hsl(var(--chart-1))",
+  已终态: "hsl(var(--chart-8))",
 };
 
 // 下钻筛选：投递到 sessionStorage，追踪表页在 mount 时读取
@@ -144,9 +148,9 @@ function StatCard({
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </p>
-          <p className="mt-2 bg-gradient-to-b from-white to-primary/70 bg-clip-text text-3xl font-semibold text-transparent">
-            {value}
-          </p>
+          <div className="mt-2">
+            <StatValue value={value} gradient />
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>
         <div
@@ -340,9 +344,13 @@ export default function Dashboard() {
   // 后端只回前 N 条，总数单独给——列表长度不再等于总数
   const unappliedHighTotal = data.unappliedHighTotal ?? unappliedHigh.length;
   const scoreByState = data.scoreByState ?? [];
-  const hasScoreByState = scoreByState.some(
+  // 只画有数据的档位 + 高度随档数（批 4）：demo / 早期工作区常只有 1 档有数据，
+  // 固定 200px 会让整卡留出大片空白——高度 = 档数 × 44 + 内边距。
+  const visibleScoreByState = scoreByState.filter(
     (t) => t.unapplied + t.active + t.terminal > 0
   );
+  const scoreChartHeight = Math.max(120, visibleScoreByState.length * 44 + 24);
+  const hasScoreByState = visibleScoreByState.length > 0;
   const hasJobPoolSignal = unappliedHigh.length > 0 || hasScoreByState;
 
   return (
@@ -449,9 +457,9 @@ export default function Dashboard() {
                   </span>
                 ))}
               </div>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={scoreChartHeight}>
                 <BarChart
-                  data={scoreByState}
+                  data={visibleScoreByState}
                   layout="vertical"
                   margin={{ left: 8, right: 24 }}
                 >
@@ -535,18 +543,14 @@ export default function Dashboard() {
                     <span className="w-24 shrink-0 text-xs text-muted-foreground transition-colors group-hover:text-primary">
                       {domainLabel("stage", f.stage, t)}
                     </span>
-                    <span className="h-3.5 flex-1 overflow-hidden rounded-full bg-secondary/40">
-                      <span
-                        className="block h-full rounded-full"
-                        style={{
-                          width: `${Math.max(3, Math.round((f.count / maxFunnel) * 100))}%`,
-                          background: STAGE_COLORS[f.stage] ?? "hsl(var(--primary))",
-                        }}
-                      />
-                    </span>
-                    <span className="w-6 shrink-0 text-right text-xs font-medium tabular-nums text-foreground">
+                    <BarTrack
+                      value={f.count / maxFunnel}
+                      color={STAGE_COLORS[f.stage] ?? "hsl(var(--primary))"}
+                      className="flex-1"
+                    />
+                    <Num align="right" className="w-6 shrink-0 text-xs font-medium">
                       {f.count}
-                    </span>
+                    </Num>
                   </button>
                 ))}
               </div>
@@ -564,7 +568,7 @@ export default function Dashboard() {
                       onClick={() => drillTo({ direction: d.key })}
                     >
                       <span className="text-muted-foreground">{domainLabel("direction", d.key, t)}</span>
-                      <span className="font-mono text-primary">{d.count}</span>
+                      <Num className="text-primary">{d.count}</Num>
                     </ClickRow>
                   ))}
                 </div>
@@ -578,7 +582,7 @@ export default function Dashboard() {
                   {data.byBatch.map((b) => (
                     <ClickRow key={b.key} onClick={() => drillTo({ batch: b.key })}>
                       <span className="text-muted-foreground">{domainLabel("batch", b.key, t)}</span>
-                      <span className="font-mono text-primary">{b.count}</span>
+                      <Num className="text-primary">{b.count}</Num>
                     </ClickRow>
                   ))}
                 </div>

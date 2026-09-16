@@ -1,6 +1,8 @@
 import { ChartNoAxesColumn, Layers, RotateCcw, ThumbsDown } from "lucide-react";
 import type { Retrospective } from "../api";
 import { Card } from "./ui/card";
+import { Bar } from "./ui/bar";
+import { Num } from "./ui/number";
 import { useTranslation } from "react-i18next";
 import { domainLabel } from "../lib/domainLabels";
 
@@ -18,12 +20,12 @@ function rateColor(rate: number | null): string {
   return "text-warning";
 }
 
-/** 柱状条：与转化率同一套阈值配色 */
+/** 柱状条 CSS 颜色：与转化率文字同一套阈值（Bar 原语只收 CSS 颜色，不接 class） */
 function barColor(rate: number | null): string {
-  if (rate === null) return "bg-muted";
-  if (rate >= 50) return "bg-success/70";
-  if (rate >= 20) return "bg-primary/70";
-  return "bg-warning/70";
+  if (rate === null) return "hsl(var(--muted))";
+  if (rate >= 50) return "hsl(var(--success) / 0.7)";
+  if (rate >= 20) return "hsl(var(--primary) / 0.7)";
+  return "hsl(var(--warning) / 0.7)";
 }
 
 export default function RetrospectivePanel({ data }: { data: Retrospective }) {
@@ -68,18 +70,18 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
                   <span className="w-24 shrink-0 text-muted-foreground">
                     {domainLabel("stage", c.stage, t)}
                   </span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary/60">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${barColor(c.rate)}`}
-                      style={{ width: `${c.rate ?? 0}%` }}
-                    />
-                  </div>
-                  <span className={`w-24 shrink-0 text-right ${rateColor(c.rate)}`}>
+                  <Bar
+                    value={(c.rate ?? 0) / 100}
+                    color={barColor(c.rate)}
+                    height="sm"
+                    className="flex-1"
+                  />
+                  <Num align="right" className={`w-24 shrink-0 ${rateColor(c.rate)}`}>
                     {c.rate === null ? "—" : `${c.rate}%`}
                     <span className="ml-1 text-[10px] text-muted-foreground/70">
                       {c.advanced}/{c.reached}
                     </span>
-                  </span>
+                  </Num>
                 </div>
               ))}
             </div>
@@ -171,20 +173,18 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
                     <span className="w-28 shrink-0 truncate text-foreground" title={c.category}>
                       {c.category}
                     </span>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary/60">
-                      <div
-                        className="h-full rounded-full bg-destructive/60 transition-all duration-500"
-                        style={{
-                          width: `${Math.round((c.count * 100) / Math.max(1, clusters.total))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="w-16 shrink-0 text-right text-muted-foreground">
+                    <Bar
+                      value={c.count / Math.max(1, clusters.total)}
+                      color="hsl(var(--destructive))"
+                      height="sm"
+                      className="flex-1"
+                    />
+                    <Num align="right" muted className="w-16 shrink-0">
                       {t("retro.times", { count: c.count })}
                       <span className="ml-1 text-[10px] text-muted-foreground/70">
                         {Math.round((c.count * 100) / Math.max(1, clusters.total))}%
                       </span>
-                    </span>
+                    </Num>
                   </div>
                   {c.examples.length > 0 && (
                     <p className="mt-1 pl-28 text-[11px] leading-relaxed text-muted-foreground/70">

@@ -26,6 +26,7 @@ import {
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
+import { Num } from "../components/ui/number";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
@@ -705,10 +706,10 @@ export default function Applications() {
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                         {it.截止日期 || "—"}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs text-primary">
+                      <td className="px-4 py-3 text-right">
+                        <Num align="right" className="text-xs text-primary">
                           {it.评分 || "—"}
-                        </span>
+                        </Num>
                       </td>
                       <td className="px-4 py-3">
                         {staleDays !== null ? (

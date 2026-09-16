@@ -138,8 +138,23 @@
 - **解释器基线 3.12（2026-09-14 起，原先 3.8）**：CI、打包与文档都以 3.12 为准。技术要求其实只有 ≥3.9（`imaplib` 的 `timeout=`），但**支持**并验证的只有 3.12——所以 `tests/conftest.py` 会在收集前拦住更低版本：测试在错解释器上**静默不可信**，那种失败看起来像"代码坏了"。本题机器最常见的坑是 `python` 落到别的项目在用的 conda 环境（3.8），所以跑之前先 `python -V` 确认。
   - **pre-commit 快检的解释器**：钩子按 `JOBWS_PYTHON` > 仓库内 `.venv` > 运行钩子的解释器 解析；解析到的低于 3.12 时它**降级提示而不是拦提交**（那种结论不可信，CI 兜底）。维护者建议设一次：`setx JOBWS_PYTHON "<3.12 的 python>"`。
   - **`web/start.ps1` 用同一顺序解析后端解释器**（并额外验依赖：能 `import fastapi, uvicorn` 才算数），**不依赖终端里激活了哪个环境**——终端自动激活 conda base（或其他项目环境）时不再影响本仓库的启动；`.\start.ps1 -CheckOnly` 只做预检并打印会选哪个解释器。**`setx` 保存的用户级 `JOBWS_PYTHON` 也会被读到**（`setx` 只对新终端生效，脚本替你把"刚设完但终端还没刷新"这一步接住，并打印一行提示）。
-  - **环境约定**：本仓库用**仓库外**的一个 3.12 venv（`uv venv <路径> --python <3.12 解释器>` + `uv pip install -r web/backend/requirements-dev.txt`）。不放进仓库（上万个文件会污染仓库，也会让 Windows 上的全量测试从 12s 涨到 216s——2026-09-14 实测）；**不改动 conda 与系统 Python**（它们是别的项目的家），也不装全局 pip 包。
-  - **依赖上限本批不动**：`fastapi<0.116` / `uvicorn<0.53` / `pydantic<2.10` 是 3.8 时代钉的，基线升级后**尚未放宽**——放宽会同时换掉一批运行时行为，要单独一步跑全量回归（`.github/dependabot.yml` 里 pip 的 major 忽略段已按到期条件删除，正因为留着它的理由没了）。
+  - **环境约定**：用一个 3.12 venv 装 `web/backend/requirements-dev.txt`。**放在仓库内
+    `.venv/` 或仓库外都可以**（两者都在 `.gitignore` 里；钩子与 `start.ps1` 都优先找
+    仓库内 `.venv`，放这里最省事）。实测体积约 98MB——不影响 git（已忽略），但会让
+    Windows 上的**全量测试从 12s 涨到 216s**（2026-09-14 实测：文件扫描器会遍历
+    `site-packages`）。**若嫌慢就放仓库外**，用 `JOBWS_PYTHON` 指过去；
+    **不改动 conda 与系统 Python**（它们是别的项目的家），也不装全局 pip 包。
+  - **依赖上限已在 2026-09-16 放宽**（3.8 时代钉的，基线升 3.12 后逐步解除）：现为
+    `fastapi<0.142` / `pydantic<2.14` / `pypdf>=6.18.1`（`uvicorn<0.53` 未动）。放宽不是
+    一次性动作而是**逐条实测**——每条都装上新版跑全量回归才合（PR #109 / #127 / #129）。
+    实测口径：`fastapi 0.141.1` + `starlette 1.6.0` + `pydantic 2.13.5` + `pypdf 6.19.0`
+    下 679 项全过；**跨 starlette 大版本（0.46→1.6）无碍**。
+    仍被卡住的两条（**major，需先排迁移批次**）：`@vitejs/plugin-react` 6.x 要 `vite ^8`
+    （仓库 vite 6.4.3）、`typescript` 7.x 不被 typescript-eslint 支持（`npm run lint` 直接
+    失败）。两条都在 `.github/dependabot.yml` 记了到期条件，且**刻意不加 ignore**。
+  - **改依赖后必须跑到 `npm run lint` / `tsc` / `vite build`**：`npm install` 退出 0
+    **不代表可用**——typescript 7 那条安装成功但 eslint 运行时主动抛错。只跑安装会得出
+    错误结论。
 
 ## 开发辅助工具（MCP / 代码图谱，开发者与 AI 用，非产品）
 

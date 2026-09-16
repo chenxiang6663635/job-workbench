@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>求职简历（强调版式）</title>
+<style>
+  /* 强调版式（批 4.5）：与 std_resume 共享同一套占位符与区块骨架，
+     差异只在**强调层**——区块标题带淡底纹与加粗边条、页头全宽底纹，
+     用于希望版式更有存在感的场景。底色由 --resume-accent 派生
+     （color-mix），换风格色时底纹一起变；旧浏览器不支持 color-mix 时
+     只退化为透明底，不影响任何文字与结构。
+     改结构前先看 tests/test_resume_templates.py 的占位符契约。
+     A4 一页：必须显式声明 @page size:A4，否则默认 Letter(612×792)。 */
+  @page { size: A4; margin: 10mm 13mm; }
+  /* @page 只在打印/导出 PDF 时生效；屏幕预览用 @media screen 补等价留白，
+     保证预览换行位置等于 PDF 换行位置（10mm≈38px、13mm≈49px）。 */
+  @media screen {
+    body { padding: 38px 49px; }
+  }
+  @media print {
+    body { padding: 0; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "微软雅黑", "SimSun", sans-serif;
+    font-size: 9.6pt; line-height: 1.38; color: #1a1a1a;
+  }
+  /* 简历风格（批 4）：主色收敛为 --resume-accent——换色只改这一个变量；
+     简历保持亮底深字的专业取向，不跟随应用主题皮肤。 */
+  :root { --resume-accent: #2c5f8d; }
+  .header {
+    border-bottom: 3px solid var(--resume-accent);
+    background: color-mix(in srgb, var(--resume-accent) 6%, white);
+    padding: 8px 10px 6px; margin-bottom: 10px;
+  }
+  h1 { font-size: 18pt; letter-spacing: 2px; }
+  .contact { font-size: 8.6pt; color: #555; margin-top: 3px; }
+  .intent { margin: 5px 0 0; font-size: 9.6pt; color: var(--resume-accent); font-weight: 600; }
+  h2 {
+    font-size: 10.5pt; color: var(--resume-accent); margin: 9px 0 4px;
+    border-left: 4px solid var(--resume-accent); padding: 2px 8px;
+    background: color-mix(in srgb, var(--resume-accent) 8%, white);
+  }
+  .item { margin-bottom: 6px; }
+  .item-head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; }
+  .meta { font-size: 8.6pt; color: #555; margin-top: 1px; }
+  .role { font-size: 8.6pt; color: #555; font-style: italic; }
+  ul { margin: 3px 0 0 16px; }
+  li { margin-bottom: 2px; text-align: justify; }
+  .skills div { margin-bottom: 2px; }
+  .label { font-weight: 700; }
+  .awards { font-size: 9.6pt; line-height: 1.5; }
+  .profile { font-size: 9.4pt; line-height: 1.4; text-align: justify; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>{{basics.name}}</h1>
+  <div class="contact">{{basics.phone}}{{contact_sep}}{{basics.email}}{{contact_sep2}}{{basics.location}}</div>
+  {{intent_block}}
+</div>
+
+{{profile_block}}
+
+{{education_block}}
+
+{{projects_block}}
+
+{{work_block}}
+
+{{skills_block}}
+
+{{extras_block}}
+
+</body>
+</html>

@@ -546,9 +546,12 @@ export default function Applications() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        /* 撑满 + 内部滚动 + 粘性纯色表头（批 4 编排总则）：表格是主内容区，
+           容器吃掉视口剩余高度、长表在内部滚动；表头必须纯色——半透明会
+           透出滚动内容，是粘性表头的经典事故。 */
+        <div className="max-h-[calc(100dvh-19rem)] overflow-auto rounded-lg border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">{t("app.colCompanyRole")}</th>
                 <th className="px-4 py-3 text-left font-medium">{t("app.colDirection")}</th>
@@ -561,7 +564,7 @@ export default function Applications() {
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left font-medium">{t("app.colDeadline")}</th>
-                <th className="px-4 py-3 text-left font-medium">
+                <th className="px-4 py-3 text-right font-medium">
                   <span className="inline-flex items-center gap-1">
                     {sortBtn("score")}
                   </span>

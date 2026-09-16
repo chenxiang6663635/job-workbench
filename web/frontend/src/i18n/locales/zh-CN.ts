@@ -462,6 +462,8 @@ const zhCN = {
   "dash.postpone7": "顺延 7 天",
   "dash.overdueTitle": "已过截止日提醒",
   "dash.overdueEmpty": "没有已过截止日且未投递的记录。",
+  "dash.activityTitle": "最近动作",
+  "dash.activityEmpty": "还没有变更记录——投递推进后，这里会出现时间线。",
 
   // 设置页。Provider（BYOK）、邮箱只读拉取、数据与隐私三块
   "settings.title": "设置",
@@ -915,6 +917,7 @@ const zhCN = {
   "lib.fileCount_one": "{{count}} 个文件",
   "lib.fileCount_other": "{{count}} 个文件",
   "lib.empty": "事实库暂无事实卡",
+  "lib.emptyHint": "把资料文件放进工作区目录 `00_事实库/`，它们会自动出现在这里——事实卡、笔记、附件都行。",
   "lib.preview": "预览",
 
   // 进展页（子页签的壳）。页签标题与导航里的「进展」是同一串，直接复用 nav.progress

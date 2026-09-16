@@ -24,6 +24,7 @@ import {
   type PendingItem,
   type StaleItem,
 } from "../api";
+import ActivityFeed from "../components/ActivityFeed";
 import RetrospectivePanel from "../components/RetrospectivePanel";
 import { EmptyOnboarding } from "../components/OnboardingWizard";
 import { domainLabel } from "../lib/domainLabels";
@@ -665,6 +666,9 @@ export default function Dashboard() {
             <PendingList pending={data.pending} />
             <StaleList stale={data.stale} staleDays={data.staleDays} />
           </div>
+
+          {/* 最近动作（批 4）：时间线活动流——与待办同区，填补「页面下部空」 */}
+          <ActivityFeed entries={data.recentActivity ?? []} />
 
           {/* 周期复盘（P3）：转化率 / 停留 / 归因——数据越攒越值钱 */}
           {data.retrospective && (

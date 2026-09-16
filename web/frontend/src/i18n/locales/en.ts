@@ -426,6 +426,8 @@ export default {
   "dash.postpone7": "Postpone 7 days",
   "dash.overdueTitle": "Past deadline",
   "dash.overdueEmpty": "Nothing past its deadline while still unapplied.",
+  "dash.activityTitle": "Recent activity",
+  "dash.activityEmpty": "No changes recorded yet — the timeline shows up here as applications move.",
 
   "settings.title": "Settings",
   "settings.providerTitle": "Provider",
@@ -833,6 +835,7 @@ export default {
   "lib.fileCount_one": "{{count}} file",
   "lib.fileCount_other": "{{count}} files",
   "lib.empty": "No fact cards yet",
+  "lib.emptyHint": "Drop files into the workspace `00_事实库/` folder and they show up here — fact cards, notes, attachments.",
   "lib.preview": "Preview",
 
   "progress.interviews": "Interviews",

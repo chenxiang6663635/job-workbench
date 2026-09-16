@@ -6,8 +6,10 @@ import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
 import {
   THEME_VAR_KEYS,
+  applyTheme,
   exportThemeVars,
   getCustomThemes,
+  getThemeChoice,
   injectCustomCss,
   parseThemeImport,
   removeCustomTheme,
@@ -64,20 +66,25 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
   const [importText, setImportText] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
+  const [previewOn, setPreviewOn] = useState(true);
 
   useEffect(() => {
     setVars(readCurrentVars());
   }, []);
 
-  // 编辑预览：注入临时主题并应用（不落存储；离开编辑器时由调用方切回真实选择）
+  // 编辑预览：注入临时主题并应用；卸载时把根属性**还原为已存选择**——
+  // 只清 style 块会让 data-theme 停在预览 id 上（已无规则命中），全站回落默认
+  // 暗而设置页仍勾着原主题（独立审查 MAJOR）。保存后关掉预览（previewOn），
+  // 让属性跟随「刚保存的主题」而不是预览 id。
   useEffect(() => {
-    if (!Object.keys(vars).length) return;
+    if (!previewOn || !Object.keys(vars).length) return;
     injectCustomCss([{ id: "jobws-preview", label: "preview", vars }]);
     document.documentElement.setAttribute("data-theme", "jobws-preview");
     return () => {
       injectCustomCss(); // 清掉临时块（保留存储里的自定义主题）
+      applyTheme(getThemeChoice()); // 还原为已存选择
     };
-  }, [vars]);
+  }, [vars, previewOn]);
 
   const currentVars = useMemo(() => readCurrentVars(), []);
   const customThemes = getCustomThemes();
@@ -95,6 +102,7 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
     saveCustomTheme({ id, label, vars });
     setNote(t("settings.themeSaved"));
     setApplied(true);
+    setPreviewOn(false); // 属性跟随刚保存的主题，不再被预览 effect 拉回预览 id
     setVars(readCurrentVars());
     onSaved?.();
   };

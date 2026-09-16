@@ -156,7 +156,12 @@ function StatCard({
         </div>
         <div
           className="flex h-10 w-10 items-center justify-center rounded-lg"
-          style={{ background: `${accent}22`, color: accent }}
+          // accent 现为 CSS 变量（hsl(var(--chart-N))），不能再字符串拼透明度——
+          // 用 color-mix 合成 14% 底（Chrome/Electron 均支持）
+          style={{
+            background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+            color: accent,
+          }}
         >
           {icon}
         </div>
@@ -362,7 +367,7 @@ export default function Dashboard() {
           value={data.total}
           hint={t("dash.totalHint")}
           icon={<Briefcase size={20} />}
-          accent="#38bdf8"
+          accent="hsl(var(--chart-1))"
           onClick={() => drillTo({})}
         />
         <StatCard
@@ -370,7 +375,7 @@ export default function Dashboard() {
           value={data.active}
           hint={t("dash.activeHint")}
           icon={<TrendingUp size={20} />}
-          accent="#34d399"
+          accent="hsl(var(--chart-2))"
           onClick={() => drillTo({ active: true })}
         />
         <StatCard
@@ -378,7 +383,7 @@ export default function Dashboard() {
           value={data.upcoming.length}
           hint={t("dash.upcomingHint")}
           icon={<CalendarClock size={20} />}
-          accent="#fbbf24"
+          accent="hsl(var(--chart-3))"
           onClick={() => drillTo({ dueWithin: 7 })}
         />
         <StatCard
@@ -386,7 +391,7 @@ export default function Dashboard() {
           value={data.overdue.length}
           hint={t("dash.overdueHint")}
           icon={<AlertTriangle size={20} />}
-          accent="#f87171"
+          accent="hsl(var(--chart-4))"
           onClick={() => drillTo({ overdue: true })}
         />
       </div>

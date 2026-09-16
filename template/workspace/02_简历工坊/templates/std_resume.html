@@ -25,11 +25,15 @@
     font-family: "Microsoft YaHei", "微软雅黑", "SimSun", sans-serif;
     font-size: 9.6pt; line-height: 1.38; color: #1a1a1a;
   }
-  .header { border-bottom: 2px solid #2c5f8d; padding-bottom: 6px; margin-bottom: 9px; }
+  /* 简历风格（批 4）：主色收敛为 --resume-accent（专业蓝默认 / 石墨灰备选
+     #3f4650）——两个模板（本文件与 pdf/_模板_resume.html）同一约定；简历保持
+     亮底深字的专业取向，不跟随应用主题皮肤。 */
+  :root { --resume-accent: #2c5f8d; }
+  .header { border-bottom: 2px solid var(--resume-accent); padding-bottom: 6px; margin-bottom: 9px; }
   h1 { font-size: 18pt; letter-spacing: 2px; }
   .contact { font-size: 8.6pt; color: #555; margin-top: 3px; }
-  .intent { margin: 5px 0 0; font-size: 9.6pt; color: #2c5f8d; font-weight: 600; }
-  h2 { font-size: 10.5pt; color: #2c5f8d; margin: 8px 0 4px; border-left: 3px solid #2c5f8d;
+  .intent { margin: 5px 0 0; font-size: 9.6pt; color: var(--resume-accent); font-weight: 600; }
+  h2 { font-size: 10.5pt; color: var(--resume-accent); margin: 8px 0 4px; border-left: 3px solid var(--resume-accent);
        padding-left: 6px; }
   .item { margin-bottom: 6px; }
   .item-head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; }

@@ -28,7 +28,8 @@ const TabsTrigger = React.forwardRef<
     className={cn(
       // 激活态文字用前景色（批 4 a11y 实测：浅色下 primary 文字对 primary/20
       // 渐变底只有 ~4.0:1）——「激活」由底色渐变与发光承担，文字保持最高对比。
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-gradient-to-b data-[state=active]:from-primary/20 data-[state=active]:to-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-glow-primary data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground",
+      // [&_svg]:shrink-0：窄屏下图标曾被 flex 压扁（用户反馈「图案上下截掉」的保险修复）
+      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-premium [&_svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-gradient-to-b data-[state=active]:from-primary/20 data-[state=active]:to-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-glow-primary data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground",
       className
     )}
     {...props}

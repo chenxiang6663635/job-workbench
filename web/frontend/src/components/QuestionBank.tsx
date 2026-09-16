@@ -172,7 +172,7 @@ function MyBank() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-0.5/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -279,14 +279,14 @@ function AskedBefore() {
   return (
     <div className="space-y-4">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-0.5/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder={t("question.searchPlaceholder")}
           className="pl-9 pr-28"
         />
-        <div className="absolute right-2 top-1/2 flex -translate-y-0.5/2 items-center gap-1">
+        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
           <span className="whitespace-nowrap text-xs text-muted-foreground">
             {loading ? t("question.searching") : t("question.count", { count: total })}
           </span>

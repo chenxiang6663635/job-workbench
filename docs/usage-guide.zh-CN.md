@@ -370,3 +370,15 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 | Web 层设计（API 契约、并发与安全） | `docs/specs/2026-08-30-web-prototype-design.md` |
 | AI 工作流定义 | 根 `skills/` 下五个 SKILL.md（`tools/jobws.py skills install` 分发到各 AI CLI） |
 | 文档总索引 | `docs/README.md` |
+
+---
+
+## 外观：主题与字体
+
+设置页「外观」卡（设备级偏好，只影响这台机器、不随工作区导出）：
+
+- **主题**：默认暗之外内置浅色与 8 套开源皮肤（Catppuccin Mocha·Latte / Nord / Tokyo Night / Rosé Pine + Dawn / Gruvbox / Everforest），支持「跟随系统」；「自定义主题…」改关键色并实时显示对比度，保存后进入主题列表；可导入 tweakcn / shadcn 的 CSS 或导出的 JSON。
+- **字体**：Inter（默认，应用内置）或系统字体；数字与代码用 Maple Mono（中英混排等宽）。终端字体请在你的终端软件里设置——`jobws prefs doctor` 会给出推荐清单（Maple Mono / JetBrains Mono / 更纱黑体）。
+- **偏好分层**：主题 / 字体是**设备级**（存本机）；`jobws prefs`（theme / font / resume_style）是**工作区级**物料偏好，供 CLI、技能与导出使用。
+
+主题改动会过门禁 `jobws lint themes`（完整性 / 对比度 / 明度阶梯）——10 套内置主题全部满足正文 4.5:1、大字与图形 3:1。

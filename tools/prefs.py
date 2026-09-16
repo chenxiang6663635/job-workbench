@@ -2,10 +2,12 @@
 """工作区偏好（jobws prefs）与环境体检（jobws prefs doctor）。
 
 设计（批 4，4f）：
-- 偏好存**工作区** `config/preferences.json`——跨端唯一真值源：CLI / 技能 /
-  agent / 报告导出读它。前端的主题与字体是**设备级**偏好（localStorage，见
-  web/frontend/src/lib/theme.ts 的注释），两者语义不同、互不覆盖——「这台
-  机器」与「这份工作区」各管各的。
+- 偏好存**工作区** `config/preferences.json`——**工作区级物料偏好**的真值源：
+  CLI / 技能 / agent / 导出读它（当前主要读者是 CLI 与技能）。前端的主题与
+  字体是**设备级**偏好（localStorage，见 web/frontend/src/lib/theme.ts 的
+  注释）——「这台机器」与「这份工作区」**分层**、互不覆盖；前端**不**读本
+  文件（独立审查记账：不做「只写不读」的半接通双写，等出现真实的物料级偏好
+  消费方再接）。
 - 只认白名单 key（theme / font / resume_style）：拼错的 key 若静默写进文件，
   读回来永远是空——那类问题不值得再犯一次。
 - doctor：环境与推荐清单（含**终端字体**——CLI 不做字体本体，终端字体归用户
@@ -79,7 +81,7 @@ def write_prefs(values, workspace=None):
 
 
 def cmd_get(args):
-    values = read_prefs()
+    values = read_prefs(getattr(args, "workspace", None))
     if getattr(args, "key", None):
         if args.key not in KNOWN_KEYS:
             print("未知偏好 key：%s（可选：%s）" % (args.key, " / ".join(KNOWN_KEYS)))
@@ -98,15 +100,16 @@ def cmd_set(args):
     if not value:
         print("value 不能为空")
         return 1
-    values = read_prefs()
+    workspace = getattr(args, "workspace", None)
+    values = read_prefs(workspace)
     values[args.key] = value
-    write_prefs(values)
+    write_prefs(values, workspace)
     print("已保存 %s = %s（%s）" % (args.key, value, PREFS_REL))
     return 0
 
 
-def cmd_doctor(_args):
-    ws = tracker.resolve_ws(None)
+def cmd_doctor(args):
+    ws = tracker.resolve_ws(getattr(args, "workspace", None))
     print("## 环境")
     print("- Python：%s" % sys.version.split()[0])
     print("- 工作区：%s" % ws)
@@ -127,12 +130,16 @@ def cmd_doctor(_args):
 def main():
     parser = argparse.ArgumentParser(description="工作区偏好与环境体检")
     subs = parser.add_subparsers(dest="action")
+    # --workspace 与既有命令（track / report / resume…）同形：多工作区用户必须能指定。
     p_get = subs.add_parser("get", help="读偏好（缺省输出全部 JSON）")
     p_get.add_argument("key", nargs="?", help="只读某个 key：%s" % " / ".join(KNOWN_KEYS))
+    p_get.add_argument("--workspace", default=None, help="目标工作区（缺省用默认工作区）")
     p_set = subs.add_parser("set", help="写偏好")
     p_set.add_argument("key", help="key：%s" % " / ".join(KNOWN_KEYS))
     p_set.add_argument("value")
-    subs.add_parser("doctor", help="环境体检与推荐清单（含终端字体）")
+    p_set.add_argument("--workspace", default=None, help="目标工作区（缺省用默认工作区）")
+    p_doctor = subs.add_parser("doctor", help="环境体检与推荐清单（含终端字体）")
+    p_doctor.add_argument("--workspace", default=None, help="目标工作区（缺省用默认工作区）")
     args = parser.parse_args()
     if args.action == "get":
         return cmd_get(args)

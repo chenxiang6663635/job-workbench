@@ -112,8 +112,12 @@ export function setThemeChoice(id: string): void {
   applyTheme(safe);
 }
 
-/** 启动时调用（main.tsx）：应用已存选择。 */
+/** 启动时调用（main.tsx）：应用已存选择（含自定义主题的 CSS 注入）。 */
 export function applyStoredTheme(): void {
+  // 自定义主题的 CSS 存 localStorage、运行时注入 <style>——刷新后若不先注入，
+  // data-theme="custom-*" 命中不了任何规则块、会静默回落成默认暗，而设置页
+  // 仍勾着该自定义主题（独立审查 MAJOR）。
+  injectCustomCss();
   applyTheme(getThemeChoice());
 }
 

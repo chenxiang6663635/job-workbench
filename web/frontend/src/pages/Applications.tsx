@@ -288,7 +288,7 @@ export default function Applications() {
         <div className="relative w-56">
           <Search
             size={14}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-0.5/2 text-muted-foreground"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             value={filter.q}

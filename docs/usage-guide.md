@@ -369,3 +369,15 @@ A `.ps1` containing Chinese must be saved as **UTF-8 with BOM**. Save it without
 | Web layer design (API contracts, concurrency, security) | `docs/specs/2026-08-30-web-prototype-design.md` |
 | AI workflow definitions | The five SKILL.md files under `skills/` (distributed to your AI CLIs by `tools/jobws.py skills install`) |
 | Documentation index | `docs/README.md` |
+
+---
+
+## Appearance: themes and typefaces
+
+The "Appearance" card on the Settings page (device-level preference — this machine only, not exported with the workspace):
+
+- **Themes**: dark by default, plus a light theme and 8 open-source skins (Catppuccin Mocha·Latte / Nord / Tokyo Night / Rosé Pine + Dawn / Gruvbox / Everforest) and a "System" option; "Custom theme…" tweaks key colors with live contrast feedback and saves into the list; JSON and tweakcn / shadcn CSS can be imported.
+- **Typefaces**: Inter (bundled) or the system stack; numbers and code use Maple Mono (CJK-aware monospace). Terminal fonts live in your terminal app — `jobws prefs doctor` prints a recommended list (Maple Mono / JetBrains Mono / Sarasa Gothic).
+- **Layering**: themes / typefaces are device-level (localStorage); `jobws prefs` (theme / font / resume_style) is workspace-level material preference for the CLI, skills and exports.
+
+Theme changes are gated by `jobws lint themes` (parity / contrast / elevation ladder) — all 10 built-in themes satisfy 4.5:1 for body text and 3:1 for large text and graphics.

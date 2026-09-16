@@ -45,6 +45,20 @@ for (const theme of THEMES) {
         expect(attr, `${key} 的 data-theme 未回写为 ${theme}`).toBe(theme);
       }
 
+      // 真生效断言（独立审查）：只查属性的话，主题文件为空壳、main.tsx 漏 import
+      // 都会照样绿——按亮/暗语义校验 body 背景色（不依赖精确色值）。
+      const bodyBg = await page.evaluate(
+        () => getComputedStyle(document.body).backgroundColor
+      );
+      expect(bodyBg, "body 背景色未解析").not.toBe("rgba(0, 0, 0, 0)");
+      const nums = (bodyBg.match(/\d+/g) ?? []).map(Number);
+      const lightish = nums.length >= 3 && (nums[0] + nums[1] + nums[2]) / 3 > 150;
+      if (["light", "catppuccin-latte", "rose-pine-dawn"].includes(theme)) {
+        expect(lightish, `${key}（${theme}）背景应为亮色，实际 ${bodyBg}`).toBe(true);
+      } else if (theme !== "dark") {
+        expect(lightish, `${key}（${theme}）背景应为暗色，实际 ${bodyBg}`).toBe(false);
+      }
+
       const overflow = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,

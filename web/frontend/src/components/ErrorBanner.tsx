@@ -2,11 +2,28 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { cn } from "../lib/utils";
 
-/** 三种语气的样式与图标。成功态必须用对勾——此前固定用警告三角，语义反了 */
+/** 三种语气的样式与图标。成功态必须用对勾——此前固定用警告三角，语义反了。
+    文字用前景色、**图标保状态色**（独立审查 MAJOR：状态色当正文色只有 3.2–4.0:1；
+    图标是小图形元素，3:1 门限即可，且语义提示由它承担）。 */
 const TONES = {
-  error: { cls: "border-destructive/30 bg-destructive/10 text-destructive", Icon: AlertTriangle, role: "alert" },
-  warning: { cls: "border-warning/30 bg-warning/10 text-warning", Icon: Info, role: "status" },
-  success: { cls: "border-success/30 bg-success/10 text-success", Icon: CheckCircle2, role: "status" },
+  error: {
+    cls: "border-destructive/30 bg-destructive/10 text-foreground",
+    iconCls: "text-destructive",
+    Icon: AlertTriangle,
+    role: "alert",
+  },
+  warning: {
+    cls: "border-warning/30 bg-warning/10 text-foreground",
+    iconCls: "text-warning",
+    Icon: Info,
+    role: "status",
+  },
+  success: {
+    cls: "border-success/30 bg-success/10 text-foreground",
+    iconCls: "text-success",
+    Icon: CheckCircle2,
+    role: "status",
+  },
 } as const;
 
 /**
@@ -26,13 +43,13 @@ export function ErrorBanner({
   className?: string;
 }) {
   const { t } = useTranslation();
-  const { cls, Icon, role } = TONES[tone];
+  const { cls, iconCls, Icon, role } = TONES[tone];
   return (
     <div
       role={role}
       className={cn("flex items-start gap-2 rounded-lg border px-4 py-2 text-sm", cls, className)}
     >
-      <Icon size={16} className="mt-0.5 shrink-0" />
+      <Icon size={16} className={cn("mt-0.5 shrink-0", iconCls)} />
       <span className="flex-1 leading-relaxed">{message}</span>
       {onClose && (
         <button

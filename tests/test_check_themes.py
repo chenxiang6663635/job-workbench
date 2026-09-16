@@ -95,3 +95,43 @@ def test_light_theme_skips_ladder():
         values["chart-%d" % i] = "0 0% 35%"
     problems = check_themes.audit_theme("t", values, set(check_themes.EXPECTED_KEYS))
     assert not any("明度阶梯" in p for p in problems), problems
+
+
+def test_bad_value_format_rejected():
+    """键在但值坏（#fff）必须报——此前对比度检查静默跳过、整份主题反而全绿。"""
+    problems = check_themes.audit_theme(
+        "t", _vars(foreground="#fff"), set(check_themes.EXPECTED_KEYS))
+    assert any("值格式" in p and "foreground" in p for p in problems), problems
+
+
+def test_three_copies_of_key_list_are_in_sync():
+    """三处手工副本必须一致：EXPECTED_KEYS / theme.ts 的 THEME_VAR_KEYS /
+    themes/*.css 文件名与 main.tsx 的 import（独立审查指出三份副本互不校验时，
+    「新增 token 忘了同步某处」只会表现为什么都拦不住）。"""
+    import io as _io
+    import os as _os
+    import re as _re
+
+    front = _os.path.join(check_themes.ROOT, "web", "frontend", "src")
+    with _io.open(_os.path.join(front, "lib", "theme.ts"), "r", encoding="utf-8") as fh:
+        theme_ts = fh.read()
+    block = _re.search(r"THEME_VAR_KEYS = \[(.*?)\];", theme_ts, _re.S).group(1)
+    ts_keys = _re.findall(r'"([a-z0-9-]+)"', block)
+    assert sorted(ts_keys) == sorted(check_themes.EXPECTED_KEYS)
+
+    css_names = {
+        name[:-4] for name in _os.listdir(check_themes.THEMES_DIR)
+        if name.endswith(".css")
+    }
+    themes_block = _re.search(
+        r"export const THEMES: ThemeOption\[\] = \[(.*?)\];", theme_ts, _re.S
+    ).group(1)
+    ids = set(_re.findall(r'id: "([a-z0-9-]+)"', themes_block))
+    ids.discard("system")
+    ids.discard("dark")
+    assert css_names == ids, (css_names, ids)
+
+    with _io.open(_os.path.join(front, "main.tsx"), "r", encoding="utf-8") as fh:
+        main_tsx = fh.read()
+    imported = set(_re.findall(r"themes/([a-z0-9-]+)\.css", main_tsx))
+    assert imported == css_names, (imported, css_names)

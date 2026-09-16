@@ -3,8 +3,12 @@
 
 规则（与批 4 施工单一致，口径唯一实现，CI 与本地同跑）：
 
-1. **parity（完整性）**：每套主题的变量键集合必须等于基准清单（45 键）——
-   抓「新主题加了变量、旧主题忘了加」这类漂移。基准 = index.css 的 :root（默认暗主题）。
+1. **parity（完整性）**：每套主题的变量键集合必须等于**本模块的 EXPECTED_KEYS**
+   清单（45 键）——抓「新主题加了变量、旧主题忘了加」这类漂移；**多键同样报错**
+   （新增 token 时必须显式同步：本清单 / theme.ts 的 THEME_VAR_KEYS / 主题文件）。
+   注意：`index.css` 的 `:root` 只提供**默认暗主题的数值**，不是键集合的来源。
+1b. **值格式**：除渐变 / 阴影类键外，每个主题键必须是 HSL 三元组（`H S% L%`）——
+   键在但值坏（如写成 `#fff`）会让对比度检查静默跳过、整份主题反而全绿（独立审查）。
 2. **对比度**：正文组合 ≥4.5:1、大字与图形组合 ≥3:1——
    bg/fg、card/fg、popover/fg、muted/fg、secondary/fg、primary/primary-fg、
    状态色对背景（success/warning ≥3、destructive ≥4.5）、chart-1..8 对卡片 ≥3。
@@ -50,12 +54,23 @@ CONTRAST_CHECKS = [
     ("muted-foreground", "muted", 4.5),
     ("secondary-foreground", "secondary", 4.5),
     ("primary-foreground", "primary", 3.0),
+    # 状态色在**卡片上**也常当文字用（徽章 / 提示条 / 警告行）——对卡 4.5；
+    # 对页面底按图形门限 3.0（独立审查：rose-pine-dawn 的 success 曾 3.10 贴边）
     ("success", "background", 3.0),
+    ("success", "card", 4.5),
     ("warning", "background", 3.0),
+    ("warning", "card", 4.5),
     ("destructive", "background", 4.5),
+    ("destructive", "card", 4.5),
 ]
 CHART_MIN = 3.0
 DARK_STEP_MIN = 1.12
+
+# 非 HSL 三元组格式的主题键（渐变 / 阴影为自定义格式），值格式检查跳过
+_NON_TRIPLE_KEYS = set(
+    ["card-gradient", "hero-glow", "shadow-card", "shadow-elevated"]
+    + ["elevation-%d-shadow" % i for i in (1, 2, 3)]
+)
 
 _VAR_RE = re.compile(r"--([a-zA-Z0-9-]+)\s*:\s*([^;]+);")
 _HSL_RE = re.compile(r"^\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*$")
@@ -118,11 +133,25 @@ def contrast(vars_, fg_key, bg_key):
 def audit_theme(name, variables, base_keys=None):
     """对一套主题跑三条规则，返回问题列表。"""
     problems = []
-    keys = set(variables.keys()) & set(EXPECTED_KEYS)
+    present = set(variables.keys()) & set(EXPECTED_KEYS)
     if base_keys is not None:
         missing = sorted(base_keys - set(variables.keys()))
         if missing:
             problems.append("parity：缺变量 %s" % "、".join(missing))
+    # 多键也算 parity 问题：新增 token 必须显式同步三处副本
+    extra = sorted(
+        key for key in set(variables.keys()) - set(EXPECTED_KEYS)
+        if key != "radius" and not key.startswith(("duration-", "ease-", "font-"))
+    )
+    if extra:
+        problems.append("parity：多出不认识的变量 %s" % "、".join(extra))
+    # 值格式（独立审查 MAJOR）：键在、值坏曾让全部对比度检查静默跳过
+    bad_values = [
+        key for key in sorted(present)
+        if key not in _NON_TRIPLE_KEYS and parse_hsl(variables[key]) is None
+    ]
+    if bad_values:
+        problems.append("值格式：%s 不是 HSL 三元组（H S%% L%%）" % "、".join(bad_values))
     for fg_key, bg_key, minimum in CONTRAST_CHECKS:
         ratio = contrast(variables, fg_key, bg_key)
         if ratio is None:

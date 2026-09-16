@@ -79,7 +79,10 @@ research_*.md
 /.pytest-tmp/
 
 # Playwright 运行产物（UI 冒烟的失败截图 / trace / 报告）
-web/frontend/test-results/
+# 尾随 * 是必须的：显式传 --output=test-results-<x> 时会产生带后缀的同族目录，
+# 只写 test-results/ 会漏网（2026-09-15 实测：r2/r3 累积 3300 个文件进了未跟踪列表）。
+# 纪律：本地跑冒烟不要传 --output（默认目录会被自动清空，失败产物也在这里兜底）。
+web/frontend/test-results*/
 web/frontend/playwright-report/
 web/frontend/blob-report/
 

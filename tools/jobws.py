@@ -52,6 +52,7 @@ import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jd_score  # noqa: E402
 import question_bank  # noqa: E402
+import prefs  # noqa: E402
 import release_assist  # noqa: E402
 import report  # noqa: E402
 import resume_build  # noqa: E402
@@ -67,6 +68,7 @@ TARGETS = [
     ("jd", jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
+    ("prefs", prefs, "工作区偏好（get / set）与环境体检（doctor，含终端字体推荐）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
     ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件 / themes 主题门禁）"),

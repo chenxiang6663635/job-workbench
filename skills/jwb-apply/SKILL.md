@@ -33,6 +33,8 @@ compatibility: Python 3.12+；jobws 指仓库内的 python tools/jobws.py（在�
 
 改完**必须同步更新对应 HTML 模板**——HTML 是 PDF 的生成源，只改 md 不反映到 PDF。模板命名约定为 `02_简历工坊/pdf/resume_<版本>.html`。
 
+**简历风格**：模板主色收敛在一个变量 `--resume-accent` 上（默认专业蓝，石墨灰备选写在注释里）——换色只改它。简历**保持亮底深字**的专业取向（打印与 ATS 优先），**不跟随应用主题皮肤**；工作区的 `resume_style` 偏好（`jobws prefs get resume_style`）用来记录你选定的风格名，保证跨会话一致。
+
 ### 3. 生成 PDF 并 ATS 校验
 
 ```

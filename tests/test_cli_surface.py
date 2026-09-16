@@ -42,9 +42,9 @@ import tracker  # noqa: E402
 
 # 有 CLI 面的入口（commit_header 是纯库，不在此列，见文末那条断言）
 CLI_MODULES = [["track"], ["bank"], ["report"], ["resume"], ["jd"], ["init"],
-               ["skills", "install"], ["skills", "check"], ["lint", "pr-title"],
-               ["lint", "domains"], ["lint", "themes"], ["release", "check"],
-               ["release", "version"]]
+               ["prefs"], ["skills", "install"], ["skills", "check"],
+               ["lint", "pr-title"], ["lint", "domains"], ["lint", "themes"],
+               ["release", "check"], ["release", "version"]]
 
 TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
                        "interview", "talk", "contact", "offer", "import", "check"]
@@ -393,7 +393,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 16, sorted(mapped)
+    assert len(mapped) == 17, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

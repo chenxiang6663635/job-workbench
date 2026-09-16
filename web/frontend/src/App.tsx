@@ -137,8 +137,9 @@ export default function App() {
               现在禁止收缩与换行；宽度真不够时让这一条自己横向滚动，而不是把标签折成两行。 */}
           {/* overflow-x-auto 会把 overflow-y 一并计算为 auto → 裁剪发生在
               padding box：按钮的发光与键盘焦点环上下被裁（用户反馈 #5）。
-              py-3/-my-3 给绘制留余量且不改变顶栏布局高度。 */}
-          <div className="-my-3 flex min-w-0 items-center gap-0.5 overflow-x-auto py-3">
+              py-3/-my-3 给垂直绘制留余量；px-1/-mx-1 同理给**水平**余量——
+              否则最左/最右 tab 的光晕在滚动容器边缘被裁掉半边（用户反馈 #4）。 */}
+          <div className="-mx-1 -my-3 flex min-w-0 items-center gap-0.5 overflow-x-auto px-1 py-3">
             {TABS.map((item) => (
               <button
                 key={item.key}

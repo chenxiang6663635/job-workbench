@@ -277,7 +277,7 @@ function AskedBefore() {
   }, [keyword]);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -325,7 +325,7 @@ function AskedBefore() {
           </p>
         </Card>
       ) : groups.length === 0 ? null : (
-        <div className="space-y-4">
+        <div className="flex flex-1 flex-col gap-4">
           {groups.map((g) => (
             <Card key={`${g.公司}__${g.岗位}`} className="rounded-lg p-4">
               <div className="mb-3 flex items-center gap-2">
@@ -363,7 +363,7 @@ export default function QuestionBank() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
         {tabs.map((tab) => (
           <button

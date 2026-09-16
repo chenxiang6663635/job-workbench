@@ -87,7 +87,7 @@ export default function InterviewList() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           {["", ...INTERVIEW_RESULTS].map((r) => (
@@ -125,7 +125,7 @@ export default function InterviewList() {
           {!loaded && !error ? (
             [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)
           ) : loaded && !error && visible.length === 0 ? (
-            <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
+            <Card className="flex flex-1 flex-col items-center justify-center rounded-lg border-dashed p-8 text-center">
               <CalendarClock size={28} className="mb-3 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">{t("interview.emptyTitle")}</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

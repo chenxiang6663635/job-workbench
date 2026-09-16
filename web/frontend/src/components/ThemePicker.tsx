@@ -16,15 +16,15 @@ import {
   setFontSizeChoice,
   setThemeChoice,
 } from "../lib/theme";
-import type { TranslationKey } from "../i18n/locales/zh-CN";
 import ThemeEditor from "./ThemeEditor";
 
-// 字号档标签（#4）：key 走 TranslationKey 类型——拼错在编译期报（与 TABS 同一约定）
-const FONT_SIZE_OPTIONS: { value: string; labelKey: TranslationKey }[] = [
-  { value: "sm", labelKey: "settings.fontSizeSm" },
-  { value: "base", labelKey: "settings.fontSizeBase" },
-  { value: "lg", labelKey: "settings.fontSizeLg" },
-  { value: "xl", labelKey: "settings.fontSizeXl" },
+// 字号档直接显示百分比（用户反馈 #2）：比「小/标准/大」更可预期——它就是根字号的
+// 缩放比；数值字面量不需要翻译（与桌面缩放同一种表达）。
+const FONT_SIZE_OPTIONS: { value: string; label: string }[] = [
+  { value: "sm", label: "87.5%" },
+  { value: "base", label: "100%" },
+  { value: "lg", label: "112.5%" },
+  { value: "xl", label: "125%" },
 ];
 
 // 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口。
@@ -137,7 +137,11 @@ export default function ThemePicker() {
                 setFontChoice(item.id);
               }}
             >
-              {item.id === "system" ? t("settings.fontSystem") : item.label}
+              {item.id === "system"
+                ? t("settings.fontSystem")
+                : item.id === "serif"
+                  ? t("settings.fontSerif")
+                  : item.label}
             </Button>
           ))}
         </div>
@@ -155,10 +159,7 @@ export default function ThemePicker() {
             setFontSize(next);
             setFontSizeChoice(next);
           }}
-          options={FONT_SIZE_OPTIONS.map((item) => ({
-            value: item.value,
-            label: t(item.labelKey),
-          }))}
+          options={FONT_SIZE_OPTIONS}
           ariaLabel={t("settings.fontSizeTitle")}
         />
       </div>

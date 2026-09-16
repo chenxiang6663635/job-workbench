@@ -48,7 +48,10 @@ export const StatValue = React.forwardRef<HTMLSpanElement, StatValueProps>(
     <span ref={ref} className={cn("flex items-baseline gap-1", className)} {...props}>
       <span
         className={cn(
-          "font-mono text-[30px] font-semibold leading-none tracking-tight tabular-nums",
+          // KPI 数字跟随**界面字体**（Inter/系统）而不是等宽栈——用户实测 mono 大数字
+          // 与整页观感脱节（「字体还没有设置」的体感来源）；tabular-nums 保留：
+          // 位数变化不抖动、四卡并排基线一致。渐变仅显式传 gradient 才启用。
+          "text-[30px] font-semibold leading-none tracking-tight tabular-nums",
           gradient
             ? "bg-gradient-to-b from-foreground to-primary/70 bg-clip-text text-transparent"
             : "text-foreground"

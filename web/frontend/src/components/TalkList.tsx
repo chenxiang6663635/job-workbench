@@ -239,7 +239,7 @@ export default function TalkList() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-xs text-muted-foreground">
           {t("talk.summary", { count: rows.length })}
@@ -263,7 +263,7 @@ export default function TalkList() {
         ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
         : null}
       {loaded && !error && rows.length === 0 ? (
-        <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
+        <Card className="flex flex-1 flex-col items-center justify-center rounded-lg border-dashed p-8 text-center">
           <Megaphone size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("talk.emptyTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

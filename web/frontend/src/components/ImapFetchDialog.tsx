@@ -118,7 +118,7 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
             <div className="relative min-w-[180px] flex-1">
               <Search
                 size={14}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                className="absolute left-2.5 top-1/2 -translate-y-0.5/2 text-muted-foreground"
               />
               <Input
                 className="h-8 pl-8 text-xs"

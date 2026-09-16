@@ -17,7 +17,9 @@ export function PageHeader({ title, description, actions, className }: PageHeade
   return (
     <div
       className={cn(
-        "flex flex-wrap items-start justify-between gap-3",
+        // 页面进入动画（批 4，4e）：路由切换会重新挂载页头，fade-in-up 因此
+        // 每次切页播放一次；prefers-reduced-motion 由全局兜底关闭。
+        "flex animate-fade-in-up flex-wrap items-start justify-between gap-3",
         className
       )}
     >

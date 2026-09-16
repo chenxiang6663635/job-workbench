@@ -37,7 +37,7 @@ export default function JobCard({
 }) {
   const { t } = useTranslation();
   return (
-    <Card className="transition-all duration-300 ease-premium hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10">
+    <Card className="transition-all duration-300 ease-premium hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10">
       <button
         type="button"
         onClick={onOpen}

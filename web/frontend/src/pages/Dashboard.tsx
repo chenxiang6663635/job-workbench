@@ -132,7 +132,7 @@ function StatCard({
 }) {
   const { t } = useTranslation();
   const cls = onClick
-    ? "cursor-pointer hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+    ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
     : "";
   return (
     <button

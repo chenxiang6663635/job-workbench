@@ -27,7 +27,7 @@ for (const theme of THEMES) {
     await page.addInitScript((id) => {
       try {
         localStorage.setItem("jobws.theme", id);
-      } catch (e) {
+      } catch {
         /* 隐私模式：交给后续断言暴露 */
       }
     }, theme);

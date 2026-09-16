@@ -32,7 +32,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     try {
       localStorage.setItem("jobws.theme", "dark");
-    } catch (e) {
+    } catch {
       /* 同 fixtures：交给断言暴露 */
     }
   });
@@ -46,7 +46,7 @@ for (const key of PAGES) {
     await page.addInitScript(() => {
       try {
         localStorage.setItem("jobws.theme", "light");
-      } catch (e) {
+      } catch {
         /* 隐私模式：交给断言失败暴露 */
       }
     });

@@ -155,7 +155,7 @@ def _job_company_role(workspace: str, name: str):
     """(公司, 岗位) 的**展示名**：解析卡「基本信息」优先，读不到回退目录名拆分。
 
     只用于展示。关联键一律用目录名（见 `_link_fields`）——卡片里填的常是
-    给人看的详细描述（如「奥克斯集团（空调事业部＝…）」），当键会与追踪表系统性失配。
+    给人看的详细描述（如「示例集团（空调事业部＝…）」），当键会与追踪表系统性失配。
     """
     return (_card_basic_info(workspace, os.path.join(DIR_JOBS, name))
             or _split_dir(name))

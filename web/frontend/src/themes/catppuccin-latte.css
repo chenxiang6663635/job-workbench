@@ -14,11 +14,11 @@
   --secondary: 220 21% 89%;
   --secondary-foreground: 234 16% 35%;
   --muted: 220 21% 89%;
-  --muted-foreground: 233 10% 47%;
-  --destructive: 347 87% 44%;
+  --muted-foreground: 233 13% 41%;
+  --destructive: 347 86% 42%;
   --destructive-foreground: 220 23% 95%;
-  --success: 109 58% 40%;
-  --warning: 35 77% 49%;
+  --success: 110 59% 31%;
+  --warning: 34 88% 32%;
   --border: 220 21% 89%;
   --border-strong: 225 17% 82%;
   --input: 220 21% 89%;
@@ -42,10 +42,10 @@
   --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(220 91% 54% / 0.08) 0%, transparent 70%);
   --chart-1: 220 91% 54%;
   --chart-2: 266 85% 58%;
-  --chart-3: 109 58% 40%;
-  --chart-4: 35 77% 49%;
-  --chart-5: 22 99% 52%;
+  --chart-3: 110 59% 31%;
+  --chart-4: 35 86% 34%;
+  --chart-5: 17 88% 40%;
   --chart-6: 183 74% 35%;
-  --chart-7: 347 87% 44%;
-  --chart-8: 189 70% 42%;
+  --chart-7: 347 86% 42%;
+  --chart-8: 193 82% 31%;
 }

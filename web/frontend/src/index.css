@@ -12,12 +12,12 @@
     --background: 222 47% 5%;
     --foreground: 210 40% 96%;
 
-    --card: 222 44% 11%;
+    --card: 222 44% 12%;
     --card-foreground: 210 40% 96%;
 
     /* 浮层表面：批 4 修正——原值 8%（比 card 11% 更暗）是层级错误，浮层应在更高层。
        与 elevation-3-surface 同值，见下方三件套注释 */
-    --popover: 222 42% 19%;
+    --popover: 222 42% 26%;
     --popover-foreground: 210 40% 96%;
 
     --primary: 199 89% 58%;
@@ -56,15 +56,15 @@
        暗色的层次主通道是**表面明度阶梯**与**描边**，阴影只补边缘感——近黑表面上的
        黑阴影几乎不传达深度信号；hover 一律「换 level」而不是只换 shadow。
        浅色主题规则（未来启用）：表面恒定、只变阴影——该非对称是有意为之。 */
-    --elevation-0-surface: 222 46% 7%;
-    --elevation-1-surface: 222 44% 11%;
+    --elevation-0-surface: 222 47% 5%;
+    --elevation-1-surface: 222 44% 12%;
     --elevation-1-border: 219 32% 20%;
     --elevation-1-shadow: 0 1px 2px hsl(222 47% 2% / 0.45), 0 8px 24px -10px hsl(222 47% 2% / 0.55);
-    --elevation-2-surface: 222 43% 15%;
-    --elevation-2-border: 219 30% 26%;
+    --elevation-2-surface: 222 43% 18%;
+    --elevation-2-border: 219 30% 28%;
     --elevation-2-shadow: 0 2px 4px hsl(222 47% 2% / 0.5), 0 16px 40px -12px hsl(199 89% 30% / 0.35);
-    --elevation-3-surface: 222 42% 19%;
-    --elevation-3-border: 219 28% 32%;
+    --elevation-3-surface: 222 42% 26%;
+    --elevation-3-border: 219 28% 36%;
     --elevation-3-shadow: 0 4px 10px hsl(222 47% 2% / 0.5), 0 24px 56px -16px hsl(222 47% 2% / 0.65);
 
     /* 兼容别名：既有 shadow-card / shadow-elevated 工具类自动升级到三件套 */
@@ -72,14 +72,25 @@
     --shadow-elevated: var(--elevation-3-shadow);
     --card-gradient: linear-gradient(
       180deg,
-      hsl(222 44% 13%) 0%,
-      hsl(222 45% 10%) 100%
+      hsl(222 44% 14%) 0%,
+      hsl(222 45% 11%) 100%
     );
     --hero-glow: radial-gradient(
       60rem 28rem at 50% -6rem,
       hsl(199 89% 58% / 0.1) 0%,
       transparent 70%
     );
+
+    /* 图表语义色（批 4）：阶段与序列的统一色源——组件不再各自写 hex；
+       各主题在 [data-theme] 里各给一组（check_themes 验对卡片 ≥3:1） */
+    --chart-1: 199 89% 48%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 350 89% 60%;
+    --chart-5: 258 90% 66%;
+    --chart-6: 173 80% 40%;
+    --chart-7: 239 84% 67%;
+    --chart-8: 25 95% 53%;
 
     /* 动效节奏（批 4）：三档时长 + 统一 expo-out；与 tailwind 的 ease-premium 同源 */
     --duration-fast: 150ms;

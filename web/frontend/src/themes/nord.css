@@ -15,7 +15,7 @@
   --secondary-foreground: 218 27% 94%;
   --muted: 222 16% 28%;
   --muted-foreground: 219 28% 88%;
-  --destructive: 354 42% 56%;
+  --destructive: 354 64% 72%;
   --destructive-foreground: 220 16% 22%;
   --success: 92 28% 65%;
   --warning: 40 71% 73%;
@@ -46,6 +46,6 @@
   --chart-4: 40 71% 73%;
   --chart-5: 14 51% 63%;
   --chart-6: 179 25% 65%;
-  --chart-7: 354 42% 56%;
+  --chart-7: 354 64% 72%;
   --chart-8: 311 20% 63%;
 }

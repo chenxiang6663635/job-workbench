@@ -14,11 +14,11 @@
   --secondary: 28 40% 92%;
   --secondary-foreground: 248 19% 40%;
   --muted: 28 40% 92%;
-  --muted-foreground: 248 12% 52%;
-  --destructive: 343 35% 55%;
+  --muted-foreground: 248 15% 42%;
+  --destructive: 342 33% 46%;
   --destructive-foreground: 35 100% 98%;
   --success: 189 30% 48%;
-  --warning: 35 81% 56%;
+  --warning: 33 71% 38%;
   --border: 28 40% 92%;
   --border-strong: 30 21% 84%;
   --input: 28 40% 92%;
@@ -43,9 +43,9 @@
   --chart-1: 197 53% 34%;
   --chart-2: 268 21% 57%;
   --chart-3: 189 30% 48%;
-  --chart-4: 35 81% 56%;
-  --chart-5: 3 53% 67%;
-  --chart-6: 343 35% 55%;
-  --chart-7: 248 12% 52%;
-  --chart-8: 267 57% 78%;
+  --chart-4: 33 71% 38%;
+  --chart-5: 5 37% 51%;
+  --chart-6: 342 33% 46%;
+  --chart-7: 248 15% 42%;
+  --chart-8: 266 29% 56%;
 }

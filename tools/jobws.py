@@ -46,6 +46,7 @@ import check_domains  # noqa: E402
 import check_i18n_hardcode  # noqa: E402
 import check_pr_title  # noqa: E402
 import check_skills  # noqa: E402
+import check_themes  # noqa: E402
 import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
@@ -68,7 +69,7 @@ TARGETS = [
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
-    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件）"),
+    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件 / themes 主题门禁）"),
 ]
 
 class _ReleaseVersionTarget(object):
@@ -95,11 +96,12 @@ SUB_TARGETS = {
     ("lint", "i18n"): check_i18n_hardcode,
     ("lint", "ui-tokens"): check_ui_tokens,
     ("lint", "domains"): check_domains,
+    ("lint", "themes"): check_themes,
 }
 
 SUB_CHOICES = {"skills": ["install", "check"],
                "release": ["check", "version"],
-               "lint": ["pr-title", "i18n", "ui-tokens", "domains"]}
+               "lint": ["pr-title", "i18n", "ui-tokens", "domains", "themes"]}
 
 HELP_FLAGS = ("-h", "--help")
 

@@ -404,6 +404,24 @@ export default function Applications() {
             setStatusDraft(body);
             setShowStatus(true);
           }}
+          onRecord={(m) => {
+            const parsed = new Date(m.date);
+            const pad = (n: number) => String(n).padStart(2, "0");
+            // IMAP 的 Date 头是 RFC 5322 原文（"Tue, 16 Sep ..."）——转成 CSV 既有的
+            // 「YYYY-MM-DD HH:MM」再落库，否则与手工行混排后「日期倒序」失序（审查 m-1）；
+            // 解析失败保留原文（诚实展示，仅排序降级）。
+            const date = isNaN(parsed.getTime())
+              ? m.date
+              : `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} ` +
+                `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+            // 只沉淀元数据，不解析、不改任何投递阶段；标签/关联在「进展 → 邮件」里补。
+            return api.createMail({
+              消息id: m.messageId ?? "",
+              主题: m.subject,
+              发件人: m.from,
+              日期: date,
+            });
+          }}
         />
       )}
 

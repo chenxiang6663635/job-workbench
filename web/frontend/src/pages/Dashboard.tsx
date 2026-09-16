@@ -150,7 +150,7 @@ function StatCard({
             {label}
           </p>
           <div className="mt-2">
-            <StatValue value={value} gradient />
+            <StatValue value={value} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>

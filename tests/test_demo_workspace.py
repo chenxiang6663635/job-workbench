@@ -63,6 +63,7 @@ EXPECTED_DATA_FILES = [
     "05_投递追踪/history.csv",
     "05_投递追踪/talks.csv",
     "05_投递追踪/questions.csv",
+    "05_投递追踪/mails.csv",
     "02_简历工坊/source/resume_backend.json",
 ]
 
@@ -112,7 +113,7 @@ def test_demo_data_tables_have_rows(demo_ws):
     仍会全绿——条数锁在这里（往 demo 加数据时显式改这条）。
     """
     tracking = os.path.join(demo_ws, "05_投递追踪")
-    for name, expected in (("talks.csv", 3), ("questions.csv", 6)):
+    for name, expected in (("talks.csv", 3), ("questions.csv", 6), ("mails.csv", 6)):
         with open(os.path.join(tracking, name), "r",
                   encoding="utf-8-sig", newline="") as fh:
             count = len(list(csv.DictReader(fh)))
@@ -186,6 +187,7 @@ def test_skeleton_csv_headers_track_current_fields():
         (os.path.join("demo", "05_投递追踪", "tracker.csv"), tracker.FIELDS),
         (os.path.join("demo", "05_投递追踪", "interviews.csv"), tracker.INTERVIEW_FIELDS),
         (os.path.join("demo", "05_投递追踪", "talks.csv"), tracker.TALK_FIELDS),
+        (os.path.join("demo", "05_投递追踪", "mails.csv"), tracker.MAIL_FIELDS),
         (os.path.join("demo", "05_投递追踪", "questions.csv"),
          tracker.QUESTION_FIELDS),
     ]
@@ -210,6 +212,7 @@ def test_plain_init_has_no_filled_tracker(tmp_path, monkeypatch):
     assert not os.path.isfile(os.path.join(plain, "tracker.csv"))
     assert not os.path.isfile(os.path.join(plain, "talks.csv"))
     assert not os.path.isfile(os.path.join(plain, "questions.csv"))
+    assert not os.path.isfile(os.path.join(plain, "mails.csv"))
     assert os.path.isfile(os.path.join(plain, "_示例_tracker.csv"))
 
 

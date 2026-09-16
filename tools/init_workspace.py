@@ -128,6 +128,7 @@ def demo_counts():
         "offers": rows("05_投递追踪/offers.csv"),
         "talks": rows("05_投递追踪/talks.csv"),
         "questions": rows("05_投递追踪/questions.csv"),
+        "mails": rows("05_投递追踪/mails.csv"),
         "jobs": dirs("01_岗位池"),
         "resumes": dirs("02_简历工坊/source", suffix=".json"),
     }

@@ -82,7 +82,7 @@ export default function OfferCompare() {
   if (rows.length === 0) {
     return (
       <div className="space-y-4">
-        <Card className="flex flex-col items-center border-dashed p-8 text-center">
+        <Card className="flex flex-1 flex-col items-center justify-center border-dashed p-8 text-center">
           <Scale size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("offer.emptyTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -100,7 +100,7 @@ export default function OfferCompare() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
           {t("offer.summary", { count: rows.length })}

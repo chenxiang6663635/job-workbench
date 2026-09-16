@@ -169,6 +169,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 **双模式**：
 
 - **标准版式**（数据驱动）：左结构化表单、右 A4 实时预览；页面直接新建版本；生成 PDF 后回显 ATS 校验与纸型检查；含防超页护栏
+  - **版式与强调色**：版式下拉内置经典 / 紧凑 / 强调三套（全部单栏、过 ATS 校验；紧凑适合内容多、要压一页）；强调色四档（石墨灰 / 商务蓝 / 深墨绿 / 酒红）与版式自由组合，切换即刷新预览，生成的 PDF 与预览同源。命令行等价物：`resume render --template std_compact --resume-accent 酒红`
   - **一键导入**：上传 PDF / Word(.docx) / Markdown / 纯文本 → 抽取成结构化字段。**抽取而非生成**：模型未抽到的字段标黄、疑似补全的标红，核对页逐段确认后才落盘
   - **AI 改写建议**：BYOK 模型只改写既有事实的表述，反编造护栏不过不能采用
   - **导出 Word**：零依赖 `.doc`，方便往网申系统粘贴文本（排版以 PDF 为准）
@@ -178,9 +179,11 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 
 ### 进展
 
-投递之后的主战场，四个子 Tab：
+投递之后的主战场，六个子 Tab：
 
 - **面试**：三段式记录（问题 → 回答要点 → 复盘），48 小时内待定的琥珀高亮，一键导出 `.ics` 日历
+- **宣讲会 / 招聘会**：活动时间、形式、地点与收获，可导出 `.ics`（提前 1 小时提醒）；不推进任何阶段
+- **邮件**：往来邮件台账（面试邀约 / 笔试通知 / 拒信…）——可关联投递记录、标签行内改；有 Message-ID 的邮件给「打开原邮件」（Gmail 搜索深链），无可用深链的邮箱（Outlook / QQ / 163 等）给「复制主题去邮箱搜索」的降级提示；**邮件不会自动改阶段**
 - **题库**（两个视图）：「我的题库」= 自建可编辑的 `questions.csv`（领域 / 科目 / 状态 `未看·看过·会了` / 答案要点），可从 `03_面试准备/**/*.md` **只读解析 → 预览 → 确认导入**（两段式）；「被问过的」= 面过的问题按公司 + 岗位归集、关键词检索——面试前先过一遍这家公司问过你什么
 - **联系人**：招聘方联系人跟进节奏，超期琥珀提醒，一键「已联系」
 - **Offer 对比**：多个 offer 的已知事实并排，**只并排、不推荐**
@@ -214,6 +217,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 - **默认 dry-run**：拉取只列出邮件，在你逐条确认建议之前不会往追踪表写任何东西。
 
 常见流程：投递追踪 → 「从邮箱拉取」 → 选时间范围（最近 7 / 30 / 90 天）→ 本地关键词筛选 → 点一封邮件 → 核对解析出的建议 → 确认写回。如果这封邮件对应的投递还没记录，空态里会直接给一个「创建记录」表单（当前阶段默认按邮件内容推断）。
+
+拉取列表里的邮件有**两条去向**：点邮件正文 = 走「解析 → 建议 → 确认」更新投递状态；点右侧的「＋」小图标 = **把这封邮件的元数据记入邮件台账**（主题 / 发件人 / 日期 / Message-ID）——之后到「进展 → 邮件」里补标签与关联，不用再手打一遍。
 
 ---
 
@@ -267,6 +272,8 @@ python tools/jobws.py track import --file 待导入.csv             # 预览通�
 python tools/jobws.py track interview add --app A001 --round 一面 --questions "..."   # 面试记录
 python tools/jobws.py track contact add --name "张工" --app A001   # 招聘方联系人
 python tools/jobws.py track offer add --company "某公司" --monthly "..."  # Offer 事实
+python tools/jobws.py track mail add --subject "面试邀请（一面）" --app A001 --tag 邀约  # 邮件台账
+python tools/jobws.py track mail list --app A001        # 某条投递的往来邮件
 python tools/jobws.py track check                       # schema 自检（坏文件隔离）
 
 # 投递漏斗看板（Markdown，含周期复盘与失败原因聚类）
@@ -276,6 +283,7 @@ python tools/jobws.py report --stdout
 python tools/jobws.py resume --workspace personal            # 全部版本
 python tools/jobws.py resume --version hvac                  # 指定版本
 python tools/jobws.py resume render --workspace personal     # 数据驱动标准版式
+python tools/jobws.py resume render --template std_compact --resume-accent 酒红   # 换版式 + 强调色
 
 # JD 解析卡评分校验
 python tools/jobws.py jd "personal/01_岗位池/<目录>/解析卡.md" --domain hvac-cooling --direction hvac

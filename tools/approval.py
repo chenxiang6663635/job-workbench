@@ -18,6 +18,8 @@
 
     "track.add"    -> tracker.apply_approved_add
     "track.import" -> tracker.apply_approved_import
+    "talk.add"     -> tracker.apply_approved_talk
+    "mail.add"     -> tracker.apply_approved_mail
 
 **乐观并发**：预览到确认之间，工作区数据可能已经变了（用户手工改过、另一个
 会话写过）。所以 apply 不是"照着预览时的快照盲写"，而是**在锁内用最新数据
@@ -192,6 +194,7 @@ _OPERATIONS = {
     "track.update": tracker.apply_approved_update,
     "track.import": tracker.apply_approved_import,
     "talk.add": tracker.apply_approved_talk,
+    "mail.add": tracker.apply_approved_mail,
     "question.add": question_bank.apply_approved_add,
     "question.update": question_bank.apply_approved_update,
     "question.import": question_bank.apply_approved_import,

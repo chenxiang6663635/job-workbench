@@ -119,7 +119,8 @@ class FakeConn:
             seq = args[0] if isinstance(args[0], bytes) else str(args[0]).encode("ascii")
             items = []
             for part in seq.split(b","):
-                body = b"Subject: t\nFrom: hr@example.com\n\nbody-" + part
+                body = (b"Subject: t\nFrom: hr@example.com\n"
+                        b"Message-ID: <demo-" + part + b"@example.com>\n\nbody-" + part)
                 items.append((b"1 (UID " + part + b" BODY[] {%d}" % len(body), body))
             return ("OK", items)
         return ("OK", [b""])
@@ -162,6 +163,13 @@ def test_fetch_returns_the_most_recent_first(fake):
     messages = imap_fetch.fetch_messages(
         "imap.example.com", "a@example.com", "code", limit=2)
     assert [m["uid"] for m in messages] == ["3", "2"]
+
+
+def test_fetch_parses_message_id_normalized(fake):
+    """FETCH 从原始头解析 Message-ID 并去 `<>`（深链与去重都按规范值，审查 n-5）。"""
+    messages = imap_fetch.fetch_messages(
+        "imap.example.com", "a@example.com", "code", limit=1)
+    assert messages[0]["messageId"] == "demo-3@example.com"
 
 
 def test_fetch_limits_to_available_uids(fake):

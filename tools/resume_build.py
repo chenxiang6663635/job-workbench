@@ -64,10 +64,22 @@ BROWSER_CANDIDATES = [
 # 中文简历，故下调并改为可配置。
 MIN_TEXT_LENGTH = 300
 
-# 标准版式（数据驱动）的内置 HTML 模板，位于仓库根的 template/ 下
-# （工具层引 template 样板是本仓库既定约定；渲染时按需读取）。
-TEMPLATE_STD = os.path.join(ROOT, "template", "workspace", "02_简历工坊",
-                            "templates", "std_resume.html")
+# 标准版式（数据驱动）的模板目录（批 4.5）：每个 *.html 即一套版式——
+# 版式共享同一套占位符契约（tests/test_resume_templates.py 锁定），差异只在
+# 密度与强调层（对 RenderCV「主题只改默认值、底层模板同一套」结论的落地）：
+# 新增版式 = 新增一个 HTML 文件，零代码改动。
+TEMPLATES_DIR = os.path.join(ROOT, "template", "workspace", "02_简历工坊",
+                             "templates")
+DEFAULT_TEMPLATE = "std_resume"
+
+# 简历强调色（风格轴，与版式正交）：预设名 → #hex。--resume-accent 与偏好
+# resume_style 都接受「预设名」或任意 #hex；改色只改模板里的 --resume-accent。
+RESUME_ACCENTS = {
+    "石墨灰": "#3f4650",
+    "商务蓝": "#2c5f8d",
+    "深墨绿": "#1f5c4a",
+    "酒红": "#7a2e3a",
+}
 
 # 由 main() 在解析 --workspace 后赋值
 VERIFY_FACTS_FILE = ""
@@ -84,9 +96,58 @@ def esc(value):
     return html.escape(value if value is not None else "")
 
 
-def load_template():
-    with io.open(TEMPLATE_STD, "r", encoding="utf-8") as f:
+def _template_id_ok(template_id):
+    """版式名白名单：与 routers/resume.py 的版本名同一约定（拒绝路径穿越）。"""
+    return bool(re.match(r"^[A-Za-z0-9_-]+$", template_id or ""))
+
+
+def list_templates():
+    """扫描模板目录，返回可用版式 id 列表（排序）。"""
+    if not os.path.isdir(TEMPLATES_DIR):
+        return []
+    return sorted(name[:-len(".html")] for name in os.listdir(TEMPLATES_DIR)
+                  if name.lower().endswith(".html"))
+
+
+def load_template(template_id=None):
+    """读取指定版式的 HTML；template_id 缺省用 DEFAULT_TEMPLATE。
+
+    版式名经白名单校验；找不到时抛 ValueError，消息里列出可用版式——
+    调用方（CLI 与 routers/resume.py）原样打印即可。
+    """
+    tid = (template_id or DEFAULT_TEMPLATE).strip()
+    if not _template_id_ok(tid):
+        raise ValueError("版式名 `%s` 不合法（只允许字母、数字、-、_）" % template_id)
+    path = os.path.join(TEMPLATES_DIR, tid + ".html")
+    if not os.path.isfile(path):
+        available = list_templates()
+        raise ValueError("找不到版式 `%s`。可用版式：%s"
+                         % (tid, "、".join(available) if available else "（模板目录为空）"))
+    with io.open(path, "r", encoding="utf-8") as f:
         return f.read()
+
+
+def resolve_accent(value):
+    """把「预设名 / #hex / 空」解析为合法的 CSS 颜色串；非法返回 None。
+
+    空值返回 None 表示「不覆盖」（保留模板默认色）。
+    """
+    text = (value or "").strip()
+    if not text:
+        return None
+    if text in RESUME_ACCENTS:
+        return RESUME_ACCENTS[text]
+    if re.match(r"^#[0-9a-fA-F]{3,8}$", text):
+        return text
+    return None
+
+
+def apply_accent(template_html, accent):
+    """把模板里的 --resume-accent 变量替换为指定颜色；accent 为 None 时原样返回。"""
+    if not accent:
+        return template_html
+    return re.sub(r"--resume-accent\s*:\s*[^;]+;",
+                  "--resume-accent: %s;" % accent, template_html)
 
 
 def render_block(template_html, data):
@@ -270,11 +331,33 @@ def cmd_render(args, browser, verify_facts):
     else:
         selected = jobs
 
+    # 风格轴（批 4.5）：--resume-accent 优先；缺省回落到工作区偏好
+    # resume_style——该 key 一直存在（prefs 的 KNOWN_KEYS），本批起成为
+    # 真实消费方。两者都接受预设名或 #hex；非法值明确报错而不是静默忽略。
+    accent_choice = getattr(args, "resume_accent", None)
+    accent_source = "--resume-accent"
+    if not accent_choice:
+        try:
+            import prefs as prefs_mod
+            accent_choice = (prefs_mod.read_prefs(workspace).get("resume_style") or "")
+            accent_source = "偏好 resume_style"
+        except Exception:  # noqa: BLE001 - 偏好读取失败不应挡住生成
+            accent_choice = ""
+    accent = resolve_accent(accent_choice)
+    if accent_choice and not accent:
+        print("错误：风格 `%s` 无法识别。可用预设：%s；或直接给 #hex 颜色（如 #3f4650）。"
+              % (accent_choice, " / ".join(RESUME_ACCENTS)))
+        return 1
+
     try:
-        template_html = load_template()
+        template_html = load_template(getattr(args, "template", None))
     except Exception as exc:  # noqa: BLE001
         print("错误：读取标准模板失败：%s" % exc)
         return 1
+    template_html = apply_accent(template_html, accent)
+    print("版式：%s；风格：%s" % (
+        getattr(args, "template", None) or DEFAULT_TEMPLATE,
+        ("%s（%s）" % (accent, accent_source)) if accent else "模板默认"))
 
     out_dir = os.path.abspath(args.out) if args.out else os.path.join(workspace, "02_简历工坊", "pdf")
     if not os.path.isdir(out_dir):
@@ -466,6 +549,14 @@ def main():
     parser.add_argument("--no-verify", action="store_true", help="只生成，不做 ATS 校验")
     parser.add_argument("--min-text-length", type=int, default=MIN_TEXT_LENGTH,
                         help="可提取文本的最少字符数，默认 %d" % MIN_TEXT_LENGTH)
+    # 版式与风格（批 4.5，仅 render 使用；省略时给默认值与偏好回退）
+    parser.add_argument("--template", default=None,
+                        help="render 版式（模板目录下的文件名，缺省 %s；可用：%s）"
+                             % (DEFAULT_TEMPLATE,
+                                " / ".join(list_templates() or [DEFAULT_TEMPLATE])))
+    parser.add_argument("--resume-accent", dest="resume_accent", default=None,
+                        help="简历强调色：预设名（%s）或 #hex；缺省读偏好 resume_style"
+                             % " / ".join(RESUME_ACCENTS))
     args = parser.parse_args()
 
     workspace = os.path.abspath(args.workspace)

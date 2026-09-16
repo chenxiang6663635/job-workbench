@@ -21,7 +21,11 @@
           if (choice && choice !== "dark") {
             document.documentElement.setAttribute("data-theme", choice);
           }
-          // 界面字号档（#4）：首帧前一并写好，避免加载后再跳
+          // 字体方案与字号档：首帧前一并写好，避免加载后再跳
+          var fontChoice = localStorage.getItem("jobws.font");
+          if (fontChoice === "system" || fontChoice === "serif") {
+            document.documentElement.setAttribute("data-font", fontChoice);
+          }
           var fontSize = localStorage.getItem("jobws.fontsize");
           if (fontSize && fontSize !== "base") {
             document.documentElement.setAttribute("data-fontsize", fontSize);

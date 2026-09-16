@@ -38,41 +38,66 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
+  // 拖动完全绕开 React 状态（#6 用户实测「拖着卡」）：pointermove 里 setState 会把
+  // 整个弹窗子树（可能是 50 封邮件的列表）每帧重渲染一次；left/top 又是布局属性，
+  // 每帧触发 reflow。现在：move 只更新 ref 并用 rAF 合帧，直接写 DOM 的 transform
+  // （合成器友好），pointerup 才把最终位置固化进 state——与已绘位置一致，不跳变。
   const drag = React.useRef<{
     startX: number;
     startY: number;
     baseX: number;
     baseY: number;
+    x: number;
+    y: number;
+    raf: number;
+    el: HTMLDivElement;
   } | null>(null);
+
+  const paint = () => {
+    const d = drag.current;
+    if (!d) return;
+    d.raf = 0;
+    d.el.style.transform = `translate(calc(-50% + ${d.x}px), calc(-50% + ${d.y}px))`;
+  };
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     // 交互元素不触发拖动（标题里的链接/按钮仍可点）
     if (target.closest("button, a, input, select, textarea")) return;
     if (!target.closest("[data-dialog-drag]")) return;
+    const el = event.currentTarget;
     drag.current = {
       startX: event.clientX,
       startY: event.clientY,
       baseX: offset.x,
       baseY: offset.y,
+      x: offset.x,
+      y: offset.y,
+      raf: 0,
+      el,
     };
+    // 拖动期间提升为合成层，松手即撤（常驻会白占一层显存）
+    el.style.willChange = "transform";
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
+    const d = drag.current;
+    if (!d) return;
     // 边界夹取（#1）：中心最多移到距视口边 80px——任何方向都留有可抓回的部分，
     // 不会出现「拖出屏幕丢了、只能重启」的死路。
     const limitX = Math.max(80, window.innerWidth / 2 - 80);
     const limitY = Math.max(80, window.innerHeight / 2 - 80);
-    const rawX = drag.current.baseX + (event.clientX - drag.current.startX);
-    const rawY = drag.current.baseY + (event.clientY - drag.current.startY);
-    setOffset({
-      x: Math.min(limitX, Math.max(-limitX, rawX)),
-      y: Math.min(limitY, Math.max(-limitY, rawY)),
-    });
+    d.x = Math.min(limitX, Math.max(-limitX, d.baseX + (event.clientX - d.startX)));
+    d.y = Math.min(limitY, Math.max(-limitY, d.baseY + (event.clientY - d.startY)));
+    if (!d.raf) d.raf = requestAnimationFrame(paint);
   };
   const endDrag = () => {
+    const d = drag.current;
+    if (!d) return;
+    if (d.raf) cancelAnimationFrame(d.raf);
+    d.el.style.willChange = "";
     drag.current = null;
+    setOffset({ x: d.x, y: d.y });
   };
 
   return (
@@ -84,13 +109,15 @@ const DialogContent = React.forwardRef<
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        // 拖动经 left/top 偏移（transform 留给进出场动画，避免动画期间位置跳变）
+        // 拖动经 transform 偏移（translate 走合成器；-50% 居中一并写进同一个
+        // transform，内联值恒存在，与入场动画的 enter/exit 变量天然衔接）
         style={{
-          left: `calc(50% + ${offset.x}px)`,
-          top: `calc(50% + ${offset.y}px)`,
+          transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
         }}
         className={cn(
-          "fixed z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto border border-border-strong bg-popover p-6 shadow-elevated ring-1 ring-highlight/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 [--tw-enter-translate-x:-50%] [--tw-enter-translate-y:-50%] [--tw-exit-translate-x:-50%] [--tw-exit-translate-y:-50%] sm:rounded-lg",
+          // left/top 50% 定基准（此前由内联 left/top 承担，改 transform 偏移后必须
+          // 显式给出，否则 fixed 元素落在静态位置上——2026-09-16 实测回归）
+          "fixed left-1/2 top-1/2 z-50 grid max-h-[85vh] w-full max-w-lg gap-4 overflow-y-auto border border-border-strong bg-popover p-6 shadow-elevated ring-1 ring-highlight/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 [--tw-enter-translate-x:-50%] [--tw-enter-translate-y:-50%] [--tw-exit-translate-x:-50%] [--tw-exit-translate-y:-50%] sm:rounded-lg",
           className
         )}
         {...props}

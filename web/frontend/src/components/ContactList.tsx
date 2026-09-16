@@ -113,7 +113,7 @@ export default function ContactList() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
           {loaded && t("contact.summary", { count: rows.length })}
@@ -136,7 +136,7 @@ export default function ContactList() {
           ))}
         </div>
       ) : loaded && !error && rows.length === 0 ? (
-        <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
+        <Card className="flex flex-1 flex-col items-center justify-center rounded-lg border-dashed p-8 text-center">
           <UserRound size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("contact.emptyTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

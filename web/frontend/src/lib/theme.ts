@@ -305,11 +305,15 @@ export interface FontOption {
 export const FONTS: FontOption[] = [
   { id: "default", label: "Inter" },
   { id: "system", label: "System UI" },
+  { id: "serif", label: "serif" },
 ];
+
+const FONT_IDS = ["default", "system", "serif"] as const;
 
 export function getFontChoice(): string {
   try {
-    return localStorage.getItem(FONT_KEY) === "system" ? "system" : "default";
+    const stored = localStorage.getItem(FONT_KEY) || "default";
+    return (FONT_IDS as readonly string[]).includes(stored) ? stored : "default";
   } catch {
     return "default";
   }
@@ -317,12 +321,15 @@ export function getFontChoice(): string {
 
 export function applyFont(choice: string): void {
   const root = document.documentElement;
-  if (choice === "system") root.setAttribute("data-font", "system");
-  else root.removeAttribute("data-font");
+  if (choice === "system" || choice === "serif") {
+    root.setAttribute("data-font", choice);
+  } else {
+    root.removeAttribute("data-font");
+  }
 }
 
 export function setFontChoice(id: string): void {
-  const safe = id === "system" ? "system" : "default";
+  const safe = (FONT_IDS as readonly string[]).includes(id) ? id : "default";
   try {
     localStorage.setItem(FONT_KEY, safe);
   } catch {

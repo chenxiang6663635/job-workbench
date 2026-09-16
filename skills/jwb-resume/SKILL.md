@@ -19,6 +19,8 @@ jobws resume --no-verify          # 只生成不校验
 jobws resume render                          # 全部 JSON 版本
 jobws resume render --version hvac           # 只生成指定 JSON 版本
 jobws resume render --version hvac --no-verify
+jobws resume render --template std_compact   # 换版式（经典 / 紧凑 / 强调）
+jobws resume render --resume-accent 酒红     # 换强调色（预设名或 #hex）
 ```
 
 省略 `--workspace` 时默认使用 `personal/`。
@@ -40,7 +42,7 @@ jobws resume render --version hvac --no-verify
 
 照片：覆盖 `02_简历工坊/pdf/photo.jpg`。不需要照片时删除 HTML 中的 `<img class="photo" ...>` 一行。
 
-简历风格：模板主色是变量 `--resume-accent`（默认专业蓝，石墨灰备选在注释里）——换色只改这一个变量；简历**保持亮底深字的专业取向**（打印与 ATS 优先），**不跟随应用主题皮肤**。选定的风格名记进工作区偏好 `resume_style`（`jobws prefs set resume_style 石墨灰`），跨会话保持一致。
+简历版式与风格（两条正交轴）：**版式** = `02_简历工坊/templates/*.html` 里的文件（内置 经典 / 紧凑 / 强调 三套，共享同一套占位符骨架，全部单栏并过 ATS 三项；第三方合规 HTML 放进目录即出现在列表）——`--template <文件名>` 选择，缺省 `std_resume`。**风格** = 模板里的 `--resume-accent` 变量——`--resume-accent` 接受预设名（石墨灰 / 商务蓝 / 深墨绿 / 酒红）或 `#hex`；缺省读工作区偏好 `resume_style`（`jobws prefs set resume_style 深墨绿`），非法值会显式报错。简历**保持亮底深字的专业取向**（打印与 ATS 优先），**不跟随应用主题皮肤**。网页端「简历工坊 → 标准版式」有同名下拉与色板，切换即刷新预览。
 
 ## ATS 校验三项
 

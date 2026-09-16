@@ -21,6 +21,11 @@
           if (choice && choice !== "dark") {
             document.documentElement.setAttribute("data-theme", choice);
           }
+          // 界面字号档（#4）：首帧前一并写好，避免加载后再跳
+          var fontSize = localStorage.getItem("jobws.fontsize");
+          if (fontSize && fontSize !== "base") {
+            document.documentElement.setAttribute("data-fontsize", fontSize);
+          }
         } catch (e) {
           /* 隐私模式等场景读不到 localStorage：保持默认暗 */
         }

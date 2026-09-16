@@ -334,3 +334,43 @@ export function setFontChoice(id: string): void {
 export function applyStoredFont(): void {
   applyFont(getFontChoice());
 }
+
+// --- 界面字号（#4）----------------------------------------------------------
+//
+// 四档缩放只改**根字号百分比**（Tailwind 的长度单位全是 rem，全站等比跟随）；
+// 与 Electron 的 webContents 全局缩放解耦——浏览器端同样可用，且百分比写法
+// 尊重用户系统的默认字号。档位：sm 87.5% / base 100%（不写属性）/ lg 112.5%
+// / xl 125%。
+
+const FONTSIZE_KEY = "jobws.fontsize";
+
+export const FONT_SIZE_IDS = ["sm", "base", "lg", "xl"] as const;
+
+export function getFontSizeChoice(): string {
+  try {
+    const stored = localStorage.getItem(FONTSIZE_KEY) || "base";
+    return (FONT_SIZE_IDS as readonly string[]).includes(stored) ? stored : "base";
+  } catch {
+    return "base";
+  }
+}
+
+export function applyFontSize(id: string): void {
+  const root = document.documentElement;
+  if (id && id !== "base") root.setAttribute("data-fontsize", id);
+  else root.removeAttribute("data-fontsize");
+}
+
+export function setFontSizeChoice(id: string): void {
+  const safe = (FONT_SIZE_IDS as readonly string[]).includes(id) ? id : "base";
+  try {
+    localStorage.setItem(FONTSIZE_KEY, safe);
+  } catch {
+    // 同主题：持久化失败只影响下次启动
+  }
+  applyFontSize(safe);
+}
+
+export function applyStoredFontSize(): void {
+  applyFontSize(getFontSizeChoice());
+}

@@ -1061,6 +1061,12 @@ const zhCN = {
   // 字体方案（4g）：Inter 本地打包；系统栈不加载 webfont（启动更快）
   "settings.fontTitle": "字体方案",
   "settings.fontSystem": "系统字体（更快）",
+  // 界面字号（#4）：四档根字号缩放（rem 全链），与桌面全局缩放解耦
+  "settings.fontSizeTitle": "界面字号",
+  "settings.fontSizeSm": "小",
+  "settings.fontSizeBase": "标准",
+  "settings.fontSizeLg": "大",
+  "settings.fontSizeXl": "特大",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

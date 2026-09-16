@@ -977,6 +977,12 @@ export default {
   // Typeface (4g): Inter is bundled locally; the system stack skips webfont loading.
   "settings.fontTitle": "Typeface",
   "settings.fontSystem": "System fonts (faster)",
+  // Interface size (#4): four-step root font scaling (rem-based), decoupled from desktop zoom.
+  "settings.fontSizeTitle": "Interface size",
+  "settings.fontSizeSm": "Small",
+  "settings.fontSizeBase": "Default",
+  "settings.fontSizeLg": "Large",
+  "settings.fontSizeXl": "Extra large",
   "settings.zoomDesktopOnly":
     "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

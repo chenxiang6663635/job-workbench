@@ -3,10 +3,29 @@ import { useTranslation } from "react-i18next";
 import { Palette, SlidersHorizontal } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
+import { Segmented } from "./ui/segmented";
 import { cn } from "../lib/utils";
-import { SYSTEM_ID, getThemeChoice, listThemes, setThemeChoice } from "../lib/theme";
-import { FONTS, getFontChoice, setFontChoice } from "../lib/theme";
+import {
+  FONTS,
+  SYSTEM_ID,
+  getFontChoice,
+  getFontSizeChoice,
+  getThemeChoice,
+  listThemes,
+  setFontChoice,
+  setFontSizeChoice,
+  setThemeChoice,
+} from "../lib/theme";
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 import ThemeEditor from "./ThemeEditor";
+
+// 字号档标签（#4）：key 走 TranslationKey 类型——拼错在编译期报（与 TABS 同一约定）
+const FONT_SIZE_OPTIONS: { value: string; labelKey: TranslationKey }[] = [
+  { value: "sm", labelKey: "settings.fontSizeSm" },
+  { value: "base", labelKey: "settings.fontSizeBase" },
+  { value: "lg", labelKey: "settings.fontSizeLg" },
+  { value: "xl", labelKey: "settings.fontSizeXl" },
+];
 
 // 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口。
 // - 色块预览取各自色板；主题真名不翻译（社区惯例），system 项走 i18n。
@@ -17,6 +36,7 @@ export default function ThemePicker() {
   const [themes, setThemes] = useState(listThemes());
   const [editing, setEditing] = useState(false);
   const [font, setFont] = useState(getFontChoice());
+  const [fontSize, setFontSize] = useState(getFontSizeChoice());
 
   const onPick = (id: string) => {
     setChoice(id);
@@ -40,8 +60,10 @@ export default function ThemePicker() {
         {t("settings.themeDesc")}
       </p>
 
+      {/* 三列（#4）：双列时 10 套主题把卡片撑得远高于同排邻居——设置页两列
+          瀑布流的参差感主要来自这里；三列把外观卡压回常规高度 */}
       <div
-        className="grid grid-cols-2 gap-2"
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3"
         role="radiogroup"
         aria-label={t("settings.themeTitle")}
       >
@@ -119,6 +141,26 @@ export default function ThemePicker() {
             </Button>
           ))}
         </div>
+      </div>
+
+      {/* 界面字号（#4）：四档根字号缩放（rem 全链）——与桌面全局缩放解耦，
+          浏览器端同样生效；方向键由原生 radio（Segmented）天然支持 */}
+      <div className="border-t border-border pt-3">
+        <p className="mb-2 text-xs font-medium text-foreground">
+          {t("settings.fontSizeTitle")}
+        </p>
+        <Segmented
+          value={fontSize}
+          onChange={(next) => {
+            setFontSize(next);
+            setFontSizeChoice(next);
+          }}
+          options={FONT_SIZE_OPTIONS.map((item) => ({
+            value: item.value,
+            label: t(item.labelKey),
+          }))}
+          ariaLabel={t("settings.fontSizeTitle")}
+        />
       </div>
     </Card>
   );

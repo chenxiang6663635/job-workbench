@@ -135,6 +135,19 @@ html[data-font="system"] {
     "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
 }
 
+/* 界面字号（#4）：根字号四档——全站长度单位都是 rem，改根字号即等比缩放。
+   用**百分比**而非 px：尊重用户系统/浏览器的默认字号；与 Electron 全局缩放
+   （webContents zoom）解耦——浏览器端同样可用。base 档不写属性（即 100%）。 */
+html[data-fontsize="sm"] {
+  font-size: 87.5%;
+}
+html[data-fontsize="lg"] {
+  font-size: 112.5%;
+}
+html[data-fontsize="xl"] {
+  font-size: 125%;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

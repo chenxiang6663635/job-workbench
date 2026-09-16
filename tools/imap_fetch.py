@@ -93,6 +93,18 @@ def _decode_mime_header(raw):
         return raw if isinstance(raw, str) else ""
 
 
+def _clean_message_id(raw):
+    """规范化 Message-ID：去 `<>`（头字段包围符不属于 ID 本体）并 strip。
+
+    深链（Gmail 的 rfc822msgid 搜索）要求不带尖括号的原始值；
+    mails.csv 的「消息id」列存的就是这里出来的规范值。
+    """
+    text = (raw or "").strip()
+    if text.startswith("<") and text.endswith(">"):
+        text = text[1:-1].strip()
+    return text
+
+
 class _HtmlTextExtractor(HTMLParser):
     """尽力而为的 HTML → 纯文本：跳过 script/style，块级标签折算换行。"""
 
@@ -395,6 +407,9 @@ def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDE
             msg = message_from_bytes(raw)
             messages.append({
                 "uid": uid.decode("ascii", errors="replace"),
+                # Message-ID（批 4.5）：BODY.PEEK[] 已含 headers，无需额外请求；
+                # 规范值供 mails 去重与 Gmail 深链构造（其余邮箱诚实降级）。
+                "messageId": _clean_message_id(msg.get("Message-ID")),
                 "subject": _decode_mime_header(msg.get("Subject")),
                 "from": _decode_mime_header(msg.get("From")),
                 "date": (msg.get("Date") or "").strip(),

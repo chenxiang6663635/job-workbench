@@ -160,6 +160,21 @@ TALK_FIELDS = [
 TALK_FORMS = ["线上", "线下", "其他"]
 TALK_ATTEND = ["待定", "参加", "不参加"]
 
+# 邮件（批 4.5）：独立 CSV（一对多），「关联记录」指回 tracker.csv 的 id。
+# 邮件只驱动「记录产生」，**不自动改阶段**——状态流转一律人工确认（与自托管
+# 标杆 arpit4k 及本仓库诚实红线一致）。两个 id 各司其职：
+#   「邮件id」= 记录 id（M001 起），供 CLI 寻址与 list/show；
+#   「消息id」= RFC822 Message-ID 规范化值（去 <>），供去重与 Gmail 深链构造；
+# 其余邮箱（Outlook/QQ/163/企业微信/飞书/iCloud）拿不到可用深链，诚实用
+# 「webmail链接」列承接用户自粘的原邮件链接。
+MAIL_FILE = "mails.csv"
+MAIL_FIELDS = [
+    "邮件id", "消息id", "关联记录", "方向", "主题", "发件人", "日期",
+    "webmail链接", "标签",
+]
+MAIL_DIRECTIONS = ["收", "发"]
+MAIL_TAGS = ["通知", "邀约", "笔试", "面试", "拒信", "其他"]
+
 # 题库：与面试记录**分开**——面试表记"被问过的事实"，题库记"要准备的题"。
 # 打通靠「来源=面试记录 + 关联公司/岗位」溯源，不并表：并表会让要准备的题被
 # 只发生过一次的题淹没，复习状态（未看/看过/会了）也无处安放。
@@ -353,6 +368,10 @@ def run_check(workspace=None):
             required=["宣讲会id"],        # 关联记录可空（还没投递的活动也能记）
             enums=[("形式", TALK_FORMS), ("是否参加", TALK_ATTEND)],
             with_fk=True)          # 时间同样是宽松格式，不套日期校验
+    inspect(MAIL_FILE,
+            required=["邮件id"],          # 消息id 可空（手工记录时未必拿得到）
+            enums=[("方向", MAIL_DIRECTIONS), ("标签", MAIL_TAGS)],
+            with_fk=True)          # 日期是宽松格式（可含 HH:MM），不套日期校验
     # 题库不挂外键：关联的是"公司名/岗位名"（自由文本，可能还没进投递表）
     inspect(QUESTION_FILE,
             required=["题目id"],
@@ -703,6 +722,44 @@ def next_talk_id(rows):
 def find_talk(rows, talk_id):
     for row in rows:
         if (row.get("宣讲会id") or "").strip() == talk_id:
+            return row
+    return None
+
+
+def mail_path(workspace=None):
+    return os.path.join(resolve_ws(workspace), "05_投递追踪", MAIL_FILE)
+
+
+def read_mails(workspace=None, app_id=None):
+    """读取邮件记录。app_id 非空时只返回关联该岗位记录的邮件。"""
+    path = mail_path(workspace)
+    if not os.path.isfile(path):
+        return []
+    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
+        rows = [dict(row) for row in csv.DictReader(f)]
+    if app_id:
+        rows = [r for r in rows if (r.get("关联记录") or "").strip() == app_id]
+    return rows
+
+
+def write_mails(rows, workspace=None):
+    """全量重写邮件表（原子写）。"""
+    _atomic_write_csv(mail_path(workspace), rows, MAIL_FIELDS, "utf-8-sig")
+
+
+def next_mail_id(rows):
+    """生成下一个邮件记录 ID（M001 起）。"""
+    max_num = 0
+    for row in rows:
+        m = re.match(r"^M(\d+)$", (row.get("邮件id") or "").strip())
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    return "M%03d" % (max_num + 1)
+
+
+def find_mail(rows, mail_id):
+    for row in rows:
+        if (row.get("邮件id") or "").strip() == mail_id:
             return row
     return None
 
@@ -1623,6 +1680,86 @@ def _talk_targets(workspace=None):
     return [os.path.join(ws, "05_投递追踪", TALK_FILE)]
 
 
+def _validate_mail_fields(fields, workspace=None):
+    """邮件字段校验（预览与落盘两段共用），返回错误列表。
+
+    三条纪律：关联记录非空时必须存在（与 talks/questions 同款外键纪律）；
+    主题必填（它是这条记录的主语）；消息id 非空时不允许重复——同一封邮件
+    导两遍，列表里会长出一模一样的行，且深链指向同一封、无法自辨。
+    """
+    errors = []
+    link = (fields.get("关联记录") or "").strip()
+    if link:
+        rows = read_rows(workspace)
+        if not any((r.get("id") or "").strip() == link for r in rows):
+            errors.append("关联记录 `%s` 不存在（先在 track 里添加这条投递）" % link)
+    if not (fields.get("主题") or "").strip():
+        errors.append("必须给 `--subject`（邮件主题是这条记录的主语）")
+    direction = fields.get("方向") or ""
+    if direction and direction not in MAIL_DIRECTIONS:
+        errors.append("`--direction` 必须是 %s 之一，实际为 `%s`"
+                      % ("/".join(MAIL_DIRECTIONS), direction))
+    tag = fields.get("标签") or ""
+    if tag and tag not in MAIL_TAGS:
+        errors.append("`--tag` 必须是 %s 之一，实际为 `%s`" % ("/".join(MAIL_TAGS), tag))
+    msg_id = (fields.get("消息id") or "").strip()
+    if msg_id:
+        rows = read_mails(workspace)
+        if any((r.get("消息id") or "").strip() == msg_id for r in rows):
+            errors.append("这封邮件（消息id `%s`）已记录过，不要重复导入" % msg_id)
+    return errors
+
+
+def preview_mail_fields(fields, workspace=None):
+    """按中文字段预览一次邮件新增（**不落盘**）：返回 (errors, plan)。"""
+    fields = {field: (fields.get(field) or "") for field in MAIL_FIELDS}
+    for field in ("消息id", "关联记录", "主题", "发件人", "日期", "webmail链接"):
+        fields[field] = fields[field].strip()
+    errors = _validate_mail_fields(fields, workspace)
+    if errors:
+        return errors, None
+    diff = ["| 字段 | 值 |", "|---|---|"]
+    for field in MAIL_FIELDS:
+        if fields.get(field):
+            diff.append("| %s | %s |" % (field, fields[field]))
+    plan = {
+        "payload": {"fields": fields},
+        "summary": "新增邮件：%s（%s）" % (fields["主题"], fields["日期"] or "日期待定"),
+        "diff": diff,
+        "targets": _mail_targets(workspace),
+    }
+    return [], plan
+
+
+def apply_approved_mail(payload, workspace=None):
+    """两段式的第二步：按已确认的载荷新增一条邮件记录。
+
+    与宣讲会一样，邮件**不推进任何阶段、也不入主表时间线**——它是投递过程
+    的往来证据而非流程节点；阶段变更永远由用户经人工确认的链路完成。
+    """
+    ws = resolve_ws(workspace)
+    fields = dict(payload.get("fields") or {})
+    with file_lock(_lock_path(ws)):
+        errors = _validate_mail_fields(fields, ws)
+        if errors:
+            raise ConflictError("预览之后数据有变化，已拒绝写入：%s（请重新预览）"
+                                % "；".join(errors))
+        rows = read_mails(ws)
+        record = {field: "" for field in MAIL_FIELDS}
+        record.update(fields)
+        record["邮件id"] = next_mail_id(rows)
+        rows.append(record)
+        write_mails(rows, ws)
+        return {"id": record["邮件id"], "written": 1,
+                "summary": "已新增 %s（%s）" % (record["邮件id"], record["主题"])}
+
+
+def _mail_targets(workspace=None):
+    """邮件写入会落到的文件（供令牌绑定与预览展示）。"""
+    ws = resolve_ws(workspace)
+    return [os.path.join(ws, "05_投递追踪", MAIL_FILE)]
+
+
 def cmd_talk(args):
     """宣讲会 / 招聘会：与投递记录用「关联记录」相连，时间、地点、收获都留下。"""
     if args.action == "add":
@@ -1714,6 +1851,121 @@ def cmd_talk(args):
             return 0
         write_talks(rows)
         print("已更新宣讲会 %s：%s" % (args.id, "、".join(changed)))
+        return 0
+
+    print("错误：未知动作 %s" % args.action)
+    return 1
+
+
+def cmd_mail(args):
+    """邮件记录：独立表沉淀往来邮件，与投递记录用「关联记录」相连。
+
+    只入账与查询——邮件**不自动**推进任何阶段；改阶段请走人工确认的
+    链路（track update / 邮件解析建议），这是与诚实红线同源的纪律。
+    """
+    if args.action == "add":
+        fields = {
+            "消息id": getattr(args, "message_id", None) or "",
+            "关联记录": args.app or "",
+            "方向": args.direction or "收",
+            "主题": args.subject or "",
+            "发件人": getattr(args, "sender", None) or "",
+            "日期": args.when or "",
+            "webmail链接": args.url or "",
+            "标签": args.tag or "其他",
+        }
+        errors, plan = preview_mail_fields(fields, WORKSPACE)
+        if errors:
+            print("## 校验失败\n")
+            for e in errors:
+                print("- %s" % e)
+            print("\n未写入 CSV。")
+            return 1
+
+        if getattr(args, "preview", False):
+            import approval
+            result = approval.preview("mail.add", WORKSPACE, plan["payload"],
+                                      plan["summary"], plan["diff"], plan["targets"])
+            print("## 预览（未写入）\n")
+            print(result["summary"])
+            print("")
+            for line in plan["diff"]:
+                print(line)
+            print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
+            print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
+            return 0
+
+        result = apply_approved_mail(plan["payload"], WORKSPACE)
+        print("## %s\n" % result["summary"])
+        for line in plan["diff"]:
+            print(line)
+        return 0
+
+    if args.action == "list":
+        rows = read_mails(app_id=args.app)
+        if not rows:
+            print("（暂无邮件记录）")
+            return 0
+        # 按日期倒序（最近的在先），空日期排最后
+        rows.sort(key=lambda r: (r.get("日期") or ""), reverse=True)
+        print("## 邮件（共 %d 封）\n" % len(rows))
+        print("| id | 日期 | 方向 | 标签 | 主题 | 发件人 | 关联 |")
+        print("|---|---|---|---|---|---|---|")
+        for r in rows:
+            print("| %s | %s | %s | %s | %s | %s | %s |" % (
+                r.get("邮件id", ""), r.get("日期", "") or "—",
+                r.get("方向", "") or "—", r.get("标签", "") or "—",
+                r.get("主题", ""), r.get("发件人", "") or "—",
+                r.get("关联记录", "") or "—"))
+        return 0
+
+    if args.action == "show":
+        rows = read_mails()
+        row = find_mail(rows, args.id)
+        if not row:
+            print("错误：找不到邮件 `%s`" % args.id)
+            return 1
+        for field in MAIL_FIELDS:
+            print("**%s**：%s" % (field, row.get(field, "") or "（空）"))
+        return 0
+
+    if args.action == "update":
+        rows = read_mails()
+        row = find_mail(rows, args.id)
+        if not row:
+            print("错误：找不到邮件 `%s`" % args.id)
+            return 1
+        changed = []
+        for arg_name, field in (
+            ("subject", "主题"), ("direction", "方向"), ("sender", "发件人"),
+            ("when", "日期"), ("url", "webmail链接"), ("tag", "标签"),
+        ):
+            value = getattr(args, arg_name, None)
+            if value is not None:
+                changed.append(field)
+                row[field] = value
+        # 关联记录单独处理：给出时必须指向存在的投递记录
+        if getattr(args, "app", None) is not None:
+            link = args.app.strip()
+            if link and not any((r.get("id") or "").strip() == link for r in read_rows()):
+                print("错误：找不到记录 `%s`" % link)
+                return 1
+            changed.append("关联记录")
+            row["关联记录"] = link
+        # 枚举与新增同口径（手滑打错不该静默落盘）
+        direction = row.get("方向") or ""
+        if direction and direction not in MAIL_DIRECTIONS:
+            print("错误：方向必须是 %s 之一" % "/".join(MAIL_DIRECTIONS))
+            return 1
+        tag = row.get("标签") or ""
+        if tag and tag not in MAIL_TAGS:
+            print("错误：标签必须是 %s 之一" % "/".join(MAIL_TAGS))
+            return 1
+        if not changed:
+            print("没有字段变化，未写入")
+            return 0
+        write_mails(rows)
+        print("已更新邮件 %s：%s" % (args.id, "、".join(changed)))
         return 0
 
     print("错误：未知动作 %s" % args.action)
@@ -2151,6 +2403,22 @@ def build_parser():
                         help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
                              "确认后用 python tools/jobws.py apply <令牌> 落盘")
 
+    p_mail = sub.add_parser("mail", help="邮件记录（add/list/show/update）")
+    p_mail.add_argument("action", choices=["add", "list", "show", "update"])
+    p_mail.add_argument("--id", help="邮件记录 id（show/update 必填，如 M001）")
+    p_mail.add_argument("--message-id", dest="message_id",
+                        help="邮件消息 id（Message-ID，可空；有则用于去重与 Gmail 深链）")
+    p_mail.add_argument("--app", help="关联的记录 id（如 A001），可省略")
+    p_mail.add_argument("--direction", choices=MAIL_DIRECTIONS, help="方向，默认收")
+    p_mail.add_argument("--subject", help="主题（add 必填）")
+    p_mail.add_argument("--from", dest="sender", help="发件人")
+    p_mail.add_argument("--when", help="日期，如 2026-09-10 10:30")
+    p_mail.add_argument("--url", help="原邮件链接（Outlook 等无深链的邮箱可粘贴）")
+    p_mail.add_argument("--tag", choices=MAIL_TAGS, help="标签，默认其他")
+    p_mail.add_argument("--preview", action="store_true",
+                        help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
+                             "确认后用 python tools/jobws.py apply <令牌> 落盘")
+
     p_ct = sub.add_parser("contact", help="招聘方联系人（add/list/show/update）")
     p_ct.add_argument("action", choices=["add", "list", "show", "update"])
     p_ct.add_argument("--id", help="联系人 id（show/update 必填，如 C001）")
@@ -2216,6 +2484,7 @@ def main():
         "history": cmd_history,
         "interview": cmd_interview,
         "talk": cmd_talk,
+        "mail": cmd_mail,
         "contact": cmd_contact,
         "offer": cmd_offer,
         "import": cmd_import,

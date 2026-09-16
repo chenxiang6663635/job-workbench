@@ -47,7 +47,8 @@ CLI_MODULES = [["track"], ["bank"], ["report"], ["resume"], ["jd"], ["init"],
                ["release", "check"], ["release", "version"]]
 
 TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
-                       "interview", "talk", "contact", "offer", "import", "check"]
+                       "interview", "talk", "mail", "contact", "offer",
+                       "import", "check"]
 
 
 @pytest.fixture(autouse=True)
@@ -319,6 +320,17 @@ def test_tracker_talk_add_writes_row(tmp_path, monkeypatch, capsys):
     ])
     assert code == 0, out
     assert [r["公司"] for r in tracker.read_talks(str(ws))] == ["示例公司"]
+
+
+def test_tracker_mail_add_writes_row(tmp_path, monkeypatch, capsys):
+    """mail 是与 talk 平级的独立子命令：真实落一条，证明接线完整。"""
+    ws = _make_ws(tmp_path)
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
+        "--workspace", str(ws), "mail", "add",
+        "--subject", "面试通知",
+    ])
+    assert code == 0, out
+    assert [r["主题"] for r in tracker.read_mails(str(ws))] == ["面试通知"]
 
 
 def _scored_card(total, dims):

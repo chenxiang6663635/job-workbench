@@ -404,6 +404,16 @@ export default function Applications() {
             setStatusDraft(body);
             setShowStatus(true);
           }}
+          onRecord={(m) =>
+            // 记入邮件台账（批 4.5）：只沉淀元数据（Message-ID/主题/发件人/日期），
+            // 不解析、不改任何投递阶段；标签/关联可在「进展 → 邮件」里补。
+            api.createMail({
+              消息id: m.messageId ?? "",
+              主题: m.subject,
+              发件人: m.from,
+              日期: m.date,
+            })
+          }
         />
       )}
 

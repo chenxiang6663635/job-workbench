@@ -607,6 +607,8 @@ export interface ImapMessage {
   from: string;
   date: string;
   body: string;
+  /** RFC822 Message-ID 规范值（批 4.5，去 `<>`）——记入邮件台账与 Gmail 深链用 */
+  messageId?: string;
 }
 
 export interface ImapFetchResult {
@@ -640,6 +642,30 @@ export const INTERVIEW_RESULTS = ["待定", "通过", "未通过", "取消"];
 // 宣讲会 / 招聘会枚举，与后端 tracker.TALK_* 一致（单一事实源在 tools/tracker.py）
 export const TALK_FORMS = ["线上", "线下", "其他"];
 export const TALK_ATTEND = ["待定", "参加", "不参加"];
+
+// 邮件（批 4.5）：独立表 mails.csv。「_openLink」是后端随行附加的计算字段：
+// custom = 用户自粘链接（Outlook 等）/ gmail = 由 Message-ID 构造 / none = 诚实降级。
+export interface MailOpenLink {
+  kind: "custom" | "gmail" | "none";
+  url: string | null;
+}
+
+export interface Mail {
+  邮件id: string;
+  消息id: string;
+  关联记录: string;
+  方向: string;
+  主题: string;
+  发件人: string;
+  日期: string;
+  webmail链接: string;
+  标签: string;
+  _openLink?: MailOpenLink;
+}
+
+// 邮件枚举，与后端 tracker.MAIL_* 一致（单一事实源在 tools/tracker.py）
+export const MAIL_DIRECTIONS = ["收", "发"];
+export const MAIL_TAGS = ["通知", "邀约", "笔试", "面试", "拒信", "其他"];
 
 // 全局当前工作区（相对仓库根，如 personal）。空 = 用后端默认。
 /** 新建工作区的预览结果（两段式的第一步：不落盘，只登记一次性令牌）。 */
@@ -932,6 +958,21 @@ export const api = {
 
   createTalk: (body: Partial<Talk>) =>
     request<Talk>("/progress/talks", { method: "POST", body }),
+
+  // 邮件（批 4.5）：列表随行带 _openLink（链接构造在后端单一处，前端不做第二份编码）
+  listMails: (app?: string) =>
+    request<{ rows: Mail[]; total: number }>(
+      `/progress/mails${app ? `?app=${encodeURIComponent(app)}` : ""}`
+    ),
+
+  createMail: (body: Partial<Mail>) =>
+    request<Mail>("/progress/mails", { method: "POST", body }),
+
+  updateMail: (id: string, body: Partial<Mail>) =>
+    request<Mail & { _changed?: string[] }>(
+      `/progress/mails/${encodeURIComponent(id)}`,
+      { method: "PATCH", body }
+    ),
 
   updateTalk: (id: string, body: Partial<Talk>) =>
     request<Talk & { _changed?: string[] }>(

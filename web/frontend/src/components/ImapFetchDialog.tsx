@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
-import { ChevronRight, Inbox, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { Check, ChevronRight, Inbox, Loader2, MailPlus, RefreshCw, Search, X } from "lucide-react";
 import { api, type ImapMessage } from "../api";
 import {
   Dialog,
@@ -26,6 +26,8 @@ interface Props {
   onClose: () => void;
   /** 选定邮件后把正文交给「粘贴邮件更新」对话框预填（用户仍可编辑再解析） */
   onUse: (body: string) => void;
+  /** 「记入邮件台账」（批 4.5）：整条元数据交调用方落库（Message-ID/主题/发件人/日期） */
+  onRecord?: (m: ImapMessage) => Promise<unknown>;
 }
 
 const RANGE_OPTIONS: { value: string; labelKey: TranslationKey }[] = [
@@ -43,9 +45,11 @@ const RANGE_OPTIONS: { value: string; labelKey: TranslationKey }[] = [
  * 拉取是 dry-run：不动邮箱、也不动追踪表；写回只发生在用户于下一步
  * 逐条确认之后。凭证与服务器配置在「设置」页。
  */
-export default function ImapFetchDialog({ onClose, onUse }: Props) {
+export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<ImapMessage[] | null>(null);
+  // 已记入台账的邮件（按 uid）：按钮原地变「已记录」——后端还有消息id 去重兜底
+  const [recorded, setRecorded] = useState<Record<string, boolean>>({});
   const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -159,14 +163,17 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
           )}
 
           {filtered.map((m) => (
-            <button
+            <div
               key={m.uid}
-              type="button"
-              onClick={() => onUse(m.body)}
-              title={t("imap.useThis")}
-              className="group flex w-full items-start gap-3 rounded-lg border border-border bg-card/60 p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-card"
+              className="group flex items-start gap-3 rounded-lg border border-border bg-card/60 p-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-card"
             >
-              <div className="min-w-0 flex-1">
+              {/* 行主体：走「解析 → 建议 → 确认」链路（原行为不变） */}
+              <button
+                type="button"
+                onClick={() => onUse(m.body)}
+                title={t("imap.useThis")}
+                className="min-w-0 flex-1 cursor-pointer text-left"
+              >
                 <p className="truncate text-sm font-medium text-foreground">
                   {m.subject || t("imap.noSubject")}
                 </p>
@@ -177,12 +184,33 @@ export default function ImapFetchDialog({ onClose, onUse }: Props) {
                   {m.body.slice(0, 140)}
                   {m.body.length > 140 ? "…" : ""}
                 </p>
+              </button>
+              <div className="flex shrink-0 flex-col items-center gap-1.5">
+                {/* 记入邮件台账（批 4.5）：元数据直接落 mails.csv，不用再手打一遍 */}
+                {onRecord && (
+                  <button
+                    type="button"
+                    disabled={!!recorded[m.uid]}
+                    aria-label={t("imap.recordTitle")}
+                    title={t("imap.recordTitle")}
+                    onClick={() =>
+                      onRecord(m)
+                        .then(() =>
+                          setRecorded((prev) => ({ ...prev, [m.uid]: true }))
+                        )
+                        .catch((e: Error) => setError(e.message))
+                    }
+                    className="cursor-pointer text-muted-foreground/70 transition-colors hover:text-primary disabled:cursor-default disabled:text-success"
+                  >
+                    {recorded[m.uid] ? <Check size={16} /> : <MailPlus size={16} />}
+                  </button>
+                )}
+                <ChevronRight
+                  size={16}
+                  className="text-muted-foreground/60 transition-colors group-hover:text-primary"
+                />
               </div>
-              <ChevronRight
-                size={16}
-                className="mt-0.5 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary"
-              />
-            </button>
+            </div>
           ))}
         </div>
 

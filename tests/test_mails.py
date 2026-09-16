@@ -17,6 +17,8 @@ import io
 import os
 import sys
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for _path in (os.path.join(ROOT, "tools"), os.path.join(ROOT, "web", "backend")):
     if _path not in sys.path:
@@ -206,3 +208,89 @@ def test_run_check_flags_bad_mail_enum_and_missing_fk(tmp_path):
     assert "方向" in joined and "读" in joined
     assert "标签" in joined and "广告" in joined
     assert "A999" in joined
+
+
+# ---- API --------------------------------------------------------------------
+
+@pytest.fixture()
+def client(tmp_path, monkeypatch):
+    monkeypatch.delenv("JOBWS_DATA_DIR", raising=False)
+    monkeypatch.delenv("JOBWS_WORKSPACE", raising=False)
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    import deps  # noqa: E402
+    monkeypatch.setattr(deps, "ROOT", str(tmp_path))
+    (tmp_path / "ws-ok").mkdir()
+
+    import main  # noqa: E402
+    from fastapi.testclient import TestClient  # noqa: E402
+    return TestClient(main.app)
+
+
+WS = "ws-ok"
+
+
+def test_api_mail_create_list_and_patch(tmp_path, client):
+    _seed_main(os.path.join(str(tmp_path), WS))
+    res = client.post("/api/progress/mails", params={"ws": WS},
+                      json={"主题": "面试通知（一面）", "关联记录": "A001",
+                            "标签": "邀约", "消息id": "abc@example.com",
+                            "日期": "2026-09-16 10:00"})
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["邮件id"] == "M001"
+    # 深链随行返回：有 Message-ID → gmail 构造（@ 已编码）
+    assert body["_openLink"]["kind"] == "gmail"
+    assert body["_openLink"]["url"].endswith("abc%40example.com")
+
+    res = client.get("/api/progress/mails", params={"ws": WS})
+    assert res.status_code == 200
+    assert res.json()["total"] == 1
+
+    res = client.patch("/api/progress/mails/M001", params={"ws": WS},
+                       json={"标签": "面试"})
+    assert res.status_code == 200, res.text
+    assert res.json()["标签"] == "面试"
+    assert res.json()["_changed"] == ["标签"]
+
+
+def test_api_mail_custom_link_wins(tmp_path, client):
+    _seed_main(os.path.join(str(tmp_path), WS))
+    res = client.post("/api/progress/mails", params={"ws": WS},
+                      json={"主题": "笔试通知", "消息id": "x@y.z",
+                            "webmail链接": "https://outlook.live.com/?ItemID=abc"})
+    assert res.status_code == 201, res.text
+    assert res.json()["_openLink"]["kind"] == "custom"
+
+
+def test_api_mail_rejects_bad_enum_and_subject(client):
+    res = client.post("/api/progress/mails", params={"ws": WS},
+                      json={"主题": "甲", "方向": "读"})
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "progress.mailDirectionInvalid"
+
+    res = client.post("/api/progress/mails", params={"ws": WS}, json={})
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "progress.mailSubjectRequired"
+
+
+def test_api_mail_rejects_missing_link_and_duplicate(tmp_path, client):
+    _seed_main(os.path.join(str(tmp_path), WS))
+    res = client.post("/api/progress/mails", params={"ws": WS},
+                      json={"主题": "甲", "关联记录": "A999"})
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "progress.mailLinkNotFound"
+
+    ok = client.post("/api/progress/mails", params={"ws": WS},
+                     json={"主题": "乙", "消息id": "dup@example.com"})
+    assert ok.status_code == 201, ok.text
+    res = client.post("/api/progress/mails", params={"ws": WS},
+                      json={"主题": "丙", "消息id": "dup@example.com"})
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "progress.mailDuplicate"
+
+
+def test_api_mail_patch_not_found(tmp_path, client):
+    res = client.patch("/api/progress/mails/M404", params={"ws": WS},
+                       json={"标签": "面试"})
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "progress.mailNotFound"

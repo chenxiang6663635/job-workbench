@@ -166,6 +166,7 @@ Manage the roles you have looked at. Each card shows company_role, its score and
 **Two modes:**
 
 - **Standard layout** (data-driven): structured form on the left, live A4 preview on the right; create versions right on the page; after generating a PDF it reports the ATS check and paper-size check, with an overflow guard
+  - **Layout & accent color**: the layout dropdown ships Classic / Compact / Accent (all single-column and ATS-checked; Compact fits more onto one page); four accent presets (石墨灰 / 商务蓝 / 深墨绿 / 酒红 — Graphite / Business blue / Deep green / Wine) combine freely with any layout — switching refreshes the preview, and the generated PDF uses the same parameters. CLI equivalent: `resume render --template std_compact --resume-accent 酒红`
   - **One-click import**: upload a PDF / Word (.docx) / Markdown / plain text and it is extracted into structured fields. **Extraction, not generation**: fields the model did not find are marked yellow, suspected fabrications red, and nothing is written until you confirm section by section
   - **AI rewrite suggestions**: a BYOK model only rephrases existing facts; suggestions that fail the anti-fabrication guardrails cannot be accepted
   - **Export Word**: a dependency-free `.doc`, handy for pasting text into online application systems (the PDF is the source of truth for layout)
@@ -175,9 +176,11 @@ At the bottom there is also a **version lineage**: which resume version went to 
 
 ### Progress
 
-The main arena after you apply. Four sub-tabs:
+The main arena after you apply. Six sub-tabs:
 
 - **Interviews**: three-part record (question → answer points → retro); anything still pending within 48 hours is highlighted amber; one-click export to `.ics`
+- **Talks / job fairs**: time, format, place and takeaways, exportable to `.ics` (reminder 1 hour ahead); they do not advance any stage
+- **Emails**: a ledger of messages (interview invites, test notices, rejections…), linkable to an application record with inline tag editing; emails with a Message-ID get "Open original" (a Gmail search deep link) while mailboxes without a usable deep link (Outlook / QQ / 163 …) get a "copy the subject and search in your mailbox" fallback; **emails never change stages automatically**
 - **Question bank** (two views): **My bank** = your own editable `questions.csv` (domain / subject / status `未看·看过·会了` / answer notes), which you can fill by **read-only parsing → preview → confirm** from `03_面试准备/**/*.md` (two-phase); **Asked before** = questions you were actually asked, grouped by company + role, with keyword search — read what this company already asked you before the next round
 - **Contacts**: follow-up cadence for recruiter contacts, amber when overdue, one-click "contacted"
 - **Offer comparison**: known facts of several offers side by side. **Side by side only — no recommendation**
@@ -211,6 +214,8 @@ How it works, and what it will not do:
 - **TLS certificate verification is on by default**: the connection verifies the mail server's certificate against your system trust store. On machines whose Windows certificate store is corrupted, `create_default_context()` fails and the connection is **refused** (your authorization code must not travel over an unverified connection). If you understand the risk — the connection can then be intercepted by a man-in-the-middle — you can explicitly set the environment variable `JOBWS_IMAP_TLS=insecure` to skip verification.
 
 Typical flow: **Tracker** → **Fetch from mailbox** → pick a time window (last 7 / 30 / 90 days) → filter by keyword locally → click an email → review the parsed suggestion → confirm what to write back. If the email belongs to an application you have not recorded yet, the empty state offers a create-record form (the stage defaults to what the email implies).
+
+Each fetched email has **two destinations**: clicking the message body goes through parse → suggestion → confirm to update an application's stage; clicking the small "＋" icon on the right **records the email's metadata into the email ledger** (subject / sender / date / Message-ID) — later, add a tag and a link under Progress → Emails instead of typing it all again.
 
 ---
 
@@ -264,6 +269,8 @@ python tools/jobws.py track import --file 待导入.csv             # write, onc
 python tools/jobws.py track interview add --app A001 --round 一面 --questions "..."   # interview record
 python tools/jobws.py track contact add --name "张工" --app A001   # recruiter contact
 python tools/jobws.py track offer add --company "某公司" --monthly "..."  # offer facts
+python tools/jobws.py track mail add --subject "Interview invite (round 1)" --app A001 --tag 邀约  # email ledger
+python tools/jobws.py track mail list --app A001        # emails linked to one application
 python tools/jobws.py track check                       # schema self-check (quarantines broken files)
 
 # Application funnel report (Markdown, incl. cycle review and failure clustering)
@@ -273,6 +280,7 @@ python tools/jobws.py report --stdout
 python tools/jobws.py resume --workspace personal            # all versions
 python tools/jobws.py resume --version hvac                  # one version
 python tools/jobws.py resume render --workspace personal     # data-driven standard layout
+python tools/jobws.py resume render --template std_compact --resume-accent 酒红   # layout + accent color
 
 # JD parsed-card score validation
 python tools/jobws.py jd "personal/01_岗位池/<dir>/解析卡.md" --domain hvac-cooling --direction hvac

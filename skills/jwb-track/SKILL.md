@@ -76,6 +76,22 @@ jobws track talk update --id T001 --attend 参加
 - 写入支持 `--preview` 两段式（同 `track add`：预览拿令牌 → `jobws apply <令牌>` 落盘）
 - Web 端「进展」页的「宣讲会」页签可录入并导出 `.ics` 日程
 
+## 邮件
+
+往来邮件（面试邀约、笔试通知、拒信……）存独立文件 `05_投递追踪/mails.csv`（`邮件id` 从 M001 起），用「关联记录」指回投递（可空）；**只入账与查询，不自动推进任何阶段**——改阶段一律人工确认。
+
+```
+jobws track mail add --subject "面试邀请（一面）" --app A001 --tag 邀约 --from "hr@example.com" --when "2026-09-16 10:00"
+jobws track mail add --subject "笔试通知" --message-id "abc@example.com"   # 消息id（Message-ID）可空，有则用于去重
+jobws track mail list --app A001                  # 某条投递的往来邮件
+jobws track mail update --id M001 --tag 面试
+```
+
+- 方向：收 / 发（默认收）；标签：通知 / 邀约 / 笔试 / 面试 / 拒信 / 其他（默认其他）
+- 主题必填；`--app` 指到不存在的记录会被拒绝；消息id 重复会被拒绝（同一封邮件不要导两遍）
+- 写入支持 `--preview` 两段式（预览拿令牌 → `jobws apply <令牌>` 落盘）
+- Web 端「进展」页的「邮件」页签可录入、行内改标签；有 Message-ID 的邮件可「打开原邮件」（Gmail 搜索深链），其余邮箱（Outlook / QQ / 163 等）给「复制主题去邮箱搜索」的降级提示
+
 ## 题库
 
 题库是「要准备的题」，与面试记录（「被问过的事实」）**分开**存：独立文件 `05_投递追踪/questions.csv`（`题目id` 从 Q001 起）。状态三态：`未看` / `看过` / `会了`（改成「会了」时自动记「最近复习」）；来源四类：`自拟` / `笔试回忆` / `面试记录` / `导入`。

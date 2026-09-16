@@ -122,7 +122,7 @@ export default function Library() {
               onClick={() => open(item)}
               badge={
                 item.kind === "binary" ? (
-                  <span className="shrink-0 text-xs text-muted-foreground/70">{t("lib.preview")}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{t("lib.preview")}</span>
                 ) : null
               }
             />

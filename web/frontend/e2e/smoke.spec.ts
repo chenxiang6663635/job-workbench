@@ -66,6 +66,9 @@ test("页面几何一致：根容器与 main 同宽、纵向节奏全站一致",
   const gaps: Record<string, number | string> = {};
   for (const key of PAGES) {
     await openPage(page, key);
+    // 等首屏进入动画结束再测量（批 4 实测：PageHeader 的 fade-in-up 在
+    // 0.25s 内下移 8px，恰把间距量成 16；这是测量时序问题，不是布局问题）。
+    await page.waitForTimeout(350);
     const m = await page.evaluate(() => {
       const main = document.querySelector("main");
       const root = main?.firstElementChild;

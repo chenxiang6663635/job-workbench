@@ -83,9 +83,9 @@ export default function OfferCompare() {
     return (
       <div className="space-y-4">
         <Card className="flex flex-col items-center border-dashed p-8 text-center">
-          <Scale size={28} className="mb-3 text-muted-foreground/70" />
+          <Scale size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("offer.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {t("offer.emptyHint1")}
             <br />
             {t("offer.emptyHint2")}
@@ -137,7 +137,7 @@ export default function OfferCompare() {
                       <span
                         className={`text-right tabular-nums ${soon ? "font-medium text-warning" : "text-foreground"}`}
                       >
-                        {value || <span className="text-muted-foreground/70">—</span>}
+                        {value || <span className="text-muted-foreground">—</span>}
                       </span>
                     </div>
                   );
@@ -149,7 +149,7 @@ export default function OfferCompare() {
                   {o.薪资构成 && <p>{t("offer.composition", { value: o.薪资构成 })}</p>}
                   {o.备注 && <p>{o.备注}</p>}
                   {o.关联记录 && (
-                    <p className="text-muted-foreground/70">{t("offer.related", { value: o.关联记录 })}</p>
+                    <p className="text-muted-foreground">{t("offer.related", { value: o.关联记录 })}</p>
                   )}
                 </div>
               )}

@@ -264,9 +264,9 @@ export default function TalkList() {
         : null}
       {loaded && !error && rows.length === 0 ? (
         <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
-          <Megaphone size={28} className="mb-3 text-muted-foreground/70" />
+          <Megaphone size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("talk.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {t("talk.emptyHint", { action: t("talk.add") })}
           </p>
         </Card>

@@ -26,8 +26,43 @@ function loadAllowlist(): Allowlist {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(ENV_SCRIPT);
+  // 默认套显式用**暗色**：Playwright 默认 colorScheme=light，经「跟随系统」
+  // 会落到浅色、与下面的浅色专测重复——两套必须覆盖两种主题。
+  // （init script 按注册顺序执行；浅色用例在 test 体内后注册、后执行，覆盖此项。）
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("jobws.theme", "dark");
+    } catch (e) {
+      /* 同 fixtures：交给断言暴露 */
+    }
+  });
   await page.setViewportSize({ width: 1280, height: 900 });
 });
+
+// 浅色主题全量 a11y（批 4）：浅色是新色面、对比度风险最高——在默认暗的七页
+// 之外单独跑一轮。不走 allowlist：浅色要求 serious/critical 零命中（有就调色）。
+for (const key of PAGES) {
+  test(`a11y light：${key}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem("jobws.theme", "light");
+      } catch (e) {
+        /* 隐私模式：交给断言失败暴露 */
+      }
+    });
+    await openPage(page, key);
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
+    const serious = results.violations.filter(
+      (v) => v.impact === "serious" || v.impact === "critical"
+    );
+    expect(
+      serious,
+      `浅色主题 ${key} 有 serious/critical：${serious.map((v) => v.id).join("、")}`
+    ).toEqual([]);
+  });
+}
 
 for (const key of PAGES) {
   test(`a11y：${key}`, async ({ page }) => {
@@ -63,7 +98,11 @@ for (const key of PAGES) {
       .map((v) => {
         const nodes = v.nodes
           .slice(0, 5)
-          .map((n) => `    - ${n.target.join(" ")}\n      ${n.html.slice(0, 120)}`)
+          .map(
+            (n) =>
+              `    - ${n.target.join(" ")}\n      ${n.html.slice(0, 400)}\n` +
+              `      ${(n.failureSummary || "").slice(0, 300)}`
+          )
           .join("\n");
         const more = v.nodes.length > 5 ? `\n    …共 ${v.nodes.length} 处` : "";
         return `${v.id}（${v.impact}）：${v.help}\n${nodes}${more}`;

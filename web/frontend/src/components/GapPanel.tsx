@@ -90,7 +90,7 @@ export default function GapPanel({ dir }: { dir: string }) {
           <Puzzle size={15} className="text-primary" />
           <h4 className="text-sm font-medium text-foreground">{t("gap.title")}</h4>
         </div>
-        <span className="text-[11px] text-muted-foreground/70">
+        <span className="text-[11px] text-muted-foreground">
           {t("gap.versionNote", { version: gap.resumeVersion })}
         </span>
       </div>
@@ -113,7 +113,7 @@ export default function GapPanel({ dir }: { dir: string }) {
               <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{t(s.hintKey)}</p>
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {items.length === 0 && (
-                  <span className="text-[11px] text-muted-foreground/70">{t("gap.none")}</span>
+                  <span className="text-[11px] text-muted-foreground">{t("gap.none")}</span>
                 )}
                 {items.map((item) => {
                   const term = typeof item === "string" ? item : item.term;
@@ -139,7 +139,7 @@ export default function GapPanel({ dir }: { dir: string }) {
         })}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
         {t("gap.footer")}
       </p>
     </div>

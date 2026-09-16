@@ -137,9 +137,9 @@ export default function ContactList() {
         </div>
       ) : loaded && !error && rows.length === 0 ? (
         <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
-          <UserRound size={28} className="mb-3 text-muted-foreground/70" />
+          <UserRound size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("contact.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {t("contact.emptyHint1")}
             <br />
             {t("contact.emptyHint2")}
@@ -173,7 +173,7 @@ export default function ContactList() {
                 {c.联系方式 && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {c.联系方式}
-                    {c.来源 && <span className="ml-1.5 text-muted-foreground/70">（{c.来源}）</span>}
+                    {c.来源 && <span className="ml-1.5 text-muted-foreground">（{c.来源}）</span>}
                   </p>
                 )}
 

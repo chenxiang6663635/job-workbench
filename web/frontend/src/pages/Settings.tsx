@@ -663,7 +663,7 @@ export default function Settings() {
                 </p>
               </>
             )}
-            <p className="pt-1 text-muted-foreground/70">
+            <p className="pt-1 text-muted-foreground">
               {t("settings.snapshotNote")}
             </p>
           </div>

@@ -9,7 +9,7 @@
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --primary: 200 98% 39%;
+  --primary: 201 96% 32%;
   --primary-foreground: 0 0% 100%;
   --secondary: 214 26% 95%;
   --secondary-foreground: 222 47% 11%;
@@ -22,10 +22,10 @@
   --border: 214 32% 91%;
   --border-strong: 213 27% 84%;
   --input: 214 32% 91%;
-  --ring: 200 98% 39%;
+  --ring: 201 96% 32%;
   --highlight: 222 47% 11%;
   --scrim: 0 0% 0%;
-  --glow-primary: 200 98% 39%;
+  --glow-primary: 201 96% 32%;
   --elevation-0-surface: 214 26% 95%;
   --elevation-1-surface: 0 0% 100%;
   --elevation-2-surface: 0 0% 100%;
@@ -39,7 +39,7 @@
   --shadow-card: var(--elevation-1-shadow);
   --shadow-elevated: var(--elevation-3-shadow);
   --card-gradient: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 100%) 100%);
-  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(200 98% 39% / 0.08) 0%, transparent 70%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(201 96% 32% / 0.08) 0%, transparent 70%);
   --chart-1: 200 98% 39%;
   --chart-2: 175 84% 32%;
   --chart-3: 263 70% 50%;

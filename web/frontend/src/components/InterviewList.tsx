@@ -126,9 +126,9 @@ export default function InterviewList() {
             [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)
           ) : loaded && !error && visible.length === 0 ? (
             <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
-              <CalendarClock size={28} className="mb-3 text-muted-foreground/70" />
+              <CalendarClock size={28} className="mb-3 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">{t("interview.emptyTitle")}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 {t("interview.emptyHint1")}
                 <br />
                 {t("interview.emptyHint2")}
@@ -165,7 +165,7 @@ export default function InterviewList() {
                   <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                     <CalendarClock
                       size={12}
-                      className={upcoming ? "text-warning" : "text-muted-foreground/70"}
+                      className={upcoming ? "text-warning" : "text-muted-foreground"}
                     />
                     <span className={upcoming ? "text-warning" : "text-muted-foreground"}>
                       {r.面试时间 || t("interview.timeTbd")}
@@ -249,14 +249,14 @@ export default function InterviewList() {
                   <p className="mb-1.5 text-xs font-medium text-primary">{t(labelKey)}</p>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                     {value || (
-                      <span className="text-muted-foreground/70">{t("common.notRecorded")}</span>
+                      <span className="text-muted-foreground">{t("common.notRecorded")}</span>
                     )}
                   </p>
                 </Card>
               ))}
             </Card>
           ) : (
-            <Card className="flex h-full min-h-48 items-center justify-center rounded-lg border-dashed text-xs text-muted-foreground/70">
+            <Card className="flex h-full min-h-48 items-center justify-center rounded-lg border-dashed text-xs text-muted-foreground">
               {t("interview.selectHint")}
             </Card>
           )}

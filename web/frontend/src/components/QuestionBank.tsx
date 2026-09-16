@@ -67,7 +67,7 @@ function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
       </p>
       {item.我的回答要点 && (
         <p className="mt-2 pl-6 text-xs leading-relaxed text-muted-foreground">
-          <span className="mr-1 text-muted-foreground/70">{t("question.myAnswer")}</span>
+          <span className="mr-1 text-muted-foreground">{t("question.myAnswer")}</span>
           {item.我的回答要点}
         </p>
       )}
@@ -91,8 +91,8 @@ function BankRow({ row }: { row: BankQuestion }) {
           {row.状态 || "未看"}
         </Badge>
         {row.领域 && <span className="text-muted-foreground">{row.领域}</span>}
-        {row.科目 && <span className="text-muted-foreground/70">{row.科目}</span>}
-        {row.来源 && <span className="text-muted-foreground/70">{row.来源}</span>}
+        {row.科目 && <span className="text-muted-foreground">{row.科目}</span>}
+        {row.来源 && <span className="text-muted-foreground">{row.来源}</span>}
         {row.关联公司 && (
           <span className="ml-auto text-muted-foreground">
             {row.关联公司}

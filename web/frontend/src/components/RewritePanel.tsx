@@ -190,7 +190,7 @@ export default function RewritePanel({
                     key={idx}
                     className="rounded-lg border border-border bg-background/60 p-3 text-xs"
                   >
-                    <p className="mb-1 font-mono text-[10px] text-muted-foreground/70">{d.path}</p>
+                    <p className="mb-1 font-mono text-[10px] text-muted-foreground">{d.path}</p>
                     <p className="leading-relaxed text-muted-foreground line-through decoration-destructive/60">
                       {d.oldText || t("app.emptyValue")}
                     </p>

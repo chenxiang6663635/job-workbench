@@ -341,7 +341,7 @@ export default function Resume() {
             <FileDown size={15} /> {t("resume.exportWord")}
           </a>
         </Button>
-        <span className="text-[11px] text-muted-foreground/70">
+        <span className="text-[11px] text-muted-foreground">
           {t("resume.wordTitle")}
         </span>
       </div>

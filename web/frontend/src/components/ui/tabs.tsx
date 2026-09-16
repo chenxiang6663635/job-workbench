@@ -26,7 +26,9 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-gradient-to-b data-[state=active]:from-primary/20 data-[state=active]:to-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-glow-primary data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground",
+      // 激活态文字用前景色（批 4 a11y 实测：浅色下 primary 文字对 primary/20
+      // 渐变底只有 ~4.0:1）——「激活」由底色渐变与发光承担，文字保持最高对比。
+      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-gradient-to-b data-[state=active]:from-primary/20 data-[state=active]:to-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-glow-primary data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground",
       className
     )}
     {...props}

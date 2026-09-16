@@ -426,6 +426,8 @@ export default {
   "dash.postpone7": "Postpone 7 days",
   "dash.overdueTitle": "Past deadline",
   "dash.overdueEmpty": "Nothing past its deadline while still unapplied.",
+  "dash.activityTitle": "Recent activity",
+  "dash.activityEmpty": "No changes recorded yet — the timeline shows up here as applications move.",
 
   "settings.title": "Settings",
   "settings.providerTitle": "Provider",
@@ -833,6 +835,7 @@ export default {
   "lib.fileCount_one": "{{count}} file",
   "lib.fileCount_other": "{{count}} files",
   "lib.empty": "No fact cards yet",
+  "lib.emptyHint": "Drop files into the workspace `00_事实库/` folder and they show up here — fact cards, notes, attachments.",
   "lib.preview": "Preview",
 
   "progress.interviews": "Interviews",
@@ -935,6 +938,51 @@ export default {
   "settings.zoomDesc":
     "Drag to preview: the whole interface (text included) scales together, and the choice is remembered.",
   "settings.zoomHint": "Shortcuts work too: Ctrl + to enlarge, Ctrl - to shrink, Ctrl 0 to reset.",
+  // Appearance (batch 4): theme switching. Same class as language/size — device-level, not in the workspace export.
+  // Skins come from open-source projects (Catppuccin / Nord / Tokyo Night / Rosé Pine / Gruvbox / Everforest);
+  // theme names keep their original spelling.
+  "settings.themeTitle": "Appearance",
+  "settings.themeDesc": "Like the interface language, the theme affects this machine only (not exported with the workspace). \"System\" follows your OS light/dark setting automatically; built-in skins come from open-source projects — Catppuccin, Nord, Tokyo Night, Rosé Pine, Gruvbox, Everforest.",
+  "settings.themeSystem": "System",
+  // Theme editor (batch 4): tweak key colors from the active theme with live contrast hints.
+  "settings.themeCustom": "Custom theme…",
+  "settings.themeEditorClose": "Collapse editor",
+  "settings.themeEditorDesc": "Starts from the active theme and exposes only key colors (every other variable is inherited). Live contrast hints: body text ≥4.5:1, large text and graphics ≥3:1; save to add it to the list above.",
+  "settings.themeColorBg": "Background",
+  "settings.themeColorFg": "Text",
+  "settings.themeColorCard": "Card",
+  "settings.themeColorPrimary": "Primary",
+  "settings.themeColorSecondary": "Secondary surface",
+  "settings.themeColorMuted": "Muted surface",
+  "settings.themeColorBorder": "Border",
+  "settings.themeColorSuccess": "Success",
+  "settings.themeColorWarning": "Warning",
+  "settings.themeColorDanger": "Danger",
+  "settings.themeName": "Theme name",
+  "settings.themeUntitled": "My theme",
+  "settings.themeSave": "Save as theme",
+  "settings.themeExport": "Copy JSON",
+  "settings.themeImport": "Import",
+  "settings.themeImportHint": "Import: paste exported JSON, or a tweakcn / shadcn theme CSS (--key: value; form)",
+  "settings.themeImported": "Imported (not saved yet — click \"Save as theme\")",
+  "settings.themeImportFailed": "Could not parse: expected JSON or CSS in --key: value; form",
+  "settings.themeSaved": "Saved",
+  "settings.themeApplied": "Applied",
+  "settings.themeCopied": "JSON copied to clipboard",
+  "settings.themeCopyFailed": "Clipboard unavailable — the JSON is in the textarea below",
+  "settings.themeDelete": "Delete",
+  "settings.themeDeleted": "Deleted",
+  "settings.themeReadFailed": "Could not read the current theme variables (getComputedStyle empty)",
+  "settings.themeResetFromCurrent": "Restart from the active theme",
+  // Typeface (4g): Inter is bundled locally; the system stack skips webfont loading.
+  "settings.fontTitle": "Typeface",
+  "settings.fontSystem": "System fonts (faster)",
+  // Interface size (#4): four-step root font scaling (rem-based), decoupled from desktop zoom.
+  "settings.fontSizeTitle": "Interface size",
+  "settings.fontSizeSm": "Small",
+  "settings.fontSizeBase": "Default",
+  "settings.fontSizeLg": "Large",
+  "settings.fontSizeXl": "Extra large",
   "settings.zoomDesktopOnly":
     "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

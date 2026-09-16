@@ -368,7 +368,7 @@ export default function Jobs() {
               {fetching ? t("job.fetching") : t("job.fetchFromUrl")}
             </Button>
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
             {t("job.fetchNote")}
           </p>
           <Textarea

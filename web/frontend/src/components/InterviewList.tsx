@@ -123,12 +123,12 @@ export default function InterviewList() {
           {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条。
               失败时不再同时显示骨架——两张脸同屏比只说失败更糟 */}
           {!loaded && !error ? (
-            [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
+            [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)
           ) : loaded && !error && visible.length === 0 ? (
-            <Card className="flex flex-col items-center rounded-2xl border-dashed p-8 text-center">
-              <CalendarClock size={28} className="mb-3 text-muted-foreground/70" />
+            <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
+              <CalendarClock size={28} className="mb-3 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">{t("interview.emptyTitle")}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 {t("interview.emptyHint1")}
                 <br />
                 {t("interview.emptyHint2")}
@@ -142,7 +142,7 @@ export default function InterviewList() {
             return (
               <Card
                 key={r.面试id}
-                className={`rounded-xl transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`rounded-lg transition-all duration-200 hover:-translate-y-0.5 ${
                   active ? "border-primary/50 bg-primary/10" : "hover:border-border-strong"
                 } ${upcoming ? "ring-1 ring-warning/40" : ""}`}
               >
@@ -165,7 +165,7 @@ export default function InterviewList() {
                   <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                     <CalendarClock
                       size={12}
-                      className={upcoming ? "text-warning" : "text-muted-foreground/70"}
+                      className={upcoming ? "text-warning" : "text-muted-foreground"}
                     />
                     <span className={upcoming ? "text-warning" : "text-muted-foreground"}>
                       {r.面试时间 || t("interview.timeTbd")}
@@ -191,7 +191,7 @@ export default function InterviewList() {
         {/* 右：详情（三段式：问题 / 回答 / 复盘） */}
         <div className="col-span-7">
           {current ? (
-            <Card className="space-y-4 rounded-2xl p-5">
+            <Card className="space-y-4 rounded-lg p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-base font-semibold text-foreground">
@@ -245,18 +245,18 @@ export default function InterviewList() {
                   ["interview.sectionRetro", current.复盘与改进],
                 ] as const
               ).map(([labelKey, value]) => (
-                <Card key={labelKey} className="rounded-xl p-4">
+                <Card key={labelKey} className="rounded-lg p-4">
                   <p className="mb-1.5 text-xs font-medium text-primary">{t(labelKey)}</p>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                     {value || (
-                      <span className="text-muted-foreground/70">{t("common.notRecorded")}</span>
+                      <span className="text-muted-foreground">{t("common.notRecorded")}</span>
                     )}
                   </p>
                 </Card>
               ))}
             </Card>
           ) : (
-            <Card className="flex h-full min-h-48 items-center justify-center rounded-2xl border-dashed text-xs text-muted-foreground/70">
+            <Card className="flex h-full min-h-48 items-center justify-center rounded-lg border-dashed text-xs text-muted-foreground">
               {t("interview.selectHint")}
             </Card>
           )}

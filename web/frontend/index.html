@@ -7,6 +7,30 @@
     <!-- JS 启动后 document.title 会按当前语言覆盖（i18n.init 的 languageChanged）；
          这里的静态值只是 JS 生效前的首帧，用品牌英文名 -->
     <title>Job Workbench</title>
+    <!-- 防闪白（批 4）：首帧之前按偏好写好主题属性——等 JS 渲染再切会闪一次默认色。
+         "dark" 是 :root 默认，不写属性；"system" 在此解析亮 / 暗。键名与 lib/theme.ts 一致。 -->
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem("jobws.theme") || "system";
+          if (choice === "system") {
+            choice = window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+          }
+          if (choice && choice !== "dark") {
+            document.documentElement.setAttribute("data-theme", choice);
+          }
+          // 界面字号档（#4）：首帧前一并写好，避免加载后再跳
+          var fontSize = localStorage.getItem("jobws.fontsize");
+          if (fontSize && fontSize !== "base") {
+            document.documentElement.setAttribute("data-fontsize", fontSize);
+          }
+        } catch (e) {
+          /* 隐私模式等场景读不到 localStorage：保持默认暗 */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

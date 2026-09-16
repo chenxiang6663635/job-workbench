@@ -184,6 +184,20 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
 
     pool = job_pool_overview(ws)
 
+    # 最近动作（批 4 看板「最近动作」卡）：时间线最近 12 条，附公司名便于扫读——
+    # 数据早已在读（stale / health 都用它），不新增 IO；前端据此渲染活动流。
+    company_by_id = {r.get("id", ""): r.get("公司", "") for r in rows}
+    recent_activity = []
+    for entry in sorted(history, key=lambda e: e.get("时间", ""), reverse=True)[:12]:
+        recent_activity.append({
+            "time": entry.get("时间", ""),
+            "id": entry.get("id", ""),
+            "company": company_by_id.get(entry.get("id", ""), ""),
+            "field": entry.get("字段", ""),
+            "old": entry.get("原值", ""),
+            "new": entry.get("新值", ""),
+        })
+
     return {
         "total": total,
         "active": active,
@@ -203,4 +217,5 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         "unappliedHigh": pool["items"],
         "unappliedHighTotal": pool["total"],
         "scoreByState": pool["scoreByState"],
+        "recentActivity": recent_activity,
     }

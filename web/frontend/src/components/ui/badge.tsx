@@ -7,13 +7,15 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary/15 text-primary",
+        // 语义色只做底色、文字统一前景色（独立审查 MAJOR：success/primary 等
+        // 当 12px 文字色在 tint 底上只有 3.2–4.0:1，低于 AA 4.5）
+        default: "border-transparent bg-primary/15 text-foreground",
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         outline: "border-border text-muted-foreground",
-        success: "border-transparent bg-success/15 text-success",
-        warning: "border-transparent bg-warning/15 text-warning",
+        success: "border-transparent bg-success/15 text-foreground",
+        warning: "border-transparent bg-warning/15 text-foreground",
         destructive:
-          "border-transparent bg-destructive/15 text-destructive",
+          "border-transparent bg-destructive/15 text-foreground",
       },
     },
     defaultVariants: {

@@ -61,11 +61,20 @@ test("页面几何一致：根容器与 main 同宽、纵向节奏全站一致",
   // **这条断言的能力边界**（别把它读成万能）：它只管**根容器**这一层。若某页把内容
   // 包进内层的 `mx-auto max-w-3xl`（超宽屏下居中窄栏是合理设计），它不会拦——
   // 那属于内层容器的事，也不该由它管。
+  // 关掉动效再测几何：fade-in-up 会让 PageHeader 在 0.25s 内下移 8px、把间距
+  // 量成 16。reduced-motion 是全局降级（index.css 把动画压到 0.01ms），但
+  // 0.01ms 的动画**仍占一整帧**——残留的测量窗口就是 flake 的根（2026-09-16
+  // 实测：单独跑 24、随全套跑 16）。因此每页测量前**等动画真正 finished**：
+  // 确定性等待（不靠睡眠）；reduce 下 infinite 动画被压成单次迭代，不会挂起。
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1440, height: 900 });
   const widths: Record<string, number> = {};
   const gaps: Record<string, number | string> = {};
   for (const key of PAGES) {
     await openPage(page, key);
+    await page.evaluate(() =>
+      Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {})))
+    );
     const m = await page.evaluate(() => {
       const main = document.querySelector("main");
       const root = main?.firstElementChild;

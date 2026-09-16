@@ -48,6 +48,12 @@ jobs:
       - name: 校验领域插件（结构 + 词典可解析）
         run: python tools/jobws.py lint domains
 
+      # 主题门禁（批 4）：多主题最容易「某套主题某处看不清」——parity（变量齐全）、
+      # 对比度（正文 4.5:1 / 大字与图形 3:1）、暗色明度阶梯（相邻表面 ≥1.12）。
+      # 判定唯一实现在 tools/check_themes.py，本地同一命令。
+      - name: 校验主题门禁（完整性 / 对比度 / 明度阶梯）
+        run: python tools/jobws.py lint themes
+
   # 基线升到 3.12 之后不再有第二个版本可跑，原先「3.8 + 3.12 双 job」的支持矩阵
   # 收敛成单 job。**那条教训留在注释里**：matrix 会给 job 显示名加 "(3.12)" 这类
   # 后缀，而「后端测试（pytest）」是分支保护的必需检查——名字一变，main 上的 PR

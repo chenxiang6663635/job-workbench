@@ -136,7 +136,7 @@ export default function ResumeTemplates() {
           // 手写模板带相对资源（photo.jpg 等），用文件 URL 的 iframe 保真展示
           <A4Preview src={fileUrl} title={selected.rel} />
         ) : textContent !== null ? (
-          <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-2xl border border-border bg-background p-5 font-mono text-xs leading-relaxed text-foreground">
+          <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-5 font-mono text-xs leading-relaxed text-foreground">
             {textContent}
           </pre>
         ) : (

@@ -135,7 +135,10 @@ export default function App() {
 
           {/* 导航条：英文标签比中文长 2–4 倍，此前被 flex 压窄后折行（按钮高 36→56px）。
               现在禁止收缩与换行；宽度真不够时让这一条自己横向滚动，而不是把标签折成两行。 */}
-          <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
+          {/* overflow-x-auto 会把 overflow-y 一并计算为 auto → 裁剪发生在
+              padding box：按钮的发光与键盘焦点环上下被裁（用户反馈 #5）。
+              py-3/-my-3 给绘制留余量且不改变顶栏布局高度。 */}
+          <div className="-my-3 flex min-w-0 items-center gap-0.5 overflow-x-auto py-3">
             {TABS.map((item) => (
               <button
                 key={item.key}
@@ -226,7 +229,7 @@ export default function App() {
 
       <main className="relative mx-auto max-w-7xl px-6 pb-16 pt-24">
         {online === false ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6">
             <p className="text-sm font-medium text-destructive">
               {t("error.backend")}
             </p>

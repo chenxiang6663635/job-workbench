@@ -110,7 +110,7 @@ function PreviewReport({ preview }: { preview: ImportPreviewResult }) {
         <Badge variant="destructive">{t("impCsv.errors", { count: preview.counts.error })}</Badge>
       </div>
       {total === 0 ? (
-        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
           {t("impCsv.empty")}
         </p>
       ) : (
@@ -196,7 +196,7 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="flex h-[88vh] w-full max-w-4xl flex-col gap-0 rounded-2xl p-0">
+      <DialogContent className="flex h-[88vh] w-full max-w-4xl flex-col gap-0 rounded-lg p-0">
         <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-medium">
             <FileUp size={16} className="text-primary" /> {t("impCsv.title")}

@@ -1,0 +1,51 @@
+/* Nord
+   上游：Nord（nordtheme/nord）
+   许可：MIT
+   由批 4 脚本从官方色板生成（HSL 三元组，与 :root 同构）；手改请同步 check_themes 门禁。 */
+[data-theme="nord"] {
+  --background: 220 16% 22%;
+  --foreground: 218 27% 94%;
+  --card: 222 16% 28%;
+  --card-foreground: 218 27% 94%;
+  --popover: 220 16% 36%;
+  --popover-foreground: 218 27% 94%;
+  --primary: 193 43% 67%;
+  --primary-foreground: 220 16% 22%;
+  --secondary: 222 16% 28%;
+  --secondary-foreground: 218 27% 94%;
+  --muted: 222 16% 28%;
+  --muted-foreground: 219 28% 88%;
+  --destructive: 354 71% 79%;
+  --destructive-foreground: 220 16% 22%;
+  --success: 92 28% 65%;
+  --warning: 40 71% 73%;
+  --border: 220 17% 32%;
+  --border-strong: 218 16% 44%;
+  --input: 220 17% 32%;
+  --ring: 193 43% 67%;
+  --highlight: 218 27% 94%;
+  --scrim: 0 0% 0%;
+  --glow-primary: 193 43% 67%;
+  --elevation-0-surface: 221 16% 19%;
+  --elevation-1-surface: 222 16% 28%;
+  --elevation-2-surface: 220 17% 32%;
+  --elevation-3-surface: 220 16% 36%;
+  --elevation-1-border: 220 17% 32%;
+  --elevation-2-border: 220 16% 36%;
+  --elevation-3-border: 218 16% 44%;
+  --elevation-1-shadow: 0 1px 2px hsl(219 17% 16% / 0.45), 0 8px 24px -10px hsl(219 17% 16% / 0.55);
+  --elevation-2-shadow: 0 2px 4px hsl(219 17% 16% / 0.50), 0 16px 40px -12px hsl(219 17% 16% / 0.55);
+  --elevation-3-shadow: 0 4px 10px hsl(219 17% 16% / 0.50), 0 24px 56px -16px hsl(219 17% 16% / 0.60);
+  --shadow-card: var(--elevation-1-shadow);
+  --shadow-elevated: var(--elevation-3-shadow);
+  --card-gradient: linear-gradient(180deg, hsl(222 16% 30%) 0%, hsl(222 16% 28%) 100%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(193 43% 67% / 0.10) 0%, transparent 70%);
+  --chart-1: 193 43% 67%;
+  --chart-2: 210 34% 63%;
+  --chart-3: 92 28% 65%;
+  --chart-4: 40 71% 73%;
+  --chart-5: 14 51% 63%;
+  --chart-6: 179 25% 65%;
+  --chart-7: 354 64% 72%;
+  --chart-8: 311 20% 63%;
+}

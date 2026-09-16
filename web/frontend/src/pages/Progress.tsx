@@ -6,6 +6,7 @@ import OfferCompare from "../components/OfferCompare";
 import QuestionBank from "../components/QuestionBank";
 import TalkList from "../components/TalkList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { PageHeader } from "../components/ui/page-header";
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
@@ -25,10 +26,7 @@ export default function Progress() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">{t("nav.progress")}</h1>
-        <p className="mt-1 text-xs text-muted-foreground">{t("progress.subtitle")}</p>
-      </div>
+      <PageHeader title={t("nav.progress")} description={t("progress.subtitle")} />
 
       <Tabs value={sub} onValueChange={(v) => setSub(v as SubTab)}>
         <TabsList>
@@ -40,6 +38,9 @@ export default function Progress() {
             </TabsTrigger>
           ))}
         </TabsList>
+        {/* 撑满视口剩余高度（批 4 编排总则）：内容少时页面下半部不再裸露背景——
+            子面板内部的列表/详情两栏因此获得等比拉伸的高度（各自内部滚动） */}
+        <div className="min-h-[calc(100dvh-17rem)]">
         <TabsContent value="interviews">
           <InterviewList />
         </TabsContent>
@@ -55,6 +56,7 @@ export default function Progress() {
         <TabsContent value="offers">
           <OfferCompare />
         </TabsContent>
+        </div>
       </Tabs>
     </div>
   );

@@ -26,6 +26,7 @@ import {
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
+import { Num } from "../components/ui/number";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
@@ -52,9 +53,11 @@ type SortKey = "next" | "score" | "stale" | "health";
 
 // 健康度四态：颜色即严重度，具体理由放在 hover 的 title 里（给理由不给黑箱分数）
 const HEALTH_META: Record<string, { labelKey: TranslationKey; cls: string }> = {
-  urgent: { labelKey: "app.healthUrgent", cls: "bg-destructive/15 text-destructive" },
-  overdue: { labelKey: "app.healthOverdue", cls: "bg-warning/15 text-warning" },
-  stale: { labelKey: "app.healthStale", cls: "bg-primary/15 text-primary" },
+  // 徽章小字（11px）要过 4.5:1——语义色只做底色，文字统一前景色：
+  // warning 58% / primary 58% 直接当小字色在深底上只有 ~4.4（a11y 实测）。
+  urgent: { labelKey: "app.healthUrgent", cls: "bg-destructive/15 text-foreground" },
+  overdue: { labelKey: "app.healthOverdue", cls: "bg-warning/15 text-foreground" },
+  stale: { labelKey: "app.healthStale", cls: "bg-primary/15 text-foreground" },
   ok: { labelKey: "app.healthOk", cls: "bg-secondary/60 text-muted-foreground" },
 };
 
@@ -81,13 +84,15 @@ function readDrill(): Drill {
 }
 
 function stageStyle(stage: string) {
-  if (stage === "已挂") return "bg-destructive/15 text-destructive";
+  if (stage === "已挂") return "bg-destructive/15 text-foreground";
   if (stage === "已放弃") return "bg-secondary/60 text-muted-foreground";
   // 我拒绝的 offer 是双向选择，不是失败——用成功色，区别于失败红
-  if (stage === "我拒绝的 offer") return "bg-success/10 text-success/80";
+  // 小字徽章（11px）要过 4.5:1：语义色做底色，文字统一前景色——
+  // success 55% / primary 58% 当小字色在深底上只有 ~4.4（a11y 实测三处命中）。
+  if (stage === "我拒绝的 offer") return "bg-success/10 text-foreground";
   if (stage === "offer" || stage === "签约")
-    return "bg-success/15 text-success";
-  return "bg-primary/15 text-primary";
+    return "bg-success/15 text-foreground";
+  return "bg-primary/15 text-foreground";
 }
 
 // 值是 key 不是文案——模块级常量没法调 t()，渲染处再翻
@@ -101,7 +106,7 @@ const SORT_LABELS: Record<SortKey, TranslationKey> = {
 function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
   const { t } = useTranslation();
   if (entries.length === 0) {
-    return <p className="text-xs text-muted-foreground/70">{t("app.noHistory")}</p>;
+    return <p className="text-xs text-muted-foreground">{t("app.noHistory")}</p>;
   }
   return (
     <div className="space-y-0">
@@ -127,7 +132,7 @@ function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                <span className="text-muted-foreground/70">{e.原值 || t("app.emptyValue")}</span>
+                <span className="text-muted-foreground">{e.原值 || t("app.emptyValue")}</span>
                 <span className="mx-1 text-muted-foreground/50">→</span>
                 {e.新值 || t("app.emptyValue")}
               </p>
@@ -256,7 +261,9 @@ export default function Applications() {
       <button
         onClick={() => setSort(active ? "next" : key)}
         className={`flex cursor-pointer items-center gap-1 font-medium transition-colors ${
-          active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+          active
+            ? "text-foreground underline underline-offset-2"
+            : "text-muted-foreground hover:text-foreground"
         }`}
         title={t("app.sortByHint", { name: t(SORT_LABELS[key]) })}
       >
@@ -269,7 +276,7 @@ export default function Applications() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="cursor-pointer">
             <X size={14} />
@@ -368,7 +375,7 @@ export default function Applications() {
 
       {/* 「没有下一步动作」引导（A7）：把缺项摆到眼前，一键切到筛选视图 */}
       {!loading && missingNext.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
           <span className="text-foreground">
             {t("app.missingNextHint", { count: missingNext.length })}
           </span>
@@ -416,7 +423,7 @@ export default function Applications() {
       )}
 
       {creating && (
-        <div className="rounded-2xl border border-primary/30 bg-card/70 shadow-card ring-1 ring-highlight/5 p-5">
+        <div className="rounded-lg border border-primary/30 bg-card/70 shadow-card ring-1 ring-highlight/5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input
               placeholder={t("form.phCompany")}
@@ -531,13 +538,13 @@ export default function Applications() {
       )}
 
       {loading ? (
-        <div className="space-y-2 rounded-2xl border border-border p-4">
+        <div className="space-y-2 rounded-lg border border-border p-4">
           {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
           <Inbox size={28} className="text-muted-foreground" />
           <p className="text-base font-medium">{t("app.emptyTitle")}</p>
           <p className="text-sm text-muted-foreground">
@@ -545,9 +552,12 @@ export default function Applications() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-border">
+        /* 撑满 + 内部滚动 + 粘性纯色表头（批 4 编排总则）：表格是主内容区，
+           容器吃掉视口剩余高度、长表在内部滚动；表头必须纯色——半透明会
+           透出滚动内容，是粘性表头的经典事故。 */
+        <div className="max-h-[calc(100dvh-19rem)] overflow-auto rounded-lg border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">{t("app.colCompanyRole")}</th>
                 <th className="px-4 py-3 text-left font-medium">{t("app.colDirection")}</th>
@@ -560,7 +570,7 @@ export default function Applications() {
                   </span>
                 </th>
                 <th className="px-4 py-3 text-left font-medium">{t("app.colDeadline")}</th>
-                <th className="px-4 py-3 text-left font-medium">
+                <th className="px-4 py-3 text-right font-medium">
                   <span className="inline-flex items-center gap-1">
                     {sortBtn("score")}
                   </span>
@@ -603,7 +613,7 @@ export default function Applications() {
                         <span className="font-medium text-foreground">
                           {it.公司 || "—"}
                         </span>
-                        <div className="pl-6 text-xs text-muted-foreground/70">
+                        <div className="pl-6 text-xs text-muted-foreground">
                           {it.岗位 || t("app.roleMissing")}
                         </div>
                         {/* 岗位链接：有链接才出现，不新增一整列（表宽已经不小）；
@@ -615,7 +625,7 @@ export default function Applications() {
                             rel="noreferrer"
                             title={t("app.openLink")}
                             aria-label={t("app.openLink")}
-                            className="ml-6 mt-0.5 inline-flex items-center gap-1 text-xs text-primary/80 transition-colors hover:text-primary hover:underline"
+                            className="ml-6 mt-0.5 inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-2 transition-colors hover:text-primary"
                           >
                             <ExternalLink size={11} />
                             {t("app.jobLink")}
@@ -638,7 +648,7 @@ export default function Applications() {
                             >
                               {domainLabel("stage", it.当前阶段, t)}
                             </span>
-                            <span className="text-[10px] text-muted-foreground/70">
+                            <span className="text-[10px] text-muted-foreground">
                               {t("app.terminalLocked")}
                             </span>
                           </div>
@@ -698,17 +708,17 @@ export default function Applications() {
                           title={t("app.sortNext")}
                           className="w-36 rounded border border-transparent bg-transparent px-2 py-1 font-mono text-xs text-foreground outline-none transition-colors hover:border-border-strong focus:border-primary/50"
                         />
-                        <div className="pl-2 text-xs text-muted-foreground/70">
+                        <div className="pl-2 text-xs text-muted-foreground">
                           {it.下次动作 || "—"}
                         </div>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                         {it.截止日期 || "—"}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs text-primary">
+                      <td className="px-4 py-3 text-right">
+                        <Num align="right" className="text-xs">
                           {it.评分 || "—"}
-                        </span>
+                        </Num>
                       </td>
                       <td className="px-4 py-3">
                         {staleDays !== null ? (

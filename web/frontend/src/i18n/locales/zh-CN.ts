@@ -462,6 +462,8 @@ const zhCN = {
   "dash.postpone7": "顺延 7 天",
   "dash.overdueTitle": "已过截止日提醒",
   "dash.overdueEmpty": "没有已过截止日且未投递的记录。",
+  "dash.activityTitle": "最近动作",
+  "dash.activityEmpty": "还没有变更记录——投递推进后，这里会出现时间线。",
 
   // 设置页。Provider（BYOK）、邮箱只读拉取、数据与隐私三块
   "settings.title": "设置",
@@ -915,6 +917,7 @@ const zhCN = {
   "lib.fileCount_one": "{{count}} 个文件",
   "lib.fileCount_other": "{{count}} 个文件",
   "lib.empty": "事实库暂无事实卡",
+  "lib.emptyHint": "把资料文件放进工作区目录 `00_事实库/`，它们会自动出现在这里——事实卡、笔记、附件都行。",
   "lib.preview": "预览",
 
   // 进展页（子页签的壳）。页签标题与导航里的「进展」是同一串，直接复用 nav.progress
@@ -1019,6 +1022,51 @@ const zhCN = {
   "settings.zoomHint": "快捷键同样可用：Ctrl + 放大、Ctrl - 缩小、Ctrl 0 复位。",
   "settings.zoomDesktopOnly":
     "界面大小只在桌面应用里可调；浏览器里打开时，用浏览器自己的缩放（Ctrl +/-）即可。",
+  // 外观（批 4）：主题切换。与语言/大小同为「设备级、不随工作区走」。
+  // 皮肤与配色来自开源项目（Catppuccin / Nord / Tokyo Night / Rosé Pine / Gruvbox / Everforest），
+  // 主题名保留原名不翻译——社区惯例。
+  "settings.themeTitle": "外观",
+  "settings.themeDesc": "主题与界面语言一样只影响这台机器（不随工作区导出）。「跟随系统」按系统的亮 / 暗设置自动切换；内置皮肤与配色来自 Catppuccin、Nord、Tokyo Night、Rosé Pine、Gruvbox、Everforest 等开源项目。",
+  "settings.themeSystem": "跟随系统",
+  // 主题编辑器（批 4）：从当前主题微调关键色，实时对比度提示；保存后进主题列表。
+  "settings.themeCustom": "自定义主题…",
+  "settings.themeEditorClose": "收起编辑器",
+  "settings.themeEditorDesc": "从当前生效的主题出发，只调关键色（其余变量原样继承）。带实时对比度提示：正文需 ≥4.5:1、大字与图形 ≥3:1；保存后出现在上面的主题列表里。",
+  "settings.themeColorBg": "背景",
+  "settings.themeColorFg": "文字",
+  "settings.themeColorCard": "卡片",
+  "settings.themeColorPrimary": "主色",
+  "settings.themeColorSecondary": "次级面",
+  "settings.themeColorMuted": "弱化面",
+  "settings.themeColorBorder": "描边",
+  "settings.themeColorSuccess": "成功",
+  "settings.themeColorWarning": "警示",
+  "settings.themeColorDanger": "错误",
+  "settings.themeName": "主题名称",
+  "settings.themeUntitled": "我的主题",
+  "settings.themeSave": "保存为主题",
+  "settings.themeExport": "复制 JSON",
+  "settings.themeImport": "导入",
+  "settings.themeImportHint": "导入：粘贴导出的 JSON，或 tweakcn / shadcn 的主题 CSS（--key: value; 形式）",
+  "settings.themeImported": "已导入（未保存，点「保存为主题」落盘）",
+  "settings.themeImportFailed": "无法解析：请检查是否为 JSON，或 --key: value; 形式的 CSS",
+  "settings.themeSaved": "已保存",
+  "settings.themeApplied": "已应用",
+  "settings.themeCopied": "JSON 已复制到剪贴板",
+  "settings.themeCopyFailed": "剪贴板不可用，已填入下方文本框",
+  "settings.themeDelete": "删除",
+  "settings.themeDeleted": "已删除",
+  "settings.themeReadFailed": "读不到当前主题变量（getComputedStyle 为空）",
+  "settings.themeResetFromCurrent": "从当前主题重新开始",
+  // 字体方案（4g）：Inter 本地打包；系统栈不加载 webfont（启动更快）
+  "settings.fontTitle": "字体方案",
+  "settings.fontSystem": "系统字体（更快）",
+  // 界面字号（#4）：四档根字号缩放（rem 全链），与桌面全局缩放解耦
+  "settings.fontSizeTitle": "界面字号",
+  "settings.fontSizeSm": "小",
+  "settings.fontSizeBase": "标准",
+  "settings.fontSizeLg": "大",
+  "settings.fontSizeXl": "特大",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

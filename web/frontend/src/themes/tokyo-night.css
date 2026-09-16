@@ -1,0 +1,51 @@
+/* Tokyo Night
+   上游：Tokyo Night（enkia/tokyo-night-vscode-theme）
+   许可：MIT
+   由批 4 脚本从官方色板生成（HSL 三元组，与 :root 同构）；手改请同步 check_themes 门禁。 */
+[data-theme="tokyo-night"] {
+  --background: 235 19% 13%;
+  --foreground: 229 73% 86%;
+  --card: 230 24% 19%;
+  --card-foreground: 229 73% 86%;
+  --popover: 229 23% 33%;
+  --popover-foreground: 229 73% 86%;
+  --primary: 221 89% 72%;
+  --primary-foreground: 235 19% 13%;
+  --secondary: 230 24% 19%;
+  --secondary-foreground: 229 73% 86%;
+  --muted: 230 24% 19%;
+  --muted-foreground: 229 35% 75%;
+  --destructive: 349 89% 72%;
+  --destructive-foreground: 235 19% 13%;
+  --success: 89 51% 61%;
+  --warning: 36 66% 64%;
+  --border: 228 25% 25%;
+  --border-strong: 229 23% 44%;
+  --input: 228 25% 25%;
+  --ring: 221 89% 72%;
+  --highlight: 229 73% 86%;
+  --scrim: 0 0% 0%;
+  --glow-primary: 221 89% 72%;
+  --elevation-0-surface: 240 15% 10%;
+  --elevation-1-surface: 230 24% 19%;
+  --elevation-2-surface: 228 25% 25%;
+  --elevation-3-surface: 229 23% 33%;
+  --elevation-1-border: 228 25% 25%;
+  --elevation-2-border: 229 23% 33%;
+  --elevation-3-border: 229 23% 44%;
+  --elevation-1-shadow: 0 1px 2px hsl(240 21% 7% / 0.45), 0 8px 24px -10px hsl(240 21% 7% / 0.55);
+  --elevation-2-shadow: 0 2px 4px hsl(240 21% 7% / 0.50), 0 16px 40px -12px hsl(240 21% 7% / 0.55);
+  --elevation-3-shadow: 0 4px 10px hsl(240 21% 7% / 0.50), 0 24px 56px -16px hsl(240 21% 7% / 0.60);
+  --shadow-card: var(--elevation-1-shadow);
+  --shadow-elevated: var(--elevation-3-shadow);
+  --card-gradient: linear-gradient(180deg, hsl(230 24% 21%) 0%, hsl(230 24% 19%) 100%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(221 89% 72% / 0.10) 0%, transparent 70%);
+  --chart-1: 221 89% 72%;
+  --chart-2: 261 85% 79%;
+  --chart-3: 89 51% 61%;
+  --chart-4: 36 66% 64%;
+  --chart-5: 22 100% 70%;
+  --chart-6: 202 100% 75%;
+  --chart-7: 349 89% 72%;
+  --chart-8: 171 58% 65%;
+}

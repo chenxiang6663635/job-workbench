@@ -40,6 +40,8 @@ jobws resume render --version hvac --no-verify
 
 照片：覆盖 `02_简历工坊/pdf/photo.jpg`。不需要照片时删除 HTML 中的 `<img class="photo" ...>` 一行。
 
+简历风格：模板主色是变量 `--resume-accent`（默认专业蓝，石墨灰备选在注释里）——换色只改这一个变量；简历**保持亮底深字的专业取向**（打印与 ATS 优先），**不跟随应用主题皮肤**。选定的风格名记进工作区偏好 `resume_style`（`jobws prefs set resume_style 石墨灰`），跨会话保持一致。
+
 ## ATS 校验三项
 
 1. PDF 页数为 1

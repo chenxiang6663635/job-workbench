@@ -106,7 +106,7 @@ function TalkForm({
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6">
+      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6">
         <DialogHeader className="mb-5 flex-row items-center justify-between space-y-0">
           <div>
             <DialogTitle>{t("talk.formTitle")}</DialogTitle>
@@ -260,20 +260,20 @@ export default function TalkList() {
 
       {/* 三态齐全：骨架 / 空态 / 列表（错误条显示时不与骨架同屏） */}
       {!loaded && !error
-        ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)
+        ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
         : null}
       {loaded && !error && rows.length === 0 ? (
-        <Card className="flex flex-col items-center rounded-2xl border-dashed p-8 text-center">
-          <Megaphone size={28} className="mb-3 text-muted-foreground/70" />
+        <Card className="flex flex-col items-center rounded-lg border-dashed p-8 text-center">
+          <Megaphone size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("talk.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground/70">
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {t("talk.emptyHint", { action: t("talk.add") })}
           </p>
         </Card>
       ) : null}
 
       {rows.map((r) => (
-        <Card key={r.宣讲会id} className="rounded-xl p-3.5">
+        <Card key={r.宣讲会id} className="rounded-lg p-3.5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground">

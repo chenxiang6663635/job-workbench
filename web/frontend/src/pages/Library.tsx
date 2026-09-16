@@ -6,6 +6,8 @@ import { Card } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { FileCard } from "../components/FileCard";
+import { EmptyState } from "../components/ui/empty";
+import { PageHeader } from "../components/ui/page-header";
 import { useTranslation } from "react-i18next";
 
 // 简历文件（手写 HTML / 生成 PDF）已于 2026-09-03 迁往「简历工坊」页浏览，
@@ -66,7 +68,7 @@ export default function Library() {
             <iframe
               src={view.fileUrl}
               title={view.rel}
-              className="h-[70vh] w-full rounded-xl border-0 bg-white"
+              className="h-[70vh] w-full rounded-lg border-0 bg-white"
             />
           </Card>
         ) : (
@@ -80,15 +82,15 @@ export default function Library() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground">{t("lib.facts")}</span>
-        <span className="text-xs text-muted-foreground">
-          {t("lib.movedNote", { page: t("nav.resume") })}
-        </span>
-        <span className="ml-auto text-sm text-muted-foreground">
-          {t("lib.fileCount", { count: items.length })}
-        </span>
-      </div>
+      <PageHeader
+        title={t("lib.facts")}
+        description={t("lib.movedNote", { page: t("nav.resume") })}
+        actions={
+          <span className="text-sm text-muted-foreground">
+            {t("lib.fileCount", { count: items.length })}
+          </span>
+        }
+      />
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
@@ -100,12 +102,17 @@ export default function Library() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <Card className="flex flex-col items-center gap-2 border-dashed p-10 text-center">
-          <Inbox size={28} className="text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t("lib.empty")}</p>
+        <Card className="border-dashed">
+          <EmptyState
+            icon={<Inbox size={20} />}
+            title={t("lib.empty")}
+            description={t("lib.emptyHint")}
+          />
         </Card>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        /* 自适应网格（批 4）：列宽随容器伸缩，文件少时不摆成一排孤立卡、
+           文件多时自然增加列数——比固定三列更「撑得住」页面 */
+        <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
           {items.map((item) => (
             <FileCard
               key={item.rel}
@@ -115,7 +122,7 @@ export default function Library() {
               onClick={() => open(item)}
               badge={
                 item.kind === "binary" ? (
-                  <span className="shrink-0 text-xs text-muted-foreground/70">{t("lib.preview")}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{t("lib.preview")}</span>
                 ) : null
               }
             />

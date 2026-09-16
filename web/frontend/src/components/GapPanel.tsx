@@ -70,7 +70,7 @@ export default function GapPanel({ dir }: { dir: string }) {
       .finally(() => setLoading(false));
   }, [dir]);
 
-  if (loading) return <Skeleton className="h-32 w-full rounded-xl" />;
+  if (loading) return <Skeleton className="h-32 w-full rounded-lg" />;
   // 差距分析失败不该是红色报错级：调性上属"这一段暂不可用"，其余页面照常用
   if (error)
     return <ErrorBanner tone="warning" message={t("gap.unavailable", { error })} />;
@@ -90,7 +90,7 @@ export default function GapPanel({ dir }: { dir: string }) {
           <Puzzle size={15} className="text-primary" />
           <h4 className="text-sm font-medium text-foreground">{t("gap.title")}</h4>
         </div>
-        <span className="text-[11px] text-muted-foreground/70">
+        <span className="text-[11px] text-muted-foreground">
           {t("gap.versionNote", { version: gap.resumeVersion })}
         </span>
       </div>
@@ -100,7 +100,7 @@ export default function GapPanel({ dir }: { dir: string }) {
           const Icon = s.icon;
           const items = itemsOf(s.key);
           return (
-            <Card key={s.key} className={`rounded-xl p-3.5 ${s.cardCls}`}>
+            <Card key={s.key} className={`rounded-lg p-3.5 ${s.cardCls}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Icon size={14} className={s.iconCls} />
@@ -113,7 +113,7 @@ export default function GapPanel({ dir }: { dir: string }) {
               <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{t(s.hintKey)}</p>
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {items.length === 0 && (
-                  <span className="text-[11px] text-muted-foreground/70">{t("gap.none")}</span>
+                  <span className="text-[11px] text-muted-foreground">{t("gap.none")}</span>
                 )}
                 {items.map((item) => {
                   const term = typeof item === "string" ? item : item.term;
@@ -139,7 +139,7 @@ export default function GapPanel({ dir }: { dir: string }) {
         })}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
         {t("gap.footer")}
       </p>
     </div>

@@ -1,0 +1,51 @@
+/* Everforest
+   上游：Everforest（sainnhe/everforest）
+   许可：MIT
+   由批 4 脚本从官方色板生成（HSL 三元组，与 :root 同构）；手改请同步 check_themes 门禁。 */
+[data-theme="everforest"] {
+  --background: 206 13% 20%;
+  --foreground: 41 32% 75%;
+  --card: 199 13% 24%;
+  --card-foreground: 41 32% 75%;
+  --popover: 201 11% 31%;
+  --popover-foreground: 41 32% 75%;
+  --primary: 83 34% 63%;
+  --primary-foreground: 206 13% 20%;
+  --secondary: 199 13% 24%;
+  --secondary-foreground: 41 32% 75%;
+  --muted: 199 13% 24%;
+  --muted-foreground: 111 8% 67%;
+  --destructive: 359 73% 77%;
+  --destructive-foreground: 206 13% 20%;
+  --success: 83 34% 63%;
+  --warning: 40 56% 68%;
+  --border: 199 12% 27%;
+  --border-strong: 204 9% 34%;
+  --input: 199 12% 27%;
+  --ring: 83 34% 63%;
+  --highlight: 41 32% 75%;
+  --scrim: 0 0% 0%;
+  --glow-primary: 83 34% 63%;
+  --elevation-0-surface: 202 14% 16%;
+  --elevation-1-surface: 199 13% 24%;
+  --elevation-2-surface: 199 12% 27%;
+  --elevation-3-surface: 201 11% 31%;
+  --elevation-1-border: 199 12% 27%;
+  --elevation-2-border: 201 11% 31%;
+  --elevation-3-border: 204 9% 34%;
+  --elevation-1-shadow: 0 1px 2px hsl(202 14% 16% / 0.45), 0 8px 24px -10px hsl(202 14% 16% / 0.55);
+  --elevation-2-shadow: 0 2px 4px hsl(202 14% 16% / 0.50), 0 16px 40px -12px hsl(202 14% 16% / 0.55);
+  --elevation-3-shadow: 0 4px 10px hsl(202 14% 16% / 0.50), 0 24px 56px -16px hsl(202 14% 16% / 0.60);
+  --shadow-card: var(--elevation-1-shadow);
+  --shadow-elevated: var(--elevation-3-shadow);
+  --card-gradient: linear-gradient(180deg, hsl(199 13% 26%) 0%, hsl(199 13% 24%) 100%);
+  --hero-glow: radial-gradient(60rem 28rem at 50% -6rem, hsl(83 34% 63% / 0.10) 0%, transparent 70%);
+  --chart-1: 83 34% 63%;
+  --chart-2: 172 31% 62%;
+  --chart-3: 40 56% 68%;
+  --chart-4: 331 43% 72%;
+  --chart-5: 19 69% 68%;
+  --chart-6: 135 33% 63%;
+  --chart-7: 359 68% 70%;
+  --chart-8: 41 32% 75%;
+}

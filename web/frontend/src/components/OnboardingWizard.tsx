@@ -44,7 +44,7 @@ export function EmptyOnboarding() {
 
   return (
     <div className="mx-auto max-w-2xl pt-6">
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card-gradient p-10 text-center shadow-card ring-1 ring-highlight/5">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card-gradient p-10 text-center shadow-card ring-1 ring-highlight/5">
         <span className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/40 text-primary">
           <FolderPlus size={22} />
         </span>

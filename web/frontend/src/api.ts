@@ -53,6 +53,15 @@ export interface DashboardData {
   unappliedHigh: UnappliedHighItem[];
   unappliedHighTotal: number;
   scoreByState: ScoreStateBucket[];
+  /** 最近动作（时间线最近 12 条，附公司名）——看板活动流 */
+  recentActivity: {
+    time: string;
+    id: string;
+    company: string;
+    field: string;
+    old: string;
+    new: string;
+  }[];
   funnel: { stage: string; count: number }[];
   byDirection: { key: string; count: number }[];
   byBatch: { key: string; count: number }[];

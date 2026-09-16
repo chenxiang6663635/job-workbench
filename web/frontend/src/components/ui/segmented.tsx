@@ -58,9 +58,12 @@ export function Segmented<T extends string>({
           <label
             key={option.value}
             className={cn(
-              "relative inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-premium",
+              // [&_svg]:shrink-0：窄屏/长标签下图标曾被 flex 压扁（#5 与 tabs 同款保险）
+              "relative inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-premium [&_svg]:shrink-0",
               checked
-                ? "bg-gradient-to-b from-primary/20 to-primary/10 text-primary shadow-glow-primary"
+                ? // 激活态文字用前景色（独立审查 MAJOR：浅色下 primary 对
+                  // primary/20 渐变底只有 ~4.0:1）——激活由底色 + 发光承担
+                  "bg-gradient-to-b from-primary/20 to-primary/10 text-foreground shadow-glow-primary"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >

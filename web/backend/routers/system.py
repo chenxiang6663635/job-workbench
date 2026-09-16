@@ -253,7 +253,9 @@ def backup_workspace(ws: str = Depends(workspace_dir)):
 
     name = os.path.basename(os.path.normpath(ws)) or "workspace"
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    tmp_path = os.path.join(snap_dir, atomicio.TMP_PREFIX + "backup.zip")
+    # 暂存名带时间戳：固定名在两次备份并发时会互踩（同一 tmp 被两个 ZipFile 写、
+    # os.replace 也可能撞车）；保留 TMP_PREFIX 以便残留清理照旧识别它。
+    tmp_path = os.path.join(snap_dir, atomicio.TMP_PREFIX + "backup-%s.zip" % stamp)
 
     count = 0
     with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:

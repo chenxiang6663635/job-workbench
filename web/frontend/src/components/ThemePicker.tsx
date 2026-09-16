@@ -1,20 +1,29 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Palette } from "lucide-react";
+import { Palette, SlidersHorizontal } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
-import { SYSTEM_ID, THEMES, getThemeChoice, setThemeChoice } from "../lib/theme";
+import { SYSTEM_ID, getThemeChoice, listThemes, setThemeChoice } from "../lib/theme";
+import ThemeEditor from "./ThemeEditor";
 
-// 设置页「外观」卡（批 4）：主题选择。
-// - 色块预览取各自官方色板；主题真名不翻译（社区惯例），system 项走 i18n。
+// 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口。
+// - 色块预览取各自色板；主题真名不翻译（社区惯例），system 项走 i18n。
 // - 选择即生效（applyTheme 只改根属性）+ localStorage 持久化（设备级偏好）。
 export default function ThemePicker() {
   const { t } = useTranslation();
   const [choice, setChoice] = useState(getThemeChoice());
+  const [themes, setThemes] = useState(listThemes());
+  const [editing, setEditing] = useState(false);
 
   const onPick = (id: string) => {
     setChoice(id);
     setThemeChoice(id);
+  };
+
+  const refresh = () => {
+    setThemes(listThemes());
+    setChoice(getThemeChoice());
   };
 
   return (
@@ -34,7 +43,7 @@ export default function ThemePicker() {
         role="radiogroup"
         aria-label={t("settings.themeTitle")}
       >
-        {THEMES.map((item) => {
+        {themes.map((item) => {
           const active = choice === item.id;
           return (
             <button
@@ -66,6 +75,21 @@ export default function ThemePicker() {
           );
         })}
       </div>
+
+      {/* 自定义主题：编辑器 MVP——从当前主题的全部变量出发，只调关键色 */}
+      <div className="border-t border-border pt-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setEditing((prev) => !prev)}
+          aria-expanded={editing}
+        >
+          <SlidersHorizontal size={13} className="mr-1" />
+          {editing ? t("settings.themeEditorClose") : t("settings.themeCustom")}
+        </Button>
+      </div>
+
+      {editing && <ThemeEditor onSaved={refresh} />}
     </Card>
   );
 }

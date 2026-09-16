@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
 import atomicio
+import prefs
 import resume_build
 import tls_http
 from apierror import ApiError
@@ -138,6 +139,43 @@ def _list_template_files(base):
 def list_templates(ws: str = Depends(workspace_dir)):
     items = _list_template_files(_resume_dir(ws))
     return {"items": items, "total": len(items)}
+
+
+def _prepare_template(template_id, accent_raw):
+    """版式与强调色解析（预览 / doc / build 三处渲染共用，批 4.5）。
+
+    非法值一律 422 且不静默回落——「以为换了版式/风格、实际没换」比报错
+    更难发现。返回已注入强调色的模板 HTML。
+    """
+    accent = resume_build.resolve_accent(accent_raw)
+    if (accent_raw or "").strip() and not accent:
+        raise ApiError(422, "resume.accentInvalid",
+                       "强调色无法识别：%s（可用预设：%s；或直接给 #hex 颜色）"
+                       % (accent_raw, " / ".join(resume_build.RESUME_ACCENTS)),
+                       accent=accent_raw)
+    try:
+        tpl = resume_build.load_template(template_id or None)
+    except ValueError as exc:
+        raise ApiError(422, "resume.templateInvalid", str(exc), template=template_id)
+    return resume_build.apply_accent(tpl, accent)
+
+
+@router.get("/layouts")
+def list_layouts(ws: str = Depends(workspace_dir)):
+    """标准版式的「版式 + 风格」清单（与 CLI 同一真源 resume_build）。
+
+    preferredAccent 读工作区偏好 resume_style（可能为空——前端回落默认）。
+    """
+    try:
+        preferred = prefs.read_prefs(ws).get("resume_style", "")
+    except Exception:  # noqa: BLE001 - 偏好读不动不该挡住版式清单
+        preferred = ""
+    return {
+        "templates": resume_build.list_templates(),
+        "default": resume_build.DEFAULT_TEMPLATE,
+        "accents": resume_build.RESUME_ACCENTS,
+        "preferredAccent": preferred,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -324,8 +362,13 @@ def save_resume(version: str, body: ResumeData, ws: str = Depends(workspace_dir)
 
 
 @router.get("/{version}/html")
-def preview_html(version: str, ws: str = Depends(workspace_dir)):
-    """返回渲染后的完整 HTML，供前端 iframe 预览（不落盘）。"""
+def preview_html(version: str, template: str = "", accent: str = "",
+                 ws: str = Depends(workspace_dir)):
+    """返回渲染后的完整 HTML，供前端 iframe 预览（不落盘）。
+
+    template / accent（批 4.5）：版式与强调色；缺省 = 默认版式 + 模板默认色，
+    非法值 422（不静默回落）。
+    """
     _check_version(version)
     path = _data_path(ws, version)
     if not os.path.isfile(path):
@@ -337,8 +380,8 @@ def preview_html(version: str, ws: str = Depends(workspace_dir)):
     except ValueError as exc:
         raise ApiError(422, "resume.jsonInvalid",
                                "JSON 解析失败：%s" % exc, error=str(exc))
+    tpl = _prepare_template(template, accent)   # 校验类错误（422）直接冒泡
     try:
-        tpl = resume_build.load_template()
         return {"version": version, "html": resume_build.render_block(tpl, data)}
     except Exception as exc:  # noqa: BLE001
         raise ApiError(500, "resume.renderFailed",
@@ -346,7 +389,8 @@ def preview_html(version: str, ws: str = Depends(workspace_dir)):
 
 
 @router.get("/{version}/doc")
-def export_doc(version: str, ws: str = Depends(workspace_dir)):
+def export_doc(version: str, template: str = "", accent: str = "",
+               ws: str = Depends(workspace_dir)):
     """零依赖导出 Word（.doc）：复用 PDF 同一条渲染链路产出 HTML，
     补 Word 能识别的 HTML 头后以 application/msword 返回。
 
@@ -365,8 +409,8 @@ def export_doc(version: str, ws: str = Depends(workspace_dir)):
     except ValueError as exc:
         raise ApiError(422, "resume.jsonInvalid",
                                "JSON 解析失败：%s" % exc, error=str(exc))
+    tpl = _prepare_template(template, accent)
     try:
-        tpl = resume_build.load_template()
         body = resume_build.render_block(tpl, data)
     except Exception as exc:  # noqa: BLE001
         raise ApiError(500, "resume.renderFailed",
@@ -393,9 +437,17 @@ def export_doc(version: str, ws: str = Depends(workspace_dir)):
 
 
 @router.post("/{version}/build")
-def build_resume(version: str, ws: str = Depends(workspace_dir)):
-    """生成 PDF 并做 ATS 三项校验 + A4 纸型校验。"""
+def build_resume(version: str, template: str = "", accent: str = "",
+                 ws: str = Depends(workspace_dir)):
+    """生成 PDF 并做 ATS 三项校验 + A4 纸型校验。
+
+    template / accent（批 4.5）：与预览同源——前端选什么版式与风格，
+    生成的 PDF 就是什么（预览与交付物不允许是两套渲染参数）。
+    """
     _check_version(version)
+    # 参数校验先于环境检查：「输入不合法」与「有没有 Chrome」无关，
+    # 先报 422 让用户改输入，而不是被 500 chromeMissing 掩盖
+    tpl = _prepare_template(template, accent)
     browser = resume_build.find_browser()
     if not browser:
         raise ApiError(500, "resume.chromeMissing", "未找到 Chrome 或 Edge，无法生成 PDF")
@@ -420,7 +472,6 @@ def build_resume(version: str, ws: str = Depends(workspace_dir)):
         tmp_html = os.path.join(pdf_dir, "__preview_%s.html" % version)
 
         try:
-            tpl = resume_build.load_template()
             with io.open(tmp_html, "w", encoding="utf-8") as f:
                 f.write(resume_build.render_block(tpl, data))
         except Exception as exc:  # noqa: BLE001

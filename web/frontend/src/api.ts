@@ -368,6 +368,33 @@ export interface ResumeBuildResult {
   passed: boolean;
 }
 
+/** 版式与风格的渲染参数（批 4.5）：预览 / 生成 / Word 三处共用同一组参数名。 */
+export interface ResumeRenderOpts {
+  template?: string;
+  accent?: string;
+}
+
+/** 「版式 + 风格」清单（GET /api/resume/layouts）：与 CLI 同一真源。 */
+export interface ResumeLayouts {
+  /** 可用版式 id（templates/ 目录下的文件名） */
+  templates: string[];
+  /** 默认版式 id */
+  default: string;
+  /** 风格预设：中文名 → #hex（预设名保留原名不翻译） */
+  accents: Record<string, string>;
+  /** 工作区偏好 resume_style（可能为空串） */
+  preferredAccent: string;
+}
+
+/** 渲染参数的查询串（空 opts 返回空串——保持 URL 与既有形态一致）。 */
+function resumeOptQuery(opts?: ResumeRenderOpts): string {
+  const q = new URLSearchParams();
+  if (opts?.template) q.set("template", opts.template);
+  if (opts?.accent) q.set("accent", opts.accent);
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
 // 高级模板（手写 HTML 精排版）的文件条目，与 LibraryItem 同构但归简历域
 export interface SystemPaths {
   workspace: string;
@@ -995,14 +1022,17 @@ export const api = {
       { method: "PUT", body: { data } }
     ),
 
-  resumeHtml: (version: string) =>
+  // 版式与风格清单（批 4.5）：与 CLI 同一真源（后端 resume_build 常量）
+  resumeLayouts: () => request<ResumeLayouts>("/resume/layouts"),
+
+  resumeHtml: (version: string, opts?: ResumeRenderOpts) =>
     request<{ version: string; html: string }>(
-      `/resume/${encodeURIComponent(version)}/html`
+      `/resume/${encodeURIComponent(version)}/html${resumeOptQuery(opts)}`
     ),
 
-  buildResume: (version: string) =>
+  buildResume: (version: string, opts?: ResumeRenderOpts) =>
     request<ResumeBuildResult>(
-      `/resume/${encodeURIComponent(version)}/build`,
+      `/resume/${encodeURIComponent(version)}/build${resumeOptQuery(opts)}`,
       { method: "POST" }
     ),
 
@@ -1021,10 +1051,11 @@ export const api = {
     request<ImportResult>("/resume/import", { method: "POST", body }),
 
   // Word 导出（.doc）：浏览器直接下载，链接需带 ws 与其他 GET 一致
-  resumeDocUrl: (version: string) => {
-    const base = `/api/resume/${encodeURIComponent(version)}/doc`;
+  resumeDocUrl: (version: string, opts?: ResumeRenderOpts) => {
+    const q = resumeOptQuery(opts);
+    const base = `/api/resume/${encodeURIComponent(version)}/doc${q}`;
     return currentWorkspace
-      ? `${base}?ws=${encodeURIComponent(currentWorkspace)}`
+      ? `${base}${q ? "&" : "?"}ws=${encodeURIComponent(currentWorkspace)}`
       : base;
   },
 

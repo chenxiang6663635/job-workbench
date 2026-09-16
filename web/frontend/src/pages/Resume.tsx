@@ -12,7 +12,12 @@ import {
   Save,
   ShieldAlert,
 } from "lucide-react";
-import { api, type ResumeBuildResult, type ResumeVersion } from "../api";
+import {
+  api,
+  type ResumeBuildResult,
+  type ResumeLayouts,
+  type ResumeVersion,
+} from "../api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -33,6 +38,8 @@ import ResumeTemplates from "../components/ResumeTemplates";
 import ResumeImportDialog from "../components/ResumeImportDialog";
 import RewritePanel from "../components/RewritePanel";
 import VersionLineage from "../components/VersionLineage";
+import { cn } from "../lib/utils";
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 type ResumeData = Record<string, unknown>;
 
@@ -41,6 +48,14 @@ type Mode = "std" | "advanced";
 
 // 与后端 _check_version 一致：只允许字母数字-_
 const VERSION_RE = /^[A-Za-z0-9_-]+$/;
+
+// 版式显示名（批 4.5）：内置三套走翻译；第三方放入模板目录的版式直接
+// 显示文件名——不给未知文件编造翻译（与主题名同约定）。
+const LAYOUT_LABELS: Record<string, TranslationKey> = {
+  std_resume: "resume.layoutStd",
+  std_compact: "resume.layoutCompact",
+  std_accent: "resume.layoutAccent",
+};
 
 function emptyData(): ResumeData {
   return {
@@ -73,6 +88,10 @@ export default function Resume() {
   const [dirty, setDirty] = useState(false);
   // 工作对象：数据驱动「标准版式」编辑，还是手写「高级模板」浏览
   const [mode, setMode] = useState<Mode>("std");
+  // 版式与风格（批 4.5）：初值给内置回退，/layouts 到达后覆盖为真源 + 偏好
+  const [layout, setLayout] = useState("std_resume");
+  const [accent, setAccent] = useState("商务蓝");
+  const [layoutInfo, setLayoutInfo] = useState<ResumeLayouts | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [creatingBusy, setCreatingBusy] = useState(false);
@@ -109,6 +128,21 @@ export default function Resume() {
       .catch((e: Error) => setError(e.message));
   }, []);
 
+  // 版式与风格清单：后端为唯一真源（resume_build 常量，CLI 同一份）；
+  // preferredAccent 有效时作为初始选中——「偏好跨会话一致」在 UI 的落实。
+  useEffect(() => {
+    api
+      .resumeLayouts()
+      .then((r) => {
+        setLayoutInfo(r);
+        if (r.default) setLayout(r.default);
+        if (r.preferredAccent && r.accents[r.preferredAccent]) {
+          setAccent(r.preferredAccent);
+        }
+      })
+      .catch((e: Error) => setError(e.message));
+  }, []);
+
   // 载入选中版本的数据
   useEffect(() => {
     if (!version) return;
@@ -120,7 +154,8 @@ export default function Resume() {
       .catch((e: Error) => setError(e.message));
   }, [version]);
 
-  // 预览 HTML：编辑后防抖保存再重取预览；仅加载时只取预览不写回
+  // 预览 HTML：编辑后防抖保存再重取预览；仅加载时只取预览不写回。
+  // 版式与风格是渲染参数（批 4.5）：切换即重取——预览与生成/Word 同源。
   useEffect(() => {
     if (!version || !data) return;
     const timer = setTimeout(
@@ -129,14 +164,14 @@ export default function Resume() {
           ? api.saveResume(version, data)
           : Promise.resolve<unknown>(null);
         saved
-          .then(() => api.resumeHtml(version))
+          .then(() => api.resumeHtml(version, { template: layout, accent }))
           .then((r) => setHtml(r.html))
           .catch((e: Error) => setError(e.message));
       },
       dirty ? 400 : 0
     );
     return () => clearTimeout(timer);
-  }, [data, version, dirty]);
+  }, [data, version, dirty, layout, accent]);
 
   // 溢出换算成"约几行"（按正文行高 21px 估算）
   const overflowLines = useMemo(
@@ -189,7 +224,7 @@ export default function Resume() {
     setBuilding(true);
     setResult(null);
     api
-      .buildResume(version)
+      .buildResume(version, { template: layout, accent })
       .then(setResult)
       .catch((e: Error) => setError(e.message))
       .finally(() => setBuilding(false));
@@ -334,7 +369,7 @@ export default function Resume() {
             排版还原度有限——这一句必须在按钮旁说清，不让用户误当正式交付物 */}
         <Button variant="outline" asChild>
           <a
-            href={api.resumeDocUrl(version)}
+            href={api.resumeDocUrl(version, { template: layout, accent })}
             download
             title={t("resume.wordTitle")}
           >
@@ -343,6 +378,53 @@ export default function Resume() {
         </Button>
         <span className="text-[11px] text-muted-foreground">
           {t("resume.wordTitle")}
+        </span>
+      </div>
+
+      {/* 版式与风格（批 4.5）：与预览 / 生成 / Word 同一组渲染参数——
+          切换即刷新预览；生成的 PDF 与预览不允许是两套参数 */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          {t("resume.layoutLabel")}
+          <Select value={layout} onValueChange={setLayout}>
+            <SelectTrigger className="h-8 w-32" aria-label={t("resume.layoutLabel")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(layoutInfo?.templates ?? ["std_resume"]).map((id) => (
+                <SelectItem key={id} value={id}>
+                  {LAYOUT_LABELS[id] ? t(LAYOUT_LABELS[id]) : id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          {t("resume.accentLabel")}
+          <span
+            role="radiogroup"
+            aria-label={t("resume.accentLabel")}
+            className="flex items-center gap-1.5"
+          >
+            {Object.entries(layoutInfo?.accents ?? {}).map(([name, color]) => (
+              <button
+                key={name}
+                type="button"
+                role="radio"
+                aria-checked={accent === name}
+                aria-label={name}
+                title={name}
+                onClick={() => setAccent(name)}
+                style={{ background: color }}
+                className={cn(
+                  "h-5 w-5 cursor-pointer rounded-full border border-border transition-shadow duration-150",
+                  accent === name &&
+                    "ring-2 ring-ring ring-offset-2 ring-offset-background"
+                )}
+              />
+            ))}
+          </span>
         </span>
       </div>
 

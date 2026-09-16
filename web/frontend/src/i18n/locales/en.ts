@@ -514,6 +514,13 @@ export default {
   "resume.emptyHint1": "Use “New version” in the top-right to start editing — no need to drop a JSON file by hand.",
   "resume.emptyHint2": " Hand-written HTML layouts live under “Advanced templates”.",
   "resume.selectVersion": "Select version",
+  // Layout & accent (batch 4.5): same params as build; third-party layouts
+  // placed in the templates dir show their file name, untranslated.
+  "resume.layoutLabel": "Layout",
+  "resume.layoutStd": "Classic",
+  "resume.layoutCompact": "Compact",
+  "resume.layoutAccent": "Accent",
+  "resume.accentLabel": "Accent color",
   "resume.buildPdf": "Build PDF",
   "resume.building": "Building…",
   "resume.buildTitle": "Build the PDF and validate it",
@@ -764,6 +771,8 @@ export default {
   "err.progress.talksIcsEmpty": "No talk schedule to export (all talk times are empty)",
 
   "err.resume.versionInvalid": "Version names may only contain letters, digits, - and _",
+  "err.resume.templateInvalid": "Layout unavailable: {{template}} (only compliant HTML files in the templates dir can be used)",
+  "err.resume.accentInvalid": "Unrecognized accent color: {{accent}} (pick a preset swatch or use a #hex value)",
   "err.resume.providerMissing": "Configure the provider (BYOK) under Settings first: base URL and API key",
   "err.resume.modelRequired": "Enter a model name (e.g. deepseek-chat)",
   "err.resume.fileDecodeFailed": "Could not decode the file content",

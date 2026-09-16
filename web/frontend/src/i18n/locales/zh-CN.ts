@@ -560,6 +560,13 @@ const zhCN = {
   "resume.emptyHint1": "点右上角「新建版本」直接开始编辑，不用手工去文件系统放 JSON。",
   "resume.emptyHint2": "手写 HTML 的精排版在「高级模板」里浏览与生成。",
   "resume.selectVersion": "选择版本",
+  // 版式与强调色（批 4.5）：与生成参数同源；第三方放入模板目录的版式
+  // 显示文件名、不翻译（与主题名同约定）
+  "resume.layoutLabel": "版式",
+  "resume.layoutStd": "经典",
+  "resume.layoutCompact": "紧凑",
+  "resume.layoutAccent": "强调",
+  "resume.accentLabel": "强调色",
   "resume.buildPdf": "生成 PDF",
   "resume.building": "生成中…",
   "resume.buildTitle": "生成 PDF 并校验",
@@ -835,6 +842,8 @@ const zhCN = {
   "err.progress.talksIcsEmpty": "没有可导出的宣讲会日程（时间均为空）",
 
   "err.resume.versionInvalid": "版本名只能含字母、数字、-、_",
+  "err.resume.templateInvalid": "版式不可用：{{template}}（只有模板目录里的合规 HTML 可选）",
+  "err.resume.accentInvalid": "强调色无法识别：{{accent}}（可用「强调色」色板里的预设，或直接给 #hex 颜色）",
   "err.resume.providerMissing": "先在「设置」配置模型服务（Provider / BYOK）：服务地址（Base URL）与 API 密钥（API Key）",
   "err.resume.modelRequired": "请填写模型名（如 deepseek-chat）",
   "err.resume.fileDecodeFailed": "文件内容解码失败",

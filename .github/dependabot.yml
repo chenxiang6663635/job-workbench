@@ -33,6 +33,12 @@
 #    仍然不给 ignore：理由同 (2)，major 要人工决策，而「Vite 8 迁移」是一个要排批次的
 #    真实任务（含 eslint / breaking change / 50 项 UI 冒烟回归），不是一条可静默忽略的噪声。
 #    正确的到期条件是「vite 升到 8.x 时」——那时这条 PR 会自然变成可合并的。
+#
+# 4) **同类第二条：typescript 7.x（2026-09-16 #130）**。装得上（`npm install` 退出 0），
+#    但 `npm run lint` 在 typescript-eslint 内部主动抛错 `does not support TS 7.0`。
+#    **教训写进 CONTRIBUTING：`npm install` 成功不等于可用**，依赖类 PR 必须跑到
+#    `lint` / `tsc` / `build`。到期条件是 typescript-eslint 把 peer 放宽到 `>=7`，
+#    与 Vite 8 无关，两者可分别推进。
 version: 2
 updates:
   - package-ecosystem: github-actions

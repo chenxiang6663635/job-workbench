@@ -9,9 +9,17 @@ description = "求职工作台的只读 MCP 服务（本地优先：只读写本
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-# 只依赖官方 SDK。主干后端为兼容 Python 3.8 把 pydantic 钉在 2.10 以下，
-# 而 MCP SDK 要求 pydantic>=2.12 —— 两个依赖集互斥，所以这个包自成环境，
-# 不进 web/backend/requirements.txt（MCP 路线形态 A，见 plans 的路线决策）。
+# 只依赖官方 SDK。**本包与主干后端已不再互斥**（2026-09-16 订正）：
+# 历史上这里写着「主干为兼容 Python 3.8 把 pydantic 钉在 <2.10，而 MCP SDK 要求
+# >=2.12，两个依赖集互斥」——那个前提随 **Python 3.12 基线落地**消失了：后端上界
+# 已放宽到 <2.14（PR #109），与 SDK 的 >=2.12 有非空交集（>=2.12,<2.14）。
+# 实测：pydantic 2.13.5 下后端 679 项与 MCP 23 项**在同一环境同时通过**。
+#
+# 仍**不合入** web/backend/requirements.txt：这是**职责分层**而非约束冲突——
+# MCP 是「宿主里跑的可选组件」，主干是「应用本体」，两者的发版节奏与依赖面不同
+# （主干不需要 mcp SDK；MCP 侧不需要 fastapi/uvicorn）。合并只会让两边都被
+# 对方的升级牵着走。形态 A 的路线决策见 plans。
+#
 # 钉下界到实测过的 2.2：SDK 仍在 2.x 内频繁演进，浮动解析会让 CI 与本地跑的
 # 不是同一套代码。uv.lock 被仓库的 *.lock 规则忽略，下界与锁保持一致。
 dependencies = ["mcp>=2.2,<3"]

@@ -388,7 +388,7 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 设置页「外观」卡（设备级偏好，只影响这台机器、不随工作区导出）：
 
 - **主题**：默认暗之外内置浅色与 8 套开源皮肤（Catppuccin Mocha·Latte / Nord / Tokyo Night / Rosé Pine + Dawn / Gruvbox / Everforest），支持「跟随系统」；「自定义主题…」改关键色并实时显示对比度，保存后进入主题列表；可导入 tweakcn / shadcn 的 CSS 或导出的 JSON。
-- **字体**：界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible，以及系统字体与衬线）；等宽 / 数字字体**独立**可选 **6 款**（Maple Mono 默认，另有 JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro）。全部随应用本地打包（OFL-1.1、离线可用），只含拉丁子集——中文始终走系统栈。**界面字号**为连续滑块（80%–150%，步进 5%）。终端字体请在你的终端软件里设置——`jobws prefs doctor` 会给出推荐清单（Maple Mono / JetBrains Mono / 更纱黑体）。
+- **字体**：界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible，以及系统字体与衬线）；等宽字体**独立**可选 **6 款**（Maple Mono 默认，另有 JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro），管代码 / 编号 / 日期；**数字字体**另设一槽（Geist Mono 默认，可选 JetBrains Mono、IBM Plex Mono 或「跟随界面字体」），管 KPI / 计数 / 天数 / 百分比等数值。全部随应用本地打包（OFL-1.1、离线可用），只含拉丁子集——中文始终走系统栈。**界面字号**为连续滑块（80%–150%，步进 5%）。终端字体请在你的终端软件里设置——`jobws prefs doctor` 会给出推荐清单（Maple Mono / JetBrains Mono / 更纱黑体）。
 - **偏好分层**：主题 / 字体是**设备级**（存本机）；`jobws prefs`（theme / font / resume_style）是**工作区级**物料偏好，供 CLI、技能与导出使用。
 
 主题改动会过门禁 `jobws lint themes`（完整性 / 对比度 / 明度阶梯）——10 套内置主题全部满足正文 4.5:1、大字与图形 3:1。

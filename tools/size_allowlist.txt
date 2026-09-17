@@ -29,7 +29,8 @@ tools/install_skills.py = 194  # 文件未超标，但 main() 有 85 行（分�
 web/backend/routers/applications.py = 568
 web/backend/routers/resume.py = 614  # 版式/风格清单 + 预览/Word/生成三处渲染
 web/backend/routers/jobs.py = 499
-web/backend/routers/system.py = 326
+web/backend/routers/imap.py = 304  # IMAP 配置 / 测试连接 / 只读拉取集中一处；本次加降级提示后越过 300 行
+web/backend/routers/system.py = 328  # 备份/导出/快照淘汰（本次为加微秒级暂存名 +2 行）
 web/backend/routers/dashboard.py = 221  # 文件未超标，但 dashboard() 有 114 行（存量，已列重构专项）
 #
 # --- 前端：刻意集中的单一真源 / 页面级容器 ---

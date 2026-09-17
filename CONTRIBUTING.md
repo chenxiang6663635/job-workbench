@@ -198,7 +198,7 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 
 1. **规模预算**（由 `jobws lint size` 自动量；存量登记在 `tools/size_allowlist.txt`）：
    - **逻辑型**（业务代码）：单文件 ≤300 行；单函数 ≤60 行、**超 80 必拆**为「编排函数 + ≥2 个 helper」；嵌套 ≤3 层。
-   - **数据·声明型**（i18n 语言包、常量表、argparse 声明、测试与 fixtures）：≤1500 行——这类代码行数多而复杂度低，与业务代码同阈值只会逼人把常量表拆碎。
+   - **数据·声明型**（i18n 语言包、常量表、测试与 fixtures）：≤1500 行——这类代码行数多而复杂度低，与业务代码同阈值只会逼人把常量表拆碎。判定见 `tools/check_size.py` 的 `classify()`（按路径识别，脚本里的声明式段落不单列，仍按逻辑型计）。
    - **存量豁免、增量守门**：已超标的文件登记进 `tools/size_allowlist.txt`（`路径 = 行数  # 理由`），**登记值即水位线**——只许变小、不许继续膨胀；降到阈值以内时检查器会要求删掉该条目（自洁，防清单腐化）。**新文件不许再超。**
 2. **提取时机（rule of three）**：同一逻辑第 2 次出现时考虑提取，第 3 次必须提取到公共模块；新增第 3 个 `if/elif` 分支且每分支 >10 行时提取 dispatch。
 3. **禁静默吞错**：`except Exception: pass` 与空 `catch {}` 一律不许——至少记日志（`logger.warning` / `console.error`）。

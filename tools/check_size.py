@@ -48,7 +48,10 @@ DATA_MARKERS = ("locales/", "conftest", "fixture", "allowlist")
 
 
 def classify(rel_path):
-    """判定规模预算分类：logic（业务） / data（数据·声明） / skip（不扫）。
+    """判定规模预算分类：logic（业务） / data（数据·声明）。
+
+    不扫的目录（node_modules / dist / __pycache__ 等）在遍历阶段就跳过了，
+    不进这里——所以只有这两种取值，没有第三类。
 
     测试整体按 data 计：它由大量平铺用例构成，行数与复杂度不成正比。
     """
@@ -120,24 +123,26 @@ def iter_source_files():
 
 
 def staged_files():
-    out = subprocess.run(["git", "diff", "--cached", "--name-only", "-z"],
-                         capture_output=True, text=True, check=True,
-                         encoding="utf-8", errors="replace").stdout
-    return [p.replace("\\", "/") for p in out.split("\0") if p]
+    """暂存文件列表；不在 git 仓库里（或 git 不可用）时返回空——降级为「没什么可扫」。
+
+    刻意不用 `check=True`：那会在非仓库目录里抛未捕获异常，而本脚本常被当作
+    独立工具调用（此时「没有暂存文件」比「崩掉」更接近事实）。
+    """
+    proc = subprocess.run(["git", "diff", "--cached", "--name-only", "-z"],
+                          capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
+    if proc.returncode != 0:
+        return []
+    return [p.replace("\\", "/") for p in proc.stdout.split("\0") if p]
 
 
-def scan(paths=None, staged=False):
+def scan(staged=False):
     """返回违规描述列表（空 = 通过）。
 
-    paths 给定时只扫这些**相对仓库根**的路径（测试与 staged 模式用）；
-    staged=True 时改为扫 git 暂存文件——增量守门的入口。
+    staged=True 时只扫 git 暂存文件——增量守门的入口。
     """
     allow = load_allowlist()
-    if paths is not None:
-        wanted = {p.replace("\\", "/") for p in paths}
-        targets = [(rel, os.path.join(ROOT, rel))
-                   for rel, full in iter_source_files() if rel in wanted]
-    elif staged:
+    if staged:
         wanted = set(staged_files())
         targets = [(rel, full) for rel, full in iter_source_files() if rel in wanted]
     else:
@@ -179,7 +184,7 @@ def scan(paths=None, staged=False):
 
     # 清单自洁：**只在全量模式做**——增量模式本来就只看暂存那几个文件，
     # 不能据此判定其它条目失效（那会一提交就误报一片）
-    if paths is None and not staged:
+    if not staged:
         for rel in sorted(allow):
             if rel not in seen:
                 problems.append("size_allowlist.txt 里的 %s 已不在扫描范围——"

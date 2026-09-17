@@ -243,7 +243,11 @@ def test_imap(ws: str = Depends(workspace_dir)):
     if tls_policy.is_insecure(tls_policy.IMAP_ENV_VAR):
         # 降级是用户显式选的，但界面上必须再说一次——连处于未校验状态这件事
         # 不该只留在日志里（日志没人看，界面天天看）。语义不变，只加提示。
-        note += ("注意：当前已按 %s=insecure 跳过证书校验，本连接不验证服务器身份，"
+        # 措辞必须留余地：降级只在**本机证书库加载失败**时才真的生效——证书库
+        # 正常时上下文仍是严格校验（tls_policy 口径第 1 条）。写成「已跳过校验」
+        # 会在大多数机器上说假话（独立审查 m1）。
+        note += ("注意：已设置 %s=insecure——本机证书库可用时仍严格校验，"
+                 "仅在其加载失败时才跳过证书与主机名校验；"
                  "用完请取消该环境变量。" % tls_policy.IMAP_ENV_VAR)
 
     return {

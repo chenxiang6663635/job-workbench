@@ -65,7 +65,10 @@ def api(path: str):
             "-H", "X-GitHub-Api-Version: 2022-11-28",
             f"https://api.github.com{path}",
         ],
-        capture_output=True, text=True,
+        # 与 _git/_token 同理：响应体是 UTF-8（PR 标题常含中文），不显式指定
+        # encoding 会在 GBK 控制台把 JSON 解坏——这条通道是「gh 未登录」时的
+        # 备用，坏在这里最难查（表现为取不到分支，而非报错）。
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if proc.returncode != 0 or not proc.stdout.strip():
         return None

@@ -394,7 +394,7 @@ def test_dispatch_exit_codes(argv, expected, monkeypatch, capsys):
 
 
 def test_command_map_covers_every_merged_module():
-    """16 个命令全部有映射，且每个模块仍然真的暴露 main()。
+    """18 个命令全部有映射，且每个模块仍然真的暴露 main()。
 
     安全网改走 jobws 之后，命令到模块的映射只由 TARGETS / SUB_TARGETS 单方保证；
     这里从「模块侧」反查一遍，免得改映射时悄悄漏掉一个。数字改动必须显式经过

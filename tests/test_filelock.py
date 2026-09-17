@@ -86,12 +86,26 @@ def test_second_acquire_times_out_while_held(tmp_path):
 
 
 def test_lock_is_released_after_block(tmp_path):
+    """释放后必须能立刻被别人拿到——**不能靠 close 兜底**。
+
+    先前的写法是连续两个 `with file_lock(...)`：Unix 下就算 `_release` 是空操作，
+    `finally` 里的 `os.close(fd)` 也会顺带释放 flock，用例照样通过（假绿）。
+    这一版显式放开 fd，用**第二个 fd** 去抢——拿得到才算 `_release` 真的生效。
+    """
     path = os.path.join(str(tmp_path), "lock.csv")
     with io.open(path, "w", encoding="utf-8") as fh:
         fh.write("x")
 
-    with filelock.file_lock(path, timeout=0.2):
-        pass
-    # 释放后必须能立刻再拿到（没有遗留锁造成自锁）
-    with filelock.file_lock(path, timeout=0.2):
-        pass
+    first = os.open(path, os.O_RDWR)
+    try:
+        filelock._acquire(first, 0.2)
+        filelock._release(first)
+
+        second = os.open(path, os.O_RDWR)
+        try:
+            filelock._acquire(second, 0.2)  # 没抛 TimeoutError = 锁确实放开了
+            filelock._release(second)
+        finally:
+            os.close(second)
+    finally:
+        os.close(first)

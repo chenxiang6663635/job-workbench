@@ -3,10 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Palette, SlidersHorizontal } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Segmented } from "./ui/segmented";
 import { cn } from "../lib/utils";
 import {
   FONTS,
+  FONT_SIZE_DEFAULT,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  FONT_SIZE_STEP,
   SYSTEM_ID,
   getFontChoice,
   getFontSizeChoice,
@@ -17,15 +20,6 @@ import {
   setThemeChoice,
 } from "../lib/theme";
 import ThemeEditor from "./ThemeEditor";
-
-// 字号档直接显示百分比（用户反馈 #2）：比「小/标准/大」更可预期——它就是根字号的
-// 缩放比；数值字面量不需要翻译（与桌面缩放同一种表达）。
-const FONT_SIZE_OPTIONS: { value: string; label: string }[] = [
-  { value: "sm", label: "87.5%" },
-  { value: "base", label: "100%" },
-  { value: "lg", label: "112.5%" },
-  { value: "xl", label: "125%" },
-];
 
 // 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口。
 // - 色块预览取各自色板；主题真名不翻译（社区惯例），system 项走 i18n。
@@ -147,21 +141,55 @@ export default function ThemePicker() {
         </div>
       </div>
 
-      {/* 界面字号（#4）：四档根字号缩放（rem 全链）——与桌面全局缩放解耦，
-          浏览器端同样生效；方向键由原生 radio（Segmented）天然支持 */}
+      {/* 界面字号（#4 → 2026-09-17 改连续滑块）：根字号 80–150%（步进 5），
+          rem 全链等比缩放、与桌面全局缩放解耦。用原生 range（跨浏览器最稳、
+          键盘/方向键天然可用），accent-color 跟随主题主色 */}
       <div className="border-t border-border pt-3">
-        <p className="mb-2 text-xs font-medium text-foreground">
-          {t("settings.fontSizeTitle")}
-        </p>
-        <Segmented
-          value={fontSize}
-          onChange={(next) => {
-            setFontSize(next);
-            setFontSizeChoice(next);
-          }}
-          options={FONT_SIZE_OPTIONS}
-          ariaLabel={t("settings.fontSizeTitle")}
-        />
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-medium text-foreground">
+            {t("settings.fontSizeTitle")}
+          </p>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {fontSize}%
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-muted-foreground" aria-hidden="true">
+            A
+          </span>
+          <input
+            type="range"
+            min={FONT_SIZE_MIN}
+            max={FONT_SIZE_MAX}
+            step={FONT_SIZE_STEP}
+            value={fontSize}
+            aria-label={t("settings.fontSizeTitle")}
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              setFontSize(next);
+              setFontSizeChoice(next);
+            }}
+            className="w-full cursor-pointer accent-primary"
+          />
+          <span
+            className="text-base font-semibold text-muted-foreground"
+            aria-hidden="true"
+          >
+            A
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-xs"
+            disabled={fontSize === FONT_SIZE_DEFAULT}
+            onClick={() => {
+              setFontSize(FONT_SIZE_DEFAULT);
+              setFontSizeChoice(FONT_SIZE_DEFAULT);
+            }}
+          >
+            {t("settings.fontSizeReset")}
+          </Button>
+        </div>
       </div>
     </Card>
   );

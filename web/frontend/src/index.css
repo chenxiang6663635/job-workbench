@@ -142,17 +142,17 @@ html[data-font="serif"] {
     SimSun, "Songti SC", serif;
 }
 
-/* 界面字号（#4）：根字号四档——全站长度单位都是 rem，改根字号即等比缩放。
-   用**百分比**而非 px：尊重用户系统/浏览器的默认字号；与 Electron 全局缩放
-   （webContents zoom）解耦——浏览器端同样可用。base 档不写属性（即 100%）。 */
-html[data-fontsize="sm"] {
-  font-size: 87.5%;
-}
-html[data-fontsize="lg"] {
-  font-size: 112.5%;
-}
-html[data-fontsize="xl"] {
-  font-size: 125%;
+/* 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比（80–150%）由
+   lib/theme.ts 与 index.html 首帧脚本直接写成 html 的内联 font-size——原四档的
+   data-fontsize 属性规则已废弃（档位制覆盖不了档间值）。仍用百分比而非 px：
+   尊重用户系统/浏览器的默认字号，且与 Electron 全局缩放（webContents zoom）解耦。 */
+
+/* 弹窗拖动期间（components/ui/dialog.tsx 在 body 上挂/摘标记）：遮罩的全屏
+   backdrop-filter 降级为纯色——全屏模糊的每帧合成是弱 GPU 拖动掉帧的大头，
+   松手即恢复。背景取同一 --scrim token、提高不透明度，视觉几乎无缝。 */
+body[data-dialog-dragging] [data-dialog-overlay] {
+  backdrop-filter: none;
+  background-color: hsl(var(--scrim) / 0.92);
 }
 
 ::-webkit-scrollbar {

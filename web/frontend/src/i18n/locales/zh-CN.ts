@@ -1109,9 +1109,10 @@ const zhCN = {
   "settings.fontTitle": "字体方案",
   "settings.fontSystem": "系统字体（更快）",
   "settings.fontSerif": "衬线（Times / 宋体）",
-  // 界面字号（#4）：四档根字号缩放（rem 全链），与桌面全局缩放解耦；
-  // 档位标签直接显示百分比字面量（用户反馈），不再走翻译 key
+  // 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比随滑块走
+  // （rem 全链），与桌面全局缩放解耦；数值字面量（如 112%）不翻译
   "settings.fontSizeTitle": "界面字号",
+  "settings.fontSizeReset": "重置",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

@@ -1026,8 +1026,9 @@ export default {
   "settings.fontSystem": "System fonts (faster)",
   "settings.fontSerif": "Serif (Times / Songti)",
   // Interface size (#4): four-step root font scaling (rem-based), decoupled from desktop zoom.
-  // Step labels are literal percentages (user feedback), not translation keys.
+  // Size values are literal percentages (e.g. "112%"), not translation keys.
   "settings.fontSizeTitle": "Interface size",
+  "settings.fontSizeReset": "Reset",
   "settings.zoomDesktopOnly":
     "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

@@ -289,95 +289,26 @@ function normalizeVars(vars: Record<string, unknown>): Record<string, string> {
   return out;
 }
 
-// --- 字体方案（批 4，4g）----------------------------------------------------
+// --- 字体方案与界面字号已迁至 ./fonts（2026-09-17 实测反馈批）-----------------
 //
-// 两套：default = Inter Variable（本地打包，拉丁 UI 与数字最佳）；
-// system = 纯系统栈（不加载 webfont，启动更快、离线更轻）。
-// 实现只写 html[data-font]——栈本体在 index.css 的 --font-sans-stack 变量里。
+// 主题（本文件）只管颜色变量的注册与应用；字体/字号是另一条排版线，且有三处
+// 引用同一份口径（设置页 ThemePicker、首帧防闪脚本 index.html、启动同步
+// main.tsx），故拆为 lib/fonts.ts。这里 re-export 保持既有导入路径零改动。
 
-const FONT_KEY = "jobws.font";
-
-export interface FontOption {
-  id: string;
-  label: string;
-}
-
-export const FONTS: FontOption[] = [
-  { id: "default", label: "Inter" },
-  { id: "system", label: "System UI" },
-  { id: "serif", label: "serif" },
-];
-
-const FONT_IDS = ["default", "system", "serif"] as const;
-
-export function getFontChoice(): string {
-  try {
-    const stored = localStorage.getItem(FONT_KEY) || "default";
-    return (FONT_IDS as readonly string[]).includes(stored) ? stored : "default";
-  } catch {
-    return "default";
-  }
-}
-
-export function applyFont(choice: string): void {
-  const root = document.documentElement;
-  if (choice === "system" || choice === "serif") {
-    root.setAttribute("data-font", choice);
-  } else {
-    root.removeAttribute("data-font");
-  }
-}
-
-export function setFontChoice(id: string): void {
-  const safe = (FONT_IDS as readonly string[]).includes(id) ? id : "default";
-  try {
-    localStorage.setItem(FONT_KEY, safe);
-  } catch {
-    // 同主题：持久化失败只影响下次启动
-  }
-  applyFont(safe);
-}
-
-export function applyStoredFont(): void {
-  applyFont(getFontChoice());
-}
-
-// --- 界面字号（#4）----------------------------------------------------------
-//
-// 四档缩放只改**根字号百分比**（Tailwind 的长度单位全是 rem，全站等比跟随）；
-// 与 Electron 的 webContents 全局缩放解耦——浏览器端同样可用，且百分比写法
-// 尊重用户系统的默认字号。档位：sm 87.5% / base 100%（不写属性）/ lg 112.5%
-// / xl 125%。
-
-const FONTSIZE_KEY = "jobws.fontsize";
-
-export const FONT_SIZE_IDS = ["sm", "base", "lg", "xl"] as const;
-
-export function getFontSizeChoice(): string {
-  try {
-    const stored = localStorage.getItem(FONTSIZE_KEY) || "base";
-    return (FONT_SIZE_IDS as readonly string[]).includes(stored) ? stored : "base";
-  } catch {
-    return "base";
-  }
-}
-
-export function applyFontSize(id: string): void {
-  const root = document.documentElement;
-  if (id && id !== "base") root.setAttribute("data-fontsize", id);
-  else root.removeAttribute("data-fontsize");
-}
-
-export function setFontSizeChoice(id: string): void {
-  const safe = (FONT_SIZE_IDS as readonly string[]).includes(id) ? id : "base";
-  try {
-    localStorage.setItem(FONTSIZE_KEY, safe);
-  } catch {
-    // 同主题：持久化失败只影响下次启动
-  }
-  applyFontSize(safe);
-}
-
-export function applyStoredFontSize(): void {
-  applyFontSize(getFontSizeChoice());
-}
+export {
+  FONTS,
+  FONT_SIZE_DEFAULT,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  FONT_SIZE_STEP,
+  applyFont,
+  applyFontSize,
+  applyStoredFont,
+  applyStoredFontSize,
+  clampFontSize,
+  getFontChoice,
+  getFontSizeChoice,
+  setFontChoice,
+  setFontSizeChoice,
+} from "./fonts";
+export type { FontOption } from "./fonts";

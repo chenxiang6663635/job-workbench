@@ -42,5 +42,5 @@ web/frontend/src/components/StatusUpdateDialog.tsx = 559  # 解析 → 建议 �
 web/frontend/src/components/QuestionBank.tsx = 387  # 题库双视图 + 导入
 web/frontend/src/components/MailList.tsx = 357  # 邮件列表 + 8 字段表单
 web/frontend/src/components/TalkList.tsx = 340  # 宣讲会列表 + 表单
-web/frontend/src/lib/theme.ts = 383  # 主题定义 + 编辑器变量 + 门禁常量
+web/frontend/src/lib/theme.ts = 314  # 主题定义 + 编辑器变量 + 门禁常量；2026-09-17 字体/字号段迁至 lib/fonts.ts（383→314）
 web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（逐段确认）

@@ -26,9 +26,15 @@
           if (fontChoice === "system" || fontChoice === "serif") {
             document.documentElement.setAttribute("data-font", fontChoice);
           }
+          // 字号：连续百分比（80–150，2026-09-17 起）；兼容历史四档值
           var fontSize = localStorage.getItem("jobws.fontsize");
-          if (fontSize && fontSize !== "base") {
-            document.documentElement.setAttribute("data-fontsize", fontSize);
+          var legacySizes = { sm: 87.5, base: 100, lg: 112.5, xl: 125 };
+          if (fontSize && Object.prototype.hasOwnProperty.call(legacySizes, fontSize)) {
+            fontSize = String(legacySizes[fontSize]);
+          }
+          var pct = parseFloat(fontSize);
+          if (pct && pct !== 100) {
+            document.documentElement.style.fontSize = pct + "%";
           }
         } catch (e) {
           /* 隐私模式等场景读不到 localStorage：保持默认暗 */

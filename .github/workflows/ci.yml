@@ -54,6 +54,13 @@ jobs:
       - name: 校验主题门禁（完整性 / 对比度 / 明度阶梯）
         run: python tools/jobws.py lint themes
 
+      # 规模预算（2026-09-16 治理批）：CONTRIBUTING 的「文件 ≤300 / 函数 ≤80」
+      # 此前只有软条款、没有量具（实测 26 个文件超标、16 个函数超 80 行而无人拦）。
+      # 存量登记在 tools/size_allowlist.txt（只许变小），这里拦的是**增量**。
+      # 判定唯一实现在 tools/check_size.py，本地同一命令。
+      - name: 校验规模预算
+        run: python tools/jobws.py lint size
+
   # 基线升到 3.12 之后不再有第二个版本可跑，原先「3.8 + 3.12 双 job」的支持矩阵
   # 收敛成单 job。**那条教训留在注释里**：matrix 会给 job 显示名加 "(3.12)" 这类
   # 后缀，而「后端测试（pytest）」是分支保护的必需检查——名字一变，main 上的 PR
@@ -104,6 +111,13 @@ jobs:
       - name: Lint
         working-directory: web/frontend
         run: npm run lint
+
+      # 前端单元测试（2026-09-16 治理批）：仓库原有的 679 条 pytest 全在后端，
+      # 前端长期 0 单测、只有 50 条 Playwright e2e——像「类名冲突谁覆盖谁」这种
+      # 一行逻辑只能靠肉眼。先守住纯逻辑这条最小面：不引 jsdom，不替代 e2e。
+      - name: 单元测试（Vitest）
+        working-directory: web/frontend
+        run: npm run test:unit
 
       # Electron 主进程是零测试覆盖区（桌面端没有 E2E），能纯函数化的部分
       # 就靠这两条兜住：① 缩放上下限与按键映射（zoom.js）零依赖单测；

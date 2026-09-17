@@ -97,11 +97,13 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        /* 字体体系（批 4 4g → 2026-09-17）：栈本体在 index.css 的 CSS 变量里——
-           界面字体 12 款（拉丁槽 --font-latin 组合中文系统栈）、等宽 6 款
-           （--font-mono 独立槽）；设置页切换只改根属性，不重建、不改配置 */
+        /* 字体体系（批 4 4g → 2026-09-17；批 4.6 加数字槽）：栈本体在 index.css
+           的 CSS 变量里——界面字体 12 款（拉丁槽 --font-latin 组合中文系统栈）、
+           等宽 6 款（--font-mono 独立槽）、数字 3 款（--font-numeric 独立槽）；
+           设置页切换只改根属性，不重建、不改配置 */
         sans: ["var(--font-sans-stack)", "sans-serif"],
         mono: ["var(--font-mono-stack)", "monospace"],
+        numeric: ["var(--font-numeric-stack)", "monospace"],
       },
     },
   },

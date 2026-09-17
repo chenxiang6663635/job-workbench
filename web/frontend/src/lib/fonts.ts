@@ -4,9 +4,9 @@
 // 另一条排版线——三处引用同一份口径（设置页 ThemePicker、首帧防闪脚本
 // index.html、启动同步 main.tsx）。拆开后 theme.ts 回到"只管主题"。
 //
-// 三个选择（主题/字体/字号）都是**设备级偏好**（localStorage，随这台机器），
-// 与工作区级偏好（tools/prefs.py 的 config/preferences.json）是两个分层，
-// 互不覆盖（prefs.py 文件头有同款说明）。
+// 几个选择（主题/字体/等宽/数字/字号）都是**设备级偏好**（localStorage，随这台
+// 机器），与工作区级偏好（tools/prefs.py 的 config/preferences.json）是两个
+// 分层，互不覆盖（prefs.py 文件头有同款说明）。
 
 // --- 界面字体 ---------------------------------------------------------------
 
@@ -76,11 +76,11 @@ export function applyStoredFont(): void {
   applyFont(getFontChoice());
 }
 
-// --- 等宽 / 数字字体（2026-09-17 收尾批）-------------------------------------
+// --- 等宽字体（第二槽；2026-09-17 收尾批，批 4.6 起只服务"非数值"场景）------
 //
 // 独立于界面字体的第二槽：作用于 --font-mono-stack——代码片段、编号（记录 id /
-// 邮件 id）、日期时间与需要"字符网格"对齐的场景。数字**默认不走它**（同日数字
-// 体系重做：数字用界面字体的 tabular-nums 对齐，等宽字体只留给上述场景）。
+// 邮件 id）与日期时间。**数值不走它**：数值归第三槽 --font-numeric（见下方
+// 「数字字体」段），正文内联数字走界面字体的 tabular-nums。
 
 const MONO_KEY = "jobws.mono";
 
@@ -123,6 +123,68 @@ export function setMonoChoice(id: string): void {
 
 export function applyStoredMono(): void {
   applyMono(getMonoChoice());
+}
+
+// --- 数字字体（第三槽；批 4.6）-----------------------------------------------
+//
+// 独立于界面字体与等宽槽的第三槽：作用于 --font-numeric-stack——**数值**
+// （KPI 主数字、计数、天数、百分比、评分）。等宽槽继续管代码 / 编号 / 日期
+// 时间；正文内联数字仍走界面字体的 tabular-nums（<Num numeric={false}>
+// 可显式退出数字槽）。
+//
+// 为什么不复用等宽槽：数字的"接缝感"来自跨气质配对（2026-09-17 调研与对比图
+// 实测）——数字槽候选因此收敛为能与主流界面字体同超家族配对的款，等宽槽则
+// 保持全量候选。id 三处必须同步：index.css 的 --font-numeric 规则、本列表、
+// 设置页下拉（同 FONTS / MONOS 的人工兜底约定）。
+//
+// "follow" = 跟随界面字体（关闭数字槽，回到界面字体 tabular 的行为）；
+// 默认款 = 用户从三款对比图选定（2026-09-17）。
+
+const NUMERIC_KEY = "jobws.numeric";
+
+/** 数字槽默认款：2026-09-17 三款同条件对比图实测选定（详见批 4.6 计划）。 */
+export const DEFAULT_NUMERIC_ID = "geist-mono";
+
+export const NUMERICS: FontOption[] = [
+  { id: DEFAULT_NUMERIC_ID, label: "Geist Mono" },
+  { id: "jetbrains", label: "JetBrains Mono" },
+  { id: "plex-mono", label: "IBM Plex Mono" },
+  // 展示名由设置页按语言给（settings.fontFollow）；字体真名不翻译
+  { id: "follow", label: "Follow" },
+];
+
+const NUMERIC_IDS = new Set(NUMERICS.map((n) => n.id));
+
+/** 归一化（导出供单测）：未登记 id 与空串回落默认款。 */
+export function normalizeNumericId(id: string): string {
+  return NUMERIC_IDS.has(id) ? id : DEFAULT_NUMERIC_ID;
+}
+
+export function getNumericChoice(): string {
+  try {
+    return normalizeNumericId(localStorage.getItem(NUMERIC_KEY) || DEFAULT_NUMERIC_ID);
+  } catch {
+    return DEFAULT_NUMERIC_ID;
+  }
+}
+
+/** 写 html[data-numeric]：栈本体由 index.css 按 id 承接（默认款命中 :root）。 */
+export function applyNumeric(choice: string): void {
+  document.documentElement.setAttribute("data-numeric", normalizeNumericId(choice));
+}
+
+export function setNumericChoice(id: string): void {
+  const safe = normalizeNumericId(id);
+  try {
+    localStorage.setItem(NUMERIC_KEY, safe);
+  } catch {
+    // 同主题：持久化失败只影响下次启动
+  }
+  applyNumeric(safe);
+}
+
+export function applyStoredNumeric(): void {
+  applyNumeric(getNumericChoice());
 }
 
 // --- 界面字号（#4；2026-09-17 实测反馈改连续）--------------------------------

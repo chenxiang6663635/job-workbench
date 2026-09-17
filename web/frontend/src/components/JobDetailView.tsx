@@ -4,6 +4,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { EmptyState } from "./ui/empty";
+import { StatValue } from "./ui/number";
 import DimensionRow from "./DimensionRow";
 import GapPanel from "./GapPanel";
 import { gateBadgeVariant, levelBadgeVariant } from "./badgeVariants";
@@ -83,10 +84,9 @@ export default function JobDetailView({
           {detail.card ? (
             <div className="space-y-4">
               <div className="flex items-baseline gap-3">
-                {/* 同上：白渐变在浅色主题不可读，改实色（数字体系见 ui/number.tsx） */}
-                <span className="text-3xl font-semibold tabular-nums text-primary">
-                  {detail.card.total}
-                </span>
+                {/* 解析卡总分 = KPI 级大数字：走 StatValue 的阶梯（数字槽 +
+                    600 字重 + 轻微负字距），与看板 KPI 同一口径 */}
+                <StatValue value={detail.card.total} className="text-primary" />
                 <span className="text-sm text-muted-foreground">/ 100</span>
                 <Badge variant={levelBadgeVariant(detail.card.level)} className="ml-auto">
                   {detail.card.level}

@@ -3,6 +3,7 @@ import { Loader2, Send } from "lucide-react";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Num } from "./ui/number";
 import { FAIL_TERMINAL, type ApplyState, type JobSummary } from "../api";
 import { domainLabel } from "../lib/domainLabels";
 import { levelBadgeVariant } from "./badgeVariants";
@@ -53,12 +54,10 @@ export default function JobCard({
           <span className="text-sm font-semibold leading-snug text-foreground">
             {job.dir}
           </span>
-          {/* 浅色主题下白起点渐变曾不可读（2026-09-17 修复）：改实色主色 +
-              界面字体 tabular——数字体系的统一口径见 ui/number.tsx */}
+          {/* 评分走数字原语（数字槽 + tabular）；浅色主题下的可读性由实色
+              主色保证（白起点渐变曾不可读，2026-09-17 修复） */}
           {job.score !== null && (
-            <span className="text-lg font-semibold tabular-nums text-primary">
-              {job.score}
-            </span>
+            <Num className="text-lg font-semibold text-primary">{job.score}</Num>
           )}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">

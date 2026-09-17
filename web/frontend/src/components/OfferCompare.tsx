@@ -7,6 +7,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { EmptyState } from "./ui/empty";
+import { Num } from "./ui/number";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import OfferForm from "./OfferForm";
@@ -133,11 +134,9 @@ export default function OfferCompare() {
                   return (
                     <div key={f.key} className="flex items-start justify-between gap-2 text-xs">
                       <span className="shrink-0 text-muted-foreground">{t(f.labelKey)}</span>
-                      <span
-                        className={`text-right tabular-nums ${soon ? "font-medium text-warning" : "text-foreground"}`}
-                      >
+                      <Num align="right" numeric={false} className={soon ? "text-warning" : undefined}>
                         {value || <span className="text-muted-foreground">—</span>}
-                      </span>
+                      </Num>
                     </div>
                   );
                 })}

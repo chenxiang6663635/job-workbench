@@ -752,8 +752,8 @@ export default function Applications() {
                       </td>
                       <td className="px-4 py-3">
                         {staleDays !== null ? (
-                          <span
-                            className={`inline-flex items-center gap-1 tabular-nums text-xs ${
+                          <Num
+                            className={`inline-flex items-center gap-1 text-xs ${
                               isStale ? "text-warning" : "text-muted-foreground"
                             }`}
                           >
@@ -761,7 +761,7 @@ export default function Applications() {
                               <span className="h-1.5 w-1.5 rounded-full bg-warning" />
                             )}
                             {t("app.daysUnit", { count: staleDays })}
-                          </span>
+                          </Num>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}

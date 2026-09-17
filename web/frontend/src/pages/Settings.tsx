@@ -323,7 +323,7 @@ export default function Settings() {
                     onBlur={commitZoom}
                     onKeyUp={commitZoom}
                   />
-                  <span className="w-12 shrink-0 text-right text-xs tabular-nums text-foreground">
+                  <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums font-numeric">
                     {zoom.percent}%
                   </span>
                 </div>
@@ -577,7 +577,7 @@ export default function Settings() {
                 <span className="text-[11px] text-muted-foreground">
                   {t("settings.aboutVersion")}
                 </span>
-                <span className="text-lg font-semibold tabular-nums text-foreground">
+                <span className="font-mono text-lg font-semibold text-foreground">
                   {paths.appVersion || t("settings.aboutUnknown")}
                 </span>
               </p>

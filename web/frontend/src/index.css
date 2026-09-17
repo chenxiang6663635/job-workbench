@@ -92,18 +92,26 @@
     --chart-7: 239 84% 67%;
     --chart-8: 25 95% 53%;
 
-    /* 动效节奏（批 4）：三档时长 + 统一 expo-out；与 tailwind 的 ease-premium 同源 */
+    /* 动效节奏（批 4；2026-09-17 接入为 Tailwind 工具类）：三档时长 + 统一
+       expo-out——tailwind.config 的 duration-fast/base/slow 与 ease-premium
+       直接引用这些变量（单一真源：改这里即全站生效） */
     --duration-fast: 150ms;
     --duration-base: 250ms;
     --duration-slow: 400ms;
     --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
 
-    /* 字体方案（批 4，4g）：UI 字体栈走变量——设置页可切「默认（Inter）」与
-       「系统」；等宽槽优先 Maple Mono（本地打包，中英混排等宽 + Nerd Font）。
-       中文不内置（体积 10–30MB 级），由栈内系统字体承接。 */
-    --font-sans-stack: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI",
-      "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-    --font-mono-stack: "Maple Mono", "JetBrains Mono", Consolas, monospace;
+    /* 字体体系（批 4，4g → 2026-09-17 扩到 12 款界面 + 6 款等宽）：
+       拉丁槽（本地打包，OFL-1.1）与中文系统栈分开维护、组合成完整栈——
+       中文不内置（体积 10–30MB/款），始终由系统字体承接；拉丁字符由
+       --font-latin 命中，不会落到 cjk 槽。等宽槽独立（代码 / 编号 / 日期）。
+       每个方案一行 `html[data-font="…"]`（见下方），**id 与 lib/fonts.ts 的
+       FONTS / MONOS 必须同步**（CSS 不被门禁扫描，靠两边注释人工兜住）。 */
+    --font-latin: "Inter Variable";
+    --font-cjk: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+      "Noto Sans CJK SC";
+    --font-sans-stack: var(--font-latin), var(--font-cjk), system-ui, sans-serif;
+    --font-mono: "Maple Mono";
+    --font-mono-stack: var(--font-mono), Consolas, monospace;
 
     --radius: 0.75rem;
   }
@@ -142,17 +150,72 @@ html[data-font="serif"] {
     SimSun, "Songti SC", serif;
 }
 
-/* 界面字号（#4）：根字号四档——全站长度单位都是 rem，改根字号即等比缩放。
-   用**百分比**而非 px：尊重用户系统/浏览器的默认字号；与 Electron 全局缩放
-   （webContents zoom）解耦——浏览器端同样可用。base 档不写属性（即 100%）。 */
-html[data-fontsize="sm"] {
-  font-size: 87.5%;
+/* 界面字体方案（2026-09-17 扩到 12 款）：每个 id 只换拉丁槽——
+   id 与 lib/fonts.ts 的 FONTS 同步；inter 不写规则（命中 :root 默认）。
+   族名均取自各 Fontsource 包 wght.css 的实测值（含 " Variable" 后缀）。 */
+html[data-font="geist"] {
+  --font-latin: "Geist Variable";
 }
-html[data-fontsize="lg"] {
-  font-size: 112.5%;
+html[data-font="plex"] {
+  --font-latin: "IBM Plex Sans Variable";
 }
-html[data-fontsize="xl"] {
-  font-size: 125%;
+html[data-font="manrope"] {
+  --font-latin: "Manrope Variable";
+}
+html[data-font="jakarta"] {
+  --font-latin: "Plus Jakarta Sans Variable";
+}
+html[data-font="dm"] {
+  --font-latin: "DM Sans Variable";
+}
+html[data-font="figtree"] {
+  --font-latin: "Figtree Variable";
+}
+html[data-font="outfit"] {
+  --font-latin: "Outfit Variable";
+}
+html[data-font="public"] {
+  --font-latin: "Public Sans Variable";
+}
+html[data-font="source3"] {
+  --font-latin: "Source Sans 3 Variable";
+}
+html[data-font="work"] {
+  --font-latin: "Work Sans Variable";
+}
+html[data-font="atkinson"] {
+  --font-latin: "Atkinson Hyperlegible Next Variable";
+}
+
+/* 等宽 / 数字字体方案（2026-09-17）：只换等宽槽 --font-mono——作用于代码、
+   编号与日期时间；id 与 lib/fonts.ts 的 MONOS 同步（maple 即 :root 默认）。 */
+html[data-mono="jetbrains"] {
+  --font-mono: "JetBrains Mono Variable";
+}
+html[data-mono="fira"] {
+  --font-mono: "Fira Code Variable";
+}
+html[data-mono="geist-mono"] {
+  --font-mono: "Geist Mono Variable";
+}
+html[data-mono="plex-mono"] {
+  --font-mono: "IBM Plex Mono";
+}
+html[data-mono="source-code"] {
+  --font-mono: "Source Code Pro Variable";
+}
+
+/* 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比（80–150%）由
+   lib/theme.ts 与 index.html 首帧脚本直接写成 html 的内联 font-size——原四档的
+   data-fontsize 属性规则已废弃（档位制覆盖不了档间值）。仍用百分比而非 px：
+   尊重用户系统/浏览器的默认字号，且与 Electron 全局缩放（webContents zoom）解耦。 */
+
+/* 弹窗拖动期间（components/ui/dialog.tsx 在 body 上挂/摘标记）：遮罩的全屏
+   backdrop-filter 降级为纯色——全屏模糊的每帧合成是弱 GPU 拖动掉帧的大头，
+   松手即恢复。背景取同一 --scrim token、提高不透明度，视觉几乎无缝。 */
+body[data-dialog-dragging] [data-dialog-overlay] {
+  backdrop-filter: none;
+  background-color: hsl(var(--scrim) / 0.92);
 }
 
 ::-webkit-scrollbar {
@@ -171,6 +234,16 @@ html[data-fontsize="xl"] {
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--border-strong));
+}
+
+/* 标准滚动条属性（2026-09-17）：只喂给不支持 ::-webkit-scrollbar 的引擎
+   （Firefox 等）。Chromium 同时支持两者且**标准属性优先**——若无条件写，
+   会把上面那套精细样式（宽度 / hover 变色）顶掉，故用 @supports 反转。 */
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
 }
 
 /* 尊重系统的"减少动态效果"设置：关闭过渡与动画，功能不受影响 */

@@ -33,6 +33,8 @@ const zhCN = {
   "common.clear": "清空",
   "common.cancel": "取消",
   "common.save": "保存",
+  "common.edit": "编辑",
+  "common.delete": "删除",
   "common.saving": "保存中…",
   "common.collapse": "收起",
   "common.all": "全部",
@@ -314,8 +316,11 @@ const zhCN = {
   "app.colStage": "当前阶段",
   "app.colReason": "状态原因",
   "app.colDeadline": "截止",
-  "app.expandTimeline": "展开时间线",
-  "app.collapseTimeline": "收起时间线",
+  "app.expandTimeline": "展开详情",
+  "app.collapseTimeline": "收起详情",
+  "app.relatedMails": "关联邮件",
+  "app.relatedMailsEmpty": "还没有关联邮件——在「进展 → 邮件」记录后会显示在这里",
+  "app.relatedMailsFailed": "关联邮件加载失败：{{error}}",
   "app.roleMissing": "未填岗位",
   "app.jobLink": "岗位链接",
   "app.openLink": "打开岗位链接",
@@ -422,7 +427,8 @@ const zhCN = {
   "dash.unappliedHighMore_one": "另有 {{count}} 个，去岗位池按「评分」排序看全部。",
   "dash.unappliedHighMore_other": "另有 {{count}} 个，去岗位池按「评分」排序看全部。",
   "dash.scoreByState": "评分档位 × 投递状态",
-  "dash.scoreByStateHint": "档位边界沿用评分卡的 THRESHOLDS（改阈值只改那一处）；未评分的岗位不参与——「还没评」不等于最低档。",
+  "dash.scoreByStateHint": "档位边界沿用评分卡的 THRESHOLDS；未评分的岗位不参与。",
+  "dash.scoreByStateHintFull": "档位边界沿用评分卡的 THRESHOLDS（改阈值只改那一处）；未评分的岗位不参与——「还没评」不等于最低档。",
   "dash.emptyTitle": "还没有任何投递记录",
   // {{tracker}} = 导航里的「追踪表」，两边同一个 key，改文案时不会只改一处
   "dash.emptyHint": "去「{{tracker}}」添加第一家公司的投递记录，看板就会自动统计漏斗、待办与到期提醒。",
@@ -974,6 +980,10 @@ const zhCN = {
   "mail.copySubject": "复制主题",
   "mail.copySubjectTitle": "复制主题，粘贴到邮箱搜索框",
   "mail.copied": "已复制",
+  "mail.jumpToRecord": "跳到追踪表查看这条记录",
+  "mail.editTitle": "编辑邮件记录",
+  "mail.deleteConfirm": "确认删除？",
+  "mail.deleteTitle": "删除这条邮件记录（不可撤销）",
 
   // 解析卡的维度行。维度名与命中等级都是解析卡里的数据，不翻；这里只翻兜底与空态
   "dim.fallbackLevel": "明细",
@@ -1093,25 +1103,30 @@ const zhCN = {
   "settings.themeUntitled": "我的主题",
   "settings.themeSave": "保存为主题",
   "settings.themeExport": "复制 JSON",
+  "settings.themeExportCss": "复制 CSS",
   "settings.themeImport": "导入",
   "settings.themeImportHint": "导入：粘贴导出的 JSON，或 tweakcn / shadcn 的主题 CSS（--key: value; 形式）",
   "settings.themeImported": "已导入（未保存，点「保存为主题」落盘）",
   "settings.themeImportFailed": "无法解析：请检查是否为 JSON，或 --key: value; 形式的 CSS",
   "settings.themeSaved": "已保存",
   "settings.themeApplied": "已应用",
-  "settings.themeCopied": "JSON 已复制到剪贴板",
+  "settings.themeCopied": "已复制到剪贴板",
   "settings.themeCopyFailed": "剪贴板不可用，已填入下方文本框",
   "settings.themeDelete": "删除",
+  "settings.themeRename": "重命名",
   "settings.themeDeleted": "已删除",
   "settings.themeReadFailed": "读不到当前主题变量（getComputedStyle 为空）",
   "settings.themeResetFromCurrent": "从当前主题重新开始",
-  // 字体方案（4g）：Inter 本地打包；系统栈不加载 webfont（启动更快）
-  "settings.fontTitle": "字体方案",
+  // 字体方案（4g → 2026-09-17 扩到 12 款界面 + 6 款等宽，全部本地打包、
+  // OFL-1.1、离线可用；字体真名不翻译）；等宽槽管代码 / 编号 / 日期
+  "settings.fontTitle": "界面字体",
+  "settings.fontMonoTitle": "等宽 / 数字字体",
   "settings.fontSystem": "系统字体（更快）",
   "settings.fontSerif": "衬线（Times / 宋体）",
-  // 界面字号（#4）：四档根字号缩放（rem 全链），与桌面全局缩放解耦；
-  // 档位标签直接显示百分比字面量（用户反馈），不再走翻译 key
+  // 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比随滑块走
+  // （rem 全链），与桌面全局缩放解耦；数值字面量（如 112%）不翻译
   "settings.fontSizeTitle": "界面字号",
+  "settings.fontSizeReset": "重置",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

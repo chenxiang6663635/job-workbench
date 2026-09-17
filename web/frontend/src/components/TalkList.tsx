@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import { ApplicationSelect } from "./ApplicationSelect";
@@ -263,12 +264,12 @@ export default function TalkList() {
         ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
         : null}
       {loaded && !error && rows.length === 0 ? (
-        <Card className="flex flex-1 flex-col items-center justify-center rounded-lg border-dashed p-8 text-center">
-          <Megaphone size={28} className="mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t("talk.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {t("talk.emptyHint", { action: t("talk.add") })}
-          </p>
+        <Card className="flex flex-1 flex-col justify-center rounded-lg border-dashed">
+          <EmptyState
+            icon={<Megaphone size={20} />}
+            title={t("talk.emptyTitle")}
+            description={t("talk.emptyHint", { action: t("talk.add") })}
+          />
         </Card>
       ) : null}
 
@@ -319,7 +320,7 @@ export default function TalkList() {
             ))}
 
           {r.收获 && (
-            <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground/90">
+            <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
               {r.收获}
             </p>
           )}

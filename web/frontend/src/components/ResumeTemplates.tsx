@@ -7,6 +7,7 @@ import {
 } from "../api";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import { A4Preview } from "./A4Preview";
@@ -111,7 +112,7 @@ export default function ResumeTemplates() {
               <span className="text-sm font-semibold text-foreground">
                 {result.passed ? t("resume.buildOk") : t("resume.buildFailed")}
               </span>
-              <span className="font-mono text-xs text-muted-foreground">
+              <span className="tabular-nums text-xs text-muted-foreground">
                 {(result.size / 1024).toFixed(1)} KB · {result.a4.message}
               </span>
             </div>
@@ -161,10 +162,10 @@ export default function ResumeTemplates() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <Card className="border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            {t("tpl.empty", { dir: RESUME_DIR, pattern: t("tpl.filePattern") })}
-          </p>
+        <Card className="border-dashed">
+          <EmptyState
+            title={t("tpl.empty", { dir: RESUME_DIR, pattern: t("tpl.filePattern") })}
+          />
         </Card>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

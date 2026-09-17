@@ -33,6 +33,8 @@ import { Badge } from "../components/ui/badge";
 import { Bar as BarTrack } from "../components/ui/bar";
 import { Button } from "../components/ui/button";
 import { Num, StatValue } from "../components/ui/number";
+import { EmptyState } from "../components/ui/empty";
+import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 
 // 数据可视化色板（批 4 起走主题 token）：阶段语义映射到 --chart-* 与状态色——
@@ -132,7 +134,7 @@ function StatCard({
 }) {
   const { t } = useTranslation();
   const cls = onClick
-    ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+    ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2"
     : "";
   return (
     <button
@@ -140,10 +142,8 @@ function StatCard({
       disabled={!onClick}
       className={`group relative overflow-hidden rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
     >
-      <div
-        className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-20 blur-2xl transition-opacity duration-300 group-hover:opacity-40"
-        style={{ background: accent }}
-      />
+      {/* 彩色光斑已删（2026-09-17 数字体系重做）：与数字抢焦点、浅色卡上显脏；
+          强调交给 icon 底色与主数字本身（方向 A：装饰能删就删） */}
       <div className="relative flex items-start justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -190,7 +190,7 @@ function ClickRow({
       {children}
       <ChevronRight
         size={14}
-        className="text-muted-foreground/50 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+        className="text-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
       />
     </button>
   );
@@ -231,7 +231,7 @@ function StaleList({
                 </span>
               </span>
               <span className="flex items-center gap-3 text-xs">
-                <span className="font-mono text-warning">{t("app.daysUnit", { count: s.days })}</span>
+                <span className="tabular-nums text-warning">{t("app.daysUnit", { count: s.days })}</span>
                 <span className="text-muted-foreground">{domainLabel("stage", s.当前阶段, t)}</span>
               </span>
             </li>
@@ -302,7 +302,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
 }
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -361,6 +361,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <PageHeader title={t("nav.dashboard")} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t("dash.total")}
@@ -420,7 +422,7 @@ export default function Dashboard() {
                     <span className="truncate text-foreground">
                       {j.company} · {j.role}
                     </span>
-                    <span className="shrink-0 font-mono text-xs text-primary">
+                    <span className="shrink-0 text-xs tabular-nums">
                       {j.score}
                     </span>
                   </button>
@@ -438,13 +440,18 @@ export default function Dashboard() {
 
           {hasScoreByState && (
             <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
-              <h2 className="text-sm font-semibold text-foreground">
+              <h2
+                className="text-sm font-semibold text-foreground"
+                title={t("dash.scoreByStateHintFull")}
+              >
                 {t("dash.scoreByState")}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t("dash.scoreByStateHint")}
               </p>
-              <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+              {/* flex-wrap：英文图例三项（Not applied / In progress / Closed）
+                  在窄列下换行而不是硬挤（2026-09-17 实测反馈） */}
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                 {/* 左边取值仍是中文（APPLY_STATE_COLORS 的键 = 数据值），
                     右边展示走 t()——「取值不翻、展示翻」各归各 */}
                 {(
@@ -470,10 +477,12 @@ export default function Dashboard() {
                   margin={{ left: 8, right: 24 }}
                 >
                   <XAxis type="number" hide />
+                  {/* 英文档位名（"Strongly recommended" ≈125px）远长于中文，固定
+                      84px 会截断/贴柱——按语言给宽（2026-09-17 实测反馈） */}
                   <YAxis
                     type="category"
                     dataKey="tier"
-                    width={84}
+                    width={i18n.language.startsWith("zh") ? 84 : 132}
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
@@ -484,9 +493,11 @@ export default function Dashboard() {
                     contentStyle={{
                       background: "hsl(var(--popover))",
                       border: "1px solid hsl(var(--border))",
-                      borderRadius: 12,
+                      // 跟 token 与界面字号档走：圆角不再写死 12、字号不再写死
+                      // 12px（此前切字号档时提示框不跟着缩放）
+                      borderRadius: "var(--radius)",
                       color: "hsl(var(--foreground))",
-                      fontSize: 12,
+                      fontSize: "0.75rem",
                     }}
                   />
                   <Bar
@@ -546,7 +557,10 @@ export default function Dashboard() {
                     })}
                     className="group flex w-full cursor-pointer items-center gap-3 text-left"
                   >
-                    <span className="w-24 shrink-0 text-xs text-muted-foreground transition-colors group-hover:text-primary">
+                    <span
+                      className="w-24 shrink-0 truncate text-xs text-muted-foreground transition-colors group-hover:text-primary"
+                      title={domainLabel("stage", f.stage, t)}
+                    >
                       {domainLabel("stage", f.stage, t)}
                     </span>
                     <BarTrack
@@ -602,7 +616,7 @@ export default function Dashboard() {
                 {t("dash.upcoming")}
               </h2>
               {data.upcoming.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("dash.upcomingEmpty")}</p>
+                <EmptyState title={t("dash.upcomingEmpty")} compact />
               ) : (
                 <ul className="space-y-2">
                   {data.upcoming.map((u) => (
@@ -643,9 +657,7 @@ export default function Dashboard() {
                 {t("dash.overdueTitle")}
               </h2>
               {data.overdue.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("dash.overdueEmpty")}
-                </p>
+                <EmptyState title={t("dash.overdueEmpty")} compact />
               ) : (
                 <ul className="space-y-2">
                   {data.overdue.map((o) => (

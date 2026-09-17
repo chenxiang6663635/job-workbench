@@ -14,11 +14,12 @@ eslint 也看不见类名字符串。2026-09-13 复核 #17 时九个模式全为
   2. `palette` 原生调色板刻度：`text-slate-400`、`bg-red-500` 这类绕过语义 token
      的 Tailwind 默认色（深色改版后语义色统一走 primary/success/warning/border 等）。
   3. `alpha`   white/black 的透明度写法：`ring-white/5`、`bg-black/60` 这类「去
-     token 化」。**唯一的合法形态是没有透明度的 bare `bg-white` / `from-white`**：
-     A4 预览纸张与 PDF iframe 的底色是「纸张是白的」这个物理隐喻，不是主题色
-     （2026-09-13 逐处核过：A4Preview.tsx / Library.tsx 的 iframe、三处渐变文字的
-     起点），故不在本规则范围内；反过来，带透明度的 white/black 一定是「本可以
-     用 token 却被写死」的那种。
+     token 化」。**唯一的合法形态是没有透明度的 bare `bg-white`**：A4 预览纸张与
+     PDF iframe 的底色是「纸张是白的」这个物理隐喻，不是主题色（2026-09-13 逐处
+     核过：A4Preview.tsx / Library.tsx 的 iframe）。2026-09-17 复核：白起点的
+     渐变文字（JobCard / JobDetailView / ui/number.tsx）已全部改实色——浅色主题下
+     白字压白底不可读，`from-white` 的"合法"依据已不存在；反过来，带透明度的
+     white/black 一定是「本可以用 token 却被写死」的那种。
   4. `hex`    十六进制 / 函数式颜色任意值：`bg-[#0a0e17]`、`text-[rgb(…)]`——
      token 层最该拦的一种（2026-09-13 全仓库为 0）。
   另加一条 **`select-patch`**：`src/index.css` 里重新出现原生 `<select>` / `<option>`

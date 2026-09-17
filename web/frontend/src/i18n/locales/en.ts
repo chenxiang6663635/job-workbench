@@ -35,6 +35,8 @@ export default {
   "common.clear": "Clear",
   "common.cancel": "Cancel",
   "common.save": "Save",
+  "common.edit": "Edit",
+  "common.delete": "Delete",
   "common.saving": "Saving…",
   "common.collapse": "Collapse",
   "common.all": "All",
@@ -291,8 +293,11 @@ export default {
   "app.colStage": "Stage",
   "app.colReason": "Reason",
   "app.colDeadline": "Deadline",
-  "app.expandTimeline": "Expand timeline",
-  "app.collapseTimeline": "Collapse timeline",
+  "app.expandTimeline": "Expand details",
+  "app.collapseTimeline": "Collapse details",
+  "app.relatedMails": "Related emails",
+  "app.relatedMailsEmpty": "No related emails yet — record them under Progress → Mail and they will appear here",
+  "app.relatedMailsFailed": "Failed to load related emails: {{error}}",
   "app.roleMissing": "No role",
   "app.jobLink": "Job link",
   "app.openLink": "Open job link",
@@ -387,7 +392,8 @@ export default {
   "dash.unappliedHighMore_one": "{{count}} more — sort the job pool by score to see them all.",
   "dash.unappliedHighMore_other": "{{count}} more — sort the job pool by score to see them all.",
   "dash.scoreByState": "Score tier × application status",
-  "dash.scoreByStateHint": "Tier boundaries come from the score card’s THRESHOLDS (change them in that one place); unscored jobs are excluded — “not scored” is not the lowest tier.",
+  "dash.scoreByStateHint": "Tier boundaries follow the score card’s THRESHOLDS; unscored jobs are excluded.",
+  "dash.scoreByStateHintFull": "Tier boundaries come from the score card’s THRESHOLDS (change them in that one place); unscored jobs are excluded — “not scored” is not the lowest tier.",
   "dash.emptyTitle": "No applications yet",
   "dash.emptyHint": "Add your first company from “{{tracker}}” — the dashboard will then tally the funnel, to-dos and deadline alerts.",
 
@@ -891,6 +897,10 @@ export default {
   "mail.copySubject": "Copy subject",
   "mail.copySubjectTitle": "Copy the subject and paste it into your mailbox search",
   "mail.copied": "Copied",
+  "mail.jumpToRecord": "Jump to this record in the tracker",
+  "mail.editTitle": "Edit mail record",
+  "mail.deleteConfirm": "Confirm delete?",
+  "mail.deleteTitle": "Delete this mail record (cannot be undone)",
 
   "dim.fallbackLevel": "Detail",
   "dim.noEvidence": "No per-item evidence for this dimension yet",
@@ -1009,25 +1019,30 @@ export default {
   "settings.themeUntitled": "My theme",
   "settings.themeSave": "Save as theme",
   "settings.themeExport": "Copy JSON",
+  "settings.themeExportCss": "Copy CSS",
   "settings.themeImport": "Import",
   "settings.themeImportHint": "Import: paste exported JSON, or a tweakcn / shadcn theme CSS (--key: value; form)",
   "settings.themeImported": "Imported (not saved yet — click \"Save as theme\")",
   "settings.themeImportFailed": "Could not parse: expected JSON or CSS in --key: value; form",
   "settings.themeSaved": "Saved",
   "settings.themeApplied": "Applied",
-  "settings.themeCopied": "JSON copied to clipboard",
-  "settings.themeCopyFailed": "Clipboard unavailable — the JSON is in the textarea below",
+  "settings.themeCopied": "Copied to clipboard",
+  "settings.themeCopyFailed": "Clipboard unavailable — the text is in the textarea below",
   "settings.themeDelete": "Delete",
+  "settings.themeRename": "Rename",
   "settings.themeDeleted": "Deleted",
   "settings.themeReadFailed": "Could not read the current theme variables (getComputedStyle empty)",
   "settings.themeResetFromCurrent": "Restart from the active theme",
-  // Typeface (4g): Inter is bundled locally; the system stack skips webfont loading.
+  // Typeface (4g → 2026-09-17 expanded to 12 UI + 6 mono families, all bundled
+  // locally under OFL-1.1; real typeface names are not translated).
   "settings.fontTitle": "Typeface",
+  "settings.fontMonoTitle": "Monospace / numerals",
   "settings.fontSystem": "System fonts (faster)",
   "settings.fontSerif": "Serif (Times / Songti)",
   // Interface size (#4): four-step root font scaling (rem-based), decoupled from desktop zoom.
-  // Step labels are literal percentages (user feedback), not translation keys.
+  // Size values are literal percentages (e.g. "112%"), not translation keys.
   "settings.fontSizeTitle": "Interface size",
+  "settings.fontSizeReset": "Reset",
   "settings.zoomDesktopOnly":
     "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

@@ -54,7 +54,10 @@ components/QuestionBank.tsx = ${g.公司}__${g.岗位}|· ${row.关联岗位}|�
 components/TalkList.tsx = · ${domainLabel("talkForm", r.形式, t)}|· ${t("interview.related", { value: r.关联记录 })}|公司|关联记录|地点或链接|备注|形式|待定|收获|时间|是否参加|线下
 
 # 邮件表字段名与枚举默认值 + 展示串拼接（列名/枚举/接口键与 mails.csv 同源）
-components/MailList.tsx = · ${r.发件人}|· ${t("interview.related", { value: r.关联记录 })}|· ${r.方向}|其他|关联记录|发件人|日期|方向|标签|消息|收|邮件|主题|链接
+components/MailList.tsx = · ${r.发件人}|· ${r.方向}|其他|关联记录|发件人|日期|方向|标签|消息|收|邮件|主题|链接
+
+# 邮件表字段名（追踪表展开区的关联邮件只读块：取数 m.主题，非界面文案）
+components/RecordMails.tsx = 主题
 
 # 工作区目录名 00_事实库（以插值形式夹在句子中间，刻意保留）
 components/ResumeForm.tsx = ${t("resumeForm.projectHint1")}00_事实库${t("resumeForm.projectHint2")}

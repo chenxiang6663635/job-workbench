@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import { domainLabel } from "../lib/domainLabels";
@@ -125,14 +126,12 @@ export default function InterviewList() {
           {!loaded && !error ? (
             [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)
           ) : loaded && !error && visible.length === 0 ? (
-            <Card className="flex flex-1 flex-col items-center justify-center rounded-lg border-dashed p-8 text-center">
-              <CalendarClock size={28} className="mb-3 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">{t("interview.emptyTitle")}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {t("interview.emptyHint1")}
-                <br />
-                {t("interview.emptyHint2")}
-              </p>
+            <Card className="flex flex-1 flex-col justify-center rounded-lg border-dashed">
+              <EmptyState
+                icon={<CalendarClock size={20} />}
+                title={t("interview.emptyTitle")}
+                description={`${t("interview.emptyHint1")} ${t("interview.emptyHint2")}`}
+              />
             </Card>
           ) : null}
           {visible.map((r) => {
@@ -256,8 +255,8 @@ export default function InterviewList() {
               ))}
             </Card>
           ) : (
-            <Card className="flex h-full min-h-48 items-center justify-center rounded-lg border-dashed text-xs text-muted-foreground">
-              {t("interview.selectHint")}
+            <Card className="flex h-full min-h-48 items-center justify-center rounded-lg border-dashed">
+              <EmptyState title={t("interview.selectHint")} compact />
             </Card>
           )}
         </div>

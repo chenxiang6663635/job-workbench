@@ -79,8 +79,17 @@ export default {
         "fade-in-up": "fade-in-up 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
       },
       transitionTimingFunction: {
-        /* expo-out（批 4 统一）：颜色 150ms / 位移与阴影 250ms，位移 1–2px 绝不 scale */
-        premium: "cubic-bezier(0.16, 1, 0.3, 1)",
+        /* expo-out（批 4 统一）：颜色 150ms / 位移与阴影 250ms，位移 1–2px 绝不 scale。
+           2026-09-17：改引用 index.css 的 --ease-premium——消除"变量一处、字面量
+           又一处"的双写（此前 --ease-premium 是死变量） */
+        premium: "var(--ease-premium)",
+      },
+      /* 动效时长三档（2026-09-17 接入）：--duration-* 此前定义了但零消费者；
+         新代码用 duration-fast/base/slow，历史数值类（150/200/300）保持不动 */
+      transitionDuration: {
+        fast: "var(--duration-fast)",
+        base: "var(--duration-base)",
+        slow: "var(--duration-slow)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -88,8 +97,9 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        /* 字体方案（批 4，4g）：栈本体在 index.css 的 CSS 变量里——设置页可在
-           「默认（Inter，本地打包）」与「系统」之间切换，不重建、不改配置 */
+        /* 字体体系（批 4 4g → 2026-09-17）：栈本体在 index.css 的 CSS 变量里——
+           界面字体 12 款（拉丁槽 --font-latin 组合中文系统栈）、等宽 6 款
+           （--font-mono 独立槽）；设置页切换只改根属性，不重建、不改配置 */
         sans: ["var(--font-sans-stack)", "sans-serif"],
         mono: ["var(--font-mono-stack)", "monospace"],
       },

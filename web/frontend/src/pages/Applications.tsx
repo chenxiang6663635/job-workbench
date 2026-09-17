@@ -29,6 +29,7 @@ import { reasonLines } from "../lib/healthReasons";
 import { Num } from "../components/ui/number";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
+import RecordMails from "../components/RecordMails";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -39,6 +40,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { EmptyState } from "../components/ui/empty";
+import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
@@ -133,7 +136,7 @@ function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 <span className="text-muted-foreground">{e.原值 || t("app.emptyValue")}</span>
-                <span className="mx-1 text-muted-foreground/50">→</span>
+                <span className="mx-1 text-muted-foreground">→</span>
                 {e.新值 || t("app.emptyValue")}
               </p>
             </div>
@@ -275,6 +278,8 @@ export default function Applications() {
 
   return (
     <div className="space-y-6">
+      <PageHeader title={t("nav.applications")} />
+
       {error && (
         <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <span>{error}</span>
@@ -566,18 +571,21 @@ export default function Applications() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
-          <Inbox size={28} className="text-muted-foreground" />
-          <p className="text-base font-medium">{t("app.emptyTitle")}</p>
-          <p className="text-sm text-muted-foreground">
-            {t("app.emptyHint", { action: t("app.newApplication") })}
-          </p>
+        <div className="rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5">
+          <EmptyState
+            icon={<Inbox size={20} />}
+            title={t("app.emptyTitle")}
+            description={t("app.emptyHint", { action: t("app.newApplication") })}
+          />
         </div>
       ) : (
         /* 撑满 + 内部滚动 + 粘性纯色表头（批 4 编排总则）：表格是主内容区，
            容器吃掉视口剩余高度、长表在内部滚动；表头必须纯色——半透明会
            透出滚动内容，是粘性表头的经典事故。 */
-        <div className="max-h-[calc(100dvh-19rem)] overflow-auto rounded-lg border border-border">
+        /* max-h 偏移：19 → 22.25rem——2026-09-17 新增页头（约 3.25rem）后同步，
+           否则表格底部会被页头挤进来的高度盖住。这类魔法偏移正在被逐页算法化
+           （Progress 页的 17rem 同样待后续批处理）。 */
+        <div className="max-h-[calc(100dvh-22.25rem)] overflow-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -745,7 +753,7 @@ export default function Applications() {
                       <td className="px-4 py-3">
                         {staleDays !== null ? (
                           <span
-                            className={`inline-flex items-center gap-1 font-mono text-xs ${
+                            className={`inline-flex items-center gap-1 tabular-nums text-xs ${
                               isStale ? "text-warning" : "text-muted-foreground"
                             }`}
                           >
@@ -755,14 +763,14 @@ export default function Applications() {
                             {t("app.daysUnit", { count: staleDays })}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground/50">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {(() => {
                           const h = it.health;
                           if (!h || !h.level) {
-                            return <span className="text-xs text-muted-foreground/50">—</span>;
+                            return <span className="text-xs text-muted-foreground">—</span>;
                           }
                           const meta = HEALTH_META[h.level];
                           return (
@@ -786,6 +794,15 @@ export default function Applications() {
                           className="border-l-2 border-primary/30 px-6 py-4"
                         >
                           <HistoryTimeline entries={timelines[it.id] ?? []} />
+                          {/* 关联邮件（2026-09-17 收尾批）：批 4.5 承诺过的
+                              「投递详情显示关联邮件」——只读 + 打开原邮件；
+                              增 / 改 / 删在「进展 → 邮件」的台账里做 */}
+                          <div className="mt-4 border-t border-border pt-3">
+                            <p className="mb-2 text-xs font-medium text-foreground">
+                              {t("app.relatedMails")}
+                            </p>
+                            <RecordMails appId={it.id} />
+                          </div>
                         </td>
                       </tr>
                     )}

@@ -18,6 +18,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/input";
 import { ErrorBanner } from "./ErrorBanner";
+import { EmptyState } from "./ui/empty";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 interface Props {
@@ -110,9 +111,9 @@ function PreviewReport({ preview }: { preview: ImportPreviewResult }) {
         <Badge variant="destructive">{t("impCsv.errors", { count: preview.counts.error })}</Badge>
       </div>
       {total === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-          {t("impCsv.empty")}
-        </p>
+        <div className="rounded-lg border border-dashed border-border">
+          <EmptyState title={t("impCsv.empty")} compact />
+        </div>
       ) : (
         <div className="space-y-4">
           <RowBlock status="error" items={preview.error} />

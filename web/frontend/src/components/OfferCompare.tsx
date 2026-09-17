@@ -6,6 +6,7 @@ import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import OfferForm from "./OfferForm";
@@ -82,17 +83,15 @@ export default function OfferCompare() {
   if (rows.length === 0) {
     return (
       <div className="space-y-4">
-        <Card className="flex flex-1 flex-col items-center justify-center border-dashed p-8 text-center">
-          <Scale size={28} className="mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t("offer.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {t("offer.emptyHint1")}
-            <br />
-            {t("offer.emptyHint2")}
-          </p>
-          <Button className="mt-4" onClick={() => setShowForm(true)}>
-            {t("offer.emptyCta")}
-          </Button>
+        <Card className="flex flex-1 flex-col justify-center border-dashed">
+          <EmptyState
+            icon={<Scale size={20} />}
+            title={t("offer.emptyTitle")}
+            description={`${t("offer.emptyHint1")} ${t("offer.emptyHint2")}`}
+            action={
+              <Button onClick={() => setShowForm(true)}>{t("offer.emptyCta")}</Button>
+            }
+          />
         </Card>
         {form}
       </div>

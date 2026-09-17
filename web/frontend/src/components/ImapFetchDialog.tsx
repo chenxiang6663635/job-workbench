@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { ErrorBanner } from "./ErrorBanner";
+import { EmptyState } from "./ui/empty";
 
 interface Props {
   onClose: () => void;
@@ -154,15 +155,23 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
           )}
 
           {!loading && messages && messages.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              {t("imap.empty", { range: rangeLabel })}
-            </p>
+            <div className="rounded-lg border border-dashed border-border">
+              <EmptyState
+                icon={<Inbox size={20} />}
+                title={t("imap.empty", { range: rangeLabel })}
+                compact
+              />
+            </div>
           )}
 
           {!loading && messages && messages.length > 0 && filtered.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              {t("imap.emptyFiltered")}
-            </p>
+            <div className="rounded-lg border border-dashed border-border">
+              <EmptyState
+                icon={<Search size={20} />}
+                title={t("imap.emptyFiltered")}
+                compact
+              />
+            </div>
           )}
 
           {filtered.map((m) => (
@@ -183,7 +192,7 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
                   {m.from} · {m.date}
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground/80">
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
                   {m.body.slice(0, 140)}
                   {m.body.length > 140 ? "…" : ""}
                 </p>
@@ -208,14 +217,14 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
                           setRecordingUid((cur) => (cur === m.uid ? null : cur))
                         );
                     }}
-                    className="cursor-pointer text-muted-foreground/70 transition-colors hover:text-primary disabled:cursor-default disabled:text-success"
+                    className="cursor-pointer text-muted-foreground transition-colors hover:text-primary disabled:cursor-default disabled:text-success"
                   >
                     {recorded[m.uid] ? <Check size={16} /> : <MailPlus size={16} />}
                   </button>
                 )}
                 <ChevronRight
                   size={16}
-                  className="text-muted-foreground/60 transition-colors group-hover:text-primary"
+                  className="text-muted-foreground transition-colors group-hover:text-primary"
                 />
               </div>
             </div>

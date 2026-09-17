@@ -25,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { EmptyState } from "../components/ui/empty";
+import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import JobCard from "../components/JobCard";
@@ -274,6 +276,8 @@ export default function Jobs() {
 
   return (
     <div className="space-y-6">
+      <PageHeader title={t("nav.jobs")} />
+
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -490,16 +494,16 @@ export default function Jobs() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <Card className="flex flex-col items-center gap-2 p-10 text-center">
-          <Inbox size={28} className="text-muted-foreground" />
-          <p className="text-base font-medium text-foreground">
-            {status ? t("job.emptyFiltered") : t("job.emptyPool")}
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {status
-              ? t("job.emptyFilteredHint", { all: t("job.allStatus") })
-              : t("job.emptyPoolHint", { action: t("job.newJob") })}
-          </p>
+        <Card>
+          <EmptyState
+            icon={<Inbox size={20} />}
+            title={status ? t("job.emptyFiltered") : t("job.emptyPool")}
+            description={
+              status
+                ? t("job.emptyFilteredHint", { all: t("job.allStatus") })
+                : t("job.emptyPoolHint", { action: t("job.newJob") })
+            }
+          />
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

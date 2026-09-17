@@ -221,6 +221,14 @@ export function removeCustomTheme(id: string): void {
   if (getThemeChoice() === id) setThemeChoice(SYSTEM_ID);
 }
 
+/** 只改显示名（不动变量、不切主题）——与 saveCustomTheme 的"保存即应用"区分开。 */
+export function renameCustomTheme(id: string, label: string): void {
+  const themes = getCustomThemes().map((item) =>
+    item.id === id ? { ...item, label } : item
+  );
+  persistCustomThemes(themes);
+}
+
 /** 内置 + 自定义的完整清单（外观卡与编辑器都读它）。 */
 export function listThemes(): ThemeOption[] {
   const builtinPrefix = THEMES.slice(0, 2); // system + dark
@@ -248,6 +256,15 @@ function toHexOr(triple: string | undefined, fallback: string): string {
 /** 导出一个主题（内置取文档里的变量，自定义取存储）为可分享的 JSON 文本。 */
 export function exportThemeVars(vars: Record<string, string>): string {
   return JSON.stringify({ version: 1, vars }, null, 2);
+}
+
+/** 导出为 CSS 变量块（`--key: value;` 逐行）——与 parseThemeImport 的 CSS 分支
+ *  成往返闭环（2026-09-17：编辑器此前只能导出 JSON，与 shadcn/tweakcn 生态
+ *  交换时得手改格式）。 */
+export function exportThemeVarsAsCss(vars: Record<string, string>): string {
+  return Object.keys(vars)
+    .map((key) => `  --${key}: ${vars[key]};`)
+    .join("\n");
 }
 
 /** 解析导入文本：支持本仓库 JSON 与 tweakcn / shadcn 的 `--key: value;` CSS。 */
@@ -289,95 +306,12 @@ function normalizeVars(vars: Record<string, unknown>): Record<string, string> {
   return out;
 }
 
-// --- 字体方案（批 4，4g）----------------------------------------------------
+// --- 字体方案与界面字号已迁至 ./fonts（2026-09-17 实测反馈批）-----------------
 //
-// 两套：default = Inter Variable（本地打包，拉丁 UI 与数字最佳）；
-// system = 纯系统栈（不加载 webfont，启动更快、离线更轻）。
-// 实现只写 html[data-font]——栈本体在 index.css 的 --font-sans-stack 变量里。
+// 主题（本文件）只管颜色变量的注册与应用；字体/字号是另一条排版线，且有三处
+// 引用同一份口径（设置页 ThemePicker、首帧防闪脚本 index.html、启动同步
+// main.tsx），故拆为 lib/fonts.ts。这里 re-export 保持既有导入路径零改动。
 
-const FONT_KEY = "jobws.font";
-
-export interface FontOption {
-  id: string;
-  label: string;
-}
-
-export const FONTS: FontOption[] = [
-  { id: "default", label: "Inter" },
-  { id: "system", label: "System UI" },
-  { id: "serif", label: "serif" },
-];
-
-const FONT_IDS = ["default", "system", "serif"] as const;
-
-export function getFontChoice(): string {
-  try {
-    const stored = localStorage.getItem(FONT_KEY) || "default";
-    return (FONT_IDS as readonly string[]).includes(stored) ? stored : "default";
-  } catch {
-    return "default";
-  }
-}
-
-export function applyFont(choice: string): void {
-  const root = document.documentElement;
-  if (choice === "system" || choice === "serif") {
-    root.setAttribute("data-font", choice);
-  } else {
-    root.removeAttribute("data-font");
-  }
-}
-
-export function setFontChoice(id: string): void {
-  const safe = (FONT_IDS as readonly string[]).includes(id) ? id : "default";
-  try {
-    localStorage.setItem(FONT_KEY, safe);
-  } catch {
-    // 同主题：持久化失败只影响下次启动
-  }
-  applyFont(safe);
-}
-
-export function applyStoredFont(): void {
-  applyFont(getFontChoice());
-}
-
-// --- 界面字号（#4）----------------------------------------------------------
-//
-// 四档缩放只改**根字号百分比**（Tailwind 的长度单位全是 rem，全站等比跟随）；
-// 与 Electron 的 webContents 全局缩放解耦——浏览器端同样可用，且百分比写法
-// 尊重用户系统的默认字号。档位：sm 87.5% / base 100%（不写属性）/ lg 112.5%
-// / xl 125%。
-
-const FONTSIZE_KEY = "jobws.fontsize";
-
-export const FONT_SIZE_IDS = ["sm", "base", "lg", "xl"] as const;
-
-export function getFontSizeChoice(): string {
-  try {
-    const stored = localStorage.getItem(FONTSIZE_KEY) || "base";
-    return (FONT_SIZE_IDS as readonly string[]).includes(stored) ? stored : "base";
-  } catch {
-    return "base";
-  }
-}
-
-export function applyFontSize(id: string): void {
-  const root = document.documentElement;
-  if (id && id !== "base") root.setAttribute("data-fontsize", id);
-  else root.removeAttribute("data-fontsize");
-}
-
-export function setFontSizeChoice(id: string): void {
-  const safe = (FONT_SIZE_IDS as readonly string[]).includes(id) ? id : "base";
-  try {
-    localStorage.setItem(FONTSIZE_KEY, safe);
-  } catch {
-    // 同主题：持久化失败只影响下次启动
-  }
-  applyFontSize(safe);
-}
-
-export function applyStoredFontSize(): void {
-  applyFontSize(getFontSizeChoice());
-}
+// `export *` 而非逐名单：字体/等宽方案扩容时无需再改这里（两份名单极易漂移）；
+// fonts.ts 的导出面即其公开 API，全部有意转发（值 + 类型）。
+export * from "./fonts";

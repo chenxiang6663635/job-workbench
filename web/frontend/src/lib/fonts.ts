@@ -1,0 +1,197 @@
+// 字体方案与界面字号（批 4 的 4g / #4；2026-09-17 实测反馈批从 theme.ts 拆出）
+//
+// 为什么单独一个文件：主题（theme.ts）管颜色变量的注册与应用，字体/字号是
+// 另一条排版线——三处引用同一份口径（设置页 ThemePicker、首帧防闪脚本
+// index.html、启动同步 main.tsx）。拆开后 theme.ts 回到"只管主题"。
+//
+// 三个选择（主题/字体/字号）都是**设备级偏好**（localStorage，随这台机器），
+// 与工作区级偏好（tools/prefs.py 的 config/preferences.json）是两个分层，
+// 互不覆盖（prefs.py 文件头有同款说明）。
+
+// --- 界面字体 ---------------------------------------------------------------
+
+const FONT_KEY = "jobws.font";
+
+export interface FontOption {
+  id: string;
+  label: string;
+}
+
+// 全部**本地打包**（Fontsource，OFL-1.1，离线可用）；各款只含拉丁——中文始终
+// 回退系统栈（见 index.css 的 --font-cjk）。栈本体在 index.css：每个 id 对应
+// 一条 `html[data-font="<id>"] { --font-latin: … }`——**id 两边必须同步**
+// （CSS 不被门禁扫描，靠这段注释与设置页列表人工兜住）。
+// system 不加载 webfont（启动更快、离线更轻）；serif = Times + 系统宋体。
+export const FONTS: FontOption[] = [
+  { id: "inter", label: "Inter" },
+  { id: "geist", label: "Geist" },
+  { id: "plex", label: "IBM Plex Sans" },
+  { id: "manrope", label: "Manrope" },
+  { id: "jakarta", label: "Plus Jakarta Sans" },
+  { id: "dm", label: "DM Sans" },
+  { id: "figtree", label: "Figtree" },
+  { id: "outfit", label: "Outfit" },
+  { id: "public", label: "Public Sans" },
+  { id: "source3", label: "Source Sans 3" },
+  { id: "work", label: "Work Sans" },
+  { id: "atkinson", label: "Atkinson Hyperlegible" },
+  { id: "system", label: "System UI" },
+  { id: "serif", label: "serif" },
+];
+
+const FONT_IDS = new Set(FONTS.map((f) => f.id));
+
+/** 历史值迁移：2026-09-17 之前 default = Inter（且不写属性，:root 即它）。 */
+const LEGACY_FONT_IDS: Record<string, string> = { default: "inter" };
+
+function normalizeFontId(id: string): string {
+  const migrated = LEGACY_FONT_IDS[id] ?? id;
+  return FONT_IDS.has(migrated) ? migrated : "inter";
+}
+
+export function getFontChoice(): string {
+  try {
+    return normalizeFontId(localStorage.getItem(FONT_KEY) || "inter");
+  } catch {
+    return "inter";
+  }
+}
+
+/** 写 html[data-font]：栈本体由 index.css 按 id 承接（inter 命中 :root 默认）。 */
+export function applyFont(choice: string): void {
+  document.documentElement.setAttribute("data-font", normalizeFontId(choice));
+}
+
+export function setFontChoice(id: string): void {
+  const safe = normalizeFontId(id);
+  try {
+    localStorage.setItem(FONT_KEY, safe);
+  } catch {
+    // 同主题：持久化失败只影响下次启动
+  }
+  applyFont(safe);
+}
+
+export function applyStoredFont(): void {
+  applyFont(getFontChoice());
+}
+
+// --- 等宽 / 数字字体（2026-09-17 收尾批）-------------------------------------
+//
+// 独立于界面字体的第二槽：作用于 --font-mono-stack——代码片段、编号（记录 id /
+// 邮件 id）、日期时间与需要"字符网格"对齐的场景。数字**默认不走它**（同日数字
+// 体系重做：数字用界面字体的 tabular-nums 对齐，等宽字体只留给上述场景）。
+
+const MONO_KEY = "jobws.mono";
+
+export const MONOS: FontOption[] = [
+  { id: "maple", label: "Maple Mono" },
+  { id: "jetbrains", label: "JetBrains Mono" },
+  { id: "fira", label: "Fira Code" },
+  { id: "geist-mono", label: "Geist Mono" },
+  { id: "plex-mono", label: "IBM Plex Mono" },
+  { id: "source-code", label: "Source Code Pro" },
+];
+
+const MONO_IDS = new Set(MONOS.map((m) => m.id));
+
+function normalizeMonoId(id: string): string {
+  return MONO_IDS.has(id) ? id : "maple";
+}
+
+export function getMonoChoice(): string {
+  try {
+    return normalizeMonoId(localStorage.getItem(MONO_KEY) || "maple");
+  } catch {
+    return "maple";
+  }
+}
+
+export function applyMono(choice: string): void {
+  document.documentElement.setAttribute("data-mono", normalizeMonoId(choice));
+}
+
+export function setMonoChoice(id: string): void {
+  const safe = normalizeMonoId(id);
+  try {
+    localStorage.setItem(MONO_KEY, safe);
+  } catch {
+    // 同主题：持久化失败只影响下次启动
+  }
+  applyMono(safe);
+}
+
+export function applyStoredMono(): void {
+  applyMono(getMonoChoice());
+}
+
+// --- 界面字号（#4；2026-09-17 实测反馈改连续）--------------------------------
+//
+// 只改**根字号百分比**（Tailwind 的长度单位全是 rem，全站等比跟随）；与
+// Electron 的 webContents 全局缩放解耦——浏览器端同样可用，且百分比写法
+// 尊重用户系统的默认字号。与界面缩放可以叠加（缩放放大像素，字号放大文字）。
+//
+// 2026-09-17 起从四档（87.5/100/112.5/125）改为**连续 80–150%（步进 5）**：
+// 档位制覆盖不了介于两档之间的实际需求（实测反馈「为什么不能和界面放缩一样
+// 灵活挑」）。历史档位值读取时映射迁移，旧偏好不丢。
+
+const FONTSIZE_KEY = "jobws.fontsize";
+
+export const FONT_SIZE_MIN = 80;
+export const FONT_SIZE_MAX = 150;
+export const FONT_SIZE_STEP = 5;
+export const FONT_SIZE_DEFAULT = 100;
+
+/** 历史四档 → 百分比（2026-09-17 之前的存储格式，读取时迁移）。 */
+const LEGACY_FONT_SIZES: Record<string, number> = {
+  sm: 87.5,
+  base: 100,
+  lg: 112.5,
+  xl: 125,
+};
+
+/** 吸附到步进网格、夹取到 [MIN, MAX]；非法值（NaN / ±Infinity）回落默认值。 */
+export function clampFontSize(pct: number): number {
+  if (!Number.isFinite(pct)) return FONT_SIZE_DEFAULT;
+  const snapped = Math.round(pct / FONT_SIZE_STEP) * FONT_SIZE_STEP;
+  return Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, snapped));
+}
+
+export function getFontSizeChoice(): number {
+  try {
+    const stored = localStorage.getItem(FONTSIZE_KEY);
+    if (!stored) return FONT_SIZE_DEFAULT;
+    if (Object.prototype.hasOwnProperty.call(LEGACY_FONT_SIZES, stored)) {
+      // 过一遍 clamp：87.5 不在 80–150 的 5% 步进网格上，滑块会自行吸附导致
+      // 显示值与 thumb 不一致（独立审查 NIT）——读取时就吸附一致。
+      return clampFontSize(LEGACY_FONT_SIZES[stored]);
+    }
+    return clampFontSize(parseFloat(stored));
+  } catch {
+    return FONT_SIZE_DEFAULT;
+  }
+}
+
+export function applyFontSize(pct: number): void {
+  const root = document.documentElement;
+  if (pct === FONT_SIZE_DEFAULT) {
+    // 100% 清掉内联值（与"未设置"等价）：根元素保持干净，排查样式时少一层噪声
+    root.style.removeProperty("font-size");
+  } else {
+    root.style.fontSize = pct + "%";
+  }
+}
+
+export function setFontSizeChoice(pct: number): void {
+  const safe = clampFontSize(pct);
+  try {
+    localStorage.setItem(FONTSIZE_KEY, String(safe));
+  } catch {
+    // 同主题：持久化失败只影响下次启动
+  }
+  applyFontSize(safe);
+}
+
+export function applyStoredFontSize(): void {
+  applyFontSize(getFontSizeChoice());
+}

@@ -300,22 +300,17 @@ def retrospective(rows, history_rows, today, workspace=None):
     }
 
 
-def build_report(rows, today, workspace=None):
-    lines = []
-    total = len(rows)
-
-    lines.append("# 投递看板")
-    lines.append("")
-    lines.append("> 生成日期：%s　总记录：%d 条" % (today.isoformat(), total))
-    lines.append("")
-    lines.append("数据源：`05_投递追踪/tracker.csv`")
-    lines.append("")
-
+def _report_header(rows, today):
+    lines = ["# 投递看板", "",
+             "> 生成日期：%s　总记录：%d 条" % (today.isoformat(), len(rows)), "",
+             "数据源：`05_投递追踪/tracker.csv`", ""]
     if not rows:
         lines.append("追踪表为空。先用 `/jd` 解析岗位，再用 `/apply` 生成投递包。")
-        return "\n".join(lines) + "\n"
+    return lines
 
-    # 一、投递漏斗
+
+def _append_section_funnel(lines, rows, total):
+    """一、投递漏斗（含在流程 / 已结束计数）。"""
     lines.append("## 一、投递漏斗")
     lines.append("")
     lines.append("| 阶段 | 数量 | 占比 |")
@@ -326,31 +321,25 @@ def build_report(rows, today, workspace=None):
         bar = "#" * int(round(pct / 5))
         lines.append("| %s | %d | %.0f%% %s |" % (stage, count, pct, bar))
     lines.append("")
-
     active = sum(1 for r in rows if r.get("当前阶段") not in TERMINAL_STAGES)
     terminal = total - active
     lines.append("在流程中 %d 条，已结束 %d 条。" % (active, terminal))
     lines.append("")
 
-    # 二、按方向
-    lines.append("## 二、按方向")
+
+def _append_section_by(lines, rows, title, field):
+    """二 / 三节同构：单列计数表（方向 / 批次）。"""
+    lines.append("## %s" % title)
     lines.append("")
-    lines.append("| 方向 | 数量 |")
+    lines.append("| %s | 数量 |" % field)
     lines.append("|---|---:|")
-    for key, count in count_by(rows, "方向"):
+    for key, count in count_by(rows, field):
         lines.append("| %s | %d |" % (key, count))
     lines.append("")
 
-    # 三、按批次
-    lines.append("## 三、按批次")
-    lines.append("")
-    lines.append("| 批次 | 数量 |")
-    lines.append("|---|---:|")
-    for key, count in count_by(rows, "批次"):
-        lines.append("| %s | %d |" % (key, count))
-    lines.append("")
 
-    # 四、近 7 天待办
+def _append_section_todo(lines, rows, today):
+    """四、近 7 天待办。"""
     lines.append("## 四、近 7 天待办")
     lines.append("")
     limit = today + timedelta(days=7)
@@ -386,7 +375,9 @@ def build_report(rows, today, workspace=None):
         lines.append("未来 7 天没有到期事项。")
     lines.append("")
 
-    # 五、已过截止日提醒
+
+def _append_section_overdue(lines, rows, today):
+    """五、已过截止日提醒。"""
     lines.append("## 五、已过截止日提醒")
     lines.append("")
     overdue = []
@@ -414,11 +405,13 @@ def build_report(rows, today, workspace=None):
         lines.append("无已过截止日且未投递的记录。")
     lines.append("")
 
-    # 六、周期复盘：转化率、停留、归因。这是长期资产——数据越攒越值钱
-    history_rows = read_history()
-    retro = retrospective(rows, history_rows, today, workspace)
+
+def _append_section_retro(lines, rows, today, workspace):
+    """六、周期复盘：转化率、停留、归因——长期资产，数据越攒越值钱。"""
     lines.append("## 六、周期复盘")
     lines.append("")
+    history_rows = read_history()
+    retro = retrospective(rows, history_rows, today, workspace)
 
     lines.append("### 阶段转化率")
     lines.append("")
@@ -481,6 +474,19 @@ def build_report(rows, today, workspace=None):
             lines.append("| %s | %d |" % (item["reason"], item["count"]))
         lines.append("")
 
+
+def build_report(rows, today, workspace=None):
+    """六节看板：编排只做节序与汇总（各节细节见 _append_section_*）。"""
+    lines = _report_header(rows, today)
+    if not rows:
+        return "\n".join(lines) + "\n"
+    total = len(rows)
+    _append_section_funnel(lines, rows, total)
+    _append_section_by(lines, rows, "二、按方向", "方向")
+    _append_section_by(lines, rows, "三、按批次", "批次")
+    _append_section_todo(lines, rows, today)
+    _append_section_overdue(lines, rows, today)
+    _append_section_retro(lines, rows, today, workspace)
     return "\n".join(lines)
 
 

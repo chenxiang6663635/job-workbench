@@ -104,20 +104,8 @@ def job_pool_overview(ws):
     }
 
 
-@router.get("")
-def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_DAYS):
-    rows = tracker.read_rows(ws)
-    history = tracker.read_history(ws)
-    total = len(rows)
-    today = date.today()
-
-    funnel = [{"stage": k, "count": v} for k, v in count_by(rows, "当前阶段", STAGES + TERMINAL)]
-    by_direction = [{"key": k, "count": v} for k, v in count_by(rows, "方向")]
-    by_batch = [{"key": k, "count": v} for k, v in count_by(rows, "批次")]
-
-    active = sum(1 for r in rows if r.get("当前阶段") not in TERMINAL)
-
-    # 近 7 天待办：活跃记录中，下次动作日期或截止日期落在 [today, today+7]
+def _upcoming_todos(rows, today):
+    """近 7 天待办：活跃记录中，下次动作日期或截止日期落在 [today, today+7]。"""
     limit = today + timedelta(days=7)
     upcoming = []
     for row in rows:
@@ -133,8 +121,11 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
                 })
                 break
     upcoming.sort(key=lambda x: x["date"])
+    return upcoming
 
-    # 已过截止日仍待投
+
+def _overdue_pending(rows, today):
+    """已过截止日仍待投。"""
     overdue = []
     for row in rows:
         if row.get("当前阶段") != "待投":
@@ -146,10 +137,15 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
                 "岗位": row.get("岗位", ""), "截止日期": dl.isoformat(),
             })
     overdue.sort(key=lambda x: x["截止日期"])
+    return overdue
 
-    # 静默提醒（已读不回）：非终态记录里，距最后一次推进超过阈值的
-    # 基准日由 tracker.stage_base_date 决定（阶段变更 → 任意变更 → 投递日期），
-    # 取不到基准日的记录不参与判定——没有依据就不该报警。
+
+def _stale_rows(rows, history, today, stale_days):
+    """静默提醒（已读不回）：非终态记录里，距最后一次推进超过阈值的。
+
+    基准日由 tracker.stage_base_date 决定（阶段变更 → 任意变更 → 投递日期），
+    取不到基准日的记录不参与判定——没有依据就不该报警。
+    """
     stale = []
     for row in rows:
         if row.get("当前阶段") in TERMINAL:
@@ -165,10 +161,15 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
             "说明": row.get("下次动作", "") or "",
         })
     stale.sort(key=lambda x: -x["days"])
+    return stale
 
-    # 待推进（第二批）：健康度非 ok 且非终态的记录，按严重度排序。
-    # 与追踪表 health 排序同源（tracker.health_score），看板只做搬运——
-    # 两处各写一套判据迟早会给出互相矛盾的结论。
+
+def _pending_health(rows, history, today):
+    """待推进：健康度非 ok 且非终态，按严重度排序。
+
+    与追踪表 health 排序同源（tracker.health_score），看板只做搬运——
+    两处各写一套判据迟早会给出互相矛盾的结论。
+    """
     pending = []
     for row in rows:
         health = tracker.health_score(row, history, today)
@@ -181,15 +182,16 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
             "hints": health.get("hints", []),
         })
     pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
+    return pending
 
-    pool = job_pool_overview(ws)
 
-    # 最近动作（批 4 看板「最近动作」卡）：时间线最近 12 条，附公司名便于扫读——
-    # 数据早已在读（stale / health 都用它），不新增 IO；前端据此渲染活动流。
+def _recent_activity(history, rows):
+    """最近动作（批 4 看板卡）：时间线最近 12 条，附公司名便于扫读——
+    数据早已在读（stale / health 都用它），不新增 IO。"""
     company_by_id = {r.get("id", ""): r.get("公司", "") for r in rows}
-    recent_activity = []
+    recent = []
     for entry in sorted(history, key=lambda e: e.get("时间", ""), reverse=True)[:12]:
-        recent_activity.append({
+        recent.append({
             "time": entry.get("时间", ""),
             "id": entry.get("id", ""),
             "company": company_by_id.get(entry.get("id", ""), ""),
@@ -197,17 +199,32 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
             "old": entry.get("原值", ""),
             "new": entry.get("新值", ""),
         })
+    return recent
+
+
+@router.get("")
+def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_DAYS):
+    rows = tracker.read_rows(ws)
+    history = tracker.read_history(ws)
+    today = date.today()
+
+    funnel = [{"stage": k, "count": v} for k, v in count_by(rows, "当前阶段", STAGES + TERMINAL)]
+    by_direction = [{"key": k, "count": v} for k, v in count_by(rows, "方向")]
+    by_batch = [{"key": k, "count": v} for k, v in count_by(rows, "批次")]
+    active = sum(1 for r in rows if r.get("当前阶段") not in TERMINAL)
+
+    pool = job_pool_overview(ws)
 
     return {
-        "total": total,
+        "total": len(rows),
         "active": active,
         "funnel": funnel,
         "byDirection": by_direction,
         "byBatch": by_batch,
-        "upcoming": upcoming,
-        "overdue": overdue,
-        "stale": stale,
-        "pending": pending,
+        "upcoming": _upcoming_todos(rows, today),
+        "overdue": _overdue_pending(rows, today),
+        "stale": _stale_rows(rows, history, today, stale_days),
+        "pending": _pending_health(rows, history, today),
         "staleDays": stale_days,
         # 周期复盘：真实转化率（从时间线重建）、停留分布、失败归因。
         # 「我拒绝的 offer」单独统计，不算失败
@@ -217,5 +234,5 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         "unappliedHigh": pool["items"],
         "unappliedHighTotal": pool["total"],
         "scoreByState": pool["scoreByState"],
-        "recentActivity": recent_activity,
+        "recentActivity": _recent_activity(history, rows),
     }

@@ -306,6 +306,81 @@ def check_a4_mediabox(pdf_path):
     return False, "非 A4（%.1f×%.1fpt）——模板可能漏了 @page{size:A4}，Chrome 默认 Letter" % (w, h)
 
 
+def _resolve_render_accent(args, workspace):
+    """风格轴（批 4.5）：--resume-accent 优先，缺省回落工作区偏好 resume_style。
+
+    该 key 一直存在（prefs 的 KNOWN_KEYS），批 4.5 起成为真实消费方。两者都
+    接受预设名或 #hex；非法值明确报错而不是静默忽略。返回 (accent, 来源描述)；
+    非法时打印错误并返回 (None, None)。
+    """
+    accent_choice = getattr(args, "resume_accent", None)
+    accent_source = "--resume-accent"
+    if not accent_choice:
+        try:
+            import prefs as prefs_mod
+            accent_choice = (prefs_mod.read_prefs(workspace).get("resume_style") or "")
+            accent_source = "偏好 resume_style"
+        except Exception:  # noqa: BLE001 - 偏好读取失败不应挡住生成
+            accent_choice = ""
+    accent = resolve_accent(accent_choice)
+    if accent_choice and not accent:
+        print("错误：风格 `%s` 无法识别。可用预设：%s；或直接给 #hex 颜色（如 #3f4650）。"
+              % (accent_choice, " / ".join(RESUME_ACCENTS)))
+        return None, None
+    return accent, accent_source
+
+
+def _render_one(job, ctx):
+    """渲染单份简历：JSON → HTML → PDF → A4 纸型与 ATS 校验。返回是否通过。"""
+    tmp_name, pdf_name, slug = job
+    json_path = os.path.join(ctx["source_dir"], "resume_%s.json" % slug)
+    pdf_path = os.path.join(ctx["out_dir"], pdf_name)
+    tmp_html = os.path.join(ctx["pdf_dir"], tmp_name)
+
+    try:
+        with io.open(json_path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except Exception as exc:  # noqa: BLE001
+        print("跳过 %s：JSON 解析失败：%s" % (json_path, exc))
+        return False
+
+    try:
+        full_html = render_block(ctx["template_html"], data)
+    except Exception as exc:  # noqa: BLE001
+        print("跳过 %s：渲染失败：%s" % (slug, exc))
+        return False
+
+    with io.open(tmp_html, "w", encoding="utf-8") as f:
+        f.write(full_html)
+
+    print("生成（数据驱动）：%s" % pdf_name)
+    if not build_pdf(ctx["browser"], tmp_html, pdf_path):
+        print("  失败：PDF 未生成")
+        return False
+
+    print("  已生成（%.1f KB）" % (os.path.getsize(pdf_path) / 1024.0))
+    ok = True
+    # render 独有：断言 A4 纸型（模板须显式 @page size:A4）
+    a4_ok, a4_msg = check_a4_mediabox(pdf_path)
+    print("  纸型：%s [%s]" % (a4_msg, "通过" if a4_ok else "不通过"))
+    if not a4_ok:
+        ok = False
+
+    if ctx["args"].no_verify:
+        return ok
+    passed, details = verify_pdf(pdf_path, ctx["args"].min_text_length)
+    print("  ATS 校验：")
+    for label, value, flag in details:
+        if flag is None:
+            print("    - %s：%s" % (label, value))
+        else:
+            print("    - %s：%s  [%s]" % (label, value, "通过" if flag else "不通过"))
+    if not passed:
+        ok = False
+    print("")
+    return ok
+
+
 def cmd_render(args, browser, verify_facts):
     """数据驱动渲染：JSON → 内置模板 → 临时 HTML → 打印 → 校验。"""
     global VERIFY_FACTS_FILE
@@ -331,22 +406,8 @@ def cmd_render(args, browser, verify_facts):
     else:
         selected = jobs
 
-    # 风格轴（批 4.5）：--resume-accent 优先；缺省回落到工作区偏好
-    # resume_style——该 key 一直存在（prefs 的 KNOWN_KEYS），本批起成为
-    # 真实消费方。两者都接受预设名或 #hex；非法值明确报错而不是静默忽略。
-    accent_choice = getattr(args, "resume_accent", None)
-    accent_source = "--resume-accent"
-    if not accent_choice:
-        try:
-            import prefs as prefs_mod
-            accent_choice = (prefs_mod.read_prefs(workspace).get("resume_style") or "")
-            accent_source = "偏好 resume_style"
-        except Exception:  # noqa: BLE001 - 偏好读取失败不应挡住生成
-            accent_choice = ""
-    accent = resolve_accent(accent_choice)
-    if accent_choice and not accent:
-        print("错误：风格 `%s` 无法识别。可用预设：%s；或直接给 #hex 颜色（如 #3f4650）。"
-              % (accent_choice, " / ".join(RESUME_ACCENTS)))
+    accent, accent_source = _resolve_render_accent(args, workspace)
+    if accent_source is None:
         return 1
 
     try:
@@ -366,56 +427,12 @@ def cmd_render(args, browser, verify_facts):
     if not os.path.isdir(pdf_dir):
         os.makedirs(pdf_dir)
 
+    ctx = {"source_dir": source_dir, "out_dir": out_dir, "pdf_dir": pdf_dir,
+           "template_html": template_html, "browser": browser, "args": args}
     all_passed = True
-    for tmp_name, pdf_name, slug in selected:
-        json_path = os.path.join(source_dir, "resume_%s.json" % slug)
-        pdf_path = os.path.join(out_dir, pdf_name)
-        tmp_html = os.path.join(pdf_dir, tmp_name)
-
-        try:
-            with io.open(json_path, "r", encoding="utf-8-sig") as f:
-                data = json.load(f)
-        except Exception as exc:  # noqa: BLE001
-            print("跳过 %s：JSON 解析失败：%s" % (json_path, exc))
+    for job in selected:
+        if not _render_one(job, ctx):
             all_passed = False
-            continue
-
-        try:
-            full_html = render_block(template_html, data)
-        except Exception as exc:  # noqa: BLE001
-            print("跳过 %s：渲染失败：%s" % (slug, exc))
-            all_passed = False
-            continue
-
-        with io.open(tmp_html, "w", encoding="utf-8") as f:
-            f.write(full_html)
-
-        print("生成（数据驱动）：%s" % pdf_name)
-        ok = build_pdf(browser, tmp_html, pdf_path)
-        if not ok:
-            print("  失败：PDF 未生成")
-            all_passed = False
-            continue
-
-        print("  已生成（%.1f KB）" % (os.path.getsize(pdf_path) / 1024.0))
-        # render 独有：断言 A4 纸型（模板须显式 @page size:A4）
-        a4_ok, a4_msg = check_a4_mediabox(pdf_path)
-        print("  纸型：%s [%s]" % (a4_msg, "通过" if a4_ok else "不通过"))
-        if not a4_ok:
-            all_passed = False
-
-        if args.no_verify:
-            continue
-        passed, details = verify_pdf(pdf_path, args.min_text_length)
-        print("  ATS 校验：")
-        for label, value, ok in details:
-            if ok is None:
-                print("    - %s：%s" % (label, value))
-            else:
-                print("    - %s：%s  [%s]" % (label, value, "通过" if ok else "不通过"))
-        if not passed:
-            all_passed = False
-        print("")
 
     # 清理临时 HTML
     for tmp_name, _, _ in selected:
@@ -535,7 +552,7 @@ def verify_pdf(pdf_path, min_text_length=MIN_TEXT_LENGTH, facts_file=None):
     return passed, details
 
 
-def main():
+def _build_parser():
     parser = argparse.ArgumentParser(
         description="生成简历 PDF 并做 ATS 校验。子命令 render 走数据驱动标准版式；"
                     "无子命令时打手写 HTML（高级模板）。")
@@ -557,7 +574,84 @@ def main():
     parser.add_argument("--resume-accent", dest="resume_accent", default=None,
                         help="简历强调色：预设名（%s）或 #hex；缺省读偏好 resume_style"
                              % " / ".join(RESUME_ACCENTS))
-    args = parser.parse_args()
+    return parser
+
+
+def _print_no_html_guide(pdf_dir):
+    """空态指引：没有 resume_*.html 时告诉用户怎么新建一份。"""
+    print("错误：%s 下没有找到 resume_*.html 简历模板" % pdf_dir)
+    print("")
+    print("新建一份的步骤：")
+    print("  1. 复制 template/workspace/02_简历工坊/pdf/_模板_resume.html")
+    print("     到本工作区的 02_简历工坊/pdf/ 下")
+    print("  2. 重命名为 resume_<版本>.html，例如 resume_backend.html")
+    print("  3. 按文件内的注释说明填写内容")
+    print("")
+    print("脚本按 resume_ 前缀扫描，一个版本对应一个 HTML 文件。")
+
+
+def _render_manual_html(args, browser, pdf_dir, out_dir, selected):
+    """手写 HTML 主循环；返回 (all_passed, last_details)。"""
+    all_passed = True
+    last_details = []
+    for html_name, pdf_name, _ in selected:
+        html_path = os.path.join(pdf_dir, html_name)
+        pdf_path = os.path.join(out_dir, pdf_name)
+
+        if not os.path.isfile(html_path):
+            print("跳过（HTML 不存在）：%s" % html_name)
+            continue
+
+        print("生成：%s" % pdf_name)
+        if not build_pdf(browser, html_path, pdf_path):
+            print("  失败：PDF 未生成")
+            all_passed = False
+            continue
+
+        size_kb = os.path.getsize(pdf_path) / 1024.0
+        print("  已生成（%.1f KB）" % size_kb)
+
+        if args.no_verify:
+            continue
+
+        passed, details = verify_pdf(pdf_path, args.min_text_length)
+        last_details = details
+        print("  ATS 校验：")
+        for label, value, flag in details:
+            if flag is None:
+                print("    - %s：%s" % (label, value))
+            else:
+                print("    - %s：%s  [%s]" % (label, value, "通过" if flag else "不通过"))
+        if not passed:
+            all_passed = False
+        print("")
+    return all_passed, last_details
+
+
+def _print_fail_guidance(last_details):
+    """按 ATS 失败项给出针对性指引。
+
+    若只有超页才谈删减——对「文本太少」谈删减是反向误导。
+    """
+    failed = [label for label, _, ok in last_details if ok is False]
+    if "页数" in failed:
+        print("**页数超过 1 页**，删除原则：先删装饰性内容，绝不删核心成果与可验证数字。")
+        print("具体顺序见工作区 AGENTS.md 的自定义红线；未记录时，按「装饰信息 →")
+        print("次要课程/证书 → 排版留白 → 展开的细节描述」的顺序处理。")
+    elif "可提取文本" in failed:
+        print("**可提取文本不足**：PDF 文本层内容少于 %d 字符，ATS 可能抓不到内容。"
+              % MIN_TEXT_LENGTH)
+        print("这与删减无关，方向相反——应检查：")
+        print("  1. 简历内容是否过少（信息量不足，需补充经历与成果）")
+        print("  2. HTML 是否用了背景图或 canvas 呈现文字（应改为真实文本）")
+        print("  3. 字体是否未嵌入导致提取异常（中文字体需可用）")
+    if "关键事实" in failed:
+        print("**关键事实缺失**：检查简历是否删掉了核心成果，")
+        print("或 config/ats_required_facts.txt 中列出的项本就不在简历里。")
+
+
+def main():
+    args = _build_parser().parse_args()
 
     workspace = os.path.abspath(args.workspace)
     if not os.path.isdir(workspace):
@@ -587,15 +681,7 @@ def main():
 
     all_jobs = discover_jobs(pdf_dir)
     if not all_jobs:
-        print("错误：%s 下没有找到 resume_*.html 简历模板" % pdf_dir)
-        print("")
-        print("新建一份的步骤：")
-        print("  1. 复制 template/workspace/02_简历工坊/pdf/_模板_resume.html")
-        print("     到本工作区的 02_简历工坊/pdf/ 下")
-        print("  2. 重命名为 resume_<版本>.html，例如 resume_backend.html")
-        print("  3. 按文件内的注释说明填写内容")
-        print("")
-        print("脚本按 resume_ 前缀扫描，一个版本对应一个 HTML 文件。")
+        _print_no_html_guide(pdf_dir)
         return 1
 
     if args.version == "all":
@@ -612,61 +698,12 @@ def main():
         print("错误：未找到 Chrome 或 Edge，无法生成 PDF。")
         return 1
 
-    all_passed = True
-    last_details = []
-    for html_name, pdf_name, _ in selected:
-        html_path = os.path.join(pdf_dir, html_name)
-        pdf_path = os.path.join(out_dir, pdf_name)
-
-        if not os.path.isfile(html_path):
-            print("跳过（HTML 不存在）：%s" % html_name)
-            continue
-
-        print("生成：%s" % pdf_name)
-        ok = build_pdf(browser, html_path, pdf_path)
-        if not ok:
-            print("  失败：PDF 未生成")
-            all_passed = False
-            continue
-
-        size_kb = os.path.getsize(pdf_path) / 1024.0
-        print("  已生成（%.1f KB）" % size_kb)
-
-        if args.no_verify:
-            continue
-
-        passed, details = verify_pdf(pdf_path, args.min_text_length)
-        last_details = details
-        print("  ATS 校验：")
-        for label, value, ok in details:
-            if ok is None:
-                print("    - %s：%s" % (label, value))
-            else:
-                print("    - %s：%s  [%s]" % (label, value, "通过" if ok else "不通过"))
-        if not passed:
-            all_passed = False
-        print("")
+    all_passed, last_details = _render_manual_html(args, browser, pdf_dir, out_dir, selected)
 
     if not args.no_verify and not all_passed:
         print("## ATS 校验未全部通过，不要归档投递。")
         print("")
-        # 按失败项给出针对性指引。若只有超页才谈删减，
-        # 对「文本太少」谈删减是反向误导。
-        failed = [label for label, _, ok in last_details if ok is False]
-        if "页数" in failed:
-            print("**页数超过 1 页**，删除原则：先删装饰性内容，绝不删核心成果与可验证数字。")
-            print("具体顺序见工作区 AGENTS.md 的自定义红线；未记录时，按「装饰信息 →")
-            print("次要课程/证书 → 排版留白 → 展开的细节描述」的顺序处理。")
-        elif "可提取文本" in failed:
-            print("**可提取文本不足**：PDF 文本层内容少于 %d 字符，ATS 可能抓不到内容。"
-                  % MIN_TEXT_LENGTH)
-            print("这与删减无关，方向相反——应检查：")
-            print("  1. 简历内容是否过少（信息量不足，需补充经历与成果）")
-            print("  2. HTML 是否用了背景图或 canvas 呈现文字（应改为真实文本）")
-            print("  3. 字体是否未嵌入导致提取异常（中文字体需可用）")
-        if "关键事实" in failed:
-            print("**关键事实缺失**：检查简历是否删掉了核心成果，")
-            print("或 config/ats_required_facts.txt 中列出的项本就不在简历里。")
+        _print_fail_guidance(last_details)
         return 1
 
     return 0

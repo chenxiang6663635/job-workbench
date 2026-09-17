@@ -469,6 +469,35 @@ def _print_questions(rows):
     print("共 %d 道" % len(rows))
 
 
+def _run_preview(errors, plan, op_name, workspace):
+    """add / import / update 三处同构的「校验 → 两段式预览」尾部。"""
+    for error in errors:
+        print("错误：%s" % error)
+    if plan is None:
+        return 1
+    # 函数内 import：jobws 的 lint 分支要求被分发模块不得顶层引入三方库
+    import approval
+    result = approval.preview(op_name, workspace, plan["payload"],
+                              plan["summary"], plan["diff"], plan["targets"])
+    print("预览：%s" % result["summary"])
+    for line in plan["diff"]:
+        print(line)
+    print("")
+    print("确认后落盘：python tools/jobws.py apply %s" % result["token"])
+    return 0
+
+
+def _bank_changes(args):
+    """add / update 共用的字段字典（同一套参数名）。"""
+    return {
+        "题目": args.title or "", "领域": args.domain or "", "科目": args.subject or "",
+        "标签": args.tags or "", "难度": args.difficulty or "",
+        "答案要点": args.answer or "", "来源": args.origin or "",
+        "关联公司": args.company or "", "关联岗位": args.role or "",
+        "状态": args.status or "", "备注": args.note or "",
+    }
+
+
 def cmd_bank(args):
     """题库：list 查、add 加（两段式）、import 从 03_面试准备 导入（两段式）。"""
     workspace = getattr(args, "workspace", None)
@@ -480,28 +509,8 @@ def cmd_bank(args):
         return 0
 
     if args.action == "add":
-        fields = {
-            "题目": args.title, "领域": args.domain or "", "科目": args.subject or "",
-            "标签": args.tags or "", "难度": args.difficulty or "",
-            "答案要点": args.answer or "", "来源": args.origin or "",
-            "关联公司": args.company or "", "关联岗位": args.role or "",
-            "状态": args.status or "", "备注": args.note or "",
-        }
-        errors, plan = preview_add_fields(fields, workspace)
-        for error in errors:
-            print("错误：%s" % error)
-        if plan is None:
-            return 1
-        # 函数内 import：jobws 的 lint 分支要求被分发模块不得顶层引入三方库
-        import approval
-        result = approval.preview("question.add", workspace, plan["payload"],
-                                  plan["summary"], plan["diff"], plan["targets"])
-        print("预览：%s" % result["summary"])
-        for line in plan["diff"]:
-            print(line)
-        print("")
-        print("确认后落盘：python tools/jobws.py apply %s" % result["token"])
-        return 0
+        errors, plan = preview_add_fields(_bank_changes(args), workspace)
+        return _run_preview(errors, plan, "question.add", workspace)
 
     if args.action == "import":
         # 目录可以换，但**不能越出工作区**：绝对路径会被 os.path.join 当成新根、
@@ -511,42 +520,11 @@ def cmd_bank(args):
             print("错误：--module-dir 必须是工作区内的相对目录（不能是绝对路径或含 ..）")
             return 2
         errors, plan = preview_import(workspace, module_dir)
-        for error in errors:
-            print("错误：%s" % error)
-        if plan is None:
-            return 1
-        import approval
-        result = approval.preview("question.import", workspace, plan["payload"],
-                                  plan["summary"], plan["diff"], plan["targets"])
-        print("预览：%s" % result["summary"])
-        for line in plan["diff"]:
-            print(line)
-        print("")
-        print("确认后落盘：python tools/jobws.py apply %s" % result["token"])
-        return 0
+        return _run_preview(errors, plan, "question.import", workspace)
 
     if args.action == "update":
-        changes = {
-            "题目": args.title or "", "领域": args.domain or "", "科目": args.subject or "",
-            "标签": args.tags or "", "难度": args.difficulty or "",
-            "答案要点": args.answer or "", "来源": args.origin or "",
-            "关联公司": args.company or "", "关联岗位": args.role or "",
-            "状态": args.status or "", "备注": args.note or "",
-        }
-        errors, plan = preview_update_fields(args.id, changes, workspace)
-        for error in errors:
-            print("错误：%s" % error)
-        if plan is None:
-            return 1
-        import approval
-        result = approval.preview("question.update", workspace, plan["payload"],
-                                  plan["summary"], plan["diff"], plan["targets"])
-        print("预览：%s" % result["summary"])
-        for line in plan["diff"]:
-            print(line)
-        print("")
-        print("确认后落盘：python tools/jobws.py apply %s" % result["token"])
-        return 0
+        errors, plan = preview_update_fields(args.id, _bank_changes(args), workspace)
+        return _run_preview(errors, plan, "question.update", workspace)
 
     print("未知子命令：%s" % args.action)
     return 2

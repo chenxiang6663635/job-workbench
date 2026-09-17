@@ -132,7 +132,7 @@ function StatCard({
 }) {
   const { t } = useTranslation();
   const cls = onClick
-    ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+    ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2"
     : "";
   return (
     <button
@@ -140,10 +140,8 @@ function StatCard({
       disabled={!onClick}
       className={`group relative overflow-hidden rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
     >
-      <div
-        className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-20 blur-2xl transition-opacity duration-300 group-hover:opacity-40"
-        style={{ background: accent }}
-      />
+      {/* 彩色光斑已删（2026-09-17 数字体系重做）：与数字抢焦点、浅色卡上显脏；
+          强调交给 icon 底色与主数字本身（方向 A：装饰能删就删） */}
       <div className="relative flex items-start justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -231,7 +229,7 @@ function StaleList({
                 </span>
               </span>
               <span className="flex items-center gap-3 text-xs">
-                <span className="font-mono text-warning">{t("app.daysUnit", { count: s.days })}</span>
+                <span className="tabular-nums text-warning">{t("app.daysUnit", { count: s.days })}</span>
                 <span className="text-muted-foreground">{domainLabel("stage", s.当前阶段, t)}</span>
               </span>
             </li>
@@ -420,7 +418,7 @@ export default function Dashboard() {
                     <span className="truncate text-foreground">
                       {j.company} · {j.role}
                     </span>
-                    <span className="shrink-0 font-mono text-xs text-primary">
+                    <span className="shrink-0 text-xs tabular-nums">
                       {j.score}
                     </span>
                   </button>

@@ -483,7 +483,7 @@ export default function Resume() {
                 <span className="text-sm font-semibold text-foreground">
                   {result.passed ? t("resume.buildOk") : t("resume.buildFailed")}
                 </span>
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="tabular-nums text-xs text-muted-foreground">
                   {(result.size / 1024).toFixed(1)} KB
                 </span>
               </div>

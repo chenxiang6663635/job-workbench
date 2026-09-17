@@ -745,7 +745,7 @@ export default function Applications() {
                       <td className="px-4 py-3">
                         {staleDays !== null ? (
                           <span
-                            className={`inline-flex items-center gap-1 font-mono text-xs ${
+                            className={`inline-flex items-center gap-1 tabular-nums text-xs ${
                               isStale ? "text-warning" : "text-muted-foreground"
                             }`}
                           >

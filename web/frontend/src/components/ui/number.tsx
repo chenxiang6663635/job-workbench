@@ -1,13 +1,21 @@
 import * as React from "react";
 import { cn } from "../../lib/utils";
 
-// 数字原语（批 4）：全站数字的秩序感从这两个组件来——
-// 现状是「tabular-nums 只有 4 处、其余数字位数一变就参差」，而数据产品的第一气质
-// 就是数字成列时的整齐。约定：**任何会成列出现的数字都走 <Num>**。
+// 数字原语（批 4；2026-09-17 实测反馈批按「克制专业」方向重做）：
 //
-// · <Num>：等宽数字（tabular-nums）+ 可选右对齐；表格列、金额、计数、日期都用它。
-// · <StatValue>：KPI 主数字——30px、单位降级做小、基线对齐；渐变文字全站仅此一处
-//   （Stripe 的渐变纪律：渐变不用于正文，数字是唯一被允许的例外）。
+// 规则（一处定义，全站遵守）——
+// · **对齐靠 `tabular-nums`**（等宽数字特性：只统一前进宽度、保留字形边距，
+//   位数变化不抖动，比等宽字体自然）；成列数字一律走 <Num>。
+// · **数字字体统一走界面字体**——不再给数字单开等宽字体：两套字体（拉丁 UI +
+//   等宽）的字宽 / x-height / 笔画粗细不同，摆在一起有"接缝感"（用户实测
+//   「难看」的主因之一）。等宽字体留给代码 / 编号 / 日期（--font-mono 槽）。
+// · **层级靠尺寸与文字深浅**，不靠色相；颜色只编码语义（如「已过期」红）。
+// · 数字不用渐变、不用光斑——可读性优先，装饰与数据抢焦点（渐变两端还常
+//   不达对比度要求）。
+//
+// <Num>：成列 / 变化中的数字（表格列、计数、金额、日期、百分比）。
+// <StatValue>：KPI 主数字——rem 尺寸（随界面字号档缩放），单位降级做小、
+// 基线对齐（约为主数字的 0.7 倍）。
 
 export interface NumProps extends React.HTMLAttributes<HTMLSpanElement> {
   /** 等宽数字（默认开）：数字变化或成列时不抖动 */
@@ -23,7 +31,6 @@ export const Num = React.forwardRef<HTMLSpanElement, NumProps>(
     <span
       ref={ref}
       className={cn(
-        "font-mono",
         tabular && "tabular-nums",
         align === "right" && "text-right",
         muted ? "text-muted-foreground" : "text-foreground",
@@ -37,30 +44,25 @@ Num.displayName = "Num";
 
 export interface StatValueProps extends React.HTMLAttributes<HTMLSpanElement> {
   value: React.ReactNode;
-  /** 单位 / 后缀 / 比较值（降级做小、次级色，与主数字基线对齐） */
+  /** 单位 / 后缀（降级做小、次级色，与主数字基线对齐） */
   unit?: React.ReactNode;
-  /** 主数字渐变（仅 KPI 卡主数字启用；默认关闭，正文数字禁止渐变） */
-  gradient?: boolean;
 }
 
 export const StatValue = React.forwardRef<HTMLSpanElement, StatValueProps>(
-  ({ className, value, unit, gradient = false, ...props }, ref) => (
+  ({ className, value, unit, ...props }, ref) => (
     <span ref={ref} className={cn("flex items-baseline gap-1", className)} {...props}>
       <span
         className={cn(
-          // KPI 数字跟随**界面字体**（Inter/系统）而不是等宽栈——用户实测 mono 大数字
-          // 与整页观感脱节（「字体还没有设置」的体感来源）；tabular-nums 保留：
-          // 位数变化不抖动、四卡并排基线一致。渐变仅显式传 gradient 才启用。
-          "text-[30px] font-semibold leading-none tracking-tight tabular-nums",
-          gradient
-            ? "bg-gradient-to-b from-foreground to-primary/70 bg-clip-text text-transparent"
-            : "text-foreground"
+          // text-3xl = 1.875rem ≈ 30px，且**随界面字号档等比缩放**（此前写死
+          // 30px 不随档位走）；字距 0——等宽数字叠加负字距会"忽松忽紧"，
+          // 正是"大数字毛躁"的来源；行高 1.1（leading-none 会让数字贴上下文）
+          "text-3xl font-semibold leading-[1.1] tabular-nums"
         )}
       >
         {value}
       </span>
       {unit != null && (
-        <span className="text-xs font-medium text-muted-foreground">{unit}</span>
+        <span className="text-xl font-medium text-muted-foreground">{unit}</span>
       )}
     </span>
   )

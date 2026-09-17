@@ -82,7 +82,8 @@ export default function JobDetailView({
           {detail.card ? (
             <div className="space-y-4">
               <div className="flex items-baseline gap-3">
-                <span className="bg-gradient-to-b from-white to-primary/70 bg-clip-text text-3xl font-semibold text-transparent">
+                {/* 同上：白渐变在浅色主题不可读，改实色（数字体系见 ui/number.tsx） */}
+                <span className="text-3xl font-semibold tabular-nums text-primary">
                   {detail.card.total}
                 </span>
                 <span className="text-sm text-muted-foreground">/ 100</span>

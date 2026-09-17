@@ -21,6 +21,7 @@ IMAP 侧（issue #50 S2）已经落实过「默认严格 → 失败即拒绝 →
    用户以为跳过了校验、实际仍然失败（或反过来）。
 """
 
+import logging
 import os
 import ssl
 import sys
@@ -218,3 +219,40 @@ def test_bundled_ca_itself_broken_returns_none(monkeypatch):
     monkeypatch.setattr(tls_policy, "_builtin_ca_file", lambda: "/x/cacert.pem")
 
     assert tls_policy._context_from_builtin_ca() is None
+
+
+# --- 降级提示（2026-09-16 审计补）：只加提示，不改降级语义 ------------------
+
+
+def test_downgrade_logs_a_loud_warning(monkeypatch, no_builtin_ca, caplog):
+    """降级是用户显式选的，但「设过一次就忘了」是常态——必须留下醒目日志。
+
+    日志不是给人盯的，是给事后回看的：连处于未校验状态这件事必须能查得到。
+    """
+    monkeypatch.setattr(ssl, "create_default_context", _BrokenStore.boom)
+    monkeypatch.setenv("JOBWS_HTTP_TLS", "insecure")
+
+    with caplog.at_level(logging.WARNING, logger=tls_policy.__name__):
+        ctx = tls_policy.outbound_ssl_context("Provider 连通性测试",
+                                              "JOBWS_HTTP_TLS")
+
+    assert ctx.verify_mode == ssl.CERT_NONE, "前提：确实降级了"
+    assert "安全警告" in caplog.text, caplog.text
+    assert "JOBWS_HTTP_TLS" in caplog.text, caplog.text
+
+
+def test_is_insecure_matches_the_downgrade_shape(monkeypatch):
+    """界面的提示判定与真正的降级判定必须是同一个口径（含大小写与空格容忍）。
+
+    两处各写一份「是不是 insecure」迟早会漂移，漂移的结果是：界面说安全、
+    实际没校验（或反过来）。
+    """
+    env_var = "JOBWS_IMAP_TLS"
+    monkeypatch.delenv(env_var, raising=False)
+    assert tls_policy.is_insecure(env_var) is False
+
+    monkeypatch.setenv(env_var, " InSecure ")
+    assert tls_policy.is_insecure(env_var) is True
+
+    monkeypatch.setenv(env_var, "strict")
+    assert tls_policy.is_insecure(env_var) is False

@@ -61,7 +61,7 @@
 - 前提：不破坏构建与数据安全；**拿不准 → 一律按 PR 处理**（宁走 PR，不冒险）
 
 - **先开分支，再动手**：分支要在敲第一行代码前建好（`git switch -c feat/xxx`），不要先在 `main` 写完再 checkout——那样虽然未提交改动会被带到新分支、`main` 仍干净，但流程易混淆，一旦中途忘记开分支，提交就直接落进 `main`。
-- **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、**subject 必须含中文**、≤100 字符），豁免 Merge/Revert。判定逻辑在 `tools/commit_header.py`，与 CI 的 PR 标题校验同源。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
+- **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + **规模预算（与 `jobws lint size` 同源实现，只扫暂存文件；存量见 `tools/size_allowlist.txt`）** + pytest 快检（全量 <1s；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、**subject 必须含中文**、≤100 字符），豁免 Merge/Revert。判定逻辑在 `tools/commit_header.py`，与 CI 的 PR 标题校验同源。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
 - **PR 标题也被校验（CI workflow `pr-title`）**：本地钩子只在你自己敲 `git commit` 时运行，而 PR 标题是 GitHub 在合并时用来生成提交 subject 的，**本地钩子结构上看不到它**——这一步只能由 CI 做（语言规则见 §提交规范）。`tools/jobws.py lint pr-title` 经 `PR_TITLE` 环境变量取标题，不拼进 `run:`：PR 标题是外部可控输入，拼进 shell 等于开后门。违规时 CI 红，`gh pr edit <编号> --title "feat(scope): 中文说明"` 即可——这个 workflow 单独一份并显式订阅了 `edited`，因为 `pull_request` 默认只触发 opened / synchronize / reopened，**改标题默认不会重跑**，那样「按提示改标题」就清不掉红叉（2026-09-10 实测踩到）。
 - **开 PR 前先本地预检标题（同一套实现，一秒钟省一轮返工）**：`python tools/jobws.py lint pr-title --title "<你准备用的标题>"`。CI 才是硬闸，但本地预检能把「开完 PR 才发现标题违规」提前到按下回车之前（2026-09-12 实测：scope 写成 `feat(api,ui)`——scope 正则不含逗号，本地两笔提交都合规、PR 标题到 CI 才红）。
 - **PR 的粒度是「一个可独立验收的批次」，不是「一次提交」**：分支内可以多次小步提交，全部完成且 `npm run build` / 测试绿之后再开一次 PR。例：P1 的三批页面迁移 = 三个 PR。
@@ -134,7 +134,7 @@
 - 本文件与 [AGENTS.md](AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
-- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
 - **解释器基线 3.12（2026-09-14 起，原先 3.8）**：CI、打包与文档都以 3.12 为准。技术要求其实只有 ≥3.9（`imaplib` 的 `timeout=`），但**支持**并验证的只有 3.12——所以 `tests/conftest.py` 会在收集前拦住更低版本：测试在错解释器上**静默不可信**，那种失败看起来像"代码坏了"。本题机器最常见的坑是 `python` 落到别的项目在用的 conda 环境（3.8），所以跑之前先 `python -V` 确认。
   - **pre-commit 快检的解释器**：钩子按 `JOBWS_PYTHON` > 仓库内 `.venv` > 运行钩子的解释器 解析；解析到的低于 3.12 时它**降级提示而不是拦提交**（那种结论不可信，CI 兜底）。维护者建议设一次：`setx JOBWS_PYTHON "<3.12 的 python>"`。
   - **`web/start.ps1` 用同一顺序解析后端解释器**（并额外验依赖：能 `import fastapi, uvicorn` 才算数），**不依赖终端里激活了哪个环境**——终端自动激活 conda base（或其他项目环境）时不再影响本仓库的启动；`.\start.ps1 -CheckOnly` 只做预检并打印会选哪个解释器。**`setx` 保存的用户级 `JOBWS_PYTHON` 也会被读到**（`setx` 只对新终端生效，脚本替你把"刚设完但终端还没刷新"这一步接住，并打印一行提示）。
@@ -196,7 +196,10 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 
 写代码时自查，PR 自审时复核：
 
-1. **规模预算**：单文件目标 ≤300 行（超过即考虑按职责拆分）；单函数 ≤60 行、超 80 必拆为「编排函数 + ≥2 个 helper」；嵌套 ≤3 层。
+1. **规模预算**（由 `jobws lint size` 自动量；存量登记在 `tools/size_allowlist.txt`）：
+   - **逻辑型**（业务代码）：单文件 ≤300 行；单函数 ≤60 行、**超 80 必拆**为「编排函数 + ≥2 个 helper」；嵌套 ≤3 层。
+   - **数据·声明型**（i18n 语言包、常量表、测试与 fixtures）：≤1500 行——这类代码行数多而复杂度低，与业务代码同阈值只会逼人把常量表拆碎。判定见 `tools/check_size.py` 的 `classify()`（按路径识别，脚本里的声明式段落不单列，仍按逻辑型计）。
+   - **存量豁免、增量守门**：已超标的文件登记进 `tools/size_allowlist.txt`（`路径 = 行数  # 理由`），**登记值即水位线**——只许变小、不许继续膨胀；降到阈值以内时检查器会要求删掉该条目（自洁，防清单腐化）。**新文件不许再超。**
 2. **提取时机（rule of three）**：同一逻辑第 2 次出现时考虑提取，第 3 次必须提取到公共模块；新增第 3 个 `if/elif` 分支且每分支 >10 行时提取 dispatch。
 3. **禁静默吞错**：`except Exception: pass` 与空 `catch {}` 一律不许——至少记日志（`logger.warning` / `console.error`）。
 4. **单一真值源**：同一枚举/映射/常量只允许在一个模块定义，其他位置引用它——发现第 2 处内联副本即收敛回注册处。

@@ -37,8 +37,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import ssl
+
+logger = logging.getLogger(__name__)
 
 # 显式降级变量的取值：除了这一个词，任何取值都不降级（见口径第 3 条）。
 INSECURE = "insecure"
@@ -46,6 +49,15 @@ INSECURE = "insecure"
 # 两个域各自的降级变量名，调用点从这里取，别在别处再写一遍字面量。
 HTTP_ENV_VAR = "JOBWS_HTTP_TLS"
 IMAP_ENV_VAR = "JOBWS_IMAP_TLS"
+
+
+def is_insecure(env_var):
+    """当前是否处于**显式降级**状态——供调用点在界面上再说一次。
+
+    降级本身是用户的选择，但「只在日志里提醒」等于没提醒（日志没人看、
+    界面天天看）；调用点据此在响应里带一句提示，语义不变。
+    """
+    return os.environ.get(env_var, "").strip().lower() == INSECURE
 
 
 class TlsPolicyError(RuntimeError):
@@ -79,6 +91,13 @@ def outbound_ssl_context(purpose, env_var):
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
+            # 降级是用户**显式**选的（口径第 2 条），但「设过一次就忘了」是常态：
+            # 留一条醒目日志，事后回看时能立刻发现连接处于未校验状态。
+            # 只做提示——不改变任何降级语义（测试按形状计数，这里不含降级字面量）。
+            logger.warning(
+                "【安全警告】已按 %s=%s 跳过 TLS 证书与主机名校验——本连接不验证"
+                "服务器身份，凭证与内容可能被中间人截获；用完请取消该环境变量。",
+                env_var, INSECURE)
             return ctx
         fallback = _context_from_builtin_ca()
         if fallback is not None:

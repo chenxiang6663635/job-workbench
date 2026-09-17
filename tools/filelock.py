@@ -4,7 +4,9 @@
 tracker.py 的 write_rows 是全量重读重写，Web UI 快速连续操作会产生并发写，
 后写覆盖先写导致静默丢数据。所有写操作必须持锁。
 
-Windows 用 msvcrt.locking，Unix 用 fcntl.flock。
+Windows 用 msvcrt.locking，Unix 用 fcntl.flock；**两平台都必须兑现 timeout**
+——裸 `flock(LOCK_EX)` 会无限阻塞，唯有 `LOCK_NB` 轮询能与 Windows 的
+「超时抛错」行为对齐（2026-09-16 审计发现并订正）。
 """
 
 from __future__ import annotations
@@ -27,7 +29,13 @@ def file_lock(path, timeout=10.0):
     """对 path 加排他锁，with 块结束后释放。
 
     锁文件是 path 本身（要求 path 已存在），因此调用方须保证
-    先创建目标文件再加锁。锁粒度是整个文件。
+    先创建目标文件再加锁。**path 应当是专用锁文件（如 `tracker.lock`），
+    不要锁数据文件本身**——Windows 下 `os.open` 打开的文件不共享，锁期间
+    再用 `io.open` 读同一文件会 `PermissionError`（2026-09-16 实测）。
+
+    锁粒度：Unix 是整文件（flock 语义）；Windows 是**首个字节**——同一 path
+    的所有写方锁的都是同一字节，互斥语义等价，但写成「整个文件」是错的
+    （曾如此声明，2026-09-16 订正）。
     """
     fd = os.open(path, os.O_RDWR | os.O_CREAT)
     try:
@@ -41,16 +49,17 @@ def file_lock(path, timeout=10.0):
 
 
 def _acquire(fd, timeout):
-    if not IS_WINDOWS:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        return
-
+    """取排他锁；timeout 秒内拿不到就抛 TimeoutError（两平台行为一致）。"""
     import time
 
     deadline = time.time() + timeout
     while True:
         try:
-            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            if not IS_WINDOWS:
+                # LOCK_NB 是关键：裸 flock(LOCK_EX) 会无限阻塞，timeout 形同虚设
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            else:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
             return
         except OSError:
             if time.time() >= deadline:

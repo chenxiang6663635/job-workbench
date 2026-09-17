@@ -22,6 +22,7 @@ import io
 import json
 import os
 import socket
+import tls_policy
 import unicodedata
 
 from typing import Optional
@@ -238,6 +239,17 @@ def test_imap(ws: str = Depends(workspace_dir)):
     except imap_fetch.ImapFetchError as exc:
         raise ApiError(502, "imap.testFailed", str(exc), error=str(exc))
 
+    note = "只读连接成功；本次测试没有读取、修改或删除任何邮件。"
+    if tls_policy.is_insecure(tls_policy.IMAP_ENV_VAR):
+        # 降级是用户显式选的，但界面上必须再说一次——连处于未校验状态这件事
+        # 不该只留在日志里（日志没人看，界面天天看）。语义不变，只加提示。
+        # 措辞必须留余地：降级只在**本机证书库加载失败**时才真的生效——证书库
+        # 正常时上下文仍是严格校验（tls_policy 口径第 1 条）。写成「已跳过校验」
+        # 会在大多数机器上说假话（独立审查 m1）。
+        note += ("注意：已设置 %s=insecure——本机证书库可用时仍严格校验，"
+                 "仅在其加载失败时才跳过证书与主机名校验；"
+                 "用完请取消该环境变量。" % tls_policy.IMAP_ENV_VAR)
+
     return {
         "ok": True,
         "server": host,
@@ -245,7 +257,7 @@ def test_imap(ws: str = Depends(workspace_dir)):
         "messageCount": count,
         # note 是给人看的展示句，界面语言该由渲染方决定：前端用
         # settings.imapTestNote 自己渲染，这里保留字段只为不破坏既有响应契约。
-        "note": "只读连接成功；本次测试没有读取、修改或删除任何邮件。",
+        "note": note,
     }
 
 

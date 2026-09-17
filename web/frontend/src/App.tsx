@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, Settings as SettingsIcon, TrendingUp } from "lucide-react";
+import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, RefreshCw, Settings as SettingsIcon, TrendingUp } from "lucide-react";
+import { useWorkspaceSync } from "./hooks/useWorkspaceSync";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
 import Jobs from "./pages/Jobs";
@@ -106,6 +107,11 @@ export default function App() {
       });
   }, []);
 
+  // 外部改动同步（批 8）：CLI / MCP / 插件写过数据后，桌面端要能看到。
+  // 整页 reload 与「切换工作区」同款（各页面在 mount 时拉数据）——外部改动是
+  // 低频事件，重载代价可接受；只在**指纹变化**时触发（见 hook 内注释）。
+  useWorkspaceSync(() => window.location.reload());
+
   // 切换工作区：持久化选择并刷新页面（各页面在 mount 时按 currentWorkspace 拉数据）。
   // reload 后从 localStorage 恢复，避免丢回默认工作区。
   const switchWorkspace = (name: string) => {
@@ -158,6 +164,17 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-2 text-xs">
+            {/* 手动刷新（批 8）：外部改动的自动同步是「聚焦 + 指纹轮询」，
+                这个按钮是兜底——用户想立刻刷新时不必等下一轮轮询 */}
+            <button
+              onClick={() => window.location.reload()}
+              className="cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+              title={t("nav.refresh")}
+              aria-label={t("nav.refresh")}
+            >
+              <RefreshCw size={14} />
+            </button>
+
             {/* 语言切换：只有 zh-CN / en 两态，用分段按钮比下拉更省一次点击 */}
             <div
               className="flex items-center rounded-lg border border-border p-0.5"

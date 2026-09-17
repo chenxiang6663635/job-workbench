@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { cn } from "../lib/utils";
+import { Num } from "./ui/number";
 import {
   FONTS,
   FONT_SIZE_DEFAULT,
@@ -18,15 +19,18 @@ import {
   FONT_SIZE_MIN,
   FONT_SIZE_STEP,
   MONOS,
+  NUMERICS,
   SYSTEM_ID,
   getFontChoice,
   getFontSizeChoice,
   getMonoChoice,
+  getNumericChoice,
   getThemeChoice,
   listThemes,
   setFontChoice,
   setFontSizeChoice,
   setMonoChoice,
+  setNumericChoice,
   setThemeChoice,
 } from "../lib/theme";
 import ThemeEditor from "./ThemeEditor";
@@ -41,6 +45,7 @@ export default function ThemePicker() {
   const [editing, setEditing] = useState(false);
   const [font, setFont] = useState(getFontChoice());
   const [mono, setMono] = useState(getMonoChoice());
+  const [numeric, setNumeric] = useState(getNumericChoice());
   const [fontSize, setFontSize] = useState(getFontSizeChoice());
 
   const onPick = (id: string) => {
@@ -153,7 +158,7 @@ export default function ThemePicker() {
           </SelectContent>
         </Select>
 
-        {/* 等宽 / 数字字体（独立槽）：只影响 --font-mono-*（代码、编号、日期） */}
+        {/* 等宽字体（独立槽）：只影响 --font-mono-*（代码、编号、日期） */}
         <p className="mb-2 mt-4 text-xs font-medium text-foreground">
           {t("settings.fontMonoTitle")}
         </p>
@@ -178,6 +183,33 @@ export default function ThemePicker() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* 数字字体（第三槽，批 4.6）：只影响 --font-numeric-*——数值（KPI /
+            计数 / 天数 / 百分比）；"follow" 项走 i18n，字体真名不翻译 */}
+        <p className="mb-2 mt-4 text-xs font-medium text-foreground">
+          {t("settings.fontNumericTitle")}
+        </p>
+        <Select
+          value={numeric}
+          onValueChange={(next) => {
+            setNumeric(next);
+            setNumericChoice(next);
+          }}
+        >
+          <SelectTrigger
+            className="h-8 w-full text-xs"
+            aria-label={t("settings.fontNumericTitle")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {NUMERICS.map((item) => (
+              <SelectItem key={item.id} value={item.id} className="text-xs">
+                {item.id === "follow" ? t("settings.fontFollow") : item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* 界面字号（#4 → 2026-09-17 改连续滑块）：根字号 80–150%（步进 5），
@@ -188,9 +220,9 @@ export default function ThemePicker() {
           <p className="text-xs font-medium text-foreground">
             {t("settings.fontSizeTitle")}
           </p>
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <Num muted className="text-xs">
             {fontSize}%
-          </span>
+          </Num>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[10px] text-muted-foreground" aria-hidden="true">

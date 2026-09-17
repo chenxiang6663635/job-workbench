@@ -9,6 +9,7 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
+import { Num } from "./ui/number";
 import { ErrorBanner } from "./ErrorBanner";
 import { A4Preview } from "./A4Preview";
 import { FileCard } from "./FileCard";
@@ -112,9 +113,9 @@ export default function ResumeTemplates() {
               <span className="text-sm font-semibold text-foreground">
                 {result.passed ? t("resume.buildOk") : t("resume.buildFailed")}
               </span>
-              <span className="tabular-nums text-xs text-muted-foreground">
+              <Num muted numeric={false} className="text-xs">
                 {(result.size / 1024).toFixed(1)} KB · {result.a4.message}
-              </span>
+              </Num>
             </div>
             <ul className="mt-1 space-y-0.5 text-xs">
               {result.checks.map((c) => (

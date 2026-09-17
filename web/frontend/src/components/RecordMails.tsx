@@ -61,7 +61,8 @@ export default function RecordMails({ appId }: { appId: string }) {
           <span className="min-w-0 flex-1 truncate text-foreground" title={m.主题}>
             {m.主题 || "—"}
           </span>
-          <span className="shrink-0 tabular-nums text-muted-foreground">
+          {/* 日期是日期时间（等宽槽的口径）——与追踪表的日期列一致 */}
+          <span className="shrink-0 font-mono text-muted-foreground">
             {(m.日期 || "").split(" ")[0] || "—"}
           </span>
           {m._openLink?.url ? (

@@ -36,7 +36,7 @@
 |---|---|
 | [Inter](https://fontsource.org/fonts/inter) · [Geist](https://fontsource.org/fonts/geist) · [IBM Plex Sans](https://fontsource.org/fonts/ibm-plex-sans) · [Manrope](https://fontsource.org/fonts/manrope) · [Plus Jakarta Sans](https://fontsource.org/fonts/plus-jakarta-sans) · [DM Sans](https://fontsource.org/fonts/dm-sans) | 界面字体选项（默认 Inter） |
 | [Figtree](https://fontsource.org/fonts/figtree) · [Outfit](https://fontsource.org/fonts/outfit) · [Public Sans](https://fontsource.org/fonts/public-sans) · [Source Sans 3](https://fontsource.org/fonts/source-sans-3) · [Work Sans](https://fontsource.org/fonts/work-sans) · [Atkinson Hyperlegible Next](https://fontsource.org/fonts/atkinson-hyperlegible-next) | 界面字体选项 |
-| [Maple Mono](https://fontsource.org/fonts/maple-mono) · [JetBrains Mono](https://fontsource.org/fonts/jetbrains-mono) · [Fira Code](https://fontsource.org/fonts/fira-code) · [Geist Mono](https://fontsource.org/fonts/geist-mono) · [IBM Plex Mono](https://fontsource.org/fonts/ibm-plex-mono) · [Source Code Pro](https://fontsource.org/fonts/source-code-pro) | 等宽 / 数字字体选项（默认 Maple Mono） |
+| [Maple Mono](https://fontsource.org/fonts/maple-mono) · [JetBrains Mono](https://fontsource.org/fonts/jetbrains-mono) · [Fira Code](https://fontsource.org/fonts/fira-code) · [Geist Mono](https://fontsource.org/fonts/geist-mono) · [IBM Plex Mono](https://fontsource.org/fonts/ibm-plex-mono) · [Source Code Pro](https://fontsource.org/fonts/source-code-pro) | 等宽字体选项（默认 Maple Mono）；其中 Geist Mono / IBM Plex Mono / JetBrains Mono 同时是数字字体槽候选（默认 Geist Mono） |
 
 ## 桌面壳（可选，`web/electron/`）
 

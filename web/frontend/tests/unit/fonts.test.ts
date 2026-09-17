@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   clampFontSize,
+  normalizeNumericId,
+  DEFAULT_NUMERIC_ID,
   FONT_SIZE_DEFAULT,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  NUMERICS,
 } from "../../src/lib/fonts";
 
 /**
@@ -31,5 +34,26 @@ describe("clampFontSize（界面字号的吸附与夹取）", () => {
 
   it("默认值本身在步进网格上，原样通过", () => {
     expect(clampFontSize(FONT_SIZE_DEFAULT)).toBe(FONT_SIZE_DEFAULT);
+  });
+});
+
+/**
+ * 数字槽归一化（批 4.6）：存储值、首帧脚本与设置页三处的输入都汇到
+ * normalizeNumericId 这一处——未登记 id / 空串一律回落默认款（不落空槽）。
+ * "follow"（跟随界面字体）是合法值，必须原样通过（它是关闭数字槽的显式开关）。
+ */
+describe("normalizeNumericId（数字槽归一化）", () => {
+  it("合法 id 原样通过（含 follow）", () => {
+    expect(normalizeNumericId("plex-mono")).toBe("plex-mono");
+    expect(normalizeNumericId("follow")).toBe("follow");
+  });
+
+  it("未登记 id 与空串回落默认款", () => {
+    expect(normalizeNumericId("comic-sans")).toBe(DEFAULT_NUMERIC_ID);
+    expect(normalizeNumericId("")).toBe(DEFAULT_NUMERIC_ID);
+  });
+
+  it("默认款在候选列表里（默认与列表防漂移）", () => {
+    expect(NUMERICS.map((n) => n.id)).toContain(DEFAULT_NUMERIC_ID);
   });
 });

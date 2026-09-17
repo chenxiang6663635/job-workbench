@@ -459,10 +459,14 @@ const zhCN = {
   "onboard.done": "工作区已就绪",
   "onboard.doneHint": "点「开始使用」回到首页；想换领域或重来，删掉这个目录再建一次即可。",
   "onboard.start": "开始使用",
-  "dash.funnelTitle": "投递漏斗（点击柱子查看该阶段岗位）",
+  "dash.funnelTitle": "投递漏斗（点击条形查看该阶段岗位）",
   "dash.funnelRowTitle": "{{stage}}：{{count}} 条",
-  "dash.byDirection": "按方向（点击查看该方向岗位）",
-  "dash.byBatch": "按批次（点击查看该批次岗位）",
+  // 「按方向 / 按批次」合并为分段控件（批 4.6）：两个选项用短标签，
+  // 分组名交给 ariaLabel；行内悬停提示统一走 breakdownRowTitle
+  "dash.dimAria": "切换汇总维度",
+  "dash.dimDirection": "按方向",
+  "dash.dimBatch": "按批次",
+  "dash.breakdownRowTitle": "{{name}}：{{count}} 条",
   "dash.upcomingEmpty": "未来七天没有到期事项。",
   "dash.viewRecord": "查看该记录",
   "dash.postpone7": "顺延 7 天",
@@ -1117,10 +1121,13 @@ const zhCN = {
   "settings.themeDeleted": "已删除",
   "settings.themeReadFailed": "读不到当前主题变量（getComputedStyle 为空）",
   "settings.themeResetFromCurrent": "从当前主题重新开始",
-  // 字体方案（4g → 2026-09-17 扩到 12 款界面 + 6 款等宽，全部本地打包、
-  // OFL-1.1、离线可用；字体真名不翻译）；等宽槽管代码 / 编号 / 日期
+  // 字体方案（4g → 2026-09-17 扩到 12 款界面 + 6 款等宽；批 4.6 加数字第三槽。
+  // 全部本地打包、OFL-1.1、离线可用；字体真名不翻译）；等宽槽管代码 / 编号 /
+  // 日期，数字槽管数值；follow 项 = 跟随界面字体
   "settings.fontTitle": "界面字体",
-  "settings.fontMonoTitle": "等宽 / 数字字体",
+  "settings.fontMonoTitle": "等宽字体",
+  "settings.fontNumericTitle": "数字字体",
+  "settings.fontFollow": "跟随界面字体",
   "settings.fontSystem": "系统字体（更快）",
   "settings.fontSerif": "衬线（Times / 宋体）",
   // 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比随滑块走

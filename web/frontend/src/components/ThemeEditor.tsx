@@ -185,7 +185,7 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
               </span>
               <span
                 className={cn(
-                  "flex items-center gap-1 text-[11px] tabular-nums",
+                  "flex items-center gap-1 font-medium tabular-nums font-numeric text-[11px]",
                   level === "fail" ? "text-destructive" : "text-muted-foreground"
                 )}
               >

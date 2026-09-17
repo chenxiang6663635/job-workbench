@@ -48,7 +48,8 @@ export default function ActivityFeed({ entries }: { entries: ActivityEntry[] }) 
                   {entry.new}
                 </p>
               </div>
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+              {/* 时间戳是日期时间（等宽槽的口径）——与追踪表的日期列一致 */}
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
                 {entry.time.slice(0, 16)}
               </span>
             </li>

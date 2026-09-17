@@ -30,9 +30,10 @@ import { EmptyOnboarding } from "../components/OnboardingWizard";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
 import { Badge } from "../components/ui/badge";
-import { Bar as BarTrack } from "../components/ui/bar";
+import { BarList } from "../components/ui/bar-list";
 import { Button } from "../components/ui/button";
 import { Num, StatValue } from "../components/ui/number";
+import { Segmented } from "../components/ui/segmented";
 import { EmptyState } from "../components/ui/empty";
 import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
@@ -140,7 +141,7 @@ function StatCard({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`group relative overflow-hidden rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
+      className={`group relative overflow-hidden rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
     >
       {/* 彩色光斑已删（2026-09-17 数字体系重做）：与数字抢焦点、浅色卡上显脏；
           强调交给 icon 底色与主数字本身（方向 A：装饰能删就删） */}
@@ -171,27 +172,6 @@ function StatCard({
           {t("common.view")} <ChevronRight size={14} />
         </span>
       )}
-    </button>
-  );
-}
-
-function ClickRow({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="group flex w-full cursor-pointer items-center justify-between text-left text-sm transition-colors hover:text-primary"
-    >
-      {children}
-      <ChevronRight
-        size={14}
-        className="text-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
-      />
     </button>
   );
 }
@@ -231,7 +211,7 @@ function StaleList({
                 </span>
               </span>
               <span className="flex items-center gap-3 text-xs">
-                <span className="tabular-nums text-warning">{t("app.daysUnit", { count: s.days })}</span>
+                <Num className="text-warning">{t("app.daysUnit", { count: s.days })}</Num>
                 <span className="text-muted-foreground">{domainLabel("stage", s.当前阶段, t)}</span>
               </span>
             </li>
@@ -255,7 +235,7 @@ const LEVEL_META: Record<
 function PendingList({ pending }: { pending: PendingItem[] }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
+    <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Flame size={15} className="text-destructive" />
         <h2 className="text-sm font-semibold text-foreground">{t("dash.pendingTitle")}</h2>
@@ -306,6 +286,8 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // 「按方向 / 按批次」合并后的当前维度（批 4.6）；纯会话态，刷新回默认
+  const [dim, setDim] = useState<"direction" | "batch">("direction");
 
   useEffect(() => {
     setError(null);
@@ -422,9 +404,7 @@ export default function Dashboard() {
                     <span className="truncate text-foreground">
                       {j.company} · {j.role}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums">
-                      {j.score}
-                    </span>
+                    <Num className="shrink-0 text-xs">{j.score}</Num>
                   </button>
                 ))}
               </div>
@@ -439,7 +419,7 @@ export default function Dashboard() {
           )}
 
           {hasScoreByState && (
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
+            <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
               <h2
                 className="text-sm font-semibold text-foreground"
                 title={t("dash.scoreByStateHintFull")}
@@ -538,7 +518,7 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 lg:col-span-2">
+            <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5 lg:col-span-2">
               <h2 className="mb-4 text-sm font-semibold text-foreground">
                 {t("dash.funnelTitle")}
               </h2>
@@ -546,72 +526,70 @@ export default function Dashboard() {
                   「按方向 / 按批次」同一种读数方式。柱状图的标签只能跟着柱尾走，
                   数据分布一不均就参差不齐（而这一栏的值本来就常常相等）。
                   条形仍按比例，另加一层轨道——数据少时也能看清「占了多少」。 */}
-              <div className="space-y-2.5">
-                {data.funnel.map((f) => (
-                  <button
-                    key={f.stage}
-                    onClick={() => drillTo({ stage: f.stage })}
-                    title={t("dash.funnelRowTitle", {
-                      stage: domainLabel("stage", f.stage, t),
-                      count: f.count,
-                    })}
-                    className="group flex w-full cursor-pointer items-center gap-3 text-left"
-                  >
-                    <span
-                      className="w-24 shrink-0 truncate text-xs text-muted-foreground transition-colors group-hover:text-primary"
-                      title={domainLabel("stage", f.stage, t)}
-                    >
-                      {domainLabel("stage", f.stage, t)}
-                    </span>
-                    <BarTrack
-                      value={f.count / maxFunnel}
-                      color={STAGE_COLORS[f.stage] ?? "hsl(var(--primary))"}
-                      className="flex-1"
-                    />
-                    <Num align="right" className="w-6 shrink-0 text-xs font-medium">
-                      {f.count}
-                    </Num>
-                  </button>
-                ))}
-              </div>
+              <BarList
+                sortDesc={false}
+                max={maxFunnel}
+                labelWidth="w-24"
+                valueWidth="w-6"
+                barHeight="md"
+                items={data.funnel.map((f) => ({
+                  key: f.stage,
+                  label: domainLabel("stage", f.stage, t),
+                  value: f.count,
+                  color: STAGE_COLORS[f.stage] ?? "hsl(var(--primary))",
+                  title: t("dash.funnelRowTitle", {
+                    stage: domainLabel("stage", f.stage, t),
+                    count: f.count,
+                  }),
+                  onClick: () => drillTo({ stage: f.stage }),
+                }))}
+              />
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
-                <h2 className="mb-3 text-sm font-semibold text-foreground">
-                  {t("dash.byDirection")}
-                </h2>
-                <div className="space-y-2">
-                  {data.byDirection.map((d) => (
-                    <ClickRow
-                      key={d.key}
-                      onClick={() => drillTo({ direction: d.key })}
-                    >
-                      <span className="text-muted-foreground">{domainLabel("direction", d.key, t)}</span>
-                      <Num className="text-primary">{d.count}</Num>
-                    </ClickRow>
-                  ))}
-                </div>
+            <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
+              {/* 一个分段控件合并原来的「按方向 / 按批次」两块（批 4.6）：
+                  同一种读数方式（BarList 行）随维度切换，不再两块并列 */}
+              <div className="mb-3">
+                <Segmented
+                  value={dim}
+                  onChange={(v) => setDim(v)}
+                  ariaLabel={t("dash.dimAria")}
+                  options={[
+                    { value: "direction", label: t("dash.dimDirection") },
+                    { value: "batch", label: t("dash.dimBatch") },
+                  ]}
+                />
               </div>
-
-              <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
-                <h2 className="mb-3 text-sm font-semibold text-foreground">
-                  {t("dash.byBatch")}
-                </h2>
-                <div className="space-y-2">
-                  {data.byBatch.map((b) => (
-                    <ClickRow key={b.key} onClick={() => drillTo({ batch: b.key })}>
-                      <span className="text-muted-foreground">{domainLabel("batch", b.key, t)}</span>
-                      <Num className="text-primary">{b.count}</Num>
-                    </ClickRow>
-                  ))}
-                </div>
-              </div>
+              <BarList
+                items={
+                  dim === "direction"
+                    ? data.byDirection.map((d) => ({
+                        key: d.key,
+                        label: domainLabel("direction", d.key, t),
+                        value: d.count,
+                        title: t("dash.breakdownRowTitle", {
+                          name: domainLabel("direction", d.key, t),
+                          count: d.count,
+                        }),
+                        onClick: () => drillTo({ direction: d.key }),
+                      }))
+                    : data.byBatch.map((b) => ({
+                        key: b.key,
+                        label: domainLabel("batch", b.key, t),
+                        value: b.count,
+                        title: t("dash.breakdownRowTitle", {
+                          name: domainLabel("batch", b.key, t),
+                          count: b.count,
+                        }),
+                        onClick: () => drillTo({ batch: b.key }),
+                      }))
+                }
+              />
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
+            <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
                 {t("dash.upcoming")}
               </h2>
@@ -652,7 +630,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
+            <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
                 {t("dash.overdueTitle")}
               </h2>
@@ -689,7 +667,7 @@ export default function Dashboard() {
 
           {/* 周期复盘（P3）：转化率 / 停留 / 归因——数据越攒越值钱 */}
           {data.retrospective && (
-            <div className="rounded-lg border border-border bg-card/40 shadow-card ring-1 ring-highlight/5 p-5">
+            <div className="rounded-lg bg-card/40 shadow-card ring-1 ring-highlight/5 p-5">
               <RetrospectivePanel data={data.retrospective} />
             </div>
           )}

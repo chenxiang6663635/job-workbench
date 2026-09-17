@@ -425,8 +425,12 @@ export default {
   "onboard.start": "Get started",
   "dash.funnelTitle": "Application funnel (click a bar to see that stage)",
   "dash.funnelRowTitle": "{{stage}}: {{count}}",
-  "dash.byDirection": "By direction (click to see those jobs)",
-  "dash.byBatch": "By batch (click to see those jobs)",
+  // Breakdown segmented control (batch 4.6): short option labels; the group
+  // name goes to ariaLabel; row tooltips share breakdownRowTitle.
+  "dash.dimAria": "Switch breakdown dimension",
+  "dash.dimDirection": "Direction",
+  "dash.dimBatch": "Batch",
+  "dash.breakdownRowTitle": "{{name}}: {{count}}",
   "dash.upcomingEmpty": "Nothing due in the next seven days.",
   "dash.viewRecord": "Open this application",
   "dash.postpone7": "Postpone 7 days",
@@ -1033,13 +1037,17 @@ export default {
   "settings.themeDeleted": "Deleted",
   "settings.themeReadFailed": "Could not read the current theme variables (getComputedStyle empty)",
   "settings.themeResetFromCurrent": "Restart from the active theme",
-  // Typeface (4g → 2026-09-17 expanded to 12 UI + 6 mono families, all bundled
-  // locally under OFL-1.1; real typeface names are not translated).
+  // Typeface (4g → 2026-09-17 expanded to 12 UI + 6 mono families; batch 4.6 adds
+  // the numerals slot; all bundled locally under OFL-1.1; real typeface names are
+  // not translated). Mono covers code/IDs/dates, numerals cover values; "follow"
+  // follows the interface typeface.
   "settings.fontTitle": "Typeface",
-  "settings.fontMonoTitle": "Monospace / numerals",
+  "settings.fontMonoTitle": "Monospace",
+  "settings.fontNumericTitle": "Numerals",
+  "settings.fontFollow": "Follow interface font",
   "settings.fontSystem": "System fonts (faster)",
   "settings.fontSerif": "Serif (Times / Songti)",
-  // Interface size (#4): four-step root font scaling (rem-based), decoupled from desktop zoom.
+  // Interface size (#4): continuous 80-150% root font scaling (rem-based), decoupled from desktop zoom.
   // Size values are literal percentages (e.g. "112%"), not translation keys.
   "settings.fontSizeTitle": "Interface size",
   "settings.fontSizeReset": "Reset",

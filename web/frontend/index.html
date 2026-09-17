@@ -30,6 +30,11 @@
           if (monoChoice) {
             document.documentElement.setAttribute("data-mono", monoChoice);
           }
+          // 数字槽（批 4.6）：同等宽——没存过就命中 :root 默认款
+          var numericChoice = localStorage.getItem("jobws.numeric");
+          if (numericChoice) {
+            document.documentElement.setAttribute("data-numeric", numericChoice);
+          }
           // 字号：连续百分比（80–150，2026-09-17 起）；兼容历史四档值
           var fontSize = localStorage.getItem("jobws.fontsize");
           var legacySizes = { sm: 87.5, base: 100, lg: 112.5, xl: 125 };

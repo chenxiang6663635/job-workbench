@@ -22,6 +22,7 @@ import {
 } from "./ui/select";
 import { ErrorBanner } from "./ErrorBanner";
 import { EmptyState } from "./ui/empty";
+import { Num } from "./ui/number";
 
 interface Props {
   onClose: () => void;
@@ -235,14 +236,14 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
           <p className="text-xs text-muted-foreground">
             {messages ? (
               <>
-                <span className="tabular-nums">
+                <Num numeric={false}>
                   {/* count 决定 messages 的单复数（按总数），shown/total 是显示值 */}
                   {t("imap.showing", {
                     count: messages.length,
                     shown: filtered.length,
                     total: messages.length,
                   })}
-                </span>
+                </Num>
                 {t("imap.hintWithRange", { range: rangeLabel })}
               </>
             ) : (

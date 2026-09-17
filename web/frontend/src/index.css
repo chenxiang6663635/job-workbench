@@ -100,18 +100,22 @@
     --duration-slow: 400ms;
     --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
 
-    /* 字体体系（批 4，4g → 2026-09-17 扩到 12 款界面 + 6 款等宽）：
-       拉丁槽（本地打包，OFL-1.1）与中文系统栈分开维护、组合成完整栈——
-       中文不内置（体积 10–30MB/款），始终由系统字体承接；拉丁字符由
-       --font-latin 命中，不会落到 cjk 槽。等宽槽独立（代码 / 编号 / 日期）。
+    /* 字体体系（批 4，4g → 2026-09-17 扩到 12 款界面 + 6 款等宽；批 4.6 加
+       数字第三槽）：拉丁槽（本地打包，OFL-1.1）与中文系统栈分开维护、组合成
+       完整栈——中文不内置（体积 10–30MB/款），始终由系统字体承接；拉丁字符
+       由 --font-latin 命中，不会落到 cjk 槽。等宽槽独立（代码 / 编号 / 日期），
+       数字槽独立（数值——KPI / 计数 / 天数 / 百分比）。
        每个方案一行 `html[data-font="…"]`（见下方），**id 与 lib/fonts.ts 的
-       FONTS / MONOS 必须同步**（CSS 不被门禁扫描，靠两边注释人工兜住）。 */
+       FONTS / MONOS / NUMERICS 必须同步**（CSS 不被门禁扫描，靠两边注释人工
+       兜住）。 */
     --font-latin: "Inter Variable";
     --font-cjk: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
       "Noto Sans CJK SC";
     --font-sans-stack: var(--font-latin), var(--font-cjk), system-ui, sans-serif;
     --font-mono: "Maple Mono";
     --font-mono-stack: var(--font-mono), Consolas, monospace;
+    --font-numeric: "Geist Mono Variable";
+    --font-numeric-stack: var(--font-numeric), var(--font-latin), var(--font-cjk);
 
     --radius: 0.75rem;
   }
@@ -139,6 +143,7 @@ html:lang(zh) body {
 
 /* 字体方案：系统栈（不加载 webfont）——launch 更快，少一份字体下载 */
 html[data-font="system"] {
+  --font-latin: system-ui;
   --font-sans-stack: system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
 }
@@ -146,6 +151,7 @@ html[data-font="system"] {
 /* 衬线方案（用户反馈 #2）：想要 Times New Roman 一脉的正文观感——拉丁走 Times，
    中文走系统宋体（SimSun / 宋体-简），长文阅读更耐看。 */
 html[data-font="serif"] {
+  --font-latin: "Times New Roman";
   --font-sans-stack: "Times New Roman", "Source Han Serif SC", "Noto Serif SC",
     SimSun, "Songti SC", serif;
 }
@@ -187,8 +193,9 @@ html[data-font="atkinson"] {
   --font-latin: "Atkinson Hyperlegible Next Variable";
 }
 
-/* 等宽 / 数字字体方案（2026-09-17）：只换等宽槽 --font-mono——作用于代码、
-   编号与日期时间；id 与 lib/fonts.ts 的 MONOS 同步（maple 即 :root 默认）。 */
+/* 等宽字体方案（第二槽；2026-09-17 → 批 4.6 起只服务"非数值"）：只换等宽槽
+   --font-mono——作用于代码、编号与日期时间；id 与 lib/fonts.ts 的 MONOS 同步
+   （maple 即 :root 默认）。 */
 html[data-mono="jetbrains"] {
   --font-mono: "JetBrains Mono Variable";
 }
@@ -203,6 +210,20 @@ html[data-mono="plex-mono"] {
 }
 html[data-mono="source-code"] {
   --font-mono: "Source Code Pro Variable";
+}
+
+/* 数字字体方案（第三槽；批 4.6）：只换数字槽 --font-numeric——作用于**数值**
+   （KPI / 计数 / 天数 / 百分比）；等宽槽继续管代码、编号与日期时间。
+   id 与 lib/fonts.ts 的 NUMERICS 同步（geist-mono 即 :root 默认）；
+   follow = 跟随界面字体（数字退回界面字体 tabular-nums 的行为）。 */
+html[data-numeric="jetbrains"] {
+  --font-numeric: "JetBrains Mono Variable";
+}
+html[data-numeric="plex-mono"] {
+  --font-numeric: "IBM Plex Mono";
+}
+html[data-numeric="follow"] {
+  --font-numeric: var(--font-latin);
 }
 
 /* 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比（80–150%）由

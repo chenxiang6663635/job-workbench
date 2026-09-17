@@ -305,8 +305,11 @@ def test_import_apply_holds_tracker_lock(tmp_path, monkeypatch):
         assert state["locked"], "写入必须发生在 tracker.lock 内（独立审查 M1）"
         return real_write(rows, workspace)
 
-    monkeypatch.setattr(tracker, "file_lock", spy_lock)
-    monkeypatch.setattr(tracker, "write_rows", spy_write)
+    # tracker 包化后要打到「调用点所在子模块」（门面 setattr 不影响内层快照）。
+    # 锁在 apply 层（apply_approved_import 在 preview_app）；
+    # 写调用从 importing.commit_import 的命名空间出发（grep 实证）。
+    monkeypatch.setattr(tracker.preview_app, "file_lock", spy_lock)
+    monkeypatch.setattr(tracker.importing, "write_rows", spy_write)
 
     result = approval.apply(token["token"])
 

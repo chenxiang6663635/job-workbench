@@ -10,7 +10,6 @@
 # 重新生成草稿：`python tools/check_size.py --print-allowlist`
 #
 # --- 领域层：拆分为重构专项，拆前只许变小 ---
-tools/tracker.py = 2522  # 7 张表的领域层（tracker/interviews/contacts/offers/talks/questions/mails）；已列重构专项；2026-09-16 清静默吞错加 sidecar 失败日志（2515→2522）
 web/backend/routers/progress.py = 839  # 7 组资源的聚合 router（interviews/talks/mails/questions/contacts/offers）；同上
 #
 # --- 脚本：argparse 声明 + 处理流程，声明式占比大 ---

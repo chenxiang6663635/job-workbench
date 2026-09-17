@@ -34,6 +34,11 @@ if os.path.isdir(_tools_src):
         src = os.path.join(_tools_src, name)
         if os.path.isfile(src):
             tools_datas.append((src, "tools"))
+        elif os.path.isdir(src) and name != "__pycache__":
+            # 包目录整棵树随 datas 复制（与 template/ 同款处理；2026-09-16
+            # 重构批引入 tools/tracker/ 包——不收目录的话打包版里整个领域层
+            # 都不在了，且 CI 只构建不运行产物、会全绿）
+            tools_datas.append((src, os.path.join("tools", name)))
 
 # tools/ 下的模块名清单（喂给 hiddenimports，理由见下方 project_hidden）。
 # 后端对这些模块用**裸名导入**（`import tracker`、`from report import …`、`import imap_fetch`）：
@@ -63,6 +68,21 @@ if os.path.isdir(_tools_src):
         and name != "__init__.py"
         and not name.startswith(_TOOLS_SKIP)
     )
+    # 包目录自动展开为子模块清单（2026-09-16 重构批）：tracker 的门面用
+    # PEP 562 的 importlib 动态转发，PyInstaller 静态分析看不穿
+    # `importlib.import_module("." + mod)`——不显式列出子模块，打包版里
+    # 第一次属性访问就会 ModuleNotFoundError（CI 只构建不运行产物、会全绿，
+    # 这正是 v0.2.2 imaplib 事故的同款形态）。
+    for name in sorted(os.listdir(_tools_src)):
+        pkg_dir = os.path.join(_tools_src, name)
+        if (name == "__pycache__" or not os.path.isdir(pkg_dir)
+                or not os.path.isfile(os.path.join(pkg_dir, "__init__.py"))):
+            continue
+        for sub in sorted(os.listdir(pkg_dir)):
+            if sub.endswith(".py") and sub != "__init__.py":
+                tools_modules.append(
+                    "%s.%s" % (name, os.path.splitext(sub)[0]))
+    tools_modules = sorted(set(tools_modules))
 
 # template/ 必须随包：tools 里的 jd_score / resume_build 按 `__file__` 向上两级定位
 # `ROOT/template/...`（打包后即 _internal/template/，它们源码里就是这么写的）。

@@ -34,7 +34,10 @@ function Test-PyDeps([string]$pyPath) {
     # try/catch 兜住「命令不存在」这类终止性错误（PATH 没有 python 时 `&` 会抛），
     # 否则它会炸穿探测段、绕过 conda 兜底与人话报错（同审查 MAJOR-2）。
     try {
-        & $pyPath -c "import fastapi, uvicorn, pydantic, PyInstaller" *> $null
+        # 版本断言与 web/backend/main.py 的 IMAP_MIN_PY 同源：3.8 环境也能「装上
+        # 依赖」（本机 conda 就有），用它打出的 exe 内嵌 3.8、启动即被解释器裁决
+        # 拒绝（exit 2）——2026-09-16 打包冒烟实测踩到，故在探测阶段就排除。
+        & $pyPath -c "import sys, fastapi, uvicorn, pydantic, PyInstaller; assert sys.version_info[:2] >= (3, 9), sys.version" *> $null
         return [bool]($LASTEXITCODE -eq 0)
     } catch {
         return $false
@@ -104,11 +107,11 @@ $ErrorActionPreference = "Continue"
 # 从仓库根执行 `import filelock` 会去命中同名的 PyPI 包——本机恰好装了它就通过，
 # 干净环境（CI / 新机器）没装就误报「缺少依赖 fastapi / uvicorn / PyInstaller」，
 # 而那句话是假的，会把排查引到错误方向。第三方的同名包反而可能遮蔽仓内模块。
-& $Py -c "import fastapi, uvicorn, pydantic, PyInstaller" 2>$null
+& $Py -c "import sys, fastapi, uvicorn, pydantic, PyInstaller; assert sys.version_info[:2] >= (3, 9), sys.version" 2>$null
 $checkCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ($checkCode -ne 0) {
-    Write-Host "当前解释器缺少依赖（fastapi / uvicorn / PyInstaller）。" -ForegroundColor Red
+    Write-Host "当前解释器缺少依赖（fastapi / uvicorn / PyInstaller）或版本低于 3.9（打出的 exe 会在启动时自拒）。" -ForegroundColor Red
     # PyInstaller 不在两份 requirements 里（CI 也是单独装的），提示必须带上它，
     # 否则用户照提示装完仍缺、再报同一个错（独立审查 MINOR-5）。
     Write-Host "请在目标环境执行: $Py -m pip install -r web/backend/requirements.txt -r web/backend/requirements-dev.txt 'pyinstaller<7'" -ForegroundColor Yellow

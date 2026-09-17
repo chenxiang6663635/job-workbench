@@ -402,7 +402,7 @@ def run_check(workspace=None):
 
 def parse_iso_date(value):
     """解析 YYYY-MM-DD，非法返回 None。与 report.parse_date 同规则，
-    但 tracker 不 import report（脚本互不调用，report 才导入 tracker）。
+    但 tracker 不 import report（反向依赖：report 导入 tracker，避免循环）。
     """
     raw = (value or "").strip()
     if not DATE_RE.match(raw):

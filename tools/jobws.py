@@ -25,7 +25,7 @@
 用法：
 
     python tools/jobws.py --help            列出全部命令
-    python tools/jobws.py track --help      看 track 的 10 个子命令
+    python tools/jobws.py track --help      看 track 的 12 个子命令
     python tools/jobws.py track list --stage 一面
     python tools/jobws.py init --demo
     python tools/jobws.py lint pr-title     校验环境变量 PR_TITLE（CI 用）
@@ -122,7 +122,7 @@ def build_parser():
 
     for name, module, help_text in TARGETS:
         # add_help=False 是必须的：否则 `jobws track --help` 会被这一层吃掉，
-        # 打印的是 jobws 自己的说明，用户看不到 track 的 10 个子命令。
+        # 打印的是 jobws 自己的说明，用户看不到 track 的 12 个子命令。
         sub = subs.add_parser(name, help=help_text, add_help=False)
         if module is None:
             # nargs="?"：子命令留空时由 main 自己报「缺子命令」并给出可选值。

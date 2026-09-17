@@ -18,6 +18,8 @@ _TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+import workspace_io  # noqa: E402  （批 8：原子写与锁名收敛到共享原语）
+
 # 库代码一律走 logging 而不是 print：tracker 被后端常驻进程与 MCP
 #（stdout 是协议通道）导入，print 会污染 stdout——logger 存在的理由。
 logger = logging.getLogger(__name__)
@@ -145,19 +147,7 @@ def _atomic_write_csv(path, rows, fieldnames, encoding):
     utf-8-sig 写入时加 BOM，Excel 直接打开不乱码；
     restval 保证旧文件（缺新增列）写回时补出空列，避免 None 落盘成 "None"。
     """
-    directory = os.path.dirname(path)
-    if not os.path.isdir(directory):
-        os.makedirs(directory)
-    tmp = os.path.join(directory, TMP_PREFIX + os.path.basename(path))
-    with io.open(tmp, "w", encoding=encoding, newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore",
-                                restval="")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({k: ("" if v is None else v) for k, v in row.items()})
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, path)
+    workspace_io.atomic_write_csv(path, rows, fieldnames, encoding=encoding)
 
 
 

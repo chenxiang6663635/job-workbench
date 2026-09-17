@@ -519,11 +519,10 @@ def main():
 
     out_path = os.path.abspath(args.out) if args.out else os.path.join(
         workspace, "05_投递追踪", "看板.md")
-    directory = os.path.dirname(out_path)
-    if not os.path.isdir(directory):
-        os.makedirs(directory)
-    with io.open(out_path, "w", encoding="utf-8", newline="") as f:
-        f.write(content)
+    # 原子写（批 8 收敛）：看板是用户会打开的文件，半截比没有更糟
+    import workspace_io
+
+    workspace_io.atomic_write_text(out_path, content)
 
     print("已生成看板：%s" % os.path.relpath(out_path, ROOT))
     print("共 %d 条记录。" % len(rows))

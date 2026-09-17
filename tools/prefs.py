@@ -64,20 +64,11 @@ def read_prefs(workspace=None):
 
 
 def write_prefs(values, workspace=None):
-    """原子写（tmp + os.replace）：半截 JSON 比没有偏好更糟。"""
-    path = prefs_path(workspace)
-    directory = os.path.dirname(path)
-    if not os.path.isdir(directory):
-        os.makedirs(directory)
-    fd, tmp = tempfile.mkstemp(dir=directory, suffix=".tmp")
-    try:
-        with io.open(fd, "w", encoding="utf-8") as handle:
-            handle.write(json.dumps(values, ensure_ascii=False, indent=2, sort_keys=True))
-        os.replace(tmp, path)
-    except Exception:
-        if os.path.isfile(tmp):
-            os.remove(tmp)
-        raise
+    """原子写（共享原语）：半截 JSON 比没有偏好更糟。批 8 收敛到 workspace_io。"""
+    import workspace_io  # 用到才加载：prefs 保持轻量，模块级路径注入交给调用方
+
+    payload = json.dumps(values, ensure_ascii=False, indent=2, sort_keys=True)
+    workspace_io.atomic_write_text(prefs_path(workspace), payload)
 
 
 def cmd_get(args):

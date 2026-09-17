@@ -1,0 +1,47 @@
+# 规模预算的存量豁免清单（配合 tools/check_size.py 与 `jobws lint size`）
+#
+# 格式：`路径 = 登记行数  # 理由`。登记行数兼作**水位线**：
+#   · 实际行数降到阈值以内 → 报错要求删掉这一行（自洁，防清单腐化）；
+#   · 实际行数超过登记值 → 报错（存量只许变小，不许继续膨胀）；
+#   · 在这两者之间 → 放行（存量债务，不还也别再借）。
+#
+# 本清单是**现状存档**，不是永久豁免：理由要写清"为什么这一项暂时不拆"，
+# 拆完就删（留着等于给将来的同名文件预授权——i18n 豁免清单的教训）。
+# 重新生成草稿：`python tools/check_size.py --print-allowlist`
+#
+# --- 领域层：拆分为重构专项，拆前只许变小 ---
+tools/tracker.py = 2515  # 7 张表的领域层（tracker/interviews/contacts/offers/talks/questions/mails）；已列重构专项
+web/backend/routers/progress.py = 839  # 7 组资源的聚合 router（interviews/talks/mails/questions/contacts/offers）；同上
+#
+# --- 脚本：argparse 声明 + 处理流程，声明式占比大 ---
+tools/jd_score.py = 684  # 评分标准 + 解析卡校验 + CLI
+tools/resume_build.py = 680  # 模板渲染 + ATS 校验 + CLI
+tools/check_i18n_hardcode.py = 663  # i18n 检查器（含 EN_SCOPE_RELS 与豁免解析）
+tools/question_bank.py = 610  # 题库领域层 + 导入解析 + CLI
+tools/report.py = 532  # 复盘统计与聚类
+tools/imap_fetch.py = 429  # IMAP 只读会话 + 邮件解析
+tools/init_workspace.py = 425  # 骨架复制 + demo 数据铺设
+tools/status_parse.py = 329  # 阶段同义词映射与解析
+tools/check_skills.py = 251  # 文件未超标，但 inspect_skills() 有 108 行（技能校验流程，待拆）
+tools/install_skills.py = 194  # 文件未超标，但 main() 有 85 行（分发流程 + argparse 声明）
+#
+# --- 单域 router：端点 + 校验 + pydantic 模型 ---
+web/backend/routers/applications.py = 568
+web/backend/routers/resume.py = 614  # 版式/风格清单 + 预览/Word/生成三处渲染
+web/backend/routers/jobs.py = 499
+web/backend/routers/system.py = 326
+web/backend/routers/dashboard.py = 221  # 文件未超标，但 dashboard() 有 114 行（存量，已列重构专项）
+#
+# --- 前端：刻意集中的单一真源 / 页面级容器 ---
+web/frontend/src/api.ts = 1174  # 前端唯一 API 客户端（错误码与 ws 参数拼接刻意集中在一处）
+web/frontend/src/pages/Applications.tsx = 797  # 页面容器（筛选 + 表格 + 表单 + 多个弹窗编排）
+web/frontend/src/pages/Settings.tsx = 697  # 设置页八张卡（Provider / 邮箱 / 数据 / 关于…）
+web/frontend/src/pages/Dashboard.tsx = 688  # 看板（统计卡 + 漏斗 + 待推进 + 复盘）
+web/frontend/src/pages/Resume.tsx = 539  # 简历工坊（模式切换 + 表单 + 预览 + 谱系）
+web/frontend/src/pages/Jobs.tsx = 520  # 岗位池（列表 + 详情双栏）
+web/frontend/src/components/StatusUpdateDialog.tsx = 559  # 解析 → 建议 → 确认三段式
+web/frontend/src/components/QuestionBank.tsx = 387  # 题库双视图 + 导入
+web/frontend/src/components/MailList.tsx = 357  # 邮件列表 + 8 字段表单
+web/frontend/src/components/TalkList.tsx = 340  # 宣讲会列表 + 表单
+web/frontend/src/lib/theme.ts = 383  # 主题定义 + 编辑器变量 + 门禁常量
+web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（逐段确认）

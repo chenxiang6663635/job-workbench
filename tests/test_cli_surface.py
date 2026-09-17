@@ -44,6 +44,7 @@ import tracker  # noqa: E402
 CLI_MODULES = [["track"], ["bank"], ["report"], ["resume"], ["jd"], ["init"],
                ["prefs"], ["skills", "install"], ["skills", "check"],
                ["lint", "pr-title"], ["lint", "domains"], ["lint", "themes"],
+               ["lint", "size"],
                ["release", "check"], ["release", "version"]]
 
 TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
@@ -393,7 +394,7 @@ def test_dispatch_exit_codes(argv, expected, monkeypatch, capsys):
 
 
 def test_command_map_covers_every_merged_module():
-    """15 个命令全部有映射，且每个模块仍然真的暴露 main()。
+    """16 个命令全部有映射，且每个模块仍然真的暴露 main()。
 
     安全网改走 jobws 之后，命令到模块的映射只由 TARGETS / SUB_TARGETS 单方保证；
     这里从「模块侧」反查一遍，免得改映射时悄悄漏掉一个。数字改动必须显式经过
@@ -405,7 +406,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 17, sorted(mapped)
+    assert len(mapped) == 18, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

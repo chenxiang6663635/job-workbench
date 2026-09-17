@@ -29,6 +29,7 @@
     python tools/jobws.py track list --stage 一面
     python tools/jobws.py init --demo
     python tools/jobws.py lint pr-title     校验环境变量 PR_TITLE（CI 用）
+    python tools/jobws.py lint size         规模预算（--staged 只扫暂存文件）
 """
 
 from __future__ import print_function
@@ -45,6 +46,7 @@ import approval  # noqa: E402
 import check_domains  # noqa: E402
 import check_i18n_hardcode  # noqa: E402
 import check_pr_title  # noqa: E402
+import check_size  # noqa: E402
 import check_skills  # noqa: E402
 import check_themes  # noqa: E402
 import check_ui_tokens  # noqa: E402
@@ -71,7 +73,7 @@ TARGETS = [
     ("prefs", prefs, "工作区偏好（get / set）与环境体检（doctor，含终端字体推荐）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
-    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件 / themes 主题门禁）"),
+    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件 / themes 主题门禁 / size 规模预算）"),
 ]
 
 class _ReleaseVersionTarget(object):
@@ -99,11 +101,13 @@ SUB_TARGETS = {
     ("lint", "ui-tokens"): check_ui_tokens,
     ("lint", "domains"): check_domains,
     ("lint", "themes"): check_themes,
+    ("lint", "size"): check_size,
 }
 
 SUB_CHOICES = {"skills": ["install", "check"],
                "release": ["check", "version"],
-               "lint": ["pr-title", "i18n", "ui-tokens", "domains", "themes"]}
+               "lint": ["pr-title", "i18n", "ui-tokens", "domains", "themes",
+                       "size"]}
 
 HELP_FLAGS = ("-h", "--help")
 

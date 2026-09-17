@@ -427,7 +427,8 @@ const zhCN = {
   "dash.unappliedHighMore_one": "另有 {{count}} 个，去岗位池按「评分」排序看全部。",
   "dash.unappliedHighMore_other": "另有 {{count}} 个，去岗位池按「评分」排序看全部。",
   "dash.scoreByState": "评分档位 × 投递状态",
-  "dash.scoreByStateHint": "档位边界沿用评分卡的 THRESHOLDS（改阈值只改那一处）；未评分的岗位不参与——「还没评」不等于最低档。",
+  "dash.scoreByStateHint": "档位边界沿用评分卡的 THRESHOLDS；未评分的岗位不参与。",
+  "dash.scoreByStateHintFull": "档位边界沿用评分卡的 THRESHOLDS（改阈值只改那一处）；未评分的岗位不参与——「还没评」不等于最低档。",
   "dash.emptyTitle": "还没有任何投递记录",
   // {{tracker}} = 导航里的「追踪表」，两边同一个 key，改文案时不会只改一处
   "dash.emptyHint": "去「{{tracker}}」添加第一家公司的投递记录，看板就会自动统计漏斗、待办与到期提醒。",

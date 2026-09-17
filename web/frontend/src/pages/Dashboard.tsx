@@ -300,7 +300,7 @@ function PendingList({ pending }: { pending: PendingItem[] }) {
 }
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -436,13 +436,18 @@ export default function Dashboard() {
 
           {hasScoreByState && (
             <div className="rounded-lg border border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
-              <h2 className="text-sm font-semibold text-foreground">
+              <h2
+                className="text-sm font-semibold text-foreground"
+                title={t("dash.scoreByStateHintFull")}
+              >
                 {t("dash.scoreByState")}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t("dash.scoreByStateHint")}
               </p>
-              <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+              {/* flex-wrap：英文图例三项（Not applied / In progress / Closed）
+                  在窄列下换行而不是硬挤（2026-09-17 实测反馈） */}
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                 {/* 左边取值仍是中文（APPLY_STATE_COLORS 的键 = 数据值），
                     右边展示走 t()——「取值不翻、展示翻」各归各 */}
                 {(
@@ -468,10 +473,12 @@ export default function Dashboard() {
                   margin={{ left: 8, right: 24 }}
                 >
                   <XAxis type="number" hide />
+                  {/* 英文档位名（"Strongly recommended" ≈125px）远长于中文，固定
+                      84px 会截断/贴柱——按语言给宽（2026-09-17 实测反馈） */}
                   <YAxis
                     type="category"
                     dataKey="tier"
-                    width={84}
+                    width={i18n.language.startsWith("zh") ? 84 : 132}
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
@@ -482,9 +489,11 @@ export default function Dashboard() {
                     contentStyle={{
                       background: "hsl(var(--popover))",
                       border: "1px solid hsl(var(--border))",
-                      borderRadius: 12,
+                      // 跟 token 与界面字号档走：圆角不再写死 12、字号不再写死
+                      // 12px（此前切字号档时提示框不跟着缩放）
+                      borderRadius: "var(--radius)",
                       color: "hsl(var(--foreground))",
-                      fontSize: 12,
+                      fontSize: "0.75rem",
                     }}
                   />
                   <Bar
@@ -544,7 +553,10 @@ export default function Dashboard() {
                     })}
                     className="group flex w-full cursor-pointer items-center gap-3 text-left"
                   >
-                    <span className="w-24 shrink-0 text-xs text-muted-foreground transition-colors group-hover:text-primary">
+                    <span
+                      className="w-24 shrink-0 truncate text-xs text-muted-foreground transition-colors group-hover:text-primary"
+                      title={domainLabel("stage", f.stage, t)}
+                    >
                       {domainLabel("stage", f.stage, t)}
                     </span>
                     <BarTrack

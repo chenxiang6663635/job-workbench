@@ -67,7 +67,10 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
             <div className="space-y-2">
               {reached.map((c) => (
                 <div key={c.stage} className="flex items-center gap-2 text-xs">
-                  <span className="w-24 shrink-0 text-muted-foreground">
+                  <span
+                    className="w-24 shrink-0 truncate text-muted-foreground"
+                    title={domainLabel("stage", c.stage, t)}
+                  >
                     {domainLabel("stage", c.stage, t)}
                   </span>
                   <Bar

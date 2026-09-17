@@ -392,7 +392,8 @@ export default {
   "dash.unappliedHighMore_one": "{{count}} more — sort the job pool by score to see them all.",
   "dash.unappliedHighMore_other": "{{count}} more — sort the job pool by score to see them all.",
   "dash.scoreByState": "Score tier × application status",
-  "dash.scoreByStateHint": "Tier boundaries come from the score card’s THRESHOLDS (change them in that one place); unscored jobs are excluded — “not scored” is not the lowest tier.",
+  "dash.scoreByStateHint": "Tier boundaries follow the score card’s THRESHOLDS; unscored jobs are excluded.",
+  "dash.scoreByStateHintFull": "Tier boundaries come from the score card’s THRESHOLDS (change them in that one place); unscored jobs are excluded — “not scored” is not the lowest tier.",
   "dash.emptyTitle": "No applications yet",
   "dash.emptyHint": "Add your first company from “{{tracker}}” — the dashboard will then tally the funnel, to-dos and deadline alerts.",
 

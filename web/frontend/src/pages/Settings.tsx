@@ -406,7 +406,7 @@ export default function Settings() {
                   </Button>
                 </div>
               </div>
-              <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
                 {t("settings.referralDisclosure")}
                 {t("settings.referralNoData")}
               </p>
@@ -533,13 +533,13 @@ export default function Settings() {
             <div className="space-y-1.5">
               <p className="break-all text-[11px] text-muted-foreground">
                 {t("settings.dataRoot")}
-                <span className="font-mono text-foreground/80">{paths.dataRoot}</span>
+                <span className="font-mono text-muted-foreground">{paths.dataRoot}</span>
               </p>
               <p className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">
                   {paths.mode === "portable" ? t("settings.modePortable") : t("settings.modeUser")}
                 </Badge>
-                <span className="text-[11px] leading-relaxed text-muted-foreground/80">
+                <span className="text-[11px] leading-relaxed text-muted-foreground">
                   {paths.mode === "portable"
                     ? t("settings.modePortableHint")
                     : t("settings.modeUserHint")}
@@ -578,7 +578,7 @@ export default function Settings() {
           ) : (
             <div className="space-y-1.5">
               <p className="flex flex-wrap items-baseline gap-2">
-                <span className="text-[11px] text-muted-foreground/80">
+                <span className="text-[11px] text-muted-foreground">
                   {t("settings.aboutVersion")}
                 </span>
                 <span className="text-lg font-semibold tabular-nums text-foreground">
@@ -587,15 +587,15 @@ export default function Settings() {
               </p>
               <dl className="space-y-1 text-[11px] text-muted-foreground">
                 <div className="flex flex-wrap gap-1.5">
-                  <dt className="text-muted-foreground/80">{t("settings.aboutPlatform")}</dt>
-                  <dd className="text-foreground/80">
+                  <dt className="text-muted-foreground">{t("settings.aboutPlatform")}</dt>
+                  <dd className="text-muted-foreground">
                     {({ win32: "Windows", darwin: "macOS", linux: "Linux" } as Record<string, string>)[
                       paths.platform
                     ] || paths.platform || t("settings.aboutUnknown")}
                   </dd>
                 </div>
               </dl>
-              <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
                 {t("settings.aboutNote")}
               </p>
             </div>

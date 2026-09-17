@@ -43,3 +43,5 @@ web/frontend/src/components/QuestionBank.tsx = 387  # 题库双视图 + 导入
 web/frontend/src/components/MailList.tsx = 469  # 邮件列表 + 8 字段表单；2026-09-17 加编辑/详情、删除两段确认与记录跳转（357→469；拆分列入后续重构）
 web/frontend/src/components/TalkList.tsx = 340  # 宣讲会列表 + 表单
 web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（逐段确认）
+web/frontend/src/components/ThemeEditor.tsx = 307  # 主题编辑器（10 关键色 + 实时对比度 + 导入导出）；2026-09-17 加「复制 CSS」与重命名（越过 300；拆分列入后续重构）
+web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导入导出；2026-09-17 加 renameCustomTheme / exportThemeVarsAsCss 后越过 300（字体 / 字号已拆出到 fonts.ts；拆分列入后续重构）

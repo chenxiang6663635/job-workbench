@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Copy, Download, Trash2, Upload } from "lucide-react";
+import { Check, Copy, Download, Pencil, Trash2, Upload } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
@@ -8,11 +8,13 @@ import {
   THEME_VAR_KEYS,
   applyTheme,
   exportThemeVars,
+  exportThemeVarsAsCss,
   getCustomThemes,
   getThemeChoice,
   injectCustomCss,
   parseThemeImport,
   removeCustomTheme,
+  renameCustomTheme,
   saveCustomTheme,
 } from "../lib/theme";
 import { contrastRatio, hexToTriple, tripleToHex, wcagLevel } from "../lib/contrast";
@@ -22,6 +24,8 @@ import { contrastRatio, hexToTriple, tripleToHex, wcagLevel } from "../lib/contr
 //   其余 35 键原样继承——「微调」比「从零造」符合真实需求，也避免用户掉进完整变量表。
 // - 实时预览：编辑即注入临时 <style>（不写存储）；对比度提示与 check_themes 同口径。
 // - 保存后进入主题列表（自定义主题与内置主题共用同一应用路径）。
+// - 2026-09-17 收尾批：导出补「复制 CSS」（与导入的 CSS 分支成往返闭环）、
+//   已存主题支持重命名（只改显示名，不切主题、不动变量）。
 
 interface Editable {
   key: string;
@@ -67,6 +71,9 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
   const [note, setNote] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [previewOn, setPreviewOn] = useState(true);
+  // 重命名（2026-09-17）：非空 = 该行处于行内编辑态
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   useEffect(() => {
     setVars(readCurrentVars());
@@ -118,6 +125,18 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
     }
   };
 
+  // 导出 CSS（2026-09-17）：`--key: value;` 逐行——与下方导入的 CSS 分支闭环
+  const onExportCss = async () => {
+    const text = exportThemeVarsAsCss(vars);
+    try {
+      await navigator.clipboard.writeText(text);
+      setNote(t("settings.themeCopied"));
+    } catch {
+      setImportText(text);
+      setNote(t("settings.themeCopyFailed"));
+    }
+  };
+
   const onImport = () => {
     const parsed = parseThemeImport(importText);
     if (!parsed) {
@@ -132,6 +151,12 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
     removeCustomTheme(id);
     setNote(t("settings.themeDeleted"));
     setVars(readCurrentVars());
+    onSaved?.();
+  };
+
+  const submitRename = (id: string, fallback: string) => {
+    renameCustomTheme(id, renameDraft.trim() || fallback);
+    setRenamingId(null);
     onSaved?.();
   };
 
@@ -191,6 +216,10 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
           <Copy size={13} className="mr-1" />
           {t("settings.themeExport")}
         </Button>
+        <Button variant="outline" size="sm" onClick={onExportCss}>
+          <Copy size={13} className="mr-1" />
+          {t("settings.themeExportCss")}
+        </Button>
         {applied && <span className="text-[11px] text-success">{t("settings.themeApplied")}</span>}
       </div>
 
@@ -215,15 +244,48 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
         <div className="space-y-1 border-t border-border pt-3">
           {customThemes.map((theme) => (
             <div key={theme.id} className="flex items-center justify-between gap-2">
-              <span className="truncate text-xs text-foreground">{theme.label}</span>
-              <button
-                type="button"
-                onClick={() => onDelete(theme.id)}
-                className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:text-destructive"
-              >
-                <Trash2 size={11} aria-hidden="true" />
-                {t("settings.themeDelete")}
-              </button>
+              {renamingId === theme.id ? (
+                <>
+                  <Input
+                    value={renameDraft}
+                    onChange={(event) => setRenameDraft(event.target.value)}
+                    aria-label={t("settings.themeRename")}
+                    className="h-7 flex-1 text-xs"
+                  />
+                  <Button
+                    size="sm"
+                    className="h-7 shrink-0 px-2 text-[11px]"
+                    onClick={() => submitRename(theme.id, theme.label)}
+                  >
+                    {t("common.save")}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="truncate text-xs text-foreground">{theme.label}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenamingId(theme.id);
+                        setRenameDraft(theme.label);
+                      }}
+                      className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:text-primary"
+                    >
+                      <Pencil size={11} aria-hidden="true" />
+                      {t("settings.themeRename")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(theme.id)}
+                      className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:text-destructive"
+                    >
+                      <Trash2 size={11} aria-hidden="true" />
+                      {t("settings.themeDelete")}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>

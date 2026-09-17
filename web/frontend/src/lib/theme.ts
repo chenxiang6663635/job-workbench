@@ -221,6 +221,14 @@ export function removeCustomTheme(id: string): void {
   if (getThemeChoice() === id) setThemeChoice(SYSTEM_ID);
 }
 
+/** 只改显示名（不动变量、不切主题）——与 saveCustomTheme 的"保存即应用"区分开。 */
+export function renameCustomTheme(id: string, label: string): void {
+  const themes = getCustomThemes().map((item) =>
+    item.id === id ? { ...item, label } : item
+  );
+  persistCustomThemes(themes);
+}
+
 /** 内置 + 自定义的完整清单（外观卡与编辑器都读它）。 */
 export function listThemes(): ThemeOption[] {
   const builtinPrefix = THEMES.slice(0, 2); // system + dark
@@ -248,6 +256,15 @@ function toHexOr(triple: string | undefined, fallback: string): string {
 /** 导出一个主题（内置取文档里的变量，自定义取存储）为可分享的 JSON 文本。 */
 export function exportThemeVars(vars: Record<string, string>): string {
   return JSON.stringify({ version: 1, vars }, null, 2);
+}
+
+/** 导出为 CSS 变量块（`--key: value;` 逐行）——与 parseThemeImport 的 CSS 分支
+ *  成往返闭环（2026-09-17：编辑器此前只能导出 JSON，与 shadcn/tweakcn 生态
+ *  交换时得手改格式）。 */
+export function exportThemeVarsAsCss(vars: Record<string, string>): string {
+  return Object.keys(vars)
+    .map((key) => `  --${key}: ${vars[key]};`)
+    .join("\n");
 }
 
 /** 解析导入文本：支持本仓库 JSON 与 tweakcn / shadcn 的 `--key: value;` CSS。 */
@@ -295,20 +312,6 @@ function normalizeVars(vars: Record<string, unknown>): Record<string, string> {
 // 引用同一份口径（设置页 ThemePicker、首帧防闪脚本 index.html、启动同步
 // main.tsx），故拆为 lib/fonts.ts。这里 re-export 保持既有导入路径零改动。
 
-export {
-  FONTS,
-  FONT_SIZE_DEFAULT,
-  FONT_SIZE_MAX,
-  FONT_SIZE_MIN,
-  FONT_SIZE_STEP,
-  applyFont,
-  applyFontSize,
-  applyStoredFont,
-  applyStoredFontSize,
-  clampFontSize,
-  getFontChoice,
-  getFontSizeChoice,
-  setFontChoice,
-  setFontSizeChoice,
-} from "./fonts";
-export type { FontOption } from "./fonts";
+// `export *` 而非逐名单：字体/等宽方案扩容时无需再改这里（两份名单极易漂移）；
+// fonts.ts 的导出面即其公开 API，全部有意转发（值 + 类型）。
+export * from "./fonts";

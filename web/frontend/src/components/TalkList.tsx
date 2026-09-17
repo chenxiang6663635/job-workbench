@@ -319,7 +319,7 @@ export default function TalkList() {
             ))}
 
           {r.收获 && (
-            <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground/90">
+            <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
               {r.收获}
             </p>
           )}

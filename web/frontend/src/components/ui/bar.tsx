@@ -41,7 +41,7 @@ export function Bar({
       role="presentation"
     >
       <div
-        className="h-full rounded-full transition-[width] duration-500 ease-premium"
+        className="h-full rounded-full transition-[width] duration-slow ease-premium"
         style={{ width: `${percent}%`, background: color || "hsl(var(--primary))" }}
       />
     </div>

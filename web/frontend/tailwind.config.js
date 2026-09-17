@@ -79,8 +79,17 @@ export default {
         "fade-in-up": "fade-in-up 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
       },
       transitionTimingFunction: {
-        /* expo-out（批 4 统一）：颜色 150ms / 位移与阴影 250ms，位移 1–2px 绝不 scale */
-        premium: "cubic-bezier(0.16, 1, 0.3, 1)",
+        /* expo-out（批 4 统一）：颜色 150ms / 位移与阴影 250ms，位移 1–2px 绝不 scale。
+           2026-09-17：改引用 index.css 的 --ease-premium——消除"变量一处、字面量
+           又一处"的双写（此前 --ease-premium 是死变量） */
+        premium: "var(--ease-premium)",
+      },
+      /* 动效时长三档（2026-09-17 接入）：--duration-* 此前定义了但零消费者；
+         新代码用 duration-fast/base/slow，历史数值类（150/200/300）保持不动 */
+      transitionDuration: {
+        fast: "var(--duration-fast)",
+        base: "var(--duration-base)",
+        slow: "var(--duration-slow)",
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -134,7 +134,7 @@ function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 <span className="text-muted-foreground">{e.原值 || t("app.emptyValue")}</span>
-                <span className="mx-1 text-muted-foreground/50">→</span>
+                <span className="mx-1 text-muted-foreground">→</span>
                 {e.新值 || t("app.emptyValue")}
               </p>
             </div>
@@ -756,14 +756,14 @@ export default function Applications() {
                             {t("app.daysUnit", { count: staleDays })}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground/50">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {(() => {
                           const h = it.health;
                           if (!h || !h.level) {
-                            return <span className="text-xs text-muted-foreground/50">—</span>;
+                            return <span className="text-xs text-muted-foreground">—</span>;
                           }
                           const meta = HEALTH_META[h.level];
                           return (

@@ -92,7 +92,9 @@
     --chart-7: 239 84% 67%;
     --chart-8: 25 95% 53%;
 
-    /* 动效节奏（批 4）：三档时长 + 统一 expo-out；与 tailwind 的 ease-premium 同源 */
+    /* 动效节奏（批 4；2026-09-17 接入为 Tailwind 工具类）：三档时长 + 统一
+       expo-out——tailwind.config 的 duration-fast/base/slow 与 ease-premium
+       直接引用这些变量（单一真源：改这里即全站生效） */
     --duration-fast: 150ms;
     --duration-base: 250ms;
     --duration-slow: 400ms;
@@ -232,6 +234,16 @@ body[data-dialog-dragging] [data-dialog-overlay] {
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--border-strong));
+}
+
+/* 标准滚动条属性（2026-09-17）：只喂给不支持 ::-webkit-scrollbar 的引擎
+   （Firefox 等）。Chromium 同时支持两者且**标准属性优先**——若无条件写，
+   会把上面那套精细样式（宽度 / hover 变色）顶掉，故用 @supports 反转。 */
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
 }
 
 /* 尊重系统的"减少动态效果"设置：关闭过渡与动画，功能不受影响 */

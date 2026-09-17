@@ -33,7 +33,7 @@ def _interview_add(args):
     link = (args.app or "").strip()
     if link:
         if not any((r.get("id") or "").strip() == link for r in main_rows):
-            print("错误：找不到记录 `%s`，先 tracker.py add 或省略 --app" % link)
+            print("错误：找不到记录 `%s`，先 python tools/jobws.py track add 或省略 --app" % link)
             return 1
         # 未指定公司/岗位时，从主表带出，保证列表可读
         src = next(r for r in main_rows if (r.get("id") or "").strip() == link)

@@ -20,7 +20,8 @@ if _TOOLS_DIR not in sys.path:
 logger = logging.getLogger(__name__)
 
 
-from ._core import (TERMINAL_STAGES, WORKSPACE, _tracking_targets, check_direction, check_reason_required, dedup_key, find_duplicate, next_id, parse_iso_date, resolve_ws)
+from . import _core
+from ._core import (TERMINAL_STAGES, _tracking_targets, check_direction, check_reason_required, dedup_key, find_duplicate, next_id, parse_iso_date, resolve_ws)
 from ._schema import (BATCHES, FIELDS, IMPORT_REQUIRED, SOURCES, STAGES)
 from .applications import (append_history, read_rows, write_rows)
 
@@ -196,7 +197,7 @@ def cmd_import(args):
     if unknown:
         print("（忽略未知列：%s）" % "、".join(unknown))
 
-    preview = preview_import(csv_rows, workspace=WORKSPACE)
+    preview = preview_import(csv_rows, workspace=_core.WORKSPACE)
     print("## 导入预览\n")
     print("| 状态 | 行 | 公司 | 岗位 | 原因 |")
     print("|---|---|---|---|---|")
@@ -217,14 +218,14 @@ def cmd_import(args):
         return 0
     if getattr(args, "preview", False):
         import approval
-        plan = plan_import(preview, WORKSPACE)
+        plan = plan_import(preview, _core.WORKSPACE)
         result = approval.preview(
-            "track.import", WORKSPACE, plan["payload"],
+            "track.import", _core.WORKSPACE, plan["payload"],
             plan["summary"], plan["diff"], plan["targets"])
         print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
         print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
         return 0
-    written = commit_import(preview, workspace=WORKSPACE)
+    written = commit_import(preview, workspace=_core.WORKSPACE)
     if written < 0:
         print("\n提交时发现新的重复（预览后数据有变化），整批未写入。请重新预览。")
         return 1

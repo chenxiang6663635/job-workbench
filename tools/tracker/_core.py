@@ -25,7 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 注意层级：本文件在 tools/tracker/ 下，比旧单文件 tools/tracker.py 深一层——
+# 仓库根要上溯三层（dirname(_TOOLS_DIR)），少一层会得到 tools/，让
+# DEFAULT_WORKSPACE 落到 tools/personal（独立审查 MAJOR-2 实测的回归）。
+ROOT = os.path.dirname(_TOOLS_DIR)
 
 DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
 

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 from . import _core
-from ._core import (WORKSPACE)
+# （WORKSPACE 经 `from . import _core` 动态引用，不再有值快照导入）
 from ._schema import (MAIL_DIRECTIONS, MAIL_FIELDS, MAIL_TAGS)
 from .applications import (read_rows)
 from .mails import (apply_approved_mail, find_mail, preview_mail_fields, read_mails, write_mails)

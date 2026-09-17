@@ -23,6 +23,9 @@ _HOME = ("_core", "_schema", "_check", "applications", "interviews", "talks",
 
 def __getattr__(name):
     import importlib
+    if name.startswith("__") and name.endswith("__"):
+        # 魔术属性（copy / pickle 的探测）直接失败：不为此实体化全部子模块
+        raise AttributeError(name)
     if name in _HOME:                     # tracker._core 这类也直接可达
         return importlib.import_module("." + name, __name__)
     for mod in _HOME:

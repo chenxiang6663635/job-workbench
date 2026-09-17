@@ -45,6 +45,10 @@ CONTRACT_NAMES = [
     "sort_key", "stage_base_date", "stale_days", "write_contacts",
     "write_interviews", "write_mails", "write_offers", "write_rows",
     "write_talks",
+    # 补：from-import 引用面（tools/report.py 与 tools/question_bank.py 的
+    # `from tracker import (...)` 名单 + question_bank 的 tracker.file_lock）
+    "ROOT", "DEFAULT_WORKSPACE", "FAIL_STAGES", "csv_path", "file_lock",
+    "QUESTION_STATUS", "QUESTION_ORIGINS", "QUESTION_DIFFICULTY",
 ]
 
 
@@ -69,6 +73,33 @@ def test_submodules_directly_reachable():
     """tracker.<子模块> 直接可达（monkeypatch 与调试的入口）。"""
     for name in ("_core", "_schema", "_check", "applications", "interviews",
                  "talks", "mails", "contacts", "offers", "importing",
-                 "preview_app", "preview_update", "_cli", "_cli_misc"):
+                 "preview_app", "preview_update", "_cli", "_cli_interview",
+                 "_cli_talk", "_cli_mail", "_cli_contact", "_cli_offer",
+                 "_cli_misc"):
         mod = getattr(tracker, name)
         assert mod.__name__ == "tracker." + name
+
+
+def test_hot_names_resolve_via_expected_submodules():
+    """热名必须绑定到「所属子模块」的同一对象——防 shadowing 回归。
+
+    若将来某子模块多出一个同名对象，门面会静默改解析到别处（hasattr
+    依然为真）——这里用 `is` 把归属钉死。
+    """
+    from tracker import _core, applications, importing
+    assert tracker.set_workspace is _core.set_workspace
+    assert tracker.read_rows is applications.read_rows
+    assert tracker.commit_import is importing.commit_import
+    assert tracker.WORKSPACE == _core.WORKSPACE   # 可变全局：转发实时读，比当前值
+
+
+def test_default_workspace_anchors_at_repo_root():
+    """默认工作区锚在 <repo>/personal（回归守卫）。
+
+    包化后 ROOT 的 dirname 层级曾少一层（toolbar/tracker/ 比 tools/tracker.py
+    深一级）→ 默认工作区落到 tools/personal——独立审查 MAJOR-2 实测。
+    """
+    root = tracker.ROOT.replace("\\", "/")
+    assert not root.endswith("/tools"), "ROOT 不该是 tools/（dirname 少了一层）"
+    assert os.path.isfile(os.path.join(root, "CHANGELOG.md")), "ROOT 应是仓库根"
+    assert tracker.DEFAULT_WORKSPACE.replace("\\", "/") == root + "/personal"

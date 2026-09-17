@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 from . import _core
 from ._check import (run_check)
-from ._core import (DATE_RE, TERMINAL_STAGES, WORKSPACE, check_direction)
+from ._core import (DATE_RE, TERMINAL_STAGES, check_direction)
 from ._schema import (FIELDS)
 from .applications import (read_history, read_rows)
 from .preview_app import (apply_approved_add, preview_add)
@@ -163,7 +163,7 @@ def cmd_list(args):
 
     rows = read_rows()
     if not rows:
-        print("追踪表为空。用 `tracker.py add` 添加第一条记录。")
+        print("追踪表为空。用 `python tools/jobws.py track add` 添加第一条记录。")
         return 0
 
     result = filter_rows(rows, args)

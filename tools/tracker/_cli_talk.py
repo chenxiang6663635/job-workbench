@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 from . import _core
-from ._core import (WORKSPACE)
+# （WORKSPACE 经 `from . import _core` 动态引用，不再有值快照导入）
 from ._schema import (TALK_FIELDS)
 from .applications import (read_rows)
 from .talks import (apply_approved_talk, find_talk, preview_talk_fields, read_talks, write_talks)

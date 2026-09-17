@@ -75,7 +75,8 @@ if os.path.isdir(_tools_src):
     # 这正是 v0.2.2 imaplib 事故的同款形态）。
     for name in sorted(os.listdir(_tools_src)):
         pkg_dir = os.path.join(_tools_src, name)
-        if (name == "__pycache__" or not os.path.isdir(pkg_dir)
+        if (name == "__pycache__" or name.startswith(_TOOLS_SKIP)
+                or not os.path.isdir(pkg_dir)
                 or not os.path.isfile(os.path.join(pkg_dir, "__init__.py"))):
             continue
         for sub in sorted(os.listdir(pkg_dir)):

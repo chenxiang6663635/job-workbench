@@ -10,7 +10,11 @@ Checks:
      隐私护栏：暂存文件不得触及 personal/ 或真实联系方式模式
   2. oversized files - no staged file > 1MB outside allowed binary dirs
      超大文件：白名单目录外不得新增 >1MB 文件
-  3. quick regression - pytest -q tests (skipped gracefully if env lacks pytest
+  3. size budget - staged files only (CONTRIBUTING「规模预算」): logic files
+     ≤300 lines, functions ≤80; stock exemptions in tools/size_allowlist.txt
+     规模预算（只扫暂存文件）：与 CI 的 `jobws lint size` 共用同一实现
+     （tools/check_size.py）——存量已登记（水位线只许变小），不误伤既有提交
+  4. quick regression - pytest -q tests (skipped gracefully if env lacks pytest
      or its interpreter is below the 3.12 baseline)
      快速回归：全量 pytest 很快（<1s）；环境缺 pytest、或解释器低于基线（3.12）
      时降级为提示，不阻塞——那种情况下结论本就不可信，CI 兜底
@@ -27,6 +31,14 @@ import sys
 
 HEADER = "pre-commit / 提交前校验"
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 规模预算判定复用 tools/check_size.py——判定唯一实现：CI / 本地手跑 / 本钩子同源。
+# **必须起别名**：本文件已有一个名为 check_size 的函数（>1MB 体积检查），模块级
+# 定义会覆盖同名 import——直接 `import check_size` 会被它盖掉（初版就这么栽的）。
+_TOOLS_DIR = os.path.join(REPO_ROOT, "tools")
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import check_size as size_budget  # noqa: E402
 # 解释器基线：与 tests/conftest.py 的护栏同源（两处都改才算同步）
 PY_BASELINE = (3, 12)
 PHONE_PATTERN = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
@@ -100,6 +112,21 @@ def check_size(files: list[str]) -> str | None:
         except (subprocess.CalledProcessError, ValueError):
             continue
     return None
+
+
+def check_size_budget() -> str | None:
+    """规模预算（**只扫暂存文件**）：与 CI 的 `jobws lint size` 共用同一实现。
+
+    为什么放在提交入口：规模超限是「看一眼就知道、但很容易忘了看」的那类
+    问题——它不该等 CI 跑一轮才被指出。staged 模式只看本次要提交的文件，
+    毫秒级；存量超标的文件都在 tools/size_allowlist.txt 登记过（水位线只许
+    变小），因此这里不会误伤既有提交（2026-09-16 接入）。
+    """
+    problems = size_budget.scan(staged=True)
+    if not problems:
+        return None
+    return ("规模预算超限（按职责拆分，或登记进 tools/size_allowlist.txt 并写清理由）:\n  "
+            + "\n  ".join(problems))
 
 
 def resolve_interpreter() -> str:
@@ -189,7 +216,10 @@ def main() -> int:
     print(f"--- pre-commit ({len(files)} staged files) ---")
 
     problems = []
-    for name, fn in (("privacy", lambda: check_privacy(files)), ("size", lambda: check_size(files)), ("tests", check_tests)):
+    for name, fn in (("privacy", lambda: check_privacy(files)),
+                     ("size", lambda: check_size(files)),
+                     ("size-budget", check_size_budget),
+                     ("tests", check_tests)):
         problem = fn()
         print(f"{name}: {'FAIL' if problem else 'OK'}")
         if problem:

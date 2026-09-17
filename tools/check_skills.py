@@ -94,99 +94,84 @@ def _parse_frontmatter(text):
     return fields, None, end
 
 
-def inspect_skills(skills_root):
-    """扫描 skills_root 下每个技能目录，返回每个技能的问题清单。
+def _inspect_one(entry, path):
+    """检查单个技能目录，返回 {"dir", "name", "problems"}。"""
+    item = {"dir": entry, "name": None, "problems": []}
+    skill_md = os.path.join(path, "SKILL.md")
+    if not os.path.isfile(skill_md):
+        item["problems"].append("缺少 SKILL.md")
+        return item
 
-    返回项形如 {"dir": str, "name": str | None, "problems": [str]}，
-    problems 为空即合规。
-    """
-    results = []
-    if not os.path.isdir(skills_root):
-        return results
+    # utf-8-sig：Windows 上记事本 / PowerShell 重定向产出的文件带 BOM，
+    #   而 str.strip() 不剥离 \ufeff，会让首行判不出 `---` 而误报。
+    # errors="replace"：宁可把坏字节换成占位符继续校验，也不要让校验器
+    #   （以及依赖它的分发脚本）以 traceback 崩掉。
+    try:
+        with open(skill_md, encoding="utf-8-sig", errors="replace") as handle:
+            text = handle.read()
+    except OSError as exc:
+        item["problems"].append("读取失败：%s" % exc)
+        return item
+    fields, error, frontmatter_end = _parse_frontmatter(text)
+    if error:
+        item["problems"].append(error)
+        return item
 
-    for entry in sorted(os.listdir(skills_root)):
-        path = os.path.join(skills_root, entry)
-        if not os.path.isdir(path):
-            continue
-
-        item = {"dir": entry, "name": None, "problems": []}
-        skill_md = os.path.join(path, "SKILL.md")
-        if not os.path.isfile(skill_md):
-            item["problems"].append("缺少 SKILL.md")
-            results.append(item)
-            continue
-
-        # utf-8-sig：Windows 上记事本 / PowerShell 重定向产出的文件带 BOM，
-        #   而 str.strip() 不剥离 \ufeff，会让首行判不出 `---` 而误报。
-        # errors="replace"：宁可把坏字节换成占位符继续校验，也不要让校验器
-        #   （以及依赖它的分发脚本）以 traceback 崩掉。
-        try:
-            with open(skill_md, encoding="utf-8-sig", errors="replace") as handle:
-                text = handle.read()
-        except OSError as exc:
-            item["problems"].append("读取失败：%s" % exc)
-            results.append(item)
-            continue
-        fields, error, frontmatter_end = _parse_frontmatter(text)
-        if error:
-            item["problems"].append(error)
-            results.append(item)
-            continue
-
-        # 正文里的仓库相对路径（校验项第 6 条）：技能分发到宿主后，工作目录是
-        # 用户自己的工作区，这些路径在那里都不存在。只报第一处——修完再跑一次
-        # 就知道后面还有没有；一次列一串反而没人看。
-        body_lines = text.splitlines()[frontmatter_end + 1:]
-        for offset, line in enumerate(body_lines):
-            hit = next((prefix for prefix in REPO_PATH_PREFIXES if prefix in line), None)
-            if hit:
-                item["problems"].append(
-                    "第 %d 行（文件行号，含 frontmatter）引用了仓库相对路径 `%s…`："
-                    "%s——技能会被分发到宿主，那时的工作目录是用户自己的工作区，"
-                    "仓库路径在那里不存在；命令名写 `jobws`，路径说明放 frontmatter "
-                    "的 compatibility"
-                    % (frontmatter_end + 2 + offset, hit, line.strip()))
-                break
-
-        name = fields.get("name")
-        item["name"] = name
-        if not name:
-            item["problems"].append("frontmatter 缺 name")
-        else:
-            if name != entry:
-                item["problems"].append(
-                    "name 与目录名不一致：name=%s，目录=%s（技能身份要求两者相同）"
-                    % (name, entry))
-            if not NAME_RE.match(name):
-                item["problems"].append(
-                    "name 必须带 jwb- 前缀（当前：%s）——通用名装到用户级目录时会"
-                    "与别人已装的同名技能冲突，宿主**静默覆盖**" % name)
-
-        for key in REQUIRED:
-            if key != "name" and not fields.get(key):
-                item["problems"].append("frontmatter 缺 %s" % key)
-
-        desc = fields.get("description")
-        if desc in ("|", ">"):
-            # 本解析器只认单行值；块标量会被读成 "|" 从而绕过长度校验
+    # 正文里的仓库相对路径（校验项第 6 条）：技能分发到宿主后，工作目录是
+    # 用户自己的工作区，这些路径在那里都不存在。只报第一处——修完再跑一次
+    # 就知道后面还有没有；一次列一串反而没人看。
+    body_lines = text.splitlines()[frontmatter_end + 1:]
+    for offset, line in enumerate(body_lines):
+        hit = next((prefix for prefix in REPO_PATH_PREFIXES if prefix in line), None)
+        if hit:
             item["problems"].append(
-                "frontmatter 不支持块标量写法（description: %s），请改成单行" % desc)
-        elif desc and len(desc) > DESC_MAX:
-            item["problems"].append(
-                "description 过长（%d 字符，上限 %d）" % (len(desc), DESC_MAX))
-        elif desc and ": " in desc:
-            # 半角冒号+空格在严格 YAML 宿主下是语法错误：Codex 实测会拒绝整个技能
-            # （2026-09-14：全部 5 个技能在 .codex/ 与 ~/.agents/ 下加载失败，报
-            # 「mapping values are not allowed in this context」——只因为 description
-            # 里写了 `English triggers: …`）。本解析器对冒号宽容，所以只能在这里拦。
-            item["problems"].append(
-                "description 含 `: `（半角冒号+空格）：严格 YAML 宿主（如 Codex）"
-                "会因此拒绝加载整个技能；改用全角冒号 `：` 或改写表述")
+                "第 %d 行（文件行号，含 frontmatter）引用了仓库相对路径 `%s…`："
+                "%s——技能会被分发到宿主，那时的工作目录是用户自己的工作区，"
+                "仓库路径在那里不存在；命令名写 `jobws`，路径说明放 frontmatter "
+                "的 compatibility"
+                % (frontmatter_end + 2 + offset, hit, line.strip()))
+            break
 
-        results.append(item)
+    name = fields.get("name")
+    item["name"] = name
+    if not name:
+        item["problems"].append("frontmatter 缺 name")
+    else:
+        if name != entry:
+            item["problems"].append(
+                "name 与目录名不一致：name=%s，目录=%s（技能身份要求两者相同）"
+                % (name, entry))
+        if not NAME_RE.match(name):
+            item["problems"].append(
+                "name 必须带 jwb- 前缀（当前：%s）——通用名装到用户级目录时会"
+                "与别人已装的同名技能冲突，宿主**静默覆盖**" % name)
 
-    # 重名检查：同名会在宿主侧静默覆盖，必须在这里拦住，且**两个都标记**——
-    # 只报后一个的话，读者会以为前一个是对的。
+    for key in REQUIRED:
+        if key != "name" and not fields.get(key):
+            item["problems"].append("frontmatter 缺 %s" % key)
+
+    desc = fields.get("description")
+    if desc in ("|", ">"):
+        # 本解析器只认单行值；块标量会被读成 "|" 从而绕过长度校验
+        item["problems"].append(
+            "frontmatter 不支持块标量写法（description: %s），请改成单行" % desc)
+    elif desc and len(desc) > DESC_MAX:
+        item["problems"].append(
+            "description 过长（%d 字符，上限 %d）" % (len(desc), DESC_MAX))
+    elif desc and ": " in desc:
+        # 半角冒号+空格在严格 YAML 宿主下是语法错误：Codex 实测会拒绝整个技能
+        # （2026-09-14：全部 5 个技能在 .codex/ 与 ~/.agents/ 下加载失败，报
+        # 「mapping values are not allowed in this context」——只因为 description
+        # 里写了 `English triggers: …`）。本解析器对冒号宽容，所以只能在这里拦。
+        item["problems"].append(
+            "description 含 `: `（半角冒号+空格）：严格 YAML 宿主（如 Codex）"
+            "会因此拒绝加载整个技能；改用全角冒号 `：` 或改写表述")
+    return item
+
+
+def _flag_duplicates(results):
+    """重名检查：同名会在宿主侧静默覆盖，必须在这里拦住，且**两个都标记**——
+    只报后一个的话，读者会以为前一个是对的。"""
     seen = {}
     for item in results:
         name = item.get("name")
@@ -201,6 +186,21 @@ def inspect_skills(skills_root):
                         "技能名重复：`%s` 同时被 %s 使用——宿主会**静默覆盖**其中一个"
                         % (name, "、".join(dirs)))
 
+
+def inspect_skills(skills_root):
+    """扫描 skills_root 下每个技能目录，返回每个技能的问题清单。
+
+    返回项形如 {"dir": str, "name": str | None, "problems": [str]}，
+    problems 为空即合规。
+    """
+    results = []
+    if not os.path.isdir(skills_root):
+        return results
+    for entry in sorted(os.listdir(skills_root)):
+        path = os.path.join(skills_root, entry)
+        if os.path.isdir(path):
+            results.append(_inspect_one(entry, path))
+    _flag_duplicates(results)
     return results
 
 

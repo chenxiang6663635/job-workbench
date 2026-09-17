@@ -337,6 +337,71 @@ def test_connection(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLD
             logger.warning("IMAP logout 失败：%s", exc)
 
 
+def _fetch_recent(conn, folder, since_days, limit):
+    """在已登录连接上取最近 limit 封（最新在前）——只读命令，保证同 fetch_messages。"""
+    try:
+        typ, data = conn.select(folder or DEFAULT_FOLDER, readonly=True)
+    except imaplib.IMAP4.error as exc:
+        raise ImapFetchError("打开文件夹失败：%s" % exc)
+    if typ != "OK":
+        raise ImapFetchError("打开文件夹失败：%s" % (data,))
+
+    # 时间窗在服务端过滤（SINCE 是 ASCII 安全的条件）：
+    # 只取「最近 N 封」在几千封的真实邮箱里会被广告邮件淹没
+    criteria = ["SINCE", _imap_since(since_days)] if since_days else ["ALL"]
+    try:
+        # UID SEARCH（不是 SEARCH）：拿到的是稳定 UID。
+        # 序号（sequence number）在会话期间会因邮箱变化重排，
+        # 用序号去 FETCH 有取到另一封邮件的风险。
+        typ, data = conn.uid("SEARCH", *criteria)
+    except imaplib.IMAP4.error as exc:
+        raise ImapFetchError("检索邮件失败：%s" % exc)
+    if typ != "OK":
+        raise ImapFetchError("检索邮件失败：%s" % (data,))
+
+    uids = data[0].split() if data and data[0] else []
+    recent = uids[-limit:]  # 升序（旧→新）
+    if not recent:
+        return []
+
+    # 批量 FETCH：一条命令取回全部。逐封 FETCH 要 N 个网络来回，
+    # 在真实邮箱（50 封）上就是「点一下等半分钟」的主因。
+    # 显式请求 UID 而不是靠响应顺序对齐——顺序对齐依赖服务器实现。
+    seq = ",".join(uid.decode("ascii", errors="replace") for uid in recent)
+    try:
+        typ, fetched = conn.uid("FETCH", seq, "(UID BODY.PEEK[])")
+    except imaplib.IMAP4.error as exc:
+        raise ImapFetchError("读取邮件失败：%s" % exc)
+    if typ != "OK":
+        raise ImapFetchError("读取邮件失败：%s" % (fetched,))
+
+    raw_by_uid = {}
+    for item in fetched:
+        if not isinstance(item, tuple) or len(item) < 2:
+            continue
+        match = re.search(rb"UID (\d+)", item[0])
+        if match:
+            raw_by_uid[match.group(1).decode("ascii")] = item[1]
+
+    messages = []
+    for uid in reversed(recent):  # 最新在前
+        raw = raw_by_uid.get(uid.decode("ascii", errors="replace"))
+        if raw is None:
+            continue
+        msg = message_from_bytes(raw)
+        messages.append({
+            "uid": uid.decode("ascii", errors="replace"),
+            # Message-ID（批 4.5）：BODY.PEEK[] 已含 headers，无需额外请求；
+            # 规范值供 mails 去重与 Gmail 深链构造（其余邮箱诚实降级）。
+            "messageId": _clean_message_id(msg.get("Message-ID")),
+            "subject": _decode_mime_header(msg.get("Subject")),
+            "from": _decode_mime_header(msg.get("From")),
+            "date": (msg.get("Date") or "").strip(),
+            "body": extract_body(msg),
+        })
+    return messages
+
+
 def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDER,
                    limit=DEFAULT_LIMIT, since_days=DEFAULT_SINCE_DAYS):
     """只读拉取最近 `since_days` 天内的邮件（最新在前，最多 `limit` 封）。
@@ -359,68 +424,7 @@ def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDE
     conn = _connect(host, port)
     try:
         _login(conn, user, password)
-
-        try:
-            typ, data = conn.select(folder or DEFAULT_FOLDER, readonly=True)
-        except imaplib.IMAP4.error as exc:
-            raise ImapFetchError("打开文件夹失败：%s" % exc)
-        if typ != "OK":
-            raise ImapFetchError("打开文件夹失败：%s" % (data,))
-
-        # 时间窗在服务端过滤（SINCE 是 ASCII 安全的条件）：
-        # 只取「最近 N 封」在几千封的真实邮箱里会被广告邮件淹没
-        criteria = ["SINCE", _imap_since(since_days)] if since_days else ["ALL"]
-        try:
-            # UID SEARCH（不是 SEARCH）：拿到的是稳定 UID。
-            # 序号（sequence number）在会话期间会因邮箱变化重排，
-            # 用序号去 FETCH 有取到另一封邮件的风险。
-            typ, data = conn.uid("SEARCH", *criteria)
-        except imaplib.IMAP4.error as exc:
-            raise ImapFetchError("检索邮件失败：%s" % exc)
-        if typ != "OK":
-            raise ImapFetchError("检索邮件失败：%s" % (data,))
-
-        uids = data[0].split() if data and data[0] else []
-        recent = uids[-limit:]  # 升序（旧→新）
-        if not recent:
-            return []
-
-        # 批量 FETCH：一条命令取回全部。逐封 FETCH 要 N 个网络来回，
-        # 在真实邮箱（50 封）上就是「点一下等半分钟」的主因。
-        # 显式请求 UID 而不是靠响应顺序对齐——顺序对齐依赖服务器实现。
-        seq = ",".join(uid.decode("ascii", errors="replace") for uid in recent)
-        try:
-            typ, fetched = conn.uid("FETCH", seq, "(UID BODY.PEEK[])")
-        except imaplib.IMAP4.error as exc:
-            raise ImapFetchError("读取邮件失败：%s" % exc)
-        if typ != "OK":
-            raise ImapFetchError("读取邮件失败：%s" % (fetched,))
-
-        raw_by_uid = {}
-        for item in fetched:
-            if not isinstance(item, tuple) or len(item) < 2:
-                continue
-            match = re.search(rb"UID (\d+)", item[0])
-            if match:
-                raw_by_uid[match.group(1).decode("ascii")] = item[1]
-
-        messages = []
-        for uid in reversed(recent):  # 最新在前
-            raw = raw_by_uid.get(uid.decode("ascii", errors="replace"))
-            if raw is None:
-                continue
-            msg = message_from_bytes(raw)
-            messages.append({
-                "uid": uid.decode("ascii", errors="replace"),
-                # Message-ID（批 4.5）：BODY.PEEK[] 已含 headers，无需额外请求；
-                # 规范值供 mails 去重与 Gmail 深链构造（其余邮箱诚实降级）。
-                "messageId": _clean_message_id(msg.get("Message-ID")),
-                "subject": _decode_mime_header(msg.get("Subject")),
-                "from": _decode_mime_header(msg.get("From")),
-                "date": (msg.get("Date") or "").strip(),
-                "body": extract_body(msg),
-            })
-        return messages
+        return _fetch_recent(conn, folder, since_days, limit)
     except socket.timeout:
         raise ImapFetchError("操作超时：%s 在 %d 秒内没有响应" % (host, SOCKET_TIMEOUT))
     except ssl.SSLError as exc:

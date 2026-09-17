@@ -99,14 +99,47 @@ def find_legacy(target_dir):
                   if d in LEGACY_NAMES and os.path.isdir(os.path.join(target_dir, d)))
 
 
-def main():
+def _build_parser():
     parser = argparse.ArgumentParser(description="分发 skills 到本机 AI CLI")
     parser.add_argument("--target", default="all",
                         help="目标：all / user / codebuddy / claude / agents / codex")
     parser.add_argument("--dry-run", action="store_true", help="只报告不复制")
     parser.add_argument("--prune", action="store_true",
                         help="删除目标里源码已不存在的旧技能目录（仅项目级目标）")
-    args = parser.parse_args()
+    return parser
+
+
+def _handle_legacy(path, kind, legacy, args):
+    """改名后残留的旧名目录：宿主照样会加载它们，与新名并存——按目标类型处置。"""
+    if kind != "project":
+        # 用户级共享目录：不列"陈旧"（会把别人装的技能也算进来），只提示
+        print("      发现旧名目录：%s" % "、".join(legacy))
+        print("      这是多项目共享位置，判断不了归属，请人工确认后删除")
+        return
+    print("      发现旧名目录：%s" % "、".join(legacy))
+    if not args.prune:
+        print("      加 --prune 删除它们（旧名会被宿主照样加载，与新名并存）")
+        return
+    if args.dry_run:
+        print("      --prune 会删除它们（演练，未删除）")
+        return
+    if not is_inside_repo(path):
+        print("      目标不在本仓库内（符号链接？），拒绝删除：%s" % path)
+        return
+    removed = []
+    for name in legacy:
+        # rmtree 遇到符号链接会抛 OSError；不接住的话前面已删的回不来
+        try:
+            shutil.rmtree(os.path.join(path, name))
+            removed.append(name)
+        except OSError as exc:
+            print("      删除 %s 失败：%s" % (name, exc))
+    if removed:
+        print("      --prune：已删除 %s" % "、".join(removed))
+
+
+def main():
+    args = _build_parser().parse_args()
 
     if not os.path.isdir(SKILLS_SRC):
         print("错误：找不到 skills 源目录 %s" % SKILLS_SRC)
@@ -150,31 +183,9 @@ def main():
                 print("      失败：%s" % exc)
                 continue
 
-        # 改名后残留的旧名目录：宿主照样会加载它们，与新名并存
         legacy = find_legacy(path)
-        if legacy and kind != "project":
-            # 用户级共享目录：不列"陈旧"（会把别人装的技能也算进来），只提示
-            print("      发现旧名目录：%s" % "、".join(legacy))
-            print("      这是多项目共享位置，判断不了归属，请人工确认后删除")
-        elif legacy:
-            print("      发现旧名目录：%s" % "、".join(legacy))
-            if not args.prune:
-                print("      加 --prune 删除它们（旧名会被宿主照样加载，与新名并存）")
-            elif args.dry_run:
-                print("      --prune 会删除它们（演练，未删除）")
-            elif not is_inside_repo(path):
-                print("      目标不在本仓库内（符号链接？），拒绝删除：%s" % path)
-            else:
-                removed = []
-                for name in legacy:
-                    # rmtree 遇到符号链接会抛 OSError；不接住的话前面已删的回不来
-                    try:
-                        shutil.rmtree(os.path.join(path, name))
-                        removed.append(name)
-                    except OSError as exc:
-                        print("      删除 %s 失败：%s" % (name, exc))
-                if removed:
-                    print("      --prune：已删除 %s" % "、".join(removed))
+        if legacy:
+            _handle_legacy(path, kind, legacy, args)
         print("")
 
     if args.dry_run:

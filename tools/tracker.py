@@ -269,6 +269,99 @@ def _check_file_rows(name, rows, path, required, dates, enums, fk_ids, issues):
                 issues.append("第 %d 行：关联记录「%s」在 tracker.csv 中不存在" % (i, link))
 
 
+def _ensure_schema_sidecar(tracking):
+    """读 / 补写 schema sidecar，返回 (version, version_note)。
+
+    sidecar 只是版本标记：写失败不影响自检的正确性（下次再试），但按
+    「禁静默吞错」留日志（只记 errno 与人话——异常 str 自带绝对路径）。
+    """
+    schema_path = os.path.join(tracking, SCHEMA_FILE)
+    version = TRACKING_SCHEMA_VERSION
+    if os.path.isfile(schema_path):
+        try:
+            with io.open(schema_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            version = int(meta.get("version", TRACKING_SCHEMA_VERSION))
+        except (ValueError, OSError, TypeError):
+            version = TRACKING_SCHEMA_VERSION
+        if version > TRACKING_SCHEMA_VERSION:
+            return version, ("数据由更新版本的应用写入（schema v%d > v%d），"
+                             "请升级应用后再操作" % (version, TRACKING_SCHEMA_VERSION))
+        if version < TRACKING_SCHEMA_VERSION:
+            return version, ("数据是旧版本（schema v%d），当前无破坏性变更，"
+                             "无需迁移" % version)
+        return version, None
+
+    # 首次自检补写 sidecar（幂等）
+    try:
+        if not os.path.isdir(tracking):
+            os.makedirs(tracking)
+        with io.open(schema_path, "w", encoding="utf-8") as f:
+            json.dump({"version": TRACKING_SCHEMA_VERSION}, f)
+    except OSError as exc:
+        logger.warning("写 sidecar 失败：%s", exc.strerror or type(exc).__name__)
+    return version, None
+
+
+def _check_main_table(ws, files, quarantined):
+    """自检主表 tracker.csv，返回它的 id 集合（其他文件的外键基准）。"""
+    fk_ids = set()
+    main_path = csv_path(ws)
+    if not os.path.isfile(main_path):
+        return fk_ids
+    issues = []
+    try:
+        main_rows = _read_csv_checked(main_path)
+    except (ValueError, csv.Error, UnicodeDecodeError, OSError) as exc:
+        dest = _quarantine(main_path, ws)
+        quarantined.append({
+            "file": "tracker.csv", "error": str(exc)[:120],
+            "moved_to": dest or "隔离失败，请手动处理",
+        })
+        files.append({"file": "tracker.csv", "ok": False,
+                      "issues": ["文件无法解析，已隔离到 quarantine/"], "note": ""})
+        return fk_ids
+    _check_file_rows(
+        "tracker.csv", main_rows, main_path,
+        required=["id", "公司", "岗位", "方向", "批次", "当前阶段"],
+        dates=["截止日期", "投递日期", "下次动作日期"],
+        # 方向不做枚举校验：合法方向取决于工作区装入的插件，动态的
+        # 来源也在校验之列：CLI 与导入都会拦脏值，手改 CSV 绕过它们，
+        # 自检是最后一道拦网（此前来源只在写入口校验，脏值无人拦）。
+        enums=[("当前阶段", STAGES + TERMINAL_STAGES),
+               ("批次", BATCHES),
+               ("来源", SOURCES)],
+        fk_ids=None, issues=issues)
+    fk_ids = set((r.get("id") or "").strip() for r in main_rows)
+    files.append({"file": "tracker.csv", "ok": not issues,
+                  "issues": issues, "note": ""})
+    return fk_ids
+
+
+def _inspect_tracking_file(fname, tracking, ws, files, quarantined, fk_ids,
+                           required, dates=(), enums=(), with_fk=False):
+    """自检单个追踪表文件：不存在记「尚未创建」，坏文件隔离并记问题。"""
+    path = os.path.join(tracking, fname)
+    if not os.path.isfile(path):
+        files.append({"file": fname, "ok": True, "issues": [], "note": "尚未创建"})
+        return
+    issues = []
+    try:
+        rows = _read_csv_checked(path)
+    except (ValueError, csv.Error, UnicodeDecodeError, OSError) as exc:
+        dest = _quarantine(path, ws)
+        quarantined.append({
+            "file": fname, "error": str(exc)[:120],
+            "moved_to": dest or "隔离失败，请手动处理",
+        })
+        files.append({"file": fname, "ok": False,
+                      "issues": ["文件无法解析，已隔离到 quarantine/"], "note": ""})
+        return
+    _check_file_rows(fname, rows, path, required, dates, enums,
+                     fk_ids if with_fk else None, issues)
+    files.append({"file": fname, "ok": not issues, "issues": issues, "note": ""})
+
+
 def run_check(workspace=None):
     """只读自检所有投递追踪数据文件。
 
@@ -281,91 +374,15 @@ def run_check(workspace=None):
     quarantined = []
     files = []
 
-    # sidecar schema 版本
-    schema_path = os.path.join(tracking, SCHEMA_FILE)
-    version = TRACKING_SCHEMA_VERSION
-    version_note = None
-    if os.path.isfile(schema_path):
-        try:
-            with io.open(schema_path, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-            version = int(meta.get("version", TRACKING_SCHEMA_VERSION))
-        except (ValueError, OSError, TypeError):
-            version = TRACKING_SCHEMA_VERSION
-        if version > TRACKING_SCHEMA_VERSION:
-            version_note = ("数据由更新版本的应用写入（schema v%d > v%d），"
-                            "请升级应用后再操作" % (version, TRACKING_SCHEMA_VERSION))
-        elif version < TRACKING_SCHEMA_VERSION:
-            version_note = ("数据是旧版本（schema v%d），当前无破坏性变更，"
-                            "无需迁移" % version)
-    else:
-        # 首次自检补写 sidecar（幂等）
-        try:
-            if not os.path.isdir(tracking):
-                os.makedirs(tracking)
-            with io.open(schema_path, "w", encoding="utf-8") as f:
-                json.dump({"version": TRACKING_SCHEMA_VERSION}, f)
-        except OSError as exc:
-            # sidecar 只是版本标记，写失败不影响自检；只记 errno 与人话（异常
-            # str 自带绝对路径，不打进日志——审查 NIT-6）。
-            logger.warning("写 sidecar 失败：%s", exc.strerror or type(exc).__name__)
-
+    version, version_note = _ensure_schema_sidecar(tracking)
     # tracker.csv 先行：其他文件的外键以它的 id 集合为准
-    fk_ids = set()
-    main_path = csv_path(ws)
-    if os.path.isfile(main_path):
-        issues = []
-        main_rows = None
-        try:
-            main_rows = _read_csv_checked(main_path)
-        except (ValueError, csv.Error, UnicodeDecodeError, OSError) as exc:
-            dest = _quarantine(main_path, ws)
-            quarantined.append({
-                "file": "tracker.csv", "error": str(exc)[:120],
-                "moved_to": dest or "隔离失败，请手动处理",
-            })
-            files.append({"file": "tracker.csv", "ok": False,
-                          "issues": ["文件无法解析，已隔离到 quarantine/"], "note": ""})
-        if main_rows is not None:
-            _check_file_rows(
-                "tracker.csv", main_rows, main_path,
-                required=["id", "公司", "岗位", "方向", "批次", "当前阶段"],
-                dates=["截止日期", "投递日期", "下次动作日期"],
-                # 方向不做枚举校验：合法方向取决于工作区装入的插件，动态的
-                # 来源也在校验之列：CLI 与导入都会拦脏值，手改 CSV 绕过它们，
-                # 自检是最后一道拦网（此前来源只在写入口校验，脏值无人拦）。
-                enums=[("当前阶段", STAGES + TERMINAL_STAGES),
-                       ("批次", BATCHES),
-                       ("来源", SOURCES)],
-                fk_ids=None, issues=issues)
-            fk_ids = set((r.get("id") or "").strip() for r in main_rows)
-            files.append({"file": "tracker.csv", "ok": not issues,
-                          "issues": issues, "note": ""})
+    fk_ids = _check_main_table(ws, files, quarantined)
 
+    # 面试 / 宣讲会 / 邮件 / 题库 / 联系人 / offer / 时间线
     def inspect(fname, required, dates=(), enums=(), with_fk=False):
-        path = os.path.join(tracking, fname)
-        if not os.path.isfile(path):
-            files.append({"file": fname, "ok": True, "issues": [],
-                          "note": "尚未创建"})
-            return
-        issues = []
-        rows = None
-        try:
-            rows = _read_csv_checked(path)
-        except (ValueError, csv.Error, UnicodeDecodeError, OSError) as exc:
-            dest = _quarantine(path, ws)
-            quarantined.append({
-                "file": fname, "error": str(exc)[:120],
-                "moved_to": dest or "隔离失败，请手动处理",
-            })
-            files.append({"file": fname, "ok": False,
-                          "issues": ["文件无法解析，已隔离到 quarantine/"], "note": ""})
-            return
-        _check_file_rows(fname, rows, path, required, dates, enums,
-                         fk_ids if with_fk else None, issues)
-        files.append({"file": fname, "ok": not issues, "issues": issues, "note": ""})
+        _inspect_tracking_file(fname, tracking, ws, files, quarantined, fk_ids,
+                               required, dates, enums, with_fk)
 
-    # 面试 / 联系人 / offer / 时间线
     inspect(INTERVIEW_FILE,
             required=["面试id"],          # 关联记录可空（内推等未录入的面试）
             enums=[("轮次", INTERVIEW_ROUNDS), ("形式", INTERVIEW_FORMS),
@@ -1781,41 +1798,46 @@ def _mail_targets(workspace=None):
     return [os.path.join(ws, "05_投递追踪", MAIL_FILE)]
 
 
+def _talk_add(args):
+    """宣讲会新增：字段组装 → 预览校验 → （--preview 走令牌）落盘。"""
+    fields = {
+        "公司": args.company or "", "时间": args.when or "",
+        "形式": args.form or "", "地点或链接": args.place or "",
+        "关联记录": args.app or "", "是否参加": args.attend or "待定",
+        "收获": args.gain or "", "备注": args.note or "",
+    }
+    errors, plan = preview_talk_fields(fields, WORKSPACE)
+    if errors:
+        print("## 校验失败\n")
+        for e in errors:
+            print("- %s" % e)
+        print("\n未写入 CSV。")
+        return 1
+
+    if getattr(args, "preview", False):
+        import approval
+        result = approval.preview("talk.add", WORKSPACE, plan["payload"],
+                                  plan["summary"], plan["diff"], plan["targets"])
+        print("## 预览（未写入）\n")
+        print(result["summary"])
+        print("")
+        for line in plan["diff"]:
+            print(line)
+        print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
+        print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
+        return 0
+
+    result = apply_approved_talk(plan["payload"], WORKSPACE)
+    print("## %s\n" % result["summary"])
+    for line in plan["diff"]:
+        print(line)
+    return 0
+
+
 def cmd_talk(args):
     """宣讲会 / 招聘会：与投递记录用「关联记录」相连，时间、地点、收获都留下。"""
     if args.action == "add":
-        fields = {
-            "公司": args.company or "", "时间": args.when or "",
-            "形式": args.form or "", "地点或链接": args.place or "",
-            "关联记录": args.app or "", "是否参加": args.attend or "待定",
-            "收获": args.gain or "", "备注": args.note or "",
-        }
-        errors, plan = preview_talk_fields(fields, WORKSPACE)
-        if errors:
-            print("## 校验失败\n")
-            for e in errors:
-                print("- %s" % e)
-            print("\n未写入 CSV。")
-            return 1
-
-        if getattr(args, "preview", False):
-            import approval
-            result = approval.preview("talk.add", WORKSPACE, plan["payload"],
-                                      plan["summary"], plan["diff"], plan["targets"])
-            print("## 预览（未写入）\n")
-            print(result["summary"])
-            print("")
-            for line in plan["diff"]:
-                print(line)
-            print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
-            print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
-            return 0
-
-        result = apply_approved_talk(plan["payload"], WORKSPACE)
-        print("## %s\n" % result["summary"])
-        for line in plan["diff"]:
-            print(line)
-        return 0
+        return _talk_add(args)
 
     if args.action == "list":
         rows = read_talks(app_id=args.app)
@@ -1878,6 +1900,87 @@ def cmd_talk(args):
     return 1
 
 
+def _mail_add(args):
+    """邮件新增：字段组装 → 预览校验 → （--preview 走令牌）落盘。"""
+    fields = {
+        "消息id": getattr(args, "message_id", None) or "",
+        "关联记录": args.app or "",
+        "方向": args.direction or "收",
+        "主题": args.subject or "",
+        "发件人": getattr(args, "sender", None) or "",
+        "日期": args.when or "",
+        "webmail链接": args.url or "",
+        "标签": args.tag or "其他",
+    }
+    errors, plan = preview_mail_fields(fields, WORKSPACE)
+    if errors:
+        print("## 校验失败\n")
+        for e in errors:
+            print("- %s" % e)
+        print("\n未写入 CSV。")
+        return 1
+
+    if getattr(args, "preview", False):
+        import approval
+        result = approval.preview("mail.add", WORKSPACE, plan["payload"],
+                                  plan["summary"], plan["diff"], plan["targets"])
+        print("## 预览（未写入）\n")
+        print(result["summary"])
+        print("")
+        for line in plan["diff"]:
+            print(line)
+        print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
+        print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
+        return 0
+
+    result = apply_approved_mail(plan["payload"], WORKSPACE)
+    print("## %s\n" % result["summary"])
+    for line in plan["diff"]:
+        print(line)
+    return 0
+
+
+def _mail_update(args):
+    """邮件更新：逐字段改 + 关联记录与外键校验 + 枚举复核（与新增同口径）。"""
+    rows = read_mails()
+    row = find_mail(rows, args.id)
+    if not row:
+        print("错误：找不到邮件 `%s`" % args.id)
+        return 1
+    changed = []
+    for arg_name, field in (
+        ("subject", "主题"), ("direction", "方向"), ("sender", "发件人"),
+        ("when", "日期"), ("url", "webmail链接"), ("tag", "标签"),
+    ):
+        value = getattr(args, arg_name, None)
+        if value is not None:
+            changed.append(field)
+            row[field] = value
+    # 关联记录单独处理：给出时必须指向存在的投递记录
+    if getattr(args, "app", None) is not None:
+        link = args.app.strip()
+        if link and not any((r.get("id") or "").strip() == link for r in read_rows()):
+            print("错误：找不到记录 `%s`" % link)
+            return 1
+        changed.append("关联记录")
+        row["关联记录"] = link
+    # 枚举与新增同口径（手滑打错不该静默落盘）
+    direction = row.get("方向") or ""
+    if direction and direction not in MAIL_DIRECTIONS:
+        print("错误：方向必须是 %s 之一" % "/".join(MAIL_DIRECTIONS))
+        return 1
+    tag = row.get("标签") or ""
+    if tag and tag not in MAIL_TAGS:
+        print("错误：标签必须是 %s 之一" % "/".join(MAIL_TAGS))
+        return 1
+    if not changed:
+        print("没有字段变化，未写入")
+        return 0
+    write_mails(rows)
+    print("已更新邮件 %s：%s" % (args.id, "、".join(changed)))
+    return 0
+
+
 def cmd_mail(args):
     """邮件记录：独立表沉淀往来邮件，与投递记录用「关联记录」相连。
 
@@ -1885,42 +1988,7 @@ def cmd_mail(args):
     链路（track update / 邮件解析建议），这是与诚实红线同源的纪律。
     """
     if args.action == "add":
-        fields = {
-            "消息id": getattr(args, "message_id", None) or "",
-            "关联记录": args.app or "",
-            "方向": args.direction or "收",
-            "主题": args.subject or "",
-            "发件人": getattr(args, "sender", None) or "",
-            "日期": args.when or "",
-            "webmail链接": args.url or "",
-            "标签": args.tag or "其他",
-        }
-        errors, plan = preview_mail_fields(fields, WORKSPACE)
-        if errors:
-            print("## 校验失败\n")
-            for e in errors:
-                print("- %s" % e)
-            print("\n未写入 CSV。")
-            return 1
-
-        if getattr(args, "preview", False):
-            import approval
-            result = approval.preview("mail.add", WORKSPACE, plan["payload"],
-                                      plan["summary"], plan["diff"], plan["targets"])
-            print("## 预览（未写入）\n")
-            print(result["summary"])
-            print("")
-            for line in plan["diff"]:
-                print(line)
-            print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
-            print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
-            return 0
-
-        result = apply_approved_mail(plan["payload"], WORKSPACE)
-        print("## %s\n" % result["summary"])
-        for line in plan["diff"]:
-            print(line)
-        return 0
+        return _mail_add(args)
 
     if args.action == "list":
         rows = read_mails(app_id=args.app)
@@ -1951,79 +2019,48 @@ def cmd_mail(args):
         return 0
 
     if args.action == "update":
-        rows = read_mails()
-        row = find_mail(rows, args.id)
-        if not row:
-            print("错误：找不到邮件 `%s`" % args.id)
-            return 1
-        changed = []
-        for arg_name, field in (
-            ("subject", "主题"), ("direction", "方向"), ("sender", "发件人"),
-            ("when", "日期"), ("url", "webmail链接"), ("tag", "标签"),
-        ):
-            value = getattr(args, arg_name, None)
-            if value is not None:
-                changed.append(field)
-                row[field] = value
-        # 关联记录单独处理：给出时必须指向存在的投递记录
-        if getattr(args, "app", None) is not None:
-            link = args.app.strip()
-            if link and not any((r.get("id") or "").strip() == link for r in read_rows()):
-                print("错误：找不到记录 `%s`" % link)
-                return 1
-            changed.append("关联记录")
-            row["关联记录"] = link
-        # 枚举与新增同口径（手滑打错不该静默落盘）
-        direction = row.get("方向") or ""
-        if direction and direction not in MAIL_DIRECTIONS:
-            print("错误：方向必须是 %s 之一" % "/".join(MAIL_DIRECTIONS))
-            return 1
-        tag = row.get("标签") or ""
-        if tag and tag not in MAIL_TAGS:
-            print("错误：标签必须是 %s 之一" % "/".join(MAIL_TAGS))
-            return 1
-        if not changed:
-            print("没有字段变化，未写入")
-            return 0
-        write_mails(rows)
-        print("已更新邮件 %s：%s" % (args.id, "、".join(changed)))
-        return 0
+        return _mail_update(args)
 
     print("错误：未知动作 %s" % args.action)
     return 1
 
 
+def _contact_add(args):
+    """联系人新增：外键与必填校验 → 组装行 → 落盘。"""
+    rows = read_contacts()
+
+    link = (args.app or "").strip()
+    if link:
+        main_rows = read_rows()
+        if not any((r.get("id") or "").strip() == link for r in main_rows):
+            print("错误：找不到记录 `%s`" % link)
+            return 1
+
+    if not (args.name or "").strip():
+        print("错误：--name 必填")
+        return 1
+
+    row = {field: "" for field in CONTACT_FIELDS}
+    row["联系人id"] = next_contact_id(rows)
+    row["关联记录"] = link
+    row["姓名"] = args.name.strip()
+    row["角色"] = args.role or ""
+    row["公司"] = args.company or ""
+    row["联系方式"] = args.contact or ""
+    row["来源"] = args.source or ""
+    row["最近联系"] = args.last or ""
+    row["下次跟进"] = args.next_follow or ""
+    row["备注"] = args.note or ""
+    rows.append(row)
+    write_contacts(rows)
+    print("已记录联系人 %s：%s" % (row["联系人id"], row["姓名"]))
+    return 0
+
+
 def cmd_contact(args):
     """招聘方联系人：跟进有节奏的招聘流程靠它维系。"""
     if args.action == "add":
-        rows = read_contacts()
-
-        link = (args.app or "").strip()
-        if link:
-            main_rows = read_rows()
-            if not any((r.get("id") or "").strip() == link for r in main_rows):
-                print("错误：找不到记录 `%s`" % link)
-                return 1
-
-        if not (args.name or "").strip():
-            print("错误：--name 必填")
-            return 1
-
-        row = {field: "" for field in CONTACT_FIELDS}
-        row["联系人id"] = next_contact_id(rows)
-        row["关联记录"] = link
-        row["姓名"] = args.name.strip()
-        row["角色"] = args.role or ""
-        row["公司"] = args.company or ""
-        row["联系方式"] = args.contact or ""
-        row["来源"] = args.source or ""
-        row["最近联系"] = args.last or ""
-        row["下次跟进"] = args.next_follow or ""
-        row["备注"] = args.note or ""
-        rows.append(row)
-        write_contacts(rows)
-        print("已记录联系人 %s：%s" % (row["联系人id"], row["姓名"]))
-        return 0
+        return _contact_add(args)
 
     if args.action == "list":
         rows = read_contacts(app_id=args.app)
@@ -2079,53 +2116,58 @@ def cmd_contact(args):
     return 1
 
 
+def _offer_add(args):
+    """Offer 新增：外键/公司兜底 → 组装行 → 落盘 + 时间线入账。"""
+    rows = read_offers()
+
+    link = (args.app or "").strip()
+    company = (args.company or "").strip()
+    if link:
+        main_rows = read_rows()
+        src = next((r for r in main_rows
+                    if (r.get("id") or "").strip() == link), None)
+        if src is None:
+            print("错误：找不到记录 `%s`" % link)
+            return 1
+        company = company or src.get("公司", "")
+    elif not company:
+        print("错误：未关联记录时必须给 --company")
+        return 1
+
+    row = {field: "" for field in OFFER_FIELDS}
+    row["offer_id"] = next_offer_id(rows)
+    row["关联记录"] = link
+    row["公司"] = company
+    row["岗位"] = args.role or ""
+    row["薪资构成"] = args.salary or ""
+    row["月薪"] = args.monthly or ""
+    row["年终"] = args.bonus or ""
+    row["签字费"] = args.signon or ""
+    row["股票期权"] = args.equity or ""
+    row["工作地点"] = args.location or ""
+    row["答复截止日"] = args.deadline or ""
+    row["其他条件"] = args.conditions or ""
+    row["备注"] = args.note or ""
+    rows.append(row)
+    write_offers(rows)
+
+    # 拿到 offer 是岗位推进的关键里程碑，入账时间线
+    if link:
+        append_history([{
+            "id": link,
+            "字段": "offer",
+            "原值": "",
+            "新值": "%s（%s）" % (row["offer_id"], row["答复截止日"] or "答复截止待定"),
+        }])
+
+    print("已记录 offer %s：%s" % (row["offer_id"], company))
+    return 0
+
+
 def cmd_offer(args):
     """Offer 已知事实：只记录，不判断——选择是多目标决策，由用户自己做。"""
     if args.action == "add":
-        rows = read_offers()
-
-        link = (args.app or "").strip()
-        company = (args.company or "").strip()
-        if link:
-            main_rows = read_rows()
-            src = next((r for r in main_rows
-                        if (r.get("id") or "").strip() == link), None)
-            if src is None:
-                print("错误：找不到记录 `%s`" % link)
-                return 1
-            company = company or src.get("公司", "")
-        elif not company:
-            print("错误：未关联记录时必须给 --company")
-            return 1
-
-        row = {field: "" for field in OFFER_FIELDS}
-        row["offer_id"] = next_offer_id(rows)
-        row["关联记录"] = link
-        row["公司"] = company
-        row["岗位"] = args.role or ""
-        row["薪资构成"] = args.salary or ""
-        row["月薪"] = args.monthly or ""
-        row["年终"] = args.bonus or ""
-        row["签字费"] = args.signon or ""
-        row["股票期权"] = args.equity or ""
-        row["工作地点"] = args.location or ""
-        row["答复截止日"] = args.deadline or ""
-        row["其他条件"] = args.conditions or ""
-        row["备注"] = args.note or ""
-        rows.append(row)
-        write_offers(rows)
-
-        # 拿到 offer 是岗位推进的关键里程碑，入账时间线
-        if link:
-            append_history([{
-                "id": link,
-                "字段": "offer",
-                "原值": "",
-                "新值": "%s（%s）" % (row["offer_id"], row["答复截止日"] or "答复截止待定"),
-            }])
-
-        print("已记录 offer %s：%s" % (row["offer_id"], company))
-        return 0
+        return _offer_add(args)
 
     if args.action == "list":
         rows = read_offers(app_id=args.app)
@@ -2212,61 +2254,66 @@ def cmd_check(args):
     return 0
 
 
+def _interview_add(args):
+    """面试新增：外键/公司兜底 → 组装行 → 落盘 + 时间线入账。"""
+    rows = read_interviews()
+    main_rows = read_rows()
+
+    # 关联记录非空时必须存在，避免指到不存在的岗位
+    link = (args.app or "").strip()
+    if link:
+        if not any((r.get("id") or "").strip() == link for r in main_rows):
+            print("错误：找不到记录 `%s`，先 tracker.py add 或省略 --app" % link)
+            return 1
+        # 未指定公司/岗位时，从主表带出，保证列表可读
+        src = next(r for r in main_rows if (r.get("id") or "").strip() == link)
+        company = args.company or src.get("公司", "")
+        role = args.role or src.get("岗位", "")
+    else:
+        if not args.company:
+            print("错误：未关联记录时必须给 --company")
+            return 1
+        company = args.company
+        role = args.role or ""
+
+    row = {field: "" for field in INTERVIEW_FIELDS}
+    row["面试id"] = next_interview_id(rows)
+    row["关联记录"] = link
+    row["公司"] = company
+    row["岗位"] = role
+    row["轮次"] = args.round
+    row["面试时间"] = args.when or ""
+    row["形式"] = args.form or ""
+    row["链接"] = args.link or ""
+    row["面试官"] = args.interviewer or ""
+    row["问题记录"] = args.questions or ""
+    row["我的回答要点"] = args.answers or ""
+    row["复盘与改进"] = args.retro or ""
+    row["结果"] = args.result
+
+    rows.append(row)
+    write_interviews(rows)
+
+    # 面试也入账时间线：它是岗位推进的一部分，事后要能回溯
+    if link:
+        append_history([{
+            "id": link,
+            "字段": "面试",
+            "原值": "",
+            "新值": "%s %s（%s）" % (row["轮次"], row["面试时间"] or "时间待定",
+                                 row["面试id"]),
+        }])
+
+    print("已记录面试 %s：%s %s %s" % (row["面试id"], company, role, args.round))
+    return 0
+
+
 def cmd_interview(args):
     """面试记录：投递之后的每一次交流都记下来，复盘是唯一能复利的部分。"""
     action = args.action
 
     if action == "add":
-        rows = read_interviews()
-        main_rows = read_rows()
-
-        # 关联记录非空时必须存在，避免指到不存在的岗位
-        link = (args.app or "").strip()
-        if link:
-            if not any((r.get("id") or "").strip() == link for r in main_rows):
-                print("错误：找不到记录 `%s`，先 tracker.py add 或省略 --app" % link)
-                return 1
-            # 未指定公司/岗位时，从主表带出，保证列表可读
-            src = next(r for r in main_rows if (r.get("id") or "").strip() == link)
-            company = args.company or src.get("公司", "")
-            role = args.role or src.get("岗位", "")
-        else:
-            if not args.company:
-                print("错误：未关联记录时必须给 --company")
-                return 1
-            company = args.company
-            role = args.role or ""
-
-        row = {field: "" for field in INTERVIEW_FIELDS}
-        row["面试id"] = next_interview_id(rows)
-        row["关联记录"] = link
-        row["公司"] = company
-        row["岗位"] = role
-        row["轮次"] = args.round
-        row["面试时间"] = args.when or ""
-        row["形式"] = args.form or ""
-        row["链接"] = args.link or ""
-        row["面试官"] = args.interviewer or ""
-        row["问题记录"] = args.questions or ""
-        row["我的回答要点"] = args.answers or ""
-        row["复盘与改进"] = args.retro or ""
-        row["结果"] = args.result
-
-        rows.append(row)
-        write_interviews(rows)
-
-        # 面试也入账时间线：它是岗位推进的一部分，事后要能回溯
-        if link:
-            append_history([{
-                "id": link,
-                "字段": "面试",
-                "原值": "",
-                "新值": "%s %s（%s）" % (row["轮次"], row["面试时间"] or "时间待定",
-                                     row["面试id"]),
-            }])
-
-        print("已记录面试 %s：%s %s %s" % (row["面试id"], company, role, args.round))
-        return 0
+        return _interview_add(args)
 
     if action == "list":
         rows = read_interviews(app_id=args.app)
@@ -2329,12 +2376,8 @@ def cmd_interview(args):
     return 1
 
 
-def build_parser():
-    parser = argparse.ArgumentParser(description="投递追踪表增删查改")
-    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
-                        help="工作区目录，默认仓库下的 personal/")
-    sub = parser.add_subparsers(dest="cmd")
-
+def _add_app_parsers(sub):
+    """主表（投递记录）的 add / update / list / show / history 子命令。"""
     p_add = sub.add_parser("add", help="新增投递记录")
     p_add.add_argument("--company", required=True, help="公司")
     p_add.add_argument("--role", required=True, help="岗位")
@@ -2390,6 +2433,9 @@ def build_parser():
     p_hist.add_argument("--id", help="只看某条记录，省略则看全部")
     p_hist.add_argument("--limit", type=int, help="只显示最近 N 条")
 
+
+def _add_interview_parser(sub):
+    """面试记录子命令。"""
     p_itv = sub.add_parser("interview", help="面试记录与复盘（add/list/show/update）")
     p_itv.add_argument("action", choices=["add", "list", "show", "update"])
     p_itv.add_argument("--id", help="面试 id（show/update 必填，如 I001）")
@@ -2409,6 +2455,9 @@ def build_parser():
     p_itv.add_argument("--result", choices=INTERVIEW_RESULTS, default="待定",
                        help="结果，默认待定")
 
+
+def _add_talk_parser(sub):
+    """宣讲会 / 招聘会子命令。"""
     p_talk = sub.add_parser("talk", help="宣讲会 / 招聘会（add/list/show/update）")
     p_talk.add_argument("action", choices=["add", "list", "show", "update"])
     p_talk.add_argument("--id", help="宣讲会 id（show/update 必填，如 T001）")
@@ -2424,6 +2473,9 @@ def build_parser():
                         help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
                              "确认后用 python tools/jobws.py apply <令牌> 落盘")
 
+
+def _add_mail_parser(sub):
+    """邮件记录子命令。"""
     p_mail = sub.add_parser("mail", help="邮件记录（add/list/show/update）")
     p_mail.add_argument("action", choices=["add", "list", "show", "update"])
     p_mail.add_argument("--id", help="邮件记录 id（show/update 必填，如 M001）")
@@ -2440,6 +2492,9 @@ def build_parser():
                         help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
                              "确认后用 python tools/jobws.py apply <令牌> 落盘")
 
+
+def _add_contact_parser(sub):
+    """联系人子命令。"""
     p_ct = sub.add_parser("contact", help="招聘方联系人（add/list/show/update）")
     p_ct.add_argument("action", choices=["add", "list", "show", "update"])
     p_ct.add_argument("--id", help="联系人 id（show/update 必填，如 C001）")
@@ -2453,6 +2508,9 @@ def build_parser():
     p_ct.add_argument("--next-follow", dest="next_follow", help="下次跟进 YYYY-MM-DD")
     p_ct.add_argument("--note", help="备注")
 
+
+def _add_offer_parser(sub):
+    """Offer 子命令。"""
     p_off = sub.add_parser("offer", help="Offer 事实记录（add/list/show/update）")
     p_off.add_argument("action", choices=["add", "list", "show", "update"])
     p_off.add_argument("--id", help="offer id（show/update 必填，如 O001）")
@@ -2469,6 +2527,9 @@ def build_parser():
     p_off.add_argument("--conditions", help="其他条件")
     p_off.add_argument("--note", help="备注")
 
+
+def _add_misc_parsers(sub):
+    """批量导入与 schema 自检子命令。"""
     p_imp = sub.add_parser("import", help="从 CSV 批量导入投递记录")
     p_imp.add_argument("--file", required=True, help="CSV 文件路径（utf-8 / Excel 导出均可）")
     p_imp.add_argument("--dry-run", dest="dry_run", action="store_true",
@@ -2479,6 +2540,20 @@ def build_parser():
 
     sub.add_parser("check", help="schema 自检：列完整性、枚举、外键、坏文件隔离")
 
+
+def build_parser():
+    """组装 argparse 解析器：按域拆成小 helper（各自 ≤80 行）。"""
+    parser = argparse.ArgumentParser(description="投递追踪表增删查改")
+    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
+                        help="工作区目录，默认仓库下的 personal/")
+    sub = parser.add_subparsers(dest="cmd")
+    _add_app_parsers(sub)
+    _add_interview_parser(sub)
+    _add_talk_parser(sub)
+    _add_mail_parser(sub)
+    _add_contact_parser(sub)
+    _add_offer_parser(sub)
+    _add_misc_parsers(sub)
     return parser
 
 

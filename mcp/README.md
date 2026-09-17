@@ -13,7 +13,21 @@ Markdown / CSV，不出网。**默认只读**；写入走**两段式**——`pre
 | `dashboard_summary` | 看板摘要（只读；漏斗、近 7 天待办、已过截止、静默提醒、待推进、转化率与失败归因） |
 | `preview_add_application` | 预览新增一条投递记录（**不写入**；返回一次性令牌与 diff） |
 | `preview_import_applications` | 预览按 CSV 批量导入（**不写入**；有错误行时不给令牌） |
+| `preview_update_application` | 预览更新一条投递记录（**不写入**；只列要改的字段。可更新字段与新增同族） |
 | `apply_approval` | 凭令牌执行已确认的写入（两段式第二步；令牌一次性、10 分钟、绑定工作区） |
+
+拒绝是**可程序化区分**的：`apply_approval` 失败时返回稳定 `code`——`not_found`
+（不存在 / 已用过，含重放）、`expired`、`fingerprint`（载荷被改过）、`binding`
+（工作区不符）等；宿主按 code 分支，不要解析中文文案。
+
+## 只读资源与提示模板（批 8：按需读取）
+
+- **资源**（固定 URI；list 只列清单，read 才取内容）：
+  `jobws://workspace/applications`（投递记录）、`jobws://workspace/jobs`（岗位池）、
+  `jobws://workspace/dashboard`（看板摘要）。**不要全量预载**——那既贵又慢。
+- **提示模板**：`review_jd`（评估 JD）、`generate_application_pack`（投递包）、
+  `interview_review`（面试复盘）、`today_todos`（今日待办）——只做参数化组装，
+  准则在 `skills/jwb-*` 里，不在这里复制第二份。
 
 口径与 CLI / 网页端**同源**：终态、待办（下次动作日期优先于截止日期）、逾期（只看
 「待投」）、静默（`tracker.stale_days`）、健康度（`tracker.health_score`）照搬后端看板；

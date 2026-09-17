@@ -34,7 +34,7 @@ npm run dev
 | 追踪表 | 投递记录列表，按阶段/方向/批次筛选 + 关键字搜索 + 排序（含**健康度**），行内改阶段与「状态原因」，新增投递（含终态不回退/去重/原因必填约束，「我拒绝的 offer」为双向选择终态），**CSV 批量导入**（预览差异表，新增/重复/错误分色，有错误禁提交），行展开查看变更时间线与停留天数 |
 | 岗位池 | 岗位卡片（含评分与档位）、新建岗位粘贴 JD 或**从链接抓取正文**（抓不到会明确提示手动粘贴，不留空壳）、详情页（资格硬门槛置顶 + 评分四维下钻 + 证据标签 + **简历差距面板**：可召回 / 真实缺口二分） |
 | 简历工坊 | **双模式**：「标准版式」= 数据驱动编辑（左结构化表单、右 A4 实时预览、生成 PDF + ATS 校验、防超页护栏，页面上直接新建版本）+ **一键导入**（PDF/Word/MD/TXT 抽取 → 核对页逐段确认才落盘）+ **AI 改写建议**（反编造校验不过不能采用）+ **导出 Word**（零依赖，只保证文本可复制，排版以 PDF 为准）；「高级模板」= 手写 HTML 精排版的只读浏览与一键生成；底部**版本谱系**（该版本投了哪些岗位） |
-| 进展 | 投递之后的主战场，四个子 Tab：**面试**（三段式复盘记录 + 导出 `.ics` 日程）、**题库**（按公司归集被问过的问题与自己的回答，可关键词检索）、**联系人**（跟进节奏管理，超期琥珀提醒）、**Offer 对比**（只并排已知事实，绝不给建议） |
+| 进展 | 投递之后的主战场，六个子 Tab：**面试**（三段式复盘记录 + 导出 `.ics` 日程）、**宣讲会 / 招聘会**（时间 / 形式 / 地点与收获，导出 `.ics`）、**邮件**（往来邮件台账；Message-ID 深链或降级提示；不自动改阶段）、**题库**（按公司归集被问过的问题与自己的回答，可关键词检索）、**联系人**（跟进节奏管理，超期琥珀提醒）、**Offer 对比**（只并排已知事实，绝不给建议） |
 | 素材库 | 事实库浏览（简历文件已迁往简历工坊，避免同名混淆） |
 | 设置 | Provider（BYOK）：base_url/key（脱敏）/ 测试连接；**数据与隐私**：整包导出 zip / 立即快照备份 / 打开数据目录 / 无遥测声明 |
 
@@ -67,8 +67,13 @@ web/
 │   ├── atomicio.py           原子写：tmp + os.replace，.jobws_tmp_ 前缀
 │   ├── icsutil.py            RFC 5545 日程导出（纯标准库手写）
 │   ├── resume_guard.py       反编造条款 + 改写校验器（测试锁死）
+│   ├── apierror.py           ApiError 契约（错误码 + 参数）
+│   ├── mail_link.py          邮件深链判定（custom > Gmail rfc822msgid > none 降级）
+│   ├── redact.py             凭证脱敏（日志与响应共用）
+│   ├── resume_import.py      简历导入抽取（PDF / Word / MD / TXT）
+│   ├── tls_http.py           出网证书策略接线
 │   ├── pyinstaller.spec      PyInstaller onedir 打包配置
-│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / workspace
+│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / workspace / approvals / imap
 ├── electron/                 Electron 桌面壳（探测打包 exe → spawn → 开窗 → 退出杀进程树）
 └── frontend/
     └── src/
@@ -83,5 +88,5 @@ web/
 ## 已知边界
 
 - 仅本地单用户（无账号登录），以 workspace 目录隔离代替用户隔离
-- 自动更新不做（剩余阻碍是 macOS 代码签名），分发走手动安装包
+- 自动更新：Windows 打包版已启用（electron-updater，v0.2.1 起；unsigned 链的取舍见 `SECURITY.md`），**macOS 不做**（代码签名缺失，系统必需）。首次分发走手动安装包
 - 简历的可视化在线编辑未纳入：结构化字段用表单改，精排版仍走手写 HTML

@@ -16,14 +16,14 @@ Do this once. Skip it if your environment is already set up.
 
 | Software | What it is for | How to check |
 |---|---|---|
-| Python 3.12+ | Backend and CLI scripts | `python --version` |
+| Python 3.12+ | Backend and CLI scripts (3.12 is the supported, CI-verified baseline; 3.9+ may run unverified) | `python --version` |
 | Node.js 18+ | Frontend build | `node --version` |
 | Chrome or Edge | PDF generation (headless rendering) | Usually already present |
 
 ### Install dependencies (once each)
 
 ```bash
-# Backend (fastapi/uvicorn/pydantic keep their existing upper-bound pins; relaxing them is a separate step)
+# Backend (upper-bound pins — relaxed step by step since the 3.12 baseline, each verified by a full regression run; current values in CONTRIBUTING.md)
 cd <repo>\web\backend
 pip install -r requirements.txt
 
@@ -287,7 +287,7 @@ python tools/jobws.py jd "personal/01_岗位池/<dir>/解析卡.md" --domain hva
 python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<dir>/解析卡.md"   # JD↔resume gaps
 ```
 
-> The stage names above (`笔试`, `一面`, …) are the actual values written into your data files, which is why they appear in Chinese. They are validated against a fixed list (`STAGES` in `tools/jobws.py track`), so they cannot simply be renamed to English.
+> The stage names above (`笔试`, `一面`, …) are the actual values written into your data files, which is why they appear in Chinese. They are validated against a fixed list (`STAGES` in `tools/tracker.py`), so they cannot simply be renamed to English.
 
 ---
 
@@ -301,7 +301,7 @@ python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<dir>/解析
 | `01_岗位池/` | One directory per role: the JD text + parsed card |
 | `02_简历工坊/` | Resume markdown + HTML templates + generated PDFs + photo |
 | `03_面试准备/` | Self-intro, project pitches, question bank, behavioural stories, retros |
-| `04_知识库/` | 30 knowledge dictionaries |
+| `04_知识库/` | Knowledge dictionaries — built by you on demand (the skeleton ships a README only) |
 | `05_投递追踪/` | `tracker.csv` + `history.csv` (change timeline) + `interviews` / `contacts` / `offers.csv` |
 | `AGENTS.md` | Your profile: hard-requirement facts, honesty red lines |
 
@@ -375,7 +375,7 @@ A `.ps1` containing Chinese must be saved as **UTF-8 with BOM**. Save it without
 |---|---|
 | Overall architecture (three-layer split, domain profiles) | `docs/specs/2026-08-30-general-workbench-design.md` |
 | Web layer design (API contracts, concurrency, security) | `docs/specs/2026-08-30-web-prototype-design.md` |
-| AI workflow definitions | The five SKILL.md files under `skills/` (distributed to your AI CLIs by `tools/jobws.py skills install`) |
+| AI workflow definitions | The eight SKILL.md files under `skills/` (five job-hunting + three maintainer-facing; distributed to your AI CLIs by `tools/jobws.py skills install`) |
 | Documentation index | `docs/README.md` |
 
 ---

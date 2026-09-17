@@ -120,7 +120,7 @@
 **hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再按当日生成新号发布（同日再发 N 递增）。**不**从旧 tag 拉 hotfix 分支。
 **撤回坏版本**：用新号重发（同日递增 N 或次日新号）；重发同名版本无效。
 
-**自动更新不做**：仓库已公开（2026-09-08 推送），剩余阻碍是代码签名（macOS 必需）；分发仍走手动安装包。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
+**自动更新**：Windows 打包版**已启用**（electron-updater，v0.2.1 起；unsigned 更新链的取舍已记于 SECURITY.md），首次分发仍走手动安装包；**macOS 自动更新不做**（剩余阻碍是代码签名，系统必需）。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
 
 ## 可持续性约定
 

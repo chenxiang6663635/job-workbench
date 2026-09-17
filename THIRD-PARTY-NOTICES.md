@@ -20,7 +20,6 @@
 | [React](https://github.com/facebook/react) / react-dom | MIT | UI 框架 |
 | [recharts](https://github.com/recharts/recharts) | MIT | 图表 |
 | [lucide-react](https://github.com/lucide-icons/lucide) | ISC | 图标 |
-| [react-icons](https://github.com/react-icons/react-icons) | MIT | 图标 |
 | [Vite](https://github.com/vitejs/vite) | MIT | 构建工具 |
 | [TypeScript](https://github.com/microsoft/TypeScript) | Apache-2.0 | 类型系统 |
 | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) / tailwind-merge / tailwindcss-animate | MIT | 样式 |

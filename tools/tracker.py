@@ -29,6 +29,7 @@ import argparse
 import csv
 import io
 import json
+import logging
 import os
 import re
 import sys
@@ -42,6 +43,10 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from filelock import file_lock  # noqa: E402
+
+# 库代码一律走 logging 而不是 print：tracker 被后端常驻进程与 MCP（stdout 是
+# 协议通道）导入，print 会污染 stdout——这是模块级 logger 存在的理由。
+logger = logging.getLogger(__name__)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
@@ -300,8 +305,10 @@ def run_check(workspace=None):
                 os.makedirs(tracking)
             with io.open(schema_path, "w", encoding="utf-8") as f:
                 json.dump({"version": TRACKING_SCHEMA_VERSION}, f)
-        except OSError:
-            pass
+        except OSError as exc:
+            # sidecar 只是版本标记，写失败不影响自检；只记 errno 与人话（异常
+            # str 自带绝对路径，不打进日志——审查 NIT-6）。
+            logger.warning("写 sidecar 失败：%s", exc.strerror or type(exc).__name__)
 
     # tracker.csv 先行：其他文件的外键以它的 id 集合为准
     fk_ids = set()
@@ -402,7 +409,7 @@ def run_check(workspace=None):
 
 def parse_iso_date(value):
     """解析 YYYY-MM-DD，非法返回 None。与 report.parse_date 同规则，
-    但 tracker 不 import report（脚本互不调用，report 才导入 tracker）。
+    但 tracker 不 import report（反向依赖：report 导入 tracker，避免循环）。
     """
     raw = (value or "").strip()
     if not DATE_RE.match(raw):

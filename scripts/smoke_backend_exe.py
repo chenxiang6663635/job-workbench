@@ -70,8 +70,10 @@ def main():
         if sys.stdout.encoding.lower() != "utf-8":
             try:
                 sys.stdout.reconfigure(encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as exc:
+                # 重配失败不致命（控制台可能不支持），但留一句——否则乱码时
+                # 无从判断是「没重配成功」还是「终端本身不显示」。
+                print("注意：stdout 重配 utf-8 失败：%s" % exc, file=sys.stderr)
 
     if not os.path.isfile(args.exe):
         print("找不到 exe：%s" % args.exe)

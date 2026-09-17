@@ -134,7 +134,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "release check 失败（exit $LASTEXITCODE）——按上文提示修 CHANGELOG 后重跑" }
 
       # PyInstaller 不在 requirements.txt 里（它只是构建期依赖，不该打给终端用户）。
-      # 上限按本仓库既有惯例（fastapi<0.116 那样）钉到主版本，不钉死小版本：
+      # 上限按本仓库既有惯例（fastapi<0.142 那样）钉到主版本，不钉死小版本：
       # 具体小版本与 Python 基线、runner 镜像的兼容性耦合，钉死了反而会在 runner
       # 上装不上。
       # 解析到的实际版本由下一步打印进日志——不可复现时至少有据可查。

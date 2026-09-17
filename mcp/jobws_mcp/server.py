@@ -107,7 +107,8 @@ def build_server(workspace=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="求职工作台 MCP 服务（只读）")
+    parser = argparse.ArgumentParser(
+        description="求职工作台 MCP 服务（默认只读；写入走两段式确认）")
     parser.add_argument("--workspace", default=None,
                         help="工作区名或绝对路径；相对路径按应用根/数据根解析，越界拒绝")
     args = parser.parse_args(argv)

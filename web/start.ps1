@@ -100,7 +100,10 @@ function Resolve-BackendPython {
                 $candidates += $persisted
                 Write-Host "  提示：本次终端还没刷新环境变量，先用 setx 保存的值试试。" -ForegroundColor DarkGray
             }
-        } catch { }
+        } catch {
+            # 读用户级环境变量失败（极少见）：不影响主候选链，Verbose 记录。
+            Write-Verbose "读取用户级 JOBWS_PYTHON 失败：$($_.Exception.Message)"
+        }
     }
     $venvPy = Join-Path $root ".venv\Scripts\python.exe"
     if (Test-Path $venvPy) { $candidates += $venvPy }
@@ -175,7 +178,11 @@ for ($i = 0; $i -lt 30; $i++) {
     try {
         $r = Invoke-WebRequest "http://127.0.0.1:8765/api/health" -TimeoutSec 2 -UseBasicParsing
         if ($r.StatusCode -eq 200) { $ready = $true; break }
-    } catch {}
+    } catch {
+        # 轮询期间失败是正常路径（服务尚未就绪），用 Verbose 记录而不刷屏；
+        # 真正起不来时下面的分支会给出结论与排查指引。`-Verbose` 可见本行。
+        Write-Verbose "后端探测未就绪（第 $i 次）：$($_.Exception.Message)"
+    }
 }
 
 if (-not $ready) {
@@ -196,7 +203,10 @@ for ($i = 0; $i -lt 30; $i++) {
     try {
         $r = Invoke-WebRequest "http://127.0.0.1:5173/" -TimeoutSec 2 -UseBasicParsing
         if ($r.StatusCode -eq 200) { $frontendReady = $true; break }
-    } catch {}
+    } catch {
+        # 同后端探测：正常路径（Vite 尚未编译完毕），Verbose 记录不刷屏。
+        Write-Verbose "前端探测未就绪（第 $i 次）：$($_.Exception.Message)"
+    }
 }
 
 if (-not $frontendReady) {

@@ -2,9 +2,9 @@
 """工作区解析：与后端 `deps.py` **同口径**，但不 import fastapi。
 
 为什么自己写一遍而不是直接 import `deps`：`deps.py` 第一行就
-`from fastapi import ...`，而 MCP 包跑在独立的 3.10+ 环境里（主干后端为兼容
-Python 3.8 把 pydantic 钉在 2.10 以下，与 MCP SDK 要求的 pydantic>=2.12
-互斥——见 `.codebuddy/plans/后续优先级_2026-09-13.md` 第一节）。
+`from fastapi import ...`，而 MCP 包跑在独立的 3.10+ 环境里（职责分层：
+MCP 是宿主里的可选组件、不需要 fastapi，主干也不需要 MCP SDK；依赖面
+不同，不是约束冲突——见 `mcp/pyproject.toml` 的说明段）。
 
 所以这里只 import `pathres`：它只依赖 os/sys，零第三方依赖，且本来就是
 「只读资源 / 可写数据」这条链路的单一事实源。剩下的几个常量与函数按
@@ -109,11 +109,11 @@ def resolve_workspace(name=None, must_exist=False):
     elif os.path.isabs(name):
         path = os.path.normpath(name)
     else:
-        # 相对工作区名按**数据根**解析。
-        # 源码/便携形态下数据根就是应用根（pathres 的 portable 判定），与后端
-        # deps.py:129「相对路径按 ROOT 拼」完全一致；打包形态下数据根是系统用户
-        # 目录——那里才是用户数据真正所在，按安装目录拼只会指向一个空壳。
-        # （不逐个根去试存在的目录：那会让同名工作区在不同形态下指向不同副本。）
+        # 相对工作区名按**数据根**解析——本模块**有意比后端更严**：只认这一个
+        # 根，不逐个根去试存在的目录（那会让同名工作区在不同形态下指向不同
+        # 副本）。打包形态下数据根是系统用户目录——那里才是用户数据真正所在，
+        # 按安装目录拼只会指向一个空壳。（后端 ?ws= 自 2026-09-16 起为「数据根
+        # 优先 + 应用根兜底」的两候选解析，可达集合比这里大。）
         path = os.path.normpath(os.path.join(data_root(), name))
 
     real = os.path.realpath(path)

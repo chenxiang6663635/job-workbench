@@ -31,7 +31,7 @@ The workbench turns all of that into queryable, traceable files.
 ## Core design
 
 - **AI judges, scripts verify.** Scores come from your AI CLI reading the JD against your profile; Python only validates totals, applies thresholds, generates PDFs, reads/writes the tracker — and makes explainable deterministic calls (application health in four states, CSV import diffs, failure clustering — all with reasons). Changing scoring rules means editing Markdown profiles, not code.
-- **Four-layer one-way dependency**: skills (domain knowledge) → scripts (IO & validation) → data (Markdown + CSV) → git (versions). Scripts don't call each other (one exception: `report.py` reuses `tracker.py`'s IO), so each is independently testable.
+- **Four-layer one-way dependency**: skills (domain knowledge) → scripts (IO & validation) → data (Markdown + CSV) → git (versions). The `tools/` tree is a layered package — one CLI entry point (`jobws`) plus domain modules and gate scripts; module dependencies stay acyclic (domain code never imports the web/protocol layer), so each module stays independently testable.
 - **Three-layer separation**: tooling (`tools/` + `skills/`, domain-agnostic) · domain profiles (`template/profiles/`, pluggable) · user workspace (`personal/`, your real data). A three-tier lexicon judges skills by *"can you survive follow-up questions"*, not *"have you heard of it"* — see [`template/AGENTS.example.md`](template/AGENTS.example.md).
 
 ## Features at a glance
@@ -103,7 +103,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 |---|---|
 | `template/` | Generic skeleton: profile templates, empty workspace, domain plugins |
 | `skills/` | The four job-hunting workflows + the coach scoring standard, and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
-| `tools/` | Six Python scripts |
+| `tools/` | Python domain layer — one CLI entry point plus domain modules and gate scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (seven pages), same data files as the CLI |
 | `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |
 | `personal/` | Your real workspace (**fully git-ignored; the repo ships zero real data**) |

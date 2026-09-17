@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """BYOK Provider 配置：读写 OpenAI 兼容端点的 base_url 与 key，并提供连通性测试。
 
-一期只做配置骨架 + 连通性测试（调 {base_url}/models），不接真实 LLM 调用——
-评分判断仍由 AI CLI / 用户完成。key 只存本地 JSON，返回时脱敏，日志不打印。
+配置读写 + 连通性测试（调 {base_url}/models），同时是 BYOK 的**调用入口**——
+简历导入抽取与 AI 改写建议经本配置调真实 LLM（见 routers/resume.py 的
+`_call_llm`）。评分判断仍由 AI CLI / 用户完成。key 只存本地 JSON，返回时
+脱敏，日志不打印。
 """
 
 from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -18,9 +21,12 @@ from pydantic import BaseModel
 
 import tls_http
 from apierror import ApiError
+from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
 from filelock import file_lock
 from redact import mask_secret
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/provider")
 
@@ -54,7 +60,10 @@ def _read_config(path):
             "base_url": data.get("base_url", ""),
             "api_key": data.get("api_key", ""),
         }
-    except (ValueError, OSError):
+    except (ValueError, OSError) as exc:
+        # 坏配置（截断 / 手改出错）按「未配置」继续，但留日志——静默返回空会
+        # 让「key 怎么消失了」无从排查。
+        logger.warning("读取 Provider 配置失败，按未配置处理：%s", exc)
         return {"base_url": "", "api_key": ""}
 
 
@@ -109,8 +118,9 @@ def save_provider(body: SaveProvider, ws: str = Depends(workspace_dir)):
         if new_key:
             cfg["api_key"] = new_key
 
-        with io.open(path, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        # 原子写：并发读（GET / test / 简历导入的 LLM 调用）不会看到半截文件；
+        # 写仍持锁，两次并发保存不会互相覆盖（与 routers/imap.py 同口径）。
+        atomic_write_text(path, json.dumps(cfg, ensure_ascii=False, indent=2))
 
     return {
         "base_url": cfg["base_url"],

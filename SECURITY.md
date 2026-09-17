@@ -13,7 +13,7 @@ build before reporting.
 
 | Version | Supported |
 |---|---|
-| latest release (`v0.2.x`) | Yes |
+| latest release (timestamp scheme, e.g. `v26.09.15.1`) | Yes |
 | older tags | No |
 
 ## Reporting a vulnerability

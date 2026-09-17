@@ -23,7 +23,7 @@ English（主版）：[`usage-guide.md`](usage-guide.md) ｜ 本文件是简体�
 ### 安装依赖（各一次）
 
 ```bash
-# 后端依赖（fastapi/uvicorn/pydantic 沿用既有的上限钉法；放宽单独排期）
+# 后端依赖（上限已随 3.12 基线逐步放宽、每条跑全量回归后才合；当前值见 CONTRIBUTING.md）
 cd <仓库目录>\web\backend
 pip install -r requirements.txt
 
@@ -290,6 +290,8 @@ python tools/jobws.py jd "personal/01_岗位池/<目录>/解析卡.md" --domain 
 python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<目录>/解析卡.md"   # JD↔简历差距
 ```
 
+> 上文的阶段名（`笔试`、`一面`……）会**原样写进你的数据文件**，所以界面与文档里保留中文；它们按固定词表校验（`STAGES`，定义在 `tools/tracker.py`），不能简单改成英文。
+
 ---
 
 ## 六、数据在哪、怎么备份
@@ -302,7 +304,7 @@ python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<目录>/解
 | `01_岗位池/` | 每个岗位一个目录：JD 原文 + 解析卡 |
 | `02_简历工坊/` | 简历 md + HTML 模板 + 生成的 PDF + 照片 |
 | `03_面试准备/` | 自我介绍、项目表达、题库、行为面、复盘 |
-| `04_知识库/` | 30 份知识词典 |
+| `04_知识库/` | 知识词典目录——按需自建（骨架里只有一份 README） |
 | `05_投递追踪/` | tracker.csv + history.csv（变更时间线）+ interviews / contacts / offers.csv |
 | `AGENTS.md` | 你的档案：硬门槛事实、诚实红线 |
 
@@ -376,7 +378,7 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 |---|---|
 | 整体架构（三层分离、领域插件） | `docs/specs/2026-08-30-general-workbench-design.md` |
 | Web 层设计（API 契约、并发与安全） | `docs/specs/2026-08-30-web-prototype-design.md` |
-| AI 工作流定义 | 根 `skills/` 下五个 SKILL.md（`tools/jobws.py skills install` 分发到各 AI CLI） |
+| AI 工作流定义 | 根 `skills/` 下八个 SKILL.md（五个求职向 + 三个开发向；`tools/jobws.py skills install` 分发到各 AI CLI） |
 | 文档总索引 | `docs/README.md` |
 
 ---

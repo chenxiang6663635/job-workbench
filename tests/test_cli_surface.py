@@ -60,7 +60,10 @@ def _isolate_module_globals(monkeypatch):
     `set_workspace` 改同一个全局；`resume_build.VERIFY_FACTS_FILE` 同理。
     不隔离的话测试之间会串味，且顺序一变就飘。
     """
-    monkeypatch.setattr(tracker, "WORKSPACE", tracker.WORKSPACE)
+    # tracker 包化后 WORKSPACE 的真身在 tracker._core（门面只做 PEP 562 转发，
+    # setattr 包门面只会改门面命名空间、真身不受影响——必须打真身）
+    from tracker import _core as tracker_core
+    monkeypatch.setattr(tracker_core, "WORKSPACE", tracker_core.WORKSPACE)
     monkeypatch.setattr(resume_build, "VERIFY_FACTS_FILE", resume_build.VERIFY_FACTS_FILE)
     monkeypatch.delenv("PR_TITLE", raising=False)
 
@@ -375,6 +378,27 @@ def test_legacy_script_paths_only_print_migration_hint():
                               errors="replace", timeout=60, cwd=ROOT)
         assert proc.returncode == 2, "%s 应以退出码 2 结束" % script
         assert "jobws" in proc.stdout, "%s 应给出 jobws 迁移提示" % script
+
+
+def test_track_import_respects_explicit_workspace(tmp_path, monkeypatch, capsys):
+    """`track --workspace X import` 必须写进 X。
+
+    回归守卫（重构批独立审查 MAJOR-1）：包化后 importing 曾持 WORKSPACE 的
+    值快照——显式 --workspace 被忽略、静默写去默认工作区（本机路径下就是
+    tools/personal），落盘时还会静默建目录。这条用真实入口跑一次完整链路。
+    """
+    ws_x = tmp_path / "ws-explicit"
+    ws_x.mkdir()
+    csv_file = tmp_path / "in.csv"
+    csv_file.write_text(
+        "公司,岗位,方向,批次,当前阶段\n示例公司甲,示例岗位乙,backend,正式批,待投\n",
+        encoding="utf-8")
+    code, out = _invoke_jobws(monkeypatch, capsys,
+                              ["track", "--workspace", str(ws_x),
+                               "import", "--file", str(csv_file)])
+    assert code == 0, out
+    written = ws_x / "05_投递追踪" / "tracker.csv"
+    assert written.is_file(), "导入必须落在显式指定的工作区（不是默认工作区）"
 
 
 # --- 5. 分发层自身（网要跟着鱼走，新网自己也得钉）----------------------------

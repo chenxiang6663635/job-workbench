@@ -10,8 +10,7 @@
 # 重新生成草稿：`python tools/check_size.py --print-allowlist`
 #
 # --- 领域层：拆分为重构专项，拆前只许变小 ---
-tools/tracker.py = 2522  # 7 张表的领域层（tracker/interviews/contacts/offers/talks/questions/mails）；已列重构专项；2026-09-16 清静默吞错加 sidecar 失败日志（2515→2522）
-# （2026-09-16 重构批：progress 已包化为 routers/progress/，本行按自洁删除）
+# （2026-09-16 重构批：tracker 已包化为 tools/tracker/、progress 已包化为 routers/progress/，两行按自洁删除）
 #
 # --- 脚本：argparse 声明 + 处理流程，声明式占比大 ---
 tools/jd_score.py = 705  # 评分标准 + 解析卡校验 + CLI；2026-09-16 拆 main 为 _build_parser/_run_show_profile/_run_gap/_validate_card/_print_verdict（684→705）

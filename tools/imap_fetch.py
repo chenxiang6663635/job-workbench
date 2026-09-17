@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import datetime
 import imaplib
+import logging
 import re
 import socket
 import ssl
@@ -32,6 +33,8 @@ import tls_policy
 from email import message_from_bytes
 from email.header import decode_header
 from html.parser import HTMLParser
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 993
 DEFAULT_FOLDER = "INBOX"
@@ -328,8 +331,10 @@ def test_connection(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLD
     finally:
         try:
             conn.logout()
-        except Exception:
-            pass
+        except Exception as exc:
+            # 登出失败不影响调用方拿到的结果（连接已用完）；按「禁静默吞错」
+            # 留一条日志，IST/服务器端异常时会体现在后端日志里。
+            logger.warning("IMAP logout 失败：%s", exc)
 
 
 def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDER,
@@ -425,5 +430,6 @@ def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDE
     finally:
         try:
             conn.logout()
-        except Exception:
-            pass
+        except Exception as exc:
+            # 同 test_connection：登出失败不影响结果，但留日志。
+            logger.warning("IMAP logout 失败：%s", exc)

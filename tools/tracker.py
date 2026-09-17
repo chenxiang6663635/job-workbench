@@ -29,6 +29,7 @@ import argparse
 import csv
 import io
 import json
+import logging
 import os
 import re
 import sys
@@ -42,6 +43,10 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from filelock import file_lock  # noqa: E402
+
+# 库代码一律走 logging 而不是 print：tracker 被后端常驻进程与 MCP（stdout 是
+# 协议通道）导入，print 会污染 stdout——这是模块级 logger 存在的理由。
+logger = logging.getLogger(__name__)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
@@ -300,8 +305,10 @@ def run_check(workspace=None):
                 os.makedirs(tracking)
             with io.open(schema_path, "w", encoding="utf-8") as f:
                 json.dump({"version": TRACKING_SCHEMA_VERSION}, f)
-        except OSError:
-            pass
+        except OSError as exc:
+            # sidecar 只是版本标记：写失败不影响本次自检的正确性（下次再试）。
+            # 按「禁静默吞错」留日志，便于排查只读盘 / 权限问题。
+            logger.warning("写 schema sidecar 失败（不影响本次自检）：%s", exc)
 
     # tracker.csv 先行：其他文件的外键以它的 id 集合为准
     fk_ids = set()

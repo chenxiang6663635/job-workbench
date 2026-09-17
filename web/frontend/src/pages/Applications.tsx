@@ -537,7 +537,11 @@ export default function Applications() {
                       来源: prev.来源 || r.来源,
                     }));
                   })
-                  .catch(() => {});
+                  .catch((e: Error) => {
+                    // 推断失败不打扰用户（来源本就允许手填），但按「禁静默吞错」
+                    // 留一条控制台日志，便于排查后端不可用这类系统性问题。
+                    console.error("inferUrl failed", e);
+                  });
               }}
             />
           </div>

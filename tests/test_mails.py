@@ -322,3 +322,27 @@ def test_api_mail_patch_not_found(tmp_path, client):
                        json={"标签": "面试"})
     assert res.status_code == 404
     assert res.json()["error_code"] == "progress.mailNotFound"
+
+
+def test_api_mail_delete(tmp_path, client):
+    """全站首个 DELETE（2026-09-17 收尾批）：持锁删行、返回被删 id；删后列表为空。"""
+    _seed_main(os.path.join(str(tmp_path), WS))
+    created = client.post("/api/progress/mails", params={"ws": WS},
+                          json={"主题": "面试通知", "关联记录": "A001"})
+    assert created.status_code == 201, created.text
+    mail_id = created.json()["邮件id"]
+
+    res = client.delete("/api/progress/mails/%s" % mail_id, params={"ws": WS})
+    assert res.status_code == 200, res.text
+    assert res.json() == {"邮件id": mail_id, "_deleted": True}
+
+    left = client.get("/api/progress/mails", params={"ws": WS})
+    assert left.status_code == 200
+    assert left.json()["total"] == 0
+
+
+def test_api_mail_delete_not_found(client):
+    """404 语义与 PATCH 对齐（同一错误码 progress.mailNotFound）。"""
+    res = client.delete("/api/progress/mails/M404", params={"ws": WS})
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "progress.mailNotFound"

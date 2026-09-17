@@ -29,6 +29,7 @@ import { reasonLines } from "../lib/healthReasons";
 import { Num } from "../components/ui/number";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
+import RecordMails from "../components/RecordMails";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -786,6 +787,15 @@ export default function Applications() {
                           className="border-l-2 border-primary/30 px-6 py-4"
                         >
                           <HistoryTimeline entries={timelines[it.id] ?? []} />
+                          {/* 关联邮件（2026-09-17 收尾批）：批 4.5 承诺过的
+                              「投递详情显示关联邮件」——只读 + 打开原邮件；
+                              增 / 改 / 删在「进展 → 邮件」的台账里做 */}
+                          <div className="mt-4 border-t border-border pt-3">
+                            <p className="mb-2 text-xs font-medium text-foreground">
+                              {t("app.relatedMails")}
+                            </p>
+                            <RecordMails appId={it.id} />
+                          </div>
                         </td>
                       </tr>
                     )}

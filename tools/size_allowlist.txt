@@ -32,14 +32,14 @@ web/backend/routers/system.py = 328  # 备份/导出/快照淘汰（本次为加
 # （2026-09-16 重构批：dashboard() 已拆为五个 section helper，本行按自洁删除）
 #
 # --- 前端：刻意集中的单一真源 / 页面级容器 ---
-web/frontend/src/api.ts = 1174  # 前端唯一 API 客户端（错误码与 ws 参数拼接刻意集中在一处）
-web/frontend/src/pages/Applications.tsx = 801  # 页面容器（筛选 + 表格 + 表单 + 多个弹窗编排）；2026-09-16 清静默吞错加日志（797→801）
+web/frontend/src/api.ts = 1181  # 前端唯一 API 客户端（错误码与 ws 参数拼接刻意集中在一处）；2026-09-17 加 deleteMail（1174→1181）
+web/frontend/src/pages/Applications.tsx = 811  # 页面容器（筛选 + 表格 + 表单 + 多个弹窗编排）；2026-09-17 展开区接入「关联邮件」块（801→811）
 web/frontend/src/pages/Settings.tsx = 697  # 设置页八张卡（Provider / 邮箱 / 数据 / 关于…）
 web/frontend/src/pages/Dashboard.tsx = 688  # 看板（统计卡 + 漏斗 + 待推进 + 复盘）
 web/frontend/src/pages/Resume.tsx = 539  # 简历工坊（模式切换 + 表单 + 预览 + 谱系）
 web/frontend/src/pages/Jobs.tsx = 520  # 岗位池（列表 + 详情双栏）
 web/frontend/src/components/StatusUpdateDialog.tsx = 559  # 解析 → 建议 → 确认三段式
 web/frontend/src/components/QuestionBank.tsx = 387  # 题库双视图 + 导入
-web/frontend/src/components/MailList.tsx = 357  # 邮件列表 + 8 字段表单
+web/frontend/src/components/MailList.tsx = 469  # 邮件列表 + 8 字段表单；2026-09-17 加编辑/详情、删除两段确认与记录跳转（357→469；拆分列入后续重构）
 web/frontend/src/components/TalkList.tsx = 340  # 宣讲会列表 + 表单
 web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（逐段确认）

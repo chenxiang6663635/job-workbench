@@ -171,3 +171,23 @@ def update_mail(mail_id: str, item: PatchMail, ws: str = Depends(workspace_dir))
         tracker.write_mails(rows, ws)
 
     return _with_open_link(dict(row, _changed=changed))
+
+
+@router.delete("/mails/{mail_id}")
+def delete_mail(mail_id: str, ws: str = Depends(workspace_dir)):
+    """删除一封邮件台账记录（**全站首个 DELETE**；契约与 PATCH 对齐）。
+
+    - 持同一把 file_lock：与创建 / 更新 / 其它表的写入互斥；
+    - 不存在 → 404（与 PATCH 同错误码 progress.mailNotFound）；
+    - 整表重读 → 剔除该行 → 重写；不做软删除（台账是"记错了就删"的场景，
+      数据文件保持可读可手改）。
+    """
+    with file_lock(_lock_path(ws)):
+        rows = tracker.read_mails(ws)
+        row = tracker.find_mail(rows, mail_id)
+        if row is None:
+            raise ApiError(404, "progress.mailNotFound",
+                           "找不到邮件 %s" % mail_id, id=mail_id)
+        rows.remove(row)
+        tracker.write_mails(rows, ws)
+    return {"邮件id": mail_id, "_deleted": True}

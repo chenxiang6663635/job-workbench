@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Copy, Mail as MailIcon, Plus, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  CornerDownRight,
+  Mail as MailIcon,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   api,
   MAIL_DIRECTIONS,
@@ -64,15 +73,32 @@ const EMPTY: Draft = {
   tag: "其他",
 };
 
+/** Mail → Draft 映射（编辑模式预填）：日期在 CSV 里是空格分隔，input 要 T 分隔。 */
+function draftFromMail(m: Mail): Draft {
+  return {
+    messageId: m.消息id ?? "",
+    link: m.关联记录 ?? "",
+    direction: m.方向 || "收",
+    subject: m.主题 ?? "",
+    sender: m.发件人 ?? "",
+    when: (m.日期 ?? "").replace(" ", "T"),
+    url: m.webmail链接 ?? "",
+    tag: m.标签 || "其他",
+  };
+}
+
 function MailForm({
   onClose,
   onSaved,
+  initial,
 }: {
   onClose: () => void;
   onSaved: () => void;
+  /** 编辑模式（2026-09-17 收尾批）：给初始值即走 PATCH；缺省为新建 */
+  initial?: Mail;
 }) {
   const { t } = useTranslation();
-  const [d, setD] = useState<Draft>(EMPTY);
+  const [d, setD] = useState<Draft>(initial ? draftFromMail(initial) : EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,18 +116,22 @@ function MailForm({
     }
     setSaving(true);
     setError(null);
-    api
-      .createMail({
-        消息id: d.messageId,
-        关联记录: d.link,
-        方向: d.direction,
-        主题: d.subject,
-        发件人: d.sender,
-        // datetime-local 产生 "2026-09-16T10:00"，换成与 CSV 一致的空格分隔
-        日期: d.when.replace("T", " "),
-        webmail链接: d.url,
-        标签: d.tag,
-      })
+    const body: Partial<Mail> = {
+      关联记录: d.link,
+      方向: d.direction,
+      主题: d.subject,
+      发件人: d.sender,
+      // datetime-local 产生 "2026-09-16T10:00"，换成与 CSV 一致的空格分隔
+      日期: d.when.replace("T", " "),
+      webmail链接: d.url,
+      标签: d.tag,
+    };
+    // 消息id 是去重键：仅新建时可写（后端 PATCH 亦不收该字段）
+    if (!initial) body.消息id = d.messageId;
+    const request = initial
+      ? api.updateMail(initial.邮件id, body)
+      : api.createMail(body);
+    request
       .then(() => onSaved())
       .catch((e: Error) => {
         setError(e.message);
@@ -114,7 +144,9 @@ function MailForm({
       <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6">
         <DialogHeader className="mb-5 flex-row items-center justify-between space-y-0">
           <div>
-            <DialogTitle>{t("mail.formTitle")}</DialogTitle>
+            <DialogTitle>
+            {initial ? t("mail.editTitle") : t("mail.formTitle")}
+          </DialogTitle>
             {/* Radix 要求 DialogContent 有可读描述，否则开发态会告警 */}
             <DialogDescription className="mt-0.5">
               {t("mail.formDesc")}
@@ -185,6 +217,8 @@ function MailForm({
               value={d.messageId}
               onChange={(e) => set("messageId", e.target.value)}
               placeholder={t("mail.messageIdPlaceholder")}
+              // 消息id 是去重键：建立后不可改（后端 PATCH 亦不收该字段）
+              disabled={!!initial}
             />
           </FormField>
           <FormField label={t("mail.webmailUrl")} className="col-span-2">
@@ -217,6 +251,10 @@ export default function MailList() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  // 编辑 / 详情（2026-09-17 收尾批）：null = 关闭，否则为被编辑的行——详情就是编辑弹窗
+  const [editing, setEditing] = useState<Mail | null>(null);
+  // 删除的两段确认：第一次点变「确认删除？」，再点才真删（误删不可撤销）
+  const [confirming, setConfirming] = useState<string | null>(null);
   // 复制主题的短暂反馈（无深链邮箱的降级路径）
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -236,6 +274,29 @@ export default function MailList() {
   const setTag = (id: string, v: string) => {
     api
       .updateMail(id, { 标签: v })
+      .then(() => reload())
+      .catch((e: Error) => setError(e.message));
+  };
+
+  // 跳到追踪表并展开该记录（2026-09-17 收尾批）：复用看板的 focusId 下钻——
+  // sessionStorage 传参 + hash 切页；App 是条件渲染，切过去会重挂载并消费。
+  const jumpToRecord = (id: string) => {
+    try {
+      sessionStorage.setItem("jobws_drill", JSON.stringify({ focusId: id }));
+    } catch {
+      // 存储不可用：退化为不带聚焦的跳转
+    }
+    window.location.hash = "applications";
+  };
+
+  const remove = (id: string) => {
+    if (confirming !== id) {
+      setConfirming(id);
+      return;
+    }
+    setConfirming(null);
+    api
+      .deleteMail(id)
       .then(() => reload())
       .catch((e: Error) => setError(e.message));
   };
@@ -292,25 +353,64 @@ export default function MailList() {
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {r.日期 || t("mail.dateTbd")}
                 {r.发件人 && ` · ${r.发件人}`}
-                {r.关联记录 && ` · ${t("interview.related", { value: r.关联记录 })}`}
                 {` · ${r.方向}`}
               </p>
+              {/* 关联记录可跳转（2026-09-17 收尾批）：台账 ↔ 追踪表互相可见——
+                  点击回到那条投递并自动展开（复用看板 focusId 下钻） */}
+              {r.关联记录 && (
+                <button
+                  type="button"
+                  onClick={() => jumpToRecord(r.关联记录)}
+                  title={t("mail.jumpToRecord")}
+                  className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <CornerDownRight size={12} />
+                  {t("interview.related", { value: r.关联记录 })}
+                </button>
+              )}
             </div>
-            <Select value={r.标签} onValueChange={(v) => setTag(r.邮件id, v)}>
-              <SelectTrigger
-                className="h-7 w-24 shrink-0 text-xs"
-                aria-label={t("mail.tagAria", { subject: r.主题 })}
+            <div className="flex shrink-0 items-center gap-1">
+              <Select value={r.标签} onValueChange={(v) => setTag(r.邮件id, v)}>
+                <SelectTrigger
+                  className="h-7 w-24 shrink-0 text-xs"
+                  aria-label={t("mail.tagAria", { subject: r.主题 })}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAIL_TAGS.map((o) => (
+                    <SelectItem key={o} value={o} className="text-xs">
+                      {o}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* 编辑（详情）与删除（两段确认；删除不可撤销，第二次点才发请求） */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                title={t("mail.editTitle")}
+                aria-label={t("common.edit")}
+                onClick={() => setEditing(r)}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MAIL_TAGS.map((o) => (
-                  <SelectItem key={o} value={o} className="text-xs">
-                    {o}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Pencil size={13} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-7 w-7 ${
+                  confirming === r.邮件id ? "text-destructive" : "text-muted-foreground"
+                }`}
+                title={
+                  confirming === r.邮件id ? t("mail.deleteConfirm") : t("mail.deleteTitle")
+                }
+                aria-label={t("common.delete")}
+                onClick={() => remove(r.邮件id)}
+              >
+                {confirming === r.邮件id ? <Check size={13} /> : <Trash2 size={13} />}
+              </Button>
+            </div>
           </div>
 
           {/* 打开原邮件：custom/gmail 给真链接；none 诚实降级为「复制主题搜索」 */}
@@ -348,6 +448,18 @@ export default function MailList() {
           onClose={() => setShowForm(false)}
           onSaved={() => {
             setShowForm(false);
+            reload();
+          }}
+        />
+      )}
+
+      {/* 编辑（详情）弹窗：同表单复用，initial 驱动 PATCH 分支 */}
+      {editing && (
+        <MailForm
+          initial={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
             reload();
           }}
         />

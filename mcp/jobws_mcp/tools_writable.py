@@ -74,6 +74,31 @@ def preview_import_applications(workspace, csv_text):
     }
 
 
+def preview_update_application(workspace, app_id, changes):
+    """预览更新一条投递记录（**不写入**），返回令牌与逐字段差异表。
+
+    与 preview_add_application 同款三步用法：preview → 展示 diff → 用户确认后
+    apply_approval(token)。只列**要改**的字段（changes 里没有的字段不动）；
+    载荷校验与差异表由 tracker.preview_update_fields 统一构造（CLI / 网页端同源，
+    避免三处各拼一份之后「预览说 X、落盘写 Y」）。
+    """
+    errors, plan = tracker.preview_update_fields(
+        {"id": app_id, "changes": dict(changes or {})}, workspace)
+    if errors:
+        return {"ok": False, "errors": errors}
+    result = approval.preview("track.update", workspace, plan["payload"],
+                              plan["summary"], plan["diff"], plan["targets"])
+    return {
+        "ok": True,
+        "token": result["token"],
+        "summary": result["summary"],
+        "diff": result["diff"],
+        "targets": result["targets"],
+        "expires_at": result["expires_at"],
+        "next_step": _NEXT_STEP,
+    }
+
+
 def apply_approval(workspace, token):
     """凭令牌执行已确认的写入（两段式的第二步）。
 
@@ -83,7 +108,10 @@ def apply_approval(workspace, token):
     try:
         result = approval.apply(token, workspace=workspace)
     except approval.ApprovalError as exc:
-        return {"ok": False, "errors": [str(exc)]}
+        # code 是稳定判据（批 8）：宿主据此区分 重放（not_found）/ 过期（expired）/
+        # 指纹不符（fingerprint）/ 绑定不符（binding）等——不要解析中文文案。
+        return {"ok": False, "errors": [str(exc)],
+                "code": getattr(exc, "code", "invalid")}
     return {
         "ok": True,
         "summary": result.get("summary"),

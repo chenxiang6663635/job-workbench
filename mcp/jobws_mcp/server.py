@@ -20,14 +20,37 @@ import sys
 
 from mcp.server import MCPServer
 
-from . import paths, tools_readonly, tools_writable
+from . import paths, prompts, resources, tools_readonly, tools_writable
+
+
+def _server_version():
+    """包版本（服务元数据用）；未安装（源码直跑）时回落 "0"，不抛。"""
+    from importlib.metadata import PackageNotFoundError, version
+
+    for name in ("jobws-mcp", "jobws_mcp"):
+        try:
+            return version(name)
+        except PackageNotFoundError:
+            continue
+    return "0"
 
 
 def build_server(workspace=None):
     """构建 MCPServer。workspace 为 None 时按 paths 的优先级现解析。"""
     if workspace is None:
         workspace = paths.resolve_workspace()
-    mcp = MCPServer("jobws")
+    mcp = MCPServer(
+        "jobws",
+        title="求职工作台",
+        description="本地优先的求职工作台数据接口：只读优先，写入走两段式确认。",
+        instructions=(
+            "所有数据都在本机工作区（纯文本 CSV / Markdown），不联网。"
+            "读取：用 list_* 工具或 jobws:// 资源（按需读，不要全量预载）；"
+            "写入：**必须两段式**——先调 preview_* 拿到令牌，把 summary 与 diff "
+            "展示给用户，用户确认后再用同一令牌调 apply_approval。"
+        ),
+        version=_server_version(),
+    )
 
     @mcp.tool()
     def list_applications(stage: str = "", keyword: str = "", limit: int = 20) -> str:
@@ -94,6 +117,31 @@ def build_server(workspace=None):
         return json.dumps(data, ensure_ascii=False, indent=2)
 
     @mcp.tool()
+    def preview_update_application(app_id: str, stage: str = "",
+                                   next_action: str = "", next_date: str = "",
+                                   reason: str = "", score: int = -1,
+                                   link: str = "", note: str = "",
+                                   applied: str = "", deadline: str = "") -> str:
+        """预览更新一条投递记录（**不写入**），返回 token 与逐字段差异表。
+
+        只列**要改**的字段（未传的字段保持原值）；可更新字段与新增同族
+        （当前阶段 / 状态原因 / 下次动作 / 下次动作日期 / 备注 / 评分 /
+        投递日期 / 截止日期 / 链接）。**先把 diff 展示给用户**，用户确认后
+        再用同一个 token 调 apply_approval 落盘；不要跳过展示这一步。
+        """
+        changes = {}
+        for field, value in (("当前阶段", stage), ("状态原因", reason),
+                             ("下次动作", next_action), ("下次动作日期", next_date),
+                             ("备注", note), ("链接", link),
+                             ("投递日期", applied), ("截止日期", deadline)):
+            if value:
+                changes[field] = value
+        if score is not None and score >= 0:
+            changes["评分"] = str(score)
+        data = tools_writable.preview_update_application(workspace, app_id, changes)
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
     def apply_approval(token: str) -> str:
         """凭令牌执行已确认的写入（两段式的第二步）。
 
@@ -102,6 +150,48 @@ def build_server(workspace=None):
         """
         data = tools_writable.apply_approval(workspace, token)
         return json.dumps(data, ensure_ascii=False, indent=2)
+
+    # --- 资源（批 8）：固定 URI、按需读取（list 不触发任何数据读取）-----------
+    def _make_reader(uri):
+        # 固定 URI 的 handler 必须**无参**（SDK 校验签名与 URI 模板变量一致），
+        # 所以用工厂闭合 uri——顺带避开循环里闭包晚绑定的坑。
+        def _read():
+            text, error = resources.read_resource(workspace, uri)
+            if text is not None:
+                return text
+            return json.dumps({"ok": False, "errors": [error]}, ensure_ascii=False)
+
+        return _read
+
+    for _item in resources.list_resources(workspace):
+        mcp.resource(_item["uri"], name=_item["name"],
+                     description=_item["description"],
+                     mime_type=_item["mimeType"])(_make_reader(_item["uri"]))
+
+    # --- 提示模板（批 8）：四个参数化工作流，与技能分工不重叠（见 prompts.py）--
+    @mcp.prompt(name="review_jd",
+                description="评估岗位 JD：资格门槛 → 四维评分 → 投递建议")
+    def review_jd(job_dir: str = "") -> str:
+        """评估一个岗位的 JD（只读）。job_dir 留空时先让用户选岗位。"""
+        return prompts.review_jd(workspace, job_dir)
+
+    @mcp.prompt(name="generate_application_pack",
+                description="生成投递包：按 JD 改简历 → 归档 → 记入追踪表（写入走确认）")
+    def generate_application_pack(job_dir: str = "") -> str:
+        """生成投递包。所有写入必须走两段式（preview → 用户确认 → apply）。"""
+        return prompts.generate_application_pack(workspace, job_dir)
+
+    @mcp.prompt(name="interview_review",
+                description="面试复盘：汇总面试记录 → 表现要点与改进项")
+    def interview_review(app_id: str = "") -> str:
+        """做一次面试复盘（只读）。app_id 留空时先让用户选一条记录。"""
+        return prompts.interview_review(workspace, app_id)
+
+    @mcp.prompt(name="today_todos",
+                description="今日待办：从看板摘要挑出今天该做的事")
+    def today_todos(days: int = 7) -> str:
+        """整理今天的求职待办（只读）。days 是待办窗口天数（默认 7）。"""
+        return prompts.today_todos(workspace, days)
 
     return mcp
 

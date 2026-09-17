@@ -58,10 +58,13 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
         async with ClientSession(read, write) as session:
             await session.initialize()
             listed = await session.list_tools()
-            names = sorted(t.name for t in listed.tools)
-            assert names == ["apply_approval", "dashboard_summary", "list_applications",
-                             "list_jobs", "preview_add_application",
-                             "preview_import_applications"]
+            # 固定顺序（批 8）：**不排序**——注册顺序就是协议输出顺序；
+            # 顺序抖动会让宿主的 tools/list 提示缓存整段失效。
+            names = [t.name for t in listed.tools]
+            assert names == ["list_applications", "list_jobs", "dashboard_summary",
+                             "preview_add_application",
+                             "preview_import_applications",
+                             "preview_update_application", "apply_approval"]
 
             result = await session.call_tool("dashboard_summary", {})
             text = result.content[0].text

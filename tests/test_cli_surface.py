@@ -60,7 +60,10 @@ def _isolate_module_globals(monkeypatch):
     `set_workspace` 改同一个全局；`resume_build.VERIFY_FACTS_FILE` 同理。
     不隔离的话测试之间会串味，且顺序一变就飘。
     """
-    monkeypatch.setattr(tracker, "WORKSPACE", tracker.WORKSPACE)
+    # tracker 包化后 WORKSPACE 的真身在 tracker._core（门面只做 PEP 562 转发，
+    # setattr 包门面只会改门面命名空间、真身不受影响——必须打真身）
+    from tracker import _core as tracker_core
+    monkeypatch.setattr(tracker_core, "WORKSPACE", tracker_core.WORKSPACE)
     monkeypatch.setattr(resume_build, "VERIFY_FACTS_FILE", resume_build.VERIFY_FACTS_FILE)
     monkeypatch.delenv("PR_TITLE", raising=False)
 

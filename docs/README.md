@@ -15,7 +15,7 @@
 | 文档 | 状态 | 说明 |
 |---|---|---|
 | [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射 |
-| [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | **现行** | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录 |
+| [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | 历史（部分章节已被取代） | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录。**注意**：依赖版本与 Python 基线等章节是 2026-08 的当时记录（3.8 时代），现状以 `CONTRIBUTING.md` 与 `web/backend/requirements.txt` 为准 |
 | [`specs/2026-08-31-job-workbench-productization.md`](specs/2026-08-31-job-workbench-productization.md) | **现行** | 产品化三期路线（差异化点/架构/桌面壳/扩展）+ 一期与 P0+P1 完成记录 |
 | [`specs/2026-09-02-tracking-enhancement.md`](specs/2026-09-02-tracking-enhancement.md) | **现行** | 投递追踪增强：面试/联系人/Offer 独立 CSV、反编造护栏、时间线 |
 | [`specs/2026-09-02-resume-data-driven.md`](specs/2026-09-02-resume-data-driven.md) | **现行** | 简历数据驱动「标准版式」：JSON + 内置模板渲染 PDF + ATS 校验 |
@@ -24,6 +24,7 @@
 | [`specs/2026-09-05-batch1-3-roadmap.md`](specs/2026-09-05-batch1-3-roadmap.md) | **现行** | 第一~三批：导入导出闭环、题库与健康度、失败聚类与 JD 抓取（含验收记录） |
 | [`specs/2026-09-07-open-source-release.md`](specs/2026-09-07-open-source-release.md) | **现行** | 开源发布：隐私清洗、MIT、治理入口、CI 与发布流程 |
 | [`specs/2026-08-30-autumn-recruit-workbench-design.md`](specs/2026-08-30-autumn-recruit-workbench-design.md) | ⚠️ **已废弃** | v1.0 个人工具设计。目录结构已失效，**勿据此开发**。保留作评分框架的设计依据追溯 |
+| [`domain-contract.md`](domain-contract.md) | **现行** | 领域插件契约：结构、格式、边界与校验方式（`jobws lint domains` 的判定依据） |
 
 ## 调研报告
 
@@ -39,6 +40,7 @@
 | [`research/plan_next_features.md`](research/plan_next_features.md) | 上述调研的研究计划（四个互不重叠功能域的检索分工） |
 | [`research/report_agent-integration.md`](research/report_agent-integration.md) | **定位与宿主集成**调研整合（决策级）：agent 插件/工具这条路的成本与反面证据、dsh 插件解剖、agent-first 分层、Python 工具的 agent 暴露方式。**这是「AI 助手是一等宿主、界面是可选查看器」这一方向判断的依据**。性质是结论整合（子代理报告被调度器截断），未能确认的部分集中列在文末「未确认清单」，不要当完整调研用 |
 | [`research/report_electron_33_to_44.md`](research/report_electron_33_to_44.md) | **Electron 33 → 44 升级调研**（执行级）：官方破坏性变更逐条对照我们的实际 API 面（对照 `main.js` 行号）→ 风险分级 + 桌面冒烟清单。结论：CI 完全不碰 Electron，所以「CI 全绿」不能作为升级依据；真正要验的是打包链路（v42 起不再 postinstall 下载二进制）、缩放四件套、自动更新与 PDF 预览 |
+| [`research/report_full_repo_audit_2026-09-16.md`](research/report_full_repo_audit_2026-09-16.md) | **全仓库审计报告（2026-09-16）**：结构 / 依赖 / 配置 / 规模盘点、发现清单与按优先级改进建议——治理批与整改批的依据 |
 
 ## 开发流程
 
@@ -46,6 +48,10 @@
 |---|---|
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **开发流程规范**：新需求四道门、分支策略、提交与版本规则、发布流程、可持续性约定、隐私约定与 CI 验证链 |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（Keep a Changelog 格式）；版本号唯一来源为 `web/electron/package.json` |
+| [`maintenance.md`](maintenance.md) | 仓库维护说明（英文）：发布节奏、版本号纪律与项目健康度的对外交代 |
+| [`../SECURITY.md`](../SECURITY.md) | 安全策略：威胁模型、local-first 取舍记录（如 unsigned 自动更新链）与报告方式 |
+| [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Next / Later 与已完成批次（细节进 CHANGELOG） |
+| [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md) | 第三方依赖与许可清单 |
 | [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Issue 模板：bug 报告专用；功能请求走 CONTRIBUTING 四道门 |
 
 ## 约定文件
@@ -70,6 +76,14 @@
 `../skills/` 下八个：五个求职向——`jwb-recruit-coach`（评分标准与红线）、`jwb-jd`、`jwb-apply`、`jwb-track`、`jwb-resume`；三个开发向——`jwb-cli-contract`（CLI 契约）、`jwb-api-review`（API 审查）、`jwb-mcp-server`（MCP 指南）。
 
 这些既是 AI 可加载的技能，也是各工作流的规格说明——读它们等于读流程定义。
+
+## 组件 README
+
+| 文件 | 说明 |
+|---|---|
+| [`../web/README.md`](../web/README.md) | Web 界面层：七个页面、与 CLI 的关系、目录结构、已知边界 |
+| [`../web/frontend/README.md`](../web/frontend/README.md) | 前端工程说明（构建链与运行方式） |
+| [`../mcp/README.md`](../mcp/README.md) | MCP 服务：六个工具（3 只读 + 3 两段式写入）、安装与宿主配置、工作区解析 |
 
 ## 已归档代码
 

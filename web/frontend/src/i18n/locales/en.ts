@@ -19,6 +19,7 @@ export default {
   "nav.workspacePlaceholder": "Select workspace",
   "nav.workspaceDefaultSuffix": " (default)",
   "nav.switchWorkspaceTitle": "Switch workspace",
+  "nav.refresh": "Refresh data (external changes sync automatically)",
 
   "status.connecting": "Connecting",
   // 顶栏只有一格宽：短标签 + 完整语义放 title（见 status.localDataHint）

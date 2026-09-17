@@ -236,7 +236,22 @@ def main():
 
     results = inspect_skills(root)
     print(describe(results))
-    if any(item["problems"] for item in results):
+    # 插件资产（批 8）：commands/ 与 agents/ 也过一遍——宿主按目录约定扫描它们，
+    # 写坏了没人拦，本校验是唯一防线。
+    # 函数内 import：check_plugin_assets 反向引用本模块的 frontmatter 解析器，
+    # 模块级互相 import 会成环。
+    from check_plugin_assets import inspect_plugin_assets
+
+    asset_findings = inspect_plugin_assets(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if asset_findings:
+        print("")
+        print("插件资产不合规（%d 处）：" % len(asset_findings))
+        for label, problems in asset_findings:
+            print("  [%s]" % label)
+            for problem in problems:
+                print("    - %s" % problem)
+    if asset_findings or any(item["problems"] for item in results):
         print("")
         print("修复后再分发：不合规的技能会被宿主跳过，重名的会被静默覆盖。")
         return 1

@@ -11,6 +11,20 @@
       "description": "求职工作台技能包（8 个）：求职向——投递追踪（jwb-track）/ 岗位评估（jwb-jd）/ 简历（jwb-resume）/ 投递执行（jwb-apply）/ 求职教练（jwb-recruit-coach）；开发向——CLI 契约（jwb-cli-contract）/ API 审查（jwb-api-review）/ MCP 指南（jwb-mcp-server）。技能调用仓库内的 jobws CLI；插件内容即本仓库（技能在 skills/ 下，插件机制按约定读它——不另做镜像）。",
       "description_en": "Skills for Job Workbench (8): job-hunting — application tracker, job-pool evaluation, resume workshop, applying, and a recruiting coach; maintainer-facing — CLI contract, API review, and MCP guide. Skills drive the in-repo jobws CLI; the plugin content is this repository itself (skills live in skills/ — no second copy is maintained).",
       "source": "./",
+      "skills": [
+        "./skills/jwb-api-review",
+        "./skills/jwb-apply",
+        "./skills/jwb-cli-contract",
+        "./skills/jwb-jd",
+        "./skills/jwb-mcp-server",
+        "./skills/jwb-recruit-coach",
+        "./skills/jwb-resume",
+        "./skills/jwb-track"
+      ],
+      "agents": [
+        "./agents/cross-end-audit.md",
+        "./agents/resume-jd-gap.md"
+      ],
       "author": {
         "name": "chenxiang6663635",
         "url": "https://github.com/chenxiang6663635"

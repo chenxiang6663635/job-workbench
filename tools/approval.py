@@ -62,7 +62,16 @@ class ApprovalError(RuntimeError):
     """令牌不可用（不存在 / 已过期 / 已用过 / 不匹配 / 被改过）时抛出。
 
     消息面向用户（会经 CLI 输出或 MCP 返回透出去），所以必须写清"怎么办"。
+
+    code 是**稳定**的程序化判据（批 8 加；MCP 侧据此区分四类拒绝）：
+    bad_token / not_found（含重放与已清理）/ unreadable / lost / expired /
+    binding / fingerprint / unknown_operation / conflict。
+    文案可以改，code 不要改——测试与调用方都按它断言。
     """
+
+    def __init__(self, message, code="invalid"):
+        super().__init__(message)
+        self.code = code
 
 
 class ApprovalConflict(ApprovalError):
@@ -134,53 +143,62 @@ def apply(token, workspace=None):
     """
     if not isinstance(token, str) or not _TOKEN_RE.match(token):
         raise ApprovalError(
-            "令牌格式不对（%r）——它应该是 32 位十六进制；请重新预览。" % (token,))
+            "令牌格式不对（%r）——它应该是 32 位十六进制；请重新预览。" % (token,),
+            code="bad_token")
     path = _token_path(token)
     if not os.path.isfile(path):
+        # 重放（第二次 apply 同一令牌）也落在这里——与"从未存在"有意不区分
         raise ApprovalError(
             "找不到这个令牌：它可能已被使用、已被清理，或来自另一个临时目录"
-            "（比如另一个用户的会话）。请重新预览。")
+            "（比如另一个用户的会话）。请重新预览。",
+            code="not_found")
     try:
         with open(path, encoding="utf-8") as handle:
             record = json.load(handle)
     except (OSError, ValueError) as exc:
-        raise ApprovalError("令牌文件读不出来（%s）——请重新预览。" % exc)
+        raise ApprovalError("令牌文件读不出来（%s）——请重新预览。" % exc,
+                            code="unreadable")
 
     # 先取走再执行：重放与并发都挡在这一步。取走失败说明另一个进程正拿着它，
     # 此时**不能**继续——否则同一份确认会被执行两次。
     try:
         os.remove(path)
     except OSError as exc:
-        raise ApprovalError("令牌取走失败（%s）——请重新预览。" % exc)
+        raise ApprovalError("令牌取走失败（%s）——请重新预览。" % exc,
+                            code="lost")
 
     if time.time() > float(record.get("expires_at") or 0):
         raise ApprovalError(
             "令牌已过期（有效期 %d 秒）。请重新预览——数据可能已经变了。"
-            % DEFAULT_TTL_SECONDS)
+            % DEFAULT_TTL_SECONDS,
+            code="expired")
 
     bound = record.get("workspace")
     if bound and workspace and os.path.abspath(workspace) != bound:
         raise ApprovalError(
             "令牌绑定的是工作区 %s，与当前工作区 %s 不符——请重新预览。"
-            % (bound, os.path.abspath(workspace)))
+            % (bound, os.path.abspath(workspace)),
+            code="binding")
     if bound and not workspace:
         workspace = bound
 
     payload = record.get("payload")
     if _payload_fingerprint(payload) != record.get("payload_hash"):
-        raise ApprovalError("令牌载荷已被改动——拒绝执行，请重新预览。")
+        raise ApprovalError("令牌载荷已被改动——拒绝执行，请重新预览。",
+                            code="fingerprint")
 
     handler = _OPERATIONS.get(record.get("operation"))
     if handler is None:
         raise ApprovalError("未知操作 %r（可能是旧版本残留的令牌）——请重新预览。"
-                            % record.get("operation"))
+                            % record.get("operation"),
+                            code="unknown_operation")
 
     try:
         result = handler(payload, workspace)
     except tracker.ConflictError as exc:
         # 领域层发现"预览时的判断已不成立"——转译成协议层的冲突语义，
         # 调用方只需认 ApprovalError / ApprovalConflict 两种。
-        raise ApprovalConflict(str(exc))
+        raise ApprovalConflict(str(exc), code="conflict")
     result = dict(result or {})
     result.setdefault("operation", record.get("operation"))
     result.setdefault("summary", record.get("summary"))

@@ -17,6 +17,7 @@ const zhCN = {
   "nav.workspacePlaceholder": "选择工作区",
   "nav.workspaceDefaultSuffix": "（默认）",
   "nav.switchWorkspaceTitle": "切换工作区",
+  "nav.refresh": "刷新数据（外部改动会自动同步）",
 
   "status.connecting": "连接中",
   "status.online": "已连接",

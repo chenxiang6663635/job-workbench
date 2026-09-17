@@ -17,38 +17,53 @@ export interface FontOption {
   label: string;
 }
 
-// default = Inter Variable（本地打包，拉丁 UI 与数字最佳）；
-// system = 纯系统栈（不加载 webfont，启动更快、离线更轻）；serif = Times + 宋体。
-// 实现只写 html[data-font]——栈本体在 index.css 的 --font-sans-stack 变量里。
-// （2026-09-17 收尾批会扩到 10+ 款，见后续笔。）
+// 全部**本地打包**（Fontsource，OFL-1.1，离线可用）；各款只含拉丁——中文始终
+// 回退系统栈（见 index.css 的 --font-cjk）。栈本体在 index.css：每个 id 对应
+// 一条 `html[data-font="<id>"] { --font-latin: … }`——**id 两边必须同步**
+// （CSS 不被门禁扫描，靠这段注释与设置页列表人工兜住）。
+// system 不加载 webfont（启动更快、离线更轻）；serif = Times + 系统宋体。
 export const FONTS: FontOption[] = [
-  { id: "default", label: "Inter" },
+  { id: "inter", label: "Inter" },
+  { id: "geist", label: "Geist" },
+  { id: "plex", label: "IBM Plex Sans" },
+  { id: "manrope", label: "Manrope" },
+  { id: "jakarta", label: "Plus Jakarta Sans" },
+  { id: "dm", label: "DM Sans" },
+  { id: "figtree", label: "Figtree" },
+  { id: "outfit", label: "Outfit" },
+  { id: "public", label: "Public Sans" },
+  { id: "source3", label: "Source Sans 3" },
+  { id: "work", label: "Work Sans" },
+  { id: "atkinson", label: "Atkinson Hyperlegible" },
   { id: "system", label: "System UI" },
   { id: "serif", label: "serif" },
 ];
 
-const FONT_IDS = ["default", "system", "serif"] as const;
+const FONT_IDS = new Set(FONTS.map((f) => f.id));
+
+/** 历史值迁移：2026-09-17 之前 default = Inter（且不写属性，:root 即它）。 */
+const LEGACY_FONT_IDS: Record<string, string> = { default: "inter" };
+
+function normalizeFontId(id: string): string {
+  const migrated = LEGACY_FONT_IDS[id] ?? id;
+  return FONT_IDS.has(migrated) ? migrated : "inter";
+}
 
 export function getFontChoice(): string {
   try {
-    const stored = localStorage.getItem(FONT_KEY) || "default";
-    return (FONT_IDS as readonly string[]).includes(stored) ? stored : "default";
+    return normalizeFontId(localStorage.getItem(FONT_KEY) || "inter");
   } catch {
-    return "default";
+    return "inter";
   }
 }
 
+/** 写 html[data-font]：栈本体由 index.css 按 id 承接（inter 命中 :root 默认）。 */
 export function applyFont(choice: string): void {
-  const root = document.documentElement;
-  if (choice === "system" || choice === "serif") {
-    root.setAttribute("data-font", choice);
-  } else {
-    root.removeAttribute("data-font");
-  }
+  document.documentElement.setAttribute("data-font", normalizeFontId(choice));
 }
 
 export function setFontChoice(id: string): void {
-  const safe = (FONT_IDS as readonly string[]).includes(id) ? id : "default";
+  const safe = normalizeFontId(id);
   try {
     localStorage.setItem(FONT_KEY, safe);
   } catch {
@@ -59,6 +74,55 @@ export function setFontChoice(id: string): void {
 
 export function applyStoredFont(): void {
   applyFont(getFontChoice());
+}
+
+// --- 等宽 / 数字字体（2026-09-17 收尾批）-------------------------------------
+//
+// 独立于界面字体的第二槽：作用于 --font-mono-stack——代码片段、编号（记录 id /
+// 邮件 id）、日期时间与需要"字符网格"对齐的场景。数字**默认不走它**（同日数字
+// 体系重做：数字用界面字体的 tabular-nums 对齐，等宽字体只留给上述场景）。
+
+const MONO_KEY = "jobws.mono";
+
+export const MONOS: FontOption[] = [
+  { id: "maple", label: "Maple Mono" },
+  { id: "jetbrains", label: "JetBrains Mono" },
+  { id: "fira", label: "Fira Code" },
+  { id: "geist-mono", label: "Geist Mono" },
+  { id: "plex-mono", label: "IBM Plex Mono" },
+  { id: "source-code", label: "Source Code Pro" },
+];
+
+const MONO_IDS = new Set(MONOS.map((m) => m.id));
+
+function normalizeMonoId(id: string): string {
+  return MONO_IDS.has(id) ? id : "maple";
+}
+
+export function getMonoChoice(): string {
+  try {
+    return normalizeMonoId(localStorage.getItem(MONO_KEY) || "maple");
+  } catch {
+    return "maple";
+  }
+}
+
+export function applyMono(choice: string): void {
+  document.documentElement.setAttribute("data-mono", normalizeMonoId(choice));
+}
+
+export function setMonoChoice(id: string): void {
+  const safe = normalizeMonoId(id);
+  try {
+    localStorage.setItem(MONO_KEY, safe);
+  } catch {
+    // 同主题：持久化失败只影响下次启动
+  }
+  applyMono(safe);
+}
+
+export function applyStoredMono(): void {
+  applyMono(getMonoChoice());
 }
 
 // --- 界面字号（#4；2026-09-17 实测反馈改连续）--------------------------------

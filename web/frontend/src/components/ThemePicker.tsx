@@ -3,6 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Palette, SlidersHorizontal } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { cn } from "../lib/utils";
 import {
   FONTS,
@@ -10,13 +17,16 @@ import {
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   FONT_SIZE_STEP,
+  MONOS,
   SYSTEM_ID,
   getFontChoice,
   getFontSizeChoice,
+  getMonoChoice,
   getThemeChoice,
   listThemes,
   setFontChoice,
   setFontSizeChoice,
+  setMonoChoice,
   setThemeChoice,
 } from "../lib/theme";
 import ThemeEditor from "./ThemeEditor";
@@ -30,6 +40,7 @@ export default function ThemePicker() {
   const [themes, setThemes] = useState(listThemes());
   const [editing, setEditing] = useState(false);
   const [font, setFont] = useState(getFontChoice());
+  const [mono, setMono] = useState(getMonoChoice());
   const [fontSize, setFontSize] = useState(getFontSizeChoice());
 
   const onPick = (id: string) => {
@@ -109,36 +120,64 @@ export default function ThemePicker() {
 
       {editing && <ThemeEditor onSaved={refresh} />}
 
-      {/* 字体方案（4g）：只改 html[data-font]，栈本体在 index.css 的变量里 */}
+      {/* 字体方案（4g → 2026-09-17 扩到 14 项）：只改 html[data-font]，
+          栈本体在 index.css 的变量里；14 项用下拉（按钮排不下两行）。
+          字体真名不翻译（社区惯例），system / serif 两项走 i18n */}
       <div className="border-t border-border pt-3">
         <p className="mb-2 text-xs font-medium text-foreground">
           {t("settings.fontTitle")}
         </p>
-        <div
-          className="flex flex-wrap gap-2"
-          role="radiogroup"
-          aria-label={t("settings.fontTitle")}
+        <Select
+          value={font}
+          onValueChange={(next) => {
+            setFont(next);
+            setFontChoice(next);
+          }}
         >
-          {FONTS.map((item) => (
-            <Button
-              key={item.id}
-              variant={font === item.id ? "default" : "outline"}
-              size="sm"
-              className="h-7 px-3 text-xs"
-              aria-pressed={font === item.id}
-              onClick={() => {
-                setFont(item.id);
-                setFontChoice(item.id);
-              }}
-            >
-              {item.id === "system"
-                ? t("settings.fontSystem")
-                : item.id === "serif"
-                  ? t("settings.fontSerif")
-                  : item.label}
-            </Button>
-          ))}
-        </div>
+          <SelectTrigger
+            className="h-8 w-full text-xs"
+            aria-label={t("settings.fontTitle")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FONTS.map((item) => (
+              <SelectItem key={item.id} value={item.id} className="text-xs">
+                {item.id === "system"
+                  ? t("settings.fontSystem")
+                  : item.id === "serif"
+                    ? t("settings.fontSerif")
+                    : item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* 等宽 / 数字字体（独立槽）：只影响 --font-mono-*（代码、编号、日期） */}
+        <p className="mb-2 mt-4 text-xs font-medium text-foreground">
+          {t("settings.fontMonoTitle")}
+        </p>
+        <Select
+          value={mono}
+          onValueChange={(next) => {
+            setMono(next);
+            setMonoChoice(next);
+          }}
+        >
+          <SelectTrigger
+            className="h-8 w-full text-xs"
+            aria-label={t("settings.fontMonoTitle")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MONOS.map((item) => (
+              <SelectItem key={item.id} value={item.id} className="text-xs">
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* 界面字号（#4 → 2026-09-17 改连续滑块）：根字号 80–150%（步进 5），

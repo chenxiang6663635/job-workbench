@@ -1105,8 +1105,10 @@ const zhCN = {
   "settings.themeDeleted": "已删除",
   "settings.themeReadFailed": "读不到当前主题变量（getComputedStyle 为空）",
   "settings.themeResetFromCurrent": "从当前主题重新开始",
-  // 字体方案（4g）：Inter 本地打包；系统栈不加载 webfont（启动更快）
-  "settings.fontTitle": "字体方案",
+  // 字体方案（4g → 2026-09-17 扩到 12 款界面 + 6 款等宽，全部本地打包、
+  // OFL-1.1、离线可用；字体真名不翻译）；等宽槽管代码 / 编号 / 日期
+  "settings.fontTitle": "界面字体",
+  "settings.fontMonoTitle": "等宽 / 数字字体",
   "settings.fontSystem": "系统字体（更快）",
   "settings.fontSerif": "衬线（Times / 宋体）",
   // 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比随滑块走

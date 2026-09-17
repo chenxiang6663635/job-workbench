@@ -98,12 +98,18 @@
     --duration-slow: 400ms;
     --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
 
-    /* 字体方案（批 4，4g）：UI 字体栈走变量——设置页可切「默认（Inter）」与
-       「系统」；等宽槽优先 Maple Mono（本地打包，中英混排等宽 + Nerd Font）。
-       中文不内置（体积 10–30MB 级），由栈内系统字体承接。 */
-    --font-sans-stack: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI",
-      "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-    --font-mono-stack: "Maple Mono", "JetBrains Mono", Consolas, monospace;
+    /* 字体体系（批 4，4g → 2026-09-17 扩到 12 款界面 + 6 款等宽）：
+       拉丁槽（本地打包，OFL-1.1）与中文系统栈分开维护、组合成完整栈——
+       中文不内置（体积 10–30MB/款），始终由系统字体承接；拉丁字符由
+       --font-latin 命中，不会落到 cjk 槽。等宽槽独立（代码 / 编号 / 日期）。
+       每个方案一行 `html[data-font="…"]`（见下方），**id 与 lib/fonts.ts 的
+       FONTS / MONOS 必须同步**（CSS 不被门禁扫描，靠两边注释人工兜住）。 */
+    --font-latin: "Inter Variable";
+    --font-cjk: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+      "Noto Sans CJK SC";
+    --font-sans-stack: var(--font-latin), var(--font-cjk), system-ui, sans-serif;
+    --font-mono: "Maple Mono";
+    --font-mono-stack: var(--font-mono), Consolas, monospace;
 
     --radius: 0.75rem;
   }
@@ -140,6 +146,61 @@ html[data-font="system"] {
 html[data-font="serif"] {
   --font-sans-stack: "Times New Roman", "Source Han Serif SC", "Noto Serif SC",
     SimSun, "Songti SC", serif;
+}
+
+/* 界面字体方案（2026-09-17 扩到 12 款）：每个 id 只换拉丁槽——
+   id 与 lib/fonts.ts 的 FONTS 同步；inter 不写规则（命中 :root 默认）。
+   族名均取自各 Fontsource 包 wght.css 的实测值（含 " Variable" 后缀）。 */
+html[data-font="geist"] {
+  --font-latin: "Geist Variable";
+}
+html[data-font="plex"] {
+  --font-latin: "IBM Plex Sans Variable";
+}
+html[data-font="manrope"] {
+  --font-latin: "Manrope Variable";
+}
+html[data-font="jakarta"] {
+  --font-latin: "Plus Jakarta Sans Variable";
+}
+html[data-font="dm"] {
+  --font-latin: "DM Sans Variable";
+}
+html[data-font="figtree"] {
+  --font-latin: "Figtree Variable";
+}
+html[data-font="outfit"] {
+  --font-latin: "Outfit Variable";
+}
+html[data-font="public"] {
+  --font-latin: "Public Sans Variable";
+}
+html[data-font="source3"] {
+  --font-latin: "Source Sans 3 Variable";
+}
+html[data-font="work"] {
+  --font-latin: "Work Sans Variable";
+}
+html[data-font="atkinson"] {
+  --font-latin: "Atkinson Hyperlegible Next Variable";
+}
+
+/* 等宽 / 数字字体方案（2026-09-17）：只换等宽槽 --font-mono——作用于代码、
+   编号与日期时间；id 与 lib/fonts.ts 的 MONOS 同步（maple 即 :root 默认）。 */
+html[data-mono="jetbrains"] {
+  --font-mono: "JetBrains Mono Variable";
+}
+html[data-mono="fira"] {
+  --font-mono: "Fira Code Variable";
+}
+html[data-mono="geist-mono"] {
+  --font-mono: "Geist Mono Variable";
+}
+html[data-mono="plex-mono"] {
+  --font-mono: "IBM Plex Mono";
+}
+html[data-mono="source-code"] {
+  --font-mono: "Source Code Pro Variable";
 }
 
 /* 界面字号（#4 → 2026-09-17 实测反馈改连续）：根字号百分比（80–150%）由

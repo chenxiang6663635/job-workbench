@@ -1021,8 +1021,10 @@ export default {
   "settings.themeDeleted": "Deleted",
   "settings.themeReadFailed": "Could not read the current theme variables (getComputedStyle empty)",
   "settings.themeResetFromCurrent": "Restart from the active theme",
-  // Typeface (4g): Inter is bundled locally; the system stack skips webfont loading.
+  // Typeface (4g → 2026-09-17 expanded to 12 UI + 6 mono families, all bundled
+  // locally under OFL-1.1; real typeface names are not translated).
   "settings.fontTitle": "Typeface",
+  "settings.fontMonoTitle": "Monospace / numerals",
   "settings.fontSystem": "System fonts (faster)",
   "settings.fontSerif": "Serif (Times / Songti)",
   // Interface size (#4): four-step root font scaling (rem-based), decoupled from desktop zoom.

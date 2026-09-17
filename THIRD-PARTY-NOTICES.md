@@ -28,6 +28,16 @@
 | [i18next](https://github.com/i18next/i18next) / [react-i18next](https://github.com/i18next/react-i18next) | MIT | 界面双语 |
 | [clsx](https://github.com/lukeed/clsx) / [class-variance-authority](https://github.com/joe-bell/cva) / [tailwind-merge](https://github.com/dcastil/tailwind-merge) | MIT | 类名组合工具 |
 
+## 字体（`web/frontend` 本地打包，经 [Fontsource](https://fontsource.org/) 分发）
+
+全部为 **SIL OFL-1.1**，随应用离线分发；各字体的版权声明与许可证全文见对应 npm 包内 `LICENSE`。
+
+| 字体 | 用途 |
+|---|---|
+| [Inter](https://fontsource.org/fonts/inter) · [Geist](https://fontsource.org/fonts/geist) · [IBM Plex Sans](https://fontsource.org/fonts/ibm-plex-sans) · [Manrope](https://fontsource.org/fonts/manrope) · [Plus Jakarta Sans](https://fontsource.org/fonts/plus-jakarta-sans) · [DM Sans](https://fontsource.org/fonts/dm-sans) | 界面字体选项（默认 Inter） |
+| [Figtree](https://fontsource.org/fonts/figtree) · [Outfit](https://fontsource.org/fonts/outfit) · [Public Sans](https://fontsource.org/fonts/public-sans) · [Source Sans 3](https://fontsource.org/fonts/source-sans-3) · [Work Sans](https://fontsource.org/fonts/work-sans) · [Atkinson Hyperlegible Next](https://fontsource.org/fonts/atkinson-hyperlegible-next) | 界面字体选项 |
+| [Maple Mono](https://fontsource.org/fonts/maple-mono) · [JetBrains Mono](https://fontsource.org/fonts/jetbrains-mono) · [Fira Code](https://fontsource.org/fonts/fira-code) · [Geist Mono](https://fontsource.org/fonts/geist-mono) · [IBM Plex Mono](https://fontsource.org/fonts/ibm-plex-mono) · [Source Code Pro](https://fontsource.org/fonts/source-code-pro) | 等宽 / 数字字体选项（默认 Maple Mono） |
+
 ## 桌面壳（可选，`web/electron/`）
 
 | 依赖 | 许可证 | 用途 |

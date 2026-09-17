@@ -162,7 +162,9 @@ export function getFontSizeChoice(): number {
     const stored = localStorage.getItem(FONTSIZE_KEY);
     if (!stored) return FONT_SIZE_DEFAULT;
     if (Object.prototype.hasOwnProperty.call(LEGACY_FONT_SIZES, stored)) {
-      return LEGACY_FONT_SIZES[stored];
+      // 过一遍 clamp：87.5 不在 80–150 的 5% 步进网格上，滑块会自行吸附导致
+      // 显示值与 thumb 不一致（独立审查 NIT）——读取时就吸附一致。
+      return clampFontSize(LEGACY_FONT_SIZES[stored]);
     }
     return clampFontSize(parseFloat(stored));
   } catch {

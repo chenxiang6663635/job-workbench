@@ -67,6 +67,18 @@ const DialogContent = React.forwardRef<
   // 上次松手固化的位移（下次拖动的基线）——只被拖动逻辑读写，不参与渲染
   const offset = React.useRef({ x: 0, y: 0 });
 
+  // 卸载兜底（独立审查 MINOR）：拖动中按 Esc / 点遮罩会把本弹窗直接卸载，
+  // endDrag 不会再跑——body 上的拖动标记若不清，之后所有弹窗的遮罩都会被
+  // 降级规则命中（纯色代替模糊）。组件卸载时若有进行中的拖动则一并清理。
+  React.useEffect(() => {
+    return () => {
+      if (drag.current) {
+        document.body.removeAttribute("data-dialog-dragging");
+        drag.current = null;
+      }
+    };
+  }, []);
+
   const paint = () => {
     const d = drag.current;
     if (!d) return;
@@ -130,8 +142,11 @@ const DialogContent = React.forwardRef<
         onPointerCancel={endDrag}
         className={cn(
           // left/top 50% 定基准（fixed 元素不写会落在静态位置上——2026-09-16
-          // 实测回归）；居中走 translate 属性、拖动位移由 ref 直写 transform
-          "fixed left-1/2 top-1/2 z-50 grid max-h-[85vh] w-full max-w-lg gap-4 [translate:-50%_-50%] overflow-y-auto border border-border-strong bg-popover p-6 shadow-elevated ring-1 ring-highlight/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+          // 实测回归）；居中走 translate 属性、拖动位移由 ref 直写 transform。
+          // 退场只留 fade（独立审查 MINOR）：zoom-out 的 keyframes 动的是
+          // transform，会压过内联位移——拖动过的弹窗关闭时会「滑回中心」；
+          // 入场的 zoom-in-95 只声明 from，不压内联值，保留。
+          "fixed left-1/2 top-1/2 z-50 grid max-h-[85vh] w-full max-w-lg gap-4 [translate:-50%_-50%] overflow-y-auto border border-border-strong bg-popover p-6 shadow-elevated ring-1 ring-highlight/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:rounded-lg",
           className
         )}
         {...props}

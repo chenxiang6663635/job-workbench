@@ -68,8 +68,16 @@ def _inside_allowed_roots(full):
     routers/workspace.py 同口径——Windows 文件系统大小写不敏感、而
     字符串比较敏感（盘符大小写不同时正常名字会被误判越界）。
     """
-    for r in allowed_roots():
-        if os.path.normcase(full).startswith(os.path.normcase(r) + os.sep):
+    target = os.path.normcase(full)
+    roots_norm = {os.path.normcase(r) for r in allowed_roots()}
+    if target in roots_norm:
+        # 等于任何允许根本身 → 越界。不只防「同根」：数据根恰好在应用根内时
+        # （JOBWS_DATA_DIR 指向仓库内目录），数据根本身也满足「在应用根内部」
+        # 的前缀判定——不显式排除就会 200 服务「所有工作区的父目录」
+        # （独立审查 MINOR-1；routers/workspace.py 用同款「排除根本身」）。
+        return False
+    for root in roots_norm:
+        if target.startswith(root + os.sep):
             return True
     return False
 

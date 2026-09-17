@@ -100,7 +100,10 @@ function Resolve-BackendPython {
                 $candidates += $persisted
                 Write-Host "  提示：本次终端还没刷新环境变量，先用 setx 保存的值试试。" -ForegroundColor DarkGray
             }
-        } catch { }
+        } catch {
+            # 读用户级环境变量失败（极少见）：不影响主候选链，Verbose 记录。
+            Write-Verbose "读取用户级 JOBWS_PYTHON 失败：$($_.Exception.Message)"
+        }
     }
     $venvPy = Join-Path $root ".venv\Scripts\python.exe"
     if (Test-Path $venvPy) { $candidates += $venvPy }

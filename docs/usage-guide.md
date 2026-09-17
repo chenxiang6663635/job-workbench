@@ -16,7 +16,7 @@ Do this once. Skip it if your environment is already set up.
 
 | Software | What it is for | How to check |
 |---|---|---|
-| Python 3.12+ | Backend and CLI scripts | `python --version` |
+| Python 3.12+ | Backend and CLI scripts (3.12 is the supported, CI-verified baseline; 3.9+ may run unverified) | `python --version` |
 | Node.js 18+ | Frontend build | `node --version` |
 | Chrome or Edge | PDF generation (headless rendering) | Usually already present |
 

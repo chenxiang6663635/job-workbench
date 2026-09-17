@@ -76,4 +76,6 @@ def _release(fd):
         os.lseek(fd, 0, os.SEEK_SET)
         msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
     except OSError:
+        # 解锁失败在此无补救手段（fd 随后关闭、锁随之释放，效果等价）——保持
+        # 静默但写明理由，避免被当作「静默吞错」误报（独立审查记录在案）。
         pass

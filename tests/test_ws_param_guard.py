@@ -189,3 +189,32 @@ def test_ws_missing_in_both_roots_still_404(client_two_roots):
     """两形态一致：两个根都找不到仍是 404（不静默回退默认工作区）。"""
     resp = client_two_roots.get("/api/system/paths", params={"ws": "definitely-not-here"})
     assert resp.status_code == 404
+
+
+@pytest.fixture()
+def client_data_inside_root(tmp_path, monkeypatch):
+    """数据根是应用根**子目录**的配置（JOBWS_DATA_DIR 指向仓库内目录）。
+
+    独立审查 MINOR-1 的复现拓扑：此时数据根本身满足「在应用根内部」的前缀
+    判定——`?ws=ws-in/../` normpath 到它，必须仍被拒绝（否则 200 服务的是
+    「所有工作区的父目录」）。
+    """
+    monkeypatch.delenv("JOBWS_WORKSPACE", raising=False)
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    app_root = tmp_path / "app"
+    data_root = app_root / ".data"
+    data_root.mkdir(parents=True)
+    (data_root / "ws-in").mkdir()
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(data_root))
+    monkeypatch.setattr(deps, "ROOT", str(app_root))
+
+    import main  # noqa: E402
+    return TestClient(main.app)
+
+
+def test_data_root_itself_is_not_a_workspace(client_data_inside_root):
+    """数据根 ⊆ 应用根时，normpath 到数据根本身仍须 400；界内正常名字不受影响。"""
+    resp = client_data_inside_root.get("/api/system/paths", params={"ws": "ws-in/../"})
+    assert resp.status_code == 400
+    ok = client_data_inside_root.get("/api/system/paths", params={"ws": "ws-in"})
+    assert ok.status_code == 200

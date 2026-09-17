@@ -16,7 +16,7 @@ English（主版）：[`usage-guide.md`](usage-guide.md) ｜ 本文件是简体�
 
 | 软件 | 用途 | 检查命令 |
 |---|---|---|
-| Python 3.12+ | 后端与 CLI 脚本 | `python --version` |
+| Python 3.12+ | 后端与 CLI 脚本（3.12 是支持与 CI 验证的基线；3.9+ 或可运行但未验证） | `python --version` |
 | Node.js 18+ | 前端构建 | `node --version` |
 | Chrome 或 Edge | PDF 生成（headless 渲染） | 一般自带 |
 

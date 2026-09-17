@@ -306,9 +306,9 @@ def run_check(workspace=None):
             with io.open(schema_path, "w", encoding="utf-8") as f:
                 json.dump({"version": TRACKING_SCHEMA_VERSION}, f)
         except OSError as exc:
-            # sidecar 只是版本标记：写失败不影响本次自检的正确性（下次再试）。
-            # 按「禁静默吞错」留日志，便于排查只读盘 / 权限问题。
-            logger.warning("写 schema sidecar 失败（不影响本次自检）：%s", exc)
+            # sidecar 只是版本标记，写失败不影响自检；只记 errno 与人话（异常
+            # str 自带绝对路径，不打进日志——审查 NIT-6）。
+            logger.warning("写 sidecar 失败：%s", exc.strerror or type(exc).__name__)
 
     # tracker.csv 先行：其他文件的外键以它的 id 集合为准
     fk_ids = set()

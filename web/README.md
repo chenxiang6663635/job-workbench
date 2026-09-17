@@ -67,8 +67,13 @@ web/
 │   ├── atomicio.py           原子写：tmp + os.replace，.jobws_tmp_ 前缀
 │   ├── icsutil.py            RFC 5545 日程导出（纯标准库手写）
 │   ├── resume_guard.py       反编造条款 + 改写校验器（测试锁死）
+│   ├── apierror.py           ApiError 契约（错误码 + 参数）
+│   ├── mail_link.py          邮件深链判定（custom > Gmail rfc822msgid > none 降级）
+│   ├── redact.py             凭证脱敏（日志与响应共用）
+│   ├── resume_import.py      简历导入抽取（PDF / Word / MD / TXT）
+│   ├── tls_http.py           出网证书策略接线
 │   ├── pyinstaller.spec      PyInstaller onedir 打包配置
-│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / workspace
+│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / workspace / approvals / imap
 ├── electron/                 Electron 桌面壳（探测打包 exe → spawn → 开窗 → 退出杀进程树）
 └── frontend/
     └── src/

@@ -2,7 +2,7 @@
 """stdio 冒烟：真起一个子进程，用官方 client 走完握手 → 列出工具 → 调一次。
 
 只在装了 MCP SDK 的环境运行（需要 Python 3.10+）：CI 由独立的 3.12 job 跑，
-主干 3.8 的 pytest 会因为 `importorskip` 自动跳过而不是报错。
+主干环境没装 SDK 时 `importorskip` 会自动跳过而不是报错。
 
 为什么必须真起进程：工具的实现细节（`tools_readonly`）已有单测覆盖，
 这里要钉的是**另一件事**——stdio 通道干净（没有多余输出污染协议）、

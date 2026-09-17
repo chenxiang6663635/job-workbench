@@ -109,11 +109,11 @@ def resolve_workspace(name=None, must_exist=False):
     elif os.path.isabs(name):
         path = os.path.normpath(name)
     else:
-        # 相对工作区名按**数据根**解析。
-        # 源码/便携形态下数据根就是应用根（pathres 的 portable 判定），与后端
-        # deps.py:129「相对路径按 ROOT 拼」完全一致；打包形态下数据根是系统用户
-        # 目录——那里才是用户数据真正所在，按安装目录拼只会指向一个空壳。
-        # （不逐个根去试存在的目录：那会让同名工作区在不同形态下指向不同副本。）
+        # 相对工作区名按**数据根**解析——本模块**有意比后端更严**：只认这一个
+        # 根，不逐个根去试存在的目录（那会让同名工作区在不同形态下指向不同
+        # 副本）。打包形态下数据根是系统用户目录——那里才是用户数据真正所在，
+        # 按安装目录拼只会指向一个空壳。（后端 ?ws= 自 2026-09-16 起为「数据根
+        # 优先 + 应用根兜底」的两候选解析，可达集合比这里大。）
         path = os.path.normpath(os.path.join(data_root(), name))
 
     real = os.path.realpath(path)

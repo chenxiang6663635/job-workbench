@@ -33,6 +33,8 @@ import { Badge } from "../components/ui/badge";
 import { Bar as BarTrack } from "../components/ui/bar";
 import { Button } from "../components/ui/button";
 import { Num, StatValue } from "../components/ui/number";
+import { EmptyState } from "../components/ui/empty";
+import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 
 // 数据可视化色板（批 4 起走主题 token）：阶段语义映射到 --chart-* 与状态色——
@@ -359,6 +361,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <PageHeader title={t("nav.dashboard")} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t("dash.total")}
@@ -612,7 +616,7 @@ export default function Dashboard() {
                 {t("dash.upcoming")}
               </h2>
               {data.upcoming.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("dash.upcomingEmpty")}</p>
+                <EmptyState title={t("dash.upcomingEmpty")} compact />
               ) : (
                 <ul className="space-y-2">
                   {data.upcoming.map((u) => (
@@ -653,9 +657,7 @@ export default function Dashboard() {
                 {t("dash.overdueTitle")}
               </h2>
               {data.overdue.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("dash.overdueEmpty")}
-                </p>
+                <EmptyState title={t("dash.overdueEmpty")} compact />
               ) : (
                 <ul className="space-y-2">
                   {data.overdue.map((o) => (

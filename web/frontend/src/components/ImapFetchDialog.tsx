@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { ErrorBanner } from "./ErrorBanner";
+import { EmptyState } from "./ui/empty";
 
 interface Props {
   onClose: () => void;
@@ -154,15 +155,23 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
           )}
 
           {!loading && messages && messages.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              {t("imap.empty", { range: rangeLabel })}
-            </p>
+            <div className="rounded-lg border border-dashed border-border">
+              <EmptyState
+                icon={<Inbox size={20} />}
+                title={t("imap.empty", { range: rangeLabel })}
+                compact
+              />
+            </div>
           )}
 
           {!loading && messages && messages.length > 0 && filtered.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              {t("imap.emptyFiltered")}
-            </p>
+            <div className="rounded-lg border border-dashed border-border">
+              <EmptyState
+                icon={<Search size={20} />}
+                title={t("imap.emptyFiltered")}
+                compact
+              />
+            </div>
           )}
 
           {filtered.map((m) => (

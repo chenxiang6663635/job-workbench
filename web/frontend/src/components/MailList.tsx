@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import { ApplicationSelect } from "./ApplicationSelect";
@@ -334,12 +335,17 @@ export default function MailList() {
         ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
         : null}
       {loaded && !error && rows.length === 0 ? (
-        <Card className="flex flex-1 flex-col items-center justify-center rounded-lg border-dashed p-8 text-center">
-          <MailIcon size={28} className="mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t("mail.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {t("mail.emptyHint", { action: t("mail.add") })}
-          </p>
+        <Card className="flex flex-1 flex-col justify-center rounded-lg border-dashed">
+          <EmptyState
+            icon={<MailIcon size={20} />}
+            title={t("mail.emptyTitle")}
+            description={t("mail.emptyHint", { action: t("mail.add") })}
+            action={
+              <Button onClick={() => setShowForm(true)}>
+                <Plus size={14} /> {t("mail.add")}
+              </Button>
+            }
+          />
         </Card>
       ) : null}
 

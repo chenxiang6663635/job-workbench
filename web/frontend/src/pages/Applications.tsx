@@ -40,6 +40,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { EmptyState } from "../components/ui/empty";
+import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
@@ -276,6 +278,8 @@ export default function Applications() {
 
   return (
     <div className="space-y-6">
+      <PageHeader title={t("nav.applications")} />
+
       {error && (
         <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <span>{error}</span>
@@ -567,18 +571,21 @@ export default function Applications() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5 p-10 text-center">
-          <Inbox size={28} className="text-muted-foreground" />
-          <p className="text-base font-medium">{t("app.emptyTitle")}</p>
-          <p className="text-sm text-muted-foreground">
-            {t("app.emptyHint", { action: t("app.newApplication") })}
-          </p>
+        <div className="rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5">
+          <EmptyState
+            icon={<Inbox size={20} />}
+            title={t("app.emptyTitle")}
+            description={t("app.emptyHint", { action: t("app.newApplication") })}
+          />
         </div>
       ) : (
         /* 撑满 + 内部滚动 + 粘性纯色表头（批 4 编排总则）：表格是主内容区，
            容器吃掉视口剩余高度、长表在内部滚动；表头必须纯色——半透明会
            透出滚动内容，是粘性表头的经典事故。 */
-        <div className="max-h-[calc(100dvh-19rem)] overflow-auto rounded-lg border border-border">
+        /* max-h 偏移：19 → 22.25rem——2026-09-17 新增页头（约 3.25rem）后同步，
+           否则表格底部会被页头挤进来的高度盖住。这类魔法偏移正在被逐页算法化
+           （Progress 页的 17rem 同样待后续批处理）。 */
+        <div className="max-h-[calc(100dvh-22.25rem)] overflow-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>

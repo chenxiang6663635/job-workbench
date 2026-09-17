@@ -6,6 +6,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
+import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 
@@ -136,14 +137,12 @@ export default function ContactList() {
           ))}
         </div>
       ) : loaded && !error && rows.length === 0 ? (
-        <Card className="flex flex-1 flex-col items-center justify-center rounded-lg border-dashed p-8 text-center">
-          <UserRound size={28} className="mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t("contact.emptyTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {t("contact.emptyHint1")}
-            <br />
-            {t("contact.emptyHint2")}
-          </p>
+        <Card className="flex flex-1 flex-col justify-center rounded-lg border-dashed">
+          <EmptyState
+            icon={<UserRound size={20} />}
+            title={t("contact.emptyTitle")}
+            description={`${t("contact.emptyHint1")} ${t("contact.emptyHint2")}`}
+          />
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

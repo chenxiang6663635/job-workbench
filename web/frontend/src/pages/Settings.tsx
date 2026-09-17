@@ -36,6 +36,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
+import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { FormField } from "../components/FormField";
@@ -237,12 +238,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">{t("settings.title")}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t("settings.providerDesc")}
-        </p>
-      </div>
+      <PageHeader title={t("settings.title")} description={t("settings.providerDesc")} />
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
       {info && <ErrorBanner tone="success" message={info} onClose={() => setInfo(null)} />}

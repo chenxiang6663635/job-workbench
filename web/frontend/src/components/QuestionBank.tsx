@@ -13,6 +13,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
+import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 
@@ -227,14 +228,14 @@ function MyBank() {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <Card className="flex flex-col items-center border-dashed p-10 text-center">
-          <BookOpen size={28} className="mb-3 text-muted-foreground" />
-          <p className="text-base font-medium text-foreground">
-            {keyword || status ? t("bank.emptyNoMatch") : t("bank.emptyNoData")}
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {keyword || status ? t("bank.emptyHintNoMatch") : t("bank.emptyHintNoData")}
-          </p>
+        <Card className="border-dashed">
+          <EmptyState
+            icon={<BookOpen size={20} />}
+            title={keyword || status ? t("bank.emptyNoMatch") : t("bank.emptyNoData")}
+            description={
+              keyword || status ? t("bank.emptyHintNoMatch") : t("bank.emptyHintNoData")
+            }
+          />
         </Card>
       ) : (
         <>
@@ -315,14 +316,14 @@ function AskedBefore() {
           ))}
         </div>
       ) : !loading && !error && groups.length === 0 ? (
-        <Card className="flex flex-col items-center border-dashed p-10 text-center">
-          <BookOpen size={28} className="mb-3 text-muted-foreground" />
-          <p className="text-base font-medium text-foreground">
-            {keyword ? t("question.emptyNoMatch") : t("question.emptyNoData")}
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {keyword ? t("question.emptyHintNoMatch") : t("question.emptyHintNoData")}
-          </p>
+        <Card className="border-dashed">
+          <EmptyState
+            icon={<BookOpen size={20} />}
+            title={keyword ? t("question.emptyNoMatch") : t("question.emptyNoData")}
+            description={
+              keyword ? t("question.emptyHintNoMatch") : t("question.emptyHintNoData")
+            }
+          />
         </Card>
       ) : groups.length === 0 ? null : (
         <div className="flex flex-1 flex-col gap-4">

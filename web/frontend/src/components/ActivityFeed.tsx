@@ -1,10 +1,12 @@
 import { Activity } from "lucide-react";
 import { Card } from "./ui/card";
+import { EmptyState } from "./ui/empty";
 import { useTranslation } from "react-i18next";
 
 // 最近动作（批 4）：Linear / GitHub 的活动流模式——用**既有时间线数据**填充看板，
 // 让「最近发生了什么」一屏可见，而不是翻追踪表。数据来自后端 recentActivity
 // （history.csv 时间线最近 12 条，附公司名；排序在服务端完成）。
+// 2026-09-17：空态并入 EmptyState 原语（此前是一行灰字）。
 
 export interface ActivityEntry {
   time: string;
@@ -23,7 +25,7 @@ export default function ActivityFeed({ entries }: { entries: ActivityEntry[] }) 
         <Activity size={14} className="text-primary" /> {t("dash.activityTitle")}
       </h2>
       {entries.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{t("dash.activityEmpty")}</p>
+        <EmptyState title={t("dash.activityEmpty")} compact />
       ) : (
         <ol className="space-y-2.5">
           {entries.map((entry, index) => (

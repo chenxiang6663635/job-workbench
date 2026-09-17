@@ -27,6 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { EmptyState } from "../components/ui/empty";
+import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 import { Card } from "../components/ui/card";
 import { Segmented } from "../components/ui/segmented";
@@ -310,15 +312,16 @@ export default function Resume() {
   if (!version) {
     return (
       <div className="space-y-6">
+        <PageHeader title={t("nav.resume")} />
+
         {errorBanner}
         {modeBar}
-        <Card className="border-dashed p-10 text-center">
-          <FileText size={28} className="mx-auto mb-3 text-muted-foreground" />
-          <p className="text-base font-medium text-foreground">{t("resume.emptyTitle")}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("resume.emptyHint1")}
-            {t("resume.emptyHint2")}
-          </p>
+        <Card className="border-dashed">
+          <EmptyState
+            icon={<FileText size={20} />}
+            title={t("resume.emptyTitle")}
+            description={`${t("resume.emptyHint1")}${t("resume.emptyHint2")}`}
+          />
         </Card>
         {importDialog}
       </div>
@@ -327,6 +330,8 @@ export default function Resume() {
 
   return (
     <div className="space-y-6">
+      <PageHeader title={t("nav.resume")} />
+
       {errorBanner}
       {modeBar}
 

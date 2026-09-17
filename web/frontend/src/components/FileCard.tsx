@@ -40,7 +40,7 @@ export function FileCard({
       onClick={onClick}
       title={name}
       className={cn(
-        "group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card-gradient p-4 text-left shadow-card ring-1 ring-highlight/5 transition-all duration-200 ease-premium hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10",
+        "group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card-gradient p-4 text-left shadow-card ring-1 ring-highlight/5 transition-all duration-200 ease-premium hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2",
         className
       )}
     >

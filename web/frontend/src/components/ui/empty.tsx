@@ -9,7 +9,8 @@ export interface EmptyStateProps {
   /** 图形（lucide 图标；统一 20px 常用尺寸） */
   icon?: ReactNode;
   title: string;
-  description?: string;
+  /** 一句话说明——允许富文本（如内嵌 <code> 标出真实文件名） */
+  description?: ReactNode;
   /** 下一步动作（按钮或链接）——空态没有出路时用户只能干瞪眼 */
   action?: ReactNode;
   /** 紧凑模式（嵌在小卡片里用，减少上下留白） */

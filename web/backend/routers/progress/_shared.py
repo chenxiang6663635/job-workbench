@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-import tracker
+
 from deps import DIR_TRACKING
 
 

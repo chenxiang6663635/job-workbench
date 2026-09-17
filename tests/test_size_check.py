@@ -56,7 +56,7 @@ def _allow(text):
 
 def test_classify_splits_logic_and_data():
     assert check_size.classify("tools/tracker.py") == "logic"
-    assert check_size.classify("web/backend/routers/progress.py") == "logic"
+    assert check_size.classify("web/backend/routers/progress/questions.py") == "logic"
     assert check_size.classify("tests/test_tracker.py") == "data"
     assert check_size.classify("web/frontend/src/i18n/locales/zh-CN.ts") == "data"
     assert check_size.limit_for("logic") == 300

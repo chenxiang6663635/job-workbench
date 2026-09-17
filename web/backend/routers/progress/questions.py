@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-import os
-
 from fastapi import APIRouter, Depends
 import tracker
 import question_bank as question_store

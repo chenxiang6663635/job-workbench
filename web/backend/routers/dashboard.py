@@ -2,8 +2,8 @@
 """看板统计。
 
 复用 tools/jobws.py report 的 count_by / parse_date（纯统计函数，无副作用）。
-upcoming/overdue 的判定逻辑此处直接实现——report.build_report 里它与
-Markdown 拼装耦合，本期不做提取重构（留作后续改进）。
+upcoming/overdue 的判定逻辑此处直接实现——report 侧已有对应的 section
+helper（_append_section_todo / _append_section_overdue），两边口径须一致。
 """
 
 from __future__ import annotations

@@ -514,7 +514,7 @@ def cmd_bank(args):
 
     if args.action == "import":
         # 目录可以换，但**不能越出工作区**：绝对路径会被 os.path.join 当成新根、
-        # `..` 能翻出去，两者都先拒（后端端点干脆不收这个参数，见 progress.py）。
+        # `..` 能翻出去，两者都先拒（后端端点不收这个参数——见 progress/questions.py）。
         module_dir = args.module_dir or MODULE_DIR
         if os.path.isabs(module_dir) or ".." in module_dir.replace("\\", "/").split("/"):
             print("错误：--module-dir 必须是工作区内的相对目录（不能是绝对路径或含 ..）")

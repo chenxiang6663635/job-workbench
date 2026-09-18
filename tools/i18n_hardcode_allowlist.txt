@@ -48,7 +48,14 @@ components/OfferCompare.tsx = 公司|关联记录|其他条件|备注|岗位|工
 components/OfferForm.tsx = 公司|关联记录|其他条件|备注|岗位|工作地点|年终|月薪|答复截止日|签字费|股票期权|薪资构成
 
 # 面试轮次枚举（ROUND_VARIANT 的键；「面」来自 HR面/终面/AI面 的切分）+ 归集键拼接
-components/QuestionBank.tsx = ${g.公司}__${g.岗位}|· ${row.关联岗位}|一面|三面|二面|公司|关联公司|复盘与改进|待定|我的回答要点|测评|笔试|终面|结果|群面|通过|面|未看|看过|会了|题目|答案要点
+# （列表行 2026-09-18 拆到 QuestionBankRow.tsx，随行走的片段已迁到下面那条）
+components/QuestionBank.tsx = ${g.公司}__${g.岗位}|一面|三面|二面|会了|公司|复盘与改进|待定|我的回答要点|未看|测评|看过|笔试|终面|结果|群面|通过|面
+
+# 题库列表行拆出（2026-09-18）后的状态枚举与 CSV 列名 / 关联展示拼接
+components/QuestionBankRow.tsx = · ${row.关联岗位}|会了|关联公司|未看|看过|答案要点|题目
+
+# 题库详情弹窗（2026-09-18）：状态三态与难度档位枚举、CSV 列名——都是数据值
+components/QuestionDetailDialog.tsx = 中|会了|易|未看|状态|看过|答案要点|难|难度|题目
 
 # 宣讲会表字段名与枚举默认值 + 用模板串拼「· 形式 · 关联记录」展示串
 components/TalkList.tsx = · ${domainLabel("talkForm", r.形式, t)}|· ${t("interview.related", { value: r.关联记录 })}|公司|关联记录|地点或链接|备注|形式|待定|收获|时间|是否参加|线下

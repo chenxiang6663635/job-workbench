@@ -209,8 +209,8 @@
       "cli": "bank update",
       "mcp": null,
       "plugin": null,
-      "gui": null,
-      "note": "写入：预览 -> 确认 -> 落盘。仅 CLI 提供。"
+      "gui": "GET /api/progress/questions/preview-update",
+      "note": "写入：预览 -> 确认 -> 落盘。GUI 侧在题目详情弹窗里改答案要点 / 标三态 / 调难度，落盘走通用 apply。"
     },
     {
       "id": "question.import",
@@ -435,12 +435,7 @@
     {
       "end": "gui",
       "item": "question.add",
-      "reason": "界面无单题新增入口（走批量导入，或命令行 bank add）。"
-    },
-    {
-      "end": "gui",
-      "item": "question.update",
-      "reason": "同上。"
+      "reason": "界面暂无单题新增入口（走批量导入，或命令行 bank add）——改已有题的入口已在详情弹窗里提供。"
     },
     {
       "end": "gui",

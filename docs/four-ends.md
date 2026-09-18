@@ -32,7 +32,7 @@
 | 复盘 | `report.summary` | `report` | `dashboard_summary` | `today` | `GET /api/dashboard` |
 | 题库 | `question.list` | `bank list` | `list_questions` | `bank` | `GET /api/progress/questions` |
 | 题库 | `question.add` | `bank add` | `preview_add_question` | `bank` | — |
-| 题库 | `question.update` | `bank update` | — | — | — |
+| 题库 | `question.update` | `bank update` | — | — | `GET /api/progress/questions/preview-update` |
 | 题库 | `question.import` | `bank import` | `preview_import_questions` | `bank` | `GET /api/progress/questions/preview-import` |
 | 通用 | `approval.apply` | `apply` | `apply_approval` | — | `POST /api/approvals/apply` |
 
@@ -65,8 +65,7 @@
 - **plugin** · `interview.add`：面试记录由 retro 只读汇总；写入走 CLI 或 GUI。
 - **plugin** · `interview.update`：同上。
 - **plugin** · `question.update`：做题状态由本人维护。
-- **gui** · `question.add`：界面无单题新增入口（走批量导入，或命令行 bank add）。
-- **gui** · `question.update`：同上。
+- **gui** · `question.add`：界面暂无单题新增入口（走批量导入，或命令行 bank add）——改已有题的入口已在详情弹窗里提供。
 - **gui** · `application.check`：schema 自检是命令行运维动作，不在界面暴露。
 - **gui** · `jd.score`：界面只展示差距（gap），评分由解析卡承载；命令行 jd 是完整的评分校验入口。
 

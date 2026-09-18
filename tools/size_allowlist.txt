@@ -16,7 +16,7 @@
 tools/jd_score.py = 705  # 评分标准 + 解析卡校验 + CLI；2026-09-16 拆 main 为 _build_parser/_run_show_profile/_run_gap/_validate_card/_print_verdict（684→705）
 tools/resume_build.py = 717  # 模板渲染 + ATS 校验 + CLI；2026-09-16 拆 main 与 cmd_render 为 helper（680→717）
 tools/check_i18n_hardcode.py = 663  # i18n 检查器（含 EN_SCOPE_RELS 与豁免解析）
-tools/question_bank.py = 588  # 题库领域层 + 导入解析 + CLI；2026-09-16 拆 cmd_bank 为动作 helper（610→588，净减）
+tools/question_bank.py = 475  # 题库领域层 + 导入解析；2026-09-18 命令层拆到 _cli_bank.py（588→468，领域层不再带 argparse）+ 更新预览显式列出自动写入的「最近复习」+ 合并改动提成 _merge_changes 两段共用（468→475）
 tools/report.py = 538  # 复盘统计与聚类；2026-09-16 拆 build_report 为六节 helper（532→538）
 tools/imap_fetch.py = 439  # IMAP 只读会话 + 邮件解析；2026-09-16 清静默吞错 + 拆 fetch_messages 为 _fetch_recent（429→439）
 tools/init_workspace.py = 425  # 骨架复制 + demo 数据铺设
@@ -32,14 +32,14 @@ web/backend/routers/system.py = 328  # 备份/导出/快照淘汰（本次为加
 # （2026-09-16 重构批：dashboard() 已拆为五个 section helper，本行按自洁删除）
 #
 # --- 前端：刻意集中的单一真源 / 页面级容器 ---
-web/frontend/src/api.ts = 1181  # 前端唯一 API 客户端（错误码与 ws 参数拼接刻意集中在一处）；2026-09-17 加 deleteMail（1174→1181）
+web/frontend/src/api.ts = 1191  # 前端唯一 API 客户端（错误码与 ws 参数拼接刻意集中在一处）；2026-09-17 加 deleteMail（1174→1181）；2026-09-18 题库详情批加 previewQuestionUpdate（1181→1191）
 web/frontend/src/pages/Applications.tsx = 818  # 页面容器（筛选 + 表格 + 表单 + 弹窗编排）；2026-09-17 关联邮件块 + 页头 + 空态原语 + 偏移同步（811→818）
 web/frontend/src/pages/Settings.tsx = 693  # 设置页八张卡（Provider / 邮箱 / 数据 / 关于…）；2026-09-17 页头原语替换后回落
 web/frontend/src/pages/Dashboard.tsx = 700  # 看板（统计卡 + 漏斗 + 待推进 + 复盘）；2026-09-17 页头 + 两处空态原语（698→700）
 web/frontend/src/pages/Resume.tsx = 544  # 简历工坊（模式切换 + 表单 + 预览 + 谱系）；2026-09-17 页头（两处 return）+ 空态原语（539→544）
 web/frontend/src/pages/Jobs.tsx = 524  # 岗位池（列表 + 详情双栏）；2026-09-17 页头 + 空态原语（520→524）
 web/frontend/src/components/StatusUpdateDialog.tsx = 559  # 解析 → 建议 → 确认三段式
-web/frontend/src/components/QuestionBank.tsx = 388  # 题库双视图 + 导入；2026-09-17 两处空态改 EmptyState（387→388）
+web/frontend/src/components/QuestionBank.tsx = 371  # 题库双视图 + 导入；2026-09-17 两处空态改 EmptyState（387→388）；2026-09-18 列表行拆到 QuestionBankRow.tsx（388→371）
 web/frontend/src/components/MailList.tsx = 475  # 邮件列表 + 8 字段表单；2026-09-17 空态改 EmptyState 原语（469→475）
 web/frontend/src/components/TalkList.tsx = 341  # 宣讲会列表 + 表单；2026-09-17 空态改走 EmptyState 原语（340→341）
 web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（逐段确认）

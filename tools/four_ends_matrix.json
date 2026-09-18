@@ -10,7 +10,8 @@
       "gui": "桌面端 web/backend/routers + 前端页面"
     },
     "write_rule": "写入类能力一律「预览 -> 确认 -> 落盘」：预览返回令牌与差异，落盘走 apply。GUI 的确认形态是界面弹窗，CLI/MCP 是令牌——机制不同、语义相同。",
-    "error_map_scope": "只登记跨端共用的令牌（approval）域：MCP 透出 ApprovalError.code 的稳定值，HTTP 侧对外只有 approval.tokenInvalid / approval.conflict 两个码。其余 110 个接口错误码是 GUI 内部细节，不在此登记。"
+    "error_map_scope": "只登记跨端共用的令牌（approval）域：MCP 透出 ApprovalError.code 的稳定值，HTTP 侧对外只有 approval.tokenInvalid / approval.conflict 两个码。其余 110 个接口错误码是 GUI 内部细节，不在此登记。",
+    "excluded_primitives": "MCP 的**只读资源（jobws:// 静态资源与岗位正文模板）与提示模板（review_jd 等）不在本矩阵登记**：它们是 MCP 端专属形态，其余三端没有同名概念，硬塞进「能力 × 四端」会出现没有比对对象的行。反向检查只认 @mcp.tool（见 four_ends_probe.mcp_tools），不会因此误报。"
   },
   "capabilities": [
     {

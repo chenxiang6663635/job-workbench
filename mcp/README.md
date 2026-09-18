@@ -22,12 +22,18 @@ Markdown / CSV，不出网。**默认只读**；写入走**两段式**——`pre
 
 ## 只读资源与提示模板（批 8：按需读取）
 
-- **资源**（固定 URI；list 只列清单，read 才取内容）：
-  `jobws://workspace/applications`（投递记录）、`jobws://workspace/jobs`（岗位池）、
-  `jobws://workspace/dashboard`（看板摘要）。**不要全量预载**——那既贵又慢。
+- **资源**（list 只列清单，read 才取内容；**不要全量预载**——那既贵又慢）：
+  - 固定 URI 三个：`jobws://workspace/applications`（投递记录）、
+    `jobws://workspace/jobs`（岗位池）、`jobws://workspace/dashboard`（看板摘要）；
+  - 岗位正文模板两个（2026-09-18 补）：`jobws://job/<目录名>/jd`（JD 原文）、
+    `jobws://job/<目录名>/card`（解析卡正文）——`<目录名>` 是**单个目录名**
+    （如 `云帆_后端`，不含斜杠）。正文只给 Markdown / 纯文本（简历 PDF 等二进制
+    与凭证文件**没有入口**），单条上限 20 KB、超出截断并注明完整路径。
 - **提示模板**：`review_jd`（评估 JD）、`generate_application_pack`（投递包）、
   `interview_review`（面试复盘）、`today_todos`（今日待办）——只做参数化组装，
-  准则在 `skills/jwb-*` 里，不在这里复制第二份。
+  准则在 `skills/jwb-*` 里，不在这里复制第二份。提示里提到的数据都指向上面真能
+  读到的资源或工具（需要完整字段的列表用 `verbose=True`）；MCP 面没有的能力
+  （如阶段时间线）提示会明说"请在界面查看"，不诱导模型编造。
 
 口径与 CLI / 网页端**同源**：终态、待办（下次动作日期优先于截止日期）、逾期（只看
 「待投」）、静默（`tracker.stale_days`）、健康度（`tracker.health_score`）照搬后端看板；

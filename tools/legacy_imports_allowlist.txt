@@ -1,0 +1,12 @@
+# 旧名 import 点的**存量上限**（`jobws lint legacy-imports` 读它）。
+#
+# 形态与 `size_allowlist.txt` / `i18n_hardcode_allowlist.txt` 同款：上限即水位，
+# **只许下降**——新增旧名 import 会当场报错，逼新代码走 `jobws_core`。
+# 降到 0 就意味着 shim 可以删了（下一版）。
+#
+# 更新方式：先改代码把实测数降下来，再把上限改成新值。
+# **不要**为了放过新增调用而调高上限——那等于把闸门焊死。
+#
+# 基线取自 2026-09-17 批 6（领域层包化，旧路径改 shim 的那一刻）：
+filelock = 16  # 后端 9 处 + tracker 5 处 + 测试等 2 处（ast 实测，shim 自身不计）
+workspace_io = 8  # 后端与 tracker 的共享写入原语入口（同上）

@@ -30,6 +30,7 @@
     python tools/jobws.py init --demo
     python tools/jobws.py lint pr-title     校验环境变量 PR_TITLE（CI 用）
     python tools/jobws.py lint size         规模预算（--staged 只扫暂存文件）
+    python tools/jobws.py lint legacy-imports   旧名 import 存量（只许下降）
 """
 
 from __future__ import print_function
@@ -46,6 +47,7 @@ import approval  # noqa: E402
 import check_domains  # noqa: E402
 import check_four_ends  # noqa: E402
 import check_i18n_hardcode  # noqa: E402
+import check_legacy_imports  # noqa: E402
 import check_pr_title  # noqa: E402
 import check_size  # noqa: E402
 import check_skills  # noqa: E402
@@ -74,7 +76,7 @@ TARGETS = [
     ("prefs", prefs, "工作区偏好（get / set）与环境体检（doctor，含终端字体推荐）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
-    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件 / four-ends 四端一致性 / themes 主题门禁 / size 规模预算）"),
+    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件 / four-ends 四端一致性 / themes 主题门禁 / size 规模预算 / legacy-imports 旧名存量）"),
 ]
 
 class _ReleaseVersionTarget(object):
@@ -104,12 +106,13 @@ SUB_TARGETS = {
     ("lint", "four-ends"): check_four_ends,
     ("lint", "themes"): check_themes,
     ("lint", "size"): check_size,
+    ("lint", "legacy-imports"): check_legacy_imports,
 }
 
 SUB_CHOICES = {"skills": ["install", "check"],
                "release": ["check", "version"],
                "lint": ["pr-title", "i18n", "ui-tokens", "domains", "four-ends",
-                       "themes", "size"]}
+                       "themes", "size", "legacy-imports"]}
 
 HELP_FLAGS = ("-h", "--help")
 

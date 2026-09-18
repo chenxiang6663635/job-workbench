@@ -1,81 +1,61 @@
 # -*- coding: utf-8 -*-
-"""跨平台文件锁。
+"""【已废弃】`filelock` 的旧路径 —— 转发到 `jobws_core.filelock`。
 
-tracker.py 的 write_rows 是全量重读重写，Web UI 快速连续操作会产生并发写，
-后写覆盖先写导致静默丢数据。所有写操作必须持锁。
+2026-09-17 批 6：领域层开始包化（`packages/jobws-core`，import 名 `jobws_core`）。
+本文件不再有实现，只做**转发**，让 9 处后端 import、5 处 tracker import 与
+53 个自插 sys.path 的测试文件**零改动**继续工作。
 
-Windows 用 msvcrt.locking，Unix 用 fcntl.flock；**两平台都必须兑现 timeout**
-——裸 `flock(LOCK_EX)` 会无限阻塞，唯有 `LOCK_NB` 轮询能与 Windows 的
-「超时抛错」行为对齐（2026-09-16 审计发现并订正）。
+为什么直接把 sys.modules 换成真身而不是逐名字转发：
+- `from filelock import file_lock` 这类写法在 import 完成后会从
+  `sys.modules["filelock"]` 取属性——替换后拿到的就是真身，语义完全一致；
+- 逐名字转发（`from jobws_core.filelock import file_lock`）是**值快照**，将来若
+  出现可变全局就会静默不跟随（同款教训见 `tools/tracker/__init__.py`）。
+
+下一步：`jobws lint legacy-imports` 统计旧名 import 点数量（只许下降），
+全部改完后的**下一版**删除本文件。
 """
 
 from __future__ import annotations
 
-import contextlib
+import importlib
 import os
+import sys
+import warnings
 
-try:
-    import msvcrt
-
-    IS_WINDOWS = True
-except ImportError:
-    import fcntl
-
-    IS_WINDOWS = False
+warnings.warn(
+    "import filelock 已废弃：领域层已包化，请改用 `from jobws_core import filelock`"
+    "（或 `import jobws_core.filelock`）。旧路径将在下一版删除。",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
-@contextlib.contextmanager
-def file_lock(path, timeout=10.0):
-    """对 path 加排他锁，with 块结束后释放。
+def _import_real():
+    """导入真身；未安装时退化为「源码形态」——把包的 src 加进 sys.path 再试。
 
-    锁文件是 path 本身（要求 path 已存在），因此调用方须保证
-    先创建目标文件再加锁。**path 应当是专用锁文件（如 `tracker.lock`），
-    不要锁数据文件本身**——Windows 下 `os.open` 打开的文件不共享，锁期间
-    再用 `io.open` 读同一文件会 `PermissionError`（2026-09-16 实测）。
-
-    锁粒度：Unix 是整文件（flock 语义）；Windows 是**首个字节**——同一 path
-    的所有写方锁的都是同一字节，互斥语义等价，但写成「整个文件」是错的
-    （曾如此声明，2026-09-16 订正）。
+    为什么要有兜底：开发者与 CI 若没装 `packages/jobws-core`，直接跑 pytest
+    会因为找不到 jobws_core 而全红。兜底让源码形态照样能跑，但它**不是**
+    目标形态——目标是装上就能用（CI 另有非 editable 的安装冒烟来守这条）。
     """
-    fd = os.open(path, os.O_RDWR | os.O_CREAT)
     try:
-        _acquire(fd, timeout)
-        yield
-    finally:
-        try:
-            _release(fd)
-        finally:
-            os.close(fd)
+        return importlib.import_module("jobws_core.filelock")
+    except ImportError:
+        src = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "packages",
+            "jobws-core",
+            "src",
+        )
+        if os.path.isdir(src) and src not in sys.path:
+            sys.path.insert(0, src)
+        return importlib.import_module("jobws_core.filelock")
 
 
-def _acquire(fd, timeout):
-    """取排他锁；timeout 秒内拿不到就抛 TimeoutError（两平台行为一致）。"""
-    import time
-
-    deadline = time.time() + timeout
-    while True:
-        try:
-            if not IS_WINDOWS:
-                # LOCK_NB 是关键：裸 flock(LOCK_EX) 会无限阻塞，timeout 形同虚设
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            else:
-                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-            return
-        except OSError:
-            if time.time() >= deadline:
-                raise TimeoutError("file lock timeout after %.1fs" % timeout)
-            time.sleep(0.05)
+_real = _import_real()
+sys.modules[__name__] = _real
+# 透传 __path__：保证 `import filelock.<子模块>` 这类写法也可用（本模块暂无子模块）
+__path__ = list(getattr(_real, "__path__", []))
 
 
-def _release(fd):
-    if not IS_WINDOWS:
-        fcntl.flock(fd, fcntl.LOCK_UN)
-        return
-
-    try:
-        os.lseek(fd, 0, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-    except OSError:
-        # 解锁失败在此无补救手段（fd 随后关闭、锁随之释放，效果等价）——保持
-        # 静默但写明理由，避免被当作「静默吞错」误报（独立审查记录在案）。
-        pass
+def __getattr__(name):  # PEP 562 兜底（sys.modules 已被替换，正常情况下不会走到）
+    return getattr(_real, name)

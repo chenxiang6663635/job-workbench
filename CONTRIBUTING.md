@@ -110,7 +110,7 @@
 
 从 `main` 打 tag，不从分支发（**单一发布节点**：中间不发布，见 §版本号体系）：
 
-1. **冒烟验证**（CI 已跑全量自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开七个页面各操作一遍；UI 相关批按截图对比验收（能指出可见差异）。
+1. **冒烟验证**（CI 已跑全量自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开八个页面各操作一遍；UI 相关批按截图对比验收（能指出可见差异）。
 2. **生成当日号并 bump 机器版本**：`python tools/jobws.py release version` 取"今日发布号"（`YY.MM.DD.N`）→ 把 `web/electron/package.json` 的 `version` 写为同日的 `YY.M.D`。
 3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为**发布号** + ISO 日期（段名与 tag 同名）。
 4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v26.09.15.1`——校验 tag 与机器版本"日期三段一致"、CHANGELOG 有该发布号段，并预览将发布的 Release 说明（与 CI 同一实现；红着就别打 tag）。

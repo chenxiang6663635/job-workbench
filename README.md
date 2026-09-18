@@ -37,7 +37,7 @@ The workbench turns all of that into queryable, traceable files.
 ## Features at a glance
 
 - **Four CLI workflows**: `jwb-jd` (JD parsing & scoring), `jwb-apply` (application package), `jwb-track` (tracker & funnel), `jwb-resume` (PDF rebuild & validation) — full command reference in the [usage guide](docs/usage-guide.md)
-- **Web UI** (`web/`): seven pages sharing the very same data files — dashboard, tracker, resume workshop (one-click import that *extracts rather than generates* + guarded AI rewrite + Word export), progress (interview question bank), retrospectives; see [`web/README.md`](web/README.md)
+- **Web UI** (`web/`): eight pages sharing the very same data files — dashboard, tracker, resume workshop (one-click import that *extracts rather than generates* + guarded AI rewrite + Word export), prepare (talks & your question bank), progress (interviews, emails, contacts), retrospectives; see [`web/README.md`](web/README.md)
 - **Post-application loop**: interview records (one-click `.ics` export), recruiter contact follow-ups, offer comparison (**side-by-side facts, never a recommendation**), resume version lineage, stage-conversion retros, failure clustering, application health in four states — each with concrete reasons instead of a black-box score
 - **Read-only email fetch (optional)**: with your own IMAP authorization code, pull recent recruiting emails and turn them into per-record status suggestions; read-only, connected only when you click, credentials kept local, dry-run until you confirm — details in the [usage guide](docs/usage-guide.md)
 - **Email ledger & honest deep links** (`mails.csv` + `jobws track mail`): interview invites, test notices and rejections become first-class records that link back to an application — pulled emails carry their Message-ID and can be filed with one click. "Open original" is graded honestly: your own pasted link wins; Gmail gets a real `rfc822msgid` search deep link; other providers (Outlook / QQ / 163 / …) get a "copy the subject and search" fallback instead of a fake link. **Emails never change stages by themselves** — you always confirm.
@@ -47,7 +47,7 @@ The workbench turns all of that into queryable, traceable files.
 
 ## UI Preview
 
-> **Note**: the interface is bilingual (简体中文 / English) — switch it with the `中文 / English` control in the header; the first run follows your system language and your choice is remembered. Read the note under [Download](#download) for what stays Chinese by design. The screenshots below are the real interface **in English**, taken with generated demo data — the [Chinese README](README.zh-CN.md) carries the same seven pages in 简体中文 (both sets come from the same demo workspace).
+> **Note**: the interface is bilingual (简体中文 / English) — switch it with the `中文 / English` control in the header; the first run follows your system language and your choice is remembered. Read the note under [Download](#download) for what stays Chinese by design. The screenshots below are the real interface **in English**, taken with generated demo data — the [Chinese README](README.zh-CN.md) carries the same pages in 简体中文 (both sets come from the same demo workspace).
 
 All pages below run on generated demo data (`init_workspace.py --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
 
@@ -104,7 +104,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `template/` | Generic skeleton: profile templates, empty workspace, domain plugins |
 | `skills/` | The four job-hunting workflows + the coach scoring standard, and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
 | `tools/` | Python domain layer — one CLI entry point plus domain modules and gate scripts |
-| `web/` | Web UI: FastAPI backend + React frontend (seven pages), same data files as the CLI |
+| `web/` | Web UI: FastAPI backend + React frontend (eight pages), same data files as the CLI |
 | `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |
 | `personal/` | Your real workspace (**fully git-ignored; the repo ships zero real data**) |
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |
@@ -128,7 +128,7 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 
 - [Roadmap](ROADMAP.md) — Now / Next / Later, each item linked to a tracking issue
 - [Doc index](docs/README.md) — status of every document (current / deprecated)
-- [Usage guide](docs/usage-guide.md) — startup, the seven pages, AI workflows, CLI reference, FAQ
+- [Usage guide](docs/usage-guide.md) — startup, the eight pages, AI workflows, CLI reference, FAQ
 - [Design documents](docs/specs/) — architecture, Web contract, productization, open-source release
 - [Changelog](CHANGELOG.md)
 

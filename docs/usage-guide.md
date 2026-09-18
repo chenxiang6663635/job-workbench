@@ -118,7 +118,7 @@ The output is `web/electron/release/job-workbench-setup-<version>-win64.exe` (th
 
 ---
 
-## III. The seven pages of the web UI
+## III. The eight pages of the web UI
 
 ### Dashboard (home)
 
@@ -128,6 +128,7 @@ This is what opens first. It answers three questions: how many companies have I 
 - Application funnel: how many people at each stage (to apply → applied → written test → … → signed); click a bar to drill into that stage
 - **Needs action**: active roles with an unhealthy status (urgent / overdue / stalled), each with a concrete reason; click to drill in
 - To-do in 7 days: records whose next-action or deadline falls within the next 7 days (one click to postpone by 7 days)
+- **Talks in the next 7 days**: talks / job fairs whose time falls within the next 7 days (click to jump to the Talks tab under Prepare)
 - Past deadline: records still sitting at "to apply" whose deadline has passed (red)
 - Silent reminder: active roles with no progress for a long time (over 14 days by default)
 - **Cycle review**: stage conversion rates (rebuilt from the timeline), median days spent per stage, failure attribution and **failure clustering**
@@ -174,14 +175,19 @@ Manage the roles you have looked at. Each card shows company_role, its score and
 
 At the bottom there is also a **version lineage**: which resume version went to which roles, and how far each got.
 
+### Prepare
+
+Everything **before you apply** lives in one place — talks and your question bank (moved out of Progress on 2026-09-18, since that page is about the after-applying side):
+
+- **Talks / job fairs**: time, format, place and takeaways, exportable to `.ics` (reminder 1 hour ahead); they do not advance any stage. The dashboard's "Talks in the next 7 days" jumps straight here
+- **Question bank** (two views): **My bank** = your own editable `questions.csv` (domain / subject / status `未看·看过·会了` / answer notes), which you can fill by **read-only parsing → preview → confirm** from `03_面试准备/**/*.md` (two-phase); **click any row to open its details** and edit the answer notes, flip the three-state status or adjust difficulty right there — the same two-phase feel (review the diff, then confirm; nothing is written before you confirm, and cancelling leaves no trace); **Asked before** = questions you were actually asked, grouped by company + role, with keyword search — read what this company already asked you before the next round
+
 ### Progress
 
-The main arena after you apply. Six sub-tabs:
+The main arena after you apply. Four sub-tabs:
 
 - **Interviews**: three-part record (question → answer points → retro); anything still pending within 48 hours is highlighted amber; one-click export to `.ics`
-- **Talks / job fairs**: time, format, place and takeaways, exportable to `.ics` (reminder 1 hour ahead); they do not advance any stage
 - **Emails**: a ledger of messages (interview invites, test notices, rejections…), linkable to an application record with inline tag editing; emails with a Message-ID get "Open original" (a Gmail search deep link) while mailboxes without a usable deep link (Outlook / QQ / 163 …) get a "copy the subject and search in your mailbox" fallback; **emails never change stages automatically**
-- **Question bank** (two views): **My bank** = your own editable `questions.csv` (domain / subject / status `未看·看过·会了` / answer notes), which you can fill by **read-only parsing → preview → confirm** from `03_面试准备/**/*.md` (two-phase); **click any row to open its details** and edit the answer notes, flip the three-state status or adjust difficulty right there — the same two-phase feel (review the diff, then confirm; nothing is written before you confirm, and cancelling leaves no trace); **Asked before** = questions you were actually asked, grouped by company + role, with keyword search — read what this company already asked you before the next round
 - **Contacts**: follow-up cadence for recruiter contacts, amber when overdue, one-click "contacted"
 - **Offer comparison**: known facts of several offers side by side. **Side by side only — no recommendation**
 

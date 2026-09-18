@@ -40,7 +40,7 @@ every batch below lands before it, none of them ships on its own, and the whole 
 - [ ] **Question bank** — stops being a mirror of interview records: a first-class personal bank
   with import/export (CSV and workspace Markdown, preview-then-apply with a one-shot token), a
   wrong-answer book and a "due today" review; the talks table follow-ups land alongside.
-- [ ] **UI visual pass** — background depth, typography scale, seven-page polish and number
+- [ ] **UI visual pass** — background depth, typography scale, eight-page polish and number
   rendering (tabular figures); the acceptance bar is "a screenshot diff you can point at", carried
   over from the earlier visual-polish plan (whose token and primitive layers already shipped).
 - [ ] **Agent & MCP line** — write tools move to **protocol-level confirmation** (multi-round-trip

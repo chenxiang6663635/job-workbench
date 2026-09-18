@@ -64,7 +64,11 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
             assert names == ["list_applications", "list_jobs", "dashboard_summary",
                              "preview_add_application",
                              "preview_import_applications",
-                             "preview_update_application", "apply_approval"]
+                             "preview_update_application", "apply_approval",
+                             # 批 4.7 主线补口，同样**追加在末尾**（顺序不许动）
+                             "list_interviews", "score_jd", "list_questions",
+                             "preview_add_interview", "preview_update_interview",
+                             "preview_add_question", "preview_import_questions"]
 
             result = await session.call_tool("dashboard_summary", {})
             text = result.content[0].text
@@ -88,3 +92,28 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
             assert json.loads(applied.content[0].text)["ok"] is True
             with open(tracker_csv, "rb") as handle:
                 assert handle.read() != before, "apply 之后应真的写入"
+
+            # --- 批 4.7 的新工具同样走一遍真通道 -------------------------------
+            # 只读两件：面试列表（此刻应为空）与题库列表；再加越界拒绝这条负路径。
+            empty_interviews = await session.call_tool("list_interviews", {})
+            assert json.loads(empty_interviews.content[0].text)["total"] == 0
+
+            questions = await session.call_tool("list_questions", {})
+            assert json.loads(questions.content[0].text)["total"] == 0
+
+            escaped = await session.call_tool("score_jd", {"job_id": "../config"})
+            escaped_data = json.loads(escaped.content[0].text)
+            assert escaped_data["ok"] is False, "越界的 job_id 必须被拒绝"
+
+            # 面试两段式：预览不落盘 → apply 才写（与投递同一条硬约束）
+            interview_csv = os.path.join(ws, "05_投递追踪", "interviews.csv")
+            preview_interview = await session.call_tool("preview_add_interview", {
+                "app": "1", "round": "一面"})
+            inv = json.loads(preview_interview.content[0].text)
+            assert inv["ok"] is True, inv
+            assert not os.path.isfile(interview_csv), "预览阶段不许落盘"
+
+            applied_interview = await session.call_tool(
+                "apply_approval", {"token": inv["token"]})
+            assert json.loads(applied_interview.content[0].text)["ok"] is True
+            assert os.path.isfile(interview_csv), "apply 之后应真的写入"

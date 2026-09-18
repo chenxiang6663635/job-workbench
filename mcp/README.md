@@ -54,16 +54,42 @@ jobws-mcp --workspace personal        # 工作区名，或绝对路径
 ```
 
 **当前形态需要仓库在侧**：领域函数（`tracker` / `report` / `jd_score`）还在 `tools/` 下，
-没抽成可安装的包（那是 B8 的活），所以本包暂时以 editable 方式与仓库共存；装成 wheel 会
-拿不到领域层。仓库不在默认位置时，用环境变量指过去：
+没抽成可安装的包（那是"领域层抽包"那一批的活），所以本包暂时以 editable 方式与仓库共存；
+装成 wheel 会拿不到领域层。仓库不在默认位置时，用环境变量指过去：
 
 ```bash
 JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal
 ```
 
-等 B8 把领域层抽出成可安装的包之后，`uvx --from ./mcp jobws-mcp` 这类完全独立的分发才成立。
+等领域层抽出成可安装的包之后，`uvx --from ./mcp jobws-mcp` 这类完全独立的分发才成立。
 
 ## 宿主配置示例
+
+**键名按宿主各不相同，别照抄**（本机实测 2026-09-17；混用会静默不生效——
+配置看起来没问题，宿主却根本不会拉起这个服务）：
+
+**Claude Code / Claude Desktop / CodeBuddy / Gemini CLI** —— `mcpServers`：
+
+```json
+{
+  "mcpServers": {
+    "jobws": {
+      "command": "jobws-mcp",
+      "args": ["--workspace", "personal"]
+    }
+  }
+}
+```
+
+**Codex CLI** —— `~/.codex/config.toml` 的 `[mcp_servers.*]`：
+
+```toml
+[mcp_servers.jobws]
+command = "jobws-mcp"
+args = ["--workspace", "personal"]
+```
+
+**VS Code** —— `.vscode/mcp.json` 的 `servers`：
 
 ```json
 {
@@ -76,6 +102,8 @@ JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal
   }
 }
 ```
+
+完整接入说明（含故障排查与两段式写入的用法）见 `docs/mcp-integration.md`。
 
 ## 工作区解析
 

@@ -226,6 +226,15 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 
 网页负责看和记，**判断类的工作交给 AI**。在 CodeBuddy 里用自然语言：
 
+### 接进别的 AI 宿主（MCP，可选）
+
+工作台还能作为一个 **MCP 服务**接进支持 MCP 的其它 AI 宿主（Claude Code / Codex /
+Gemini CLI 等）：AI 能读投递记录、岗位池与看板，并在**你确认之后**写入
+（先给差异表，你点头才落盘）。
+
+- 安装与三种宿主的配置形态：`docs/mcp-integration.md`（**配置键名按宿主不同，别照抄**）
+- 四个入口（命令行 / AI 宿主 / 编辑器插件 / 桌面界面）各能做什么：`docs/four-ends.md`
+
 ### 解析一个岗位（jwb-jd 工作流）
 
 把 JD 原文贴给我，或者说"解析这份 JD"。AI 会：

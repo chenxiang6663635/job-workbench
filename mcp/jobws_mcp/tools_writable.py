@@ -14,7 +14,10 @@ diff 就是给用户看的原文），而不是靠提示词约束。
     preview_* → 把 summary/diff 展示给用户 → 用户点头后 apply_approval(token)
 """
 
+import os
+
 import approval
+import question_bank
 import tracker
 
 # 落盘后给宿主的一句话指引：让模型知道"刚才发生了什么、下一步是什么"。
@@ -97,6 +100,79 @@ def preview_update_application(workspace, app_id, changes):
         "expires_at": result["expires_at"],
         "next_step": _NEXT_STEP,
     }
+
+
+def _preview(operation, workspace, plan):
+    """「登记令牌 → 组装返回体」的公共尾部（批 4.7 的四个新工具共用）。
+
+    载荷与差异表由领域层构造（tracker / question_bank 的 preview_*），这里只负责
+    登记令牌并把给宿主看的东西组装齐——不重写判据，避免「预览说 X、落盘写 Y」。
+    """
+    result = approval.preview(operation, workspace, plan["payload"],
+                              plan["summary"], plan["diff"], plan["targets"])
+    return {
+        "ok": True,
+        "token": result["token"],
+        "summary": result["summary"],
+        "diff": plan["diff"],
+        "targets": result["targets"],
+        "expires_at": result["expires_at"],
+        "next_step": _NEXT_STEP,
+    }
+
+
+def preview_add_interview(workspace, **fields):
+    """预览新增一条面试记录（**不写入**），返回令牌与将要写入的字段。
+
+    fields 用中文列名（关联记录 / 公司 / 岗位 / 轮次 / 面试时间 / 形式 / 链接 /
+    面试官 / 问题记录 / 我的回答要点 / 复盘与改进 / 结果）。给了关联记录时，
+    公司与岗位从主表带出（与 CLI 同口径）。
+    """
+    errors, plan = tracker.preview_interview_add_fields(fields, workspace)
+    if errors:
+        return {"ok": False, "errors": errors}
+    return _preview("interview.add", workspace, plan)
+
+
+def preview_update_interview(workspace, interview_id, changes):
+    """预览更新一条面试记录（**不写入**），返回令牌与逐字段差异表。
+
+    只列**要改**的字段（changes 里没有的不动）；面试 id / 关联记录 / 公司 不在
+    可更新集合里——改归属要另建一条，避免把时间线接错。
+    """
+    errors, plan = tracker.preview_interview_update_fields(
+        {"id": interview_id, "changes": dict(changes or {})}, workspace)
+    if errors:
+        return {"ok": False, "errors": errors}
+    return _preview("interview.update", workspace, plan)
+
+
+def preview_add_question(workspace, **fields):
+    """预览新增一道题库题目（**不写入**），返回令牌与将要写入的字段。
+
+    fields 用中文列名（题目 / 领域 / 科目 / 标签 / 难度 / 答案要点 / 来源 /
+    关联公司 / 关联岗位 / 状态 / 备注）——与 `bank add` 的参数表同一套。
+    """
+    errors, plan = question_bank.preview_add_fields(fields, workspace)
+    if errors:
+        return {"ok": False, "errors": errors}
+    return _preview("question.add", workspace, plan)
+
+
+def preview_import_questions(workspace, module_dir=None):
+    """预览从 `03_面试准备` 导入题目（**不写入**），返回令牌与逐条差异。
+
+    module_dir 必须是**工作区内的相对目录**：绝对路径会被 os.path.join 当成新根，
+    `..` 能翻出工作区——两者都先拒（与 CLI 的 `bank import` 同一道门）。
+    """
+    target = module_dir or question_bank.MODULE_DIR
+    if os.path.isabs(target) or ".." in target.replace("\\", "/").split("/"):
+        return {"ok": False,
+                "errors": ["module_dir 必须是工作区内的相对目录（不能是绝对路径或含 ..）"]}
+    errors, plan = question_bank.preview_import(workspace, target)
+    if errors:
+        return {"ok": False, "errors": errors}
+    return _preview("question.import", workspace, plan)
 
 
 def apply_approval(workspace, token):

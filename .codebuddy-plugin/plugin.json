@@ -1,6 +1,6 @@
 {
   "name": "job-workbench",
-  "description": "本地优先的求职工作台：投递追踪 / 岗位评估 / 简历 / 投递执行 / 教练（技能 8 个、命令 3 个、子代理 2 个）",
+  "description": "本地优先的求职工作台：投递追踪 / 岗位评估 / 简历 / 投递执行 / 教练（技能 8 个、命令 5 个、子代理 2 个）",
   "author": {
     "name": "chenxiang6663635"
   },
@@ -20,5 +20,12 @@
   "agents": [
     "./agents/cross-end-audit.md",
     "./agents/resume-jd-gap.md"
+  ],
+  "commands": [
+    "./commands/today.md",
+    "./commands/apply-pack.md",
+    "./commands/retro.md",
+    "./commands/bank.md",
+    "./commands/jd.md"
   ]
 }

@@ -151,6 +151,117 @@ def build_server(workspace=None):
         data = tools_writable.apply_approval(workspace, token)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
+    # --- 批 4.7 主线补口：面试 / 题库 / JD 评分 -------------------------------
+    # 一律**追加在末尾**：既有冒烟按注册顺序钉住工具清单，宿主侧也按前缀比对
+    # 工具描述做提示缓存——顺序抖动会让缓存全灭。
+    @mcp.tool()
+    def list_interviews(app_id: str = "", result: str = "", limit: int = 20) -> str:
+        """列出面试记录（只读）。
+
+        app_id 只看关联该投递记录的面试（如 A001）；result 精确匹配结果
+        （待定 / 通过 / 未通过 / 取消）；按面试时间倒序，空时间排最后。
+        """
+        data = tools_readonly.list_interviews(
+            workspace, app_id=app_id or None, result=result or None, limit=limit)
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    def score_jd(job_id: str, resume_version: str = "") -> str:
+        """读岗位的 JD 解析卡并给出评分与档位（只读）。
+
+        job_id 是岗位池目录名（如 云帆_后端）。解析卡由 AI 或用户写成 Markdown，
+        本工具只做**校验与解读**：四个维度之和必须等于总分才给档位（填到一半的
+        卡片不给分档）。resume_version 给了才附上差距分析。
+        """
+        data = tools_readonly.score_jd(workspace, job_id,
+                                       resume_version=resume_version or None)
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    def list_questions(domain: str = "", subject: str = "", status: str = "",
+                       keyword: str = "", limit: int = 20) -> str:
+        """列出题库题目（只读）。
+
+        按领域 / 科目 / 状态精确筛选；keyword 对题目、答案要点与关联公司岗位做
+        子串匹配。筛选口径与命令行 `bank list` 同源。
+        """
+        data = tools_readonly.list_questions(
+            workspace, domain=domain or None, subject=subject or None,
+            status=status or None, keyword=keyword or None, limit=limit)
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    def preview_add_interview(app: str = "", company: str = "", role: str = "",
+                              round: str = "一面", when: str = "",
+                              form: str = "", link: str = "",
+                              interviewer: str = "", questions: str = "",
+                              answers: str = "", retro: str = "",
+                              result: str = "待定") -> str:
+        """预览新增一条面试记录（**不写入**）。
+
+        返回 token 与将要写入的字段（diff）。**先把这个 diff 展示给用户**，
+        用户确认后再用同一个 token 调 apply_approval 落盘；不要跳过展示这一步。
+        给了 app（关联记录 id）时，公司与岗位自动从主表带出。
+        """
+        data = tools_writable.preview_add_interview(workspace, **{
+            "关联记录": app, "公司": company, "岗位": role, "轮次": round,
+            "面试时间": when, "形式": form, "链接": link,
+            "面试官": interviewer, "问题记录": questions,
+            "我的回答要点": answers, "复盘与改进": retro, "结果": result,
+        })
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    def preview_update_interview(interview_id: str, result: str = "",
+                                 when: str = "", round: str = "",
+                                 form: str = "", link: str = "",
+                                 interviewer: str = "", questions: str = "",
+                                 answers: str = "", retro: str = "") -> str:
+        """预览更新一条面试记录（**不写入**），返回 token 与逐字段差异表。
+
+        只改**传了值**的字段（未传的保持原值）；interview_id 形如 I001。
+        **先把 diff 展示给用户**，用户确认后再用同一个 token 调 apply_approval。
+        """
+        changes = {}
+        for field, value in (("结果", result), ("面试时间", when), ("轮次", round),
+                             ("形式", form), ("链接", link),
+                             ("面试官", interviewer), ("问题记录", questions),
+                             ("我的回答要点", answers), ("复盘与改进", retro)):
+            if value:
+                changes[field] = value
+        data = tools_writable.preview_update_interview(
+            workspace, interview_id, changes)
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    def preview_add_question(title: str, domain: str = "", subject: str = "",
+                             tags: str = "", difficulty: str = "",
+                             answer: str = "", origin: str = "",
+                             company: str = "", role: str = "",
+                             status: str = "", note: str = "") -> str:
+        """预览新增一道题库题目（**不写入**）。
+
+        返回 token 与将要写入的字段（diff）。**先把这个 diff 展示给用户**，
+        用户确认后再用同一个 token 调 apply_approval 落盘。
+        """
+        data = tools_writable.preview_add_question(workspace, **{
+            "题目": title, "领域": domain, "科目": subject, "标签": tags,
+            "难度": difficulty, "答案要点": answer, "来源": origin,
+            "关联公司": company, "关联岗位": role, "状态": status, "备注": note,
+        })
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    def preview_import_questions(module_dir: str = "") -> str:
+        """预览从 03_面试准备 导入题目（**不写入**）。
+
+        module_dir 是工作区内的相对目录（默认 03_面试准备），越界会被拒绝。
+        其余流程同上：展示 diff → 用户确认 → apply_approval 落盘。
+        """
+        data = tools_writable.preview_import_questions(
+            workspace, module_dir=module_dir or None)
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
     # --- 资源（批 8）：固定 URI、按需读取（list 不触发任何数据读取）-----------
     def _make_reader(uri):
         # 固定 URI 的 handler 必须**无参**（SDK 校验签名与 URI 模板变量一致），

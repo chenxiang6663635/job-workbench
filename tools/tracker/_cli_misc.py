@@ -101,7 +101,8 @@ def _add_interview_parser(sub):
     p_itv.add_argument("--company", help="公司（未关联记录时必填）")
     p_itv.add_argument("--role", help="岗位")
     p_itv.add_argument("--round", dest="round", choices=INTERVIEW_ROUNDS,
-                       default="一面", help="轮次，默认一面")
+                       default=None,
+                       help="轮次（add 默认一面；update 不传即不改）")
     # 面试时间允许「2026-09-05 14:00」或只有日期，故不套 DATE_RE
     p_itv.add_argument("--when", help="面试时间，如 2026-09-05 14:00")
     p_itv.add_argument("--form", choices=INTERVIEW_FORMS, help="形式")
@@ -110,8 +111,12 @@ def _add_interview_parser(sub):
     p_itv.add_argument("--questions", help="问题记录")
     p_itv.add_argument("--answers", help="我的回答要点")
     p_itv.add_argument("--retro", help="复盘与改进")
-    p_itv.add_argument("--result", choices=INTERVIEW_RESULTS, default="待定",
-                       help="结果，默认待定")
+    p_itv.add_argument("--result", choices=INTERVIEW_RESULTS,
+                       default=None,
+                       help="结果（add 默认待定；update 不传即不改）")
+    p_itv.add_argument("--preview", action="store_true",
+                       help="只预览、并把这次写入登记为一次性令牌（不落盘）；"
+                            "确认后用 python tools/jobws.py apply <令牌> 落盘")
 
 
 

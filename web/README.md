@@ -73,7 +73,8 @@ web/
 │   ├── resume_import.py      简历导入抽取（PDF / Word / MD / TXT）
 │   ├── tls_http.py           出网证书策略接线
 │   ├── pyinstaller.spec      PyInstaller onedir 打包配置
-│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / workspace / approvals / imap
+│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / sync / workspace / approvals / imap
+│                             （sync = 工作区指纹端点，供界面感知外部改动）
 ├── electron/                 Electron 桌面壳（探测打包 exe → spawn → 开窗 → 退出杀进程树）
 └── frontend/
     └── src/

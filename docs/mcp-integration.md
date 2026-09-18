@@ -17,9 +17,12 @@ pip install -e ./mcp
 jobws-mcp --workspace personal          # 工作区名，或绝对路径
 ```
 
-**当前形态需要仓库在侧**：领域函数（`tracker` / `report` / `jd_score` 等）还在
-`tools/` 下，尚未抽成可安装的包。所以请用 editable 方式安装；装成 wheel 会拿不到
-领域层。仓库不在默认位置时，用环境变量指过去：
+**仍需要仓库在侧，但原因变了**（2026-09-17 更新）：领域层已开始包化——写入原语与
+文件锁进了 `packages/jobws-core`（`pip install -e packages/jobws-core`，装上就有、
+wheel 也拿得到）；但**领域层主体**（`tracker` / `report` / `jd_score` 等）还在
+`tools/` 下，要等下一批才搬进包。所以在那之前，MCP 仍需要能看到仓库：用 editable
+安装最省事（`pip install -e ./mcp`，MCP 与仓库同处一处），或装成 wheel 后用环境
+变量指到仓库根：
 
 ```bash
 JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal

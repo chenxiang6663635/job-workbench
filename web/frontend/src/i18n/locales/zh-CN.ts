@@ -10,6 +10,8 @@ const zhCN = {
   "nav.applications": "追踪表",
   "nav.jobs": "岗位池",
   "nav.resume": "简历工坊",
+  // 「准备」= 投递前的事（宣讲会 / 题库）；侧栏排在简历与进展之间（2026-09-18）
+  "nav.prepare": "准备",
   "nav.progress": "进展",
   "nav.library": "素材库",
   "nav.settings": "设置",
@@ -498,6 +500,10 @@ const zhCN = {
   "dash.postpone7": "顺延 7 天",
   "dash.overdueTitle": "已过截止日提醒",
   "dash.overdueEmpty": "没有已过截止日且未投递的记录。",
+  // 近 7 天宣讲会（2026-09-18）：数据来自 talks.csv，与主表时间线无关
+  "dash.upcomingTalks": "近 7 天宣讲会",
+  "dash.upcomingTalksEmpty": "近七天没有宣讲会 / 招聘会。",
+  "dash.viewTalks": "去「准备」看宣讲会",
   "dash.activityTitle": "最近动作",
   "dash.activityEmpty": "还没有变更记录——投递推进后，这里会出现时间线。",
 
@@ -977,12 +983,14 @@ const zhCN = {
 
   // 进展页（子页签的壳）。页签标题与导航里的「进展」是同一串，直接复用 nav.progress
   "progress.interviews": "面试",
-  "progress.talks": "宣讲会",
   "progress.mails": "邮件",
-  "progress.questions": "题库",
   "progress.contacts": "联系人",
   "progress.offers": "Offer 对比",
   "progress.subtitle": "投递之后才是真正的博弈——面试、联系人、Offer，都记在这里",
+  // 准备板块（2026-09-18）：投递前的事归一处——宣讲会与题库从进展页迁来
+  "prepare.subtitle": "投递之前的事归一处——宣讲会与题库都在这里",
+  "prepare.talks": "宣讲会",
+  "prepare.questions": "题库",
   // 邮件台账（批 4.5）：与 mails.csv 列名同源；标签 / 方向是数据键不翻译
   "mail.summary": "共 {{count}} 封",
   "mail.add": "记录邮件",

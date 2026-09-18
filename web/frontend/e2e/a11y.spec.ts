@@ -4,7 +4,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { ENV_SCRIPT, PAGES, openPage } from "./fixtures";
 
-// 可访问性冒烟：七个页面各扫一次（wcag2a + wcag2aa），只对 serious / critical 失败。
+// 可访问性冒烟：八个页面各扫一次（wcag2a + wcag2aa），只对 serious / critical 失败。
 //
 // 「只对 serious/critical 失败」是刻意收窄：moderate/minor 里的 color-contrast
 // 这类提示一次性会刷出几十条，修不完也审不完，结果一定是整条检查被绕过——
@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
 });
 
-// 浅色主题全量 a11y（批 4）：浅色是新色面、对比度风险最高——在默认暗的七页
+// 浅色主题全量 a11y（批 4）：浅色是新色面、对比度风险最高——在默认暗的八页
 // 之外单独跑一轮。不走 allowlist：浅色要求 serious/critical 零命中（有就调色）。
 for (const key of PAGES) {
   test(`a11y light：${key}`, async ({ page }) => {

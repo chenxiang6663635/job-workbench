@@ -46,6 +46,19 @@ export interface ScoreStateBucket {
   terminal: number;
 }
 
+// 看板「近 7 天宣讲会」的一条：数据来自 talks.csv（与主表时间线无关）
+export interface UpcomingTalkItem {
+  id: string;
+  公司: string;
+  /** 原始「时间」列（YYYY-MM-DD HH:MM，可能只有日期） */
+  时间: string;
+  形式: string;
+  地点或链接: string;
+  是否参加: string;
+  /** 纯日期窗口判定用（后端给） */
+  date: string;
+}
+
 export interface DashboardData {
   total: number;
   active: number;
@@ -73,6 +86,8 @@ export interface DashboardData {
     reason: string;
     说明: string;
   }[];
+  /** 近 7 天宣讲会（2026-09-18）：投递前的日程，与主表时间线无关 */
+  upcomingTalks: UpcomingTalkItem[];
   overdue: { id: string; 公司: string; 岗位: string; 截止日期: string }[];
   stale: StaleItem[];
   pending: PendingItem[];

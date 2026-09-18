@@ -1,11 +1,12 @@
 import { expect, type Page } from "@playwright/test";
 
-/** 七个页面：与 App.tsx 的 TABS 一一对应（hash 路由，可直接刷新直达）。 */
+/** 八个页面：与 App.tsx 的 TABS 一一对应（hash 路由，可直接刷新直达）。 */
 export const PAGES = [
   "dashboard",
   "applications",
   "jobs",
   "resume",
+  "prepare",
   "progress",
   "library",
   "settings",

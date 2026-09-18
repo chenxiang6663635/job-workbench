@@ -34,6 +34,12 @@ _RESOURCES = (
 )
 
 
+# 静态资源的条数上限：与工具的默认 limit 一致——**资源没有参数可调**，写死就必须
+# 保守。返回体带 total：宿主看到 total > returned 就知道该改用对应工具翻页，
+# 而不是以为"就这么多"。此前写死 200，与"控制体积"这条纪律自相矛盾。
+_RESOURCE_LIMIT = 20
+
+
 def list_resources(workspace):
     """资源清单（**不含数据**）——按需读取的第一步。"""
     del workspace  # 清单是静态的：不读任何文件，也不受工作区内容影响
@@ -51,9 +57,9 @@ def list_resources(workspace):
 def read_resource(workspace, uri):
     """读一个资源（第二步）。返回 (文本内容, 错误说明)；两者必有一个为 None。"""
     if uri == "jobws://workspace/applications":
-        data = tools_readonly.list_applications(workspace, limit=200)
+        data = tools_readonly.list_applications(workspace, limit=_RESOURCE_LIMIT)
     elif uri == "jobws://workspace/jobs":
-        data = tools_readonly.list_jobs(workspace, limit=200)
+        data = tools_readonly.list_jobs(workspace, limit=_RESOURCE_LIMIT)
     elif uri == "jobws://workspace/dashboard":
         data = tools_readonly.dashboard_summary(workspace)
     else:

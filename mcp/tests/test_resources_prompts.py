@@ -60,6 +60,28 @@ def test_read_known_resource_returns_json(ws):
     assert payload["items"][0]["公司"] == "云帆"
 
 
+def test_read_jobs_and_dashboard_resources(ws_with_job):
+    """岗位池与看板资源也要真读一遍（批 8 补缺 MINOR-6）。
+
+    此前三个资源只有 applications 有读取用例。dashboard 尤其值得钉：它是**聚合
+    口径**，算错了不会报错，只会静默给错数。
+    """
+    jobs_text, jobs_error = resources.read_resource(ws_with_job,
+                                                    "jobws://workspace/jobs")
+    assert jobs_error is None, jobs_error
+    jobs_payload = json.loads(jobs_text)
+    job = next(item for item in jobs_payload["items"] if item["目录"] == "云帆_后端")
+    assert job["有JD原文"] is True
+    assert job["有解析卡"] is True
+
+    dash_text, dash_error = resources.read_resource(ws_with_job,
+                                                    "jobws://workspace/dashboard")
+    assert dash_error is None, dash_error
+    dash = json.loads(dash_text)
+    assert "total" in dash
+    assert "funnel" in dash
+
+
 def test_read_unknown_resource_is_rejected(ws):
     text, error = resources.read_resource(ws, "jobws://workspace/../../etc/passwd")
     assert text is None
@@ -104,6 +126,23 @@ def ws_with_job(ws):
     with io.open(os.path.join(job_dir, "简历.pdf"), "wb") as handle:
         handle.write(b"%PDF-1.4\n")
     return ws
+
+
+def test_prompts_point_only_to_reachable_data(ws):
+    """提示里要的数据必须是 MCP 面**真拿得到**的（批 8 补缺 MAJOR-2）。
+
+    写"读 XX"而实际拿不到，模型只剩空转或**编造**两条路——后者正是本项目最忌的
+    结果。所以这里钉两件事：指到的资源真存在，且读不到时给的是明确指引。
+    """
+    text = prompts.review_jd(ws, "01_岗位池/云帆-后端")
+    # 模板资源要单个目录名——提示里必须是取过最后一段的形态，否则永远匹配不上
+    assert "jobws://job/云帆-后端/jd" in text
+    assert "jobws://job/云帆-后端/card" in text
+    assert "推断" in text, "读不到时必须明说不要凭岗位名推断"
+
+    review = prompts.interview_review(ws, "A001")
+    assert "verbose=True" in review, "全字段必须显式要，否则拿不到复盘字段"
+    assert "不提供阶段时间线" in review, "MCP 面没有的能力必须明说"
 
 
 def test_job_text_reads_jd_and_card(ws_with_job):

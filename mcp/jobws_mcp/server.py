@@ -53,14 +53,17 @@ def build_server(workspace=None):
     )
 
     @mcp.tool()
-    def list_applications(stage: str = "", keyword: str = "", limit: int = 20) -> str:
+    def list_applications(stage: str = "", keyword: str = "", limit: int = 20,
+                          verbose: bool = False) -> str:
         """列出投递记录（只读）。
 
         stage 精确匹配当前阶段（如 一面 / offer）；keyword 对公司与岗位做
         子串包含匹配；结果按「下次动作日期」升序、终态沉底排序。
+        verbose=True 才给全字段（默认只给精简列——列表类工具要控制体积）。
         """
         data = tools_readonly.list_applications(
-            workspace, stage=stage or None, keyword=keyword or None, limit=limit)
+            workspace, stage=stage or None, keyword=keyword or None,
+            limit=limit, verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
     @mcp.tool()
@@ -155,14 +158,18 @@ def build_server(workspace=None):
     # 一律**追加在末尾**：既有冒烟按注册顺序钉住工具清单，宿主侧也按前缀比对
     # 工具描述做提示缓存——顺序抖动会让缓存全灭。
     @mcp.tool()
-    def list_interviews(app_id: str = "", result: str = "", limit: int = 20) -> str:
+    def list_interviews(app_id: str = "", result: str = "", limit: int = 20,
+                        verbose: bool = False) -> str:
         """列出面试记录（只读）。
 
         app_id 只看关联该投递记录的面试（如 A001）；result 精确匹配结果
         （待定 / 通过 / 未通过 / 取消）；按面试时间倒序，空时间排最后。
+        **面试复盘要给 verbose=True**：「问题记录 / 我的回答要点 / 复盘与改进」
+        三个字段不在默认精简列里（提示模板 interview_review 依赖它）。
         """
         data = tools_readonly.list_interviews(
-            workspace, app_id=app_id or None, result=result or None, limit=limit)
+            workspace, app_id=app_id or None, result=result or None,
+            limit=limit, verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
     @mcp.tool()
@@ -179,15 +186,18 @@ def build_server(workspace=None):
 
     @mcp.tool()
     def list_questions(domain: str = "", subject: str = "", status: str = "",
-                       keyword: str = "", limit: int = 20) -> str:
+                       keyword: str = "", limit: int = 20,
+                       verbose: bool = False) -> str:
         """列出题库题目（只读）。
 
         按领域 / 科目 / 状态精确筛选；keyword 对题目、答案要点与关联公司岗位做
         子串匹配。筛选口径与命令行 `bank list` 同源。
+        verbose=True 才给全字段（默认只给精简列——列表类工具要控制体积）。
         """
         data = tools_readonly.list_questions(
             workspace, domain=domain or None, subject=subject or None,
-            status=status or None, keyword=keyword or None, limit=limit)
+            status=status or None, keyword=keyword or None, limit=limit,
+            verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
     @mcp.tool()

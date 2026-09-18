@@ -125,6 +125,16 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
             assert json.loads(applied_interview.content[0].text)["ok"] is True
             assert os.path.isfile(interview_csv), "apply 之后应真的写入"
 
+            # verbose 透传（批 8 补缺 MINOR-3）：默认精简列与全字段必须**真不同**——
+            # 否则"全字段用可选参数展开"这条性能红线在宿主路径上形同虚设
+            # （此前 verbose 只到领域层，MCP 签名根本不透传）。
+            plain = await session.call_tool("list_interviews", {})
+            plain_item = json.loads(plain.content[0].text)["items"][0]
+            full = await session.call_tool("list_interviews", {"verbose": True})
+            full_item = json.loads(full.content[0].text)["items"][0]
+            assert "问题记录" not in plain_item
+            assert "问题记录" in full_item
+
             # --- 批 8 补缺：资源与提示必须走**协议**（SDK 接线层）验证 ---------
             # 此前只测了纯函数（resources.read_resource / prompts.*），SDK 那一层
             # 一行断言都没有——唯一保障是"子进程起得来不报错"。注册写错时（比如

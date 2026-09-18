@@ -11,12 +11,11 @@ Markdown**——解析成候选题目后**预览**（新增 / 重复 / 跳过）
 令牌落 `questions.csv`。Markdown 没有统一的「题目 / 答案」分隔符，解析只能是
 **启发式**的，所以这一步必须走两段式：让人看过「将要落什么」再落。
 
-退出码：0 成功 / 1 业务失败（无可导入的题、冲突）/ 2 用法错误。
+两段式共三对：add / update / import——预览签发令牌（校验与载荷构造都在本模块），
+落盘统一走 approval 的 `question.*` 注册项。**本模块只提供读写与校验、不含
+argparse**：命令层 2026-09-18 拆到 `_cli_bank.py`（后端 import 领域层不再连带 CLI）。
 """
 
-from __future__ import print_function
-
-import argparse
 import csv
 import datetime
 import io
@@ -296,15 +295,30 @@ def apply_approved_add(payload, workspace=None):
 # --- 两段式：修改（改答案要点 / 标状态 / 改难度）------------------------------
 
 
+def _merge_changes(current, changes):
+    """合并改动并补自动字段（状态改「会了」时记 `最近复习`）。
+
+    预览段与落盘段共用这一处，别再各写一份——两处拷贝正是「预览说改一列、
+    落盘多写一列」的温床（本模块 2026-09-18 修的正是这类）。
+    """
+    merged = dict(current)
+    merged.update(changes)
+    if changes.get("状态") == "会了":
+        merged["最近复习"] = datetime.date.today().isoformat()
+    return merged
+
+
 def preview_update_fields(question_id, changes, workspace=None):
     """预览修改一道题（**不落盘**），返回 (errors, plan)。
 
     `changes` 只认 `QUESTION_FIELDS` 里的字段（`题目id` 是身份，不可改）；
     状态改为「会了」时顺手记 `最近复习`——复习过就该有日期，不靠用户另填一次。
+    这一列不在 `changes` 里、却会被落盘段写入，所以差异表**显式列出**它：
+    预览是"将要落什么"的承诺，只能多列、不能漏列（2026-09-18）。
     """
     question_id = (question_id or "").strip()
     if not question_id:
-        return ["请给 `--id`（用 `bank list` 查）"], None
+        return ["缺少题目 id（可用 `bank list` 查）"], None
     changes = dict((k, (v or "").strip()) for k, v in (changes or {}).items()
                    if k in QUESTION_FIELDS and k != "题目id" and (v or "").strip())
     if not changes:
@@ -313,10 +327,7 @@ def preview_update_fields(question_id, changes, workspace=None):
     current = find_question(rows, question_id)
     if current is None:
         return ["找不到 id 为 %s 的题目" % question_id], None
-    merged = dict(current)
-    merged.update(changes)
-    if changes.get("状态") == "会了":
-        merged["最近复习"] = datetime.date.today().isoformat()
+    merged = _merge_changes(current, changes)
     errors = _validate_question_fields(merged, workspace)
     if errors:
         return errors, None
@@ -325,6 +336,13 @@ def preview_update_fields(question_id, changes, workspace=None):
         if field in changes and (current.get(field) or "") != merged[field]:
             diff.append("| %s | %s | %s |" % (
                 field, current.get(field) or "（空）", merged[field]))
+    # 「最近复习」不在 changes 里（由落盘段自动写入），上面的循环遍历不到它——
+    # 不列出来就是「预览说改一列、落盘多写一列」。只在这一列**确实会变**时列出：
+    # 今天已标记过「会了」再提交一次，不该出现一行假差异。
+    if (changes.get("状态") == "会了"
+            and (current.get("最近复习") or "") != merged["最近复习"]):
+        diff.append("| 最近复习（自动） | %s | %s |" % (
+            current.get("最近复习") or "（空）", merged["最近复习"]))
     if len(diff) == 2:
         return ["这些字段的值没有变化"], None
     plan = {
@@ -346,10 +364,7 @@ def apply_approved_update(payload, workspace=None):
         current = find_question(rows, question_id)
         if current is None:
             raise tracker.ConflictError("预览之后这道题不存在了（请重新预览）")
-        merged = dict(current)
-        merged.update(changes)
-        if changes.get("状态") == "会了":
-            merged["最近复习"] = datetime.date.today().isoformat()
+        merged = _merge_changes(current, changes)
         errors = _validate_question_fields(merged, ws)
         if errors:
             raise tracker.ConflictError(
@@ -452,137 +467,9 @@ def apply_approved_import(payload, workspace=None):
         return {"written": added, "summary": "已导入 %d 道题" % added}
 
 
-# --- CLI --------------------------------------------------------------------
-
-
-def _print_questions(rows):
-    if not rows:
-        print("（题库为空——用 `jobws bank add` 加题，或 `jobws bank import --preview` 从 03_面试准备 导入）")
-        return
-    print("| 题目id | 题目 | 领域 | 状态 | 来源 |")
-    print("|---|---|---|---|---|")
-    for row in rows:
-        print("| %s | %s | %s | %s | %s |" % (
-            row.get("题目id") or "", row.get("题目") or "",
-            row.get("领域") or "—", row.get("状态") or "未看", row.get("来源") or ""))
-    print("")
-    print("共 %d 道" % len(rows))
-
-
-def _run_preview(errors, plan, op_name, workspace):
-    """add / import / update 三处同构的「校验 → 两段式预览」尾部。"""
-    for error in errors:
-        print("错误：%s" % error)
-    if plan is None:
-        return 1
-    # 函数内 import：jobws 的 lint 分支要求被分发模块不得顶层引入三方库
-    import approval
-    result = approval.preview(op_name, workspace, plan["payload"],
-                              plan["summary"], plan["diff"], plan["targets"])
-    print("预览：%s" % result["summary"])
-    for line in plan["diff"]:
-        print(line)
-    print("")
-    print("确认后落盘：python tools/jobws.py apply %s" % result["token"])
-    return 0
-
-
-def _bank_changes(args):
-    """add / update 共用的字段字典（同一套参数名）。"""
-    return {
-        "题目": args.title or "", "领域": args.domain or "", "科目": args.subject or "",
-        "标签": args.tags or "", "难度": args.difficulty or "",
-        "答案要点": args.answer or "", "来源": args.origin or "",
-        "关联公司": args.company or "", "关联岗位": args.role or "",
-        "状态": args.status or "", "备注": args.note or "",
-    }
-
-
-def cmd_bank(args):
-    """题库：list 查、add 加（两段式）、import 从 03_面试准备 导入（两段式）。"""
-    workspace = getattr(args, "workspace", None)
-
-    if args.action == "list":
-        rows = read_questions(workspace, domain=args.domain, subject=args.subject,
-                              status=args.status, keyword=args.keyword)
-        _print_questions(rows)
-        return 0
-
-    if args.action == "add":
-        errors, plan = preview_add_fields(_bank_changes(args), workspace)
-        return _run_preview(errors, plan, "question.add", workspace)
-
-    if args.action == "import":
-        # 目录可以换，但**不能越出工作区**：绝对路径会被 os.path.join 当成新根、
-        # `..` 能翻出去，两者都先拒（后端端点不收这个参数——见 progress/questions.py）。
-        module_dir = args.module_dir or MODULE_DIR
-        if os.path.isabs(module_dir) or ".." in module_dir.replace("\\", "/").split("/"):
-            print("错误：--module-dir 必须是工作区内的相对目录（不能是绝对路径或含 ..）")
-            return 2
-        errors, plan = preview_import(workspace, module_dir)
-        return _run_preview(errors, plan, "question.import", workspace)
-
-    if args.action == "update":
-        errors, plan = preview_update_fields(args.id, _bank_changes(args), workspace)
-        return _run_preview(errors, plan, "question.update", workspace)
-
-    print("未知子命令：%s" % args.action)
-    return 2
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(
-        prog="jobws bank", description="题库：list / add / import（写操作走两段式）")
-    subs = parser.add_subparsers(dest="action")
-
-    p_list = subs.add_parser("list", help="列出题目（可按领域/科目/状态/关键词筛选）")
-    p_list.add_argument("--domain", help="领域（如 技术面）")
-    p_list.add_argument("--subject", help="科目")
-    p_list.add_argument("--status", help="状态（未看/看过/会了）")
-    p_list.add_argument("--keyword", "-k", help="关键词（题目/要点/标签等）")
-    p_list.add_argument("--workspace", default=None)
-
-    p_add = subs.add_parser("add", help="新增一道题（预览后凭令牌落盘）")
-    p_add.add_argument("--title", required=True, help="题目")
-    p_add.add_argument("--domain", help="领域")
-    p_add.add_argument("--subject", help="科目")
-    p_add.add_argument("--tags", help="标签（逗号分隔）")
-    p_add.add_argument("--difficulty", default="", help="难度（易/中/难，可留空）")
-    p_add.add_argument("--answer", help="答案要点")
-    p_add.add_argument("--origin", default="", help="来源（自拟/笔试回忆/面试记录/导入）")
-    p_add.add_argument("--company", help="关联公司")
-    p_add.add_argument("--role", help="关联岗位")
-    p_add.add_argument("--status", help="状态（默认 未看）")
-    p_add.add_argument("--note", help="备注")
-    p_add.add_argument("--workspace", default=None)
-
-    p_update = subs.add_parser("update", help="修改一道题（改答案要点 / 标状态 / 改难度）")
-    p_update.add_argument("--id", required=True, help="题目id（如 Q001，用 list 查）")
-    p_update.add_argument("--title", help="题目")
-    p_update.add_argument("--domain", help="领域")
-    p_update.add_argument("--subject", help="科目")
-    p_update.add_argument("--tags", help="标签")
-    p_update.add_argument("--difficulty", help="难度（易 / 中 / 难）")
-    p_update.add_argument("--answer", help="答案要点")
-    p_update.add_argument("--origin", help="来源")
-    p_update.add_argument("--company", help="关联公司")
-    p_update.add_argument("--role", help="关联岗位")
-    p_update.add_argument("--status", help="状态（未看 / 看过 / 会了）")
-    p_update.add_argument("--note", help="备注")
-    p_update.add_argument("--workspace", default=None)
-
-    p_import = subs.add_parser("import", help="从 03_面试准备/**/*.md 导入（只读解析 + 预览）")
-    p_import.add_argument("--module-dir", default=MODULE_DIR, help="模块目录名")
-    p_import.add_argument("--workspace", default=None)
-
-    args = parser.parse_args(argv)
-    if not args.action:
-        parser.print_help()
-        return 2
-    return cmd_bank(args)
-
-
 if __name__ == "__main__":
-    print("该脚本已合并进统一入口，请改用：python tools/jobws.py bank ...")
+    # 领域层没有可直跑的命令（命令层 2026-09-18 拆到 _cli_bank.py）；直跑给迁移
+    # 提示，与 tools/ 下其它模块同一约定：exit 2 而不是静默退出 0。
+    print("这是题库的领域层（没有命令）；请改用：python tools/jobws.py bank ...")
     print("查看全部命令：python tools/jobws.py --help")
     sys.exit(2)

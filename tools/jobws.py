@@ -5,8 +5,10 @@
 几十处 `python tools/xxx.py`；一个入口之后，用户只需记住 `jobws`，迁移对照表
 见 CHANGELOG 与 Release 说明。
 
-**刻意保留的一件事**：各脚本的 argparse 与 `main()` 都留在原处，jobws 只做
-第一层分发——把剩余参数**原样转发**给对应模块。这样：
+**刻意保留的一件事**：各脚本的 argparse 与 `main()` 都留在原处（**唯一例外**：
+`bank` 的命令层 2026-09-18 与领域模块分离，在 `tools/_cli_bank.py`——领域层
+`question_bank.py` 不再连带 argparse），jobws 只做第一层分发——把剩余参数
+**原样转发**给对应模块。这样：
 
 - 参数名、子命令、退出码（0 通过 / 1 业务失败 / 2 用法或配置错误）**一字不改**，
   `tests/test_cli_surface.py` 那张安全网可以平移过来继续钉；
@@ -56,7 +58,7 @@ import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jd_score  # noqa: E402
-import question_bank  # noqa: E402
+import _cli_bank  # noqa: E402  （题库的命令层；领域层在 question_bank.py，二者 2026-09-18 分离）
 import prefs  # noqa: E402
 import release_assist  # noqa: E402
 import report  # noqa: E402
@@ -67,7 +69,7 @@ import tracker  # noqa: E402
 # 模块为 None 表示这一层还有子命令（见 SUB_TARGETS）。
 TARGETS = [
     ("track", tracker, "投递追踪：增删查改、面试/联系人/offer、导入与自检"),
-    ("bank", question_bank, "题库：list 查、add 加题、import 从 03_面试准备 导入（写操作走两段式）"),
+    ("bank", _cli_bank, "题库：list 查、add 加题、update 改题、import 从 03_面试准备 导入（写操作走两段式）"),
     ("report", report, "复盘与统计（转化率、停留时长、失败归因）"),
     ("resume", resume_build, "按岗位生成投递材料"),
     ("jd", jd_score, "JD 解析与岗位评分"),

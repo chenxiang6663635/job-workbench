@@ -98,6 +98,31 @@ export default {
   "bank.emptyHintNoMatch": "Try another keyword, or set the status filter back to Any",
   "bank.count_one": "{{count}} question",
   "bank.count_other": "{{count}} questions",
+  // Detail / in-place maintenance (2026-09-18): labels are the real CSV column
+  // names — kept in Chinese with a bracketed gloss, so users can still find the
+  // column in the file (same reasoning as the 问题记录 field above).
+  "bank.openDetail": "Open question details: {{title}}",
+  "bank.detailTitle": "Question details",
+  "bank.detailDesc": "Every field; review the diff before anything is written.",
+  "bank.fieldDomain": "领域 (Domain)",
+  "bank.fieldSubject": "科目 (Subject)",
+  "bank.fieldTags": "标签 (Tags)",
+  "bank.fieldDifficulty": "难度 (Difficulty)",
+  "bank.fieldOrigin": "来源 (Source)",
+  "bank.fieldStatus": "状态 (Status)",
+  "bank.fieldCreated": "创建日期 (Created)",
+  "bank.fieldReviewed": "最近复习 (Last reviewed)",
+  "bank.fieldLinked": "关联 (Linked to)",
+  "bank.fieldAnswer": "答案要点 (Answer notes)",
+  "bank.fieldNote": "备注 (Notes)",
+  "bank.noAnswer": "(No 答案要点 yet — you can add them below)",
+  "bank.editHint": "Leave a field empty to keep it (clearing is not supported yet)",
+  "bank.preview": "Preview changes",
+  "bank.previewing": "Building diff…",
+  "bank.confirmWrite": "Confirm write",
+  "bank.writing": "Writing…",
+  "bank.noChange": "No changes yet",
+  "bank.difficultyNone": "Not set",
 
   "question.searchPlaceholder": "Search questions, answers, or retrospectives…",
   "question.searching": "Searching…",
@@ -741,6 +766,8 @@ export default {
 
   // Question bank import (1a): parsing Markdown from 03_面试准备; reasons come back verbatim
   "err.question.importFailed": "Cannot import from {{module}}: {{reason}}",
+  // Question bank update (1b): previewing a question edit (missing/unknown id, no change)
+  "err.question.updateFailed": "Could not update the question: {{reason}}",
 
   "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",

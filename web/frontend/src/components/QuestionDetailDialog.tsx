@@ -1,0 +1,254 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
+import { api, type BankQuestion } from "../api";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Textarea } from "./ui/input";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { ErrorBanner } from "./ErrorBanner";
+import { FormField } from "./FormField";
+
+// 状态三态与难度档位：取值即工作区真实数据，不翻译（同列表徽章的约定）
+const STATUSES = ["未看", "看过", "会了"];
+const DIFFICULTIES = ["易", "中", "难"];
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="mt-0.5 break-words text-xs leading-relaxed text-foreground">{value || "—"}</p>
+    </div>
+  );
+}
+
+/** 只读区：全部字段摊开（答案要点**完整**显示，列表里是截断三行的）。 */
+function ReadOnlyPanel({ item }: { item: BankQuestion }) {
+  const { t } = useTranslation();
+  return (
+    <section className="space-y-3">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+        <Field label={t("bank.fieldDomain")} value={item.领域} />
+        <Field label={t("bank.fieldSubject")} value={item.科目} />
+        <Field label={t("bank.fieldTags")} value={item.标签} />
+        <Field label={t("bank.fieldDifficulty")} value={item.难度} />
+        <Field label={t("bank.fieldOrigin")} value={item.来源} />
+        <Field label={t("bank.fieldStatus")} value={item.状态 || "未看"} />
+        <Field label={t("bank.fieldCreated")} value={item.创建日期} />
+        <Field label={t("bank.fieldReviewed")} value={item.最近复习} />
+        <Field
+          label={t("bank.fieldLinked")}
+          value={[item.关联公司, item.关联岗位].filter(Boolean).join(" · ")}
+        />
+      </div>
+      <div>
+        <p className="text-[11px] text-muted-foreground">{t("bank.fieldAnswer")}</p>
+        <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2.5 text-xs leading-relaxed text-foreground">
+          {item.答案要点 || t("bank.noAnswer")}
+        </p>
+      </div>
+      {item.备注 && <Field label={t("bank.fieldNote")} value={item.备注} />}
+    </section>
+  );
+}
+
+/** 第一步的产物：差异表 + 确认 / 取消——与「从 03_面试准备 导入」同一套手感。 */
+function PreviewCard({
+  summary,
+  diff,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  summary: string;
+  diff: string[];
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Card className="space-y-2 p-3">
+      <p className="text-sm font-medium text-foreground">{summary}</p>
+      {/* diff 是后端给的 Markdown 表格文本：原样等宽展示，不做二次解析——
+          解析错了比显示得丑危险得多（用户据此决定要不要落盘） */}
+      <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        {diff.join("\n")}
+      </pre>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={onConfirm} disabled={busy}>
+          {busy ? t("bank.writing") : t("bank.confirmWrite")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
+          {t("common.cancel")}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+/** 编辑区：改答案要点 / 标三态 / 挑难度 → 预览 → 确认（两段式）。 */
+function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void }) {
+  const { t } = useTranslation();
+  const [answer, setAnswer] = useState(item.答案要点 || "");
+  const [status, setStatus] = useState(item.状态 || "未看");
+  const [difficulty, setDifficulty] = useState(item.难度 || "");
+  const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
+    null
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 只有「与原值不同且非空」的字段才进请求：空值等同不改（领域层同口径），
+  // 所以界面上不假装支持"清空"——难度回退到未标这类操作不在本语义内。
+  const changes: { 答案要点?: string; 状态?: string; 难度?: string } = {};
+  if (answer.trim() && answer.trim() !== (item.答案要点 || "")) changes.答案要点 = answer.trim();
+  if (status !== (item.状态 || "未看")) changes.状态 = status;
+  if (difficulty && difficulty !== (item.难度 || "")) changes.难度 = difficulty;
+  const hasChange = Object.keys(changes).length > 0;
+
+  const onPreview = () => {
+    setBusy(true);
+    setError(null);
+    api
+      .previewQuestionUpdate(item.题目id, changes)
+      .then((r) => setPreview({ token: r.token, summary: r.summary, diff: r.diff }))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  const onConfirm = () => {
+    if (!preview) return;
+    setBusy(true);
+    setError(null);
+    // 两段式的第二步：凭令牌落盘（与命令行 / MCP 同源，冲突与过期由服务端拒绝）
+    api
+      .applyApproval(preview.token)
+      .then(() => onSaved())
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <section className="mt-4 space-y-3 border-t border-border pt-4">
+      <FormField label={t("bank.fieldAnswer")} hint={t("bank.editHint")}>
+        <Textarea
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          rows={4}
+          className="min-h-[96px] text-xs"
+        />
+      </FormField>
+      <div className="grid grid-cols-2 gap-4">
+        <FormField label={t("bank.fieldStatus")}>
+          <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
+            {STATUSES.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setStatus(value)}
+                className={
+                  status === value
+                    ? "rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                    : "px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
+                }
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        </FormField>
+        <FormField label={t("bank.fieldDifficulty")}>
+          <select
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value)}
+            className="h-9 w-full rounded-lg border border-border bg-surface-1 px-2 text-xs text-foreground"
+          >
+            {/* 原值为空时才出现「未标」占位：难度一旦标过，本语义不支持改回空 */}
+            {!item.难度 && <option value="">{t("bank.difficultyNone")}</option>}
+            {DIFFICULTIES.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      </div>
+
+      {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
+
+      {preview ? (
+        <PreviewCard
+          summary={preview.summary}
+          diff={preview.diff}
+          busy={busy}
+          onConfirm={onConfirm}
+          onCancel={() => setPreview(null)}
+        />
+      ) : (
+        <div className="flex items-center gap-3">
+          <Button size="sm" onClick={onPreview} disabled={busy || !hasChange}>
+            {busy ? t("bank.previewing") : t("bank.preview")}
+          </Button>
+          {!hasChange && (
+            <span className="text-xs text-muted-foreground">{t("bank.noChange")}</span>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * 题目详情 + 就地维护（2026-09-18）：详情即编辑弹窗，形态对齐邮件台账。
+ *
+ * 上半只读（全字段 + 完整答案要点），下半编辑「答案要点 / 状态 / 难度」；
+ * 提交后先看差异表再确认，落盘走全站唯一的 apply 通道。
+ */
+export function QuestionDetailDialog({
+  item,
+  onClose,
+  onSaved,
+}: {
+  item: BankQuestion;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6">
+        <DialogHeader className="mb-4 flex-row items-center justify-between space-y-0">
+          <div>
+            <DialogTitle className="pr-6 text-left text-base">
+              {item.题目 || t("bank.detailTitle")}
+            </DialogTitle>
+            {/* Radix 要求 DialogContent 有可读描述，否则开发态会告警 */}
+            <DialogDescription className="mt-0.5 text-left">
+              {t("bank.detailDesc")}
+            </DialogDescription>
+          </div>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.closeAction")}>
+              <X size={16} />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
+        <ReadOnlyPanel item={item} />
+        <EditPanel item={item} onSaved={onSaved} />
+      </DialogContent>
+    </Dialog>
+  );
+}

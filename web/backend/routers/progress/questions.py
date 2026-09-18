@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""题库：聚合视图、自建列表与导入预览。
+"""题库：聚合视图、自建列表、导入预览与更新预览。
 
 （由 routers/progress.py 拆出；2026-09-16 重构批。经包 __init__
 汇聚到 /api/progress——对外契约零变化。）
@@ -124,6 +124,44 @@ def preview_question_import(ws: str = Depends(workspace_dir)):
                        module=question_store.MODULE_DIR, reason="；".join(errors))
     import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
     result = approval.preview("question.import", ws, plan["payload"], plan["summary"],
+                              plan["diff"], plan["targets"])
+    return {"token": result["token"], "summary": plan["summary"],
+            "diff": plan["diff"], "expiresAt": result["expires_at"]}
+
+
+# 更新预览的查询参数名 -> CSV 中文字段名。字段名即契约（CSV 表头、领域层
+# `QUESTION_FIELDS`、前端类型三处同一字面量）——全仓只在此处做一次映射，不引入
+# 第二套命名。`题目id` 不在表内：它是身份不是字段，只能由 `?id=` 指定、改不了。
+_UPDATE_FIELD_PARAMS = (("answer", "答案要点"), ("status", "状态"),
+                        ("difficulty", "难度"), ("note", "备注"), ("tags", "标签"))
+
+
+@router.get("/questions/preview-update")
+def preview_question_update(ws: str = Depends(workspace_dir), id: str = "",
+                            answer: str = None, status: str = None,
+                            difficulty: str = None, note: str = None,
+                            tags: str = None):
+    """1b 预览：修改一道题（**不落盘**），返回令牌与「原值 -> 新值」差异表。
+
+    与 1a 导入同构：只签发一次性令牌，落盘走既有的 `/api/approvals/apply`
+    （写通道只有一条）。可改字段是**两层白名单**——这里的五个查询参数，以及
+    领域层 `preview_update_fields` 对 `QUESTION_FIELDS` 的过滤；两处都过才进载荷。
+
+    空值等同「不改」：领域层会滤掉空串（清空字段不在本语义内），界面上如实说明。
+    """
+    provided = {"answer": answer, "status": status, "difficulty": difficulty,
+                "note": note, "tags": tags}
+    changes = dict((field, provided[param])
+                   for param, field in _UPDATE_FIELD_PARAMS
+                   if (provided[param] or "").strip())
+    errors, plan = question_store.preview_update_fields(id, changes, ws)
+    if plan is None:
+        # 只回 reason，不回 id：id 可能本来就没给（「请给 --id」也是一种失败），
+        # 塞进文案会渲染出空括号——具体原因已经在 errors 的句子里。
+        raise ApiError(400, "question.updateFailed", "题库更新预览失败",
+                       reason="；".join(errors))
+    import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    result = approval.preview("question.update", ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])
     return {"token": result["token"], "summary": plan["summary"],
             "diff": plan["diff"], "expiresAt": result["expires_at"]}

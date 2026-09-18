@@ -211,6 +211,24 @@ def test_update_rejects_unknown_id(ws):
     assert any("找不到" in e for e in errors)
 
 
+def test_update_preview_lists_auto_review_date(ws):
+    """「最近复习」由落盘段自动写入、不在 changes 里——差异表必须显式列出它。
+
+    不列就是「预览说改一列、落盘多写一列」；列表比多列一行更安全——
+    用户是照着差异表确认写入的（2026-09-18 GUI 详情弹窗同款路径）。
+    反过来，今天已标记过再提交一次，这一列没有变化，不该出现假差异。
+    """
+    _add(ws, "TCP", "技术面")
+    errors, plan = question_bank.preview_update_fields("Q001", {"状态": "会了"}, ws)
+    assert not errors, errors
+    assert any("最近复习" in line for line in plan["diff"])
+
+    question_bank.apply_approved_update(plan["payload"], ws)
+    errors, plan2 = question_bank.preview_update_fields("Q001", {"状态": "会了"}, ws)
+    assert plan2 is None
+    assert any("没有变化" in e for e in errors)
+
+
 def test_scan_reports_unreadable_and_empty_files(ws):
     """读不动 / 没有正文的文件必须进跳过清单——在"预览即承诺"的两段式里，
     少给题比报错更危险（用户会以为就这些）。"""

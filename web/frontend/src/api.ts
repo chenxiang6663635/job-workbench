@@ -937,6 +937,16 @@ export const api = {
   previewQuestionImport: () =>
     request<BankImportPreview>("/progress/questions/preview-import"),
 
+  // 1b 改题的预览（不落盘；落盘同样走 applyApproval）。参数名 -> CSV 中文字段名
+  // 的映射与后端 _UPDATE_FIELD_PARAMS 对齐；空值等同不改（领域层同口径）。
+  previewQuestionUpdate: (id: string, changes: { 答案要点?: string; 状态?: string; 难度?: string }) => {
+    const q = new URLSearchParams({ id });
+    if (changes.答案要点?.trim()) q.set("answer", changes.答案要点.trim());
+    if (changes.状态?.trim()) q.set("status", changes.状态.trim());
+    if (changes.难度?.trim()) q.set("difficulty", changes.难度.trim());
+    return request<BankImportPreview>(`/progress/questions/preview-update?${q.toString()}`);
+  },
+
   updateInterview: (id: string, body: Partial<Interview>) =>
     request<Interview & { _changed?: string[] }>(
       `/progress/interviews/${encodeURIComponent(id)}`,

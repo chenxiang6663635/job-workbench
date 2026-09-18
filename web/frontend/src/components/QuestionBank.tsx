@@ -16,6 +16,8 @@ import { Input } from "./ui/input";
 import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
+import { QuestionBankRow } from "./QuestionBankRow";
+import { QuestionDetailDialog } from "./QuestionDetailDialog";
 
 // 轮次用小徽章标出，同一岗位的不同轮次问题一眼能分开。
 // 这是「数据值 → 样式」的映射（与 badgeVariants.ts 同类）：key 是工作区里的真实
@@ -30,13 +32,6 @@ const ROUND_VARIANT: Record<string, "default" | "secondary" | "success"> = {
   三面: "default",
   HR面: "success",
   终面: "success",
-};
-
-// 状态三态：值就是工作区里的真实取值，同样不翻译（理由同上）
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "success"> = {
-  未看: "secondary",
-  看过: "default",
-  会了: "success",
 };
 
 const BANK_STATUS = ["未看", "看过", "会了"];
@@ -81,36 +76,6 @@ function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
   );
 }
 
-function BankRow({ row }: { row: BankQuestion }) {
-  return (
-    <Card className="p-3">
-      <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-        <Badge
-          variant={STATUS_VARIANT[row.状态] ?? "secondary"}
-          className="rounded px-1.5 py-0.5 text-[11px]"
-        >
-          {row.状态 || "未看"}
-        </Badge>
-        {row.领域 && <span className="text-muted-foreground">{row.领域}</span>}
-        {row.科目 && <span className="text-muted-foreground">{row.科目}</span>}
-        {row.来源 && <span className="text-muted-foreground">{row.来源}</span>}
-        {row.关联公司 && (
-          <span className="ml-auto text-muted-foreground">
-            {row.关联公司}
-            {row.关联岗位 ? ` · ${row.关联岗位}` : ""}
-          </span>
-        )}
-      </div>
-      <p className="text-sm leading-relaxed text-foreground">{row.题目}</p>
-      {row.答案要点 && (
-        <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-          {row.答案要点}
-        </p>
-      )}
-    </Card>
-  );
-}
-
 function MyBank() {
   const { t } = useTranslation();
   const [rows, setRows] = useState<BankQuestion[]>([]);
@@ -119,6 +84,8 @@ function MyBank() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // 详情（也就是编辑）弹窗：null = 关闭，否则为被打开的那一行
+  const [selected, setSelected] = useState<BankQuestion | null>(null);
   const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
     null
   );
@@ -242,10 +209,26 @@ function MyBank() {
           <p className="text-xs text-muted-foreground">{t("bank.count", { count: total })}</p>
           <div className="space-y-2">
             {rows.map((row) => (
-              <BankRow key={row.题目id || row.题目} row={row} />
+              <QuestionBankRow
+                key={row.题目id || row.题目}
+                row={row}
+                onOpen={() => setSelected(row)}
+              />
             ))}
           </div>
         </>
+      )}
+
+      {/* 详情（编辑）弹窗：确认写入后关窗并重载，让列表里的徽章同步 */}
+      {selected && (
+        <QuestionDetailDialog
+          item={selected}
+          onClose={() => setSelected(null)}
+          onSaved={() => {
+            setSelected(null);
+            load();
+          }}
+        />
       )}
     </div>
   );

@@ -370,7 +370,7 @@ def test_legacy_script_paths_only_print_migration_hint():
     """
     for script in ("tracker", "report", "resume_build", "jd_score",
                    "init_workspace", "install_skills", "check_skills",
-                   "check_pr_title"):
+                   "check_pr_title", "question_bank"):
         path = os.path.join(TOOLS, script + ".py")
         # timeout + cwd：任一脚本将来在导入期阻塞时，别把整轮 pytest 挂死
         proc = subprocess.run([sys.executable, path], stdout=subprocess.PIPE,

@@ -8,5 +8,5 @@
 # **不要**为了放过新增调用而调高上限——那等于把闸门焊死。
 #
 # 基线取自 2026-09-17 批 6（领域层包化，旧路径改 shim 的那一刻）：
-filelock = 16  # 后端 9 处 + tracker 5 处 + 测试等 2 处（ast 实测，shim 自身不计）
+filelock = 16  # 后端 10 处 + tracker 5 处 + 测试 1 处（ast 实测，shim 自身不计）
 workspace_io = 8  # 后端与 tracker 的共享写入原语入口（同上）

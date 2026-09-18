@@ -27,6 +27,5 @@ where = ["src"]
 # import 名是 jobws_core 而不是 jobws：tools/jobws.py 是 CLI 入口模块，
 # 同名会让 68 个以 `import jobws` 取 CLI 的用例解析到包（2026-09-17 实测）。
 include = ["jobws_core*"]
-
-[tool.setuptools.package-data]
-"jobws_core" = ["py.typed"]
+# 暂不随包发 py.typed：包内还没有类型标注文件，空声明没有意义（将来补标注时
+# 一并加文件与声明）。

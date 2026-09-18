@@ -128,7 +128,7 @@ if ($checkCode -ne 0) {
 # 且 dir_info.editable = true。
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-& $Py -c "import sys, json, pathlib, importlib.metadata as m; import jobws_core; p = pathlib.Path(str(m.distribution('jobws-core')._path)); f = p / 'direct_url.json'; bad = f.exists() and json.loads(f.read_text(encoding='utf-8')).get('dir_info', {}).get('editable') is True; sys.stderr.write(('EDITABLE' if bad else 'ok') + '\n'); sys.exit(1 if bad else 0)" 2>$null
+& $Py -c "import sys, json, pathlib, importlib.metadata as m; import jobws_core; p = pathlib.Path(m.distribution('jobws-core').locate_file('')); f = p / 'direct_url.json'; bad = f.exists() and json.loads(f.read_text(encoding='utf-8')).get('dir_info', {}).get('editable') is True; sys.stderr.write(('EDITABLE' if bad else 'ok') + '\n'); sys.exit(1 if bad else 0)" 2>$null
 $pkgCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ($pkgCode -ne 0) {

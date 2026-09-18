@@ -126,16 +126,15 @@ tools_datas += collect_data_files("certifi")
 # 领域层一搬走就收不到东西（本批正是要把领域层搬走）。
 try:
     domain_hidden = collect_submodules("jobws_core")
+    # 元数据：jobws_core.__version__ 由 importlib.metadata 读，而 PyInstaller
+    # **默认不收集 dist-info**——不补的话打包版只能拿到回退值 0.0.0.dev0。
+    domain_datas = copy_metadata("jobws-core")
 except Exception as exc:  # noqa: BLE001 —— 打包环境没装领域包：宁可当场炸
     raise RuntimeError(
         "找不到领域包 jobws_core（%s）。打包前请先安装它："
         "uv pip install --python <3.12 解释器> packages/jobws-core" % exc)
 if not domain_hidden:
     raise RuntimeError("collect_submodules('jobws_core') 返回空——领域包没装对")
-
-# 元数据：jobws_core.__version__ 由 importlib.metadata 读，而 PyInstaller
-# **默认不收集 dist-info**——不补的话打包版里只能拿到回退值 0.0.0.dev0。
-domain_datas = copy_metadata("jobws-core")
 
 # uvicorn 的动态导入必须显式声明，否则打包后启动即失败（业界公认的坑）
 uvicorn_hidden = [

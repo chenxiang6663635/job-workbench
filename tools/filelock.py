@@ -2,8 +2,8 @@
 """【已废弃】`filelock` 的旧路径 —— 转发到 `jobws_core.filelock`。
 
 2026-09-17 批 6：领域层开始包化（`packages/jobws-core`，import 名 `jobws_core`）。
-本文件不再有实现，只做**转发**，让 9 处后端 import、5 处 tracker import 与
-53 个自插 sys.path 的测试文件**零改动**继续工作。
+本文件不再有实现，只做**转发**，让 10 处后端 import、5 处 tracker import 与
+54 个自插 sys.path 的测试文件**零改动**继续工作。
 
 为什么直接把 sys.modules 换成真身而不是逐名字转发：
 - `from filelock import file_lock` 这类写法在 import 完成后会从
@@ -53,7 +53,8 @@ def _import_real():
 
 _real = _import_real()
 sys.modules[__name__] = _real
-# 透传 __path__：保证 `import filelock.<子模块>` 这类写法也可用（本模块暂无子模块）
+# 防御性透传 __path__：真身若是**包**，`import filelock.<子模块>` 就可达；
+# 当前真身是模块（不是包），这里拿到的是空列表，属预期（独立审查 NIT-5）。
 __path__ = list(getattr(_real, "__path__", []))
 
 

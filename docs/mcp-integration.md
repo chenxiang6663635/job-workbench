@@ -28,6 +28,11 @@ wheel 也拿得到）；但**领域层主体**（`tracker` / `report` / `jd_scor
 JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal
 ```
 
+> **Python 版本**：领域包 `jobws-core` 要求 **3.12+**（与工作台后端同一基线），而 MCP
+> 包本身支持 3.10+。用 3.10 / 3.11 的环境装它会报「requires a different Python」——
+> **不影响 MCP 可用**：旧路径 shim 会自动退化为源码形态，功能一点不减，只是那不是
+> 目标形态（装上才算）。
+
 自检：先不带宿主直接跑一次 `jobws-mcp --help`，能打印帮助就说明命令与环境没问题
 （该进程会等 stdin，用 Ctrl+C 退出即可）。
 

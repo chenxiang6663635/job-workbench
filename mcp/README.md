@@ -62,6 +62,9 @@ jobws-mcp --workspace personal        # 工作区名，或绝对路径
 JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal
 ```
 
+注：领域包 `jobws-core` 要求 **Python 3.12+**（与工作台后端同一基线），MCP 包本身
+支持 3.10+。3.10 / 3.11 装不上它不影响使用——旧路径 shim 会退化为源码形态。
+
 等领域层抽出成可安装的包之后，`uvx --from ./mcp jobws-mcp` 这类完全独立的分发才成立。
 
 ## 宿主配置示例

@@ -96,7 +96,7 @@ def test_hot_names_resolve_via_expected_submodules():
 def test_default_workspace_anchors_at_repo_root():
     """默认工作区锚在 <repo>/personal（回归守卫，只留位置无关的层级断言）。
 
-    包化后 ROOT 的 dirname 层级曾少一层（toolbar/tracker/ 比 tools/tracker.py
+    包化后 ROOT 的 dirname 层级曾少一层（tools/tracker/ 比 tools/tracker.py
     深一级）→ 默认工作区落到 tools/personal——独立审查 MAJOR-2 实测。
 
     2026-09-17 批 6：原先还有两条断言——「ROOT 下有 CHANGELOG.md」与

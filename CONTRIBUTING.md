@@ -103,7 +103,7 @@
 - **tag 约定**：`v<发布号>`（如 `v26.09.15.1`）；**CHANGELOG 段名 = 发布号**。tag 与机器版本的比对规则 = **日期三段一致**（`release_assist.version_matches_tag`，本地与 CI 同源）；同日多版在机器层不可区分，属已知取舍。
 - **破坏性变更**：不再由版本号承载——写进该版 CHANGELOG 的「破坏性变更」小节 + 段首「升级须知」（影响与迁移步骤）。
 - **发布纪律（2026-09-15 起）**：**单一发布节点**——中间批次不 bump / 不 tag / 不 Release / 不出安装包；全部批次做完后只发布一次，号在发布当日生成。
-- **其它 version 字段（私有 / 独立包，不参与发布）**：`web/frontend/package.json` 与 `mcp/pyproject.toml` 的 `version` 是各自包的私有字段，**不得与发布号联动**；`.codebuddy-plugin/marketplace.json` 无 version 字段。
+- **其它 version 字段（私有 / 独立包，不参与发布）**：`web/frontend/package.json` 与 `mcp/pyproject.toml` 的 `version` 是各自包的私有字段，**不得与发布号联动**；`.codebuddy-plugin/marketplace.json` 无 version 字段。**例外（派生物，不是真值源）**：领域包 `packages/jobws-core` 的版本在**构建期**由它自己的 `setup.py` 读 `web/electron/package.json` 写进 wheel 元数据，运行时从 `importlib.metadata` 读回（CI 断言三者一致，见 `jobws_core/_version.py`）。它同样**不是**真值源——改版本仍然只改 `package.json` 一处，不要去改包的 `pyproject.toml`。
 - **当代参考**：tag 序列从 `v0.1.0`（2026-09-08）到 `v0.3.2`（2026-09-14）为语义化时代；**下一个版本是首个时间戳版本**（号 = 发布当日生成），实际值一律以 `web/electron/package.json` 与 `git tag` 为准。
 
 ## 发布流程（手动归档）
@@ -135,6 +135,8 @@
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
 - **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（秒级；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
+- **开发前先装领域包（2026-09-17 起）**：`uv pip install --python <3.12 解释器> packages/jobws-core`（venv 由 uv 创建时通常不带 pip，用 `<解释器> -m pip install packages/jobws-core` 也行）。不装也能跑——旧路径 shim 会退化到源码形态（把 `packages/jobws-core/src` 加进 `sys.path`）——但那不是目标形态：目标是**装上就能用**，CI 另有非 editable 的安装冒烟守着这条。**打包必须用非 editable 安装**（`scripts/build_backend_exe.ps1` 会拦）。
+- **`jobws lint legacy-imports`（2026-09-17 新增）**：统计旧名（`filelock` / `workspace_io`）import 点的数量，以清单为**只许下降**的水位（基线 `filelock=16` / `workspace_io=8`）。新增代码一律用 `jobws_core`；水位降到 0 就意味着 shim 可以删了。
 - **解释器基线 3.12（2026-09-14 起，原先 3.8）**：CI、打包与文档都以 3.12 为准。技术要求其实只有 ≥3.9（`imaplib` 的 `timeout=`），但**支持**并验证的只有 3.12——所以 `tests/conftest.py` 会在收集前拦住更低版本：测试在错解释器上**静默不可信**，那种失败看起来像"代码坏了"。本题机器最常见的坑是 `python` 落到别的项目在用的 conda 环境（3.8），所以跑之前先 `python -V` 确认。
   - **pre-commit 快检的解释器**：钩子按 `JOBWS_PYTHON` > 仓库内 `.venv` > 运行钩子的解释器 解析；解析到的低于 3.12 时它**降级提示而不是拦提交**（那种结论不可信，CI 兜底）。维护者建议设一次：`setx JOBWS_PYTHON "<3.12 的 python>"`。
   - **`web/start.ps1` 用同一顺序解析后端解释器**（并额外验依赖：能 `import fastapi, uvicorn` 才算数），**不依赖终端里激活了哪个环境**——终端自动激活 conda base（或其他项目环境）时不再影响本仓库的启动；`.\start.ps1 -CheckOnly` 只做预检并打印会选哪个解释器。**`setx` 保存的用户级 `JOBWS_PYTHON` 也会被读到**（`setx` 只对新终端生效，脚本替你把"刚设完但终端还没刷新"这一步接住，并打印一行提示）。

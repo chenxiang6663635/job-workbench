@@ -25,6 +25,13 @@
         "./agents/cross-end-audit.md",
         "./agents/resume-jd-gap.md"
       ],
+      "commands": [
+        "./commands/today.md",
+        "./commands/apply-pack.md",
+        "./commands/retro.md",
+        "./commands/bank.md",
+        "./commands/jd.md"
+      ],
       "author": {
         "name": "chenxiang6663635",
         "url": "https://github.com/chenxiang6663635"

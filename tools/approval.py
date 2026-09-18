@@ -213,6 +213,9 @@ _OPERATIONS = {
     "track.import": tracker.apply_approved_import,
     "talk.add": tracker.apply_approved_talk,
     "mail.add": tracker.apply_approved_mail,
+    # 批 4.7：面试补两段式（原先只有 CLI 直写路径）——三端共用同一份载荷与校验。
+    "interview.add": tracker.apply_approved_interview_add,
+    "interview.update": tracker.apply_approved_interview_update,
     "question.add": question_bank.apply_approved_add,
     "question.update": question_bank.apply_approved_update,
     "question.import": question_bank.apply_approved_import,

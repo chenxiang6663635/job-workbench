@@ -24,6 +24,7 @@ from . import paths
 from .paths import DIR_JOBS, DIR_TRACKING
 
 import jd_score  # noqa: E402  （tools/ 经 paths.py 加进 sys.path）
+import question_bank  # noqa: E402
 import report  # noqa: E402
 import tracker  # noqa: E402
 
@@ -304,3 +305,109 @@ def dashboard_summary(workspace, today=None, stale_days=None):
         "failure": retro.get("failure"),
         "declined": retro.get("declined"),
     }
+
+
+# --- 批 4.7 主线补口：面试 / 题库 / JD 评分 -----------------------------------
+#
+# 与既有工具同纪律（见文件头三条）：只调纯函数、工作区显式传参、口径与 CLI 同源。
+
+# 列表默认精简（面试 13 列 / 题目 12 列对宿主是噪声），verbose=True 才给全量
+INTERVIEW_CORE = ["面试id", "关联记录", "公司", "岗位", "轮次", "面试时间",
+                  "形式", "结果", "面试官"]
+
+QUESTION_CORE = ["题目id", "题目", "领域", "科目", "标签", "难度", "状态",
+                 "来源", "关联公司", "关联岗位"]
+
+
+def list_interviews(workspace, app_id=None, result=None, limit=20, verbose=False):
+    """面试记录列表（只读）。
+
+    口径与 CLI 的 `track interview list` 同源：按「面试时间」倒序、空时间排最后；
+    app_id 非空时只看关联该投递记录的面试；result 精确匹配「结果」。
+    """
+    rows = tracker.read_interviews(workspace, app_id=app_id or None)
+    if result:
+        wanted = result.strip()
+        rows = [r for r in rows if (r.get("结果") or "").strip() == wanted]
+    rows.sort(key=lambda r: (r.get("面试时间") or ""), reverse=True)
+    total = len(rows)
+    if limit and limit > 0:
+        rows = rows[:limit]
+    fields = tracker.INTERVIEW_FIELDS if verbose else INTERVIEW_CORE
+    return {
+        "workspace": workspace,
+        "total": total,
+        "returned": len(rows),
+        "items": [dict((k, (r.get(k) or "").strip()) for k in fields) for r in rows],
+    }
+
+
+def list_questions(workspace, domain=None, subject=None, status=None,
+                   keyword=None, limit=20, verbose=False):
+    """题库列表（只读）。
+
+    筛选是**同一套口径的唯一实现**：直接走 `question_bank.read_questions`
+    （CLI 的 `bank list` 与后端端点也走它），不在这里另写判据。
+    """
+    rows = question_bank.read_questions(
+        workspace, domain=domain or None, subject=subject or None,
+        status=status or None, keyword=keyword or None)
+    total = len(rows)
+    if limit and limit > 0:
+        rows = rows[:limit]
+    fields = question_bank.QUESTION_FIELDS if verbose else QUESTION_CORE
+    return {
+        "workspace": workspace,
+        "total": total,
+        "returned": len(rows),
+        "items": [dict((k, (r.get(k) or "").strip()) for k in fields) for r in rows],
+    }
+
+
+def _job_dir(workspace, job_id):
+    """岗位目录解析：只接受**单个目录名**，越界即拒（宿主可能由模型代传参数）。
+
+    三种越界写法都先拒：绝对路径（会被 os.path.join 当成新根）、含 `..`、
+    含路径分隔符（想指到子目录/兄弟目录）。
+    """
+    name = (job_id or "").strip()
+    # 盘符相对路径（如 `C:foo`）不触发 isabs 也不含分隔符，却会在 join 时重置根——
+    # 一并拒绝；含 `:` 的合法目录名在本仓命名约定下不存在（公司_岗位）。
+    if (not name or os.path.isabs(name) or ":" in name
+            or "/" in name or "\\" in name):
+        return None, "job_id 必须是岗位池下的单个目录名（如 云帆_后端）"
+    if name in (".", ".."):
+        return None, "job_id 不能是 . 或 .."
+    job_dir = os.path.join(workspace, DIR_JOBS, name)
+    if not os.path.isdir(job_dir):
+        return None, "岗位不存在：%s" % name
+    return job_dir, None
+
+
+def score_jd(workspace, job_id, resume_version=None):
+    """读岗位的 JD 解析卡，给出评分与档位（只读）。
+
+    job_id 是岗位池目录名。解析卡由 AI 或用户写成 Markdown，本工具只做**校验与
+    解读**：四维之和必须等于总分才给档位（与 `routers/jobs.py` 同口径）——
+    填到一半的卡片给一个算错的分档比不给更糟。resume_version 给了才附差距分析。
+    """
+    job_dir, error = _job_dir(workspace, job_id)
+    if error:
+        return {"ok": False, "errors": [error]}
+
+    card_path = os.path.join(job_dir, CARD_FILE)
+    basic = _card_basic_info(card_path)
+    company, role = basic if basic else _split_dir(job_id)
+    data = {
+        "ok": True,
+        "workspace": workspace,
+        "目录": job_id,
+        "公司": company,
+        "岗位": role,
+        "评分": _card_score(card_path),
+        "有解析卡": os.path.isfile(card_path),
+        "有JD原文": os.path.isfile(os.path.join(job_dir, JD_FILE)),
+    }
+    if resume_version:
+        data["差距"] = jd_score.gap_analysis(workspace, card_path, resume_version)
+    return data

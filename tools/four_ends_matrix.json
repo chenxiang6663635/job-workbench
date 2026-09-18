@@ -1,0 +1,499 @@
+{
+  "_meta": {
+    "version": 1,
+    "scope": "主线求职流程：JD 解析 / 岗位池 / 投递 / 跟进 / 面试 / 复盘 / 题库",
+    "truth": "本文件是四端能力与错误码对照的唯一真值。docs/four-ends.md 由 tools/check_four_ends.py --write 生成，不要手改。",
+    "ends": {
+      "cli": "命令行 tools/jobws.py",
+      "mcp": "AI 宿主侧 MCP 服务 mcp/jobws_mcp",
+      "plugin": "宿主插件 commands/ 与 agents/",
+      "gui": "桌面端 web/backend/routers + 前端页面"
+    },
+    "write_rule": "写入类能力一律「预览 -> 确认 -> 落盘」：预览返回令牌与差异，落盘走 apply。GUI 的确认形态是界面弹窗，CLI/MCP 是令牌——机制不同、语义相同。",
+    "error_map_scope": "只登记跨端共用的令牌（approval）域：MCP 透出 ApprovalError.code 的稳定值，HTTP 侧对外只有 approval.tokenInvalid / approval.conflict 两个码。其余 110 个接口错误码是 GUI 内部细节，不在此登记。"
+  },
+  "capabilities": [
+    {
+      "id": "jd.score",
+      "stage": "JD 解析",
+      "cli": "jd",
+      "mcp": "score_jd",
+      "plugin": "jd",
+      "gui": "GET /api/jobs/{job_id}/gap",
+      "note": "只读：读解析卡并给出评分/差距。解析卡本身由 AI 或用户写入 Markdown，程序不生成。投递流程里由 apply-pack 命令顺带调用。"
+    },
+    {
+      "id": "jd.fetch",
+      "stage": "JD 解析",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/jobs/fetch-jd",
+      "note": "抓取 JD 链接并落盘 JD原文.md；仅 GUI 提供（抓取需人在界面粘链接）。"
+    },
+    {
+      "id": "job.list",
+      "stage": "岗位池",
+      "cli": null,
+      "mcp": "list_jobs",
+      "plugin": "resume-jd-gap",
+      "gui": "GET /api/jobs",
+      "note": "只读。CLI 侧无岗位池列表命令（岗位池以解析卡路径为输入）。"
+    },
+    {
+      "id": "job.create",
+      "stage": "岗位池",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/jobs",
+      "note": "写入：新建岗位目录与 JD原文.md；仅 GUI 提供。"
+    },
+    {
+      "id": "application.list",
+      "stage": "投递",
+      "cli": "track list",
+      "mcp": "list_applications",
+      "plugin": "today",
+      "gui": "GET /api/applications",
+      "note": "只读。"
+    },
+    {
+      "id": "application.add",
+      "stage": "投递",
+      "cli": "track add",
+      "mcp": "preview_add_application",
+      "plugin": "apply-pack",
+      "gui": "POST /api/applications",
+      "note": "写入：预览 -> 确认 -> 落盘。"
+    },
+    {
+      "id": "application.update",
+      "stage": "投递",
+      "cli": "track update",
+      "mcp": "preview_update_application",
+      "plugin": null,
+      "gui": "PATCH /api/applications/{app_id}",
+      "note": "写入：预览 -> 确认 -> 落盘。"
+    },
+    {
+      "id": "application.import",
+      "stage": "投递",
+      "cli": "track import",
+      "mcp": "preview_import_applications",
+      "plugin": null,
+      "gui": "POST /api/applications/import",
+      "note": "写入：CSV 批量导入，预览 -> 确认 -> 落盘。"
+    },
+    {
+      "id": "application.history",
+      "stage": "投递",
+      "cli": "track history",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/applications/{app_id}/history",
+      "note": "只读：变更时间线。"
+    },
+    {
+      "id": "application.check",
+      "stage": "投递",
+      "cli": "track check",
+      "mcp": null,
+      "plugin": null,
+      "gui": null,
+      "note": "只读：追踪表 schema 自检（列完整性、枚举、外键、坏文件隔离）。"
+    },
+    {
+      "id": "mail.record",
+      "stage": "跟进",
+      "cli": "track mail",
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/progress/mails",
+      "note": "写入：邮件台账。"
+    },
+    {
+      "id": "imap.fetch",
+      "stage": "跟进",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/imap/fetch",
+      "note": "只读（dry-run）：从邮箱拉取邮件正文，不改动任何数据；仅 GUI 提供（凭证配在界面）。"
+    },
+    {
+      "id": "contact.record",
+      "stage": "跟进",
+      "cli": "track contact",
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/progress/contacts",
+      "note": "写入：招聘方联系人。"
+    },
+    {
+      "id": "talk.record",
+      "stage": "跟进",
+      "cli": "track talk",
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/progress/talks",
+      "note": "写入：宣讲会 / 招聘会。"
+    },
+    {
+      "id": "offer.record",
+      "stage": "跟进",
+      "cli": "track offer",
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/progress/offers",
+      "note": "写入：Offer 事实记录。"
+    },
+    {
+      "id": "interview.list",
+      "stage": "面试",
+      "cli": "track interview",
+      "mcp": "list_interviews",
+      "plugin": "retro",
+      "gui": "GET /api/progress/interviews",
+      "note": "只读。"
+    },
+    {
+      "id": "interview.add",
+      "stage": "面试",
+      "cli": "track interview",
+      "mcp": "preview_add_interview",
+      "plugin": null,
+      "gui": "POST /api/progress/interviews",
+      "note": "写入：预览 -> 确认 -> 落盘。"
+    },
+    {
+      "id": "interview.update",
+      "stage": "面试",
+      "cli": "track interview",
+      "mcp": "preview_update_interview",
+      "plugin": null,
+      "gui": "PATCH /api/progress/interviews/{interview_id}",
+      "note": "写入：预览 -> 确认 -> 落盘。"
+    },
+    {
+      "id": "report.summary",
+      "stage": "复盘",
+      "cli": "report",
+      "mcp": "dashboard_summary",
+      "plugin": "today",
+      "gui": "GET /api/dashboard",
+      "note": "只读：转化率 / 停留时长 / 失败归因 / 待办与逾期。CLI 是唯一能把看板落盘成 Markdown 的一端（--out）。"
+    },
+    {
+      "id": "question.list",
+      "stage": "题库",
+      "cli": "bank list",
+      "mcp": "list_questions",
+      "plugin": "bank",
+      "gui": "GET /api/progress/questions",
+      "note": "只读：按领域 / 科目 / 状态 / 关键词筛选；亦可按公司岗位聚合（/question-bank）。"
+    },
+    {
+      "id": "question.add",
+      "stage": "题库",
+      "cli": "bank add",
+      "mcp": "preview_add_question",
+      "plugin": "bank",
+      "gui": null,
+      "note": "写入：预览 -> 确认 -> 落盘。GUI 无单题新增入口（走批量导入或 CLI）。"
+    },
+    {
+      "id": "question.update",
+      "stage": "题库",
+      "cli": "bank update",
+      "mcp": null,
+      "plugin": null,
+      "gui": null,
+      "note": "写入：预览 -> 确认 -> 落盘。仅 CLI 提供。"
+    },
+    {
+      "id": "question.import",
+      "stage": "题库",
+      "cli": "bank import",
+      "mcp": "preview_import_questions",
+      "plugin": "bank",
+      "gui": "GET /api/progress/questions/preview-import",
+      "note": "写入：从 03_面试准备 解析导入，预览 -> 确认 -> 落盘（GUI 侧是 GET 预览 + POST /api/approvals/apply 落盘）。"
+    },
+    {
+      "id": "approval.apply",
+      "stage": "通用",
+      "cli": "apply",
+      "mcp": "apply_approval",
+      "plugin": null,
+      "gui": "POST /api/approvals/apply",
+      "note": "两段式的第二步：凭令牌落盘。四端共用同一入口——命令行 `apply <令牌>`、AI 宿主 apply_approval、界面走通用落盘端点。所有写入类能力都走它，不各写一条落盘路径。"
+    }
+  ],
+  "error_map": [
+    {
+      "id": "approval.bad_token",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "令牌格式不合法。"
+    },
+    {
+      "id": "approval.not_found",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "令牌不存在（含重复使用与已被清理）。"
+    },
+    {
+      "id": "approval.expired",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "超过有效期（默认 600 秒）。"
+    },
+    {
+      "id": "approval.binding",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "令牌绑定的工作区与本次执行的不一致。"
+    },
+    {
+      "id": "approval.fingerprint",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "载荷与签发时不符（防篡改）。"
+    },
+    {
+      "id": "approval.unreadable",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "令牌记录读不出来（损坏）。"
+    },
+    {
+      "id": "approval.lost",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "令牌目录被清理。"
+    },
+    {
+      "id": "approval.unknown_operation",
+      "api_code": "approval.tokenInvalid",
+      "i18n_key": "err.approval.tokenInvalid",
+      "cli_exit": 1,
+      "note": "令牌里的操作不在注册表内（版本不匹配）。"
+    },
+    {
+      "id": "approval.conflict",
+      "api_code": "approval.conflict",
+      "i18n_key": "err.approval.conflict",
+      "cli_exit": 1,
+      "note": "预览之后数据变了，已确认的写入不再安全——请重新预览。"
+    }
+  ],
+  "exceptions": [
+    {
+      "end": "cli",
+      "item": "job.list",
+      "reason": "岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。"
+    },
+    {
+      "end": "cli",
+      "item": "jd.fetch",
+      "reason": "抓取需在界面粘贴链接；命令行侧由使用者自行取文本。"
+    },
+    {
+      "end": "cli",
+      "item": "imap.fetch",
+      "reason": "邮箱凭证配在 GUI 设置里，命令行侧不重复实现。"
+    },
+    {
+      "end": "mcp",
+      "item": "jd.fetch",
+      "reason": "抓取涉及出网与页面解析，不由模型代劳；模型应让用户提供 JD 文本。"
+    },
+    {
+      "end": "mcp",
+      "item": "job.create",
+      "reason": "岗位新建属界面动作（需粘贴 JD 或链接），不由模型代劳。"
+    },
+    {
+      "end": "mcp",
+      "item": "application.history",
+      "reason": "时间线可由 list 结果推断；工具数需收敛，暂不单开。"
+    },
+    {
+      "end": "mcp",
+      "item": "application.check",
+      "reason": "schema 自检属运维动作，由 CLI 执行。"
+    },
+    {
+      "end": "mcp",
+      "item": "mail.record",
+      "reason": "写入面暂收敛到投递与面试；邮件台账由 GUI 或 CLI 记录。"
+    },
+    {
+      "end": "mcp",
+      "item": "imap.fetch",
+      "reason": "出网拉取邮箱不由模型代劳（凭证与网络都属用户环境）。"
+    },
+    {
+      "end": "mcp",
+      "item": "contact.record",
+      "reason": "写入面暂收敛；联系人由 GUI 或 CLI 记录。"
+    },
+    {
+      "end": "mcp",
+      "item": "talk.record",
+      "reason": "写入面暂收敛；宣讲会由 GUI 或 CLI 记录。"
+    },
+    {
+      "end": "mcp",
+      "item": "offer.record",
+      "reason": "写入面暂收敛；Offer 由 GUI 或 CLI 记录。"
+    },
+    {
+      "end": "mcp",
+      "item": "question.update",
+      "reason": "做题状态与难度由本人维护，模型只负责新增与导入。"
+    },
+    {
+      "end": "plugin",
+      "item": "job.create",
+      "reason": "需要界面粘贴 JD，命令不代劳。"
+    },
+    {
+      "end": "plugin",
+      "item": "jd.fetch",
+      "reason": "同上。"
+    },
+    {
+      "end": "plugin",
+      "item": "imap.fetch",
+      "reason": "邮箱凭证与出网动作不放进命令。"
+    },
+    {
+      "end": "plugin",
+      "item": "application.update",
+      "reason": "命令侧暂不提供单条更新（走 apply-pack 的完整流程或用 CLI）。"
+    },
+    {
+      "end": "plugin",
+      "item": "application.import",
+      "reason": "CSV 批量导入是界面动作。"
+    },
+    {
+      "end": "plugin",
+      "item": "application.history",
+      "reason": "时间线可由 track list 与 report 覆盖。"
+    },
+    {
+      "end": "plugin",
+      "item": "application.check",
+      "reason": "运维动作，由 CLI 执行。"
+    },
+    {
+      "end": "plugin",
+      "item": "mail.record",
+      "reason": "邮件台账由 GUI 记录。"
+    },
+    {
+      "end": "plugin",
+      "item": "contact.record",
+      "reason": "联系人由 GUI 记录。"
+    },
+    {
+      "end": "plugin",
+      "item": "talk.record",
+      "reason": "宣讲会由 GUI 记录。"
+    },
+    {
+      "end": "plugin",
+      "item": "offer.record",
+      "reason": "Offer 由 GUI 记录。"
+    },
+    {
+      "end": "plugin",
+      "item": "interview.add",
+      "reason": "面试记录由 retro 只读汇总；写入走 CLI 或 GUI。"
+    },
+    {
+      "end": "plugin",
+      "item": "interview.update",
+      "reason": "同上。"
+    },
+    {
+      "end": "plugin",
+      "item": "question.update",
+      "reason": "做题状态由本人维护。"
+    },
+    {
+      "end": "gui",
+      "item": "question.add",
+      "reason": "界面无单题新增入口（走批量导入，或命令行 bank add）。"
+    },
+    {
+      "end": "gui",
+      "item": "question.update",
+      "reason": "同上。"
+    },
+    {
+      "end": "gui",
+      "item": "application.check",
+      "reason": "schema 自检是命令行运维动作，不在界面暴露。"
+    },
+    {
+      "end": "gui",
+      "item": "jd.score",
+      "reason": "界面只展示差距（gap），评分由解析卡承载；命令行 jd 是完整的评分校验入口。"
+    }
+  ],
+  "host_fields": [
+    {
+      "file_glob": "agents/*.md",
+      "field": "agentMode",
+      "host": "codebuddy",
+      "note": "取值 agentic / readonly；其他宿主不识别此字段，失效时静默——不影响 tools 白名单的约束。"
+    },
+    {
+      "file_glob": "agents/*.md",
+      "field": "enabled",
+      "host": "codebuddy",
+      "note": "宿主侧开关；其他宿主忽略。"
+    },
+    {
+      "file_glob": "agents/*.md",
+      "field": "enabledAutoRun",
+      "host": "codebuddy",
+      "note": "宿主侧自动运行开关；其他宿主忽略。"
+    },
+    {
+      "file_glob": "agents/*.md",
+      "field": "tools",
+      "host": "any",
+      "note": "工具白名单，跨宿主通用（Claude Code 同名同义）；只给只读工具。"
+    },
+    {
+      "file_glob": "commands/*.md",
+      "field": "description",
+      "host": "any",
+      "note": "命令列表展示文案，跨宿主通用。"
+    },
+    {
+      "file_glob": "commands/*.md",
+      "field": "allowed-tools",
+      "host": "codebuddy",
+      "note": "权限白名单。Claude Code 的命令 frontmatter 亦用同名键，但取值语法可能不同（未实证）——新增命令时以本机宿主实测为准。"
+    },
+    {
+      "file_glob": "skills/*/SKILL.md",
+      "field": "compatibility",
+      "host": "any",
+      "note": "环境声明（Python 版本、是否需仓库在侧、是否上传数据）；宿主据此判断能否挂载。"
+    }
+  ]
+}

@@ -18,63 +18,68 @@ if _TOOLS_DIR not in sys.path:
 logger = logging.getLogger(__name__)
 
 
+from . import _core
 from ._schema import (INTERVIEW_FIELDS)
-from .applications import (append_history, read_rows)
-from .interviews import (find_interview, next_interview_id, read_interviews, write_interviews)
+from .interviews import (find_interview, read_interviews)
+# 两段式的载荷构造与落盘收在 preview_interview：CLI 与 MCP 走同一份，
+# 避免"命令行说 X、模型看到 Y"（批 4.7 四端一致）。
+from .preview_interview import (apply_approved_interview_add,
+                                apply_approved_interview_update,
+                                preview_interview_add_fields,
+                                preview_interview_update_fields)
 
+
+
+def _print_preview(operation, plan):
+    """两段式第一步的公共输出：登记令牌并打印差异与下一步。"""
+    import approval  # 延迟导入：approval 会 import 本模块，顶层互相引用会转圈
+    result = approval.preview(operation, _core.WORKSPACE, plan["payload"],
+                              plan["summary"], plan["diff"], plan["targets"])
+    print("## 预览（未写入）\n")
+    print(result["summary"])
+    print("")
+    for line in plan["diff"]:
+        print(line)
+    print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
+    print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
+    return 0
+
+
+def _print_errors(errors):
+    print("## 校验失败\n")
+    for item in errors:
+        print("- %s" % item)
+    print("\n未写入 CSV。")
+    return 1
 
 
 def _interview_add(args):
-    """面试新增：外键/公司兜底 → 组装行 → 落盘 + 时间线入账。"""
-    rows = read_interviews()
-    main_rows = read_rows()
+    """面试新增：走两段式领域层（外键/公司兜底与校验都在那里，与 MCP 同源）。
 
-    # 关联记录非空时必须存在，避免指到不存在的岗位
-    link = (args.app or "").strip()
-    if link:
-        if not any((r.get("id") or "").strip() == link for r in main_rows):
-            print("错误：找不到记录 `%s`，先 python tools/jobws.py track add 或省略 --app" % link)
-            return 1
-        # 未指定公司/岗位时，从主表带出，保证列表可读
-        src = next(r for r in main_rows if (r.get("id") or "").strip() == link)
-        company = args.company or src.get("公司", "")
-        role = args.role or src.get("岗位", "")
-    else:
-        if not args.company:
-            print("错误：未关联记录时必须给 --company")
-            return 1
-        company = args.company
-        role = args.role or ""
+    默认仍是**直接落盘**（与改动前行为一致）；`--preview` 才只登记令牌。
+    """
+    errors, plan = preview_interview_add_fields({
+        "关联记录": args.app or "",
+        "公司": args.company or "",
+        "岗位": args.role or "",
+        "轮次": args.round or "一面",
+        "面试时间": args.when or "",
+        "形式": args.form or "",
+        "链接": args.link or "",
+        "面试官": args.interviewer or "",
+        "问题记录": args.questions or "",
+        "我的回答要点": args.answers or "",
+        "复盘与改进": args.retro or "",
+        "结果": args.result or "待定",
+    })
+    if errors:
+        return _print_errors(errors)
 
-    row = {field: "" for field in INTERVIEW_FIELDS}
-    row["面试id"] = next_interview_id(rows)
-    row["关联记录"] = link
-    row["公司"] = company
-    row["岗位"] = role
-    row["轮次"] = args.round
-    row["面试时间"] = args.when or ""
-    row["形式"] = args.form or ""
-    row["链接"] = args.link or ""
-    row["面试官"] = args.interviewer or ""
-    row["问题记录"] = args.questions or ""
-    row["我的回答要点"] = args.answers or ""
-    row["复盘与改进"] = args.retro or ""
-    row["结果"] = args.result
+    if getattr(args, "preview", False):
+        return _print_preview("interview.add", plan)
 
-    rows.append(row)
-    write_interviews(rows)
-
-    # 面试也入账时间线：它是岗位推进的一部分，事后要能回溯
-    if link:
-        append_history([{
-            "id": link,
-            "字段": "面试",
-            "原值": "",
-            "新值": "%s %s（%s）" % (row["轮次"], row["面试时间"] or "时间待定",
-                                 row["面试id"]),
-        }])
-
-    print("已记录面试 %s：%s %s %s" % (row["面试id"], company, role, args.round))
+    result = apply_approved_interview_add(plan["payload"])
+    print(result["summary"])
     return 0
 
 
@@ -118,12 +123,7 @@ def cmd_interview(args):
         return 0
 
     if action == "update":
-        rows = read_interviews()
-        row = find_interview(rows, args.id)
-        if not row:
-            print("错误：找不到面试 `%s`" % args.id)
-            return 1
-        changed = []
+        changes = {}
         for arg_name, field in (
             ("when", "面试时间"), ("round", "轮次"), ("form", "形式"),
             ("link", "链接"), ("interviewer", "面试官"), ("questions", "问题记录"),
@@ -131,16 +131,19 @@ def cmd_interview(args):
             ("result", "结果"),
         ):
             value = getattr(args, arg_name, None)
-            if value is None:
-                continue
-            if row.get(field, "") != value:
-                changed.append(field)
-                row[field] = value
-        if not changed:
-            print("没有字段变化，未写入")
-            return 0
-        write_interviews(rows)
-        print("已更新面试 %s：%s" % (args.id, "、".join(changed)))
+            if value is not None:
+                changes[field] = value
+
+        errors, plan = preview_interview_update_fields(
+            {"id": args.id, "changes": changes})
+        if errors:
+            return _print_errors(errors)
+
+        if getattr(args, "preview", False):
+            return _print_preview("interview.update", plan)
+
+        result = apply_approved_interview_update(plan["payload"])
+        print(result["summary"])
         return 0
 
     print("错误：未知动作 %s" % action)

@@ -94,12 +94,17 @@ def test_hot_names_resolve_via_expected_submodules():
 
 
 def test_default_workspace_anchors_at_repo_root():
-    """默认工作区锚在 <repo>/personal（回归守卫）。
+    """默认工作区锚在 <repo>/personal（回归守卫，只留位置无关的层级断言）。
 
     包化后 ROOT 的 dirname 层级曾少一层（toolbar/tracker/ 比 tools/tracker.py
     深一级）→ 默认工作区落到 tools/personal——独立审查 MAJOR-2 实测。
+
+    2026-09-17 批 6：原先还有两条断言——「ROOT 下有 CHANGELOG.md」与
+    「DEFAULT_WORKSPACE == ROOT/personal」——它们**依赖仓库根**，领域层搬进
+    可安装包之后会先失效（ROOT 漂到 site-packages，而 `_core` 读不到方向配置
+    时是**放行**校验的，故障全程静默）。位置无关的等价守卫已迁到
+    `tests/test_domain_root.py`（在搬迁之前建立，避免「旧守卫失效、新守卫
+    未立」的窗口），这里只留不依赖仓库位置的层级断言。
     """
     root = tracker.ROOT.replace("\\", "/")
     assert not root.endswith("/tools"), "ROOT 不该是 tools/（dirname 少了一层）"
-    assert os.path.isfile(os.path.join(root, "CHANGELOG.md")), "ROOT 应是仓库根"
-    assert tracker.DEFAULT_WORKSPACE.replace("\\", "/") == root + "/personal"

@@ -39,7 +39,11 @@ LIMIT_LOGIC_FILE = 300
 LIMIT_LOGIC_FN = 80
 LIMIT_DATA_FILE = 1500
 
-SCAN_DIRS = ("tools", "web/backend", "web/frontend/src", "tests")
+# packages/ 是 2026-09-17 批 6 新增的领域包目录（packages/jobws-core）。
+# **必须**把它列进来：否则新包里的文件既不受「≤300 行 / 函数 ≤80」约束，
+# 也不会出现在 `--print-allowlist` 的草稿里——删掉旧条目 = 检查变绿，正是
+# 「规模闸门静默放行」的形态。
+SCAN_DIRS = ("tools", "web/backend", "web/frontend/src", "tests", "packages")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", "release", ".venv"}
 SOURCE_SUFFIX = (".py", ".ts", ".tsx")
 

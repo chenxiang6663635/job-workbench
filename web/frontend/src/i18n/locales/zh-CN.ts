@@ -102,6 +102,31 @@ const zhCN = {
   "bank.emptyHintNoMatch": "换个关键词，或把状态筛选调回「全部状态」",
   "bank.count_one": "{{count}} 道",
   "bank.count_other": "{{count}} 道",
+  // 详情 / 就地维护（2026-09-18）：字段 label 就是 CSV 真实列名——中文界面直接
+  // 用列名本身，英文界面保留中文列名再加括号注释（与 question.emptyHintNoData
+  // 的「问题记录」同据：用户要照着 label 在 CSV 里找到那一列）。
+  "bank.openDetail": "查看题目详情：{{title}}",
+  "bank.detailTitle": "题目详情",
+  "bank.detailDesc": "全部字段；改完先看差异，确认后才写入。",
+  "bank.fieldDomain": "领域",
+  "bank.fieldSubject": "科目",
+  "bank.fieldTags": "标签",
+  "bank.fieldDifficulty": "难度",
+  "bank.fieldOrigin": "来源",
+  "bank.fieldStatus": "状态",
+  "bank.fieldCreated": "创建日期",
+  "bank.fieldReviewed": "最近复习",
+  "bank.fieldLinked": "关联",
+  "bank.fieldAnswer": "答案要点",
+  "bank.fieldNote": "备注",
+  "bank.noAnswer": "（还没有答案要点——可以在下面补充）",
+  "bank.editHint": "留空 = 该项不改（暂不支持清空字段）",
+  "bank.preview": "预览改动",
+  "bank.previewing": "生成差异…",
+  "bank.confirmWrite": "确认写入",
+  "bank.writing": "写入中…",
+  "bank.noChange": "还没有改动",
+  "bank.difficultyNone": "未标",
 
   "question.searchPlaceholder": "搜问题、回答或复盘关键词…",
   "question.searching": "检索中…",
@@ -807,6 +832,8 @@ const zhCN = {
 
   // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
   "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",
+  // 题库更新（1b）：预览改题失败（没给 id / 找不到 / 没有变化 / 值不合法）
+  "err.question.updateFailed": "无法更新题目：{{reason}}",
 
   "err.sys.unknownTarget": "只支持 workspace / snapshots / dataRoot（收到 {{target}}）",
   "err.sys.openFailed": "打开失败：{{error}}",

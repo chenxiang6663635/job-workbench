@@ -124,6 +124,34 @@ def _upcoming_todos(rows, today):
     return upcoming
 
 
+def _upcoming_talks(ws, today):
+    """近 7 天宣讲会：`[today, today+7]` 内的活动，按时间升序。
+
+    与 `_upcoming_todos` 有两处不同：① 数据源是 `talks.csv`（活动笔记——它
+    不入主表时间线，但在近 7 天里有它的位置）；② 「时间」列**带时刻**
+    （`YYYY-MM-DD HH:MM`），而 `parse_date` 只认纯日期——先取日期前缀再解析，
+    否则整条会被静默丢掉（这类"少给数据"比报错危险）。
+    空时间的活动直接跳过：没有日期就无从谈「近 7 天」（与 `_sort_talks`
+    把空时间排最后同一口径）。
+    """
+    limit = today + timedelta(days=7)
+    upcoming = []
+    for row in tracker.read_talks(ws):
+        raw = (row.get("时间") or "").strip()
+        when = parse_date(raw[:10]) if raw else None
+        if not when or not (today <= when <= limit):
+            continue
+        upcoming.append({
+            "id": row.get("宣讲会id", ""), "公司": row.get("公司", ""),
+            "时间": raw, "形式": row.get("形式", ""),
+            "地点或链接": row.get("地点或链接", ""),
+            "是否参加": row.get("是否参加", ""),
+            "date": when.isoformat(),
+        })
+    upcoming.sort(key=lambda x: x["时间"])
+    return upcoming
+
+
 def _overdue_pending(rows, today):
     """已过截止日仍待投。"""
     overdue = []
@@ -222,6 +250,8 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         "byDirection": by_direction,
         "byBatch": by_batch,
         "upcoming": _upcoming_todos(rows, today),
+        # 宣讲会是「投递前」的日程——它不入主表时间线，但在近 7 天里有它的位置
+        "upcomingTalks": _upcoming_talks(ws, today),
         "overdue": _overdue_pending(rows, today),
         "stale": _stale_rows(rows, history, today, stale_days),
         "pending": _pending_health(rows, history, today),

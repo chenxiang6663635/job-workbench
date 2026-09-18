@@ -61,6 +61,12 @@ jobs:
       - name: 校验规模预算
         run: python tools/jobws.py lint size
 
+      # 旧名 import 存量（2026-09-17 批 6）：领域层包化后旧路径保留为转发 shim，
+      # 这条闸门把旧名 import 点数记成**只许下降**的水位。不跑它就等于没有——
+      # 谁随手新增一处 `import filelock`，水位上涨无人拦，shim 就永远删不掉。
+      - name: 校验旧名 import 存量（只许下降）
+        run: python tools/jobws.py lint legacy-imports
+
   # 基线升到 3.12 之后不再有第二个版本可跑，原先「3.8 + 3.12 双 job」的支持矩阵
   # 收敛成单 job。**那条教训留在注释里**：matrix 会给 job 显示名加 "(3.12)" 这类
   # 后缀，而「后端测试（pytest）」是分支保护的必需检查——名字一变，main 上的 PR
@@ -85,6 +91,13 @@ jobs:
       # mcp/pyproject.toml 的说明段）。job 名刻意不动（是分支保护的必需检查）。
       - name: 安装 MCP 包
         run: pip install -e "./mcp[dev]"
+
+      # 领域包（2026-09-17 批 6）：MCP 侧的领域层调用已开始走 `jobws_core`。装上它，
+      # 这一 job 覆盖的就是**真装形态**；不装也能过（旧路径 shim 会退化到源码形态），
+      # 但那条路径不该是 CI 唯一看到的形态——否则「装上之后 MCP 还能不能用」永远没人验。
+      # 本 job 是 3.12，满足领域包的 requires-python。
+      - name: 安装领域包
+        run: pip install ./packages/jobws-core
 
       - name: 运行 MCP 测试
         run: python -m pytest mcp/tests -q
@@ -178,3 +191,88 @@ jobs:
       - name: 布局 + a11y 冒烟
         working-directory: web/frontend
         run: npm run test:ui
+
+  # 领域包的**独立安装冒烟**（2026-09-17 批 6）：主 pytest 跑的是源码树，永远测不到
+  # 「装上之后能不能用」——packages 配置、package-data、entry points、依赖声明、
+  # 元数据这几类错误只有真装一遍才暴露（setuptools 官方也强调 editable 不是常规
+  # 安装的完美替代）。所以这里刻意与主矩阵互补，只管**打包正确性**。
+  # 四道闸防「editable 假绿」：不 `-e`、不设 PYTHONPATH、不设 JOBWS_REPO_ROOT、
+  # **在仓库之外的 cwd 运行**（Python 把 cwd 作为 sys.path 首项，仓库内运行会
+  # 命中源码树，冒烟就白跑了）。
+  install-smoke:
+    name: 领域包独立安装冒烟
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 构建 wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel --outdir dist packages/jobws-core
+
+      - name: 干净 venv 装 wheel（非 editable）
+        run: |
+          python -m venv "$RUNNER_TEMP/smoke"
+          "$RUNNER_TEMP/smoke/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/smoke/bin/pip" install --no-index --find-links dist jobws-core
+
+      - name: 断言非 editable（PEP 610/660：editable 会在 dist-info 写 direct_url.json）
+        run: |
+          "$RUNNER_TEMP/smoke/bin/python" -c "import json, pathlib, importlib.metadata as m; import jobws_core; p = pathlib.Path(m.distribution('jobws-core').locate_file('')); d = p / 'direct_url.json'; assert not (d.exists() and json.loads(d.read_text(encoding='utf-8')).get('dir_info', {}).get('editable')), '装成了 editable！'; assert 'site-packages' in jobws_core.__file__, jobws_core.__file__; print('非 editable 安装确认：', jobws_core.__file__)"
+
+      # cwd 在仓库之外：仓库内跑会命中源码树，冒烟就失去意义
+      - name: 仓库外运行的最小冒烟（子模块 + 真干活 + 版本三向一致）
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$RUNNER_TEMP/smoke/bin/python" -c "import importlib, importlib.metadata, json, pathlib, tempfile, pkgutil; import jobws_core; [importlib.import_module(x.name) for x in pkgutil.walk_packages(jobws_core.__path__, 'jobws_core.')]; from jobws_core import workspace_io; ws = tempfile.mkdtemp(); t = pathlib.Path(ws) / 'hello.txt'; workspace_io.atomic_write_text(str(t), 'OK'); assert t.read_text(encoding='utf-8') == 'OK'; root = pathlib.Path('${{ github.workspace }}'); pv = json.loads((root / 'web/electron/package.json').read_text(encoding='utf-8'))['version']; assert jobws_core.__version__ != '0.0.0.dev0', '元数据被剥离（copy_metadata 没生效）'; assert jobws_core.__version__ == importlib.metadata.version('jobws-core') == pv, (jobws_core.__version__, importlib.metadata.version('jobws-core'), pv); print('冒烟通过，版本：', pv)"
+
+  # 后端 exe 冒烟（2026-09-17 批 6）：这是**唯一**能抓到「领域层没进包」的检查。
+  # `web/backend/pyinstaller.spec` 自己写着「CI 只构建不运行产物、会全绿，这正是
+  # v0.2.2 imaplib 事故的同款形态」——本 job 就是为这个缺口补的：真的拉起 exe，
+  # 请求 /api/system/check（后端在其中实际执行 tracker.run_check，领域层缺席会
+  # 立刻 ModuleNotFoundError）。跑 windows-latest：桌面产物就是 Windows exe，
+  # 且与 scripts/smoke_backend_exe.py 的写法一致。
+  exe-smoke:
+    name: 后端 exe 冒烟
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+
+      - name: 安装后端依赖与 PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r web/backend/requirements.txt -r web/backend/requirements-dev.txt "pyinstaller<7"
+
+      - name: 安装领域包（非 editable）
+        run: pip install ./packages/jobws-core
+
+      - name: 构建前端
+        working-directory: web/frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: 构建后端 exe
+        run: powershell -ExecutionPolicy Bypass -File scripts/build_backend_exe.ps1 -Py "python"
+
+      - name: 运行 exe 冒烟（真跑领域层代码）
+        run: python scripts/smoke_backend_exe.py

@@ -53,13 +53,17 @@ pip install -e ./mcp
 jobws-mcp --workspace personal        # 工作区名，或绝对路径
 ```
 
-**当前形态需要仓库在侧**：领域函数（`tracker` / `report` / `jd_score`）还在 `tools/` 下，
-没抽成可安装的包（那是"领域层抽包"那一批的活），所以本包暂时以 editable 方式与仓库共存；
-装成 wheel 会拿不到领域层。仓库不在默认位置时，用环境变量指过去：
+**仍需要仓库在侧，但原因变了**（2026-09-17）：领域层已开始包化——写入原语与文件锁进了
+`packages/jobws-core`（装上就有、wheel 也拿得到）；**领域层主体**（`tracker` / `report` /
+`jd_score`）还在 `tools/` 下，要等下一批才搬。在那之前本包仍需能看到仓库，用 editable
+安装最省事；仓库不在默认位置时，用环境变量指过去：
 
 ```bash
 JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal
 ```
+
+注：领域包 `jobws-core` 要求 **Python 3.12+**（与工作台后端同一基线），MCP 包本身
+支持 3.10+。3.10 / 3.11 装不上它不影响使用——旧路径 shim 会退化为源码形态。
 
 等领域层抽出成可安装的包之后，`uvx --from ./mcp jobws-mcp` 这类完全独立的分发才成立。
 

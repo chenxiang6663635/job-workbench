@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobws-core"
+# 版本不写死在这里——它是**派生物**：由 setup.py 在构建期读
+# web/electron/package.json（产品版本唯一真值源，见 CONTRIBUTING 与
+# tools/release_assist.py）后写入 wheel 元数据。运行时从
+# importlib.metadata 读回（jobws_core._version）。
+dynamic = ["version"]
+description = "求职工作台领域层（写入原语与文件锁）——本地优先，不联网"
+readme = "README.md"
+requires-python = ">=3.12"
+# 本批只含两个零依赖叶子（filelock / workspace_io）→ 依赖为空。
+# 后续 tracker 主体迁入时按需在此声明。
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest", "build"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+# import 名是 jobws_core 而不是 jobws：tools/jobws.py 是 CLI 入口模块，
+# 同名会让 68 个以 `import jobws` 取 CLI 的用例解析到包（2026-09-17 实测）。
+include = ["jobws_core*"]
+# 暂不随包发 py.typed：包内还没有类型标注文件，空声明没有意义（将来补标注时
+# 一并加文件与声明）。

@@ -107,8 +107,34 @@ if os.path.isdir(_template_src):
 # 依赖链路：certifi 的**模块**由 tls_policy（在下方 tools_modules 里）的
 # 函数内 `import certifi` 带进依赖图，这里的 collect_data_files 只补数据文件；
 # 若将来把 tls_policy.py 挪出 tools/，那条链路会静默断掉——记得同时补 hiddenimports。
-from PyInstaller.utils.hooks import collect_data_files  # noqa: E402
+from PyInstaller.utils.hooks import (  # noqa: E402
+    collect_data_files,
+    collect_submodules,
+    copy_metadata,
+)
 tools_datas += collect_data_files("certifi")
+
+# --- 领域包 jobws-core（2026-09-17 批 6）------------------------------------
+# tools/ 下的 filelock 与 workspace_io 已改为**转发 shim**：真身在 `jobws_core`
+# 包里，而且是 `importlib.import_module("jobws_core.xxx")` 这种动态导入——
+# PyInstaller 的静态分析看不穿（与上面 tools/tracker/ 的 PEP 562 门面**同款**
+# 问题：不显式列出，打包版里第一次 import 就 ModuleNotFoundError，而 CI
+# 只构建不运行产物、会全绿——v0.2.2 imaplib 事故的同款形态）。
+#
+# 用 collect_submodules 而不是手写模块名：它按**导入名**收集，所以装成 wheel
+# 后在 site-packages 里照样找得到——不像硬编码仓库相对路径的 datas 那样，
+# 领域层一搬走就收不到东西（本批正是要把领域层搬走）。
+try:
+    domain_hidden = collect_submodules("jobws_core")
+    # 元数据：jobws_core.__version__ 由 importlib.metadata 读，而 PyInstaller
+    # **默认不收集 dist-info**——不补的话打包版只能拿到回退值 0.0.0.dev0。
+    domain_datas = copy_metadata("jobws-core")
+except Exception as exc:  # noqa: BLE001 —— 打包环境没装领域包：宁可当场炸
+    raise RuntimeError(
+        "找不到领域包 jobws_core（%s）。打包前请先安装它："
+        "uv pip install --python <3.12 解释器> packages/jobws-core" % exc)
+if not domain_hidden:
+    raise RuntimeError("collect_submodules('jobws_core') 返回空——领域包没装对")
 
 # uvicorn 的动态导入必须显式声明，否则打包后启动即失败（业界公认的坑）
 uvicorn_hidden = [
@@ -152,8 +178,8 @@ a = Analysis(
     # hiddenimports 里写了等于没写（v0.2.2 的实证：tracker/jd_score 也没进 PYZ）
     pathex=[BACKEND_DIR] + ([_tools_src] if os.path.isdir(_tools_src) else []),
     binaries=[],
-    datas=tools_datas,
-    hiddenimports=uvicorn_hidden + project_hidden,
+    datas=tools_datas + domain_datas,
+    hiddenimports=uvicorn_hidden + project_hidden + domain_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

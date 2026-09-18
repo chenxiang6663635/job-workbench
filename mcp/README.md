@@ -15,6 +15,16 @@ Markdown / CSV，不出网。**默认只读**；写入走**两段式**——`pre
 | `preview_import_applications` | 预览按 CSV 批量导入（**不写入**；有错误行时不给令牌） |
 | `preview_update_application` | 预览更新一条投递记录（**不写入**；只列要改的字段。可更新字段与新增同族） |
 | `apply_approval` | 凭令牌执行已确认的写入（两段式第二步；令牌一次性、10 分钟、绑定工作区） |
+| `list_interviews` | 面试记录列表（只读；按关联记录 / 结果过滤。复盘字段要 `verbose=True`） |
+| `score_jd` | 读 JD 解析卡给出评分与档位（只读；四维之和必须等于总分才给档位） |
+| `list_questions` | 题库列表（只读；按领域 / 科目 / 状态过滤，口径与 `bank list` 同源） |
+| `preview_add_interview` | 预览新增一条面试记录（**不写入**；返回令牌与 diff） |
+| `preview_update_interview` | 预览更新一条面试记录（**不写入**；只列要改的字段） |
+| `preview_add_question` | 预览新增一道题库题目（**不写入**） |
+| `preview_import_questions` | 预览从 `03_面试准备` 导入题目（**不写入**） |
+
+工具一律**追加在注册末尾**（顺序稳定 → 宿主的工具描述缓存不失效）；需要完整字段
+的列表用 `verbose=True`，列表类默认只给精简列。
 
 拒绝是**可程序化区分**的：`apply_approval` 失败时返回稳定 `code`——`not_found`
 （不存在 / 已用过，含重放）、`expired`、`fingerprint`（载荷被改过）、`binding`

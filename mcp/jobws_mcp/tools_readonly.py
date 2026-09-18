@@ -381,6 +381,13 @@ def _job_dir(workspace, job_id):
     job_dir = os.path.join(workspace, DIR_JOBS, name)
     if not os.path.isdir(job_dir):
         return None, "岗位不存在：%s" % name
+    # realpath 二次校验（独立审查 NIT-5）：`01_岗位池/<名>` 可能是指向**工作区外**
+    # 的符号链接 / junction——拼路径时看不出来，读穿出去就晚了。判据下沉在这里，
+    # 让 score_jd 与资源正文读取（resources.read_job_text）共享同一强度，不各写一份。
+    real = os.path.realpath(job_dir)
+    ws_real = os.path.realpath(workspace)
+    if not (real == ws_real or real.startswith(ws_real + os.sep)):
+        return None, "岗位目录越出工作区：%s" % name
     return job_dir, None
 
 

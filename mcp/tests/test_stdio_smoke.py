@@ -169,10 +169,14 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
                                     "interview_review", "review_jd",
                                     "today_todos"], prompt_names
 
-            # 参数注入是提示模板的全部价值：传进去的 job_dir 必须原样出现在文本里
-            marker = "探针-岗位X"
+            # 参数注入是提示模板的全部价值：传进去的 job_dir 必须原样出现在文本里，
+            # 且**目录名末段必须被提取进资源 URI**（独立审查 NIT-1：只断言原样
+            # 出现的话，_job_name 改成恒等/空串也照样绿）。
+            marker = "01_岗位池/探针-岗位X"
             rendered = await session.get_prompt("review_jd", {"job_dir": marker})
-            assert marker in rendered.messages[0].content.text
+            rendered_text = rendered.messages[0].content.text
+            assert marker in rendered_text
+            assert "jobws://job/探针-岗位X/jd" in rendered_text
 
             # 服务元数据：instructions 是宿主理解"只读优先 / 两段式"的唯一来源，
             # 空了或退化没人会报错——这里钉一句关键词。

@@ -23,6 +23,10 @@ def _job_name(job_dir):
     调用方（宿主与用户）常给完整相对路径（如 `01_岗位池/云帆-后端`），而模板变量
     只接受单个目录名。取最后一段，免得宿主拿到一个永远匹配不上的 URI——那种失败
     的表现只是"未知资源"，很容易被当成小事放过。
+
+    边角输入（独立审查 NIT-4）：`"/"` 这类"去尾后为空"的形态返回空串，调用点会用
+    `if name:` 把它与"未指定"同等处理，不会渲染出 `jobws://job//jd` 这种永远匹配
+    不上的 URI。
     """
     return job_dir.replace("\\", "/").rstrip("/").split("/")[-1]
 
@@ -30,13 +34,14 @@ def _job_name(job_dir):
 def review_jd(workspace, job_dir=""):
     """评估岗位 JD：资格门槛 → 四维评分 → 投递建议（只读）。"""
     del workspace  # 模板本身不碰数据：数据由宿主按提示去读（resources / 工具）
-    if job_dir:
-        name = _job_name(job_dir)
+    name = _job_name(job_dir) if job_dir else ""
+    if name:
         target = ("目标岗位目录：%s\n"
                   "   正文资源：jobws://job/%s/jd（JD 原文）、jobws://job/%s/card（解析卡）"
                   % (job_dir, name, name))
     else:
-        target = ("目标未指定：先调 list_jobs（或读资源 jobws://workspace/jobs）让用户选一个岗位")
+        target = ("目标未指定：先调 list_jobs（或读资源 jobws://workspace/jobs）让用户\n"
+                  "   选一个岗位；选定后用正文资源 jobws://job/<目录名>/jd 与 /card 读它")
     return (
         "按求职教练的评分框架评估一个岗位 JD（**只读，不要写任何文件**）。\n"
         "1) %s\n"
@@ -52,13 +57,14 @@ def review_jd(workspace, job_dir=""):
 def generate_application_pack(workspace, job_dir=""):
     """生成投递包：按 JD 改简历 → 归档 → 记入追踪表（写入走确认）。"""
     del workspace
-    if job_dir:
-        name = _job_name(job_dir)
+    name = _job_name(job_dir) if job_dir else ""
+    if name:
         target = ("目标岗位目录：%s\n"
                   "   需要 JD 内容时读 jobws://job/%s/jd；解析卡在 jobws://job/%s/card"
                   % (job_dir, name, name))
     else:
-        target = "目标未指定：先调 list_jobs 让用户选一个岗位"
+        target = ("目标未指定：先调 list_jobs 让用户选一个岗位"
+                  "（选定后 JD 正文在 jobws://job/<目录名>/jd）")
     return (
         "为指定岗位生成投递包。\n"
         "1) %s\n"
@@ -98,7 +104,8 @@ def today_todos(workspace, days=7):
     return (
         "整理今天的求职待办（**只读，不要写任何文件**）。\n"
         "1) 读看板摘要（资源：jobws://workspace/dashboard），重点看\n"
-        "   待办 / 逾期未投 / 静默提醒 三块（窗口 %d 天）\n"
+        "   待办 / 逾期未投 / 静默提醒 三块（请求窗口 %d 天；\n"
+        "   **MCP 侧看板固定覆盖近 7 天**——不要声称看到了更宽的窗口）\n"
         "2) 需要某条记录的详情时用 list_applications(keyword=..., verbose=True)\n"
         "3) 按紧急度排序（截止日已过的排最前），每条给出：动作 + 对象 + 时限\n"
         "4) 看板里没有的就是没有——**不要补充推测出来的待办**。\n"

@@ -123,7 +123,13 @@ def read_job_text(workspace, job_name, kind):
 
     with io.open(real, "r", encoding="utf-8", errors="replace") as handle:
         text = handle.read()
-    if len(text.encode("utf-8")) > JD_TEXT_MAX_BYTES:
+    # **按字节**截断（独立审查 MINOR-1）：先 encode 再切再 decode——`str` 切片按
+    # code point，纯中文时 20K 字符 ≈ 60K 字节，会把"20KB 上限"放大三倍。
+    # decode(errors="ignore") 处理恰好切在多字节字符中间的情形（丢半个字符，
+    # 不影响可读性）。
+    raw = text.encode("utf-8")
+    if len(raw) > JD_TEXT_MAX_BYTES:
         rel = os.path.relpath(real, workspace).replace("\\", "/")
-        text = text[:JD_TEXT_MAX_BYTES] + "\n\n…（已截断，完整内容见工作区 %s）" % rel
+        text = (raw[:JD_TEXT_MAX_BYTES].decode("utf-8", "ignore")
+                + "\n\n…（已截断，完整内容见工作区 %s）" % rel)
     return text, None

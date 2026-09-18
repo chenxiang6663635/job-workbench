@@ -97,7 +97,8 @@ def test_prompts_are_nonempty_and_guidance_bearing(ws):
         (prompts.generate_application_pack(ws, "01_岗位池/云帆-后端"), "两段式",
          "01_岗位池/云帆-后端"),
         (prompts.interview_review(ws, "A001"), "复盘", "A001"),
-        (prompts.today_todos(ws, 7), "看板", "7"),
+        # 用非默认值（14），否则"参数被忽略、写死 7"也照样绿（独立审查 NIT-2）
+        (prompts.today_todos(ws, 14), "看板", "14"),
     ]
     for text, keyword, injected in cases:
         assert isinstance(text, str) and len(text) > 40
@@ -183,3 +184,6 @@ def test_job_text_truncates_long_content(ws_with_job, monkeypatch):
     # 截断必须**说出来**，否则宿主会把半截内容当全文引用
     assert "已截断" in text
     assert "01_岗位池/云帆_后端/JD原文.md" in text
+    # **按字节**截断（独立审查 MINOR-1/NIT-3）：此前按字符切，纯中文会把 64 字节
+    # 上限放大成 64 字符 ≈ 190 字节——长度断言是唯一能让它变红的东西。
+    assert len(text.encode("utf-8")) < 64 + 200, len(text.encode("utf-8"))

@@ -221,6 +221,17 @@ Each fetched email has **two destinations**: clicking the message body goes thro
 
 ## IV. Putting the AI to work: the jwb-jd / jwb-apply workflows
 
+### Plugging into another AI host (MCP, optional)
+
+The workbench also ships an **MCP server**, so hosts that speak MCP (Claude Code, Codex,
+Gemini CLI, …) can read your tracker, job pool and dashboard — and write only after you
+confirm (the AI shows you a diff first, then writes with a one-shot token).
+
+- Install and per-host config shapes: `docs/mcp-integration.md`
+  (**the config key differs per host — do not copy blindly**).
+- What each of the four entries (CLI / AI host / editor plugin / desktop UI) can do:
+  `docs/four-ends.md`.
+
 The web UI is for looking and recording; **judgement belongs to the AI**. Talk to it in natural language inside CodeBuddy:
 
 ### Parse a role (jwb-jd workflow)

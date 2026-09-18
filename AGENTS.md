@@ -14,6 +14,26 @@
 
 **改动工具层时必须保持领域无关。** 涉及具体领域知识的改动应放进插件，涉及具体个人事实的应放进 `personal/`。
 
+## 四个入口（同一件事在哪端叫什么）
+
+同一个能力在四个入口都能用，**说法与确认方式对齐**是硬要求：
+
+| 入口 | 形态 | 写入口令 |
+|---|---|---|
+| 命令行 | `tools/jobws.py`（唯一入口） | `--preview` 拿令牌 → `jobws apply <令牌>` |
+| AI 宿主 | MCP 服务（`mcp/jobws_mcp`） | `preview_*` 拿令牌 → `apply_approval` |
+| 编辑器插件 | 仓库根 `commands/` 与 `agents/` | 命令内仍走命令行的两段式 |
+| 桌面端 | `web/backend/routers` + 前端页面 | 界面弹窗确认 |
+
+- **能力对照表**在 `docs/four-ends.md`（由 `tools/four_ends_matrix.json` 生成，**不要手改**）；
+  "哪端不提供某项能力、为什么"也记在那里。
+- **新增能力要三处一起改**：实现（领域层）→ 矩阵登记（`tools/four_ends_matrix.json`）
+  → 重新生成说明页（`python tools/jobws.py lint four-ends --write`）。
+  漏了会被 `python tools/jobws.py lint four-ends` 拦下（CI 同一实现）。
+- 技能资产分发到各宿主（`.claude` / `.agents` / `.codex` / `.codebuddy`）用
+  `python tools/jobws.py skills install`；镜像与真源不一致同样会被上面那个检查器报出来。
+- MCP 怎么接进宿主见 `docs/mcp-integration.md`——**配置键名按宿主不同，别照抄**。
+
 ## 执行任何任务前
 
 - 操作用户数据时，先读工作区的 `AGENTS.md`（默认 `personal/AGENTS.md`）——档案、硬门槛事实、自定义红线

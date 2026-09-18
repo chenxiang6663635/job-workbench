@@ -15,6 +15,16 @@ Markdown / CSV，不出网。**默认只读**；写入走**两段式**——`pre
 | `preview_import_applications` | 预览按 CSV 批量导入（**不写入**；有错误行时不给令牌） |
 | `preview_update_application` | 预览更新一条投递记录（**不写入**；只列要改的字段。可更新字段与新增同族） |
 | `apply_approval` | 凭令牌执行已确认的写入（两段式第二步；令牌一次性、10 分钟、绑定工作区） |
+| `list_interviews` | 面试记录列表（只读；按关联记录 / 结果过滤。复盘字段要 `verbose=True`） |
+| `score_jd` | 读 JD 解析卡给出评分与档位（只读；四维之和必须等于总分才给档位） |
+| `list_questions` | 题库列表（只读；按领域 / 科目 / 状态过滤，口径与 `bank list` 同源） |
+| `preview_add_interview` | 预览新增一条面试记录（**不写入**；返回令牌与 diff） |
+| `preview_update_interview` | 预览更新一条面试记录（**不写入**；只列要改的字段） |
+| `preview_add_question` | 预览新增一道题库题目（**不写入**） |
+| `preview_import_questions` | 预览从 `03_面试准备` 导入题目（**不写入**） |
+
+工具一律**追加在注册末尾**（顺序稳定 → 宿主的工具描述缓存不失效）；需要完整字段
+的列表用 `verbose=True`，列表类默认只给精简列。
 
 拒绝是**可程序化区分**的：`apply_approval` 失败时返回稳定 `code`——`not_found`
 （不存在 / 已用过，含重放）、`expired`、`fingerprint`（载荷被改过）、`binding`
@@ -22,12 +32,18 @@ Markdown / CSV，不出网。**默认只读**；写入走**两段式**——`pre
 
 ## 只读资源与提示模板（批 8：按需读取）
 
-- **资源**（固定 URI；list 只列清单，read 才取内容）：
-  `jobws://workspace/applications`（投递记录）、`jobws://workspace/jobs`（岗位池）、
-  `jobws://workspace/dashboard`（看板摘要）。**不要全量预载**——那既贵又慢。
+- **资源**（list 只列清单，read 才取内容；**不要全量预载**——那既贵又慢）：
+  - 固定 URI 三个：`jobws://workspace/applications`（投递记录）、
+    `jobws://workspace/jobs`（岗位池）、`jobws://workspace/dashboard`（看板摘要）；
+  - 岗位正文模板两个（2026-09-18 补）：`jobws://job/<目录名>/jd`（JD 原文）、
+    `jobws://job/<目录名>/card`（解析卡正文）——`<目录名>` 是**单个目录名**
+    （如 `云帆_后端`，不含斜杠）。正文只给 Markdown / 纯文本（简历 PDF 等二进制
+    与凭证文件**没有入口**），单条上限 20 KB、超出截断并注明完整路径。
 - **提示模板**：`review_jd`（评估 JD）、`generate_application_pack`（投递包）、
   `interview_review`（面试复盘）、`today_todos`（今日待办）——只做参数化组装，
-  准则在 `skills/jwb-*` 里，不在这里复制第二份。
+  准则在 `skills/jwb-*` 里，不在这里复制第二份。提示里提到的数据都指向上面真能
+  读到的资源或工具（需要完整字段的列表用 `verbose=True`）；MCP 面没有的能力
+  （如阶段时间线）提示会明说"请在界面查看"，不诱导模型编造。
 
 口径与 CLI / 网页端**同源**：终态、待办（下次动作日期优先于截止日期）、逾期（只看
 「待投」）、静默（`tracker.stale_days`）、健康度（`tracker.health_score`）照搬后端看板；

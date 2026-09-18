@@ -53,14 +53,17 @@ def build_server(workspace=None):
     )
 
     @mcp.tool()
-    def list_applications(stage: str = "", keyword: str = "", limit: int = 20) -> str:
+    def list_applications(stage: str = "", keyword: str = "", limit: int = 20,
+                          verbose: bool = False) -> str:
         """列出投递记录（只读）。
 
         stage 精确匹配当前阶段（如 一面 / offer）；keyword 对公司与岗位做
         子串包含匹配；结果按「下次动作日期」升序、终态沉底排序。
+        verbose=True 才给全字段（默认只给精简列——列表类工具要控制体积）。
         """
         data = tools_readonly.list_applications(
-            workspace, stage=stage or None, keyword=keyword or None, limit=limit)
+            workspace, stage=stage or None, keyword=keyword or None,
+            limit=limit, verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
     @mcp.tool()
@@ -155,14 +158,18 @@ def build_server(workspace=None):
     # 一律**追加在末尾**：既有冒烟按注册顺序钉住工具清单，宿主侧也按前缀比对
     # 工具描述做提示缓存——顺序抖动会让缓存全灭。
     @mcp.tool()
-    def list_interviews(app_id: str = "", result: str = "", limit: int = 20) -> str:
+    def list_interviews(app_id: str = "", result: str = "", limit: int = 20,
+                        verbose: bool = False) -> str:
         """列出面试记录（只读）。
 
         app_id 只看关联该投递记录的面试（如 A001）；result 精确匹配结果
         （待定 / 通过 / 未通过 / 取消）；按面试时间倒序，空时间排最后。
+        **面试复盘要给 verbose=True**：「问题记录 / 我的回答要点 / 复盘与改进」
+        三个字段不在默认精简列里（提示模板 interview_review 依赖它）。
         """
         data = tools_readonly.list_interviews(
-            workspace, app_id=app_id or None, result=result or None, limit=limit)
+            workspace, app_id=app_id or None, result=result or None,
+            limit=limit, verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
     @mcp.tool()
@@ -179,15 +186,18 @@ def build_server(workspace=None):
 
     @mcp.tool()
     def list_questions(domain: str = "", subject: str = "", status: str = "",
-                       keyword: str = "", limit: int = 20) -> str:
+                       keyword: str = "", limit: int = 20,
+                       verbose: bool = False) -> str:
         """列出题库题目（只读）。
 
         按领域 / 科目 / 状态精确筛选；keyword 对题目、答案要点与关联公司岗位做
         子串匹配。筛选口径与命令行 `bank list` 同源。
+        verbose=True 才给全字段（默认只给精简列——列表类工具要控制体积）。
         """
         data = tools_readonly.list_questions(
             workspace, domain=domain or None, subject=subject or None,
-            status=status or None, keyword=keyword or None, limit=limit)
+            status=status or None, keyword=keyword or None, limit=limit,
+            verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
     @mcp.tool()
@@ -278,6 +288,27 @@ def build_server(workspace=None):
         mcp.resource(_item["uri"], name=_item["name"],
                      description=_item["description"],
                      mime_type=_item["mimeType"])(_make_reader(_item["uri"]))
+
+    # --- 岗位正文（批 8 补缺）：两个**带参数**的模板资源 ---------------------
+    # URI 里带 `{job_name}` 时 SDK 会注册成 template（不是静态资源），handler 的
+    # 参数名必须与模板变量一致。`job_name` 只接受**单个目录名**（不含斜杠）——
+    # 目录解析复用 tools_readonly 的同一份判据，越界在业务侧就被拒了。
+    def _make_job_reader(kind):
+        def _read(job_name: str) -> str:
+            text, error = resources.read_job_text(workspace, job_name, kind)
+            if text is not None:
+                return text
+            return json.dumps({"ok": False, "errors": [error]},
+                              ensure_ascii=False)
+
+        return _read
+
+    mcp.resource("jobws://job/{job_name}/jd", name="JD 原文",
+                 description="某岗位的 JD 原文正文（Markdown；超长会截断并给出文件路径）",
+                 mime_type="text/markdown")(_make_job_reader("jd"))
+    mcp.resource("jobws://job/{job_name}/card", name="解析卡正文",
+                 description="某岗位的解析卡正文（Markdown；超长会截断并给出文件路径）",
+                 mime_type="text/markdown")(_make_job_reader("card"))
 
     # --- 提示模板（批 8）：四个参数化工作流，与技能分工不重叠（见 prompts.py）--
     @mcp.prompt(name="review_jd",

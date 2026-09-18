@@ -24,8 +24,10 @@ Write-Host "=== 求职工作台 · 构建后端 exe ===" -ForegroundColor Cyan
 
 # 依赖是否齐（fastapi/uvicorn/pydantic/PyInstaller）。**只在解释器探测里用**，
 # 复用下方构建前校验的前提：EAP 局部降为 Continue，只看退出码。
-# 别探 filelock：它是仓内模块（现随领域层在 tools/filelock.py），从仓库根 import
-# 会命中同名 PyPI 包，误报/漏报都出现过。
+# 别探 filelock：它的真身现在在领域包里（`jobws_core.filelock`），而 `import filelock`
+# 这个名字在 PyPI 上另有同名包——从仓库根探会命中第三方，本机碰巧装了就通过、
+# 干净环境（CI / 新机器）没装就误报「缺少依赖」，那句话是假的，会把排查引到
+# 错误方向（2026-09-13 独立审查 MAJOR-1）。领域包本身在下方单独校验。
 function Test-PyDeps([string]$pyPath) {
     $ErrorActionPreference = "Continue"
     # `*> $null` 把 stdout 与 stderr 一起吞掉：只重定向 stderr 时，解释器启动阶段的任何
@@ -103,10 +105,8 @@ if ($Py -ne "python" -and -not (Test-Path $Py)) {
 # 故校验段局部降为 Continue，只认 $LASTEXITCODE。
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-# 注意：这里**不要**探测 filelock。它是仓内模块（现随领域层在 tools/filelock.py），不是 pip 依赖；
-# 从仓库根执行 `import filelock` 会去命中同名的 PyPI 包——本机恰好装了它就通过，
-# 干净环境（CI / 新机器）没装就误报「缺少依赖 fastapi / uvicorn / PyInstaller」，
-# 而那句话是假的，会把排查引到错误方向。第三方的同名包反而可能遮蔽仓内模块。
+# 同样**不要**探测 filelock（理由见 Test-PyDeps 上方）：真身已随领域层进
+# `jobws_core` 包，裸名 `filelock` 在 PyPI 上有同名第三方包，从仓库根探必定误报。
 & $Py -c "import sys, fastapi, uvicorn, pydantic, PyInstaller; assert sys.version_info[:2] >= (3, 9), sys.version" 2>$null
 $checkCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
@@ -117,6 +117,28 @@ if ($checkCode -ne 0) {
     Write-Host "请在目标环境执行: $Py -m pip install -r web/backend/requirements.txt -r web/backend/requirements-dev.txt 'pyinstaller<7'" -ForegroundColor Yellow
     exit 1
 }
+
+# 0.5 领域包 jobws-core 必须以**非 editable** 形态装好（2026-09-17 批 6）
+# 为什么要管这件事：
+# - tools/ 下的 filelock / workspace_io 已改为转发 shim，真身在 `jobws_core` 包里；
+#   spec 用 collect_submodules("jobws_core") 按导入名收集，装了才收得到。
+# - editable 安装是一棵"链接树"：产物里指向仓库而不是真正的包目录，与
+#   「装上就能用」的目标相悖；PyInstaller 对 PEP 660 editable 的支持也未经核实。
+# 判定依据：PEP 610/660 规定 editable 安装必须在 dist-info 里写 direct_url.json
+# 且 dir_info.editable = true。
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+& $Py -c "import sys, json, pathlib, importlib.metadata as m; import jobws_core; p = pathlib.Path(str(m.distribution('jobws-core')._path)); f = p / 'direct_url.json'; bad = f.exists() and json.loads(f.read_text(encoding='utf-8')).get('dir_info', {}).get('editable') is True; sys.stderr.write(('EDITABLE' if bad else 'ok') + '\n'); sys.exit(1 if bad else 0)" 2>$null
+$pkgCode = $LASTEXITCODE
+$ErrorActionPreference = $prevEap
+if ($pkgCode -ne 0) {
+    Write-Host "领域包 jobws-core 未安装，或装成了 editable（打包不接受）。" -ForegroundColor Red
+    Write-Host "请先安装（venv 由 uv 创建、不带 pip 时用 uv）：" -ForegroundColor Yellow
+    Write-Host "  $Py -m pip install .\packages\jobws-core" -ForegroundColor Yellow
+    Write-Host "  uv pip install --python `"$Py`" .\packages\jobws-core" -ForegroundColor Yellow
+    exit 1
+}
+Write-Host "领域包 jobws-core 已就绪（非 editable）" -ForegroundColor DarkGray
 
 # 1. 构建前端 dist（若存在 dist 则复用，否则先 build）
 $frontendDist = Join-Path $frontend "dist"

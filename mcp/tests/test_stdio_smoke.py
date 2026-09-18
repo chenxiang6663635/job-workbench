@@ -39,6 +39,13 @@ def _seed(ws):
         os.makedirs(d)
     with io.open(os.path.join(d, "tracker.csv"), "w", encoding="utf-8-sig", newline="") as f:
         f.write("id,公司,岗位,当前阶段\n1,示例科技,后端开发工程师,一面\n")
+    # 岗位正文（批 8 补缺的模板资源）：一个岗位目录 + JD 原文。目录名用中文，
+    # 顺带钉住"模板变量能匹配非 ASCII 目录名"这件事（匹配不上会静默 404）。
+    job_dir = os.path.join(ws, "01_岗位池", "探针_岗位")
+    if not os.path.isdir(job_dir):
+        os.makedirs(job_dir)
+    with io.open(os.path.join(job_dir, "JD原文.md"), "w", encoding="utf-8") as f:
+        f.write("# 探针岗位的 JD\n\n用于验证模板资源能被协议层读到。\n")
 
 
 @pytest.mark.anyio
@@ -56,7 +63,7 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
 
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
-            await session.initialize()
+            init_result = await session.initialize()
             listed = await session.list_tools()
             # 固定顺序（批 8）：**不排序**——注册顺序就是协议输出顺序；
             # 顺序抖动会让宿主的 tools/list 提示缓存整段失效。
@@ -117,3 +124,46 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
                 "apply_approval", {"token": inv["token"]})
             assert json.loads(applied_interview.content[0].text)["ok"] is True
             assert os.path.isfile(interview_csv), "apply 之后应真的写入"
+
+            # --- 批 8 补缺：资源与提示必须走**协议**（SDK 接线层）验证 ---------
+            # 此前只测了纯函数（resources.read_resource / prompts.*），SDK 那一层
+            # 一行断言都没有——唯一保障是"子进程起得来不报错"。注册写错时（比如
+            # handler 签名与 URI 模板变量不一致、mime_type 不受支持）那层保障
+            # 根本拦不住，故这里逐条走真通道（属性名经探针实测，勿凭记忆改）。
+            listed_resources = await session.list_resources()
+            resource_uris = [item.uri for item in listed_resources.resources]
+            assert resource_uris == [
+                "jobws://workspace/applications",
+                "jobws://workspace/jobs",
+                "jobws://workspace/dashboard",
+            ], resource_uris
+
+            applications = await session.read_resource(
+                "jobws://workspace/applications")
+            payload = json.loads(applications.contents[0].text)
+            # 不钉总数：本用例前半段已经 apply 落过一条记录，总数会随前面的步骤
+            # 变化——这里要验的是"资源真把工作区数据读出来了"，不是计数。
+            assert "示例科技" in [item["公司"] for item in payload["items"]]
+
+            # 模板资源：注册成 template（不是静态资源），且**中文目录名能匹配上**。
+            # 匹配不上时 read_resource 只会报"未知资源"，很容易被当成小事——
+            # 而它意味着宿主永远拿不到 JD 正文，提示模板会退化成空转。
+            templates = await session.list_resource_templates()
+            assert len(templates.resource_templates) == 2, templates.resource_templates
+            jd_resource = await session.read_resource("jobws://job/探针_岗位/jd")
+            assert "探针岗位的 JD" in jd_resource.contents[0].text
+
+            listed_prompts = await session.list_prompts()
+            prompt_names = sorted(item.name for item in listed_prompts.prompts)
+            assert prompt_names == ["generate_application_pack",
+                                    "interview_review", "review_jd",
+                                    "today_todos"], prompt_names
+
+            # 参数注入是提示模板的全部价值：传进去的 job_dir 必须原样出现在文本里
+            marker = "探针-岗位X"
+            rendered = await session.get_prompt("review_jd", {"job_dir": marker})
+            assert marker in rendered.messages[0].content.text
+
+            # 服务元数据：instructions 是宿主理解"只读优先 / 两段式"的唯一来源，
+            # 空了或退化没人会报错——这里钉一句关键词。
+            assert "两段式" in (init_result.instructions or "")

@@ -279,6 +279,27 @@ def build_server(workspace=None):
                      description=_item["description"],
                      mime_type=_item["mimeType"])(_make_reader(_item["uri"]))
 
+    # --- 岗位正文（批 8 补缺）：两个**带参数**的模板资源 ---------------------
+    # URI 里带 `{job_name}` 时 SDK 会注册成 template（不是静态资源），handler 的
+    # 参数名必须与模板变量一致。`job_name` 只接受**单个目录名**（不含斜杠）——
+    # 目录解析复用 tools_readonly 的同一份判据，越界在业务侧就被拒了。
+    def _make_job_reader(kind):
+        def _read(job_name: str) -> str:
+            text, error = resources.read_job_text(workspace, job_name, kind)
+            if text is not None:
+                return text
+            return json.dumps({"ok": False, "errors": [error]},
+                              ensure_ascii=False)
+
+        return _read
+
+    mcp.resource("jobws://job/{job_name}/jd", name="JD 原文",
+                 description="某岗位的 JD 原文正文（Markdown；超长会截断并给出文件路径）",
+                 mime_type="text/markdown")(_make_job_reader("jd"))
+    mcp.resource("jobws://job/{job_name}/card", name="解析卡正文",
+                 description="某岗位的解析卡正文（Markdown；超长会截断并给出文件路径）",
+                 mime_type="text/markdown")(_make_job_reader("card"))
+
     # --- 提示模板（批 8）：四个参数化工作流，与技能分工不重叠（见 prompts.py）--
     @mcp.prompt(name="review_jd",
                 description="评估岗位 JD：资格门槛 → 四维评分 → 投递建议")

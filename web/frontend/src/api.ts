@@ -356,6 +356,27 @@ export interface LibraryList {
   total: number;
 }
 
+// 笔记（只读）：03_面试准备 / 04_知识库 —— 字段与工作区真实文件一一对应
+export interface PrepFile {
+  rel: string;
+  name: string;
+  size: number;
+  mtime: number;
+}
+
+export interface PrepList {
+  section: string;
+  items: PrepFile[];
+  total: number;
+}
+
+export interface PrepContent {
+  rel: string;
+  content: string;
+  truncated: boolean;
+  bytes: number;
+}
+
 export interface WorkspaceItem {
   name: string;
   isDefault: boolean;
@@ -1077,6 +1098,13 @@ export const api = {
       ? `${base}&ws=${encodeURIComponent(currentWorkspace)}`
       : base;
   },
+
+  // 笔记（只读）：03_面试准备 / 04_知识库 的列表与内容（写通道在 approvals，不在本模块）
+  prepList: (section: "interview" | "knowledge") =>
+    request<PrepList>(`/prep/${section}`),
+
+  prepContent: (section: "interview" | "knowledge", rel: string) =>
+    request<PrepContent>(`/prep/${section}/content?rel=${encodeURIComponent(rel)}`),
 
   listWorkspaces: () =>
     request<{ items: WorkspaceItem[]; total: number }>("/workspaces"),

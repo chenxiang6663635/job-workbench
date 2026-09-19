@@ -149,13 +149,18 @@ export default function App() {
               padding box：按钮的发光与键盘焦点环上下被裁（用户反馈 #5）。
               py-3/-my-3 给垂直绘制留余量；px-1/-mx-1 同理给**水平**余量——
               否则最左/最右 tab 的光晕在滚动容器边缘被裁掉半边（用户反馈 #4）。 */}
-          <div className="-mx-1 -my-3 flex min-w-0 items-center gap-0.5 overflow-x-auto px-1 py-3">
+          {/* 间距与内边距是**按实测压过的**，不要随手放大：英文标签比中文长 2–4 倍，
+              1440 宽（内容区 max-w-7xl = 1280px）下 8 个 tab 原本溢出 48px
+              （scrollWidth 777 vs clientWidth 729），第 8 个被裁成 `Set`。
+              gap-px / px-2 / 图标 gap-1 合计省下 63px。改这里前先看
+              `e2e/nav.spec.ts` 的溢出断言。 */}
+          <div className="-mx-1 -my-3 flex min-w-0 items-center gap-px overflow-x-auto px-1 py-3">
             {TABS.map((item) => (
               <button
                 key={item.key}
                 onClick={() => switchTab(item.key)}
                 aria-current={tab === item.key ? "page" : undefined}
-                className={`flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm transition-all duration-200 ease-premium ${
+                className={`flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm transition-all duration-200 ease-premium ${
                   tab === item.key
                     ? "bg-primary/15 text-primary shadow-glow-primary"
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -167,7 +172,7 @@ export default function App() {
             ))}
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2 text-xs">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 text-xs">
             {/* 手动刷新（批 8）：外部改动的自动同步是「聚焦 + 指纹轮询」，
                 这个按钮是兜底——用户想立刻刷新时不必等下一轮轮询 */}
             <button

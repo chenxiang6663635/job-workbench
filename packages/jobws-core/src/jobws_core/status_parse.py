@@ -21,7 +21,7 @@
 import datetime
 import re
 
-import tracker
+from . import tracker
 
 # 正常流转顺序（用于单调比较）。终态不在其中——它们只进不出的。
 PROGRESS_STAGES = list(tracker.STAGES)

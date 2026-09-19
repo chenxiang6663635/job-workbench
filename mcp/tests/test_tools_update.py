@@ -22,8 +22,8 @@ if MCP_DIR not in sys.path:
 
 from jobws_mcp import tools_writable  # noqa: E402
 
-import approval  # noqa: E402  （tools/ 已由 jobws_mcp.paths 加进 sys.path）
-import tracker  # noqa: E402
+from jobws_core import approval  # noqa: E402  （tools/ 已由 jobws_mcp.paths 加进 sys.path）
+from jobws_core import tracker  # noqa: E402
 
 
 @pytest.fixture()
@@ -31,7 +31,7 @@ def store(tmp_path, monkeypatch):
     """令牌目录隔离：不污染系统临时目录里真实的 jobws-approvals。"""
     tokens = tmp_path / "tokens"
     tokens.mkdir()
-    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(tokens))
+    monkeypatch.setattr(approval, "_store_dir", lambda: str(tokens))
     return tokens
 
 

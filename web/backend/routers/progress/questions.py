@@ -8,8 +8,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-import tracker
-import question_bank as question_store
+from jobws_core import tracker
+from jobws_core import question_bank as question_store
 from apierror import ApiError
 from deps import workspace_dir
 
@@ -122,7 +122,7 @@ def preview_question_import(ws: str = Depends(workspace_dir)):
         # 注意：ApiError 的第三个位置参数本身就是 detail，params 里不能再叫 detail
         raise ApiError(400, "question.importFailed", "题库导入失败",
                        module=question_store.MODULE_DIR, reason="；".join(errors))
-    import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
     result = approval.preview("question.import", ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])
     return {"token": result["token"], "summary": plan["summary"],
@@ -160,7 +160,7 @@ def preview_question_update(ws: str = Depends(workspace_dir), id: str = "",
         # 塞进文案会渲染出空括号——具体原因已经在 errors 的句子里。
         raise ApiError(400, "question.updateFailed", "题库更新预览失败",
                        reason="；".join(errors))
-    import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
     result = approval.preview("question.update", ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])
     return {"token": result["token"], "summary": plan["summary"],

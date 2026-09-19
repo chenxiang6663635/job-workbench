@@ -13,14 +13,14 @@
 # （2026-09-16 重构批：tracker 已包化为 tools/tracker/、progress 已包化为 routers/progress/，两行按自洁删除）
 #
 # --- 脚本：argparse 声明 + 处理流程，声明式占比大 ---
-tools/jd_score.py = 705  # 评分标准 + 解析卡校验 + CLI；2026-09-16 拆 main 为 _build_parser/_run_show_profile/_run_gap/_validate_card/_print_verdict（684→705）
+packages/jobws-core/src/jobws_core/jd_score.py = 707  # 评分标准 + 解析卡校验 + CLI；2026-09-16 拆 main 为 _build_parser/_run_show_profile/_run_gap/_validate_card/_print_verdict（684→705）；2026-09-19 PR-B 从 tools/ 搬进领域包，注入式 ROOT 使 +2 行（705→707）
 tools/resume_build.py = 717  # 模板渲染 + ATS 校验 + CLI；2026-09-16 拆 main 与 cmd_render 为 helper（680→717）
 tools/check_i18n_hardcode.py = 663  # i18n 检查器（含 EN_SCOPE_RELS 与豁免解析）
-tools/question_bank.py = 475  # 题库领域层 + 导入解析；2026-09-18 命令层拆到 _cli_bank.py（588→468，领域层不再带 argparse）+ 更新预览显式列出自动写入的「最近复习」+ 合并改动提成 _merge_changes 两段共用（468→475）
-tools/report.py = 538  # 复盘统计与聚类；2026-09-16 拆 build_report 为六节 helper（532→538）
+packages/jobws-core/src/jobws_core/question_bank.py = 472  # 题库领域层 + 导入解析；2026-09-18 命令层拆到 _cli_bank.py（588→468）+ 更新预览显式列出自动写入的「最近复习」+ 合并改动提成 _merge_changes（468→475）；2026-09-19 PR-B 搬进领域包并去掉 sys.path 段（475→472）
+packages/jobws-core/src/jobws_core/report.py = 535  # 复盘统计与聚类；2026-09-16 拆 build_report 为六节 helper（532→538）；2026-09-19 PR-B 搬进领域包并去掉 sys.path 段（538→535）
 tools/imap_fetch.py = 439  # IMAP 只读会话 + 邮件解析；2026-09-16 清静默吞错 + 拆 fetch_messages 为 _fetch_recent（429→439）
 tools/init_workspace.py = 425  # 骨架复制 + demo 数据铺设
-tools/status_parse.py = 329  # 阶段同义词映射与解析
+packages/jobws-core/src/jobws_core/status_parse.py = 329  # 阶段同义词映射与解析（2026-09-19 PR-B 从 tools/ 搬进领域包，水位随行）
 # （2026-09-16 重构批：check_skills / install_skills 的长函数已拆，两行按自洁删除）
 #
 # --- 单域 router：端点 + 校验 + pydantic 模型 ---

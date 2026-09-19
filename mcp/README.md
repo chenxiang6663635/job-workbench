@@ -59,7 +59,7 @@ Markdown / CSV，不出网。**默认只读**；写入走**两段式**——`pre
 
 ## 安装与运行
 
-需要 Python 3.10+（MCP SDK 的要求；主干后端基线 3.12）。两个环境独立是**职责分层**
+需要 Python **3.12+**（与领域包 `jobws-core` 同一条基线；此前写 3.10+ 是因为领域层还没搬完）。两个环境独立是**职责分层**
 （可选组件 vs 应用本体），不是依赖互斥——历史上「主干 pydantic <2.10 与 SDK >=2.12
 互斥」的前提已随 3.12 基线消失（交集 `>=2.12,<2.14`，同环境实测全过；详见
 `mcp/pyproject.toml` 的说明段）。
@@ -69,20 +69,28 @@ pip install -e ./mcp
 jobws-mcp --workspace personal        # 工作区名，或绝对路径
 ```
 
-**仍需要仓库在侧，但只剩一件**（2026-09-19 更新）：领域层已包化两轮——写入原语与文件锁、
-`pathres`、`tracker`（13 个子模块）与 `approval` 协议外壳都在 `packages/jobws-core` 里
-（装上就有、wheel 也拿得到）。**剩下的是读侧的三个领域模块**（`jd_score` / `report` /
-`question_bank`）——PR-B 搬完它们，这整段限制即消失。在那之前本包仍需能看到仓库，用
-editable 安装最省事；仓库不在默认位置时，用环境变量指过去：
+**装上就能用**（2026-09-19 PR-B）：领域层**全部**在 `packages/jobws-core` 里（写入原语、
+文件锁、`pathres`、`tracker`、`approval`、`jd_score` / `report` / `question_bank` 等）。
+本包原先那段「sys.path 注入 + `JOBWS_REPO_ROOT` 推导 + 找不到仓库就 ImportError」的硬闸
+已**整段删除**——装在哪都行，不需要仓库在侧。
 
-```bash
-JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal
-```
+两处说明：
 
-注：领域包 `jobws-core` 要求 **Python 3.12+**（与工作台后端同一基线），MCP 包本身
-支持 3.10+。3.10 / 3.11 装不上它不影响使用——旧路径 shim 会退化为源码形态。
+- **安装顺序**：`jobws-core` **不在 PyPI**（它是本仓的包），所以要先装本地包：
 
-等领域层抽出成可安装的包之后，`uvx --from ./mcp jobws-mcp` 这类完全独立的分发才成立。
+  ```bash
+  uv pip install packages/jobws-core   # 先
+  uv pip install ./mcp                 # 后
+  ```
+
+- **两个操作仍需要仓库**：`prep.toggle`（笔记勾选框写回）与 `init`（初始化工作区）的实现
+  模块按设计留仓，登记发生在仓库的 `tools/approval.py`。独立安装下调它们会得到
+  `unknown_operation`——**稳定错误码**，明确表示"这个操作需要仓库在侧"，不是崩溃。
+  其余十个写操作（`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`）
+  装包即用。
+
+注：两个包现在**同一条基线**：Python **3.12+**（`jobws-mcp` 此前写 3.10+ 是因为领域层
+还没搬完；现在它硬依赖领域包，版本线随之对齐）。
 
 ## 宿主配置示例
 
@@ -133,7 +141,7 @@ args = ["--workspace", "personal"]
 - 相对工作区名按**数据根**解析（本模块有意只认这一个根、比后端更严；打包形态下
   数据根是系统用户目录，那里才是用户数据真正所在。后端 `?ws=` 自 2026-09-16 起为
   「数据根优先 + 应用根兜底」，可达集合更大）。
-- 解析结果**必须**落在「应用根」或「可写数据根」之内：宿主可能由模型代传参数，少了这道
+- 解析结果**必须**落在**可写数据根**之内（2026-09-19 PR-B 起只剩这一个根：独立安装下没有「应用根」这个概念）：宿主可能由模型代传参数，少了这道
   检查等于给出任意目录的读取能力，所以越界一律拒绝而不是警告。比对前会 `realpath`
   （符号链接会读穿），也不允许把根本身当工作区。
 

@@ -37,7 +37,7 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-import jd_score  # noqa: E402  # 复用词典解析器（唯一实现）；jd_score 只用标准库
+from jobws_core import jd_score  # noqa: E402  # 复用词典解析器（唯一实现）；jd_score 只用标准库
 
 DOMAIN_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 REQUIRED_FILES = ["profile.md", "lexicon.md", "failure_keywords.txt"]

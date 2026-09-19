@@ -32,8 +32,8 @@ for _p in (os.path.join(_ROOT, "tools"), os.path.join(_ROOT, "web", "backend")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import pathres  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import pathres  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 
 # 应用根由 tests/conftest.py 注入（pathres 不再从 __file__ 推断根目录）。
 

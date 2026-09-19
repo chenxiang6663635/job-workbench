@@ -23,9 +23,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import atomicio
-import jd_score
+from jobws_core import jd_score
 import tls_http
-import tracker
+from jobws_core import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, DIR_TRACKING, safe_join, workspace_dir
 from jobws_core.filelock import file_lock
@@ -398,7 +398,7 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
         "Accept": "text/html,application/xhtml+xml",
     })
     try:
-        # 出网统一走 tls_http（策略唯一实现在 tools/tls_policy.py，见 issue #59）
+        # 出网统一走 tls_http（策略唯一实现在 jobws_core.tls_policy，见 issue #59）
         with tls_http.open_url(req, timeout=FETCH_TIMEOUT,
                                purpose="抓取 JD 链接") as resp:
             content_type = resp.headers.get("Content-Type", "")

@@ -22,7 +22,7 @@ if MCP_DIR not in sys.path:
 
 from jobws_mcp import prompts, resources  # noqa: E402
 
-import tracker  # noqa: E402  （tools/ 已由 jobws_mcp.paths 加进 sys.path）
+from jobws_core import tracker  # noqa: E402  （tools/ 已由 jobws_mcp.paths 加进 sys.path）
 
 
 @pytest.fixture()

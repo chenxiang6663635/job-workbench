@@ -18,7 +18,7 @@ import pytest
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 
-import pathres  # noqa: E402
+from jobws_core import pathres  # noqa: E402
 
 
 @pytest.fixture()

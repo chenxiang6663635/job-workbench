@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 import deps  # noqa: E402
 import routers.jobs as jobs_router  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 WS = "ws-ok"

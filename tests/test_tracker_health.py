@@ -15,7 +15,7 @@ TOOLS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                      "tools")
 sys.path.insert(0, TOOLS)
 
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 
 TODAY = date(2026, 9, 6)
 

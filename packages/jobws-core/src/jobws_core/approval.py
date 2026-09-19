@@ -231,3 +231,38 @@ def apply(token, workspace=None):
     result.setdefault("operation", record.get("operation"))
     result.setdefault("summary", record.get("summary"))
     return result
+
+
+def _register_builtin_operations():
+    """登记「实现已在包内」的十个操作（PR-B 起：登记表**分层**）。
+
+    另半截在仓库的 `tools/approval.py`：它追加 `prep.toggle` 与 `init`——那两个
+    领域模块按用户拍板留仓。这样拆的收益是**导入不再依赖仓库**：独立安装的
+    MCP 侧 `from jobws_core import approval` 就拿到十个可用操作，而那两个仓库侧
+    操作会以 `unknown_operation`（稳定 code）显式拒绝，不是崩溃。
+
+    为什么注册制 + 分层而不是写死：见模块 docstring「为什么改成注册制」。
+    这里的 import 都在函数内/末尾，`tracker` 只在函数内回头 import 本模块，
+    所以不构成循环。
+    """
+    from . import question_bank, tracker
+
+    conflict = tracker.ConflictError
+    operations = (
+        ("track.add", tracker.apply_approved_add),
+        ("track.update", tracker.apply_approved_update),
+        ("track.import", tracker.apply_approved_import),
+        ("talk.add", tracker.apply_approved_talk),
+        ("mail.add", tracker.apply_approved_mail),
+        # 批 4.7：面试补两段式（原先只有 CLI 直写路径）——三端共用同一份载荷与校验。
+        ("interview.add", tracker.apply_approved_interview_add),
+        ("interview.update", tracker.apply_approved_interview_update),
+        ("question.add", question_bank.apply_approved_add),
+        ("question.update", question_bank.apply_approved_update),
+        ("question.import", question_bank.apply_approved_import),
+    )
+    for name, handler in operations:
+        register(name, handler, conflict_type=conflict)
+
+
+_register_builtin_operations()

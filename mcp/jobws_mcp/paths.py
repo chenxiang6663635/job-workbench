@@ -10,76 +10,33 @@ MCP 是宿主里的可选组件、不需要 fastapi，主干也不需要 MCP SDK
 「只读资源 / 可写数据」这条链路的单一事实源。剩下的几个常量与函数按
 `deps.py` 的口径复刻（改动时必须同步改两边，故在此写明对应关系）。
 
-**「需要仓库在侧」的现状（2026-09-17 批 6 更新——诚实分级）**：
-领域层已开始包化：`packages/jobws-core`（import 名 `jobws_core`）提供写入原语
-（`workspace_io`）与文件锁（`filelock`），装上就有、wheel 也拿得到。但**领域层
-主体**（`tracker` / `report` / `jd_score` 等）仍在 `tools/` 下，要等第二批才搬。
+**「装上就能用」（2026-09-19 批 6 第二批 PR-B）**：领域层已全部搬进
+`jobws_core`（含 `pathres`），本模块原先那段「sys.path 注入 + `JOBWS_REPO_ROOT`
+推导 + 找不到仓库就 ImportError」的硬闸已整段删除。现在 `jobws-mcp` 装在哪都行。
 
-所以本模块**仍然需要仓库在侧**，但原因变了：从「MCP 装成 wheel 就整个废了」
-缩小到「`tools/` 里的那部分还没搬完」。等第二批搬完，下面这段 sys.path 注入
-连同 `JOBWS_REPO_ROOT` 的推导即可整段删除——届时才是真正的「装上就能用」。
+一处**口径变化**：`allowed_roots()` 从「应用根 + 数据根」收敛为**只有数据根**。
+源码形态下两者本来就常常相同（仓库根与数据根同处），而独立安装后「应用根」不再
+存在——继续保留它就得重新发明一个（site-packages 旁边？那正是 `pathres` 在警告的
+「把用户数据写进 Python 安装目录」）。收敛到数据根也更符合本包的安全意图：
+给宿主的受控通道，不该放开任意目录。
 """
 
 import os
 import sys
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT_ENV = "JOBWS_REPO_ROOT"
+# 硬闸已删（2026-09-19 PR-B）：本行是**唯一**的领域层依赖，且它只依赖 os/sys。
+# 缺了它就是装错了（`mcp/pyproject.toml` 已声明 jobws-core），导入期直接报错最清楚。
+from jobws_core import pathres  # noqa: E402
 
-
-def _locate_repo_root():
-    """仓库根：环境变量优先，其次按包位置（mcp/jobws_mcp/ 上推两级）。"""
-    env = os.environ.get(REPO_ROOT_ENV, "").strip()
-    if env:
-        return os.path.abspath(env)
-    return os.path.dirname(os.path.dirname(_HERE))
-
-
-REPO_ROOT = _locate_repo_root()
-BACKEND_DIR = os.path.join(REPO_ROOT, "web", "backend")
-TOOLS_DIR = os.path.join(REPO_ROOT, "tools")
-
-# tools/ 与 web/backend/ 都不是包，靠 sys.path 导入（与 tests/ 下的既有测试同法）。
-# 2026-09-17：领域层主体仍在 tools/，故这段暂时保留；第二批把它搬进
-# jobws_core 之后，整段删除（届时 MCP 不再需要仓库在侧）。
-for _p in (BACKEND_DIR, TOOLS_DIR):
-    if not os.path.isdir(_p):
-        raise ImportError(
-            "找不到工作台仓库（%s 不存在）。领域层主体（tracker / report / "
-            "jd_score 等）仍在 tools/ 下、第二批才搬进可安装包，所以本阶段 "
-            "jobws-mcp 仍需要能看到仓库：把 MCP 装在与仓库同处的位置"
-            "（pip install -e ./mcp），或用环境变量 %s 指向仓库根。"
-            % (_p, REPO_ROOT_ENV))
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-import pathres  # noqa: E402
-
-# 注入应用根：pathres 不再从 __file__ 推断（它要搬进可安装包，推断值会静默变成
-# site-packages 的上层）。这里是「仓库在侧」的临时形态——**PR-B 删硬闸时**，
-# REPO_ROOT 连同 _locate_repo_root 整段消失，注入改由包内 pathres 与数据根协作。
-pathres.set_app_root(REPO_ROOT)
-
-
-def _warn_if_domain_package_missing():
-    """领域包 `jobws-core` 没装时提示一句——**只提示，不阻断**。
-
-    不 raise 的原因：旧路径 shim（`tools/filelock.py` / `tools/workspace_io.py`）
-    在包没装时会退化为源码形态（把包的 src 加进 sys.path 再 import），功能
-    一点不减——但那不是目标形态，装了才算数。
-
-    走 stderr 而不是 print：MCP 的 **stdout 是 stdio 协议通道**，print 会污染它。
-    """
-    try:
-        import jobws_core  # noqa: F401
-    except ImportError:
-        sys.stderr.write(
-            "[jobws-mcp] 提示：领域包 jobws-core 未安装，已退化为源码形态"
-            "（旧路径 shim 会自行找到它）。目标是装上就能用："
-            "pip install -e packages/jobws-core\n")
-
-
-_warn_if_domain_package_missing()
+# 给 pathres 一个「应用根」＝**数据根**，且**必须在此刻**——领域层（`tracker/_core`、
+# `jd_score`）在**导入期**就求值 `ROOT`，晚一步下面的 import 直接 RuntimeError。
+#
+# 为什么给的是数据根而不是「应用目录」：本包没有那个概念（`template/` 与 `dist/`
+# 都不随包发），数据根是它真正需要的那个（工作区在它下面）。领域层里靠 ROOT 找的
+# 东西（如 `jd_score` 的 `template/profiles`）在独立安装下不存在，各自有回退
+# ——`resolve_profile` 会看工作区自己的 `config/`。
+pathres.set_app_root(
+    os.environ.get("JOBWS_DATA_DIR", "").strip() or pathres.user_data_dir())
 
 # --- 与 deps.py 对齐的常量（改动时同步两边） ---
 DEFAULT_WORKSPACE_NAME = "personal"          # deps.py:22
@@ -98,19 +55,28 @@ class WorkspaceError(Exception):
 
 
 def data_root():
-    """可写数据根（personal/ 的父目录），见 pathres.resolve_workspace_root。"""
-    return pathres.resolve_workspace_root(pathres.resolve_root())[0]
+    """可写数据根（personal/ 的父目录）——**只**走数据根的优先级链。
+
+    刻意**不给** pathres 传应用根：本包现在装在哪都行，而
+    `resolve_workspace_root` 的 portable 分支会把「可写目录」当数据根——
+    传 site-packages 进去，就等于把用户数据写到 Python 安装目录旁边
+    （pathres 自己的注释正在警告这件事）。所以这里只认两条：
+    `JOBWS_DATA_DIR` → 系统用户目录（与 pathres 的第三级同源）。
+    """
+    env_dir = os.environ.get(ENV_DATA_DIR, "").strip()
+    if env_dir:
+        return os.path.abspath(env_dir)
+    return pathres.user_data_dir()
 
 
 def allowed_roots():
-    """允许作为工作区父目录的根：应用根 + 可写数据根（去重）。对应 deps.py:52。"""
-    roots = [pathres.resolve_root(), data_root()]
-    out = []
-    for r in roots:
-        r = os.path.normpath(r)
-        if r not in out:
-            out.append(r)
-    return out
+    """允许作为工作区父目录的根：**只有数据根**（口径变化见模块 docstring）。
+
+    原先还含「应用根」是为了源码形态（那时数据根就是仓库根）；独立安装后
+    「应用根」不存在，而沿用 `pathres.resolve_root()` 会要求宿主注入它——
+    本包的价值恰恰是不必（见本批的目标）。
+    """
+    return [os.path.normpath(data_root())]
 
 
 def resolve_default_workspace(root=None):

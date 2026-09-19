@@ -21,9 +21,7 @@ import sys
 from datetime import date, timedelta
 
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from tracker import (  # noqa: E402 - 需先设置 sys.path
+from .tracker import (
     DEFAULT_WORKSPACE, FAIL_STAGES, ROOT, STAGES, TERMINAL_STAGES,
     csv_path, read_history, read_rows, set_workspace,
 )

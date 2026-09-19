@@ -1,7 +1,7 @@
 ---
 name: jwb-mcp-server
 description: Use when 为求职工作台或类似的本地优先工具构建、维护 MCP server（stdio 形态）时，需要按只读优先、写入确认、越界拒绝与可测试性约定行事。English triggers：MCP server, stdio, tool design, host integration, local-first tools.
-compatibility: 需要 Python 3.10+（MCP SDK 要求；与主干 3.12 环境刻意隔离）；仓库在侧（领域层在仓库内）；jobws 指仓库内的 python tools/jobws.py。
+compatibility: 需要 Python 3.12+（MCP SDK 与领域包同一条基线）；领域层已抽成可安装包 jobws-core，**装上即用、不需要仓库在侧**（少数仓库侧写操作会返回 unknown_operation，属能力说明而非依赖）；jobws 指仓库内的 python tools/jobws.py。
 ---
 
 # MCP server 构建与维护（stdio 形态）
@@ -47,9 +47,13 @@ compatibility: 需要 Python 3.10+（MCP SDK 要求；与主干 3.12 环境刻�
   有非空交集（`>=2.12,<2.14`，实测 2.13.5 下主干 679 项与 MCP 23 项同环境同过）。
   **判断独立与否要看职责边界，而不是当时恰好冲突的版本区间**——冲突会随基线移动而蒸发；
 - 宿主配置样板写进 README（command / args / type: stdio），并写明工作区解析
-  优先级（参数 > 环境变量 > 默认）与「仓库需在侧」的前提；
-- 语义化版本只在有实际兼容影响时动；editable 安装的前提写清楚（领域层未抽包
-  之前，完全独立分发不成立）。
+  优先级（参数 > 环境变量 > 默认）；**领域层抽包之后不再需要「仓库在侧」**——
+  剩下的是「哪几个写操作只在仓库形态下可用」这类**能力**说明（说清它返回什么码，
+  而不是含糊地说"需要仓库"）；
+- 语义化版本只在有实际兼容影响时动；依赖**不在 PyPI 的本地包**时把安装顺序写
+  清楚（先装依赖包再装本包，CI 同序）；本地开发的坑也值得写进文档——例如非
+  editable 安装的静态模块映射对**新增模块**不可见（搬新模块后不重装就
+  ModuleNotFoundError），而 `--config-settings editable_mode=compat` 能回避它。
 
 ## 常见错误
 

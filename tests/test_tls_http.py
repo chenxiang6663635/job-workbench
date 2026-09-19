@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 import tls_http  # noqa: E402
-import tls_policy  # noqa: E402
+from jobws_core import tls_policy  # noqa: E402
 from apierror import ApiError  # noqa: E402
 
 

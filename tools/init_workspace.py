@@ -316,7 +316,7 @@ def apply_approved_init(payload, workspace=None):
     文件"的承诺已经不成立，拒绝比继续安全（ConflictError → 请重新预览）。
     用户当初就是对着非空目录预览的（`--force`，载荷里记着）时不受此限。
     """
-    import tracker  # 冲突语义只有一处定义；init 与 tracker 无循环依赖
+    from jobws_core import tracker  # 冲突语义只有一处定义；init 与 tracker 无循环依赖
 
     target = payload.get("target")
     if not target or not os.path.isabs(target):
@@ -365,7 +365,7 @@ def main():
         return 1
 
     if getattr(args, "preview", False):
-        import approval
+        from jobws_core import approval
         result = approval.preview("init", target, plan["payload"], plan["summary"],
                                   plan["diff"], plan["targets"])
         print("## 预览（未写入）\n")

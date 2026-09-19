@@ -69,10 +69,11 @@ pip install -e ./mcp
 jobws-mcp --workspace personal        # 工作区名，或绝对路径
 ```
 
-**仍需要仓库在侧，但原因变了**（2026-09-17）：领域层已开始包化——写入原语与文件锁进了
-`packages/jobws-core`（装上就有、wheel 也拿得到）；**领域层主体**（`tracker` / `report` /
-`jd_score`）还在 `tools/` 下，要等下一批才搬。在那之前本包仍需能看到仓库，用 editable
-安装最省事；仓库不在默认位置时，用环境变量指过去：
+**仍需要仓库在侧，但只剩一件**（2026-09-19 更新）：领域层已包化两轮——写入原语与文件锁、
+`pathres`、`tracker`（13 个子模块）与 `approval` 协议外壳都在 `packages/jobws-core` 里
+（装上就有、wheel 也拿得到）。**剩下的是读侧的三个领域模块**（`jd_score` / `report` /
+`question_bank`）——PR-B 搬完它们，这整段限制即消失。在那之前本包仍需能看到仓库，用
+editable 安装最省事；仓库不在默认位置时，用环境变量指过去：
 
 ```bash
 JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal

@@ -24,6 +24,11 @@
 
 ### Added
 
+- **领域层包化·第二批 PR-A：路径注入 + tracker + approval（2026-09-19）**：`pathres` / `tracker`（13 个子模块、2276 行）/ `approval` 协议外壳搬进 `packages/jobws-core`，仓内旧路径留转发 shim——**对外零行为变更**（后端 840 用例 + MCP 47 用例与六条检查器全绿）。三处要点：
+  - **`pathres` 改注入式**：不再从 `__file__` 推断应用根，未注入且非打包形态**直接报错**。住 `web/backend/` 时「向上三级」正好是仓库根，搬进 site-packages 后同一个表达式指向安装目录的上层、数据根**静默**漂移——这正是这批搬家的主要动机。注入点五处：`main.py`（必须先于 `deps`，后者在模块顶层就调）、`mcp/paths.py`、`tools/jobws.py`、`tests/conftest.py`、`test_domain_root.py`；新增用例钉住「未注入必须抛错」。
+  - **`approval` 拆成「协议壳进包 + 注册表留仓」**：写死的 12 项映射改成 `register(operation, handler, conflict_type=None)`，包内因此不认识任何具体实现——这是解掉三条包级循环依赖的关键（`question_bank` / `prep_notes` / `init_workspace` 按用户拍板留仓）。测试打桩改打 `approval._shell`：此前 6 处打在**转发层**上，其中 5 处只因「写读都落在真实临时目录里自洽」而侥幸通过，隔离其实是坏的。
+  - **旧名水位**：`filelock 16 → 0`、`workspace_io 8 → 0`（18 处改新名 + 两个 shim 文件删除，「降到 0 就删 shim」这条流程第一次真正走完）；`tracker = 49` / `approval = 27` / `pathres = 7` 为新登记的水位，PR-B 压到 0。已清空的名字**仍留在** `LEGACY_NAMES` 里当防火墙。
+  - **本地开发注意**：往包里搬新模块后**要重装**——非 editable 安装的静态模块映射对新增文件不可见（实测 `ModuleNotFoundError`）；建议 `editable_mode=compat`（已写进 `CONTRIBUTING.md` 与包 `README.md`）。
 - **修顶栏溢出：英文界面 1440 宽下第 8 个页签被裁（2026-09-19）**：内容区是 `max-w-7xl`（1280px），而英文标签比中文长 2–4 倍——8 个页签的 tab 条原本溢出 48px，「Settings」被裁成 `Set`，界面上又看不出那里能横向滚（2026-09-18 新增「准备」页签引入的回归）。按实测压紧三处间距（页签内边距 `px-2.5`→`px-2`、页签间距 `gap-0.5`→`gap-px`、右侧工具区 `gap-2`→`gap-1.5`，合计省 63px），并新增回归网 `e2e/nav.spec.ts`：1440 宽英文下断言 8 个页签**全部完整可见**（容器无横向滚动余量 + 每个页签右边缘落在容器内）。既有冒烟只断言「不折行」——而这是**横滚**不是折行，所以此前整批检查都放它过去了。README 的两套截图同步重拍。
 - **README 截图重拍（8 页 × 中英两套）与自动截图脚本（2026-09-19）**：新增 `npm run capture`（`web/frontend/scripts/capture-screenshots.mjs`）——自动重建 `demo-shots` 工作区、起后端、按 1440×900 拍 8 页中英两套，并清掉编号重排后的孤儿图（此前 14 张全靠手拍：重拍一次要开 8 页 × 切一次语言 × 挪窗口对分辨率）。三个偏好**显式钉住**（工作区 / 语言 / 主题）——手工路径已经出过三类事故：拍到 `personal` 真实数据（localStorage 残留会盖掉后端默认值）、中文目录里躺着英文界面、浅色系统的机器拍出浅色主题（主题默认是「跟随系统」）。新增的「准备」板块补上截图（编号 05，`progress` / `library` / `settings` 整体后移一位），README 双语引用同步重排；「设置」页的真实用户名照旧遮成 `<用户名>`。顺带修 `.gitignore` 里两行过时的 `init_workspace.py` 直跑写法（统一入口改造后直跑只给迁移提示并退出 2）。
 - **准备页页内页签的 a11y 回归网（2026-09-19）**：题库面板的两个搜索框补上可访问名称——那是既有 a11y 扫描的盲区（`openPage` 只进页面不点页内页签，题库面板从未被 axe 看到过）；新增 `prepare-tabs.spec.ts`，对宣讲会 / 题库两个面板各扫一次 axe（serious/critical 零命中），与笔记页签的 `notes.spec.ts` 同一套姿势。

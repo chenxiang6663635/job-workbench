@@ -6,8 +6,10 @@ import { Card } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { FileCard } from "../components/FileCard";
+import NotesMarkdown from "../components/NotesMarkdown";
 import { EmptyState } from "../components/ui/empty";
 import { PageHeader } from "../components/ui/page-header";
+import { stripHtmlComments } from "../lib/notes";
 import { useTranslation } from "react-i18next";
 
 // 简历文件（手写 HTML / 生成 PDF）已于 2026-09-03 迁往「简历工坊」页浏览，
@@ -22,6 +24,7 @@ export default function Library() {
   const [view, setView] = useState<{
     rel: string;
     text?: string;
+    truncated?: boolean;
     fileUrl?: string;
     isBinary: boolean;
   } | null>(null);
@@ -44,7 +47,9 @@ export default function Library() {
     }
     api
       .libraryContent(SECTION, item.rel)
-      .then((r) => setView({ rel: item.rel, text: r.content, isBinary: false }))
+      .then((r) =>
+        setView({ rel: item.rel, text: r.content, truncated: r.truncated, isBinary: false })
+      )
       .catch((e: Error) => setError(e.message));
   };
 
@@ -72,9 +77,19 @@ export default function Library() {
             />
           </Card>
         ) : (
-          <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-5 font-mono text-xs leading-relaxed text-muted-foreground">
-            {view.text}
-          </pre>
+          /* 2026-09-18：文本改用与「笔记」相同的 Markdown 渲染——事实卡本身就是
+             标准 md（表格/勾选框/注释齐全），同一份文件不该在两页有两种样子；
+             保留原 <pre> 的滚动容器尺寸约束 */
+          <div className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-card-gradient p-5 shadow-card">
+            <div className="mx-auto max-w-[46rem]">
+              <NotesMarkdown content={stripHtmlComments(view.text ?? "")} />
+              {view.truncated && (
+                <p className="mt-6 rounded-md border border-warning/60 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                  {t("lib.truncated")}
+                </p>
+              )}
+            </div>
+          </div>
         )}
       </div>
     );

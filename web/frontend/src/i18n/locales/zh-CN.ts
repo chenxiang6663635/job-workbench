@@ -987,6 +987,7 @@ const zhCN = {
   "lib.empty": "事实库暂无事实卡",
   "lib.emptyHint": "把资料文件放进工作区目录 `00_事实库/`，它们会自动出现在这里——事实卡、笔记、附件都行。",
   "lib.preview": "预览",
+  "lib.truncated": "文件较大，这里只显示前 256 KB——完整内容请在编辑器里打开",
 
   // 进展页（子页签的壳）。页签标题与导航里的「进展」是同一串，直接复用 nav.progress
   "progress.interviews": "面试",

@@ -906,6 +906,7 @@ export default {
   "lib.empty": "No fact cards yet",
   "lib.emptyHint": "Drop files into the workspace `00_事实库/` folder and they show up here — fact cards, notes, attachments.",
   "lib.preview": "Preview",
+  "lib.truncated": "Large file — only the first 256 KB is shown; open it in your editor for the full text",
 
   "progress.interviews": "Interviews",
   "progress.mails": "Emails",

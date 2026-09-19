@@ -291,13 +291,29 @@ def test_apply_uses_prep_lock(client, tmp_path, monkeypatch):
     monkeypatch.setattr(prep_notes, "_lock_path", spy)
     assert _apply(client, token).status_code == 200
     assert called
-    assert os.path.exists(os.path.join(str(tmp_path / WS), PREP_DIR, ".prep.lock"))
+    # 锁落在 config（与 imap / provider 同款），不进业务目录
+    assert os.path.exists(os.path.join(str(tmp_path / WS), "config", "prep.lock"))
+
+
+def test_apply_to_knowledge_does_not_create_interview_dir(client, tmp_path):
+    """锁与写入目标解耦：工作区里只有 04 时，写回不该凭空建出 03 目录。"""
+    path = _write(tmp_path, "速查卡.md", "- [ ] 背八股\n", base=KB_DIR)
+    assert not (tmp_path / WS / PREP_DIR).exists()
+
+    _apply(client, _preview(client, "速查卡.md", 1, section="knowledge")["token"])
+
+    assert path.read_bytes() == "- [x] 背八股\n".encode("utf-8")
+    assert not (tmp_path / WS / PREP_DIR).exists()
+    assert (tmp_path / WS / "config" / "prep.lock").exists()
 
 
 def test_lock_file_hidden_from_listing(client, tmp_path):
-    """`.` 开头的锁文件不进列表（否则界面会多出一行"神秘空文件"）。"""
+    """锁不进笔记目录的列表（否则界面会多出一行"神秘空文件"）。"""
     _write(tmp_path, "x.md", "- [ ] a\n")
+    _write(tmp_path, "y.md", "- [ ] b\n", base=KB_DIR)
     _apply(client, _preview(client, "x.md", 1)["token"])
-    res = client.get("/api/prep/interview", params={"ws": WS})
-    rels = [item["rel"] for item in res.json()["items"]]
-    assert rels == ["x.md"]
+
+    for section in ("interview", "knowledge"):
+        res = client.get("/api/prep/%s" % section, params={"ws": WS})
+        rels = [item["rel"] for item in res.json()["items"]]
+        assert ".prep.lock" not in rels

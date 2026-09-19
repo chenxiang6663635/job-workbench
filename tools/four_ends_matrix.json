@@ -308,6 +308,21 @@
   "exceptions": [
     {
       "end": "cli",
+      "item": "prep.toggle",
+      "reason": "打勾是界面里的学习打卡动作；命令行侧直接编辑 Markdown 即可，不代劳。"
+    },
+    {
+      "end": "mcp",
+      "item": "prep.toggle",
+      "reason": "学习进度由本人维护——勾选不由模型代劳。"
+    },
+    {
+      "end": "plugin",
+      "item": "prep.toggle",
+      "reason": "同上：勾选项是本人的学习打卡动作。"
+    },
+    {
+      "end": "cli",
       "item": "job.list",
       "reason": "岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。"
     },

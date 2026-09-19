@@ -31,7 +31,8 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-import tracker  # noqa: E402  （复用工作区解析、file_lock 与 ConflictError）
+import tracker  # noqa: E402  （复用工作区解析、file_lock 与 ConflictError；
+# file_lock 经 tracker 包门面的 PEP 562 转发取得——不再引旧名 filelock）
 from jobws_core import workspace_io  # noqa: E402
 
 # section 白名单：与 web 层同源（见模块 docstring）
@@ -53,12 +54,13 @@ _TASK_RE = re.compile(
 
 
 def _lock_path(workspace=None):
-    """笔记写回的互斥锁：<工作区>/03_面试准备/.prep.lock。
+    """笔记写回的互斥锁：<工作区>/config/prep.lock。
 
     一把锁覆盖 03/04（两目录同属"笔记"写语义；跨目录互斥的代价可忽略，
     少一把锁少一个命名）。锁名从 `workspace_io` 的锁名表取（唯一真值源）；
-    建目录刻意留在锁外——makedirs 幂等，与 tracker._lock_path 同款纪律。
-    `.` 开头的锁文件天然被列表遍历与工作区指纹排除。
+    **落在 config**（与 imap / provider 同款）——锁与写入目标解耦，写
+    `04_知识库` 时不会凭空建出 `03_面试准备` 目录。建目录刻意留在锁外——
+    makedirs 幂等，与 tracker._lock_path 同款纪律。
     """
     ws = tracker.resolve_ws(workspace)
     path = workspace_io.lock_path(ws, "prep")

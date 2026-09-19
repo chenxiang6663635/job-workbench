@@ -168,9 +168,10 @@ def test_lock_path_names_match_four_ends(tmp_path):
     assert workspace_io.lock_path(ws, "provider").replace("\\", "/").endswith(
         "/config/provider.lock"
     )
-    # prep：笔记勾选框写回（2026-09-18）——03/04 共用一把锁
+    # prep：笔记勾选框写回（2026-09-18）——03/04 共用一把锁，落在 config
+    # （与 imap / provider 同款）：写 04 时不会凭空建出 03_面试准备 目录
     assert workspace_io.lock_path(ws, "prep").replace("\\", "/").endswith(
-        "/03_面试准备/.prep.lock"
+        "/config/prep.lock"
     )
 
 

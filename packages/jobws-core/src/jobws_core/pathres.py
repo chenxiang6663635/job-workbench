@@ -52,6 +52,19 @@ def set_app_root(path):
     _APP_ROOT = None if path is None else os.path.abspath(path)
 
 
+def set_app_root_if_unset(path):
+    """已注入则不动——兼容层可以安全地「确保有值」。
+
+    用途：旧路径 shim（`tools/tracker/__init__.py`）会在导入真身**之前**调用它。
+    真身的 `_core` 在模块顶层就 `resolve_root()`，而 `tools/report.py` 这类
+    「直跑只给迁移提示」的脚本会先 import 那个 shim——没有这一手，
+    它们会在拿到提示之前就 ImportError。
+    """
+    global _APP_ROOT
+    if _APP_ROOT is None:
+        _APP_ROOT = os.path.abspath(path)
+
+
 def resolve_root(root=None):
     """应用根目录。
 

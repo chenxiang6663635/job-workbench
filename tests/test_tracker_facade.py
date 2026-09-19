@@ -70,12 +70,24 @@ def test_workspace_follows_set_workspace():
 
 
 def test_submodules_directly_reachable():
-    """tracker.<子模块> 直接可达（monkeypatch 与调试的入口）。"""
-    for name in ("_core", "_schema", "_check", "applications", "interviews",
-                 "talks", "mails", "contacts", "offers", "importing",
-                 "preview_app", "preview_update", "_cli", "_cli_interview",
-                 "_cli_talk", "_cli_mail", "_cli_contact", "_cli_offer",
-                 "_cli_misc"):
+    """tracker.<子模块> 直接可达（monkeypatch 与调试的入口）。
+
+    批 6 第二批后这里分两类，断言方式不同：
+    - **领域子模块**是 `jobws_core.tracker.*` 的**别名**——`sys.modules` 里注册的是
+      **同一个模块对象**（两份副本会让 monkeypatch 静默失效），所以钉「就是那个对象」；
+    - **CLI 子模块**（`_cli*`）按用户拍板留仓，仍是本包的，名字前缀照旧。
+    """
+    import importlib
+
+    domain = ("_core", "_schema", "_check", "applications", "interviews",
+              "talks", "mails", "contacts", "offers", "importing",
+              "preview_app", "preview_interview", "preview_update")
+    cli = ("_cli", "_cli_interview", "_cli_talk", "_cli_mail", "_cli_contact",
+           "_cli_offer", "_cli_misc")
+    for name in domain:
+        assert getattr(tracker, name) is importlib.import_module(
+            "jobws_core.tracker." + name)
+    for name in cli:
         mod = getattr(tracker, name)
         assert mod.__name__ == "tracker." + name
 

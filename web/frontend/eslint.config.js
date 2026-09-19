@@ -19,6 +19,14 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // `const { node, ...props } = x` 是"解构剔除属性"的既定写法（react-markdown
+      // 的组件映射要把它注入的 AST 节点 `node` 从 DOM 属性里剔掉——展开给 DOM 会
+      // 触发 React 未知属性告警）。官方为这种模式提供的豁免正是 ignoreRestSiblings；
+      // 不开的话 13 个剔除点每个都要写一次 eslint-disable，噪音更大。
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { ignoreRestSiblings: true },
+      ],
       // 变量/常量在声明前使用 = 运行期 TDZ 崩溃（`Cannot access 'status' before
       // initialization`）。tsc 与默认 lint 都不查这个，只有真正打开那一页才会炸
       // ——2026-09-12 的冒烟在岗位池页实测（Jobs.tsx 把 statusLabelKey 放在了

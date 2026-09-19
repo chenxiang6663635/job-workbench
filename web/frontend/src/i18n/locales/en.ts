@@ -913,9 +913,26 @@ export default {
   "progress.subtitle": "Applying is only the opening — interviews, contacts and offers all live here",
   // Prepare section (2026-09-18): the pre-application side — Talks and the
   // question bank moved here from Progress.
-  "prepare.subtitle": "Everything before you apply — talks and your question bank live here",
+  "prepare.subtitle": "Everything before you apply — talks, your question bank and notes live here",
   "prepare.talks": "Talks",
   "prepare.questions": "Question bank",
+  "prepare.notes": "Notes",
+  // Notes page (2026-09-18): read-only browsing of 03_面试准备 / 04_知识库 —
+  // directory tree + Markdown rendering + outline.
+  "notes.group.interview": "Interview prep (03_面试准备)",
+  "notes.group.knowledge": "Knowledge base (04_知识库)",
+  "notes.searchPlaceholder": "Filter files…",
+  "notes.noMatch": "No matching files",
+  "notes.readmeLabel": "Directory guide",
+  "notes.badgeEmpty": "Empty",
+  "notes.badgeUnreadable": "Unreadable",
+  "notes.outline": "On this page",
+  "notes.truncated": "Large file — only the first 256 KB is shown; open it in your editor for the full text",
+  "notes.emptyTitle": "No notes yet",
+  "notes.emptyHint": "Put Markdown into 03_面试准备 or 04_知识库 and it shows up here — copy a _模板_ file to start",
+  "notes.emptyFileTitle": "This file is still empty",
+  "notes.emptyFileHint": "Write something in your editor and come back",
+  "notes.loadFailed": "Could not load notes: {{reason}}",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

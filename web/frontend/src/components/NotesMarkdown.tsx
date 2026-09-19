@@ -30,12 +30,12 @@ const components: Components = {
   h2: ({ node, ...props }) => (
     <h2
       id={anchorId(node)}
-      className="mb-2.5 mt-8 border-t border-border pt-6 text-[16px] font-semibold first-of-type:border-t-0 first-of-type:pt-0"
+      className="mb-2.5 mt-8 scroll-mt-24 border-t border-border pt-6 text-[16px] font-semibold first-of-type:border-t-0 first-of-type:pt-0"
       {...props}
     />
   ),
   h3: ({ node, ...props }) => (
-    <h3 id={anchorId(node)} className="mb-1.5 mt-5 text-[15px] font-semibold" {...props} />
+    <h3 id={anchorId(node)} className="mb-1.5 mt-5 scroll-mt-24 text-[15px] font-semibold" {...props} />
   ),
   p: ({ node, ...props }) => <p className="my-2.5" {...props} />,
   ul: ({ node, ...props }) => <ul className="my-2.5 list-disc pl-5" {...props} />,

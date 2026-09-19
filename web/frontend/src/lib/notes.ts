@@ -144,3 +144,60 @@ export function extractOutline(markdown: string): NotesOutlineItem[] {
   });
   return out;
 }
+
+/**
+ * 去掉 md 里的 HTML 注释（`<!-- … -->`，含跨行与行内）。
+ *
+ * 03 的模板里注释是写给用户的**填写说明**（"勾选这个故事能回答的维度…"），
+ * 阅读视图不该看见它；react-markdown 不启用 rehype-raw 时注释会以文本形式
+ * 渲染出来（2026-09-18 实机截图确认），所以要在渲染前剥掉。
+ *
+ * **行数必须保持不变**（注释按空串留在原行）：大纲锚点用源码行号
+ * （`h-<line>`），删行会让渲染侧（react-markdown 的 position.start.line）与
+ * extractOutline 的行号对不上。围栏代码块内的注释不动——那是示例内容。
+ */
+export function stripHtmlComments(markdown: string): string {
+  let inFence: string | null = null;
+  let inComment = false;
+  const out: string[] = [];
+  for (const line of markdown.split(/\r?\n/)) {
+    const fence = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    if (fence) {
+      const marker = fence[1][0];
+      if (inFence === null) inFence = marker;
+      else if (inFence === marker) inFence = null;
+      out.push(line);
+      continue;
+    }
+    if (inFence !== null) {
+      out.push(line);
+      continue;
+    }
+    let rest = line;
+    let cleaned = "";
+    while (rest !== "") {
+      if (inComment) {
+        const end = rest.indexOf("-->");
+        if (end === -1) {
+          rest = "";
+          break;
+        }
+        rest = rest.slice(end + 3);
+        inComment = false;
+      } else {
+        const start = rest.indexOf("<!--");
+        if (start === -1) {
+          cleaned += rest;
+          rest = "";
+          break;
+        }
+        cleaned += rest.slice(0, start);
+        rest = rest.slice(start + 4);
+        inComment = true;
+      }
+    }
+    out.push(cleaned);
+  }
+  // 换行统一为 \n：CRLF 与 LF 混排时行号仍按逻辑行计，两侧消费方一致
+  return out.join("\n");
+}

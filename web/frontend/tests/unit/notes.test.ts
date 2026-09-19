@@ -5,6 +5,7 @@ import {
   classifyNotesFile,
   extractOutline,
   filterNotes,
+  stripHtmlComments,
 } from "../../src/lib/notes";
 
 const file = (rel: string, size = 10) => ({
@@ -141,5 +142,23 @@ describe("extractOutline（h2/h3，锚点=源码行号）", () => {
   it("行号 1 起（空行也占一行）", () => {
     const md = "# 一\n\n## 二\n";
     expect(extractOutline(md)[0].id).toBe("h-3");
+  });
+});
+
+describe("stripHtmlComments（渲染前剥注释，保行数）", () => {
+  it("删掉整行与行内注释，行数不变（锚点行号不漂移）", () => {
+    const md = "第一行\n<!-- 注释一 -->\n第三行 <!-- 内联 --> 尾\n";
+    const out = stripHtmlComments(md);
+    expect(out.split("\n")).toHaveLength(4);
+    expect(out).not.toContain("注释");
+    expect(out).toContain("第三行  尾");
+  });
+
+  it("跨行注释整体删除；围栏代码块内不动", () => {
+    const md = "```\n<!-- 代码里的示例 -->\n```\n<!--\n跨行\n-->\n之后";
+    const out = stripHtmlComments(md);
+    expect(out).toContain("<!-- 代码里的示例 -->");
+    expect(out).not.toContain("跨行");
+    expect(out).toContain("之后");
   });
 });

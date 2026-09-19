@@ -56,3 +56,8 @@ distribution 名是 `jobws-core`，但 **import 名是 `jobws_core`**：`tools/j
   （2026-09-19 A-1 实测）。建议
   `uv pip install -e packages/jobws-core --config-settings editable_mode=compat`：
   compat 模式把 `src` 整体入 path，新文件自动可见。
+- **导入 `jobws_core.tracker` 之前必须有应用根**：`tracker/_core.py` 在**导入期**就求值
+  `ROOT`（`pathres.resolve_root()`），没注入会抛 `RuntimeError`。宿主进程若只是
+  "import 一下看看"（安装冒烟、IDE 索引、静态分析），请先
+  `from jobws_core import pathres; pathres.set_app_root(<任意目录>)`——
+  CI 的 `install-smoke` 就是这么做的。

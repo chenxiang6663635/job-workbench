@@ -244,7 +244,11 @@ jobs:
       - name: 仓库外运行的最小冒烟（子模块 + 真干活 + 版本三向一致）
         working-directory: ${{ runner.temp }}
         run: |
-          "$RUNNER_TEMP/smoke/bin/python" -c "import importlib, importlib.metadata, json, pathlib, tempfile, pkgutil; import jobws_core; [importlib.import_module(x.name) for x in pkgutil.walk_packages(jobws_core.__path__, 'jobws_core.')]; from jobws_core import workspace_io; ws = tempfile.mkdtemp(); t = pathlib.Path(ws) / 'hello.txt'; workspace_io.atomic_write_text(str(t), 'OK'); assert t.read_text(encoding='utf-8') == 'OK'; root = pathlib.Path('${{ github.workspace }}'); pv = json.loads((root / 'web/electron/package.json').read_text(encoding='utf-8'))['version']; assert jobws_core.__version__ != '0.0.0.dev0', '元数据被剥离（copy_metadata 没生效）'; assert jobws_core.__version__ == importlib.metadata.version('jobws-core') == pv, (jobws_core.__version__, importlib.metadata.version('jobws-core'), pv); print('冒烟通过，版本：', pv)"
+          # 先注入应用根：领域层 `tracker._core` 的 `ROOT` 在**导入期**求值，而下面的
+          # walk_packages 会 import 全部子模块——少了这一手，它会在「无人注入」的状态下
+          # 抛 RuntimeError（包本身装得对，只是没有入口告诉它根在哪）。
+          # 见 `packages/jobws-core/src/jobws_core/pathres.py` 的 `_APP_ROOT` 注释。
+          "$RUNNER_TEMP/smoke/bin/python" -c "import importlib, importlib.metadata, json, pathlib, tempfile, pkgutil; from jobws_core import pathres; pathres.set_app_root(tempfile.mkdtemp()); import jobws_core; [importlib.import_module(x.name) for x in pkgutil.walk_packages(jobws_core.__path__, 'jobws_core.')]; from jobws_core import workspace_io; ws = tempfile.mkdtemp(); t = pathlib.Path(ws) / 'hello.txt'; workspace_io.atomic_write_text(str(t), 'OK'); assert t.read_text(encoding='utf-8') == 'OK'; root = pathlib.Path('${{ github.workspace }}'); pv = json.loads((root / 'web/electron/package.json').read_text(encoding='utf-8'))['version']; assert jobws_core.__version__ != '0.0.0.dev0', '元数据被剥离（copy_metadata 没生效）'; assert jobws_core.__version__ == importlib.metadata.version('jobws-core') == pv, (jobws_core.__version__, importlib.metadata.version('jobws-core'), pv); print('冒烟通过，版本：', pv)"
 
   # 后端 exe 冒烟（2026-09-17 批 6）：这是**唯一**能抓到「领域层没进包」的检查。
   # `web/backend/pyinstaller.spec` 自己写着「CI 只构建不运行产物、会全绿，这正是

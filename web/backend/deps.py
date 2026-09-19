@@ -25,6 +25,9 @@ DEFAULT_WORKSPACE_NAME = "personal"
 DIR_JOBS = "01_岗位池"
 DIR_TRACKING = "05_投递追踪"
 DIR_RESUME = "02_简历工坊"
+# 笔记（只读浏览）：03 放表达、04 放知识（见各自 README）
+DIR_PREP = "03_面试准备"
+DIR_KB = "04_知识库"
 
 # 默认工作区环境变量。CLI --workspace 会优先覆盖它，其次回退 personal/。
 ENV_WORKSPACE = "JOBWS_WORKSPACE"

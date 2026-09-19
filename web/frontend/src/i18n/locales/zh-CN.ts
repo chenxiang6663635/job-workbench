@@ -836,6 +836,12 @@ const zhCN = {
   "err.lib.unknownSection": "未知素材库分类：{{section}}",
   "err.lib.fileNotFound": "文件不存在：{{rel}}",
 
+  // 笔记（03_面试准备 / 04_知识库）：只读浏览的错误
+  "err.prep.unknownSection": "未知笔记分类：{{section}}",
+  "err.prep.fileNotFound": "文件不存在：{{rel}}",
+  "err.prep.notMarkdown": "只能打开 Markdown 文件：{{rel}}",
+  "err.prep.readFailed": "文件读取失败：{{rel}}",
+
   // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
   "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",
   // 题库更新（1b）：预览改题失败（没给 id / 找不到 / 没有变化 / 值不合法）

@@ -30,7 +30,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import applications, approvals, dashboard, imap, jobs, library, progress, provider, resume, sync, system, workspace  # noqa: E402
+from routers import applications, approvals, dashboard, imap, jobs, library, prep, progress, provider, resume, sync, system, workspace  # noqa: E402
 
 # ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
 #
@@ -167,6 +167,7 @@ app.include_router(imap.router)
 app.include_router(resume.router)
 app.include_router(system.router)
 app.include_router(sync.router)  # 批 8：工作区版本指纹（GUI 端同步用）
+app.include_router(prep.router)  # 笔记：03_面试准备 / 04_知识库 只读浏览
 
 
 @app.get("/api/health")

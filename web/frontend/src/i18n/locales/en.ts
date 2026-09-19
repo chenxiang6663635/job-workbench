@@ -776,6 +776,12 @@ export default {
   // Question bank update (1b): previewing a question edit (missing/unknown id, no change)
   "err.question.updateFailed": "Could not update the question: {{reason}}",
 
+  // Notes (03_面试准备 / 04_知识库): read-only browsing errors
+  "err.prep.unknownSection": "Unknown notes section: {{section}}",
+  "err.prep.fileNotFound": "File not found: {{rel}}",
+  "err.prep.notMarkdown": "Only Markdown files can be opened: {{rel}}",
+  "err.prep.readFailed": "Could not read the file: {{rel}}",
+
   "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",
   "err.sys.certStoreUnavailable": "The system certificate store could not be loaded, so the certificate cannot be verified and the connection was refused (credentials must not travel over an unverified connection). To investigate, look for broken entries with certmgr.msc; if you really must skip verification for now, set JOBWS_HTTP_TLS or JOBWS_IMAP_TLS to insecure for that path (not recommended)",

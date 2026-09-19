@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 import deps  # noqa: E402
 from jobws_core import jd_score  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 import routers.dashboard as dash  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 

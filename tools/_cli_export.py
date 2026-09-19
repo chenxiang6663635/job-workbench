@@ -34,7 +34,7 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 from jobws_core import question_bank  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 from jobws_core import workspace_io  # noqa: E402
 
 # 目录名 → (CSV 字段名列表, 读取函数, 标题字段, 里层子目录)

@@ -18,7 +18,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 
 WS = "ws-ok"
 TRACKING = "05_投递追踪"

@@ -11,15 +11,23 @@
 # filelock / workspace_io：2026-09-19 A-4 已清零（18 处全改新名），两个 shim 文件
 # 同时删除——它们的行随之从本清单移除，这就是「降到 0 即可删 shim」那条流程走完的样子。
 
-# 2026-09-19 批 6 第二批（pathres 搬包，ast 实测 7 处）：
-#   后端 4（main / deps / routers/system 各 1）+ MCP 1（paths.py 注入点）
-#   + 测试 2（conftest 注入点 / test_domain_root）
-#   （CLI 那处走新名 `jobws_core.pathres`：jobws.py 是 __main__，旧名会真的打印
-#     弃用告警，而 CLI 契约要求 stderr 干净）
-pathres = 7
+# `pathres`：2026-09-19 PR-B 已清零（原 7 处全改新名），旧路径 `web/backend/pathres.py`
+# 随之删除——本行也已移除，与 `filelock` / `workspace_io` 同款。名字留在
+# `check_legacy_imports.LEGACY_NAMES` 里当防火墙（缺行即上限 0，谁再写就报错）。
 
-# 2026-09-19 A-2 / A-3（tracker 13 模块与 approval 协议壳搬包，ast 实测）：
-#   这两个是**目前最大的两个旧名**，正因为它们被后端 / CLI / MCP / 测试四面引用。
-#   PR-B 会把它们压到 0（连同各自的 shim 一起删）。
-tracker = 49
-approval = 26  # 27 → 26：包内 importing.py 的 import approval 改成新名（审查 M2）
+# 2026-09-19 批 6 第二批（PR-A 搬 tracker/approval，PR-B 搬其余；ast 实测）：
+#
+# 这两个的最终水位**不是「没改完」**，而是**改不动**——剩下的调用点在两类位置上，
+# 改新名会破坏被测对象：
+#   ① **跨层测试**：`test_tracker_facade.py` 专测旧名门面契约（含留仓的 `_cli*`）；
+#      `test_talks.py` / `test_mails.py` / `test_cli_surface.py` 走 CLI 侧（`_cli*`
+#      只存在于留仓的 `tools/tracker/`）；`test_approval*.py` / `test_workspaces_api.py`
+#      / `test_prep_toggle.py` 给**仓内** approval 的令牌目录打桩、断言它那张登记表。
+#   ② **转发层自身与其入口**：`tools/jobws.py` 的 `track` 分发要的是留仓 CLI 的 `main`。
+# 改新名会让它们测到包内实现、打桩打空——正是本项目反复记的那条教训：
+# 「patch 要打到**调用点所在的模块**」。
+tracker = 11  # 49 → 11：产品代码全部改新名，余下的是上面两类
+approval = 9  # 26 → 9：8 处跨层/转发层 + **1 处后端 apply 入口**
+              # （`web/backend/routers/approvals.py` 需要**完整**登记表——`prep.toggle`
+              #  与 `init` 按设计留仓登记，包内只有十个；用包内壳会让笔记勾选框写回
+              #  得到 422，2026-09-19 的 UI 冒烟抓到过）

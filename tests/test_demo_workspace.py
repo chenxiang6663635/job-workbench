@@ -26,7 +26,7 @@ if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
 import init_workspace  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 
 # demo 数据里允许出现的联系方式，只有这两个占位值
 PLACEHOLDER_PHONE = "13800000000"

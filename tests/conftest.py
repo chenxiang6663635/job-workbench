@@ -35,7 +35,7 @@ _BACKEND_DIR = os.path.join(_ROOT_DIR, "web", "backend")
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-import pathres  # noqa: E402
+from jobws_core import pathres  # noqa: E402
 
 pathres.set_app_root(_ROOT_DIR)
 

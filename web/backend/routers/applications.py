@@ -19,9 +19,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-import approval
+from jobws_core import approval
 from jobws_core import status_parse
-import tracker
+from jobws_core import tracker
 from jobws_core import url_infer
 from apierror import ApiError
 from deps import DIR_TRACKING, workspace_dir

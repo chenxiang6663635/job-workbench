@@ -25,7 +25,7 @@ from pydantic import BaseModel
 import atomicio
 from jobws_core import jd_score
 import tls_http
-import tracker
+from jobws_core import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, DIR_TRACKING, safe_join, workspace_dir
 from jobws_core.filelock import file_lock

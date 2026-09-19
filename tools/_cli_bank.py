@@ -44,7 +44,7 @@ def _run_preview(errors, plan, op_name, workspace):
     if plan is None:
         return 1
     # 函数内 import：jobws 的 lint 分支要求被分发模块不得顶层引入三方库
-    import approval
+    from jobws_core import approval
     result = approval.preview(op_name, workspace, plan["payload"],
                               plan["summary"], plan["diff"], plan["targets"])
     print("预览：%s" % result["summary"])

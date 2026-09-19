@@ -23,7 +23,7 @@ if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
 from jobws_core import status_parse  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 
 # 旧格式 = 当前 FIELDS 去掉「链接」列；从 FIELDS 派生而不是抄一份字面量，
 # 免得以后再加列时这份「旧格式」跟着一起长（那就测不出缺列兼容了）。

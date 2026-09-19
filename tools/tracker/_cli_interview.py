@@ -32,7 +32,7 @@ from .preview_interview import (apply_approved_interview_add,
 
 def _print_preview(operation, plan):
     """两段式第一步的公共输出：登记令牌并打印差异与下一步。"""
-    import approval  # 延迟导入：approval 会 import 本模块，顶层互相引用会转圈
+    from jobws_core import approval  # 延迟导入：approval 会 import 本模块，顶层互相引用会转圈
     result = approval.preview(operation, _core.WORKSPACE, plan["payload"],
                               plan["summary"], plan["diff"], plan["targets"])
     print("## 预览（未写入）\n")

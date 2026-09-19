@@ -40,6 +40,7 @@ from __future__ import print_function
 import argparse
 import os
 import sys
+import warnings
 
 _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
@@ -86,11 +87,12 @@ import release_assist  # noqa: E402
 from jobws_core import report  # noqa: E402
 import resume_build  # noqa: E402
 # 这里**只能**用旧名：`jobws track` 要的是留仓 CLI 的 `main`（在 `_cli_misc` 里），
-# 而包内真身没有它。弃用告警之所以看不见，是因为前面 `import approval` → `prep_notes`
-# 已经顺手 import 过 tracker、`sys.modules` 命中不再执行 shim——**导入顺序一变就会
-# 打印到 stderr**（2026-09-19 独立审查 m3）。要让 CLI 彻底干净，得等 `_cli*.py`
-# 也搬进包（PR-B 之后）。
-import tracker  # noqa: E402
+# 而包内真身没有它。shim 会发废弃告警，但那条告警对**本入口是误报**——`jobws track`
+# 本来就该走它（真正该被劝退的是直跑 `python tools/tracker.py` 的人）。CLI 契约要求
+# stderr 干净，所以在这一处显式吞掉；直接跑旧脚本的人仍会看到提示。
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    import tracker  # noqa: E402
 
 # (命令, 模块或 None, 一句话说明)。顺序即 --help 的展示顺序。
 # 模块为 None 表示这一层还有子命令（见 SUB_TARGETS）。

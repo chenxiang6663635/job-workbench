@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-import tracker
+from jobws_core import tracker
 from deps import workspace_dir
 
 router = APIRouter()

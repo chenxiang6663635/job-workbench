@@ -44,7 +44,7 @@ def cmd_add(args):
     if getattr(args, "preview", False):
         # 延迟导入：真的走两段式时才依赖协议层（approval 会 import 本模块，
         # 顶层互相引用会转圈）。
-        import approval
+        from jobws_core import approval
         result = approval.preview(
             "track.add", _core.WORKSPACE, plan["payload"], plan["summary"],
             plan["diff"], plan["targets"])
@@ -92,7 +92,7 @@ def cmd_update(args):
         return 1
 
     if getattr(args, "preview", False):
-        import approval
+        from jobws_core import approval
         result = approval.preview("track.update", _core.WORKSPACE, plan["payload"],
                                   plan["summary"], plan["diff"], plan["targets"])
         print("## 预览（未写入）\n")

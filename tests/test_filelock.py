@@ -22,7 +22,7 @@ TOOLS = os.path.join(ROOT, "tools")
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-import filelock  # noqa: E402
+from jobws_core import filelock  # noqa: E402
 
 
 def _read_rows(path):

@@ -13,7 +13,7 @@ import tracker
 import mail_link
 from apierror import ApiError
 from deps import workspace_dir
-from filelock import file_lock
+from jobws_core.filelock import file_lock
 
 router = APIRouter()
 

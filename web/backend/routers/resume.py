@@ -30,7 +30,7 @@ import tls_http
 from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
-from filelock import file_lock
+from jobws_core.filelock import file_lock
 from routers import provider
 
 router = APIRouter(prefix="/api/resume")

@@ -23,7 +23,7 @@ import tls_http
 from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
-from filelock import file_lock
+from jobws_core.filelock import file_lock
 from redact import mask_secret
 
 logger = logging.getLogger(__name__)

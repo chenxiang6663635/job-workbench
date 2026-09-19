@@ -25,7 +25,7 @@ import tracker
 import url_infer
 from apierror import ApiError
 from deps import DIR_TRACKING, workspace_dir
-from filelock import file_lock
+from jobws_core.filelock import file_lock
 # 目录名拆分只有一处实现（jobs._split_dir）。前端「一键投递」传目录名过来，
 # 由这里拆——不再让每个调用方各自镜像一份拆分规则。
 from routers import jobs as jobs_router

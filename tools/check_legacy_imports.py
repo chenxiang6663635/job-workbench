@@ -39,11 +39,12 @@ LEGACY_NAMES = ("filelock", "workspace_io", "pathres", "tracker", "approval")
 SCAN_DIRS = ("tools", "web/backend", "mcp", "tests", "scripts", "packages")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", ".venv"}
 
-# shim 自身不算调用点：它们就是被观测对象的别名文件
+# shim 自身不算调用点：它们就是被观测对象的别名文件。
+# （filelock / workspace_io 的 shim 已于 2026-09-19 A-4 删除——旧名清零。）
 SKIP_FILES = {
-    os.path.join("tools", "filelock.py"),
-    os.path.join("tools", "workspace_io.py"),
     os.path.join("web", "backend", "pathres.py"),
+    os.path.join("tools", "tracker", "__init__.py"),
+    os.path.join("tools", "approval.py"),
 }
 
 

@@ -520,7 +520,7 @@ def main():
     out_path = os.path.abspath(args.out) if args.out else os.path.join(
         workspace, "05_投递追踪", "看板.md")
     # 原子写（批 8 收敛）：看板是用户会打开的文件，半截比没有更糟
-    import workspace_io
+    from jobws_core import workspace_io
 
     workspace_io.atomic_write_text(out_path, content)
 

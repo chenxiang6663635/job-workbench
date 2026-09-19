@@ -65,7 +65,7 @@ def read_prefs(workspace=None):
 
 def write_prefs(values, workspace=None):
     """原子写（共享原语）：半截 JSON 比没有偏好更糟。批 8 收敛到 workspace_io。"""
-    import workspace_io  # 用到才加载：prefs 保持轻量，模块级路径注入交给调用方
+    from jobws_core import workspace_io  # 用到才加载：prefs 保持轻量，模块级路径注入交给调用方
 
     payload = json.dumps(values, ensure_ascii=False, indent=2, sort_keys=True)
     workspace_io.atomic_write_text(prefs_path(workspace), payload)

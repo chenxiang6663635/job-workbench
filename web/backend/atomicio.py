@@ -14,8 +14,7 @@ provider、jobs、imap）零改动。
 
 from __future__ import annotations
 
-import workspace_io  # noqa: F401  （旧路径，现为转发 shim：真身在 jobws_core 包里）
-from workspace_io import (
+from jobws_core.workspace_io import (
     TMP_PREFIX,
     atomic_write_bytes,
     atomic_write_csv,

@@ -59,6 +59,7 @@ import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jd_score  # noqa: E402
 import _cli_bank  # noqa: E402  （题库的命令层；领域层在 question_bank.py，二者 2026-09-18 分离）
+import _cli_export  # noqa: E402  （导出：八张 CSV → Obsidian 笔记；只读工作区）
 import prefs  # noqa: E402
 import release_assist  # noqa: E402
 import report  # noqa: E402
@@ -74,6 +75,7 @@ TARGETS = [
     ("resume", resume_build, "按岗位生成投递材料"),
     ("jd", jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
+    ("export", _cli_export, "导出工作区（--obsidian：八张 CSV → Obsidian 笔记，每行一笔记）"),
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
     ("prefs", prefs, "工作区偏好（get / set）与环境体检（doctor，含终端字体推荐）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),

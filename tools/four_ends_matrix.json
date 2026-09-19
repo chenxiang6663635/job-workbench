@@ -238,6 +238,15 @@
       "plugin": null,
       "gui": "GET /api/prep/{section}/preview-toggle",
       "note": "写入：翻转 03/04 笔记里某一行的勾选框（- [ ] ↔ - [x]），预览 -> 确认 -> 落盘（GET 预览 + 通用 apply 落盘）。仅 GUI 提供——打勾是界面里的学习打卡动作；只读浏览属训练材料类，不在本矩阵。"
+    },
+    {
+      "id": "export.obsidian",
+      "stage": "通用",
+      "cli": "export --obsidian",
+      "mcp": null,
+      "plugin": null,
+      "gui": null,
+      "note": "只读：把八张 CSV 导成 Obsidian 笔记——每行一笔记，frontmatter 带上原表全部字段（供 Bases / Dataview 过滤排序），题库笔记带 spaced-repetition 卡片语法。导出到**用户指定的工作区外目录**，带时间戳、不覆盖、不改工作区。"
     }
   ],
   "error_map": [
@@ -320,6 +329,21 @@
       "end": "plugin",
       "item": "prep.toggle",
       "reason": "同上：勾选项是本人的学习打卡动作。"
+    },
+    {
+      "end": "mcp",
+      "item": "export.obsidian",
+      "reason": "导出是本地文件动作（往用户指定的目录写一批 md），不由模型代劳。"
+    },
+    {
+      "end": "plugin",
+      "item": "export.obsidian",
+      "reason": "同上：导出到本地笔记库是本人发起的动作。"
+    },
+    {
+      "end": "gui",
+      "item": "export.obsidian",
+      "reason": "界面的导出是「整包 zip」（设置页，保留 CSV 原格式）；Obsidian 笔记形态只在命令行提供——形态不同，不是漏做。"
     },
     {
       "end": "cli",

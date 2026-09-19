@@ -36,12 +36,16 @@
 | 题库 | `question.import` | `bank import` | `preview_import_questions` | `bank` | `GET /api/progress/questions/preview-import` |
 | 通用 | `approval.apply` | `apply` | `apply_approval` | — | `POST /api/approvals/apply` |
 | 笔记 | `prep.toggle` | — | — | — | `GET /api/prep/{section}/preview-toggle` |
+| 通用 | `export.obsidian` | `export --obsidian` | — | — | — |
 
 ## 各端不提供的能力（含原因）
 
 - **cli** · `prep.toggle`：打勾是界面里的学习打卡动作；命令行侧直接编辑 Markdown 即可，不代劳。
 - **mcp** · `prep.toggle`：学习进度由本人维护——勾选不由模型代劳。
 - **plugin** · `prep.toggle`：同上：勾选项是本人的学习打卡动作。
+- **mcp** · `export.obsidian`：导出是本地文件动作（往用户指定的目录写一批 md），不由模型代劳。
+- **plugin** · `export.obsidian`：同上：导出到本地笔记库是本人发起的动作。
+- **gui** · `export.obsidian`：界面的导出是「整包 zip」（设置页，保留 CSV 原格式）；Obsidian 笔记形态只在命令行提供——形态不同，不是漏做。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。

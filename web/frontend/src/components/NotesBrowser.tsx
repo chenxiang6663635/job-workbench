@@ -5,13 +5,20 @@ import { useTranslation } from "react-i18next";
 import { api, type PrepContent, type PrepFile } from "../api";
 import {
   buildNotesTree,
+  findNodeByRel,
+  firstFileRel,
   NOTES_SECTIONS,
+  readLastOpened,
+  readWorkspace,
+  writeLastOpened,
+  type NotesActive,
   type NotesNode,
   type NotesSectionKey,
 } from "../lib/notes";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesFileTree from "./NotesFileTree";
 import NotesReader from "./NotesReader";
+import NotesSearch from "./NotesSearch";
 import NotesToggleDialog, { type ToggleFlow } from "./NotesToggleDialog";
 import { Card } from "./ui/card";
 import { EmptyState } from "./ui/empty";
@@ -22,64 +29,6 @@ import { Skeleton } from "./ui/skeleton";
 // 本组件**不重复挂轮询**；reload 后靠 localStorage 记忆回到原文件。
 // 列表只读；唯一的"写"是勾选写回——两段式（预览 → 确认 → apply 落盘，
 // 状态机 ToggleFlow），落盘通道只有 /api/approvals/apply 一条。
-
-const LAST_KEY = "jobws_notes_last";
-const WS_KEY = "jobws_selected_workspace";
-
-export interface NotesActive {
-  section: NotesSectionKey;
-  rel: string;
-}
-
-function readWorkspace(): string {
-  try {
-    return localStorage.getItem(WS_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function readLast(ws: string): NotesActive | null {
-  try {
-    const raw = localStorage.getItem(LAST_KEY);
-    if (!raw) return null;
-    const all = JSON.parse(raw) as Record<string, NotesActive>;
-    return all[ws] ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function writeLast(ws: string, active: NotesActive): void {
-  try {
-    const raw = localStorage.getItem(LAST_KEY);
-    const all = raw ? (JSON.parse(raw) as Record<string, NotesActive>) : {};
-    all[ws] = active;
-    localStorage.setItem(LAST_KEY, JSON.stringify(all));
-  } catch {
-    // 存储不可用：记忆失效无妨（不影响阅读）
-  }
-}
-
-function findNode(nodes: NotesNode[], rel: string): NotesNode | null {
-  for (const node of nodes) {
-    if (node.kind === "file" && node.rel === rel) return node;
-    if (node.kind === "dir") {
-      const hit = findNode(node.children ?? [], rel);
-      if (hit) return hit;
-    }
-  }
-  return null;
-}
-
-function firstFileRel(nodes: NotesNode[]): string | null {
-  for (const node of nodes) {
-    if (node.kind === "file") return node.rel;
-    const hit = firstFileRel(node.children ?? []);
-    if (hit) return hit;
-  }
-  return null;
-}
 
 export default function NotesBrowser() {
   const { t } = useTranslation();
@@ -94,6 +43,10 @@ export default function NotesBrowser() {
   const [flow, setFlow] = useState<ToggleFlow | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  // 全文搜索：这里只持有关键词（据此决定左栏显示结果还是目录树）——防抖、请求
+  // 与四种结果形态都在 NotesSearch 里自包含。focusLine = 点中的结果要定位到第几行。
+  const [keyword, setKeyword] = useState("");
+  const [focusLine, setFocusLine] = useState<number | null>(null);
 
   const ws = useMemo(readWorkspace, []);
 
@@ -124,7 +77,7 @@ export default function NotesBrowser() {
   // 默认选中：记忆优先（且文件仍存在）→ 第一个 section 的第一个文件（README 已由树置顶）
   useEffect(() => {
     if (!tree || active) return;
-    const last = readLast(ws);
+    const last = readLastOpened(ws);
     if (last && items?.[last.section]?.some((f) => f.rel === last.rel)) {
       setActive(last);
       return;
@@ -143,6 +96,9 @@ export default function NotesBrowser() {
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
+    // 先撤掉旧正文：换文件时若留着旧内容，NotesReader 的定位 effect 会先按
+    // **旧文件**的块算锚点并滚一次错位的位置（子组件的 effect 比本组件的先跑）
+    setContent(null);
     setContentLoading(true);
     setContentError(null);
     api
@@ -173,8 +129,23 @@ export default function NotesBrowser() {
       // 换文件时清掉上一份写回的残留：错误横幅指向的是上一个文件，不该挂在新文件上
       setFlow(null);
       setToggleError(null);
+      setFocusLine(null);
       setActive(next);
-      writeLast(ws, next);
+      writeLastOpened(ws, next);
+    },
+    [ws]
+  );
+
+  // 点搜索结果：打开该文件并记下要定位的行（真定位在 NotesReader——那里才拿得到
+  // 渲染后的块级行号）
+  const onPickHit = useCallback(
+    (section: NotesSectionKey, rel: string, line: number) => {
+      const next = { section, rel };
+      setFlow(null);
+      setToggleError(null);
+      setActive(next);
+      setFocusLine(line);
+      writeLastOpened(ws, next);
     },
     [ws]
   );
@@ -242,17 +213,23 @@ export default function NotesBrowser() {
     );
   }
 
-  const activeNode = active ? findNode(tree[active.section], active.rel) : null;
+  const activeNode = active ? findNodeByRel(tree[active.section], active.rel) : null;
   return (
     <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start">
-      <NotesFileTree
-        tree={tree}
-        query={query}
-        onQueryChange={setQuery}
-        active={active}
-        unreadable={unreadable}
-        onSelect={onSelect}
-      />
+      <div className="flex w-full flex-col gap-3 lg:w-[17.5rem] lg:shrink-0">
+        <NotesSearch keyword={keyword} onKeywordChange={setKeyword} onPick={onPickHit} />
+        {/* 搜着的时候结果列表替代目录树——两个列表并排会让人分不清哪个是哪个 */}
+        {keyword.trim() ? null : (
+          <NotesFileTree
+            tree={tree}
+            query={query}
+            onQueryChange={setQuery}
+            active={active}
+            unreadable={unreadable}
+            onSelect={onSelect}
+          />
+        )}
+      </div>
       <NotesReader
         section={active?.section ?? "interview"}
         file={activeNode}
@@ -263,6 +240,7 @@ export default function NotesBrowser() {
         onToggleTask={onToggleTask}
         pendingLine={flow?.phase === "previewing" ? flow.line : null}
         locked={flow !== null}
+        focusLine={focusLine}
       />
       <NotesToggleDialog
         flow={flow}

@@ -943,6 +943,15 @@ export default {
   "notes.toggleHint": "Only the marker character on this line changes — the rest of the file stays byte-identical.",
   "notes.toggleConfirm": "Write",
   "notes.toggleWriting": "Writing…",
+  // Full-text search (file name + body): the count is the true total; truncation is a separate line
+  "notes.searchFullPlaceholder": "Search file names and text…",
+  "notes.searching": "Searching…",
+  "notes.hitCount": "Hits: {{count}}",
+  "notes.hitCountTruncated": "Too many hits — listing the first {{count}}; try a shorter keyword",
+  "notes.searchEmpty": "No hits — try another keyword",
+  "notes.searchSkipped": "{{count}} file(s) not searched fully (unreadable or over 256 KB)",
+  "notes.hitLine": "Line {{line}}",
+  "notes.hitInName": "matched in name",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

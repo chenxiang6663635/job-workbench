@@ -16,6 +16,7 @@ import os
 from fastapi import APIRouter, Depends
 from apierror import ApiError
 from deps import safe_join, workspace_dir
+from ro_files import walk_files
 
 router = APIRouter(prefix="/api/library")
 
@@ -25,38 +26,19 @@ FACT_DIR = "00_事实库"
 TEXT_EXT = {".md", ".txt", ".html"}
 
 
-def _list_files(base, recursive):
-    if not os.path.isdir(base):
-        return []
-    out = []
-    for root, dirs, files in os.walk(base):
-        # 跳过 __pycache__ 等运行时产物
-        dirs[:] = [d for d in dirs if not d.startswith("__")]
-        for name in sorted(files):
-            if name.startswith("."):
-                continue
-            full = os.path.join(root, name)
-            rel = os.path.relpath(full, base).replace("\\", "/")
-            out.append({
-                "rel": rel,
-                "name": name,
-                "size": os.path.getsize(full),
-                "mtime": int(os.path.getmtime(full)),
-                "kind": "text" if os.path.splitext(name)[1].lower() in TEXT_EXT else "binary",
-            })
-        if not recursive:
-            break
-    out.sort(key=lambda x: (x["rel"]))
-    return out
-
-
 @router.get("/{section}")
 def list_library(section: str, ws: str = Depends(workspace_dir)):
     if section != "facts":
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
     base = safe_join(ws, FACT_DIR)
-    items = _list_files(base, recursive=True)
+    # 遍历与排序 2026-09-18 收敛到共享原语（ro_files.walk_files，与笔记同源）；
+    # kind 是素材库自己的分流（文本内联看 / 二进制拼 URL 加载）——
+    # 隐藏目录规则随共享层对齐（.obsidian 等不再出现）
+    items = walk_files(base)
+    for item in items:
+        item["kind"] = ("text" if os.path.splitext(item["name"])[1].lower() in TEXT_EXT
+                        else "binary")
     return {"section": section, "items": items, "total": len(items)}
 
 

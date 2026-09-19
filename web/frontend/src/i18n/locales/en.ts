@@ -930,7 +930,7 @@ export default {
   "notes.readmeLabel": "Directory guide",
   "notes.badgeEmpty": "Empty",
   "notes.badgeUnreadable": "Unreadable",
-  "notes.checkboxLabel": "Checkbox (read-only)",
+  "notes.checkboxLabel": "Checkbox (click to write back)",
   "notes.outline": "On this page",
   "notes.truncated": "Large file — only the first 256 KB is shown; open it in your editor for the full text",
   "notes.emptyTitle": "No notes yet",
@@ -938,6 +938,11 @@ export default {
   "notes.emptyFileTitle": "This file is still empty",
   "notes.emptyFileHint": "Write something in your editor and come back",
   "notes.loadFailed": "Could not load notes: {{reason}}",
+  // Checkbox write-back (two-phase): confirm dialog copy — diff and summary come from the server, untranslated
+  "notes.toggleTitle": "Flip this checkbox?",
+  "notes.toggleHint": "Only the marker character on this line changes — the rest of the file stays byte-identical.",
+  "notes.toggleConfirm": "Write",
+  "notes.toggleWriting": "Writing…",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

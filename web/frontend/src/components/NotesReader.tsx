@@ -25,6 +25,13 @@ export interface NotesReaderProps {
   content: PrepContent | null;
   loading: boolean;
   error: string | null;
+  /** 勾选写回的失败信息（预览/落盘）——与内容加载错误分开显示 */
+  toggleError: string | null;
+  onToggleTask: (line: number) => void;
+  /** 正在预览的行号（该勾选框呈 pending 禁用态） */
+  pendingLine: number | null;
+  /** 有写回流程在进行中：整篇勾选框禁用（连点不会弹出别的行的确认框） */
+  locked: boolean;
 }
 
 export default function NotesReader({
@@ -33,6 +40,10 @@ export default function NotesReader({
   content,
   loading,
   error,
+  toggleError,
+  onToggleTask,
+  pendingLine,
+  locked,
 }: NotesReaderProps) {
   const { t } = useTranslation();
   const dir = NOTES_SECTIONS.find((s) => s.key === section)?.dir ?? "";
@@ -67,6 +78,12 @@ export default function NotesReader({
         {subPath && ` / ${subPath}`} / {name}
       </p>
 
+      {toggleError && (
+        <div className="mb-3">
+          <ErrorBanner message={toggleError} />
+        </div>
+      )}
+
       {error ? (
         <ErrorBanner message={error} />
       ) : loading ? (
@@ -85,7 +102,12 @@ export default function NotesReader({
       ) : content ? (
         <div className="flex gap-8">
           <div className="mx-auto min-w-0 max-w-[46rem] flex-1">
-            <NotesMarkdown content={clean} />
+            <NotesMarkdown
+              content={clean}
+              onToggleTask={onToggleTask}
+              pendingLine={pendingLine}
+              locked={locked}
+            />
             {content.truncated && (
               <p className="mt-6 rounded-md border border-warning/60 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                 {t("notes.truncated")}

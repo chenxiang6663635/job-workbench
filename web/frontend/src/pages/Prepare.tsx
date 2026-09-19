@@ -24,6 +24,11 @@ const SUBTABS: { key: SubTab; labelKey: TranslationKey; icon: React.ReactNode }[
 // sessionStorage 协议：写方是 Dashboard，读方在 mount 时取一次后即清）。
 const DRILL_KEY = "jobws_prepare_tab";
 
+// 上次停留的页签（localStorage）：勾选写回会触发 App 级指纹刷新（整页 reload），
+// 不记住的话用户打完一个勾就被打回「宣讲会」，连打几个勾时每轮重来一次。
+// 与笔记页的文件记忆（jobws_notes_last）同款——reload 后回到原地。
+const LAST_KEY = "jobws_prepare_tab_last";
+
 function readDrillTab(): SubTab | null {
   try {
     const raw = sessionStorage.getItem(DRILL_KEY);
@@ -34,10 +39,20 @@ function readDrillTab(): SubTab | null {
   return null;
 }
 
+function readLastTab(): SubTab | null {
+  try {
+    const raw = localStorage.getItem(LAST_KEY);
+    if (raw === "talks" || raw === "questions" || raw === "notes") return raw;
+  } catch {
+    // 存储不可用：退回默认页签
+  }
+  return null;
+}
+
 export default function Prepare() {
   const { t } = useTranslation();
-  // 初值：下钻优先，其次默认「宣讲会」（时间敏感的事先看到）
-  const [sub, setSub] = useState<SubTab>(() => readDrillTab() ?? "talks");
+  // 初值：下钻（一次性指令）优先，其次上次停留，最后默认「宣讲会」（时间敏感的事先看到）
+  const [sub, setSub] = useState<SubTab>(() => readDrillTab() ?? readLastTab() ?? "talks");
 
   // 下钻只生效一次：读过就清，否则下次从导航进来还会停在旧页签
   useEffect(() => {
@@ -48,11 +63,22 @@ export default function Prepare() {
     }
   }, []);
 
+  // 页签切换即记忆——reload（外部编辑 / 写回触发的指纹刷新）后回到原页签
+  const onTabChange = (value: string) => {
+    const next = value as SubTab;
+    setSub(next);
+    try {
+      localStorage.setItem(LAST_KEY, next);
+    } catch {
+      // 存储不可用：记忆失效无妨（不影响使用）
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title={t("nav.prepare")} description={t("prepare.subtitle")} />
 
-      <Tabs value={sub} onValueChange={(v) => setSub(v as SubTab)}>
+      <Tabs value={sub} onValueChange={onTabChange}>
         <TabsList>
           {/* 参数不能叫 t：会遮蔽 useTranslation 给的翻译函数（进展页同款坑） */}
           {SUBTABS.map((item) => (

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { createContext, useContext, useMemo, type InputHTMLAttributes } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
@@ -8,16 +8,20 @@ import { cn } from "../lib/utils";
 
 // 笔记正文的 Markdown 渲染（react-markdown + remark-gfm）。
 //
-// 四条纪律：
+// 纪律（只读批建立，2026-09-18 勾选写回批扩充）：
 // 1. 样式全部走 token 类（check_ui_tokens 拦写死色）；裸文本样式只在本文件定义。
 // 2. **不启用 rehype-raw**：md 里的 HTML 源（03 模板里的 `<!-- 填写说明 -->`）
 //    默认不渲染——XSS 面收敛（不注入 HTML，只出元素树）；注释文本另由
 //    lib/notes.ts 的 stripHtmlComments 在渲染前剥除（默认行为会输出它的文本）。
-// 3. 标题锚点 id 用 `node.position.start.line`（源码行号）——与 lib/notes.ts 的
-//    extractOutline 同源（两侧都消费 strip 后的同一份文本），不会漂移。
+// 3. 标题锚点 id 与勾选框行号都用 `node.position.start.line`（源码行号）——
+//    与 lib/notes.ts 的 extractOutline 同源（两侧都消费 strip 后的同一份文本），
+//    不会漂移。
 // 4. 每个映射都要把 `node` 从 props 里解构掉（它是 remark 的 AST 节点，
 //    展开给 DOM 会触发 React 未知属性告警）；eslint 侧由 ignoreRestSiblings
 //    放行「为剔除而解构」的写法。
+// 5. 勾选框**可点击**（写回编排在 NotesBrowser：预览 → 确认 → apply → 重拉）：
+//    GFM 的 input 由 hast 直接构造、**没有 position**，行号只能从包着它的
+//    li（有 position）经 TaskLineContext 传下来——这是全链路里唯一的一跳。
 
 type NodeLike = { position?: { start?: { line?: number } } } | null | undefined;
 
@@ -25,6 +29,49 @@ const anchorId = (node: NodeLike) => {
   const line = node?.position?.start?.line;
   return typeof line === "number" ? `h-${line}` : undefined;
 };
+
+// 任务项行号（1-based 源码行）：li 写入、input 读取——同一次渲染、同一棵树。
+const TaskLineContext = createContext<number | null>(null);
+
+function TaskCheckbox({
+  checked,
+  onToggle,
+  pendingLine,
+  locked,
+  ...props
+}: {
+  checked?: boolean;
+  onToggle?: (line: number) => void;
+  /** 正在预览的行号——该项呈 pending 禁用态 */
+  pendingLine: number | null;
+  /** 有写回流程在进行中：整篇勾选框都禁用（避免连点时"点 A 弹出 B 的确认框"） */
+  locked?: boolean;
+} & InputHTMLAttributes<HTMLInputElement>) {
+  const { t } = useTranslation();
+  const line = useContext(TaskLineContext);
+  // 有回调且行号可定位才可点击；否则退回只读展示（缺任一条件都不写）。
+  // aria-label 走 t()——它是 form 元素，axe 的 label 规则要求可访问名称
+  // （disabled 也不例外），且文案要能翻译。
+  const interactive = onToggle != null && line != null;
+  const pending = interactive && pendingLine === line;
+  return (
+    <input
+      type="checkbox"
+      checked={checked}
+      {...props}
+      readOnly={!interactive}
+      // 展开之后再写 disabled / onChange：GFM 生成的 props 里带 disabled:true，
+      // 放前面会被它覆盖（那是只读批的形态，写回批要能点）。
+      disabled={!interactive || pending || locked}
+      onChange={interactive ? () => onToggle?.(line) : undefined}
+      aria-label={t("notes.checkboxLabel")}
+      className={cn(
+        "mr-2 h-4 w-4 accent-primary align-middle",
+        interactive && !pending && "cursor-pointer"
+      )}
+    />
+  );
+}
 
 const baseComponents: Components = {
   h1: ({ node, ...props }) => (
@@ -43,12 +90,19 @@ const baseComponents: Components = {
   p: ({ node, ...props }) => <p className="my-2.5" {...props} />,
   ul: ({ node, ...props }) => <ul className="my-2.5 list-disc pl-5" {...props} />,
   ol: ({ node, ...props }) => <ol className="my-2.5 list-decimal pl-5" {...props} />,
-  li: ({ node, className, ...props }) => (
-    <li
-      className={cn("my-1", className?.includes("task-list-item") && "list-none", className)}
-      {...props}
-    />
-  ),
+  li: ({ node, className, children, ...props }) => {
+    if (className?.includes("task-list-item")) {
+      const line = node?.position?.start?.line;
+      return (
+        <li className={cn("my-1 list-none", className)} {...props}>
+          <TaskLineContext.Provider value={typeof line === "number" ? line : null}>
+            {children}
+          </TaskLineContext.Provider>
+        </li>
+      );
+    }
+    return <li className={cn("my-1", className)} {...props} />;
+  },
   blockquote: ({ node, ...props }) => (
     <blockquote
       className="my-3 rounded-r-md border-l-2 border-primary/60 bg-secondary/40 py-1.5 pl-4 pr-3 text-muted-foreground"
@@ -123,28 +177,31 @@ const baseComponents: Components = {
   },
 };
 
-export default function NotesMarkdown({ content }: { content: string }) {
-  const { t } = useTranslation();
-  // GFM 勾选框：**只读展示**（写回是后续批次，本批不提供任何写路径）。
-  // aria-label 走 t()——它是 form 元素，axe 的 label 规则要求可访问名称
-  // （disabled 也不例外），且文案要能翻译；模块级常量调不了 t()，
-  // 所以只有这一项在组件内构造。
+export default function NotesMarkdown({
+  content,
+  onToggleTask,
+  pendingLine = null,
+  locked = false,
+}: {
+  content: string;
+  onToggleTask?: (line: number) => void;
+  pendingLine?: number | null;
+  locked?: boolean;
+}) {
   const components = useMemo<Components>(
     () => ({
       ...baseComponents,
       input: ({ node, checked, ...props }) => (
-        <input
-          type="checkbox"
+        <TaskCheckbox
           checked={checked}
-          readOnly
-          disabled
-          aria-label={t("notes.checkboxLabel")}
-          className="mr-2 h-4 w-4 accent-primary align-middle"
+          onToggle={onToggleTask}
+          pendingLine={pendingLine}
+          locked={locked}
           {...props}
         />
       ),
     }),
-    [t]
+    [onToggleTask, pendingLine, locked]
   );
 
   return (

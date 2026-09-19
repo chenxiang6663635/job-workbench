@@ -356,6 +356,9 @@ export interface LibraryList {
   total: number;
 }
 
+// 笔记勾选写回：预览返回形状与题库预览一致（token + 摘要 + 差异 + 过期时刻）
+export type PrepTogglePreview = BankImportPreview;
+
 // 笔记（只读）：03_面试准备 / 04_知识库 —— 字段与工作区真实文件一一对应
 export interface PrepFile {
   rel: string;
@@ -1105,6 +1108,12 @@ export const api = {
 
   prepContent: (section: "interview" | "knowledge", rel: string) =>
     request<PrepContent>(`/prep/${section}/content?rel=${encodeURIComponent(rel)}`),
+
+  // 笔记勾选写回：预览（签发令牌）→ 确认后走既有 applyApproval 落盘
+  previewPrepToggle: (section: "interview" | "knowledge", rel: string, line: number) =>
+    request<PrepTogglePreview>(
+      `/prep/${section}/preview-toggle?rel=${encodeURIComponent(rel)}&line=${line}`
+    ),
 
   listWorkspaces: () =>
     request<{ items: WorkspaceItem[]; total: number }>("/workspaces"),

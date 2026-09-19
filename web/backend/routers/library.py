@@ -16,7 +16,7 @@ import os
 from fastapi import APIRouter, Depends
 from apierror import ApiError
 from deps import safe_join, workspace_dir
-from ro_files import walk_files
+from ro_files import inside, walk_files
 
 router = APIRouter(prefix="/api/library")
 
@@ -48,8 +48,13 @@ def library_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
     base_rel = FACT_DIR
+    base = safe_join(ws, base_rel)
 
     full = safe_join(ws, base_rel, rel)
+    if not inside(base, full):
+        # realpath 二次确认 2026-09-18 补齐（对齐笔记）：safe_join 不解析符号
+        # 链接；参数与该码在 deps.safe_join 的抛点保持一致（无 params）
+        raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
         raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)
 
@@ -72,8 +77,12 @@ def library_file(section: str, rel: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
     base_rel = FACT_DIR
+    base = safe_join(ws, base_rel)
 
     full = safe_join(ws, base_rel, rel)
+    if not inside(base, full):
+        # realpath 二次确认 2026-09-18 补齐（与 content 端点、与笔记同款）
+        raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
         raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)
 

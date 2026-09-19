@@ -112,6 +112,8 @@ export default function NotesFileTree({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder={t("notes.searchPlaceholder")}
+          // placeholder 不是可访问名称（axe 的 label 规则会报）——补 aria-label
+          aria-label={t("notes.searchPlaceholder")}
           className="pl-9"
         />
       </div>

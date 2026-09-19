@@ -1,20 +1,23 @@
+import { useMemo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
+import { useTranslation } from "react-i18next";
 import remarkGfm from "remark-gfm";
 
 import { cn } from "../lib/utils";
 
 // 笔记正文的 Markdown 渲染（react-markdown + remark-gfm）。
 //
-// 三条纪律：
+// 四条纪律：
 // 1. 样式全部走 token 类（check_ui_tokens 拦写死色）；裸文本样式只在本文件定义。
 // 2. **不启用 rehype-raw**：md 里的 HTML 源（03 模板里的 `<!-- 填写说明 -->`）
-//    默认不渲染——正好满足"注释忽略"，也是 XSS 面的收敛（不注入 HTML，只出元素树）。
+//    默认不渲染——XSS 面收敛（不注入 HTML，只出元素树）；注释文本另由
+//    lib/notes.ts 的 stripHtmlComments 在渲染前剥除（默认行为会输出它的文本）。
 // 3. 标题锚点 id 用 `node.position.start.line`（源码行号）——与 lib/notes.ts 的
-//    extractOutline 同源，两处不会漂移。
-//
-// 注意：每个映射都要把 `node` 从 props 里解构掉（它是 remark 的 AST 节点，
-// 展开给 DOM 会触发 React 未知属性告警）。
+//    extractOutline 同源（两侧都消费 strip 后的同一份文本），不会漂移。
+// 4. 每个映射都要把 `node` 从 props 里解构掉（它是 remark 的 AST 节点，
+//    展开给 DOM 会触发 React 未知属性告警）；eslint 侧由 ignoreRestSiblings
+//    放行「为剔除而解构」的写法。
 
 type NodeLike = { position?: { start?: { line?: number } } } | null | undefined;
 
@@ -23,7 +26,7 @@ const anchorId = (node: NodeLike) => {
   return typeof line === "number" ? `h-${line}` : undefined;
 };
 
-const components: Components = {
+const baseComponents: Components = {
   h1: ({ node, ...props }) => (
     <h1 id={anchorId(node)} className="mb-2 mt-0 text-[21px] font-semibold tracking-tight" {...props} />
   ),
@@ -85,8 +88,20 @@ const components: Components = {
   hr: ({ node, ...props }) => <hr className="my-6 border-t border-border" {...props} />,
   a: ({ node, href, children, ...props }) => {
     if (href?.startsWith("#")) {
+      // 站内锚点（手写目录链接 / GFM 脚注）：**必须 preventDefault**——
+      // App 是 hash 路由，原生跳转会触发 hashchange、未知 hash 被判无效并
+      // 直接踢回看板（独立审查 MINOR-3；大纲按钮已是同款处理）。
+      const id = href.slice(1);
       return (
-        <a href={href} className="text-primary hover:underline" {...props}>
+        <a
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          className="text-primary hover:underline"
+          {...props}
+        >
           {children}
         </a>
       );
@@ -106,20 +121,32 @@ const components: Components = {
       </span>
     );
   },
-  // GFM 勾选框：**只读展示**（写回是后续批次；本批不提供任何写路径）
-  input: ({ node, checked, ...props }) => (
-    <input
-      type="checkbox"
-      checked={checked}
-      readOnly
-      disabled
-      className="mr-2 h-4 w-4 accent-primary align-middle"
-      {...props}
-    />
-  ),
 };
 
 export default function NotesMarkdown({ content }: { content: string }) {
+  const { t } = useTranslation();
+  // GFM 勾选框：**只读展示**（写回是后续批次，本批不提供任何写路径）。
+  // aria-label 走 t()——它是 form 元素，axe 的 label 规则要求可访问名称
+  // （disabled 也不例外），且文案要能翻译；模块级常量调不了 t()，
+  // 所以只有这一项在组件内构造。
+  const components = useMemo<Components>(
+    () => ({
+      ...baseComponents,
+      input: ({ node, checked, ...props }) => (
+        <input
+          type="checkbox"
+          checked={checked}
+          readOnly
+          disabled
+          aria-label={t("notes.checkboxLabel")}
+          className="mr-2 h-4 w-4 accent-primary align-middle"
+          {...props}
+        />
+      ),
+    }),
+    [t]
+  );
+
   return (
     <div className="text-[15px] leading-[1.85] text-foreground">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>

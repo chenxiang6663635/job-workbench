@@ -63,6 +63,7 @@ def test_list_returns_markdown_with_nested_rel_and_sorted(client, tmp_path):
     _write(tmp_path, "note.txt", "不是 md")
     _write(tmp_path, ".hidden.md", "# 隐藏")
     _write(tmp_path, "__pycache__/x.md", "# 运行时产物")
+    _write(tmp_path, ".trash/旧笔记.md", "# 已删进回收站")
 
     res = client.get("/api/prep/interview", params={"ws": WS})
     assert res.status_code == 200
@@ -167,3 +168,14 @@ def test_unknown_section(client):
     body = res.json()
     assert body["error_code"] == "prep.unknownSection"
     assert body["error_params"]["section"] == "unknown"
+
+
+def test_content_rejects_non_utf8(client, tmp_path):
+    """非 UTF-8 字节 → 明确失败，不用 errors="replace" 静默糊住真乱码。"""
+    _write(tmp_path, "坏编码.md", "中文内容".encode("gbk"))
+    res = client.get("/api/prep/interview/content",
+                     params={"ws": WS, "rel": "坏编码.md"})
+    assert res.status_code == 500
+    body = res.json()
+    assert body["error_code"] == "prep.readFailed"
+    assert body["error_params"]["rel"] == "坏编码.md"

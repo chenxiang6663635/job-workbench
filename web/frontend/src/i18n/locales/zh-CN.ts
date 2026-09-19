@@ -1006,6 +1006,7 @@ const zhCN = {
   "notes.readmeLabel": "目录说明",
   "notes.badgeEmpty": "空",
   "notes.badgeUnreadable": "读不了",
+  "notes.checkboxLabel": "勾选框（只读）",
   "notes.outline": "本页大纲",
   "notes.truncated": "文件较大，这里只显示前 256 KB——完整内容请在编辑器里打开",
   "notes.emptyTitle": "还没有笔记",

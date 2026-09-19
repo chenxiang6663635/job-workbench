@@ -88,7 +88,9 @@ def list_prep(section: str, ws: str = Depends(workspace_dir)):
     items = []
     if os.path.isdir(base):
         for root, dirs, files in os.walk(base):
-            dirs[:] = sorted(d for d in dirs if not d.startswith("__"))
+            # 隐藏目录（.obsidian / .trash 等）与运行时产物一律不进列表——
+            # 与文件级的 "." 排除对称；否则被删进 .trash 的笔记会"复活"（独立审查 MINOR-2）
+            dirs[:] = sorted(d for d in dirs if not d.startswith(("__", ".")))
             for name in sorted(files):
                 if name.startswith("."):
                     continue

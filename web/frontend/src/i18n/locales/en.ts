@@ -926,6 +926,7 @@ export default {
   "notes.readmeLabel": "Directory guide",
   "notes.badgeEmpty": "Empty",
   "notes.badgeUnreadable": "Unreadable",
+  "notes.checkboxLabel": "Checkbox (read-only)",
   "notes.outline": "On this page",
   "notes.truncated": "Large file — only the first 256 KB is shown; open it in your editor for the full text",
   "notes.emptyTitle": "No notes yet",

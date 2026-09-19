@@ -133,7 +133,8 @@ export function extractOutline(markdown: string): NotesOutlineItem[] {
       return;
     }
     if (fence !== null) return;
-    const heading = line.match(/^(#{2,3})\s+(.+?)\s*$/);
+    // ≤3 空格缩进的 ATX 标题也是标题（CommonMark 与渲染侧 remark 都接受）
+    const heading = line.match(/^\s{0,3}(#{2,3})\s+(.+?)\s*$/);
     if (heading) {
       out.push({
         level: heading[1].length as 2 | 3,
@@ -161,7 +162,9 @@ export function stripHtmlComments(markdown: string): string {
   let inComment = false;
   const out: string[] = [];
   for (const line of markdown.split(/\r?\n/)) {
-    const fence = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    // 注释态下不做围栏判定：注释体内以 ``` / ~~~ 开头的行是注释内容，
+    // 不是围栏开关（独立审查 MINOR-1：否则会把注释"泄漏"成正文）
+    const fence = inComment ? null : line.match(/^\s{0,3}(`{3,}|~{3,})/);
     if (fence) {
       const marker = fence[1][0];
       if (inFence === null) inFence = marker;

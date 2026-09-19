@@ -143,6 +143,10 @@ describe("extractOutline（h2/h3，锚点=源码行号）", () => {
     const md = "# 一\n\n## 二\n";
     expect(extractOutline(md)[0].id).toBe("h-3");
   });
+
+  it("容忍 ≤3 空格缩进的标题（与渲染侧 remark 口径一致）", () => {
+    expect(extractOutline("   ## 缩进标题\n").map((o) => o.text)).toEqual(["缩进标题"]);
+  });
 });
 
 describe("stripHtmlComments（渲染前剥注释，保行数）", () => {
@@ -160,5 +164,13 @@ describe("stripHtmlComments（渲染前剥注释，保行数）", () => {
     expect(out).toContain("<!-- 代码里的示例 -->");
     expect(out).not.toContain("跨行");
     expect(out).toContain("之后");
+  });
+
+  it("注释体内出现围栏标记不破坏剥离（围栏判定不对注释态生效）", () => {
+    const md = "前\n<!--\n```\n-->\n后\n```\n代码\n```\n";
+    const out = stripHtmlComments(md);
+    expect(out).not.toContain("<!--");
+    // 8 个内容行 + 末尾 \n 切出的空元素 = 9（保行数：输入输出同为 9）
+    expect(out.split("\n")).toHaveLength(9);
   });
 });

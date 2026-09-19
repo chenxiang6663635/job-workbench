@@ -1088,7 +1088,7 @@ export const api = {
     request<LibraryList>(`/library/${section}`),
 
   libraryContent: (section: "facts", rel: string) =>
-    request<{ rel: string; type: string; content: string }>(
+    request<{ rel: string; type: string; content: string; truncated?: boolean; bytes?: number }>(
       `/library/${section}/content?rel=${encodeURIComponent(rel)}`
     ),
 

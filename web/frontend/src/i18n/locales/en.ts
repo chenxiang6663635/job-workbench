@@ -770,6 +770,7 @@ export default {
 
   "err.lib.unknownSection": "Unknown library section: {{section}}",
   "err.lib.fileNotFound": "File not found: {{rel}}",
+  "err.lib.readFailed": "Could not read the file: {{rel}}",
 
   // Question bank import (1a): parsing Markdown from 03_面试准备; reasons come back verbatim
   "err.question.importFailed": "Cannot import from {{module}}: {{reason}}",
@@ -905,6 +906,7 @@ export default {
   "lib.empty": "No fact cards yet",
   "lib.emptyHint": "Drop files into the workspace `00_事实库/` folder and they show up here — fact cards, notes, attachments.",
   "lib.preview": "Preview",
+  "lib.truncated": "Large file — only the first 256 KB is shown; open it in your editor for the full text",
 
   "progress.interviews": "Interviews",
   "progress.mails": "Emails",

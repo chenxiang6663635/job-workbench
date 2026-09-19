@@ -157,6 +157,19 @@ def test_content_rejects_symlink_escape(client, tmp_path):
     assert res.json()["error_code"] == "path.escape"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="符号链接场景仅在 POSIX 上验证")
+def test_list_rejects_symlinked_section_dir(client, tmp_path):
+    """section 目录本身被替换成外部链接 → 整体拒绝（锚点=工作区根，MINOR-2）。"""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "外.md").write_text("# 外", encoding="utf-8")
+    os.symlink(str(outside), str(tmp_path / WS / PREP_DIR))
+
+    res = client.get("/api/prep/interview", params={"ws": WS})
+    assert res.status_code == 400
+    assert res.json()["error_code"] == "path.escape"
+
+
 def test_content_rejects_non_markdown(client, tmp_path):
     _write(tmp_path, "笔记.txt", "纯文本")
     res = client.get("/api/prep/interview/content",

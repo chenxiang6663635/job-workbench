@@ -194,7 +194,7 @@ The main arena after you apply. Four sub-tabs:
 
 ### Library
 
-Read-only view of your own asset files (maintained by the CLI/AI): fact card source text, inline preview of resume-related files.
+Read-only view of the fact base (`00_事实库/`, maintained by the CLI / AI): fact cards are rendered as formatted text (tables / checkboxes / quotes / code blocks); files over 256 KB are truncated with an explicit notice; edits made outside refresh within ~10 s. **Résumé-related files moved to Resume Studio** (2026-09-03) and are no longer shown here.
 
 ### Settings (Provider)
 

@@ -10,12 +10,12 @@
 
 from __future__ import annotations
 
-import io
 import os
 
 from fastapi import APIRouter, Depends
 from apierror import ApiError
 from deps import safe_join, workspace_dir
+from ro_files import TextDecodeError, inside, read_text_limited, walk_files
 
 router = APIRouter(prefix="/api/library")
 
@@ -25,29 +25,14 @@ FACT_DIR = "00_事实库"
 TEXT_EXT = {".md", ".txt", ".html"}
 
 
-def _list_files(base, recursive):
-    if not os.path.isdir(base):
-        return []
-    out = []
-    for root, dirs, files in os.walk(base):
-        # 跳过 __pycache__ 等运行时产物
-        dirs[:] = [d for d in dirs if not d.startswith("__")]
-        for name in sorted(files):
-            if name.startswith("."):
-                continue
-            full = os.path.join(root, name)
-            rel = os.path.relpath(full, base).replace("\\", "/")
-            out.append({
-                "rel": rel,
-                "name": name,
-                "size": os.path.getsize(full),
-                "mtime": int(os.path.getmtime(full)),
-                "kind": "text" if os.path.splitext(name)[1].lower() in TEXT_EXT else "binary",
-            })
-        if not recursive:
-            break
-    out.sort(key=lambda x: (x["rel"]))
-    return out
+def _section_base(ws, base_rel):
+    """section 根目录 = safe_join + realpath 归属检查（锚点=**工作区根**）：
+    section 目录本身被替换成指向外部的链接时整体拒绝——与 MCP 侧、与笔记同款
+    （独立审查 MINOR-2；目录树**内**的 junction 另由 `inside(base, full)` 兜住）。"""
+    base = safe_join(ws, base_rel)
+    if not inside(ws, base):
+        raise ApiError(400, "path.escape", "路径越出工作区")
+    return base
 
 
 @router.get("/{section}")
@@ -55,8 +40,14 @@ def list_library(section: str, ws: str = Depends(workspace_dir)):
     if section != "facts":
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
-    base = safe_join(ws, FACT_DIR)
-    items = _list_files(base, recursive=True)
+    base = _section_base(ws, FACT_DIR)
+    # 遍历与排序 2026-09-18 收敛到共享原语（ro_files.walk_files，与笔记同源）；
+    # kind 是素材库自己的分流（文本内联看 / 二进制拼 URL 加载）——
+    # 隐藏目录规则随共享层对齐（.obsidian 等不再出现）
+    items = walk_files(base)
+    for item in items:
+        item["kind"] = ("text" if os.path.splitext(item["name"])[1].lower() in TEXT_EXT
+                        else "binary")
     return {"section": section, "items": items, "total": len(items)}
 
 
@@ -66,15 +57,29 @@ def library_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
     base_rel = FACT_DIR
+    base = _section_base(ws, base_rel)
 
     full = safe_join(ws, base_rel, rel)
+    if not inside(base, full):
+        # 参数与该码在 deps.safe_join 的抛点保持一致（无 params）
+        raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
         raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)
 
     ext = os.path.splitext(rel)[1].lower()
     if ext in TEXT_EXT:
-        with io.open(full, "r", encoding="utf-8") as f:
-            return {"rel": rel, "type": "text", "content": f.read()}
+        try:
+            text, truncated, size = read_text_limited(full)
+        except TextDecodeError:
+            raise ApiError(500, "lib.readFailed", "不是 UTF-8 编码的文本文件: %s" % rel,
+                           rel=rel)
+        except OSError as exc:
+            raise ApiError(500, "lib.readFailed", "文件读取失败: %s（%s）" % (rel, exc),
+                           rel=rel)
+        # 截断诚实（2026-09-18 补齐，对齐笔记）：bytes 报文件真实总字节，
+        # truncated 供前端显式提示"仅显示前 256KB"
+        return {"rel": rel, "type": "text", "content": text,
+                "truncated": truncated, "bytes": size}
 
     # 二进制（PDF/图片）：返回相对路径，由前端拼 URL 加载
     return {"rel": rel, "type": "binary"}
@@ -90,8 +95,11 @@ def library_file(section: str, rel: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
     base_rel = FACT_DIR
+    base = _section_base(ws, base_rel)
 
     full = safe_join(ws, base_rel, rel)
+    if not inside(base, full):
+        raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
         raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)
 

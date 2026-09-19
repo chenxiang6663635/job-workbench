@@ -40,7 +40,7 @@ CSV_ONE = (
 def tokens(tmp_path, monkeypatch):
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
+    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
     return store
 
 

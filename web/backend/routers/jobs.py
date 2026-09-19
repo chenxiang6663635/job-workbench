@@ -28,7 +28,7 @@ import tls_http
 import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, DIR_TRACKING, safe_join, workspace_dir
-from filelock import file_lock
+from jobws_core.filelock import file_lock
 
 router = APIRouter(prefix="/api/jobs")
 

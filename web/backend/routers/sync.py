@@ -24,6 +24,6 @@ def workspace_version(ws: str = Depends(workspace_dir)):
     前端取用时加 `cache: "no-store"`（见 web/frontend/src/hooks/useWorkspaceSync.ts），
     避免轮询吃到启发式缓存、永远读到「没变化」。
     """
-    import workspace_io  # 函数内 import：与 deps 的既有惯例一致
+    from jobws_core import workspace_io  # 函数内 import：与 deps 的既有惯例一致
 
     return {"fingerprint": workspace_io.dir_fingerprint(ws)}

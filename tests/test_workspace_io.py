@@ -23,7 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.path.join(ROOT, "tools") not in sys.path:
     sys.path.insert(0, os.path.join(ROOT, "tools"))
 
-import workspace_io  # noqa: E402
+from jobws_core import workspace_io  # noqa: E402
 
 
 # --- 原子写 ---------------------------------------------------------------

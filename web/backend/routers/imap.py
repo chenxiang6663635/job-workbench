@@ -34,7 +34,7 @@ import imap_fetch
 from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
-from filelock import file_lock
+from jobws_core.filelock import file_lock
 from redact import mask_secret
 
 router = APIRouter(prefix="/api/imap")

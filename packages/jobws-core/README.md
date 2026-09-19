@@ -32,7 +32,32 @@ distribution 名是 `jobws-core`，但 **import 名是 `jobws_core`**：`tools/j
 
 ## 边界
 
-- 本批（2026-09-17）只含两个零依赖叶子：`jobws_core.filelock`、`jobws_core.workspace_io`。
-- 旧路径 `tools/filelock.py` / `tools/workspace_io.py` 保留为**转发 shim**并发出
-  `DeprecationWarning`——存量调用点零改动，下一版删 shim。
-- 领域层主体（`tools/tracker/`）与协议层 `tools/approval.py` 的搬迁在后续批次。
+**第二批（2026-09-19）加入：**
+
+- `jobws_core.pathres` —— 路径解析。**它不再从 `__file__` 推断应用根**：入口显式
+  `set_app_root()`，没注入就报错。住在 `web/backend/` 时「向上三级」正好是仓库根，
+  搬进 site-packages 后同一个表达式指向安装目录的上层、数据根静默漂移
+  （完整论证见 `tests/test_domain_root.py`）。
+- `jobws_core.tracker`（13 个子模块）—— 投递追踪领域层。仓内 `tools/tracker/` 留
+  **合并门面 shim**：领域模块经 `sys.modules` 别名指向本包（同一个对象，否则
+  monkeypatch 会静默失效），留仓的 `_cli*.py` 挂回 `tracker.*`。
+  **CLI 子模块按用户拍板留仓**。
+- `jobws_core.approval` —— 两段式写入协议的**外壳**。操作注册表**不在包里**：
+  由调用侧 `register()` 登记（仓内的 `tools/approval.py` 登记 12 个操作）——
+  协议层因此不认识任何具体实现，这是解掉包级循环依赖的关键。
+
+**两批共用的形态：**
+
+- 旧路径留转发 shim 并发出 `DeprecationWarning`，存量调用点零改动。
+  `jobws lint legacy-imports` 把旧名 import 数压成**只许下降**的水位，
+  **降到 0 就删 shim**——`filelock` / `workspace_io` 已于 2026-09-19 走完这条流程。
+- **本地开发注意**：本包若以**非 editable** 形态安装，**新增模块对已装副本不可见**
+  （PEP 660 的静态映射）——往包里搬新模块后不重装就会 `ModuleNotFoundError`
+  （2026-09-19 A-1 实测）。建议
+  `uv pip install -e packages/jobws-core --config-settings editable_mode=compat`：
+  compat 模式把 `src` 整体入 path，新文件自动可见。
+- **导入 `jobws_core.tracker` 之前必须有应用根**：`tracker/_core.py` 在**导入期**就求值
+  `ROOT`（`pathres.resolve_root()`），没注入会抛 `RuntimeError`。宿主进程若只是
+  "import 一下看看"（安装冒烟、IDE 索引、静态分析），请先
+  `from jobws_core import pathres; pathres.set_app_root(<任意目录>)`——
+  CI 的 `install-smoke` 就是这么做的。

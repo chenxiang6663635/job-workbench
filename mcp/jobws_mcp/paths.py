@@ -55,6 +55,11 @@ for _p in (BACKEND_DIR, TOOLS_DIR):
 
 import pathres  # noqa: E402
 
+# 注入应用根：pathres 不再从 __file__ 推断（它要搬进可安装包，推断值会静默变成
+# site-packages 的上层）。这里是「仓库在侧」的临时形态——**PR-B 删硬闸时**，
+# REPO_ROOT 连同 _locate_repo_root 整段消失，注入改由包内 pathres 与数据根协作。
+pathres.set_app_root(REPO_ROOT)
+
 
 def _warn_if_domain_package_missing():
     """领域包 `jobws-core` 没装时提示一句——**只提示，不阻断**。

@@ -29,16 +29,22 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALLOWLIST = os.path.join(ROOT, "tools", "legacy_imports_allowlist.txt")
 
-# 要盯的旧名（第二批搬 tracker / approval 时继续往这里加）
-LEGACY_NAMES = ("filelock", "workspace_io")
+# 要盯的旧名（第二批继续往这里加：PR-B 会补 jd_score / report / question_bank
+# 与 url_infer / status_parse / tls_policy）
+LEGACY_NAMES = ("filelock", "workspace_io", "pathres", "tracker", "approval")
 
-SCAN_DIRS = ("tools", "web/backend", "mcp", "tests", "scripts")
+# `packages` 必须进来：包内若写旧名 import，包外这层闸门就看不见了——而那正是
+# 「搬进去就静默放行」的形态。`check_size.py` 早已把 packages 列进 SCAN_DIRS，
+# 这里对齐（2026-09-19 批 6 第二批）。
+SCAN_DIRS = ("tools", "web/backend", "mcp", "tests", "scripts", "packages")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", ".venv"}
 
-# shim 自身不算调用点：它们就是被观测对象的别名文件
+# shim 自身不算调用点：它们就是被观测对象的别名文件。
+# （filelock / workspace_io 的 shim 已于 2026-09-19 A-4 删除——旧名清零。）
 SKIP_FILES = {
-    os.path.join("tools", "filelock.py"),
-    os.path.join("tools", "workspace_io.py"),
+    os.path.join("web", "backend", "pathres.py"),
+    os.path.join("tools", "tracker", "__init__.py"),
+    os.path.join("tools", "approval.py"),
 }
 
 
@@ -134,13 +140,14 @@ def main():
 
     problems = []
     for name in sorted(counts):
-        if name not in limits:
-            # 自洁：清单里登记过、现在一个都没有了 → 该删那一行（可以删 shim 了）
-            continue
-        if counts[name] > limits[name]:
+        # 清单里没有 = **上限 0**：`filelock` / `workspace_io` 清零后按流程删掉了
+        # 清单那两行，但名字仍留在 LEGACY_NAMES 里当防火墙——少了这个默认值，
+        # 防火墙就是空的（2026-09-19 独立审查 M3 抓到的承诺与实现不一致）。
+        limit = limits.get(name, 0)
+        if counts[name] > limit:
             problems.append(
                 "旧名 `%s` 的 import 点从 %d 涨到了 %d——新增调用请用 "
-                "jobws_core：%s" % (name, limits[name], counts[name],
+                "jobws_core：%s" % (name, limit, counts[name],
                                     "、".join(details[name][:5])))
     for name in sorted(limits):
         if name not in counts:

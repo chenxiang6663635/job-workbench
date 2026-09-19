@@ -30,7 +30,7 @@ def _isolated_token_store(tmp_path, monkeypatch):
     """令牌目录挪进 tmp_path——不碰真实临时目录，用例之间互不相见。"""
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
+    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
 
 
 def _make_ws(tmp_path):

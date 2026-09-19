@@ -31,8 +31,9 @@ web/backend/build/
 # 本地验证用的临时工作区（fake 数据），不进版本管理；personal 才是真实工作区
 test_ws/
 # demo 数据工作区（假公司占位数据，用于评估与截图）。两个名字、同一个配方：
-#   python tools/init_workspace.py --target demo --demo        ← 文档里给用户的那条
-#   python tools/init_workspace.py --target demo-shots --demo  ← 本机拍 README 截图用
+#   python tools/jobws.py init --target demo --demo        ← 文档里给用户的那条
+#   python tools/jobws.py init --target demo-shots --demo  ← 本机拍 README 截图用
+#     （拍照跑 web/frontend 下的 `npm.cmd run capture`：它会重建本目录再拍两套图）
 # 数据骨架在 template/demo/。任何需要 demo 工作区的流程都应跑这条命令重建，不要手工
 # 攒数据——手工产物与命令产物一旦分叉，截图就不再代表首次体验。
 # 前导斜杠是关键：不带时 `demo/` 会匹配任意深度的同名目录，把 template/demo/

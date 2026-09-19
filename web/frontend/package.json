@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:ui": "playwright test",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "capture": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",

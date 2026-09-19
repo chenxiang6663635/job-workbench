@@ -835,6 +835,7 @@ const zhCN = {
 
   "err.lib.unknownSection": "未知素材库分类：{{section}}",
   "err.lib.fileNotFound": "文件不存在：{{rel}}",
+  "err.lib.readFailed": "文件读取失败：{{rel}}",
 
   // 笔记（03_面试准备 / 04_知识库）：只读浏览的错误
   "err.prep.unknownSection": "未知笔记分类：{{section}}",

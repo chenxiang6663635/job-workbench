@@ -74,16 +74,38 @@ def test_list_empty_workspace(client):
 
 
 def test_content_text_and_binary(client, tmp_path):
-    _write(tmp_path, "卡.md", "# 正文")
+    path = _write(tmp_path, "卡.md", "# 正文")
     _write(tmp_path, "图.png", b"PNGBYTES")
 
     res = client.get("/api/library/facts/content", params={"ws": WS, "rel": "卡.md"})
     assert res.status_code == 200
-    assert res.json() == {"rel": "卡.md", "type": "text", "content": "# 正文"}
+    body = res.json()
+    assert body["rel"] == "卡.md" and body["type"] == "text"
+    assert body["content"] == "# 正文"
+    # 截断诚实（2026-09-18 补齐）：bytes 报文件真实总字节，不是返回内容长度
+    assert body["truncated"] is False
+    assert body["bytes"] == os.path.getsize(str(path))
 
     res = client.get("/api/library/facts/content", params={"ws": WS, "rel": "图.png"})
     assert res.status_code == 200
     assert res.json() == {"rel": "图.png", "type": "binary"}
+
+
+def test_content_truncates_with_real_byte_count(client, tmp_path):
+    path = _write(tmp_path, "大.md", "字" * (100 * 1024))  # 300KB，超 256KB 上限
+    res = client.get("/api/library/facts/content", params={"ws": WS, "rel": "大.md"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["truncated"] is True
+    assert body["bytes"] == os.path.getsize(str(path))
+    assert len(body["content"].encode("utf-8")) <= 256 * 1024
+
+
+def test_content_rejects_non_utf8(client, tmp_path):
+    _write(tmp_path, "坏.md", "中文".encode("gbk"))
+    res = client.get("/api/library/facts/content", params={"ws": WS, "rel": "坏.md"})
+    assert res.status_code == 500
+    assert res.json()["error_code"] == "lib.readFailed"
 
 
 def test_content_rejects_traversal(client, tmp_path):

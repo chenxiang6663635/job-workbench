@@ -10,13 +10,12 @@
 
 from __future__ import annotations
 
-import io
 import os
 
 from fastapi import APIRouter, Depends
 from apierror import ApiError
 from deps import safe_join, workspace_dir
-from ro_files import inside, walk_files
+from ro_files import TextDecodeError, inside, read_text_limited, walk_files
 
 router = APIRouter(prefix="/api/library")
 
@@ -60,8 +59,18 @@ def library_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
 
     ext = os.path.splitext(rel)[1].lower()
     if ext in TEXT_EXT:
-        with io.open(full, "r", encoding="utf-8") as f:
-            return {"rel": rel, "type": "text", "content": f.read()}
+        try:
+            text, truncated, size = read_text_limited(full)
+        except TextDecodeError:
+            raise ApiError(500, "lib.readFailed", "不是 UTF-8 编码的文本文件: %s" % rel,
+                           rel=rel)
+        except OSError as exc:
+            raise ApiError(500, "lib.readFailed", "文件读取失败: %s（%s）" % (rel, exc),
+                           rel=rel)
+        # 截断诚实（2026-09-18 补齐，对齐笔记）：bytes 报文件真实总字节，
+        # truncated 供前端显式提示"仅显示前 256KB"
+        return {"rel": rel, "type": "text", "content": text,
+                "truncated": truncated, "bytes": size}
 
     # 二进制（PDF/图片）：返回相对路径，由前端拼 URL 加载
     return {"rel": rel, "type": "binary"}

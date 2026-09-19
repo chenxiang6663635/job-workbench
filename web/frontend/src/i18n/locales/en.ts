@@ -770,6 +770,7 @@ export default {
 
   "err.lib.unknownSection": "Unknown library section: {{section}}",
   "err.lib.fileNotFound": "File not found: {{rel}}",
+  "err.lib.readFailed": "Could not read the file: {{rel}}",
 
   // Question bank import (1a): parsing Markdown from 03_面试准备; reasons come back verbatim
   "err.question.importFailed": "Cannot import from {{module}}: {{reason}}",

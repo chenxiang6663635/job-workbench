@@ -20,7 +20,7 @@ for _p in (MCP_DIR, os.path.join(MCP_DIR, os.pardir, "tools")):
         sys.path.insert(0, _real)
 
 import approval  # noqa: E402
-import question_bank  # noqa: E402
+from jobws_core import question_bank  # noqa: E402
 import tracker  # noqa: E402
 from jobws_mcp import tools_readonly, tools_writable  # noqa: E402
 

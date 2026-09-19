@@ -19,7 +19,7 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-from question_bank import (MODULE_DIR, preview_add_fields, preview_import,  # noqa: E402
+from jobws_core.question_bank import (MODULE_DIR, preview_add_fields, preview_import,  # noqa: E402
                            preview_update_fields, read_questions)
 
 

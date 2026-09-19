@@ -43,7 +43,7 @@ def _register_operations():
     """
     import init_workspace
     import prep_notes
-    import question_bank
+    from jobws_core import question_bank
 
     from jobws_core import tracker
 

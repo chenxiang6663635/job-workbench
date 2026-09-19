@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 import tracker
-import question_bank as question_store
+from jobws_core import question_bank as question_store
 from apierror import ApiError
 from deps import workspace_dir
 

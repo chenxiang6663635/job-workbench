@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import atomicio
-import jd_score
+from jobws_core import jd_score
 import tls_http
 import tracker
 from apierror import ApiError

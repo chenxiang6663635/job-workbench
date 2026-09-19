@@ -19,7 +19,7 @@ import pytest
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-import question_bank  # noqa: E402
+from jobws_core import question_bank  # noqa: E402
 import tracker  # noqa: E402
 
 

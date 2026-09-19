@@ -17,7 +17,7 @@ diff 就是给用户看的原文），而不是靠提示词约束。
 import os
 
 import approval
-import question_bank
+from jobws_core import question_bank
 import tracker
 
 # 落盘后给宿主的一句话指引：让模型知道"刚才发生了什么、下一步是什么"。

@@ -78,12 +78,12 @@ import check_themes  # noqa: E402
 import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
-import jd_score  # noqa: E402
+from jobws_core import jd_score  # noqa: E402
 import _cli_bank  # noqa: E402  （题库的命令层；领域层在 question_bank.py，二者 2026-09-18 分离）
 import _cli_export  # noqa: E402  （导出：八张 CSV → Obsidian 笔记；只读工作区）
 import prefs  # noqa: E402
 import release_assist  # noqa: E402
-import report  # noqa: E402
+from jobws_core import report  # noqa: E402
 import resume_build  # noqa: E402
 # 这里**只能**用旧名：`jobws track` 要的是留仓 CLI 的 `main`（在 `_cli_misc` 里），
 # 而包内真身没有它。弃用告警之所以看不见，是因为前面 `import approval` → `prep_notes`

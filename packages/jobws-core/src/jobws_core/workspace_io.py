@@ -43,6 +43,9 @@ _LOCK_KINDS = {
     "resume": ("02_简历工坊", "resume.lock"),
     "imap": ("config", "imap.lock"),
     "provider": ("config", "provider.lock"),
+    # prep：笔记勾选框写回（2026-09-18）。03/04 共用一把——两目录同属「笔记」
+    # 写语义，跨目录互斥的代价可忽略。锁文件 `.` 开头，列表遍历与指纹天然排除。
+    "prep": ("03_面试准备", ".prep.lock"),
 }
 
 # 默认纳入指纹的业务目录（读不到就跳过，不报错——空工作区也要有稳定指纹）
@@ -187,7 +190,7 @@ def cleanup_tmp(directory: str) -> int:
 def lock_path(workspace: str, kind: str) -> str:
     """统一锁文件路径（纯计算，不建目录——建不建由调用方决定）。
 
-    kind 见 _LOCK_KINDS：tracking / jobs / resume / imap / provider。
+    kind 见 _LOCK_KINDS：tracking / jobs / resume / imap / provider / prep。
     未知 kind 直接报错：宁可炸在开发期，不要悄悄锁错文件。
     """
     if kind not in _LOCK_KINDS:

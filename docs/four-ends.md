@@ -35,6 +35,7 @@
 | 题库 | `question.update` | `bank update` | — | — | `GET /api/progress/questions/preview-update` |
 | 题库 | `question.import` | `bank import` | `preview_import_questions` | `bank` | `GET /api/progress/questions/preview-import` |
 | 通用 | `approval.apply` | `apply` | `apply_approval` | — | `POST /api/approvals/apply` |
+| 笔记 | `prep.toggle` | — | — | — | `GET /api/prep/{section}/preview-toggle` |
 
 ## 各端不提供的能力（含原因）
 

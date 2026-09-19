@@ -2,8 +2,10 @@
 """笔记：`03_面试准备/` 与 `04_知识库/` 的只读浏览（目录列表 + 内容读取）。
 
 工作区语义里这两层是「训练材料」——03 放表达（自我介绍 / 项目表达 / 行为面），
-04 放知识（速查卡 / 面试速记），见各自 README。Web 侧**只读**：Markdown 由用户
-在编辑器 / Obsidian 里写，界面只负责"看得舒服"。
+04 放知识（速查卡 / 面试速记），见各自 README。Web 侧以"读"为主：Markdown 由
+用户在编辑器 / Obsidian 里写，界面负责"看得舒服"；2026-09-18 起多了勾选框翻转的
+**预览签发**（`preview-toggle`）——真正的落盘走既有的 `/api/approvals/apply`
+（写通道只有一条；领域逻辑在 `tools/prep_notes.py`）。
 
 两条硬约束（都有先例）：
 1. **目录写死常量**（`deps.DIR_PREP` / `deps.DIR_KB`），不接受任何形式的目录参数
@@ -98,3 +100,25 @@ def prep_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
         raise ApiError(500, "prep.readFailed", "文件读取失败: %s（%s）" % (rel, exc),
                        rel=rel)
     return {"rel": rel, "content": text, "truncated": truncated, "bytes": size}
+
+
+@router.get("/{section}/preview-toggle")
+def preview_toggle(section: str, rel: str = "", line: int = 0,
+                   ws: str = Depends(workspace_dir)):
+    """预览翻转某一行的勾选框（**不落盘**），返回令牌与「原行 → 新行」差异。
+
+    与题库改题（`/api/progress/questions/preview-update`）同构：只签发一次性
+    令牌，落盘走既有的 `/api/approvals/apply`（写通道只有一条）。section/rel/
+    line 的完整校验与读写都在领域层 `prep_notes`（白名单、realpath 防护、
+    字节级翻转），本端点不重复实现——没有第二份校验就没有失配的机会。
+    """
+    import prep_notes
+    errors, plan = prep_notes.preview_toggle(ws, section, rel, line)
+    if plan is None:
+        raise ApiError(400, "prep.toggleFailed", "勾选预览失败",
+                       reason="；".join(errors))
+    import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    result = approval.preview("prep.toggle", ws, plan["payload"], plan["summary"],
+                              plan["diff"], plan["targets"])
+    return {"token": result["token"], "summary": plan["summary"],
+            "diff": plan["diff"], "expiresAt": result["expires_at"]}

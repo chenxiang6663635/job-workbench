@@ -48,6 +48,7 @@ if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
 import init_workspace  # noqa: E402
+import prep_notes  # noqa: E402
 import question_bank  # noqa: E402
 import tracker  # noqa: E402
 
@@ -219,6 +220,8 @@ _OPERATIONS = {
     "question.add": question_bank.apply_approved_add,
     "question.update": question_bank.apply_approved_update,
     "question.import": question_bank.apply_approved_import,
+    # 笔记（2026-09-18）：勾选框写回——03/04 的 Markdown 行翻转，"打勾即学习打卡"。
+    "prep.toggle": prep_notes.apply_approved_toggle,
     "init": init_workspace.apply_approved_init,
 }
 

@@ -229,6 +229,15 @@
       "plugin": null,
       "gui": "POST /api/approvals/apply",
       "note": "两段式的第二步：凭令牌落盘。四端共用同一入口——命令行 `apply <令牌>`、AI 宿主 apply_approval、界面走通用落盘端点。所有写入类能力都走它，不各写一条落盘路径。"
+    },
+    {
+      "id": "prep.toggle",
+      "stage": "笔记",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/prep/{section}/preview-toggle",
+      "note": "写入：翻转 03/04 笔记里某一行的勾选框（- [ ] ↔ - [x]），预览 -> 确认 -> 落盘（GET 预览 + 通用 apply 落盘）。仅 GUI 提供——打勾是界面里的学习打卡动作；只读浏览属训练材料类，不在本矩阵。"
     }
   ],
   "error_map": [

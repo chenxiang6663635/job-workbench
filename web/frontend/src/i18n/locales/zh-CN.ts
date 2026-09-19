@@ -837,11 +837,13 @@ const zhCN = {
   "err.lib.fileNotFound": "文件不存在：{{rel}}",
   "err.lib.readFailed": "文件读取失败：{{rel}}",
 
-  // 笔记（03_面试准备 / 04_知识库）：只读浏览的错误
+  // 笔记（03_面试准备 / 04_知识库）：只读浏览与勾选写回的错误
   "err.prep.unknownSection": "未知笔记分类：{{section}}",
   "err.prep.fileNotFound": "文件不存在：{{rel}}",
   "err.prep.notMarkdown": "只能打开 Markdown 文件：{{rel}}",
   "err.prep.readFailed": "文件读取失败：{{rel}}",
+  // 勾选写回：预览期失败（行号缺失/越界、非勾选框行、文件不可写等）
+  "err.prep.toggleFailed": "无法预览勾选改动：{{reason}}",
 
   // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
   "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",

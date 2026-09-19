@@ -168,6 +168,10 @@ def test_lock_path_names_match_four_ends(tmp_path):
     assert workspace_io.lock_path(ws, "provider").replace("\\", "/").endswith(
         "/config/provider.lock"
     )
+    # prep：笔记勾选框写回（2026-09-18）——03/04 共用一把锁
+    assert workspace_io.lock_path(ws, "prep").replace("\\", "/").endswith(
+        "/03_面试准备/.prep.lock"
+    )
 
 
 def test_lock_path_unknown_kind_raises(tmp_path):

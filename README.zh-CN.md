@@ -47,15 +47,16 @@
 
 界面**中英双语**：每一页都有中文与英文，顶栏的 `中文 / English` 可随时切换（首次按系统语言，选择会被记住）。下面截图是中文界面（英文的那套在 [README.md](README.md) 同一节，两套取自同一个 demo 工作区）；英文界面是同样页面换了界面文字。仍然保留中文的只有三处：你自己录进工作区的内容、CSV / Markdown 里存的枚举取值（与 CLI 共享的数据契约）、CLI 自带帮助——都有意为之。
 
-以下页面全部由 demo 数据生成（`init_workspace.py --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。
+以下页面全部由 demo 数据生成（`jobws init --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。两套图由 `web/frontend` 下的 `npm.cmd run capture` 产出——页面改了就重跑它，不要手工重拍。
 
 ![看板](docs/screenshots/zh-CN/01-dashboard.png)
 ![追踪表](docs/screenshots/zh-CN/02-applications.png)
 ![岗位池](docs/screenshots/zh-CN/03-jobs.png)
 ![简历工坊](docs/screenshots/zh-CN/04-resume.png)
-![进展](docs/screenshots/zh-CN/05-progress.png)
-![素材库](docs/screenshots/zh-CN/06-library.png)
-![设置](docs/screenshots/zh-CN/07-settings.png)
+![准备](docs/screenshots/zh-CN/05-prepare.png)
+![进展](docs/screenshots/zh-CN/06-progress.png)
+![素材库](docs/screenshots/zh-CN/07-library.png)
+![设置](docs/screenshots/zh-CN/08-settings.png)
 
 ## 快速开始
 

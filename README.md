@@ -49,14 +49,15 @@ The workbench turns all of that into queryable, traceable files.
 
 > **Note**: the interface is bilingual (简体中文 / English) — switch it with the `中文 / English` control in the header; the first run follows your system language and your choice is remembered. Read the note under [Download](#download) for what stays Chinese by design. The screenshots below are the real interface **in English**, taken with generated demo data — the [Chinese README](README.zh-CN.md) carries the same pages in 简体中文 (both sets come from the same demo workspace).
 
-All pages below run on generated demo data (`init_workspace.py --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information.
+All pages below run on generated demo data (`jobws init --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information. The two sets are produced by `npm.cmd run capture` in `web/frontend` — rerun it after any page change instead of retaking shots by hand.
 
 ![Tracker](docs/screenshots/02-applications.png)
 ![Jobs](docs/screenshots/03-jobs.png)
 ![Resume workshop](docs/screenshots/04-resume.png)
-![Progress](docs/screenshots/05-progress.png)
-![Library](docs/screenshots/06-library.png)
-![Settings](docs/screenshots/07-settings.png)
+![Prepare](docs/screenshots/05-prepare.png)
+![Progress](docs/screenshots/06-progress.png)
+![Library](docs/screenshots/07-library.png)
+![Settings](docs/screenshots/08-settings.png)
 
 ## Quick start
 

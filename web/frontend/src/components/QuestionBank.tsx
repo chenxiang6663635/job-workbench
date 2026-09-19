@@ -145,6 +145,7 @@ function MyBank() {
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder={t("bank.searchPlaceholder")}
+            aria-label={t("bank.searchPlaceholder")}
             className="pl-9"
           />
         </div>
@@ -268,6 +269,7 @@ function AskedBefore() {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder={t("question.searchPlaceholder")}
+          aria-label={t("question.searchPlaceholder")}
           className="pl-9 pr-28"
         />
         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">

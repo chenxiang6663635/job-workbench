@@ -119,10 +119,22 @@ def test_content_truncates_with_real_byte_count(client, tmp_path):
 
 
 def test_content_rejects_traversal(client, tmp_path):
-    for bad in ("../config/profile.md", "..\\config\\profile.md", "/etc/passwd"):
+    for bad in ("../config/profile.md", "/etc/passwd"):
         res = client.get("/api/prep/interview/content", params={"ws": WS, "rel": bad})
         assert res.status_code == 400, bad
         assert res.json()["error_code"] == "path.illegalSegment", bad
+
+    # 反斜杠是 Windows 的路径分隔符：Windows 上按穿越拒绝；posix 上它是普通
+    # 文件名字符、不构成穿越 → 落到"文件不存在"。两平台的语义各自钉住
+    # （CI 在 Linux 跑，首版把这条当跨平台穿越断言，红在 CI——2026-09-18）。
+    res = client.get("/api/prep/interview/content",
+                     params={"ws": WS, "rel": "..\\config\\profile.md"})
+    if os.name == "nt":
+        assert res.status_code == 400
+        assert res.json()["error_code"] == "path.illegalSegment"
+    else:
+        assert res.status_code == 404
+        assert res.json()["error_code"] == "prep.fileNotFound"
 
     # URL 编码的 .. —— 服务端解码后必须同样被拒（原始 URL 直传，绕过 params 二次编码）
     res = client.get("/api/prep/interview/content?ws=%s&rel=%%2e%%2e%%2fconfig.md" % WS)

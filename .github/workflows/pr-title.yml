@@ -35,6 +35,14 @@ jobs:
       # squash 合并的提交 subject 是 GitHub 用 PR 标题现场生成的——本地钩子
       # 结构性地看不到它。2026-09-10 实证：两条英文 PR 标题以 53e7b04 /
       # b774cce 落进 main，夹在中文提交之间。这一刀只能由 CI 补。
+      # 领域包（2026-09-19 补）：本 job 此前零依赖，但 `tools/jobws.py` 的 import 链
+      # 里有 `approval` → `prep_notes` → `jobws_core`——新代码按纪律用新名，不装上
+      # 领域包这条链路会在**校验标题之前**就 ModuleNotFoundError（PR #149 首跑暴露）。
+      # 装上它（纯 Python 包，约 10 秒）比把 CLI 的 import 改懒更省心：标题校验走的
+      # 是与后端同一份判定实现，环境也该与后端同形。
+      - name: 安装领域包
+        run: pip install ./packages/jobws-core
+
       # 标题走环境变量而非插进 run：PR 标题是外部可控输入，拼进 shell 等于开后门。
       - name: 校验 PR 标题
         env:

@@ -837,11 +837,13 @@ const zhCN = {
   "err.lib.fileNotFound": "文件不存在：{{rel}}",
   "err.lib.readFailed": "文件读取失败：{{rel}}",
 
-  // 笔记（03_面试准备 / 04_知识库）：只读浏览的错误
+  // 笔记（03_面试准备 / 04_知识库）：只读浏览与勾选写回的错误
   "err.prep.unknownSection": "未知笔记分类：{{section}}",
   "err.prep.fileNotFound": "文件不存在：{{rel}}",
   "err.prep.notMarkdown": "只能打开 Markdown 文件：{{rel}}",
   "err.prep.readFailed": "文件读取失败：{{rel}}",
+  // 勾选写回：预览期失败（行号缺失/越界、非勾选框行、文件不可写等）
+  "err.prep.toggleFailed": "无法预览勾选改动：{{reason}}",
 
   // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
   "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",
@@ -1008,7 +1010,7 @@ const zhCN = {
   "notes.readmeLabel": "目录说明",
   "notes.badgeEmpty": "空",
   "notes.badgeUnreadable": "读不了",
-  "notes.checkboxLabel": "勾选框（只读）",
+  "notes.checkboxLabel": "勾选框（点击写回笔记）",
   "notes.outline": "本页大纲",
   "notes.truncated": "文件较大，这里只显示前 256 KB——完整内容请在编辑器里打开",
   "notes.emptyTitle": "还没有笔记",
@@ -1016,6 +1018,11 @@ const zhCN = {
   "notes.emptyFileTitle": "这个文件还是空的",
   "notes.emptyFileHint": "在编辑器里写点内容，回来就能看到",
   "notes.loadFailed": "笔记加载失败：{{reason}}",
+  // 勾选写回（两段式）：确认框文案——diff 与摘要由后端签发，不翻译
+  "notes.toggleTitle": "翻转这一行的勾选状态？",
+  "notes.toggleHint": "只改这一行的标记字符，文件其余内容一个字节都不动。",
+  "notes.toggleConfirm": "确认写入",
+  "notes.toggleWriting": "写入中…",
   // 邮件台账（批 4.5）：与 mails.csv 列名同源；标签 / 方向是数据键不翻译
   "mail.summary": "共 {{count}} 封",
   "mail.add": "记录邮件",

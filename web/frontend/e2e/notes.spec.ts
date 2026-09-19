@@ -67,3 +67,48 @@ test("笔记：切换文件、HTML 注释不渲染、a11y 零命中", async ({ p
     `笔记页有 serious/critical：${serious.map((v) => v.id).join("、")}`
   ).toEqual([]);
 });
+
+test("笔记：勾选框可翻转（预览 → 确认 → 落盘 → 重拉），用例自恢复", async ({
+  page,
+}) => {
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Notes" }).click();
+  await page.getByRole("button", { name: "_模板_行为故事" }).click();
+
+  const boxes = page.locator('input[type="checkbox"]');
+  await expect(boxes.first()).toBeVisible();
+  // demo 基准里这些都是未勾选——本用例末尾翻回去，不把痕迹留在工作区里
+  expect(await boxes.first().isChecked()).toBe(false);
+
+  await boxes.first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Flip this checkbox?")).toBeVisible();
+  // 差异同时给出原行与新行——确认之前就能看清落到哪里、改了什么
+  await expect(dialog.locator("pre")).toContainText("- - [ ]");
+  await expect(dialog.locator("pre")).toContainText("+ - [x]");
+
+  // 确认框本身也是新的可交互面：一并纳入扫描
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  const serious = results.violations.filter(
+    (v) => v.impact === "serious" || v.impact === "critical"
+  );
+  expect(
+    serious,
+    `勾选确认框有 serious/critical：${serious.map((v) => v.id).join("、")}`
+  ).toEqual([]);
+
+  // 落盘走既有写通道（/api/approvals/apply），本页不发第二处写请求
+  await dialog.getByRole("button", { name: "Write" }).click();
+  await expect(dialog).toBeHidden();
+  // 真值在文件里——重拉后勾选框才翻（本地不做乐观翻转）
+  await expect(boxes.first()).toBeChecked();
+
+  // 自恢复：再翻一次回到基准状态
+  await boxes.first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Write" }).click();
+  await expect(boxes.first()).not.toBeChecked();
+});

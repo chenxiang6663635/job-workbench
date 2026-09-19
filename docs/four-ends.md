@@ -35,9 +35,13 @@
 | 题库 | `question.update` | `bank update` | — | — | `GET /api/progress/questions/preview-update` |
 | 题库 | `question.import` | `bank import` | `preview_import_questions` | `bank` | `GET /api/progress/questions/preview-import` |
 | 通用 | `approval.apply` | `apply` | `apply_approval` | — | `POST /api/approvals/apply` |
+| 笔记 | `prep.toggle` | — | — | — | `GET /api/prep/{section}/preview-toggle` |
 
 ## 各端不提供的能力（含原因）
 
+- **cli** · `prep.toggle`：打勾是界面里的学习打卡动作；命令行侧直接编辑 Markdown 即可，不代劳。
+- **mcp** · `prep.toggle`：学习进度由本人维护——勾选不由模型代劳。
+- **plugin** · `prep.toggle`：同上：勾选项是本人的学习打卡动作。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。

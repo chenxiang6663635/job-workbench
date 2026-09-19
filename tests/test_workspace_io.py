@@ -134,6 +134,22 @@ def test_dir_fingerprint_missing_workspace_is_stable(tmp_path):
     assert empty == again and len(empty) == 16
 
 
+def test_default_tracked_dirs_include_fact_base(tmp_path):
+    """00_事实库 纳入默认指纹（素材库去债批，2026-09-18）：素材库与笔记同为
+    只读浏览——外部生成/更新的事实卡，切回来也要能看到（不补就永远看旧内容）。"""
+    assert "00_事实库" in workspace_io.DEFAULT_TRACKED_DIRS
+
+    workspace = tmp_path / "ws"
+    facts = workspace / "00_事实库"
+    facts.mkdir(parents=True)
+    (facts / "事实卡.md").write_text("# 一", encoding="utf-8")
+    first = workspace_io.dir_fingerprint(str(workspace))  # 不带 rel_dirs → 默认集合
+
+    time.sleep(0.01)
+    (facts / "事实卡.md").write_text("# 一\n# 二", encoding="utf-8")
+    assert workspace_io.dir_fingerprint(str(workspace)) != first
+
+
 # --- 锁名工厂 --------------------------------------------------------------
 
 

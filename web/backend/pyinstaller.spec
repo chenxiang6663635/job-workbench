@@ -136,6 +136,12 @@ except Exception as exc:  # noqa: BLE001 —— 打包环境没装领域包：�
 if not domain_hidden:
     raise RuntimeError("collect_submodules('jobws_core') 返回空——领域包没装对")
 
+# 2026-09-19 PR-B：上面 :107-109 那段注释预告的一刻到了——`tls_policy` 已搬进领域包。
+# 它的 `import certifi` 在**函数内**，而把 certifi 的**模块**带进依赖图原先靠的是
+# 「tls_policy 在 tools_modules 里被枚举」；搬迁后那条链路断了（`collect_data_files`
+# 那行还在，模块会缺）。显式补上——别让「系统证书库坏了」这条兜底只在真出网时才炸。
+domain_hidden.append("certifi")
+
 # uvicorn 的动态导入必须显式声明，否则打包后启动即失败（业界公认的坑）
 uvicorn_hidden = [
     "uvicorn.logging",

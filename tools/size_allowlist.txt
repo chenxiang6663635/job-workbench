@@ -20,7 +20,7 @@ tools/question_bank.py = 475  # 题库领域层 + 导入解析；2026-09-18 命�
 tools/report.py = 538  # 复盘统计与聚类；2026-09-16 拆 build_report 为六节 helper（532→538）
 tools/imap_fetch.py = 439  # IMAP 只读会话 + 邮件解析；2026-09-16 清静默吞错 + 拆 fetch_messages 为 _fetch_recent（429→439）
 tools/init_workspace.py = 425  # 骨架复制 + demo 数据铺设
-tools/status_parse.py = 329  # 阶段同义词映射与解析
+packages/jobws-core/src/jobws_core/status_parse.py = 329  # 阶段同义词映射与解析（2026-09-19 PR-B 从 tools/ 搬进领域包，水位随行）
 # （2026-09-16 重构批：check_skills / install_skills 的长函数已拆，两行按自洁删除）
 #
 # --- 单域 router：端点 + 校验 + pydantic 模型 ---

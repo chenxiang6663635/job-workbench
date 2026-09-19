@@ -29,7 +29,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-import tls_policy
+from jobws_core import tls_policy
 
 from apierror import ApiError
 

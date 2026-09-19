@@ -22,7 +22,7 @@ import io
 import json
 import os
 import socket
-import tls_policy
+from jobws_core import tls_policy
 import unicodedata
 
 from typing import Optional

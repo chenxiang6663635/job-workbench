@@ -20,9 +20,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import approval
-import status_parse
+from jobws_core import status_parse
 import tracker
-import url_infer
+from jobws_core import url_infer
 from apierror import ApiError
 from deps import DIR_TRACKING, workspace_dir
 from jobws_core.filelock import file_lock

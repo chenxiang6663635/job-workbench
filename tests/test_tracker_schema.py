@@ -22,7 +22,7 @@ TOOLS = os.path.join(ROOT, "tools")
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-import status_parse  # noqa: E402
+from jobws_core import status_parse  # noqa: E402
 import tracker  # noqa: E402
 
 # 旧格式 = 当前 FIELDS 去掉「链接」列；从 FIELDS 派生而不是抄一份字面量，

@@ -30,6 +30,9 @@ web/backend/build/
 
 # 本地验证用的临时工作区（fake 数据），不进版本管理；personal 才是真实工作区
 test_ws/
+# 计划执行的暂存目录（superpowers 的 ledger / briefs 等 scratch）——不进版本库
+.superpowers/
+
 # demo 数据工作区（假公司占位数据，用于评估与截图）。两个名字、同一个配方：
 #   python tools/jobws.py init --target demo --demo        ← 文档里给用户的那条
 #   python tools/jobws.py init --target demo-shots --demo  ← 本机拍 README 截图用

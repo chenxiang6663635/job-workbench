@@ -21,7 +21,7 @@ TOOLS = os.path.join(ROOT, "tools")
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-import status_parse  # noqa: E402
+from jobws_core import status_parse  # noqa: E402
 
 
 def _row(id_, company, role, stage):

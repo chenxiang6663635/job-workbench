@@ -31,7 +31,7 @@ import pytest
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-import tls_policy  # noqa: E402
+from jobws_core import tls_policy  # noqa: E402
 
 
 class _BrokenStore:

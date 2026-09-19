@@ -331,6 +331,21 @@
       "reason": "同上：勾选项是本人的学习打卡动作。"
     },
     {
+      "end": "mcp",
+      "item": "export.obsidian",
+      "reason": "导出是本地文件动作（往用户指定的目录写一批 md），不由模型代劳。"
+    },
+    {
+      "end": "plugin",
+      "item": "export.obsidian",
+      "reason": "同上：导出到本地笔记库是本人发起的动作。"
+    },
+    {
+      "end": "gui",
+      "item": "export.obsidian",
+      "reason": "界面的导出是「整包 zip」（设置页，保留 CSV 原格式）；Obsidian 笔记形态只在命令行提供——形态不同，不是漏做。"
+    },
+    {
       "end": "cli",
       "item": "job.list",
       "reason": "岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。"

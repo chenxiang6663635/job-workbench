@@ -21,6 +21,15 @@ jobs:
       - name: 安装依赖
         run: pip install -r web/backend/requirements-dev.txt
 
+      # 领域包（2026-09-19 补）：领域层 2026-09-17 已包化（import 名 `jobws_core`），
+      # 新代码按纪律用**新名**。主 pytest 此前**不装**它——既有模块之所能跑，是因为
+      # 它们仍走旧名 shim（`tools/workspace_io.py` 会退化到仓库内源码），而新名没有
+      # 这条退路：`tools/jobws.py` → `approval` → `prep_notes` → `jobws_core` 直接
+      # ModuleNotFoundError（本地 venv 装了包，掩盖了这条，CI 首跑才暴露）。与
+      # mcp / exe 两个 job 同款装上，主矩阵覆盖的就是真装形态。
+      - name: 安装领域包
+        run: pip install ./packages/jobws-core
+
       - name: 运行测试
         run: python -m pytest tests/ -q
 
@@ -164,6 +173,11 @@ jobs:
 
       - name: 安装后端依赖
         run: pip install -r web/backend/requirements-dev.txt
+
+      # 同上（2026-09-19 补）：初始化 demo 工作区走 `tools/jobws.py`，import 链同样
+      # 需要领域包可用（`jobws_core`）。
+      - name: 安装领域包
+        run: pip install ./packages/jobws-core
 
       # 后端同源托管 web/frontend/dist，冒烟跑的就是它；demo 工作区提供满数据页面
       - name: 初始化 demo 工作区

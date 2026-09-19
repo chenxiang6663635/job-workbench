@@ -27,7 +27,10 @@ def tokens(tmp_path, monkeypatch):
     """把令牌目录挪进 tmp_path：不碰真实临时目录，也便于直接检查文件。"""
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
+    # 打到**包内**模块上：协议外壳搬进 jobws_core 后，preview/apply 读的是那里的
+    # 模块全局，patch 转发层（本模块）不改变调用点——本仓库反复踩过的那条坑，
+    # 同 `tests/test_cli_surface.py` 打 `tracker._core.WORKSPACE` 的写法。
+    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
     return store
 
 

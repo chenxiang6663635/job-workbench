@@ -33,7 +33,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
+    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
     with TestClient(backend_main.app) as test_client:
         yield test_client
 

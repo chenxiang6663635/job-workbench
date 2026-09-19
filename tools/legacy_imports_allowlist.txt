@@ -17,3 +17,9 @@ workspace_io = 7  # 2026-09-19 A-2：tracker/_core 那处随搬迁改新名 → 
 #   （CLI 那处走新名 `jobws_core.pathres`：jobws.py 是 __main__，旧名会真的打印
 #     弃用告警，而 CLI 契约要求 stderr 干净）
 pathres = 7
+
+# 2026-09-19 A-2 / A-3（tracker 13 模块与 approval 协议壳搬包，ast 实测）：
+#   这两个是**目前最大的两个旧名**，正因为它们被后端 / CLI / MCP / 测试四面引用。
+#   PR-B 会把它们压到 0（连同各自的 shim 一起删）。
+tracker = 49
+approval = 27

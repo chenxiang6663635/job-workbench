@@ -34,7 +34,7 @@ def store(tmp_path, monkeypatch):
     """令牌目录隔离：不污染系统临时目录里真实的 jobws-approvals。"""
     tokens = tmp_path / "tokens"
     tokens.mkdir()
-    monkeypatch.setattr(approval, "_store_dir", lambda: str(tokens))
+    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(tokens))
     return tokens
 
 

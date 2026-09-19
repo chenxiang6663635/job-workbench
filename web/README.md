@@ -65,6 +65,7 @@ web/
 │   ├── main.py               FastAPI 入口、CORS、路由挂载、同源托管 dist、双击三态启动
 │   ├── pathres.py            路径解析：解包/打包双模式、可写数据目录 fallback
 │   ├── deps.py               工作区解析、safe_join 路径安全、数据根
+│   ├── ro_files.py           只读浏览共享原语（遍历 / 受限读取 / 解码 / realpath 归属）
 │   ├── atomicio.py           原子写：tmp + os.replace，.jobws_tmp_ 前缀
 │   ├── icsutil.py            RFC 5545 日程导出（纯标准库手写）
 │   ├── resume_guard.py       反编造条款 + 改写校验器（测试锁死）

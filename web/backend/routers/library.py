@@ -25,12 +25,22 @@ FACT_DIR = "00_事实库"
 TEXT_EXT = {".md", ".txt", ".html"}
 
 
+def _section_base(ws, base_rel):
+    """section 根目录 = safe_join + realpath 归属检查（锚点=**工作区根**）：
+    section 目录本身被替换成指向外部的链接时整体拒绝——与 MCP 侧、与笔记同款
+    （独立审查 MINOR-2；目录树**内**的 junction 另由 `inside(base, full)` 兜住）。"""
+    base = safe_join(ws, base_rel)
+    if not inside(ws, base):
+        raise ApiError(400, "path.escape", "路径越出工作区")
+    return base
+
+
 @router.get("/{section}")
 def list_library(section: str, ws: str = Depends(workspace_dir)):
     if section != "facts":
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
-    base = safe_join(ws, FACT_DIR)
+    base = _section_base(ws, FACT_DIR)
     # 遍历与排序 2026-09-18 收敛到共享原语（ro_files.walk_files，与笔记同源）；
     # kind 是素材库自己的分流（文本内联看 / 二进制拼 URL 加载）——
     # 隐藏目录规则随共享层对齐（.obsidian 等不再出现）
@@ -47,12 +57,11 @@ def library_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
     base_rel = FACT_DIR
-    base = safe_join(ws, base_rel)
+    base = _section_base(ws, base_rel)
 
     full = safe_join(ws, base_rel, rel)
     if not inside(base, full):
-        # realpath 二次确认 2026-09-18 补齐（对齐笔记）：safe_join 不解析符号
-        # 链接；参数与该码在 deps.safe_join 的抛点保持一致（无 params）
+        # 参数与该码在 deps.safe_join 的抛点保持一致（无 params）
         raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
         raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)
@@ -86,11 +95,10 @@ def library_file(section: str, rel: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "lib.unknownSection", "未知素材库分类: %s" % section,
                        section=section)
     base_rel = FACT_DIR
-    base = safe_join(ws, base_rel)
+    base = _section_base(ws, base_rel)
 
     full = safe_join(ws, base_rel, rel)
     if not inside(base, full):
-        # realpath 二次确认 2026-09-18 补齐（与 content 端点、与笔记同款）
         raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
         raise ApiError(404, "lib.fileNotFound", "文件不存在: %s" % rel, rel=rel)

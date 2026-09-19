@@ -36,6 +36,8 @@ def walk_files(base, exts=None):
     items = []
     if not os.path.isdir(base):
         return items
+    # 注：遍历后 stat（getsize/getmtime）若撞上文件被外部删除/替换，OSError 会
+    # 响亮上抛——并发的 CLI/Obsidian 写入场景下，宁可报错也不要给出过期列表。
     for root, dirs, files in os.walk(base):
         dirs[:] = sorted(d for d in dirs if not d.startswith(("__", ".")))
         for name in sorted(files):
@@ -77,7 +79,9 @@ def decode_text(raw, truncated):
         return raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         if truncated:
-            for cut in (3, 2, 1):
+            # 从最小切法开始试 = 取**最长**可解码前缀（顺序反了会多丢完整字符：
+            # b"abc\xE4" 用 cut=3 会只返回 "a"——独立审查 MINOR-1）
+            for cut in (1, 2, 3):
                 try:
                     return raw[:-cut].decode("utf-8-sig")
                 except UnicodeDecodeError:
@@ -86,8 +90,11 @@ def decode_text(raw, truncated):
 
 
 def inside(base, full):
-    """realpath 二次确认：`deps.safe_join` 只做字符串归一化、不解析符号链接——
-    工作区里一个指向外部的 junction 仍能读穿（与 MCP 侧 resources.py 同款防护）。"""
+    """realpath 二次确认：`deps.safe_join` 只做字符串归一化、不解析符号链接。
+
+    注意锚点：本函数防的是 `base` **目录树内**的 junction 读穿；`base` 本身被
+    替换成指向外部的链接，由调用方的 base 层检查兜住（锚点=工作区根，与 MCP 侧
+    同款——见各 router 的 `_section_base`，独立审查 MINOR-2）。"""
     base_real = os.path.normcase(os.path.realpath(base))
     full_real = os.path.normcase(os.path.realpath(full))
     return full_real == base_real or full_real.startswith(base_real + os.sep)

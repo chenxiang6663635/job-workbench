@@ -74,6 +74,13 @@ def test_decode_text_truncation_falls_back():
     assert ro_files.decode_text(raw, True) == "字" * 6
 
 
+def test_decode_text_prefers_longest_prefix():
+    # 回退取**最长**可解码前缀（从最小切法开始试）；顺序反了会把
+    # b"abc\xE4" 解成 "a"——丢两个完整字符（独立审查 MINOR-1）
+    raw = "abc".encode("utf-8") + "中".encode("utf-8")[:1]
+    assert ro_files.decode_text(raw, True) == "abc"
+
+
 def test_decode_text_rejects_non_utf8():
     with pytest.raises(ro_files.TextDecodeError):
         ro_files.decode_text("中文".encode("gbk"), False)

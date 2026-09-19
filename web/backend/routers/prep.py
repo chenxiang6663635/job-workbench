@@ -47,6 +47,16 @@ def _resolve_section(section):
     return base_rel
 
 
+def _section_base(ws, base_rel):
+    """section 根目录 = safe_join + realpath 归属检查（锚点=**工作区根**）：
+    section 目录本身被替换成指向外部的链接时整体拒绝——与 MCP 侧同款
+    （独立审查 MINOR-2；目录树**内**的 junction 另由 `inside(base, full)` 兜住）。"""
+    base = safe_join(ws, base_rel)
+    if not inside(ws, base):
+        raise ApiError(400, "path.escape", "路径越出工作区")
+    return base
+
+
 @router.get("/{section}")
 def list_prep(section: str, ws: str = Depends(workspace_dir)):
     """列出该层的全部 Markdown（**平铺**，rel 带子目录路径；树由前端建）。
@@ -56,7 +66,7 @@ def list_prep(section: str, ws: str = Depends(workspace_dir)):
     照常列出（前端显示"空"标记——文件不能静默消失）。
     """
     base_rel = _resolve_section(section)
-    base = safe_join(ws, base_rel)
+    base = _section_base(ws, base_rel)
     items = walk_files(base, exts=TEXT_EXT)
     return {"section": section, "items": items, "total": len(items)}
 
@@ -70,7 +80,7 @@ def prep_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
     `truncated` 供前端显式提示"仅显示前 256KB"。
     """
     base_rel = _resolve_section(section)
-    base = safe_join(ws, base_rel)
+    base = _section_base(ws, base_rel)
     full = safe_join(ws, base_rel, rel)
     if not inside(base, full):
         # 参数与 deps.safe_join 的同码抛点保持一致（无 params——该码文案无占位符）

@@ -776,6 +776,12 @@ export default {
   // Question bank update (1b): previewing a question edit (missing/unknown id, no change)
   "err.question.updateFailed": "Could not update the question: {{reason}}",
 
+  // Notes (03_面试准备 / 04_知识库): read-only browsing errors
+  "err.prep.unknownSection": "Unknown notes section: {{section}}",
+  "err.prep.fileNotFound": "File not found: {{rel}}",
+  "err.prep.notMarkdown": "Only Markdown files can be opened: {{rel}}",
+  "err.prep.readFailed": "Could not read the file: {{rel}}",
+
   "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",
   "err.sys.certStoreUnavailable": "The system certificate store could not be loaded, so the certificate cannot be verified and the connection was refused (credentials must not travel over an unverified connection). To investigate, look for broken entries with certmgr.msc; if you really must skip verification for now, set JOBWS_HTTP_TLS or JOBWS_IMAP_TLS to insecure for that path (not recommended)",
@@ -907,9 +913,27 @@ export default {
   "progress.subtitle": "Applying is only the opening — interviews, contacts and offers all live here",
   // Prepare section (2026-09-18): the pre-application side — Talks and the
   // question bank moved here from Progress.
-  "prepare.subtitle": "Everything before you apply — talks and your question bank live here",
+  "prepare.subtitle": "Everything before you apply — talks, your question bank and notes live here",
   "prepare.talks": "Talks",
   "prepare.questions": "Question bank",
+  "prepare.notes": "Notes",
+  // Notes page (2026-09-18): read-only browsing of 03_面试准备 / 04_知识库 —
+  // directory tree + Markdown rendering + outline.
+  "notes.group.interview": "Interview prep (03_面试准备)",
+  "notes.group.knowledge": "Knowledge base (04_知识库)",
+  "notes.searchPlaceholder": "Filter files…",
+  "notes.noMatch": "No matching files",
+  "notes.readmeLabel": "Directory guide",
+  "notes.badgeEmpty": "Empty",
+  "notes.badgeUnreadable": "Unreadable",
+  "notes.checkboxLabel": "Checkbox (read-only)",
+  "notes.outline": "On this page",
+  "notes.truncated": "Large file — only the first 256 KB is shown; open it in your editor for the full text",
+  "notes.emptyTitle": "No notes yet",
+  "notes.emptyHint": "Put Markdown into 03_面试准备 or 04_知识库 and it shows up here — copy a _模板_ file to start",
+  "notes.emptyFileTitle": "This file is still empty",
+  "notes.emptyFileHint": "Write something in your editor and come back",
+  "notes.loadFailed": "Could not load notes: {{reason}}",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

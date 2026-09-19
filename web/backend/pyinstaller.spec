@@ -168,6 +168,7 @@ project_hidden = [
     "routers.dashboard",
     "routers.jobs",
     "routers.library",
+    "routers.prep",
     "routers.provider",
     "routers.workspace",
 ] + tools_modules  # tools/ 下全部模块（自动枚举，理由见上方 tools_modules）

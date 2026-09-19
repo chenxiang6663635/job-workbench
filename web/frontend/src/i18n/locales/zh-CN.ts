@@ -836,6 +836,12 @@ const zhCN = {
   "err.lib.unknownSection": "未知素材库分类：{{section}}",
   "err.lib.fileNotFound": "文件不存在：{{rel}}",
 
+  // 笔记（03_面试准备 / 04_知识库）：只读浏览的错误
+  "err.prep.unknownSection": "未知笔记分类：{{section}}",
+  "err.prep.fileNotFound": "文件不存在：{{rel}}",
+  "err.prep.notMarkdown": "只能打开 Markdown 文件：{{rel}}",
+  "err.prep.readFailed": "文件读取失败：{{rel}}",
+
   // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
   "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",
   // 题库更新（1b）：预览改题失败（没给 id / 找不到 / 没有变化 / 值不合法）
@@ -988,9 +994,26 @@ const zhCN = {
   "progress.offers": "Offer 对比",
   "progress.subtitle": "投递之后才是真正的博弈——面试、联系人、Offer，都记在这里",
   // 准备板块（2026-09-18）：投递前的事归一处——宣讲会与题库从进展页迁来
-  "prepare.subtitle": "投递之前的事归一处——宣讲会与题库都在这里",
+  "prepare.subtitle": "投递之前的事归一处——宣讲会、题库与笔记都在这里",
   "prepare.talks": "宣讲会",
   "prepare.questions": "题库",
+  "prepare.notes": "笔记",
+  // 笔记（2026-09-18）：03_面试准备 / 04_知识库 的只读浏览——目录树 + 渲染 + 大纲
+  "notes.group.interview": "面试准备",
+  "notes.group.knowledge": "知识库",
+  "notes.searchPlaceholder": "过滤文件…",
+  "notes.noMatch": "没有匹配的文件",
+  "notes.readmeLabel": "目录说明",
+  "notes.badgeEmpty": "空",
+  "notes.badgeUnreadable": "读不了",
+  "notes.checkboxLabel": "勾选框（只读）",
+  "notes.outline": "本页大纲",
+  "notes.truncated": "文件较大，这里只显示前 256 KB——完整内容请在编辑器里打开",
+  "notes.emptyTitle": "还没有笔记",
+  "notes.emptyHint": "把 Markdown 放进 03_面试准备 或 04_知识库，这里就能直接读——可以从 _模板_ 复制开始",
+  "notes.emptyFileTitle": "这个文件还是空的",
+  "notes.emptyFileHint": "在编辑器里写点内容，回来就能看到",
+  "notes.loadFailed": "笔记加载失败：{{reason}}",
   // 邮件台账（批 4.5）：与 mails.csv 列名同源；标签 / 方向是数据键不翻译
   "mail.summary": "共 {{count}} 封",
   "mail.add": "记录邮件",

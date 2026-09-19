@@ -177,10 +177,11 @@ At the bottom there is also a **version lineage**: which resume version went to 
 
 ### Prepare
 
-Everything **before you apply** lives in one place — talks and your question bank (moved out of Progress on 2026-09-18, since that page is about the after-applying side):
+Everything **before you apply** lives in one place — talks, your question bank and notes (moved out of Progress on 2026-09-18, since that page is about the after-applying side):
 
 - **Talks / job fairs**: time, format, place and takeaways, exportable to `.ics` (reminder 1 hour ahead); they do not advance any stage. The dashboard's "Talks in the next 7 days" jumps straight here
 - **Question bank** (two views): **My bank** = your own editable `questions.csv` (domain / subject / status `未看·看过·会了` / answer notes), which you can fill by **read-only parsing → preview → confirm** from `03_面试准备/**/*.md` (two-phase); **click any row to open its details** and edit the answer notes, flip the three-state status or adjust difficulty right there — the same two-phase feel (review the diff, then confirm; nothing is written before you confirm, and cancelling leaves no trace); **Asked before** = questions you were actually asked, grouped by company + role, with keyword search — read what this company already asked you before the next round
+- **Notes** (read-only): read the Markdown in `03_面试准备` and `04_知识库` right in the app — a directory tree on the left (`README` shows as "Directory guide", `_模板_`/`_示例_` templates are dimmed, empty and unreadable files are flagged, filter by file name), rendered text on the right (headings / lists / **checkboxes** / tables / code blocks / quotes) with an "On this page" outline; files over 256 KB are truncated with an explicit notice. **Read-only** — edit the files in your own editor and the view refreshes within ~10 s (returning to the same file); checkboxes are display-only for now (toggling them back is a later batch)
 
 ### Progress
 

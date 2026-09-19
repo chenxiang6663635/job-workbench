@@ -164,9 +164,10 @@ uvicorn_hidden = [
 
 # 本项目模块（routers 与后端内部模块被动态/间接导入）
 project_hidden = [
-    "pathres",
+    # `pathres` / `filelock` 曾列在这里（领域层还在 web/backend 与 tools/ 时）。
+    # 2026-09-19 它们随包化删除，真身改由 domain_hidden 的 collect_submodules 覆盖
+    # ——留着裸名只会让 PyInstaller 报「hidden import not found」，或误收同名第三方包。
     "deps",
-    "filelock",
     "py_runtime",
     "ro_files",
     "routers",

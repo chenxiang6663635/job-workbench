@@ -6,8 +6,8 @@
 这样设计是为了让评分标准可改在 Markdown 里，改完可以对历史 JD 批量重算。
 
 用法：
-    python tools/jd_score.py <解析卡路径>
-    python tools/jd_score.py 01_岗位池/某某公司_某岗位/解析卡.md
+    python jobws_core.jd_score <解析卡路径>
+    python jobws_core.jd_score 01_岗位池/某某公司_某岗位/解析卡.md
 
 退出码：0 成功，1 校验失败或文件错误。
 输出到 stdout 的是 Markdown 片段，供命令直接回填解析卡的「结论」小节。

@@ -22,12 +22,20 @@
 > 实现可用**（开发模式与本地构建里就能用），只是还没随某个发布号发出去——发版时
 > 会整体归入当日的 `YY.MM.DD.N` 段。请勿以「未发布」推断功能不存在。
 
+### 破坏性变更
+
+- **领域层包化·第二批 PR-B：MCP 装上就能用，但升级需三步（2026-09-19）**：`url_infer` / `tls_policy` / `status_parse` / `jd_score` / `report` / `question_bank` 六个模块搬进 `packages/jobws-core`，**MCP 的「需要仓库在侧」硬闸与 `JOBWS_REPO_ROOT` 整段删除**。三处会影响既有使用方式：
+  1. **MCP 现在硬依赖 `jobws-core`，而它不在 PyPI**——升级时**先装领域包再装 MCP**：`uv pip install packages/jobws-core` → `uv pip install ./mcp`。只更新 MCP 会 `ModuleNotFoundError`。CI 的 mcp job 已按这个顺序装。
+  2. **`jobws-mcp` 的 Python 基线 3.10 → 3.12**（与领域包同一条线）。此前那条「3.10/3.11 上旧路径 shim 会退化为源码形态、不影响使用」的退路**已随 shim 删除而消失**。
+  3. **可写数据根与允许根的口径变了**：MCP 侧不再有「应用根」（独立安装下没有 `template/` 与 `dist/`），`data_root()` 只认 `JOBWS_DATA_DIR` → 系统用户目录；`allowed_roots()` 收敛为**只有数据根**。**源码形态的老用户请设 `JOBWS_DATA_DIR=<仓库根>`**——否则默认工作区从 `<仓库根>/personal` 变成 `%APPDATA%\job-workbench\personal`，而 `--workspace <仓库根>/personal` 这类绝对路径会被拒。
+
 ### Added
 
+- **领域层包化·第二批 PR-B（续）**：**登记表分层**——包内 `_register_builtin_operations()` 登记「实现已在包内」的十个写操作（`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`），仓库侧 `tools/approval.py` 只追加 `prep.toggle` 与 `init`（那两个领域模块按拍板留仓）。独立安装的 MCP 调这两个会得到 **`unknown_operation`**（稳定错误码，不是崩溃）；其余十个装包即用。旧名清零收尾：`pathres 7→0`（转发层删除）、`tracker 49→11`、`approval 26→9`——剩下的 20 处**刻意保留**（跨层测试的被测对象与转发层入口：改新名会让它们测到包内实现、打桩打空）。顺带：`jd_score` 的 `ROOT` 改注入式（它的 `PROFILES` 读不到时只警告不失败，搬包后会静默缺词典依据）；`pyinstaller.spec` 按自己 `:102-109` 的预告补 `certifi` hiddenimport；TLS 形状扫描补扫 `packages`。
 - **领域层包化·第二批 PR-A：路径注入 + tracker + approval（2026-09-19）**：`pathres` / `tracker`（13 个子模块、2276 行）/ `approval` 协议外壳搬进 `packages/jobws-core`，仓内旧路径留转发 shim——**对外零行为变更**（后端 840 用例 + MCP 47 用例与六条检查器全绿）。三处要点：
   - **`pathres` 改注入式**：不再从 `__file__` 推断应用根，未注入且非打包形态**直接报错**。住 `web/backend/` 时「向上三级」正好是仓库根，搬进 site-packages 后同一个表达式指向安装目录的上层、数据根**静默**漂移——这正是这批搬家的主要动机。注入点五处：`main.py`（必须先于 `deps`，后者在模块顶层就调）、`mcp/paths.py`、`tools/jobws.py`、`tests/conftest.py`、`test_domain_root.py`；新增用例钉住「未注入必须抛错」。
   - **`approval` 拆成「协议壳进包 + 注册表留仓」**：写死的 12 项映射改成 `register(operation, handler, conflict_type=None)`，包内因此不认识任何具体实现——这是解掉三条包级循环依赖的关键（`question_bank` / `prep_notes` / `init_workspace` 按用户拍板留仓）。测试打桩改打 `approval._shell`：此前 6 处打在**转发层**上，其中 5 处只因「写读都落在真实临时目录里自洽」而侥幸通过，隔离其实是坏的。
-  - **旧名水位**：`filelock 16 → 0`、`workspace_io 8 → 0`（18 处改新名 + 两个 shim 文件删除，「降到 0 就删 shim」这条流程第一次真正走完）；`tracker = 49` / `approval = 27` / `pathres = 7` 为新登记的水位，PR-B 压到 0。已清空的名字**仍留在** `LEGACY_NAMES` 里当防火墙。
+  - **旧名水位**：`filelock 16 → 0`、`workspace_io 8 → 0`（18 处改新名 + 两个 shim 文件删除，「降到 0 就删 shim」这条流程第一次真正走完）；`tracker` / `approval` / `pathres` 当时新登记了水位，**PR-B 已把产品代码全部改新名**（最终 `pathres 0` / `tracker 11` / `approval 9`，剩下的都是跨层测试与转发层入口）。已清空的名字**仍留在** `LEGACY_NAMES` 里当防火墙。
   - **本地开发注意**：往包里搬新模块后**要重装**——非 editable 安装的静态模块映射对新增文件不可见（实测 `ModuleNotFoundError`）；建议 `editable_mode=compat`（已写进 `CONTRIBUTING.md` 与包 `README.md`）。
 - **修顶栏溢出：英文界面 1440 宽下第 8 个页签被裁（2026-09-19）**：内容区是 `max-w-7xl`（1280px），而英文标签比中文长 2–4 倍——8 个页签的 tab 条原本溢出 48px，「Settings」被裁成 `Set`，界面上又看不出那里能横向滚（2026-09-18 新增「准备」页签引入的回归）。按实测压紧三处间距（页签内边距 `px-2.5`→`px-2`、页签间距 `gap-0.5`→`gap-px`、右侧工具区 `gap-2`→`gap-1.5`，合计省 63px），并新增回归网 `e2e/nav.spec.ts`：1440 宽英文下断言 8 个页签**全部完整可见**（容器无横向滚动余量 + 每个页签右边缘落在容器内）。既有冒烟只断言「不折行」——而这是**横滚**不是折行，所以此前整批检查都放它过去了。README 的两套截图同步重拍。
 - **README 截图重拍（8 页 × 中英两套）与自动截图脚本（2026-09-19）**：新增 `npm run capture`（`web/frontend/scripts/capture-screenshots.mjs`）——自动重建 `demo-shots` 工作区、起后端、按 1440×900 拍 8 页中英两套，并清掉编号重排后的孤儿图（此前 14 张全靠手拍：重拍一次要开 8 页 × 切一次语言 × 挪窗口对分辨率）。三个偏好**显式钉住**（工作区 / 语言 / 主题）——手工路径已经出过三类事故：拍到 `personal` 真实数据（localStorage 残留会盖掉后端默认值）、中文目录里躺着英文界面、浅色系统的机器拍出浅色主题（主题默认是「跟随系统」）。新增的「准备」板块补上截图（编号 05，`progress` / `library` / `settings` 整体后移一位），README 双语引用同步重排；「设置」页的真实用户名照旧遮成 `<用户名>`。顺带修 `.gitignore` 里两行过时的 `init_workspace.py` 直跑写法（统一入口改造后直跑只给迁移提示并退出 2）。

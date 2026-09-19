@@ -4,7 +4,7 @@
 单独一个路由文件而不是塞进 system.py：system.py 是水位文件（登记 328 行、
 只许变小），新增端点会破坏它的登记线；而「同步」本身也是独立职责。
 
-只 stat 不读内容（size + mtime 摘要，见 tools/workspace_io.dir_fingerprint）——
+只 stat 不读内容（size + mtime 摘要，见 jobws_core.workspace_io.dir_fingerprint）——
 指纹没变就不必重拉；前端聚焦重拉与轻量轮询都按它决定要不要刷新。
 """
 

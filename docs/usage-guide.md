@@ -306,7 +306,7 @@ python tools/jobws.py jd "personal/01_岗位池/<dir>/解析卡.md" --domain hva
 python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<dir>/解析卡.md"   # JD↔resume gaps
 ```
 
-> The stage names above (`笔试`, `一面`, …) are the actual values written into your data files, which is why they appear in Chinese. They are validated against a fixed list (`STAGES` in `tools/tracker.py`), so they cannot simply be renamed to English.
+> The stage names above (`笔试`, `一面`, …) are the actual values written into your data files, which is why they appear in Chinese. They are validated against a fixed list (`STAGES` in `jobws_core.tracker`), so they cannot simply be renamed to English.
 
 ---
 

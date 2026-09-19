@@ -1,6 +1,7 @@
 # jobws-core
 
-求职工作台的**领域层**：写盘原语与文件锁。本地优先，不联网、不上传。
+求职工作台的**领域层**：写盘原语、文件锁、路径解析、投递追踪、题库、复盘统计、JD 评分
+与两段式写入协议。本地优先，不联网、不上传。
 
 ## 它解决什么问题
 
@@ -34,6 +35,10 @@ distribution 名是 `jobws-core`，但 **import 名是 `jobws_core`**：`tools/j
 
 **第二批（2026-09-19）加入：**
 
+- `jobws_core.url_infer` / `tls_policy` / `status_parse` 与 `jd_score` / `report` /
+  `question_bank`（PR-B）—— 站点 URL 推断、出网 TLS 策略、阶段解析、JD 评分、复盘统计、
+  题库。搬完之后**仓库里没有领域实现了**：`tools/` 只剩 CLI、检查器与两个跨端登记的
+  入口（见下）。
 - `jobws_core.pathres` —— 路径解析。**它不再从 `__file__` 推断应用根**：入口显式
   `set_app_root()`，没注入就报错。住在 `web/backend/` 时「向上三级」正好是仓库根，
   搬进 site-packages 后同一个表达式指向安装目录的上层、数据根静默漂移
@@ -43,7 +48,9 @@ distribution 名是 `jobws-core`，但 **import 名是 `jobws_core`**：`tools/j
   monkeypatch 会静默失效），留仓的 `_cli*.py` 挂回 `tracker.*`。
   **CLI 子模块按用户拍板留仓**。
 - `jobws_core.approval` —— 两段式写入协议的**外壳**。操作注册表**不在包里**：
-  由调用侧 `register()` 登记（仓内的 `tools/approval.py` 登记 12 个操作）——
+  由**调用侧** `register()` 登记，而且**分层**：本包导入时自登记「实现已在包内」的十个
+  （`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`），仓库侧的
+  `tools/approval.py` 再追加 `prep.toggle` 与 `init`（那两个领域模块按拍板留仓）——
   协议层因此不认识任何具体实现，这是解掉包级循环依赖的关键。
 
 **两批共用的形态：**

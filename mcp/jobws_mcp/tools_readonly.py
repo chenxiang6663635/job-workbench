@@ -415,5 +415,10 @@ def score_jd(workspace, job_id, resume_version=None):
         "有JD原文": os.path.isfile(os.path.join(job_dir, JD_FILE)),
     }
     if resume_version:
-        data["差距"] = jd_score.gap_analysis(workspace, card_path, resume_version)
+        # `gap_analysis` 返回 (result, errors)——与后端同款解包（routers/jobs.py）。
+        # 直接赋元组会让宿主收到 `差距: [null, [...]]`（2026-09-19 审查 MINOR 抓到）。
+        gap, gap_errors = jd_score.gap_analysis(workspace, card_path, resume_version)
+        data["差距"] = gap
+        if gap_errors:
+            data["差距错误"] = gap_errors
     return data

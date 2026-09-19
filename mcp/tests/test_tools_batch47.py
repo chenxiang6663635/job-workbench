@@ -13,15 +13,15 @@ import sys
 
 import pytest
 
+# 只插 mcp/（源码形态下 import jobws_mcp）：**不再**插仓库的 tools/ ——
+# 领域层已全部在 jobws_core 里，硬闸与 JOBWS_REPO_ROOT 也已删除（2026-09-19 PR-B）。
 MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in (MCP_DIR, os.path.join(MCP_DIR, os.pardir, "tools")):
-    _real = os.path.abspath(_p)
-    if _real not in sys.path:
-        sys.path.insert(0, _real)
+if MCP_DIR not in sys.path:
+    sys.path.insert(0, MCP_DIR)
 
-import approval  # noqa: E402
+from jobws_core import approval  # noqa: E402
 from jobws_core import question_bank  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 from jobws_mcp import tools_readonly, tools_writable  # noqa: E402
 
 
@@ -30,7 +30,7 @@ def _isolated_token_store(tmp_path, monkeypatch):
     """令牌目录挪进 tmp_path——不碰真实临时目录，用例之间互不相见。"""
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
+    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
 
 
 def _make_ws(tmp_path):

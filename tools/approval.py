@@ -43,28 +43,17 @@ def _register_operations():
     """
     import init_workspace
     import prep_notes
-    from jobws_core import question_bank
 
     from jobws_core import tracker
 
     conflict = tracker.ConflictError
-    operations = (
-        ("track.add", tracker.apply_approved_add),
-        ("track.update", tracker.apply_approved_update),
-        ("track.import", tracker.apply_approved_import),
-        ("talk.add", tracker.apply_approved_talk),
-        ("mail.add", tracker.apply_approved_mail),
-        # 批 4.7：面试补两段式（原先只有 CLI 直写路径）——三端共用同一份载荷与校验。
-        ("interview.add", tracker.apply_approved_interview_add),
-        ("interview.update", tracker.apply_approved_interview_update),
-        ("question.add", question_bank.apply_approved_add),
-        ("question.update", question_bank.apply_approved_update),
-        ("question.import", question_bank.apply_approved_import),
-        # 笔记（2026-09-18）：勾选框写回——03/04 的 Markdown 行翻转，"打勾即学习打卡"。
+    # 只登记**留仓**的两个：另外十个（track.* / talk.add / mail.add /
+    # interview.* / question.*）的实现已在领域包里，由 `jobws_core.approval`
+    # 自己登记——独立安装下也拿得到（见包内 `_register_builtin_operations`）。
+    for name, handler in (
         ("prep.toggle", prep_notes.apply_approved_toggle),
         ("init", init_workspace.apply_approved_init),
-    )
-    for name, handler in operations:
+    ):
         _shell.register(name, handler, conflict_type=conflict)
 
 

@@ -140,15 +140,10 @@ def filter_rows(rows, args):
 
 
 
-def sort_key(row):
-    """活跃记录在前、终态在后；按下次动作日期升序，空日期排最后。
-
-    提升为模块级函数，供 CLI 与 Web 共用同一排序规则——
-    两处各写一份迟早会不一致。
-    """
-    terminal = 1 if row.get("当前阶段") in TERMINAL_STAGES else 0
-    nd = (row.get("下次动作日期") or "").strip()
-    return (terminal, "9999" if not nd else nd, row.get("id", ""))
+# `sort_key` 已移进领域层（`jobws_core.tracker.applications`，2026-09-19 PR-B）：
+# 它的原注释就写着「供 CLI 与 Web 共用同一排序规则」，而 Web 与 MCP 读的是领域层
+# ——留在本模块里，独立安装的 MCP 取不到（实测 AttributeError）。
+from .applications import sort_key  # noqa: E402,F401  （本模块的 cmd_list 与包门面都用它）
 
 
 

@@ -23,10 +23,9 @@ from datetime import date, timedelta
 from . import paths
 from .paths import DIR_JOBS, DIR_TRACKING
 
-from jobws_core import jd_score  # noqa: E402  （tools/ 经 paths.py 加进 sys.path）
-from jobws_core import question_bank  # noqa: E402
-from jobws_core import report  # noqa: E402
-import tracker  # noqa: E402
+# 全部走领域包（2026-09-19 PR-B）：原先这里靠 `paths.py` 把 tools/ 加进 sys.path，
+# 那段硬闸已删——本包现在装在哪都能用。
+from jobws_core import jd_score, question_bank, report, tracker  # noqa: E402
 
 # 列表默认精简：全字段（17 列）对宿主是噪声，verbose=True 才给全量
 CORE_FIELDS = ["id", "公司", "岗位", "方向", "批次", "截止日期", "投递日期",

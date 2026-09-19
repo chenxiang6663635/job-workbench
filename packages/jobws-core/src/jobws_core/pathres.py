@@ -117,7 +117,7 @@ def resolve_tools_dir(root=None):
     return os.path.join(root, "tools")
 
 
-def _user_data_dir():
+def user_data_dir():
     """系统用户数据目录（跨平台，标准库实现，不引入 platformdirs）。
 
     Windows: %APPDATA%/<app>；macOS: ~/Library/Application Support/<app>；
@@ -174,7 +174,7 @@ def resolve_workspace_root(root=None):
             return root, "portable"
 
     # 3. 非便携（NSIS 安装版、Program Files 等）→ 系统用户目录
-    return _user_data_dir(), "userdata"
+    return user_data_dir(), "userdata"
 
 
 def snapshot_root():
@@ -190,4 +190,4 @@ def snapshot_root():
     注意：有意**不**跟随 resolve_workspace_root 的便携模式。便携模式的语义是
     "数据放 exe 旁"，若快照也放 exe 旁，就退化成了同盘同目录。
     """
-    return os.path.join(_user_data_dir(), "snapshots")
+    return os.path.join(user_data_dir(), "snapshots")

@@ -17,16 +17,22 @@ pip install -e ./mcp
 jobws-mcp --workspace personal          # 工作区名，或绝对路径
 ```
 
-**仍需要仓库在侧，但只剩一件**（2026-09-19 更新）：领域层已包化两轮——写入原语与
-文件锁、`pathres`、`tracker`（13 个子模块）与 `approval` 协议外壳都进了
-`packages/jobws-core`（`pip install -e packages/jobws-core`，装上就有、wheel 也拿得到）。
-**剩下的是读侧的三个领域模块**（`jd_score` / `report` / `question_bank`）——PR-B 搬完
-它们，这整段限制即消失。在那之前，MCP 仍需要能看到仓库：用 editable 安装最省事
-（`pip install -e ./mcp`，MCP 与仓库同处一处），或装成 wheel 后用环境变量指到仓库根：
+**装上就能用**（2026-09-19 PR-B）：领域层**全部**在 `packages/jobws-core` 里（写入原语、
+文件锁、`pathres`、`tracker`、`approval`、`jd_score` / `report` / `question_bank` 等）。
+本包原先的「sys.path 注入 + `JOBWS_REPO_ROOT`」硬闸已**整段删除**——装在哪都行。
 
-```bash
-JOBWS_REPO_ROOT=/path/to/job-workbench jobws-mcp --workspace personal
-```
+两个附带说明：
+
+- **安装顺序**：`jobws-core` 不在 PyPI（是本仓的包），要先装它再装 MCP：
+
+  ```bash
+  uv pip install packages/jobws-core   # 先
+  uv pip install ./mcp                 # 后
+  ```
+
+- **两个操作仍需要仓库在侧**：`prep.toggle`（笔记勾选框写回）与 `init`（初始化工作区）
+  的实现模块按设计留仓，登记在仓库的 `tools/approval.py`。独立安装下调它们会得到
+  `unknown_operation`（稳定错误码，不是崩溃）；其余十个写操作装包即用。
 
 > **Python 版本**：领域包 `jobws-core` 要求 **3.12+**（与工作台后端同一基线），而 MCP
 > 包本身支持 3.10+。用 3.10 / 3.11 的环境装它会报「requires a different Python」——

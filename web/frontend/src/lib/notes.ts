@@ -147,6 +147,89 @@ export function extractOutline(markdown: string): NotesOutlineItem[] {
 }
 
 /**
+ * 命中行 → 该滚到哪个块：取"起始行 ≤ target 的最后一个块"。
+ *
+ * 跨行块（列表 / 代码块 / 表格）的 `position.start.line` 是**首行**，命中常落在
+ * 块中间——取最近的 ≤ target 的块才对。target 比所有块都小（命中在文件开头的
+ * 空行区）时退回首个块：宁可停在第一块，也不要停在原地不动。
+ */
+export function findAnchorLine(lines: number[], target: number): number | null {
+  if (!lines.length) return null;
+  let best: number | null = null;
+  for (const line of lines) {
+    if (line <= target && (best === null || line > best)) best = line;
+  }
+  return best ?? lines[0];
+}
+
+// --- 上次打开的笔记（localStorage，按工作区记）------------------------------
+//
+// 外部编辑（或写回）会触发整页 reload，记忆让刷新后回到原文件——否则每刷新一次
+// 就被打回第一个文件。键名与界面语言无关，是存储契约。
+
+export const NOTES_LAST_KEY = "jobws_notes_last";
+export const NOTES_WS_KEY = "jobws_selected_workspace";
+
+export interface NotesActive {
+  section: NotesSectionKey;
+  rel: string;
+}
+
+export function readWorkspace(): string {
+  try {
+    return localStorage.getItem(NOTES_WS_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function readLastOpened(ws: string): NotesActive | null {
+  try {
+    const raw = localStorage.getItem(NOTES_LAST_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw) as Record<string, NotesActive>;
+    return all[ws] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastOpened(ws: string, active: NotesActive): void {
+  try {
+    const raw = localStorage.getItem(NOTES_LAST_KEY);
+    const all = raw
+      ? (JSON.parse(raw) as Record<string, NotesActive>)
+      : {};
+    all[ws] = active;
+    localStorage.setItem(NOTES_LAST_KEY, JSON.stringify(all));
+  } catch {
+    // 存储不可用：记忆失效无妨（不影响阅读）
+  }
+}
+
+/** 在树里按 rel 找节点——把"当前文件"还原成节点（取文件名 / 模板标记等）。 */
+export function findNodeByRel(nodes: NotesNode[], rel: string): NotesNode | null {
+  for (const node of nodes) {
+    if (node.kind === "file" && node.rel === rel) return node;
+    if (node.kind === "dir") {
+      const hit = findNodeByRel(node.children ?? [], rel);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
+/** 树里的第一个文件（深度优先）——没有记忆时的默认选中。 */
+export function firstFileRel(nodes: NotesNode[]): string | null {
+  for (const node of nodes) {
+    if (node.kind === "file") return node.rel;
+    const hit = firstFileRel(node.children ?? []);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
  * 去掉 md 里的 HTML 注释（`<!-- … -->`，含跨行与行内）。
  *
  * 03 的模板里注释是写给用户的**填写说明**（"勾选这个故事能回答的维度…"），

@@ -1023,6 +1023,15 @@ const zhCN = {
   "notes.toggleHint": "只改这一行的标记字符，文件其余内容一个字节都不动。",
   "notes.toggleConfirm": "确认写入",
   "notes.toggleWriting": "写入中…",
+  // 全文搜索（文件名 + 正文）：命中数用真实总数，截断另置一词（不把返回条数当命中数）
+  "notes.searchFullPlaceholder": "搜索文件名与正文…",
+  "notes.searching": "检索中…",
+  "notes.hitCount": "命中 {{count}} 条",
+  "notes.hitCountTruncated": "命中过多，这里只列出前 {{count}} 条——换个更短的词",
+  "notes.searchEmpty": "没有命中——换个词试试",
+  "notes.searchSkipped": "{{count}} 个文件没搜全（读不动或超过 256 KB）",
+  "notes.hitLine": "第 {{line}} 行",
+  "notes.hitInName": "名称命中",
   // 邮件台账（批 4.5）：与 mails.csv 列名同源；标签 / 方向是数据键不翻译
   "mail.summary": "共 {{count}} 封",
   "mail.add": "记录邮件",

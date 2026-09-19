@@ -112,3 +112,40 @@ test("笔记：勾选框可翻转（预览 → 确认 → 落盘 → 重拉）�
   await page.getByRole("dialog").getByRole("button", { name: "Write" }).click();
   await expect(boxes.first()).not.toBeChecked();
 });
+
+test("笔记：全文搜索 → 点结果 → 打开并定位到命中行", async ({ page }) => {
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Notes" }).click();
+
+  // 关键词用 demo 正文里的中文（与界面语言无关，语言包改动不会打碎这条用例）；
+  // 搜索框的可访问名由 aria-label 提供（placeholder 不是可访问名称）。
+  // 可访问名由 aria-label 提供（placeholder 不是可访问名称）；input 未设
+  // type=search，隐式 role 是 textbox（原生 search 的清除按钮会与自绘的清空
+  // 按钮重复，故不设）
+  await page.getByRole("textbox", { name: "Search file names and text…" })
+    .fill("为什么用故事库");
+
+  const hit = page.getByRole("button", { name: /为什么用故事库/ }).first();
+  await expect(hit).toBeVisible();
+  await hit.click();
+
+  // 打开的是那份模板，且命中行所在块滚进了视口（不是"打开了但停在顶部"）
+  const heading = page.getByRole("heading", {
+    level: 2,
+    name: "为什么用故事库而不是题库",
+  });
+  await expect(heading).toBeVisible();
+  await expect(heading).toBeInViewport();
+
+  // 结果列表是新出现的交互面：一并纳入 a11y 扫描
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  const serious = results.violations.filter(
+    (v) => v.impact === "serious" || v.impact === "critical"
+  );
+  expect(
+    serious,
+    `搜索结果有 serious/critical：${serious.map((v) => v.id).join("、")}`
+  ).toEqual([]);
+});

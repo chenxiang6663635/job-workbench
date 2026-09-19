@@ -30,6 +30,14 @@ const anchorId = (node: NodeLike) => {
   return typeof line === "number" ? `h-${line}` : undefined;
 };
 
+// 块级元素的源码行号（与标题锚点同源）：搜索命中后据此定位到块、并给命中块
+// 加视觉标记。挂在**块**上而不挂在单元格/行内元素上——那些的 position 指的不是
+// "这一块从哪行开始"，挂上去会让定位指错地方。
+const lineAttr = (node: NodeLike) => {
+  const line = node?.position?.start?.line;
+  return typeof line === "number" ? { "data-line": line } : {};
+};
+
 // 任务项行号（1-based 源码行）：li 写入、input 读取——同一次渲染、同一棵树。
 const TaskLineContext = createContext<number | null>(null);
 
@@ -75,42 +83,77 @@ function TaskCheckbox({
 
 const baseComponents: Components = {
   h1: ({ node, ...props }) => (
-    <h1 id={anchorId(node)} className="mb-2 mt-0 text-[21px] font-semibold tracking-tight" {...props} />
+    <h1
+      id={anchorId(node)}
+      {...lineAttr(node)}
+      className="mb-2 mt-0 text-[21px] font-semibold tracking-tight"
+      {...props}
+    />
   ),
   h2: ({ node, ...props }) => (
     <h2
       id={anchorId(node)}
+      {...lineAttr(node)}
       className="mb-2.5 mt-8 scroll-mt-24 border-t border-border pt-6 text-[16px] font-semibold first-of-type:border-t-0 first-of-type:pt-0"
       {...props}
     />
   ),
   h3: ({ node, ...props }) => (
-    <h3 id={anchorId(node)} className="mb-1.5 mt-5 scroll-mt-24 text-[15px] font-semibold" {...props} />
+    <h3
+      id={anchorId(node)}
+      {...lineAttr(node)}
+      className="mb-1.5 mt-5 scroll-mt-24 text-[15px] font-semibold"
+      {...props}
+    />
   ),
-  p: ({ node, ...props }) => <p className="my-2.5" {...props} />,
-  ul: ({ node, ...props }) => <ul className="my-2.5 list-disc pl-5" {...props} />,
-  ol: ({ node, ...props }) => <ol className="my-2.5 list-decimal pl-5" {...props} />,
+  // h4–h6 也挂行号：命中落在小标题上时能定位到它本身，而不是退回到前一个块
+  h4: ({ node, ...props }) => (
+    <h4
+      {...lineAttr(node)}
+      className="mb-1.5 mt-4 scroll-mt-24 text-[14px] font-semibold"
+      {...props}
+    />
+  ),
+  h5: ({ node, ...props }) => (
+    <h5
+      {...lineAttr(node)}
+      className="mb-1 mt-3.5 scroll-mt-24 text-[13.5px] font-semibold"
+      {...props}
+    />
+  ),
+  h6: ({ node, ...props }) => (
+    <h6
+      {...lineAttr(node)}
+      className="mb-1 mt-3 scroll-mt-24 text-[13px] font-semibold text-muted-foreground"
+      {...props}
+    />
+  ),
+  p: ({ node, ...props }) => <p {...lineAttr(node)} className="my-2.5" {...props} />,
+  ul: ({ node, ...props }) => <ul {...lineAttr(node)} className="my-2.5 list-disc pl-5" {...props} />,
+  ol: ({ node, ...props }) => <ol {...lineAttr(node)} className="my-2.5 list-decimal pl-5" {...props} />,
   li: ({ node, className, children, ...props }) => {
     if (className?.includes("task-list-item")) {
       const line = node?.position?.start?.line;
       return (
-        <li className={cn("my-1 list-none", className)} {...props}>
+        <li {...lineAttr(node)} className={cn("my-1 list-none", className)} {...props}>
           <TaskLineContext.Provider value={typeof line === "number" ? line : null}>
             {children}
           </TaskLineContext.Provider>
         </li>
       );
     }
-    return <li className={cn("my-1", className)} {...props} />;
+    return <li {...lineAttr(node)} className={cn("my-1", className)} {...props} />;
   },
   blockquote: ({ node, ...props }) => (
     <blockquote
+      {...lineAttr(node)}
       className="my-3 rounded-r-md border-l-2 border-primary/60 bg-secondary/40 py-1.5 pl-4 pr-3 text-muted-foreground"
       {...props}
     />
   ),
   pre: ({ node, ...props }) => (
     <pre
+      {...lineAttr(node)}
       className="my-3 overflow-auto rounded-md border border-border bg-background/80 p-4 font-mono text-xs leading-relaxed"
       {...props}
     />
@@ -132,14 +175,18 @@ const baseComponents: Components = {
       </code>
     );
   },
+  // 表格只在 table 上挂行号：单元格（th/td）的 position 是单元格自身的位置，
+  // 挂上去会让"定位到某一行"指到单元格而非表格起点。
   table: ({ node, ...props }) => (
-    <table className="my-3 w-full border-collapse text-[13.5px]" {...props} />
+    <table {...lineAttr(node)} className="my-3 w-full border-collapse text-[13.5px]" {...props} />
   ),
   th: ({ node, ...props }) => (
     <th className="border border-border bg-secondary px-2.5 py-1.5 text-left font-semibold" {...props} />
   ),
   td: ({ node, ...props }) => <td className="border border-border px-2.5 py-1.5" {...props} />,
-  hr: ({ node, ...props }) => <hr className="my-6 border-t border-border" {...props} />,
+  hr: ({ node, ...props }) => (
+    <hr {...lineAttr(node)} className="my-6 border-t border-border" {...props} />
+  ),
   a: ({ node, href, children, ...props }) => {
     if (href?.startsWith("#")) {
       // 站内锚点（手写目录链接 / GFM 脚注）：**必须 preventDefault**——

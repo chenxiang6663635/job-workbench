@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BookOpen, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -5,6 +6,7 @@ import type { PrepContent } from "../api";
 import { cn } from "../lib/utils";
 import {
   extractOutline,
+  findAnchorLine,
   NOTES_SECTIONS,
   stripHtmlComments,
   type NotesNode,
@@ -19,6 +21,9 @@ import { Skeleton } from "./ui/skeleton";
 // 大纲锚点用 onClick + scrollIntoView，**不能用原生 #hash 跳转**——App 是 hash
 // 路由，未知 hash 会被 tabFromHash 判为无效并跳回看板（不是"跳过去但不动"）。
 
+// 命中块的视觉标记（token 类）：搜索点进来之后，滚过去就能看清是哪一处。
+const HIT_CLASS = ["rounded", "bg-primary/10", "ring-1", "ring-primary/30"];
+
 export interface NotesReaderProps {
   section: NotesSectionKey;
   file: NotesNode | null;
@@ -32,6 +37,8 @@ export interface NotesReaderProps {
   pendingLine: number | null;
   /** 有写回流程在进行中：整篇勾选框禁用（连点不会弹出别的行的确认框） */
   locked: boolean;
+  /** 搜索命中的行号（1-based）：非 null 时滚到所属块并标记；null = 不定位 */
+  focusLine: number | null;
 }
 
 export default function NotesReader({
@@ -44,9 +51,28 @@ export default function NotesReader({
   onToggleTask,
   pendingLine,
   locked,
+  focusLine,
 }: NotesReaderProps) {
   const { t } = useTranslation();
   const dir = NOTES_SECTIONS.find((s) => s.key === section)?.dir ?? "";
+
+  // 搜索命中后的定位：命中行 → 它所属的块（起始行 ≤ 它的最后一个块）→ 滚过去并
+  // 标记。**用 DOM 不用 hash 跳转**：App 是 hash 路由，原生 #hash 会被判无效并
+  // 踢回看板（大纲按钮同一条约束）。块级行号由渲染侧挂在 `data-line` 上。
+  // 位置刻意在所有早退**之前**——hooks 必须在每次渲染里同序调用。
+  useEffect(() => {
+    if (focusLine == null) return;
+    const lines = Array.from(document.querySelectorAll("[data-line]"))
+      .map((el) => Number(el.getAttribute("data-line")))
+      .filter((n) => Number.isFinite(n));
+    const anchor = findAnchorLine(lines, focusLine);
+    if (anchor == null) return;
+    const el = document.querySelector(`[data-line="${anchor}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add(...HIT_CLASS);
+    return () => el.classList.remove(...HIT_CLASS);
+  }, [focusLine, content]);
 
   if (!file) {
     return (

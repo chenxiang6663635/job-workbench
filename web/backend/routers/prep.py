@@ -59,6 +59,117 @@ def _section_base(ws, base_rel):
     return base
 
 
+# 搜索返回条数的展示上限：命中总数照常**全量统计**（`total` 是真实值），只截断
+# 返回列表——两者分开上报，前端才能说清"另有 N 条"（看板待推进块同款口径）。
+SEARCH_MAX_HITS = 50
+
+
+def _search_section(ws, section, keyword):
+    """扫一个 section 的全部 .md，返回 (hits, skipped)。
+
+    三条纪律（都有对应的反例）：
+    1. 遍历用共享原语 `walk_files`——与列表 / 目录树同源的跳过规则与排序，
+       搜得到的东西必须和界面上看得见、点得开的东西一致（README 与 `_模板_`
+       照常参与：树里能开就能搜到）。
+    2. **逐文件 `inside()`**：`walk_files` 自己不查归属，而 `os.walk` 不跟随
+       **目录**链接、却会把**文件**链接当成普通文件——不查就会把工作区外的正文
+       回进响应。列表端点只查"被点开的那个"，搜索是批量，这层不能省。
+    3. 读不动的文件进 `skipped`**不静默丢**：单文件不该让整次搜索失败，
+       但也不能让人以为"没有这个词"。
+    """
+    base_rel = SECTION_DIRS[section]
+    base = _section_base(ws, base_rel)
+    hits = []
+    total = 0
+    skipped = []
+    try:
+        entries = walk_files(base, exts=TEXT_EXT)
+    except OSError as exc:
+        # 遍历期失败（目录被外部换掉 / 权限 / 保存竞态）也不该让整次搜索 500——
+        # 那会让**全部**结果消失，正是本端点承诺要防的"静默少给"的极端形态。
+        skipped.append({"rel": base_rel, "reason": "目录读不到（%s）" % exc})
+        return hits, total, skipped
+    for item in entries:
+        rel = item["rel"]
+        full = os.path.join(base, *rel.split("/"))
+        if not inside(base, full):
+            skipped.append({"rel": rel, "reason": "路径越出工作区"})
+            continue
+        name = rel.rsplit("/", 1)[-1]
+        # 与左树的过滤同口径：**整条 rel** 参与匹配（目录名也算）
+        in_name = keyword in rel.lower()
+        try:
+            text, truncated, _size = read_text_limited(full)
+        except TextDecodeError:
+            skipped.append({"rel": rel, "reason": "不是 UTF-8 编码的文本"})
+            continue
+        except OSError as exc:
+            skipped.append({"rel": rel, "reason": "读不到（%s）" % exc})
+            continue
+        if truncated:
+            skipped.append({"rel": rel, "reason": "文件超过 256 KB，只搜了前 256 KB"})
+        lines = text.split("\n")
+        # 整篇一次 lower（比逐行 lower 省）；命中取**原文**行的文本展示
+        lowered = text.lower().split("\n")
+        file_hit = False
+        for offset, low in enumerate(lowered, start=1):
+            if keyword not in low:
+                continue
+            file_hit = True
+            total += 1
+            # 只攒展示用的前 N 条：命中再多也不必把几万条 dict 留在内存里，
+            # 而 total 照常全量计数（两者分开正是"诚实截断"的本意）
+            if len(hits) < SEARCH_MAX_HITS:
+                hits.append({"section": section, "rel": rel, "name": name,
+                             "line": offset,
+                             "text": lines[offset - 1].rstrip("\r").strip(),
+                             "inName": in_name})
+        # 名字（文件名 / 目录名）命中而正文没有：也给一条，否则"名字里明明有"
+        # 却搜不到——那正是最像 bug 的一种静默少给。
+        if in_name and not file_hit:
+            total += 1
+            if len(hits) < SEARCH_MAX_HITS:
+                hits.append({"section": section, "rel": rel, "name": name,
+                             "line": 1, "text": "", "inName": True})
+    return hits, total, skipped
+
+
+@router.get("/search")
+def search_prep(q: str = "", ws: str = Depends(workspace_dir)):
+    """全文搜索：在两个目录的 .md 里按关键词搜**文件名 + 正文**（**不落盘**）。
+
+    口径（写死，前端据此显示）：
+    - 匹配：关键词 `strip().lower()` 后做**子串**匹配（与题库 / 投递列表同款）；
+      **不做分词**——中文没有空格，分词会把「缓存 雪崩」拆成两个词，而用户
+      以为自己在搜一个短语；
+    - 一条命中 = 一行（同文件多行命中就是多条）；文件名命中而正文无命中时，
+      给一条 `line=1` 的条目；
+    - `total` 是**真实命中总数**（全量统计，不是返回条数），`items` 最多
+      `SEARCH_MAX_HITS` 条，截断时 `truncated=true`；
+    - `skipped` 列出没搜全的文件（读不动 / 非 UTF-8 / 超 256 KB 只搜了前半）。
+
+    **本端点必须排在 `/{section}` 之前**：FastAPI 按注册顺序匹配，否则
+    `/api/prep/search` 里的 "search" 会被当成 section 名 → 404
+    `prep.unknownSection`（有测试钉住这条）。
+    """
+    keyword = (q or "").strip().lower()
+    if not keyword:
+        # 空关键词不是错误——返回空结果（省一个错误码，也让前端不必分支）
+        return {"keyword": "", "items": [], "total": 0, "truncated": False,
+                "skipped": []}
+    hits = []
+    total = 0
+    skipped = []
+    for section in ("interview", "knowledge"):
+        section_hits, section_total, section_skipped = _search_section(
+            ws, section, keyword)
+        hits.extend(section_hits)
+        total += section_total
+        skipped.extend(section_skipped)
+    return {"keyword": (q or "").strip(), "items": hits, "total": total,
+            "truncated": total > len(hits), "skipped": skipped}
+
+
 @router.get("/{section}")
 def list_prep(section: str, ws: str = Depends(workspace_dir)):
     """列出该层的全部 Markdown（**平铺**，rel 带子目录路径；树由前端建）。

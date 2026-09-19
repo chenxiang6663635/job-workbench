@@ -5,8 +5,24 @@ import {
   classifyNotesFile,
   extractOutline,
   filterNotes,
+  findAnchorLine,
   stripHtmlComments,
 } from "../../src/lib/notes";
+
+describe("findAnchorLine（命中行 → 该滚到哪个块）", () => {
+  it("命中落在块中间时取该块的起始行", () => {
+    expect(findAnchorLine([1, 10, 20], 15)).toBe(10);
+  });
+  it("命中正好是块起始行时取它自己", () => {
+    expect(findAnchorLine([1, 10, 20], 10)).toBe(10);
+  });
+  it("命中早于首个块时退回首个块——不原地不动", () => {
+    expect(findAnchorLine([5, 10], 1)).toBe(5);
+  });
+  it("一个块都没有时返回 null", () => {
+    expect(findAnchorLine([], 3)).toBeNull();
+  });
+});
 
 const file = (rel: string, size = 10) => ({
   rel,

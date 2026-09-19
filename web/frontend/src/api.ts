@@ -359,6 +359,25 @@ export interface LibraryList {
 // 笔记勾选写回：预览返回形状与题库预览一致（token + 摘要 + 差异 + 过期时刻）
 export type PrepTogglePreview = BankImportPreview;
 
+// 笔记全文搜索：一条命中 = 一行（section/rel 足以打开，line 足以定位）
+export interface PrepSearchHit {
+  section: "interview" | "knowledge";
+  rel: string;
+  name: string;
+  line: number;
+  text: string;
+  inName: boolean;
+}
+
+export interface PrepSearch {
+  keyword: string;
+  items: PrepSearchHit[];
+  /** 真实命中总数（不是返回条数——截断时两者不同，UI 据此说清"另有 N 条"） */
+  total: number;
+  truncated: boolean;
+  skipped: { rel: string; reason: string }[];
+}
+
 // 笔记（只读）：03_面试准备 / 04_知识库 —— 字段与工作区真实文件一一对应
 export interface PrepFile {
   rel: string;
@@ -1108,6 +1127,9 @@ export const api = {
 
   prepContent: (section: "interview" | "knowledge", rel: string) =>
     request<PrepContent>(`/prep/${section}/content?rel=${encodeURIComponent(rel)}`),
+
+  // 笔记全文搜索：文件名 + 正文，跨两目录一次返回（只读）
+  prepSearch: (q: string) => request<PrepSearch>(`/prep/search?q=${encodeURIComponent(q)}`),
 
   // 笔记勾选写回：预览（签发令牌）→ 确认后走既有 applyApproval 落盘
   previewPrepToggle: (section: "interview" | "knowledge", rel: string, line: number) =>

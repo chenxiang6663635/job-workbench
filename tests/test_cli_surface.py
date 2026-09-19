@@ -42,7 +42,7 @@ import tracker  # noqa: E402
 
 # 有 CLI 面的入口（commit_header 是纯库，不在此列，见文末那条断言）
 CLI_MODULES = [["track"], ["bank"], ["report"], ["resume"], ["jd"], ["init"],
-               ["prefs"], ["skills", "install"], ["skills", "check"],
+               ["export"], ["prefs"], ["skills", "install"], ["skills", "check"],
                ["lint", "pr-title"], ["lint", "domains"], ["lint", "themes"],
                ["lint", "size"], ["lint", "four-ends"], ["lint", "legacy-imports"],
                ["release", "check"], ["release", "version"]]
@@ -425,6 +425,7 @@ def test_command_map_covers_every_merged_module():
     这行断言——新增命令时连 CLI_MODULES 的 --help 冒烟一起补（那是刻意的摩擦）。
     批 4.7 由 18 → 19：新增 `lint four-ends`（四端一致性检查器）。
     批 6 由 19 → 20：新增 `lint legacy-imports`（旧名 import 存量，只许下降）。
+    2026-09-19 由 20 → 21：新增 `export --obsidian`（八张 CSV → Obsidian 笔记）。
     """
     mapped = {}
     for name, module, _help in jobws.TARGETS:
@@ -432,7 +433,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 20, sorted(mapped)
+    assert len(mapped) == 21, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

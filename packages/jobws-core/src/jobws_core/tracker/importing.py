@@ -212,7 +212,9 @@ def cmd_import(args):
         print("\n--dry-run：未写入。")
         return 0
     if getattr(args, "preview", False):
-        import approval
+        # 用包内的协议外壳，不要伸手回仓库的 tools/approval.py——包内不许反向依赖
+        # 仓内模块（见本包 README 的边界段）。preview 只需要协议，注册表由调用侧填。
+        from jobws_core import approval
         plan = plan_import(preview, _core.WORKSPACE)
         result = approval.preview(
             "track.import", _core.WORKSPACE, plan["payload"],

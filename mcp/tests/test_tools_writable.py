@@ -25,7 +25,7 @@ import tracker  # noqa: E402  （tools/ 已由 paths.py 加进 sys.path）
 def _isolated_token_store(tmp_path, monkeypatch):
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
+    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
 
 
 @pytest.fixture()

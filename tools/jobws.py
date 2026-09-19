@@ -85,6 +85,11 @@ import prefs  # noqa: E402
 import release_assist  # noqa: E402
 import report  # noqa: E402
 import resume_build  # noqa: E402
+# 这里**只能**用旧名：`jobws track` 要的是留仓 CLI 的 `main`（在 `_cli_misc` 里），
+# 而包内真身没有它。弃用告警之所以看不见，是因为前面 `import approval` → `prep_notes`
+# 已经顺手 import 过 tracker、`sys.modules` 命中不再执行 shim——**导入顺序一变就会
+# 打印到 stderr**（2026-09-19 独立审查 m3）。要让 CLI 彻底干净，得等 `_cli*.py`
+# 也搬进包（PR-B 之后）。
 import tracker  # noqa: E402
 
 # (命令, 模块或 None, 一句话说明)。顺序即 --help 的展示顺序。

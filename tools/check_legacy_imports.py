@@ -140,13 +140,14 @@ def main():
 
     problems = []
     for name in sorted(counts):
-        if name not in limits:
-            # 自洁：清单里登记过、现在一个都没有了 → 该删那一行（可以删 shim 了）
-            continue
-        if counts[name] > limits[name]:
+        # 清单里没有 = **上限 0**：`filelock` / `workspace_io` 清零后按流程删掉了
+        # 清单那两行，但名字仍留在 LEGACY_NAMES 里当防火墙——少了这个默认值，
+        # 防火墙就是空的（2026-09-19 独立审查 M3 抓到的承诺与实现不一致）。
+        limit = limits.get(name, 0)
+        if counts[name] > limit:
             problems.append(
                 "旧名 `%s` 的 import 点从 %d 涨到了 %d——新增调用请用 "
-                "jobws_core：%s" % (name, limits[name], counts[name],
+                "jobws_core：%s" % (name, limit, counts[name],
                                     "、".join(details[name][:5])))
     for name in sorted(limits):
         if name not in counts:

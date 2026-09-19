@@ -22,4 +22,4 @@ pathres = 7
 #   这两个是**目前最大的两个旧名**，正因为它们被后端 / CLI / MCP / 测试四面引用。
 #   PR-B 会把它们压到 0（连同各自的 shim 一起删）。
 tracker = 49
-approval = 27
+approval = 26  # 27 → 26：包内 importing.py 的 import approval 改成新名（审查 M2）

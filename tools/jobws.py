@@ -45,6 +45,27 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+# 注入应用根（CLI 的根 = tools/ 的上一级）。
+#
+# 这里**用新名**导入、不走旧路径 shim：CLI 是本仓库唯一会真的显示
+# DeprecationWarning 的形态（`jobws.py` 就是 `__main__`，其余入口的告警按 Python
+# 默认被忽略），而 CLI 契约要求 stderr 干净。
+#
+# 兜底那一支是给 `jobws lint pr-title` 用的——它跑在**不装任何依赖**的 CI job 上，
+# 那时 jobws_core 不可用（与旧路径 shim 的源码形态兜底同款）。
+#
+# pathres 已不再从 `__file__` 推断根目录：它搬进了 jobws_core，推断值会静默指向
+# site-packages 的上层（论证见 tests/test_domain_root.py）。
+_REPO_ROOT = os.path.dirname(_TOOLS_DIR)
+try:
+    from jobws_core import pathres  # noqa: E402
+except ImportError:
+    _PKG_SRC = os.path.join(_REPO_ROOT, "packages", "jobws-core", "src")
+    if os.path.isdir(_PKG_SRC) and _PKG_SRC not in sys.path:
+        sys.path.insert(0, _PKG_SRC)
+    from jobws_core import pathres  # noqa: E402
+pathres.set_app_root(_REPO_ROOT)
+
 import approval  # noqa: E402
 import check_domains  # noqa: E402
 import check_four_ends  # noqa: E402

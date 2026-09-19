@@ -30,15 +30,19 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALLOWLIST = os.path.join(ROOT, "tools", "legacy_imports_allowlist.txt")
 
 # 要盯的旧名（第二批搬 tracker / approval 时继续往这里加）
-LEGACY_NAMES = ("filelock", "workspace_io")
+LEGACY_NAMES = ("filelock", "workspace_io", "pathres")
 
-SCAN_DIRS = ("tools", "web/backend", "mcp", "tests", "scripts")
+# `packages` 必须进来：包内若写旧名 import，包外这层闸门就看不见了——而那正是
+# 「搬进去就静默放行」的形态。`check_size.py` 早已把 packages 列进 SCAN_DIRS，
+# 这里对齐（2026-09-19 批 6 第二批）。
+SCAN_DIRS = ("tools", "web/backend", "mcp", "tests", "scripts", "packages")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", ".venv"}
 
 # shim 自身不算调用点：它们就是被观测对象的别名文件
 SKIP_FILES = {
     os.path.join("tools", "filelock.py"),
     os.path.join("tools", "workspace_io.py"),
+    os.path.join("web", "backend", "pathres.py"),
 }
 
 

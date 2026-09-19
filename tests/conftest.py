@@ -17,9 +17,27 @@
   后者在本机的 3.8 环境里会把中文写成乱码，护栏就白设了。
 """
 
+import os
 import sys
 
 import pytest
+
+# ---- 注入应用根（pathres）----
+#
+# pathres 自 2026-09-19（批 6 第二批）起**不再从 `__file__` 推断根目录**：它搬进了
+# 可安装包，那套推断会静默指向 site-packages 的上层、把数据根悄悄改指（论证见
+# tests/test_domain_root.py 的模块 docstring）。所以每个入口显式告诉它「我在哪」。
+#
+# 放在 conftest 的**模块顶层**，是为了早于所有测试模块的导入：不少测试在模块顶层
+# 就 `import deps`（deps 在顶层调 resolve_root），晚一步就是收集期报错。
+_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BACKEND_DIR = os.path.join(_ROOT_DIR, "web", "backend")
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+
+import pathres  # noqa: E402
+
+pathres.set_app_root(_ROOT_DIR)
 
 BASELINE = (3, 12)
 

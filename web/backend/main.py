@@ -21,6 +21,13 @@ if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 import pathres  # noqa: E402
+
+# 注入应用根：**必须在导入 deps 之前**——deps 在模块顶层就调 resolve_root()。
+# 解包形态下这里就是仓库根（本文件在 web/backend/，上溯三级）；打包形态不参与
+# （resolve_root 的 frozen 分支用 exe 同级）。注入是显式的：pathres 不再从
+# __file__ 推断，因为那套推断搬进可安装包后会静默指向 site-packages。
+pathres.set_app_root(os.path.dirname(_BACKEND_DIR))
+
 from apierror import ApiError  # noqa: E402
 from deps import WORKSPACE_HEADER  # noqa: E402
 

@@ -35,6 +35,8 @@ for _p in (os.path.join(_ROOT, "tools"), os.path.join(_ROOT, "web", "backend")):
 import pathres  # noqa: E402
 import tracker  # noqa: E402
 
+# 应用根由 tests/conftest.py 注入（pathres 不再从 __file__ 推断根目录）。
+
 
 def test_default_workspace_sits_under_app_root():
     """默认工作区 = <应用根>/personal——写成「父目录等于应用根」，位置无关。
@@ -51,6 +53,22 @@ def test_default_workspace_sits_under_app_root():
         "默认工作区的父目录应等于应用根：领域层的 ROOT 推导层级错了"
         "（默认工作区=%s，应用根=%s）" % (default_ws, app_root)
     )
+
+
+def test_resolve_root_requires_injection(monkeypatch):
+    """非打包形态下没注入就报错——不许再默默从 `__file__` 推断。
+
+    这是搬迁的**核心承诺**：pathres 进 site-packages 后，`dirname³(__file__)`
+    会指向安装目录的上层、把数据根悄悄改指，且全程无提示（见模块 docstring）。
+    所以改成「宁可起不来，也不要写错地方」。
+    """
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+    monkeypatch.setattr(pathres, "_APP_ROOT", None)
+    with pytest.raises(RuntimeError, match="应用根未注入"):
+        pathres.resolve_root()
+
+    pathres.set_app_root(_ROOT)
+    assert os.path.abspath(pathres.resolve_root()) == os.path.abspath(_ROOT)
 
 
 def test_data_dir_env_wins_over_app_root(monkeypatch, tmp_path):

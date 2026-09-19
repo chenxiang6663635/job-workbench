@@ -10,3 +10,10 @@
 # 基线取自 2026-09-17 批 6（领域层包化，旧路径改 shim 的那一刻）：
 filelock = 16  # 后端 10 处 + tracker 5 处 + 测试 1 处（ast 实测，shim 自身不计）
 workspace_io = 8  # 后端与 tracker 的共享写入原语入口（同上）
+
+# 2026-09-19 批 6 第二批（pathres 搬包，ast 实测 7 处）：
+#   后端 4（main / deps / routers/system 各 1）+ MCP 1（paths.py 注入点）
+#   + 测试 2（conftest 注入点 / test_domain_root）
+#   （CLI 那处走新名 `jobws_core.pathres`：jobws.py 是 __main__，旧名会真的打印
+#     弃用告警，而 CLI 契约要求 stderr 干净）
+pathres = 7

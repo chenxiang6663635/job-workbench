@@ -162,6 +162,7 @@ project_hidden = [
     "deps",
     "filelock",
     "py_runtime",
+    "ro_files",
     "routers",
     "routers.applications",
     "routers.approvals",

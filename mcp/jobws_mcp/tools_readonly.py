@@ -204,7 +204,7 @@ def list_jobs(workspace, keyword=None, limit=20):
 def dashboard_summary(workspace, today=None, stale_days=None):
     """看板摘要（只读）：漏斗、近 7 天待办、已过截止、静默提醒、待推进与转化率。
 
-    口径全部照抄 `routers/dashboard.py:114-183` 与 `report.retrospective`：
+    口径全部照抄 `routers/dashboard.py:114-209` 与 `report.retrospective`：
     待办取「下次动作日期」优先于「截止日期」且只取一条；逾期只看「待投」；
     静默用 `tracker.stale_days`；健康度用 `tracker.health_score`；
     转化率用「到达过」而非当前存量（否则早期阶段被高估）。

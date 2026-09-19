@@ -12,6 +12,9 @@ export default {
   // 中文侧仍是「岗位池 / 简历工坊」，语义由页面标题承载。
   "nav.jobs": "Jobs",
   "nav.resume": "Resume",
+  // "Prepare" = the pre-application side (talks / question bank); it sits between
+  // Resume and Progress so the sidebar reads "before → after you apply".
+  "nav.prepare": "Prepare",
   "nav.progress": "Progress",
   "nav.library": "Library",
   "nav.settings": "Settings",
@@ -462,6 +465,10 @@ export default {
   "dash.postpone7": "Postpone 7 days",
   "dash.overdueTitle": "Past deadline",
   "dash.overdueEmpty": "Nothing past its deadline while still unapplied.",
+  // Talks in the next 7 days (2026-09-18): the data lives in talks.csv
+  "dash.upcomingTalks": "Talks in the next 7 days",
+  "dash.upcomingTalksEmpty": "No talks or job fairs in the next seven days.",
+  "dash.viewTalks": "Open Talks under Prepare",
   "dash.activityTitle": "Recent activity",
   "dash.activityEmpty": "No changes recorded yet — the timeline shows up here as applications move.",
 
@@ -894,12 +901,15 @@ export default {
   "lib.preview": "Preview",
 
   "progress.interviews": "Interviews",
-  "progress.talks": "Talks",
   "progress.mails": "Emails",
-  "progress.questions": "Question bank",
   "progress.contacts": "Contacts",
   "progress.offers": "Offer comparison",
   "progress.subtitle": "Applying is only the opening — interviews, contacts and offers all live here",
+  // Prepare section (2026-09-18): the pre-application side — Talks and the
+  // question bank moved here from Progress.
+  "prepare.subtitle": "Everything before you apply — talks and your question bank live here",
+  "prepare.talks": "Talks",
+  "prepare.questions": "Question bank",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

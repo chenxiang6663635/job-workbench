@@ -35,7 +35,7 @@
 ## 功能一览
 
 - **四个 CLI 工作流**：`jwb-jd`（JD 解析评分）、`jwb-apply`（投递包）、`jwb-track`（追踪看板）、`jwb-resume`（PDF 重建校验）——全部命令见[使用手册 CLI 命令速查](docs/usage-guide.zh-CN.md)
-- **Web 界面**（`web/`）：七个页面与 CLI 共享同一份数据——看板、追踪表、简历工坊（一键导入**抽取而非生成** + AI 改写反编造护栏 + 导出 Word）、进展（面试题库）、复盘等，详见 [`web/README.md`](web/README.md)
+- **Web 界面**（`web/`）：八个页面与 CLI 共享同一份数据——看板、追踪表、简历工坊（一键导入**抽取而非生成** + AI 改写反编造护栏 + 导出 Word）、准备（宣讲会 / 题库）、进展（面试 / 邮件 / 联系人 / Offer）、复盘等，详见 [`web/README.md`](web/README.md)
 - **投递之后的闭环**：面试记录（一键导出 .ics）、招聘方联系人跟进提醒、Offer 并排对比（**只并排事实，绝不给建议**）、版本谱系、周期复盘、失败聚类、投递健康度四态——每条给具体理由而非黑箱分数
 - **只读邮箱拉取（可选）**：用你自己的 IMAP 授权码拉取最近的招聘邮件，转成逐条状态建议；只读连接、只在点击时连接、凭证只存本地、确认前不改数据——详见[使用手册](docs/usage-guide.zh-CN.md)
 - **邮件台账与诚实深链**（`mails.csv` + `jobws track mail`）：面试邀约、笔试通知、拒信都是一等记录，可指回投递记录；拉取的邮件带 Message-ID 且**一键记入台账**。「打开原邮件」分级诚实：自己粘的链接优先；Gmail 由 Message-ID 生成真实可用的 `rfc822msgid` 搜索深链；Outlook / QQ / 163 等没有可用深链——给「复制主题去邮箱搜索」，**不造假链接**。**邮件永不自动改阶段**，一律由你确认。
@@ -100,7 +100,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | `skills/` | 四个求职向工作流 + 教练评分标准，另有三个开发向技能（CLI 契约 / API 审查 / MCP），跨运行时单一源 |
 | `docs/four-ends.md` | **四端能力对照**（命令行 / AI 宿主 / 编辑器插件 / 桌面界面），由 `tools/four_ends_matrix.json` 生成、由 `jobws lint four-ends` 校验。接进 AI 宿主见 `docs/mcp-integration.md`——**配置键名按宿主不同，别照抄** |
 | `tools/` | Python 领域层——统一入口 + 领域模块 + 门禁脚本 |
-| `web/` | Web 界面：FastAPI 后端 + React 前端（七个页面），与 CLI 共享同一份数据 |
+| `web/` | Web 界面：FastAPI 后端 + React 前端（八个页面），与 CLI 共享同一份数据 |
 | `tests/` | pytest 测试套件（隐私护栏、反编造检查、追踪表语义），CI 质量门 |
 | `personal/` | 使用者的真实工作区（**已整体 gitignore，仓库内不含任何真实数据**） |
 | `docs/` | 使用手册、文档索引、设计文档（`docs/specs/`） |
@@ -111,7 +111,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 - [Roadmap](ROADMAP.md)——Now / Next / Later，每项都链接到跟踪 issue
 - [文档索引](docs/README.md)——每份文档的状态（现行 / 已废弃）
-- [使用手册](docs/usage-guide.zh-CN.md)——启动、七页面详解、AI 工作流、CLI 命令速查、常见问题（英文主版：[usage-guide.md](docs/usage-guide.md)）
+- [使用手册](docs/usage-guide.zh-CN.md)——启动、八页面详解、AI 工作流、CLI 命令速查、常见问题（英文主版：[usage-guide.md](docs/usage-guide.md)）
 - [设计文档](docs/specs/)——架构、Web 契约、产品化路线、开源发布
 - [变更记录](CHANGELOG.md)
 

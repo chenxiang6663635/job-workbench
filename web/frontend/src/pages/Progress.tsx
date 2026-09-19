@@ -1,23 +1,23 @@
 import { useState } from "react";
-import { BookOpen, CalendarClock, Mail, Megaphone, Scale, Users } from "lucide-react";
+import { CalendarClock, Mail, Scale, Users } from "lucide-react";
 import ContactList from "../components/ContactList";
 import InterviewList from "../components/InterviewList";
 import OfferCompare from "../components/OfferCompare";
-import QuestionBank from "../components/QuestionBank";
-import TalkList from "../components/TalkList";
 import MailList from "../components/MailList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PageHeader } from "../components/ui/page-header";
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
-type SubTab = "interviews" | "talks" | "mails" | "contacts" | "offers" | "questions";
+// 「进展」= **投递之后**的事（面试 / 邮件 / 联系人 / Offer）。
+// 宣讲会与题库 2026-09-18 迁到「准备」板块——它们都发生在投递之前，
+// 与这页的定位（「投递之后才是真正的博弈」）本来就不符；
+// 技能文档也早写着宣讲会「是投递之前最早的信息入口」。
+type SubTab = "interviews" | "mails" | "contacts" | "offers";
 
 const SUBTABS: { key: SubTab; labelKey: TranslationKey; icon: React.ReactNode }[] = [
   { key: "interviews", labelKey: "progress.interviews", icon: <CalendarClock size={15} /> },
-  { key: "talks", labelKey: "progress.talks", icon: <Megaphone size={15} /> },
   { key: "mails", labelKey: "progress.mails", icon: <Mail size={15} /> },
-  { key: "questions", labelKey: "progress.questions", icon: <BookOpen size={15} /> },
   { key: "contacts", labelKey: "progress.contacts", icon: <Users size={15} /> },
   { key: "offers", labelKey: "progress.offers", icon: <Scale size={15} /> },
 ];
@@ -46,19 +46,13 @@ export default function Progress() {
             卡长成整块，内容长时容器自然增长、页面照常滚动。
             注意 display 必须挂在 data-[state=active] 上：常驻的 display:flex 会盖过
             UA 对 [hidden] 的 display:none（非激活面板就会分走 flex 空间，2026-09-16
-            实测 6 个面板各分到 55px、激活面板只剩 257px）。 */}
+            实测当年 6 个面板各分到 55px、激活面板只剩 257px）。 */}
         <div className="flex min-h-[calc(100dvh-17rem)] flex-col">
         <TabsContent value="interviews" className="flex-1 flex-col data-[state=active]:flex">
           <InterviewList />
         </TabsContent>
-        <TabsContent value="talks" className="flex-1 flex-col data-[state=active]:flex">
-          <TalkList />
-        </TabsContent>
         <TabsContent value="mails" className="flex-1 flex-col data-[state=active]:flex">
           <MailList />
-        </TabsContent>
-        <TabsContent value="questions" className="flex-1 flex-col data-[state=active]:flex">
-          <QuestionBank />
         </TabsContent>
         <TabsContent value="contacts" className="flex-1 flex-col data-[state=active]:flex">
           <ContactList />

@@ -26,6 +26,7 @@ import {
 } from "../api";
 import ActivityFeed from "../components/ActivityFeed";
 import RetrospectivePanel from "../components/RetrospectivePanel";
+import { UpcomingTalks } from "../components/UpcomingTalks";
 import { EmptyOnboarding } from "../components/OnboardingWizard";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
@@ -100,6 +101,17 @@ function drillTo(filter: Drill) {
 function drillToJob(dir: string) {
   writeDrill({ focusDir: dir });
   window.location.hash = "jobs";
+}
+
+// 宣讲会在「准备」板块的页签里：目标页 mount 时读这个键（读过即清）。
+// 与 writeDrill 的 jobws_drill 是两个协议——那边的消费方是追踪表 / 岗位池。
+function drillToPrepare() {
+  try {
+    sessionStorage.setItem("jobws_prepare_tab", "talks");
+  } catch {
+    // 存储不可用：退化为落在「准备」的默认页签（恰好就是宣讲会）
+  }
+  window.location.hash = "prepare";
 }
 
 // 日期 YYYY-MM-DD + n 天，返回同格式字符串；入参非法时返回原值
@@ -587,6 +599,10 @@ export default function Dashboard() {
               />
             </div>
           </div>
+
+          {/* 近 7 天宣讲会（2026-09-18）：投递前的日程——不入主表时间线，
+              但「最近有什么活动」是看板上该先看到的信息 */}
+          <UpcomingTalks items={data.upcomingTalks ?? []} onOpen={drillToPrepare} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">

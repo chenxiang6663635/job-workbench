@@ -3,7 +3,7 @@ import { ENV_SCRIPT, PAGES, collectConsoleErrors, openPage } from "./fixtures";
 
 // 主题遍历（批 4）：每套主题逐页 → data-theme 正确回写、无横向溢出、无控制台错误。
 // 多主题最容易「某套主题某处溢出 / 报错」而人工只测默认暗——把遍历固化进冒烟
-// （10 套 × 7 页；串行单 worker，约 1 分钟）。
+// （10 套 × 8 页；串行单 worker，约 1 分钟）。
 const THEMES = [
   "dark",
   "light",

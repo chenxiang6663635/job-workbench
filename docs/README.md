@@ -6,7 +6,7 @@
 
 | 文档 | 说明 |
 |---|---|
-| [`usage-guide.md`](usage-guide.md) | **使用手册（英文主版）**：环境准备、一键启动、七个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
+| [`usage-guide.md`](usage-guide.md) | **使用手册（英文主版）**：环境准备、一键启动、八个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
 | [`usage-guide.zh-CN.md`](usage-guide.zh-CN.md) | 上述手册的**简体中文同步版**（内容与主版一致，互链在各自开头） |
 | [`../README.md`](../README.md) | 项目主入口：定位、三层架构、快速开始、目录说明 |
 
@@ -81,7 +81,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| [`../web/README.md`](../web/README.md) | Web 界面层：七个页面、与 CLI 的关系、目录结构、已知边界 |
+| [`../web/README.md`](../web/README.md) | Web 界面层：八个页面、与 CLI 的关系、目录结构、已知边界 |
 | [`../web/frontend/README.md`](../web/frontend/README.md) | 前端工程说明（构建链与运行方式） |
 | [`../mcp/README.md`](../mcp/README.md) | MCP 服务：六个工具（3 只读 + 3 两段式写入）、安装与宿主配置、工作区解析 |
 

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, RefreshCw, Settings as SettingsIcon, TrendingUp } from "lucide-react";
+import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, Megaphone, RefreshCw, Settings as SettingsIcon, TrendingUp } from "lucide-react";
 import { useWorkspaceSync } from "./hooks/useWorkspaceSync";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
 import Jobs from "./pages/Jobs";
 import Library from "./pages/Library";
+import Prepare from "./pages/Prepare";
 import Progress from "./pages/Progress";
 import Resume from "./pages/Resume";
 import Settings from "./pages/Settings";
@@ -14,15 +15,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { LANGS } from "./i18n";
 import type { TranslationKey } from "./i18n/locales/zh-CN";
 
-type Tab = "dashboard" | "applications" | "jobs" | "resume" | "progress" | "library" | "settings";
+type Tab = "dashboard" | "applications" | "jobs" | "resume" | "prepare" | "progress" | "library" | "settings";
 
 // label 改成 i18n key：文案不再写死在组件里（翻译缺失时回落 zh-CN，不会露出 key 名）。
 // 页面与组件内部的文案不在本批范围，留给「批量抽取」批统一处理。
+// 「准备」放在「简历工坊」与「进展」之间（2026-09-18）：侧栏顺序即
+// 「投递前 → 投递后」的分界——准备（宣讲会 / 题库）与简历都发生在投递之前。
 const TABS: { key: Tab; labelKey: TranslationKey; icon: React.ReactNode }[] = [
   { key: "dashboard", labelKey: "nav.dashboard", icon: <LayoutDashboard size={16} /> },
   { key: "applications", labelKey: "nav.applications", icon: <Briefcase size={16} /> },
   { key: "jobs", labelKey: "nav.jobs", icon: <FolderOpen size={16} /> },
   { key: "resume", labelKey: "nav.resume", icon: <FileText size={16} /> },
+  { key: "prepare", labelKey: "nav.prepare", icon: <Megaphone size={16} /> },
   { key: "progress", labelKey: "nav.progress", icon: <TrendingUp size={16} /> },
   { key: "library", labelKey: "nav.library", icon: <LibraryIcon size={16} /> },
   { key: "settings", labelKey: "nav.settings", icon: <SettingsIcon size={16} /> },
@@ -271,6 +275,8 @@ export default function App() {
           <Jobs key={currentWs} />
         ) : tab === "resume" ? (
           <Resume key={currentWs} />
+        ) : tab === "prepare" ? (
+          <Prepare key={currentWs} />
         ) : tab === "progress" ? (
           <Progress key={currentWs} />
         ) : tab === "library" ? (

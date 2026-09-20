@@ -32,7 +32,7 @@ jobws-mcp --workspace personal          # 工作区名，或绝对路径
 
 - **两个操作仍需要仓库在侧**：`prep.toggle`（笔记勾选框写回）与 `init`（初始化工作区）
   的实现模块按设计留仓，登记在仓库的 `tools/approval.py`。独立安装下调它们会得到
-  `unknown_operation`（稳定错误码，不是崩溃）；其余十个写操作装包即用。
+  `unknown_operation`（稳定错误码，不是崩溃）；其余十一个写操作装包即用。
 
 > **Python 版本**：两个包**同一条基线 3.12+**（2026-09-19 PR-B 起 `jobws-mcp` 硬依赖
 > 领域包）。此前「3.10/3.11 上装不上领域包也不影响 MCP 用」那条退路已随旧路径 shim 的

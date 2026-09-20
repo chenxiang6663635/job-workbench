@@ -126,6 +126,10 @@ const zhCN = {
   "bank.preview": "预览改动",
   "bank.previewing": "生成差异…",
   "bank.confirmWrite": "确认写入",
+  "bank.delete": "删除这道题",
+  "bank.deletePreviewing": "正在生成删除差异…",
+  "bank.confirmDelete": "确认删除",
+  "bank.deleteHint": "删除前会把整表快照写到工作区之外；删错可把那份 CSV 复制回 05_投递追踪。",
   "bank.writing": "写入中…",
   "bank.noChange": "还没有改动",
   "bank.difficultyNone": "未标",
@@ -876,6 +880,7 @@ const zhCN = {
   "err.question.updateFailed": "无法更新题目：{{reason}}",
   "err.question.drillFailed": "无法抽题：{{reason}}",
   "err.question.wrongFailed": "无法标记错题：{{reason}}",
+  "err.question.deleteFailed": "无法删除题目：{{reason}}",
 
   "err.sys.unknownTarget": "只支持 workspace / snapshots / dataRoot（收到 {{target}}）",
   "err.sys.openFailed": "打开失败：{{error}}",

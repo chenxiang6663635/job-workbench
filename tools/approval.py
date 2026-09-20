@@ -35,7 +35,7 @@ registered_operations = _shell.registered_operations
 
 
 def _register_operations():
-    """把 12 个写操作登记进包内的注册表。
+    """把 13 个写操作登记进包内的注册表。
 
     冲突类型统一用领域层的 `tracker.ConflictError`：tracker（已进包）与
     question_bank 都用它表示「预览时的判断已不成立」；其余操作不抛冲突，
@@ -47,7 +47,7 @@ def _register_operations():
     from jobws_core import tracker
 
     conflict = tracker.ConflictError
-    # 只登记**留仓**的两个：另外十个（track.* / talk.add / mail.add /
+    # 只登记**留仓**的两个：另外十一个（track.* / talk.add / mail.add /
     # interview.* / question.*）的实现已在领域包里，由 `jobws_core.approval`
     # 自己登记——独立安装下也拿得到（见包内 `_register_builtin_operations`）。
     for name, handler in (
@@ -92,6 +92,10 @@ def main(argv=None):
         print("记录 id：%s" % result["id"])
     if result.get("written") is not None:
         print("写入条数：%d" % result["written"])
+    if result.get("trace"):
+        # 删除类操作的留痕路径要**显式打出来**：删错之后全靠它回来，而文档只说了
+        # "在工作区之外"——不给确切路径等于让人去猜（快照根目录还可能被改过）
+        print("留痕（删前整表快照，可整份复制回 questions.csv）：%s" % result["trace"])
     return 0
 
 

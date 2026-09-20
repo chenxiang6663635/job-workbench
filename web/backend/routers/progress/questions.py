@@ -12,6 +12,7 @@ from jobws_core import tracker
 from jobws_core import question_bank as question_store
 from jobws_core import question_drill
 from jobws_core import question_review
+from jobws_core import question_delete
 from apierror import ApiError
 from deps import workspace_dir
 
@@ -214,6 +215,29 @@ def preview_question_wrong(ws: str = Depends(workspace_dir), id: str = "",
                        reason="；".join(errors))
     from jobws_core import approval  # 函数内 import：approval 只在写路径用到
     result = approval.preview("question.update", ws, plan["payload"], plan["summary"],
+                              plan["diff"], plan["targets"])
+    return {"token": result["token"], "summary": plan["summary"],
+            "diff": plan["diff"], "expiresAt": result["expires_at"]}
+
+
+@router.get("/questions/preview-delete")
+def preview_question_delete(ws: str = Depends(workspace_dir), id: str = ""):
+    """删题预览：把"将删哪一行"列成差异表——**不落盘**，只签发一次性令牌。
+
+    只做**单题**：批量撤回（按 来源 / 创建日期 等条件）留在命令行
+    `jobws bank delete --origin 导入 --today`——界面上没有"选中可见的多行"这个
+    前置动作，把批量删做成一次点击等于鼓励误操作。
+
+    落盘同样走既有的 `/api/approvals/apply`：写通道只有一条，删也得先看过差异。
+    领域层在落盘前会把整表快照写到**工作区之外**（删错可整份复制回来）。
+    """
+    errors, plan = question_delete.preview_delete_fields((id or "").strip(), None, ws)
+    if plan is None:
+        # 与 update 同口径：只回 reason（id 可能本来就没给，塞进文案会渲染出空括号）
+        raise ApiError(400, "question.deleteFailed", "题库删除预览失败",
+                       reason="；".join(errors))
+    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    result = approval.preview("question.delete", ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])
     return {"token": result["token"], "summary": plan["summary"],
             "diff": plan["diff"], "expiresAt": result["expires_at"]}

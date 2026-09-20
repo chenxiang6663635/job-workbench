@@ -123,6 +123,10 @@ export default {
   "bank.preview": "Preview changes",
   "bank.previewing": "Building diff…",
   "bank.confirmWrite": "Confirm write",
+  "bank.delete": "Delete this question",
+  "bank.deletePreviewing": "Building the deletion diff…",
+  "bank.confirmDelete": "Confirm delete",
+  "bank.deleteHint": "A full-table snapshot is written outside the workspace before deleting; copy it back to restore.",
   "bank.writing": "Writing…",
   "bank.noChange": "No changes yet",
   "bank.difficultyNone": "Not set",
@@ -803,6 +807,7 @@ export default {
   "err.question.updateFailed": "Could not update the question: {{reason}}",
   "err.question.drillFailed": "Could not draw questions: {{reason}}",
   "err.question.wrongFailed": "Could not flag as wrong: {{reason}}",
+  "err.question.deleteFailed": "Could not delete the question: {{reason}}",
 
   // Notes (03_面试准备 / 04_知识库): read-only browsing and checkbox write-back errors
   "err.prep.unknownSection": "Unknown notes section: {{section}}",

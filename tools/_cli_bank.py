@@ -24,7 +24,9 @@ from jobws_core.question_bank import (MODULE_DIR, export_csv, preview_add_fields
                            preview_update_fields, read_questions)
 from jobws_core.question_review import (due_questions,  # noqa: E402
                                         preview_mark_wrong, wrong_questions)
-from jobws_core.question_drill import pick_drill  # noqa: E402
+from jobws_core.question_delete import preview_delete_fields  # noqa: E402
+
+import _cli_bank_drill  # noqa: E402  （drill 命令层：只读抽题；拆出去守规模预算）
 
 
 def _print_questions(rows):
@@ -84,37 +86,8 @@ def _run_wrong(args, workspace):
     return 0
 
 
-def _run_drill(args, workspace):
-    """抽一轮题（**只读**）：只打印问法，答案要点刻意不给。
-
-    为什么不带答案：抽题的目的是"先答一遍"，答案就在旁边等于没练——看一眼答案
-    就算复习过，是最常见也最没用的自欺。要看答案用 `bank list --keyword …`。
-    """
-    rows = read_questions(workspace, domain=args.domain, subject=args.subject,
-                          status=args.status, keyword=args.keyword)
-    try:
-        picked = pick_drill(rows, mode=args.mode, n=args.n)
-    except ValueError as exc:
-        print("错误：%s" % exc)
-        return 2
-    if not picked:
-        print("没有可抽的题：题库是空的，或当前筛选 / 模式下没有命中。")
-        return 0
-    print("| 题目id | 题目 | 领域 / 科目 | 状态 |")
-    print("|---|---|---|---|")
-    for row in picked:
-        print("| %s | %s | %s | %s |" % (
-            row.get("题目id") or "", row.get("题目") or "",
-            "%s / %s" % (row.get("领域") or "—", row.get("科目") or "—"),
-            row.get("状态") or "未看"))
-    print("")
-    print("共 %d 道（模式 = %s）。答案要点刻意不打印——先盲答，再对答案。" % (
-        len(picked), args.mode))
-    return 0
-
-
 def _run_preview(errors, plan, op_name, workspace):
-    """add / import / update 三处同构的「校验 → 两段式预览」尾部。"""
+    """add / import / update / delete 四处同构的「校验 → 两段式预览」尾部。"""
     for error in errors:
         print("错误：%s" % error)
     if plan is None:
@@ -153,7 +126,7 @@ def cmd_bank(args):
         return 0
 
     if args.action == "drill":
-        return _run_drill(args, workspace)
+        return _cli_bank_drill.run(args, workspace)
 
     if args.action == "due":
         return _run_due(workspace)
@@ -164,6 +137,22 @@ def cmd_bank(args):
     if args.action == "add":
         errors, plan = preview_add_fields(_bank_changes(args), workspace)
         return _run_preview(errors, plan, "question.add", workspace)
+
+    if args.action == "delete":
+        # 单题与批量互斥：两条路都先出预览，看过"将删哪几行"才准落盘
+        if args.id and (args.domain or args.subject or args.keyword or args.origin
+                        or args.company or args.today):
+            print("错误：--id 与筛选条件一次只能给一个（单题用 --id；"
+                  "误导入想整批撤回用 --origin 导入 --today）")
+            return 2
+        # 留空的值由 preview_delete_fields 过滤掉，这里不必判空
+        filters = {"领域": args.domain or "", "科目": args.subject or "",
+                   "关键词": args.keyword or "", "来源": args.origin or "",
+                   "关联公司": args.company or ""}
+        if args.today:
+            filters["今天创建"] = "1"
+        errors, plan = preview_delete_fields(args.id, filters, workspace)
+        return _run_preview(errors, plan, "question.delete", workspace)
 
     if args.action == "import":
         # 目录可以换，但**不能越出工作区**：绝对路径会被 os.path.join 当成新根、
@@ -202,7 +191,8 @@ def cmd_bank(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="jobws bank",
-        description="题库：list / add / update / import / import-csv / export（写操作走两段式）")
+        description="题库：list / due / wrong / add / update / delete / drill / "
+                    "import / import-csv / export（写操作走两段式）")
     subs = parser.add_subparsers(dest="action")
 
     p_list = subs.add_parser("list", help="列出题目（可按领域/科目/状态/关键词筛选）")
@@ -249,16 +239,17 @@ def main(argv=None):
     p_update.add_argument("--note", help="备注")
     p_update.add_argument("--workspace", default=None)
 
-    p_drill = subs.add_parser("drill", help="抽一轮题（只读；不打印答案要点）")
-    p_drill.add_argument("--mode", default="due", choices=("due", "wrong", "random"),
-                         help="due=重练队列（错题∪待复习）/ wrong=只错题 / random=随机")
-    p_drill.add_argument("--n", type=int, default=5,
-                         help="一轮几道（默认 5，上限 20）")
-    p_drill.add_argument("--domain", help="领域")
-    p_drill.add_argument("--subject", help="科目")
-    p_drill.add_argument("--status", help="状态（未看 / 看过 / 会了）")
-    p_drill.add_argument("--keyword", "-k", help="关键词（题目 / 要点 / 标签等）")
-    p_drill.add_argument("--workspace", default=None)
+    _cli_bank_drill.add_parser(subs)
+    p_delete = subs.add_parser("delete", help="删除题目（预览后凭令牌落盘）")
+    p_delete.add_argument("--id", metavar="题目id", help="精确删一题（用 list 查）")
+    p_delete.add_argument("--domain", help="领域")
+    p_delete.add_argument("--subject", help="科目")
+    p_delete.add_argument("--keyword", "-k", help="关键词（题目 / 要点 / 标签等）")
+    p_delete.add_argument("--origin", help="来源（如 导入）")
+    p_delete.add_argument("--company", help="关联公司")
+    p_delete.add_argument("--today", action="store_true",
+                          help="只看今天创建（配 --origin 导入 可撤回今天导入的一批）")
+    p_delete.add_argument("--workspace", default=None)
 
     p_import = subs.add_parser("import", help="从 03_面试准备/**/*.md 导入（只读解析 + 预览）")
     p_import.add_argument("--module-dir", default=MODULE_DIR, help="模块目录名")

@@ -6,7 +6,9 @@
 2. **写不坏**：值里的引号 / 反斜杠 / 换行在 YAML 里被转义（frontmatter 读坏了
    整篇笔记就废了）；
 3. **不覆盖**：导出目录带时间戳，同名已存在就报错而不是覆盖历史导出；
-4. **只读工作区**：导出前后 CSV 一个字节都不变（导出是快照，不是同步）。
+4. **只读工作区**：导出前后 CSV 一个字节都不变（导出是快照，不是同步）；
+5. **材料投影（`--notes`）**：目录层级 + frontmatter 记来源、隐藏文件与 `训练卡`
+   跳过、超限整份跳过（不截断）、跳过清单进产物 README、目标在工作区内直接拒绝。
 """
 
 import csv
@@ -21,6 +23,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 import _cli_export  # noqa: E402
+import _cli_export_notes  # noqa: E402
 from jobws_core import tracker  # noqa: E402
 
 TRACKING = "05_投递追踪"
@@ -206,3 +209,175 @@ def test_export_prints_where_it_wrote(ws, tmp_path, capsys):
     printed = capsys.readouterr().out
     assert "已导出 1 篇笔记" in printed
     assert "obsidian-export-" in printed
+
+
+# --- 材料投影（`--notes`，2026-09-20）----------------------------------------
+
+
+def _write_note(ws, rel, text):
+    path = ws / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_notes_are_projected_with_structure_and_frontmatter(ws, tmp_path):
+    """`--notes`：03/04/00 的 Markdown 原样投影——保留层级 + frontmatter 记来源。"""
+    _write_note(ws, "03_面试准备/技术面/a.md", "# 题 A\n\n正文 A。\n")
+    _write_note(ws, "04_知识库/液冷/b.md", "# 题 B\n\n正文 B。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    note = io.open(os.path.join(root, "03_面试准备", "技术面", "a.md"),
+                   encoding="utf-8").read()
+    assert "tags: [jobws/笔记]" in note
+    assert '来源目录: "03_面试准备"' in note
+    assert '相对路径: "技术面/a.md"' in note
+    assert '标题: "题 A"' in note
+    assert note.rstrip().endswith("正文 A。")
+    assert os.path.isfile(os.path.join(root, "04_知识库", "液冷", "b.md"))
+    assert total == 2  # 表都是空的，只有两篇材料
+
+
+def test_training_cards_are_not_projected_twice(ws, tmp_path):
+    """训练卡是题库的卡源：已在「题库/」下以 flashcard 出现，不再投影一遍。"""
+    _write_note(ws, "03_面试准备/训练卡/技术面/x.md", "# 卡 X\n\n要点。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, _total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    assert os.path.isdir(os.path.join(root, "03_面试准备"))
+    assert not os.path.exists(os.path.join(root, "03_面试准备", "训练卡"))
+
+
+def test_big_note_is_copied_in_full_not_truncated(ws, tmp_path):
+    """256 KB 截断是只读端点的语义；带进导出会把长速记截成半篇。"""
+    body = "x" * (300 * 1024)
+    _write_note(ws, "00_事实库/big.md", "# 大文件\n\n%s\n\nTAIL-MARKER\n" % body)
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, _total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+    note = io.open(os.path.join(root, "00_事实库", "big.md"), encoding="utf-8").read()
+
+    assert "TAIL-MARKER" in note, "超过 256 KB 的笔记被截断了"
+    assert note.count("x") == 300 * 1024
+
+
+def test_notes_are_off_by_default(ws, tmp_path):
+    """新增能力用新增开关承载：不带 --notes 时既有导出行为不变。"""
+    _write_note(ws, "03_面试准备/技术面/a.md", "# 题 A\n\n正文。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, _total = _cli_export.export_obsidian(str(ws), str(out))
+
+    assert not os.path.exists(os.path.join(root, "03_面试准备"))
+
+
+def test_export_target_inside_workspace_is_refused(ws, tmp_path, capsys):
+    """导出目录必须在工作区之外：否则污染工作区，并被材料投影重复收录（嵌套复制）。"""
+    _write_note(ws, "04_知识库/a.md", "# A\n\n正文。\n")
+    inside = ws / "04_知识库"
+    before = sorted(p.name for p in inside.iterdir())
+
+    with pytest.raises(RuntimeError) as err:
+        _cli_export.export_obsidian(str(ws), str(inside), include_notes=True)
+    assert "工作区之外" in str(err.value)
+    assert sorted(p.name for p in inside.iterdir()) == before  # 目录都没建
+
+    assert _cli_export.main(["--obsidian", str(inside), "--notes",
+                             "--workspace", str(ws)]) == 1
+    assert "工作区之外" in capsys.readouterr().err
+
+
+def test_hidden_files_are_not_projected(ws, tmp_path):
+    """隐藏文件跳过（与只读端点同口径）：草稿、原子写临时名、AppleDouble 都不算材料。"""
+    _write_note(ws, "03_面试准备/可见.md", "# 可见\n\n正文。\n")
+    _write_note(ws, "03_面试准备/.draft.md", "# 草稿\n\n不该出现。\n")
+    _write_note(ws, "03_面试准备/.jobws_tmp_ab12.md", "# 临时\n\n不该出现。\n")
+    _write_note(ws, "03_面试准备/._可见.md", "# AppleDouble\n\n不该出现。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, _total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    assert sorted(os.listdir(os.path.join(root, "03_面试准备"))) == ["可见.md"]
+
+
+def test_unreadable_note_is_skipped_and_listed_in_readme(ws, tmp_path, capsys):
+    """读不动的材料：跳过 + 产物 README 点名（别让人以为导出是完整的）。"""
+    _write_note(ws, "04_知识库/好.md", "# 好\n\n正文。\n")
+    (ws / "04_知识库" / "坏.md").write_bytes(b"# \xbb\xb5\n\n\xff\xfe")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    readme = io.open(os.path.join(root, "README.md"), encoding="utf-8").read()
+    assert total == 1
+    assert "没导出的材料" in readme
+    assert "坏.md" in readme
+    assert "没导出，已跳过" in capsys.readouterr().err
+
+
+def test_oversize_note_is_skipped_not_truncated(ws, tmp_path, capsys):
+    """超限整份跳过：截断会产出一篇看着完整、实则缺半截的笔记。"""
+    big = ws / "00_事实库" / "huge.md"
+    big.parent.mkdir(parents=True)
+    big.write_text("# 巨\n\n" + "x" * (_cli_export_notes.NOTE_MAX_BYTES + 1),
+                   encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    assert total == 0
+    assert not os.path.exists(os.path.join(root, "00_事实库", "huge.md"))
+    readme = io.open(os.path.join(root, "README.md"), encoding="utf-8").read()
+    assert "huge.md" in readme and "上限" in readme
+    assert "没导出，已跳过" in capsys.readouterr().err
+
+
+def test_name_collision_gets_suffix_not_overwrite():
+    """重名加序号：清洗非法字符后撞名时加 `-2`，而不是互相覆盖。"""
+    used = {}
+    first = _cli_export_notes._note_target_path("/root", "a:b.md", used)
+    second = _cli_export_notes._note_target_path("/root", "a?b.md", used)
+
+    assert first.endswith("a-b.md")
+    assert second.endswith("a-b-2.md")
+
+
+def test_main_notes_flag_projects_materials(ws, tmp_path, capsys):
+    """`--notes` 的接线（argparse 参数名写错时这条会红）。"""
+    _write_note(ws, "03_面试准备/甲.md", "# 甲\n\n正文甲。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    assert _cli_export.main(["--obsidian", str(out), "--notes",
+                             "--workspace", str(ws)]) == 0
+
+    assert "已导出 1 篇笔记" in capsys.readouterr().out
+    root = [name for name in os.listdir(str(out))
+            if name.startswith("obsidian-export-")][0]
+    assert os.path.isfile(os.path.join(str(out), root, "03_面试准备", "甲.md"))
+    readme = io.open(os.path.join(str(out), root, "README.md"), encoding="utf-8").read()
+    assert "材料笔记" in readme
+
+
+def test_empty_material_dir_is_zero_not_missing(ws, tmp_path):
+    """空材料目录：建目录、报 0 篇——"没有这个目录"与"目录是空的"是两件事。"""
+    (ws / "04_知识库").mkdir(parents=True)
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    assert total == 0
+    assert os.path.isdir(os.path.join(root, "04_知识库"))
+    readme = io.open(os.path.join(root, "README.md"), encoding="utf-8").read()
+    assert "`04_知识库/`：0 篇" in readme

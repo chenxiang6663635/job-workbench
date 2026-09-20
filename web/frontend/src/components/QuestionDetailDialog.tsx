@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { api, type BankQuestion } from "../api";
+import { BankPreviewCard } from "./BankPreviewCard";
+import { QuestionDeleteButton } from "./QuestionDeleteButton";
 import { Button } from "./ui/button";
-import { Card } from "./ui/card";
 import { Textarea } from "./ui/input";
 import {
   Dialog,
@@ -59,40 +60,8 @@ function ReadOnlyPanel({ item }: { item: BankQuestion }) {
   );
 }
 
-/** 第一步的产物：差异表 + 确认 / 取消——与「从 03_面试准备 导入」同一套手感。 */
-function PreviewCard({
-  summary,
-  diff,
-  busy,
-  onConfirm,
-  onCancel,
-}: {
-  summary: string;
-  diff: string[];
-  busy: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <Card className="space-y-2 p-3">
-      <p className="text-sm font-medium text-foreground">{summary}</p>
-      {/* diff 是后端给的 Markdown 表格文本：原样等宽展示，不做二次解析——
-          解析错了比显示得丑危险得多（用户据此决定要不要落盘） */}
-      <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
-        {diff.join("\n")}
-      </pre>
-      <div className="flex gap-2">
-        <Button size="sm" onClick={onConfirm} disabled={busy}>
-          {busy ? t("bank.writing") : t("bank.confirmWrite")}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
-          {t("common.cancel")}
-        </Button>
-      </div>
-    </Card>
-  );
-}
+// 差异确认卡已抽到 BankPreviewCard.tsx：导入与删除共用同一张卡，两处的"确认"
+// 手感必须一致——删比改更不可逆，用户更该看清到底要删哪一行。
 
 /** 编辑区：改答案要点 / 标三态 / 挑难度 → 预览 → 确认（两段式）。 */
 function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void }) {
@@ -185,7 +154,7 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
       {preview ? (
-        <PreviewCard
+        <BankPreviewCard
           summary={preview.summary}
           diff={preview.diff}
           busy={busy}
@@ -248,6 +217,7 @@ export function QuestionDetailDialog({
         </DialogHeader>
         <ReadOnlyPanel item={item} />
         <EditPanel item={item} onSaved={onSaved} />
+        <QuestionDeleteButton id={item.题目id} onDeleted={onSaved} />
       </DialogContent>
     </Dialog>
   );

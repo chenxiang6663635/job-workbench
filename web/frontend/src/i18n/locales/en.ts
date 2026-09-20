@@ -144,9 +144,12 @@ export default {
   "drill.gradeSeen": "Seen",
   "drill.gradeKnown": "Known",
   "drill.markWrong": "Flag as wrong",
+  "drill.unmarkWrong": "Unflag",
   "drill.next": "Next",
   "drill.done": "Round finished",
-  "drill.doneHint": "Self-checked {{count}} this round. Draw another round, or open My bank for all.",
+  "drill.doneHint": "Wrote {{count}} this round (self-check / flag). Draw another round, or open My bank for all.",
+  "drill.noMatch": "No questions this round",
+  "drill.noMatchHint": "The queue is wrong ∪ due-today, so the current mode and keyword can come up empty: switch mode, clear the keyword, or grade some “Not learned” cards first.",
   "drill.restart": "Another round",
 
   "question.searchPlaceholder": "Search questions, answers, or retrospectives…",

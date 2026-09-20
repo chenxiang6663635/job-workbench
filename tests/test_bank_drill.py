@@ -23,11 +23,11 @@ from jobws_core import question_drill, tracker  # noqa: E402
 TODAY = datetime.date(2026, 9, 20)
 
 
-def _row(qid, title, status="未看", last="", tags="", reviewed=""):
+def _row(qid, title, status="未看", last="", tags="", reviewed="", answer="要点"):
     row = dict((field, "") for field in tracker.QUESTION_FIELDS)
     row.update({"题目id": qid, "题目": title, "状态": status,
                 "最近复习": last, "标签": tags, "创建日期": "2026-09-18",
-                "答案要点": "要点"})
+                "答案要点": answer})
     return row
 
 
@@ -125,15 +125,18 @@ def _seed_csv(ws, rows):
 def test_cli_drill_prints_questions_but_not_answers(ws, capsys):
     """命令行抽题：给问法、不给答案（看一眼答案的"复习"等于没练）。"""
     import _cli_bank  # noqa: E402  （命令层在 tools/ 下，与领域层分开测）
+    # 用**真在数据里**的哨兵值断言：拿一个数据里根本不存在串当对照，CLI 真打印了
+    # 答案也照样通过——那样的断言等于没断言
+    sentinel = "SENTINEL-答案不该出现在命令行输出里"
     _seed_csv(ws, [
-        _row("Q001", "缓存雪崩是什么", tags="高频"),
+        _row("Q001", "缓存雪崩是什么", tags="高频", answer=sentinel),
         _row("Q002", "缓存穿透是什么"),
     ])
 
     assert _cli_bank.main(["drill", "--workspace", str(ws), "--n", "2"]) == 0
     out = capsys.readouterr().out
     assert "缓存雪崩是什么" in out
-    assert "大量 key 同时过期" not in out, "答案要点不该被打印出来"
+    assert sentinel not in out, "答案要点不该被打印出来"
 
 
 def test_cli_drill_rejects_unknown_mode(ws, capsys):

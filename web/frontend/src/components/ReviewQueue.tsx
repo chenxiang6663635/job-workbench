@@ -1,7 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type BankQuestion } from "../api";
-import { fetchDrill, previewMarkWrong, type DrillMode } from "../lib/drill";
+import {
+  fetchDrill,
+  previewMarkWrong,
+  readDrillRound,
+  saveDrillRound,
+  tagsOf,
+  WRONG_TAG,
+  type DrillMode,
+} from "../lib/drill";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { ErrorBanner } from "./ErrorBanner";
@@ -17,10 +25,6 @@ import { Input } from "./ui/input";
 //    `question.update` 预览 + `/api/approvals/apply` 落盘，不新增写通道。
 const MODES: DrillMode[] = ["due", "wrong", "random"];
 const SIZES = [5, 10, 20];
-// 数据值，不翻译：标签里的「错题」就是 CSV 里的真实取值（与 due / wrong 的口径同源）。
-// 拿翻译串去比会随界面语言漂移——中文界面标的错题，英文界面就认不出来了。
-const WRONG_TAG = "错题";
-
 /** 差异确认：与题库详情里的写入确认同一套手感（摘要 + 差异表 + 确认/取消）。 */
 function DrillPreviewCard({
   summary,
@@ -56,20 +60,29 @@ function DrillPreviewCard({
 
 export default function ReviewQueue() {
   const { t } = useTranslation();
+  // 懒初始化：storage 只在挂载时读一次（每帧读会让"刷新即回血"变成"刷新即重读"）
+  const [saved] = useState(readDrillRound);
   const [mode, setMode] = useState<DrillMode>("due");
   const [size, setSize] = useState(5);
   const [keyword, setKeyword] = useState("");
-  const [items, setItems] = useState<BankQuestion[]>([]);
-  const [index, setIndex] = useState(0);
-  const [revealed, setRevealed] = useState(false);
-  const [graded, setGraded] = useState(0);
+  const [items, setItems] = useState<BankQuestion[]>(() => saved?.items ?? []);
+  const [index, setIndex] = useState(() => saved?.index ?? 0);
+  const [revealed, setRevealed] = useState(() => saved?.revealed ?? false);
+  const [drawn, setDrawn] = useState(() => saved?.drawn ?? false);
+  const [graded, setGraded] = useState(() => saved?.graded ?? 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
     null
   );
 
+  // 令牌刻意**不**持久化：它十分钟过期，存下来只会让"确认"在 reload 之后报"令牌没了"
+  useEffect(() => {
+    saveDrillRound({ items, index, revealed, drawn, graded });
+  }, [items, index, revealed, drawn, graded]);
+
   const current = items[index] as BankQuestion | undefined;
+  const wrongFlagged = !!current && tagsOf(current.标签 || "").includes(WRONG_TAG);
 
   const runPreview = (promise: Promise<{ token: string; summary: string; diff: string[] }>) => {
     setBusy(true);
@@ -90,6 +103,7 @@ export default function ReviewQueue() {
         setIndex(0);
         setRevealed(false);
         setGraded(0);
+        setDrawn(true);   // "抽过了但没命中"与"还没抽"是两种空态，文案不同
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
@@ -110,6 +124,8 @@ export default function ReviewQueue() {
       .applyApproval(preview.token)
       .then(() => {
         setPreview(null);
+        // 只数**真正落盘**的：取消 / 预览 400 / 落盘 409 都不该让"本轮写入 N 道"虚高
+        setGraded((count) => count + 1);
         next();
       })
       .catch((e: Error) => setError(e.message))
@@ -118,14 +134,18 @@ export default function ReviewQueue() {
 
   const grade = (status: string) => {
     if (!current) return;
-    setGraded((count) => count + 1);
+    if ((current.状态 || "未看") === status) {
+      // 状态没变就没有可写的差异（领域层会以「这些字段的值没有变化」拒绝）——
+      // 而「未看」在重练队列里是多数题的默认值，点它不该弹一条红色错误。直接过。
+      next();
+      return;
+    }
     runPreview(api.previewQuestionUpdate(current.题目id, { 状态: status }));
   };
 
   const toggleWrong = () => {
     if (!current) return;
-    const flagged = (current.标签 || "").includes(WRONG_TAG);
-    runPreview(previewMarkWrong(current.题目id, !flagged));
+    runPreview(previewMarkWrong(current.题目id, !wrongFlagged));
   };
 
   return (
@@ -179,8 +199,13 @@ export default function ReviewQueue() {
 
       {items.length === 0 && !busy && (
         <Card className="space-y-1 p-4">
-          <p className="text-sm font-medium text-foreground">{t("drill.empty")}</p>
-          <p className="text-xs text-muted-foreground">{t("drill.emptyHint")}</p>
+          {/* "还没抽"与"抽了没命中"分开说：后者说成"还没有抽题"会让人以为按钮坏了 */}
+          <p className="text-sm font-medium text-foreground">
+            {t(drawn ? "drill.noMatch" : "drill.empty")}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t(drawn ? "drill.noMatchHint" : "drill.emptyHint")}
+          </p>
         </Card>
       )}
 
@@ -229,7 +254,7 @@ export default function ReviewQueue() {
               {t("drill.gradeKnown")}
             </Button>
             <Button variant="ghost" size="sm" onClick={toggleWrong} disabled={busy}>
-              {t("drill.markWrong")}
+              {t(wrongFlagged ? "drill.unmarkWrong" : "drill.markWrong")}
             </Button>
             <Button variant="ghost" size="sm" onClick={next} disabled={busy}>
               {t("drill.next")}
@@ -242,7 +267,7 @@ export default function ReviewQueue() {
         <Card className="space-y-1 p-4">
           <p className="text-sm font-medium text-foreground">{t("drill.done")}</p>
           <p className="text-xs text-muted-foreground">
-            {t("drill.doneHint", { graded })}
+            {t("drill.doneHint", { count: graded })}
           </p>
           <div className="pt-1">
             <Button size="sm" onClick={onDraw} disabled={busy}>

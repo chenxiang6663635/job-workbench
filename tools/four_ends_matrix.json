@@ -263,8 +263,8 @@
       "cli": "bank due",
       "mcp": null,
       "plugin": null,
-      "gui": null,
-      "note": "只读：今日待复习——未看恒在；看过 3 天 / 会了 14 天；`最近复习` 为空 / 脏 / 状态未知一律保守计待复习（宁可多提醒）。纯视图、零数据迁移；界面侧的复习入口随错题本一并设计。"
+      "gui": "GET /api/progress/questions/drill",
+      "note": "只读：今日待复习——未看恒在；看过 3 天 / 会了 14 天；`最近复习` 为空 / 脏 / 状态未知一律保守计待复习（宁可多提醒）。纯视图、零数据迁移；界面入口是「准备 → 训练」页签的「重练队列」模式（`mode=due`，与 CLI 共用同一份纯函数口径 question_drill）。"
     },
     {
       "id": "question.wrong",
@@ -272,8 +272,8 @@
       "cli": "bank wrong",
       "mcp": null,
       "plugin": null,
-      "gui": null,
-      "note": "错题本：标签里含「错题」的题（零 schema 变更——标签本就是分类位，加列会撞 schema 自检）。列表只读；标记（--add / --remove）**复用 question.update 的两段式**，不新增写操作。界面里也可标：训练面板的「标错题」按钮走 GET /api/progress/questions/preview-wrong（领域层重算标签 → 令牌 → 通用 apply 落盘），题目详情里加/去「错题」标签同效。"
+      "gui": "GET /api/progress/questions/preview-wrong",
+      "note": "错题本：标签里含「错题」的题（零 schema 变更——标签本就是分类位，加列会撞 schema 自检）。列表只读；标记（--add / --remove）**复用 question.update 的两段式**，不新增写操作。界面里也可标：训练面板的「标错题」按钮走 GET /api/progress/questions/preview-wrong（领域层重算标签 → 令牌 → 通用 apply 落盘），题目详情里加/去「错题」标签同效；界面的错题本视图 = 「准备 → 训练」的「只错题」模式。"
     }
   ],
   "error_map": [
@@ -383,11 +383,6 @@
       "reason": "同上。"
     },
     {
-      "end": "gui",
-      "item": "question.due",
-      "reason": "界面侧的复习入口（今日待复习 + 错题本）随复习面一并设计，本批只上 CLI。"
-    },
-    {
       "end": "mcp",
       "item": "question.wrong",
       "reason": "错题标记是本人的复习动作；模型改题请走 preview_update_question 的既有面。"
@@ -398,9 +393,14 @@
       "reason": "同上。"
     },
     {
-      "end": "gui",
-      "item": "question.wrong",
-      "reason": "界面同效路径已存在：题目详情弹窗的「标签」编辑加/去「错题」即进/出错题本；独立的错题本视图随复习面一并设计。"
+      "end": "mcp",
+      "item": "question.drill",
+      "reason": "抽题是本人的训练动作，模型不代劳；要复习口径让用户跑 `jobws bank drill` 或开「准备 → 训练」。"
+    },
+    {
+      "end": "plugin",
+      "item": "question.drill",
+      "reason": "同上。"
     },
     {
       "end": "cli",

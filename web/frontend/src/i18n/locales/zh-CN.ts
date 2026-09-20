@@ -147,9 +147,12 @@ const zhCN = {
   "drill.gradeSeen": "看过",
   "drill.gradeKnown": "会了",
   "drill.markWrong": "标错题",
+  "drill.unmarkWrong": "取消标错",
   "drill.next": "下一题",
   "drill.done": "本轮结束",
-  "drill.doneHint": "本轮自评了 {{count}} 道。可以再抽一轮，或去「我的题库」看全部。",
+  "drill.doneHint": "本轮已写入 {{count}} 道（自评 / 标错题）。可以再抽一轮，或去「我的题库」看全部。",
+  "drill.noMatch": "这一轮没抽到题",
+  "drill.noMatchHint": "队列 = 错题 ∪ 今日待复习，按当前模式与关键词可能为空：换个模式、清掉关键词，或先「未看」的题自评一轮。",
   "drill.restart": "再抽一轮",
 
   "question.searchPlaceholder": "搜问题、回答或复盘关键词…",

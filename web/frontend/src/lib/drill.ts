@@ -8,6 +8,53 @@
 import i18n from "../i18n";
 import { currentWorkspace, type BankQuestion } from "../api";
 
+// 数据值，不翻译：标签里的「错题」就是 CSV 里的真实取值（与 due / wrong 的口径同源）。
+// 拿翻译串去比会随界面语言漂移——中文界面标的错题，英文界面就认不出来了。
+export const WRONG_TAG = "错题";
+
+// 标签判定与领域层同源（`question_review.split_tags` 的分隔符集合）。用
+// `includes("错题")` 会把「错题本」「高频错题」误判成"已标错题"，于是请求与实际
+// 相反（on=0 → 400「不在错题本里」），而那题就从面板里**永远标不上**。
+const TAG_SPLIT_RE = /[,，、;；\s]+/;
+
+export function tagsOf(text: string): string[] {
+  return (text || "").split(TAG_SPLIT_RE).filter(Boolean);
+}
+
+// 本轮状态落 sessionStorage：自评 / 标错题会写 questions.csv，而工作区指纹刷新
+// （App 级 useWorkspaceSync）会整页 reload——不存的话每写一题，本轮抽到的题、
+// 进度与折叠状态全丢，"一轮 5 道题"在纯鼠标操作下基本走不完。按页签存（与
+// Prepare 的 `jobws_prepare_tab` 同族键名）。令牌**不存**：它十分钟过期。
+const ROUND_KEY = "jobws_drill_round";
+
+export type DrillRound = {
+  items: BankQuestion[];
+  index: number;
+  revealed: boolean;
+  drawn: boolean;
+  graded: number;
+};
+
+/** 读回上一轮（存储被禁用 / 内容不是 JSON 时当作没存过，不影响功能）。 */
+export function readDrillRound(): DrillRound | null {
+  try {
+    const raw = sessionStorage.getItem(ROUND_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DrillRound;
+    return Array.isArray(parsed?.items) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveDrillRound(round: DrillRound): void {
+  try {
+    sessionStorage.setItem(ROUND_KEY, JSON.stringify(round));
+  } catch {
+    /* 隐私模式 / 配额满：存不上就退回"刷新即重抽"，不该因此报错打断训练 */
+  }
+}
+
 export type DrillMode = "due" | "wrong" | "random";
 
 export type DrillResult = {
@@ -55,6 +102,14 @@ async function requestDrill<T>(path: string): Promise<T> {
   const qs = currentWorkspace ? `${sep}ws=${encodeURIComponent(currentWorkspace)}` : "";
   const res = await fetch(`/api${path}${qs}`);
   if (!res.ok) throw new Error(humanize(await res.text(), res.status));
+  // 工作区自检（与 api.ts 的 issue #22 修复同口径）：后端回显本次实际服务的工作区，
+  // 与所选不一致就报错——静默把**别的工作区**的题当成你的题，比报错严重得多。
+  const served = res.headers.get("X-Jobws-Workspace");
+  if (currentWorkspace && served && served !== currentWorkspace) {
+    throw new Error(
+      i18n.t("api.workspaceMismatch", { requested: currentWorkspace, served })
+    );
+  }
   return (await res.json()) as T;
 }
 

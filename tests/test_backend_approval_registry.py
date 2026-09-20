@@ -19,8 +19,8 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# 12 项 = 包内自登记的十个 + 仓内追加的 prep.toggle / init
-_EXPECTED = 12
+# 13 项 = 包内自登记的十一个 + 仓内追加的 prep.toggle / init
+_EXPECTED = 13
 
 
 def test_backend_apply_entry_sees_the_full_registry():

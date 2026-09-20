@@ -35,7 +35,7 @@ registered_operations = _shell.registered_operations
 
 
 def _register_operations():
-    """把 12 个写操作登记进包内的注册表。
+    """把 13 个写操作登记进包内的注册表。
 
     冲突类型统一用领域层的 `tracker.ConflictError`：tracker（已进包）与
     question_bank 都用它表示「预览时的判断已不成立」；其余操作不抛冲突，
@@ -47,7 +47,7 @@ def _register_operations():
     from jobws_core import tracker
 
     conflict = tracker.ConflictError
-    # 只登记**留仓**的两个：另外十个（track.* / talk.add / mail.add /
+    # 只登记**留仓**的两个：另外十一个（track.* / talk.add / mail.add /
     # interview.* / question.*）的实现已在领域包里，由 `jobws_core.approval`
     # 自己登记——独立安装下也拿得到（见包内 `_register_builtin_operations`）。
     for name, handler in (

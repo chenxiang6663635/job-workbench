@@ -24,6 +24,7 @@ from jobws_core.question_bank import (MODULE_DIR, export_csv, preview_add_fields
                            preview_update_fields, read_questions)
 from jobws_core.question_review import (due_questions,  # noqa: E402
                                         preview_mark_wrong, wrong_questions)
+from jobws_core.question_delete import preview_delete_fields  # noqa: E402
 
 
 def _print_questions(rows):
@@ -132,6 +133,22 @@ def cmd_bank(args):
         errors, plan = preview_add_fields(_bank_changes(args), workspace)
         return _run_preview(errors, plan, "question.add", workspace)
 
+    if args.action == "delete":
+        # 单题与批量互斥：两条路都先出预览，看过"将删哪几行"才准落盘
+        if args.id and (args.domain or args.subject or args.keyword or args.origin
+                        or args.company or args.today):
+            print("错误：--id 与筛选条件一次只能给一个（单题用 --id；"
+                  "误导入想整批撤回用 --origin 导入 --today）")
+            return 2
+        # 留空的值由 preview_delete_fields 过滤掉，这里不必判空
+        filters = {"领域": args.domain or "", "科目": args.subject or "",
+                   "关键词": args.keyword or "", "来源": args.origin or "",
+                   "关联公司": args.company or ""}
+        if args.today:
+            filters["今天创建"] = "1"
+        errors, plan = preview_delete_fields(args.id, filters, workspace)
+        return _run_preview(errors, plan, "question.delete", workspace)
+
     if args.action == "import":
         # 目录可以换，但**不能越出工作区**：绝对路径会被 os.path.join 当成新根、
         # `..` 能翻出去，两者都先拒（后端端点不收这个参数——见 progress/questions.py）。
@@ -215,6 +232,17 @@ def main(argv=None):
     p_update.add_argument("--status", help="状态（未看 / 看过 / 会了）")
     p_update.add_argument("--note", help="备注")
     p_update.add_argument("--workspace", default=None)
+
+    p_delete = subs.add_parser("delete", help="删除题目（预览后凭令牌落盘）")
+    p_delete.add_argument("--id", metavar="题目id", help="精确删一题（用 list 查）")
+    p_delete.add_argument("--domain", help="领域")
+    p_delete.add_argument("--subject", help="科目")
+    p_delete.add_argument("--keyword", "-k", help="关键词（题目 / 要点 / 标签等）")
+    p_delete.add_argument("--origin", help="来源（如 导入）")
+    p_delete.add_argument("--company", help="关联公司")
+    p_delete.add_argument("--today", action="store_true",
+                          help="只看今天创建（配 --origin 导入 可撤回今天导入的一批）")
+    p_delete.add_argument("--workspace", default=None)
 
     p_import = subs.add_parser("import", help="从 03_面试准备/**/*.md 导入（只读解析 + 预览）")
     p_import.add_argument("--module-dir", default=MODULE_DIR, help="模块目录名")

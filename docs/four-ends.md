@@ -37,6 +37,7 @@
 | 通用 | `approval.apply` | `apply` | `apply_approval` | — | `POST /api/approvals/apply` |
 | 笔记 | `prep.toggle` | — | — | — | `GET /api/prep/{section}/preview-toggle` |
 | 通用 | `export.obsidian` | `export --obsidian` | — | — | — |
+| 题库 | `question.due` | `bank due` | — | — | — |
 
 ## 各端不提供的能力（含原因）
 
@@ -46,6 +47,9 @@
 - **mcp** · `export.obsidian`：导出是本地文件动作（往用户指定的目录写一批 md），不由模型代劳。
 - **plugin** · `export.obsidian`：同上：导出到本地笔记库是本人发起的动作。
 - **gui** · `export.obsidian`：界面的导出是「整包 zip」（设置页，保留 CSV 原格式）；Obsidian 笔记形态只在命令行提供——形态不同，不是漏做。
+- **mcp** · `question.due`：复习清单是本人的每日动作，模型不代劳；需要时让用户跑 `jobws bank due`。
+- **plugin** · `question.due`：同上。
+- **gui** · `question.due`：界面侧的复习入口（今日待复习 + 错题本）随复习面一并设计，本批只上 CLI。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。

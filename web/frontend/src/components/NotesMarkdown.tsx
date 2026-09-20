@@ -129,8 +129,15 @@ const baseComponents: Components = {
     />
   ),
   p: ({ node, ...props }) => <p {...lineAttr(node)} className="my-2.5" {...props} />,
-  ul: ({ node, ...props }) => <ul {...lineAttr(node)} className="my-2.5 list-disc pl-5" {...props} />,
-  ol: ({ node, ...props }) => <ol {...lineAttr(node)} className="my-2.5 list-decimal pl-5" {...props} />,
+  // className 先解构再合并：remark-gfm 会给含任务项的列表挂 `contains-task-list`，
+  // 展开顺序若在 className 之后会把它那一份整体顶掉——utility 类（缩进 / 标记）随之
+  // 丢失，任务列表表现为没有左缩进（2026-09-20 独立审查发现，与 li 的 children 同源）。
+  ul: ({ node, className, ...props }) => (
+    <ul {...lineAttr(node)} className={cn("my-2.5 list-disc pl-5", className)} {...props} />
+  ),
+  ol: ({ node, className, ...props }) => (
+    <ol {...lineAttr(node)} className={cn("my-2.5 list-decimal pl-5", className)} {...props} />
+  ),
   li: ({ node, className, children, ...props }) => {
     if (className?.includes("task-list-item")) {
       const line = node?.position?.start?.line;
@@ -142,7 +149,13 @@ const baseComponents: Components = {
         </li>
       );
     }
-    return <li {...lineAttr(node)} className={cn("my-1", className)} {...props} />;
+    // 普通列表项也要渲染 children——2026-09-20 修复：此前该分支漏渲染
+    // children，导致所有非任务项（无序 / 有序）只剩标记符号、正文全部丢失。
+    return (
+      <li {...lineAttr(node)} className={cn("my-1", className)} {...props}>
+        {children}
+      </li>
+    );
   },
   blockquote: ({ node, ...props }) => (
     <blockquote

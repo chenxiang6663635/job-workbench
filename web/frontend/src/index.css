@@ -111,11 +111,22 @@
     --font-latin: "Inter Variable";
     --font-cjk: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
       "Noto Sans CJK SC";
-    --font-sans-stack: var(--font-latin), var(--font-cjk), system-ui, sans-serif;
+    /* 符号回退槽（2026-09-20）：内置界面 / 等宽字体全是"拉丁子集"，实测共同缺
+       →(U+2192) / ₂(U+2082) / ≠(U+2260) / ①(U+2460)；微软雅黑、宋体也只有
+       →/≠/① 而缺 ₂。接在中文槽之后显式兜底，避免正文与代码块里的 CO₂ 下标、
+       箭头在回退受限的环境（打包版 / Linux / 移动端）显示成空白。
+       槽内**不放 Malgun Gothic**：韩文字体带汉字码位，而 mono 栈里没有中文槽，
+       放进来会把代码块里的中文从系统 CJK 字体劫持成韩文字形（独立审查指出）；
+       mono 栈也把本槽排在 Consolas 之后——先用等宽链，再让本槽接缺字。 */
+    --font-symbols: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2",
+      "DejaVu Sans";
+    --font-sans-stack: var(--font-latin), var(--font-cjk), var(--font-symbols),
+      system-ui, sans-serif;
     --font-mono: "Maple Mono";
-    --font-mono-stack: var(--font-mono), Consolas, monospace;
+    --font-mono-stack: var(--font-mono), Consolas, var(--font-symbols), monospace;
     --font-numeric: "Geist Mono Variable";
-    --font-numeric-stack: var(--font-numeric), var(--font-latin), var(--font-cjk);
+    --font-numeric-stack: var(--font-numeric), var(--font-latin), var(--font-cjk),
+      var(--font-symbols);
 
     --radius: 0.75rem;
   }
@@ -145,7 +156,7 @@ html:lang(zh) body {
 html[data-font="system"] {
   --font-latin: system-ui;
   --font-sans-stack: system-ui, -apple-system, "Segoe UI", "PingFang SC",
-    "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    "Microsoft YaHei UI", "Microsoft YaHei", var(--font-symbols), sans-serif;
 }
 
 /* 衬线方案（用户反馈 #2）：想要 Times New Roman 一脉的正文观感——拉丁走 Times，
@@ -153,7 +164,7 @@ html[data-font="system"] {
 html[data-font="serif"] {
   --font-latin: "Times New Roman";
   --font-sans-stack: "Times New Roman", "Source Han Serif SC", "Noto Serif SC",
-    SimSun, "Songti SC", serif;
+    SimSun, "Songti SC", var(--font-symbols), serif;
 }
 
 /* 界面字体方案（2026-09-17 扩到 12 款）：每个 id 只换拉丁槽——

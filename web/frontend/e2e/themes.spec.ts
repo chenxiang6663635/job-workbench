@@ -30,7 +30,9 @@ test("字体：正文栈含符号回退（CO₂ 下标 / 箭头不掉字）", as
   const stack = await page.evaluate(
     () => getComputedStyle(document.body).fontFamily
   );
-  expect(stack).toContain("Segoe UI Symbol");
+  // 哨兵取 `--font-symbols` 独有的族名：`"Segoe UI Symbol"` 也出现在 Tailwind
+  // preflight 的默认 sans 栈里，用它会在应用侧覆盖丢失时假绿（独立审查 MINOR）。
+  expect(stack).toContain("Noto Sans Symbols 2");
 });
 
 for (const theme of THEMES) {

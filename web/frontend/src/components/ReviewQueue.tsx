@@ -95,6 +95,13 @@ export default function ReviewQueue() {
       .finally(() => setBusy(false));
   };
 
+  // 定义在使用之前（`onConfirm` 落盘成功后要调到下一题）：`no-use-before-define`
+  // 是 eslint 的 error 级，且这条顺序在运行时也是真正需要的依赖方向。
+  const next = () => {
+    setRevealed(false);
+    setIndex((currentIndex) => currentIndex + 1);
+  };
+
   const onConfirm = () => {
     if (!preview) return;
     setBusy(true);
@@ -107,11 +114,6 @@ export default function ReviewQueue() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
-  };
-
-  const next = () => {
-    setRevealed(false);
-    setIndex((currentIndex) => currentIndex + 1);
   };
 
   const grade = (status: string) => {

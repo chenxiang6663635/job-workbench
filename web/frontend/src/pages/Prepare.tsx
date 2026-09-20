@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Megaphone, NotebookPen } from "lucide-react";
+import { BookOpen, Dumbbell, Megaphone, NotebookPen } from "lucide-react";
 import NotesBrowser from "../components/NotesBrowser";
 import QuestionBank from "../components/QuestionBank";
+import ReviewQueue from "../components/ReviewQueue";
 import TalkList from "../components/TalkList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PageHeader } from "../components/ui/page-header";
@@ -12,11 +13,13 @@ import type { TranslationKey } from "../i18n/locales/zh-CN";
 // 2026-09-18 从「进展」页迁出——那页的定位是「投递之后才是真正的博弈」，
 // 而技能文档早就写着宣讲会「是投递之前最早的信息入口」（jwb-track/SKILL.md），
 // 两句话一直是矛盾的；这次把页面归属对齐到语义。
-type SubTab = "talks" | "questions" | "notes";
+type SubTab = "talks" | "questions" | "drill" | "notes";
 
 const SUBTABS: { key: SubTab; labelKey: TranslationKey; icon: React.ReactNode }[] = [
   { key: "talks", labelKey: "prepare.talks", icon: <Megaphone size={15} /> },
   { key: "questions", labelKey: "prepare.questions", icon: <BookOpen size={15} /> },
+  // 训练（2026-09-20）：题库「练」的入口——抽题 → 盲答 → 自评
+  { key: "drill", labelKey: "prepare.drill", icon: <Dumbbell size={15} /> },
   { key: "notes", labelKey: "prepare.notes", icon: <NotebookPen size={15} /> },
 ];
 
@@ -32,7 +35,7 @@ const LAST_KEY = "jobws_prepare_tab_last";
 function readDrillTab(): SubTab | null {
   try {
     const raw = sessionStorage.getItem(DRILL_KEY);
-    if (raw === "talks" || raw === "questions") return raw;
+    if (raw === "talks" || raw === "questions" || raw === "drill") return raw;
   } catch {
     // 存储不可用：退回默认页签（不值得因此让页面挂掉）
   }
@@ -42,7 +45,9 @@ function readDrillTab(): SubTab | null {
 function readLastTab(): SubTab | null {
   try {
     const raw = localStorage.getItem(LAST_KEY);
-    if (raw === "talks" || raw === "questions" || raw === "notes") return raw;
+    if (raw === "talks" || raw === "questions" || raw === "drill" || raw === "notes") {
+      return raw;
+    }
   } catch {
     // 存储不可用：退回默认页签
   }
@@ -97,6 +102,9 @@ export default function Prepare() {
           </TabsContent>
           <TabsContent value="questions" className="flex-1 flex-col data-[state=active]:flex">
             <QuestionBank />
+          </TabsContent>
+          <TabsContent value="drill" className="flex-1 flex-col data-[state=active]:flex">
+            <ReviewQueue />
           </TabsContent>
           <TabsContent value="notes" className="flex-1 flex-col data-[state=active]:flex">
             <NotesBrowser />

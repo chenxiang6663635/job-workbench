@@ -42,6 +42,13 @@ def _write_questions(client, tmp_path, rows_text):
         handle.write(rows_text)
 
 
+def _read_questions(tmp_path):
+    """按字节读回：断言"只读端点一个字节都没写"要用它。"""
+    path = os.path.join(str(tmp_path), WS, "05_投递追踪", "questions.csv")
+    with io.open(path, "rb") as handle:
+        return handle.read()
+
+
 def test_list_returns_empty_when_no_bank(client):
     res = client.get("/api/progress/questions", params={"ws": WS})
     assert res.status_code == 200
@@ -67,6 +74,33 @@ def test_filters_are_applied_server_side(client, tmp_path):
     assert res.json()["total"] == 1
     res = client.get("/api/progress/questions", params={"ws": WS, "q": "冲突"})
     assert res.json()["total"] == 1
+
+
+def test_drill_is_readonly_and_shares_the_cli_rule(client, tmp_path):
+    """抽题端点：队列 = 错题 ∪ due（与 CLI 同一口径），且一个字节都不写。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点,标签,最近复习\n"
+                     "Q001,TCP,技术面,网络,未看,导入,要点,,\n"                 # due（未看恒在）
+                     "Q002,UDP,技术面,网络,会了,导入,要点,,2026-09-19\n"         # 不到期
+                     "Q003,HTTP,技术面,网络,会了,导入,要点,错题,2026-01-01\n")   # 错题且到期
+    before = _read_questions(tmp_path)
+    res = client.get("/api/progress/questions/drill",
+                     params={"ws": WS, "mode": "due", "n": "5"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 2
+    assert {row["题目"] for row in data["items"]} == {"TCP", "HTTP"}
+    assert _read_questions(tmp_path) == before
+
+
+def test_drill_rejects_unknown_mode_with_a_stable_code(client, tmp_path):
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点\n"
+                     "Q001,TCP,技术面,网络,未看,导入,要点\n")
+    res = client.get("/api/progress/questions/drill",
+                     params={"ws": WS, "mode": "smart"})
+    assert res.status_code == 400
+    assert res.json()["error_code"] == "question.drillFailed"
 
 
 def test_preview_import_does_not_write(client, tmp_path):

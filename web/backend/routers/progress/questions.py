@@ -10,6 +10,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from jobws_core import tracker
 from jobws_core import question_bank as question_store
+from jobws_core import question_drill
+from jobws_core import question_review
 from apierror import ApiError
 from deps import workspace_dir
 
@@ -161,6 +163,56 @@ def preview_question_update(ws: str = Depends(workspace_dir), id: str = "",
         raise ApiError(400, "question.updateFailed", "题库更新预览失败",
                        reason="；".join(errors))
     from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    result = approval.preview("question.update", ws, plan["payload"], plan["summary"],
+                              plan["diff"], plan["targets"])
+    return {"token": result["token"], "summary": plan["summary"],
+            "diff": plan["diff"], "expiresAt": result["expires_at"]}
+
+
+@router.get("/questions/drill")
+def drill_questions(ws: str = Depends(workspace_dir), mode: str = "due",
+                    n: int = 5, domain: str = None, subject: str = None,
+                    status: str = None, q: str = None):
+    """抽一轮题（**只读**：不落盘、不改动任何字段）。
+
+    与 CLI `jobws bank drill` **同一套口径**（都走 `question_drill.pick_drill`）：
+    队列 = 错题 ∪ 当日待复习，去重后按「最近复习升序、题目」排；`mode` 还支持
+    `wrong`（只错题）与 `random`（全库随机）。筛选与列表接口同参数、同样由后端做。
+
+    答案要点**照常返回**（界面要"折叠后再展开"），但抽题本身不记录任何进度——
+    自评与标错题走既有的 `question.update` 两段式，不在这里新增写操作。
+    """
+    rows = question_store.read_questions(
+        ws, domain=(domain or "").strip() or None,
+        subject=(subject or "").strip() or None,
+        status=(status or "").strip() or None,
+        keyword=(q or "").strip() or None)
+    try:
+        picked = question_drill.pick_drill(rows, mode=(mode or "").strip(), n=n)
+    except ValueError as exc:
+        raise ApiError(400, "question.drillFailed", "题库抽题失败",
+                       reason=str(exc))
+    return {"items": picked, "total": len(picked),
+            "mode": (mode or "").strip() or "due",
+            "filters": {"domain": domain or "", "subject": subject or "",
+                        "status": status or "", "keyword": (q or "").strip()}}
+
+
+@router.get("/questions/preview-wrong")
+def preview_question_wrong(ws: str = Depends(workspace_dir), id: str = "",
+                           on: str = "1"):
+    """预览把一道题标进 / 移出错题本（**不落盘**），返回令牌与差异表。
+
+    复用领域层 `preview_mark_wrong`：标签重算规则只有一处——界面不该自己拼
+    「错题」两个字（拼法一漂，今天标的和明天 due 出来的就不是同一批题）。
+    落盘仍是既有的 `question.update` 与通用 apply 通道，不新增写操作。
+    """
+    want = (on or "1").strip().lower() not in ("0", "false", "no")
+    errors, plan = question_review.preview_mark_wrong((id or "").strip(), want, ws)
+    if plan is None:
+        raise ApiError(400, "question.wrongFailed", "错题标记预览失败",
+                       reason="；".join(errors))
+    from jobws_core import approval  # 函数内 import：approval 只在写路径用到
     result = approval.preview("question.update", ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])
     return {"token": result["token"], "summary": plan["summary"],

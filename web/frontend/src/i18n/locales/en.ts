@@ -126,6 +126,28 @@ export default {
   "bank.writing": "Writing…",
   "bank.noChange": "No changes yet",
   "bank.difficultyNone": "Not set",
+  // 训练（抽题 → 盲答 → 自评，2026-09-20）：答案默认折叠——先答再看
+  "drill.mode": "Mode",
+  "drill.mode.due": "Review queue",
+  "drill.mode.wrong": "Wrong only",
+  "drill.mode.random": "Random",
+  "drill.size": "Per round",
+  "drill.keyword": "Keyword (optional)",
+  "drill.start": "Draw",
+  "drill.starting": "Drawing…",
+  "drill.empty": "Nothing drawn yet",
+  "drill.emptyHint": "Hit Draw to start a round — the answer stays folded: answer first, then check.",
+  "drill.progress": "Question {{index}} of {{total}}",
+  "drill.reveal": "Show answer",
+  "drill.answerMissing": "(No answer yet for this question)",
+  "drill.gradeTodo": "Not learned",
+  "drill.gradeSeen": "Seen",
+  "drill.gradeKnown": "Known",
+  "drill.markWrong": "Flag as wrong",
+  "drill.next": "Next",
+  "drill.done": "Round finished",
+  "drill.doneHint": "Self-checked {{count}} this round. Draw another round, or open My bank for all.",
+  "drill.restart": "Another round",
 
   "question.searchPlaceholder": "Search questions, answers, or retrospectives…",
   "question.searching": "Searching…",
@@ -776,6 +798,8 @@ export default {
   "err.question.importFailed": "Cannot import from {{module}}: {{reason}}",
   // Question bank update (1b): previewing a question edit (missing/unknown id, no change)
   "err.question.updateFailed": "Could not update the question: {{reason}}",
+  "err.question.drillFailed": "Could not draw questions: {{reason}}",
+  "err.question.wrongFailed": "Could not flag as wrong: {{reason}}",
 
   // Notes (03_面试准备 / 04_知识库): read-only browsing and checkbox write-back errors
   "err.prep.unknownSection": "Unknown notes section: {{section}}",
@@ -921,6 +945,7 @@ export default {
   "prepare.talks": "Talks",
   "prepare.questions": "Question bank",
   "prepare.notes": "Notes",
+  "prepare.drill": "Drill",
   // Notes page (2026-09-18): read-only browsing of 03_面试准备 / 04_知识库 —
   // directory tree + Markdown rendering + outline.
   "notes.group.interview": "Interview prep (03_面试准备)",

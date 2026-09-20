@@ -219,7 +219,7 @@
       "mcp": "preview_import_questions",
       "plugin": "bank",
       "gui": "GET /api/progress/questions/preview-import",
-      "note": "写入：从 03_面试准备 解析导入，预览 -> 确认 -> 落盘（GUI 侧是 GET 预览 + POST /api/approvals/apply 落盘）。"
+      "note": "写入：从 03_面试准备 解析导入，预览 -> 确认 -> 落盘（GUI 侧是 GET 预览 + POST /api/approvals/apply 落盘）。命令行另有 `bank import-csv`（从 CSV 导入，同一条落盘通道）与 `bank export --csv`（导出整个题库为 CSV，只读、不覆盖已存在文件）。"
     },
     {
       "id": "approval.apply",

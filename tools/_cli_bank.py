@@ -19,7 +19,8 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-from jobws_core.question_bank import (MODULE_DIR, preview_add_fields, preview_import,  # noqa: E402
+from jobws_core.question_bank import (MODULE_DIR, export_csv, preview_add_fields,  # noqa: E402
+                           preview_import, preview_import_csv,
                            preview_update_fields, read_questions)
 
 
@@ -90,6 +91,22 @@ def cmd_bank(args):
         errors, plan = preview_import(workspace, module_dir)
         return _run_preview(errors, plan, "question.import", workspace)
 
+    if args.action == "export":
+        # 导出只读工作区、写外部文件：不走两段式（没有要确认的写入面）
+        try:
+            count = export_csv(workspace, args.csv)
+        except (OSError, ValueError) as exc:
+            print("导出失败：%s" % exc)
+            return 1
+        print("已导出 %d 道题 → %s" % (count, args.csv))
+        return 0
+
+    if args.action == "import-csv":
+        # 与 Markdown 导入共用同一条落盘通道（question.import）：载荷形状一致
+        # （都是待写入的题目列表），差异只在预览期的来源解析与校验。
+        errors, plan = preview_import_csv(args.file, workspace)
+        return _run_preview(errors, plan, "question.import", workspace)
+
     if args.action == "update":
         errors, plan = preview_update_fields(args.id, _bank_changes(args), workspace)
         return _run_preview(errors, plan, "question.update", workspace)
@@ -100,7 +117,8 @@ def cmd_bank(args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        prog="jobws bank", description="题库：list / add / update / import（写操作走两段式）")
+        prog="jobws bank",
+        description="题库：list / add / update / import / import-csv / export（写操作走两段式）")
     subs = parser.add_subparsers(dest="action")
 
     p_list = subs.add_parser("list", help="列出题目（可按领域/科目/状态/关键词筛选）")
@@ -142,6 +160,14 @@ def main(argv=None):
     p_import = subs.add_parser("import", help="从 03_面试准备/**/*.md 导入（只读解析 + 预览）")
     p_import.add_argument("--module-dir", default=MODULE_DIR, help="模块目录名")
     p_import.add_argument("--workspace", default=None)
+
+    p_export = subs.add_parser("export", help="导出整个题库为 CSV（不覆盖已存在文件）")
+    p_export.add_argument("--csv", required=True, help="导出到的 CSV 文件路径")
+    p_export.add_argument("--workspace", default=None)
+
+    p_import_csv = subs.add_parser("import-csv", help="从 CSV 导入题目（预览后凭令牌落盘）")
+    p_import_csv.add_argument("file", help="要导入的 CSV（表头需含「题目」列）")
+    p_import_csv.add_argument("--workspace", default=None)
 
     args = parser.parse_args(argv)
     if not args.action:

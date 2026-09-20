@@ -222,6 +222,15 @@
       "note": "写入：从 03_面试准备 解析导入，预览 -> 确认 -> 落盘（GUI 侧是 GET 预览 + POST /api/approvals/apply 落盘）。命令行另有 `bank import-csv`（从 CSV 导入，同一条落盘通道）与 `bank export --csv`（导出整个题库为 CSV，只读、不覆盖已存在文件）。"
     },
     {
+      "id": "question.drill",
+      "stage": "题库",
+      "cli": "bank drill",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/progress/questions/drill",
+      "note": "只读：抽一轮题——队列 = 错题 ∪ 当日待复习（去重、按「最近复习升序、题目」排），另有 `wrong`（只错题）/ `random`（随机）两种模式；CLI 与界面走同一套纯函数口径（question_drill）。答案要点照常返回、界面**默认折叠**（先盲答再看，避免「看一眼答案算复习过」）。自评与标错题复用 question.update 两段式，**不新增写操作**；界面入口在「准备 → 训练」页签。"
+    },
+    {
       "id": "approval.apply",
       "stage": "通用",
       "cli": "apply",
@@ -264,7 +273,7 @@
       "mcp": null,
       "plugin": null,
       "gui": null,
-      "note": "错题本：标签里含「错题」的题（零 schema 变更——标签本就是分类位，加列会撞 schema 自检）。列表只读；标记（--add / --remove）**复用 question.update 的两段式**，不新增写操作。界面里在题目详情的「标签」里加/去「错题」即同效。"
+      "note": "错题本：标签里含「错题」的题（零 schema 变更——标签本就是分类位，加列会撞 schema 自检）。列表只读；标记（--add / --remove）**复用 question.update 的两段式**，不新增写操作。界面里也可标：训练面板的「标错题」按钮走 GET /api/progress/questions/preview-wrong（领域层重算标签 → 令牌 → 通用 apply 落盘），题目详情里加/去「错题」标签同效。"
     }
   ],
   "error_map": [

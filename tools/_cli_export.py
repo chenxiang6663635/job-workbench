@@ -228,6 +228,23 @@ def cmd_export(args):
         return 1
     print("已导出 %d 篇笔记 → %s" % (total, root))
     print("README 与 jobws.base 在同一目录下（Bases 视图需要较新的 Obsidian）。")
+
+    sync_to = (getattr(args, "sync_to", "") or "").strip()
+    if sync_to:
+        # 白名单 = 本次导出真正会产生的顶层条目；sync 只碰它们，库里的其它文件
+        # （用户自己的笔记、.obsidian/）一个字节都不动
+        names = [name for name, _c, _reader, _titles in TABLES] + ["README.md", "jobws.base"]
+        if getattr(args, "notes", False):
+            from _cli_export_notes import NOTE_DIRS  # 函数内 import：避免环状依赖
+            names += list(NOTE_DIRS)
+        try:
+            from _cli_export_sync import sync_to_vault  # 函数内 import：同上
+            for line in sync_to_vault(root, sync_to, names, workspace,
+                                      dry_run=bool(getattr(args, "dry_run", False))):
+                print(line)
+        except RuntimeError as exc:
+            print("同步失败：%s" % exc, file=sys.stderr)
+            return 1
     return 0
 
 
@@ -240,6 +257,11 @@ def main(argv=None):
     parser.add_argument("--notes", action="store_true",
                         help="另把 03_面试准备 / 04_知识库 / 00_事实库 的 Markdown "
                              "投影成笔记（保留目录层级；正文按原意搬运，不截断）")
+    parser.add_argument("--sync-to", metavar="库目录",
+                        help="把新快照镜像进这个**固定**的 Obsidian 库目录（保留其 .obsidian/："
+                             "插件与复习进度不受影响；库目录必须已存在且在工作区之外）")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="只打印同步计划，不改库目录（配合 --sync-to）")
     parser.add_argument("--workspace", default=None)
     args = parser.parse_args(argv)
     return cmd_export(args)

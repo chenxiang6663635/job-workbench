@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""题库的三个 HTTP 端点：列表（后端过滤）、1a 导入预览、1b 更新预览（都不落盘）。
+"""题库的四个 HTTP 端点：列表（后端过滤）、导入预览、更新预览、删除预览（都不落盘）。
 
 钉住两件容易悄悄坏掉的事：
 1. **筛选在后端**：`?domain=` / `?status=` / `?q=` 必须真的少返回，而不是前端
    拉全量再过滤（那样接口看着一样，数据却每次都传整张表）；
-2. **预览不落盘**：两个预览端点都只给令牌，`questions.csv` **不该**在这时被改——
+2. **预览不落盘**：三个预览端点都只给令牌，`questions.csv` **不该**在这时被改——
    写通道只有 `/api/approvals/apply` 一条。
 """
 
@@ -42,6 +42,12 @@ def _write_questions(client, tmp_path, rows_text):
         handle.write(rows_text)
 
 
+def _read_questions(tmp_path):
+    path = os.path.join(str(tmp_path), WS, "05_投递追踪", "questions.csv")
+    with io.open(path, "rb") as handle:
+        return handle.read()
+
+
 def test_list_returns_empty_when_no_bank(client):
     res = client.get("/api/progress/questions", params={"ws": WS})
     assert res.status_code == 200
@@ -67,6 +73,33 @@ def test_filters_are_applied_server_side(client, tmp_path):
     assert res.json()["total"] == 1
     res = client.get("/api/progress/questions", params={"ws": WS, "q": "冲突"})
     assert res.json()["total"] == 1
+
+
+def test_preview_delete_gives_token_and_writes_nothing(client, tmp_path):
+    """删题也是两段式：端点只给令牌与"将删哪一行"，CSV 一个字节都不动。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点\n"
+                     "Q001,TCP,技术面,网络,未看,导入,要点\n")
+    before = _read_questions(tmp_path)
+    res = client.get("/api/progress/questions/preview-delete",
+                     params={"ws": WS, "id": "Q001"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["token"]
+    assert data["summary"] == "删除 1 道题"
+    assert any("Q001" in line for line in data["diff"])
+    assert _read_questions(tmp_path) == before
+
+
+def test_preview_delete_rejects_unknown_id_with_a_stable_code(client, tmp_path):
+    """找不到就报错（不是"删除 0 道题"的空转），且错误码稳定——前端靠它出文案。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点\n"
+                     "Q001,TCP,技术面,网络,未看,导入,要点\n")
+    res = client.get("/api/progress/questions/preview-delete",
+                     params={"ws": WS, "id": "Q999"})
+    assert res.status_code == 400
+    assert res.json()["error_code"] == "question.deleteFailed"
 
 
 def test_preview_import_does_not_write(client, tmp_path):

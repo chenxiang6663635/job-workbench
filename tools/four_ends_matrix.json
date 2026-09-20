@@ -222,6 +222,15 @@
       "note": "写入：从 03_面试准备 解析导入，预览 -> 确认 -> 落盘（GUI 侧是 GET 预览 + POST /api/approvals/apply 落盘）。命令行另有 `bank import-csv`（从 CSV 导入，同一条落盘通道）与 `bank export --csv`（导出整个题库为 CSV，只读、不覆盖已存在文件）。"
     },
     {
+      "id": "question.delete",
+      "stage": "题库",
+      "cli": "bank delete",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/progress/questions/preview-delete",
+      "note": "写入：删题——预览列出将删哪一行 -> 确认 -> 落盘，落盘前把整表快照写到**工作区之外**（删错可整份复制回来）。批量撤回（`--origin 导入 --today` 等条件）**只在命令行**：界面没有「选中可见的多行」这个前置，把批量删做成一次点击等于鼓励误操作；MCP 同样不提供——删是高风险动作，先只留给本人发起的两端。"
+    },
+    {
       "id": "approval.apply",
       "stage": "通用",
       "cli": "apply",
@@ -392,6 +401,16 @@
       "end": "gui",
       "item": "question.wrong",
       "reason": "界面同效路径已存在：题目详情弹窗的「标签」编辑加/去「错题」即进/出错题本；独立的错题本视图随复习面一并设计。"
+    },
+    {
+      "end": "mcp",
+      "item": "question.delete",
+      "reason": "删是不可逆的高风险动作，先只留给本人发起的两端（命令行 / 界面）；模型不代删。"
+    },
+    {
+      "end": "plugin",
+      "item": "question.delete",
+      "reason": "同上。"
     },
     {
       "end": "cli",

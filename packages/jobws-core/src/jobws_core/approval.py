@@ -16,7 +16,7 @@
 
 **操作实现由调用侧登记**（`register()`），本模块只管协议外壳，不碰业务：
 
-    仓库的 `tools/approval.py` 在 import 时登记 12 个操作（track.* / talk.add /
+    仓库的 `tools/approval.py` 在 import 时登记 13 个操作（track.* / talk.add /
     mail.add / interview.* / question.* / prep.toggle / init）。
 
 为什么改成注册制（2026-09-19 批 6 第二批）：原先这里写死
@@ -234,18 +234,18 @@ def apply(token, workspace=None):
 
 
 def _register_builtin_operations():
-    """登记「实现已在包内」的十个操作（PR-B 起：登记表**分层**）。
+    """登记「实现已在包内」的十一个操作（PR-B 起：登记表**分层**）。
 
     另半截在仓库的 `tools/approval.py`：它追加 `prep.toggle` 与 `init`——那两个
     领域模块按用户拍板留仓。这样拆的收益是**导入不再依赖仓库**：独立安装的
-    MCP 侧 `from jobws_core import approval` 就拿到十个可用操作，而那两个仓库侧
+    MCP 侧 `from jobws_core import approval` 就拿到十一个可用操作，而那两个仓库侧
     操作会以 `unknown_operation`（稳定 code）显式拒绝，不是崩溃。
 
     为什么注册制 + 分层而不是写死：见模块 docstring「为什么改成注册制」。
     这里的 import 都在函数内/末尾，`tracker` 只在函数内回头 import 本模块，
     所以不构成循环。
     """
-    from . import question_bank, tracker
+    from . import question_bank, question_delete, tracker
 
     conflict = tracker.ConflictError
     operations = (
@@ -260,6 +260,8 @@ def _register_builtin_operations():
         ("question.add", question_bank.apply_approved_add),
         ("question.update", question_bank.apply_approved_update),
         ("question.import", question_bank.apply_approved_import),
+        # 2026-09-20：给导入装刹车——删一道题也得先看过"将删哪几行"。
+        ("question.delete", question_delete.apply_approved_delete),
     )
     for name, handler in operations:
         register(name, handler, conflict_type=conflict)

@@ -16,9 +16,16 @@ diff 就是给用户看的原文），而不是靠提示词约束。
 
 import os
 
-import approval
-import question_bank
-import tracker
+# 先导入 paths 触发应用根注入：领域层在**导入期**就求值 ROOT，而 pathres 不再从
+# `__file__` 推断——单独 import 本模块（不经 server / paths，例如宿主自建脚本）时，
+# 少了这一手会在 `jobws_core.tracker._core` 那里 RuntimeError（2026-09-19 审查 MINOR）。
+from . import paths  # noqa: F401
+
+# 全部走领域包（2026-09-19 PR-B）：`approval` 在这里是**包内的协议外壳**，
+# 它自己登记的十个操作（track.* / talk.add / mail.add / interview.* / question.*）
+# 独立安装下也能用；仓库侧的 `prep.toggle` / `init` 不在其中——调它们会得到
+# `unknown_operation`（稳定 code，显式的「这个操作需要仓库在侧」）。
+from jobws_core import approval, question_bank, tracker
 
 # 落盘后给宿主的一句话指引：让模型知道"刚才发生了什么、下一步是什么"。
 _NEXT_STEP = ("把 summary 与 diff 展示给用户；用户确认之后，用同一个 token 调用 "

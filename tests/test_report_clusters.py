@@ -12,7 +12,7 @@ TOOLS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                      "tools")
 sys.path.insert(0, TOOLS)
 
-import report  # noqa: E402
+from jobws_core import report  # noqa: E402
 
 
 def _fail_row(stage="已挂", company="示例科技", reason="技术深度不足"):

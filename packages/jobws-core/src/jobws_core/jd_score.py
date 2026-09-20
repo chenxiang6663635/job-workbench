@@ -1,0 +1,707 @@
+# -*- coding: utf-8 -*-
+"""校验 JD 解析卡的评分小节是否自洽，并按阈值输出结论档位。
+
+本脚本不打分——评分由 AI 读 JD 原文与 CODEBUDDY.md 后填进解析卡。
+脚本只做三件事：校验各维度分子不超过分母、校验四项之和等于总分、套阈值出档位。
+这样设计是为了让评分标准可改在 Markdown 里，改完可以对历史 JD 批量重算。
+
+用法：
+    python jobws_core.jd_score <解析卡路径>
+    python jobws_core.jd_score 01_岗位池/某某公司_某岗位/解析卡.md
+
+退出码：0 成功，1 校验失败或文件错误。
+输出到 stdout 的是 Markdown 片段，供命令直接回填解析卡的「结论」小节。
+"""
+
+from __future__ import print_function
+
+import argparse
+import io
+import json
+import os
+import re
+import sys
+
+from jobws_core import pathres
+
+
+ROOT = pathres.resolve_root()
+PROFILES = os.path.join(ROOT, "template", "profiles")
+DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
+
+# 维度名 -> 满分。顺序即解析卡中的书写顺序
+DIMENSIONS = [
+    ("技术匹配", 30),
+    ("经历匹配", 25),
+    ("方向契合", 30),
+    ("培养与稳定性", 15),
+]
+
+# (下界, 上界, 档位, 动作)
+THRESHOLDS = [
+    (75, 100, "强烈建议投", "立即执行 /apply 生成投递包"),
+    (60, 74, "建议投", "执行 /apply 生成投递包"),
+    (45, 59, "斟酌", "先看关键缺口能否在一周内补齐，再决定是否投递"),
+    (30, 44, "大概率跳过", "除非有内推或岗位调整等额外信息，否则不投"),
+    (0, 29, "不投", "终止，不生成任何材料"),
+]
+
+TOTAL_MAX = sum(m for _, m in DIMENSIONS)
+
+FIELD_RE = re.compile(r"^\s*(?P<key>[^:：]+)\s*[:：]\s*(?P<value>.*?)\s*$")
+
+
+def parse_score_section(text):
+    """提取 ## 评分 小节中的 key: value 行，返回 dict。"""
+    lines = text.splitlines()
+    in_section = False
+    result = {}
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("##"):
+            # 遇到下一个二级标题即退出评分小节
+            if in_section:
+                break
+            if stripped.replace(" ", "").startswith("##评分"):
+                in_section = True
+            continue
+        if not in_section:
+            continue
+
+        m = FIELD_RE.match(line)
+        if m:
+            result[m.group("key").strip()] = m.group("value").strip()
+
+    return result
+
+
+def parse_dimension(raw, name, maximum):
+    """解析 `24/30` 形式的取值，返回 (分子, 错误列表)。"""
+    errors = []
+    if not raw:
+        return None, ["`%s` 未填写" % name]
+
+    m = re.match(r"^(?P<num>\d+(?:\.\d+)?)\s*/\s*(?P<den>\d+)$", raw)
+    if not m:
+        return None, ["`%s: %s` 格式错误，应为 `分子/%d` 形式，如 `24/%d`" % (name, raw, maximum, maximum)]
+
+    num = float(m.group("num"))
+    den = int(m.group("den"))
+
+    if den != maximum:
+        errors.append("`%s` 分母应为 %d，实际为 %d" % (name, maximum, den))
+    if num > maximum:
+        errors.append("`%s` 分子 %g 超过满分 %d" % (name, num, maximum))
+    if num < 0:
+        errors.append("`%s` 分子不能为负" % name)
+
+    return num, errors
+
+
+def verdict(total):
+    for low, high, level, action in THRESHOLDS:
+        if low <= total <= high:
+            return level, action
+    return THRESHOLDS[-1][2], THRESHOLDS[-1][3]
+
+
+# 证据标签（exact/fuzzy/semantic 的判定方式）。叠加在 Primary/Secondary/Weak
+# 能力分层之上，二者正交：能力分层控制得分，证据标签说明这条匹配是怎么判出来的。
+EVIDENCE_TAGS = {"精确": "精确", "模糊": "模糊", "语义": "语义"}
+
+# 硬门槛三态结论映射：含"通过"→通过；含"不通过/未通过"→不通过；其余→待确认
+GATE_PASS_WORDS = ("通过",)
+GATE_FAIL_WORDS = ("不通过", "未通过")
+
+
+def parse_hard_gates(text):
+    """提取解析卡 `## 硬门槛` 小节的结论、逐条依据与字段。
+
+    解析卡是渐进填写的，任一子块缺失时返回空结构而非抛错。
+    返回：
+        {
+          "items": [{"key", "value"}],   # 硬门槛字段（学历/专业/届数/英语/城市）
+          "conclusion": "通过"|"不通过"|"待确认"|None,
+          "reason": str|None,            # 不通过原因
+          "details": [str],              # ### 逐条依据 下的列表项
+        }
+    """
+    result = {"items": [], "conclusion": None, "reason": None, "details": []}
+
+    # 二级标题判定：## 后跟空白（排除 ### 三级标题）。
+    # 只取 ## 硬门槛 到下一个 ## 二级标题之间；### 逐条依据 属子块，保留在 gate_lines 内。
+    h2_re = re.compile(r"^##\s")
+    lines = text.splitlines()
+    in_gate = False
+    gate_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if h2_re.match(stripped):
+            if in_gate:
+                break
+            if stripped.replace(" ", "").startswith("##硬门槛"):
+                in_gate = True
+            continue
+        if in_gate:
+            gate_lines.append(line)
+
+    if not gate_lines:
+        return result
+
+    field_re = re.compile(r"^\s*(?P<key>[^:：]+)\s*[:：]\s*(?P<value>.*?)\s*$")
+    in_details = False
+    for line in gate_lines:
+        stripped = line.strip()
+        if stripped.startswith("###"):
+            # 进入逐条依据子块
+            in_details = "逐条依据" in stripped
+            continue
+        if in_details:
+            # 逐条依据下的列表项
+            m = re.match(r"^[-*]\s+(.*)$", stripped)
+            if m:
+                result["details"].append(m.group(1).strip())
+            continue
+        if stripped.startswith("##"):
+            break
+        m = field_re.match(line)
+        if not m:
+            continue
+        key = m.group("key").strip()
+        value = m.group("value").strip()
+        if key == "门槛结论":
+            result["conclusion"] = _classify_gate(value)
+        elif key == "不通过原因":
+            result["reason"] = value or None
+        else:
+            result["items"].append({"key": key, "value": value})
+
+    return result
+
+
+def _classify_gate(value):
+    """把门槛结论文本映射为三态：通过 / 不通过 / 待确认。"""
+    if not value:
+        return None
+    for w in GATE_FAIL_WORDS:
+        if w in value:
+            return "不通过"
+    for w in GATE_PASS_WORDS:
+        if w in value:
+            return "通过"
+    return "待确认"
+
+
+def parse_dimension_detail(text, dimension_names):
+    """提取解析卡各维度的 `### <维度名> 得分` 分项明细。
+
+    每个维度下可能有：命中 Primary/Secondary/Weak 列表、逐条职责比对、计算说明。
+    逐条命中项若带【精确/模糊/语义】标签则解析出来，缺标签时为 None（兼容旧卡片）。
+
+    返回：
+        {
+          "<维度名>": {
+              "hits": [
+                  {
+                    "level": "Primary"|"Secondary"|"Weak"|None,   # 能力分层
+                    "label": str|None,                             # 词条名
+                    "evidence": "精确"|"模糊"|"语义"|None,          # 证据标签
+                    "note": str|None,                              # 命中说明（冒号后）
+                  }, ...
+              ],
+              "raw": [str],   # 维度下未结构化的原文行（计算/职责比对等）
+          }, ...
+        }
+    """
+    result = {}
+    lines = text.splitlines()
+
+    # 定位各维度标题行（### 技术匹配 22/30 等），与维度名做前缀匹配
+    dim_start = {}
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("###"):
+            continue
+        for name in dimension_names:
+            if stripped.startswith("###" + name) or stripped.startswith("### " + name):
+                dim_start[name] = i
+                break
+
+    # 没有找到任何维度明细则返回空
+    if not dim_start:
+        return result
+
+    dim_order = [n for n in dimension_names if n in dim_start]
+    h2_re = re.compile(r"^##\s")
+    for idx, name in enumerate(dim_order):
+        start = dim_start[name]
+        # 维度结束 = 下一个维度标题 或 下一个 ## 二级标题 或 文件尾
+        end = len(lines)
+        for j in range(start + 1, len(lines)):
+            stripped = lines[j].strip()
+            if stripped.startswith("###") and any(
+                stripped.startswith("###" + n) or stripped.startswith("### " + n)
+                for n in dimension_names
+            ):
+                end = j
+                break
+            if h2_re.match(stripped):
+                end = j
+                break
+        result[name] = _parse_dim_block(lines[start + 1:end])
+
+    return result
+
+
+def _parse_dim_block(block_lines):
+    """解析单个维度的明细块，返回 {hits, raw}。
+
+    命中行兼容两种格式（`**` 加粗可选）：
+      新格式（带证据标签）：- **暖通（3）【精确】**：说明
+      旧格式（无标签）：     - 暖通、制冷（3）  或  - 控制 / 群控（3）——说明
+    note 分隔符兼容 `：` 与 `——`。
+    """
+    hits = []
+    raw = []
+    current_level = None  # 命中列表当前属于哪个能力分层
+
+    # 命中行：- 词条（分数）【证据】 说明；加粗可选；分数可选；说明可选
+    # label 贪婪匹配到（分数）前的词条（可含 / 、 空格，排除 [*【（）】：——]）
+    hit_re = re.compile(
+        r"^\s*[-*]\s+"
+        r"(?P<bold>\*\*)?"
+        r"(?P<label>[^*【（）】：——]+)"
+        r"(?:（(?P<score>[0-9.]+)\s*分?/?\s*项?）)?"
+        r"(?:【(?P<evidence>精确|模糊|语义)】)?"
+        r"(?P=bold)?"
+        r"(?:[:：]|\s*——)?\s*(?P<note>.*?)\s*$"
+    )
+    evidence_re = re.compile(r"【(?P<ev>精确|模糊|语义)】")
+
+    for line in block_lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        # 命中 Primary/Secondary/Weak（3分/项）这样的分组行
+        level_match = re.match(
+            r"^命中\s*(?P<level>Primary|Secondary|Weak)", stripped)
+        if level_match:
+            current_level = level_match.group("level")
+            continue
+
+        m = hit_re.match(stripped)
+        if m and current_level:
+            # 仅在 Primary/Secondary/Weak 分组内才当作词典命中；否则归入 raw
+            label = m.group("label").strip()
+            evidence = m.group("evidence")
+            if evidence is None:
+                em = evidence_re.search(stripped)
+                if em:
+                    evidence = em.group("ev")
+            hits.append({
+                "level": current_level,
+                "label": label,
+                "evidence": evidence,
+                "note": (m.group("note") or "").strip() or None,
+            })
+            continue
+
+        # 非命中结构的行（计算、职责比对、判定、回查、无分组词条）归入 raw
+        raw.append(stripped)
+
+    return {"hits": hits, "raw": raw}
+
+
+def resolve_profile(workspace, domain=None, direction=None):
+    """定位领域插件与方向文件。
+
+    查找顺序：工作区 config/（用户可能有自己的副本） -> template/profiles/<domain>/
+    返回 (插件目录, 方向文件路径, 警告列表)。
+    """
+    warnings = []
+
+    # 确定 domain
+    if not domain:
+        ws_domain = os.path.join(workspace, "config", "profile.md")
+        if os.path.isfile(ws_domain):
+            candidates = [os.path.basename(os.path.dirname(workspace))]
+        else:
+            candidates = sorted(d for d in os.listdir(PROFILES)
+                                if os.path.isdir(os.path.join(PROFILES, d))) \
+                if os.path.isdir(PROFILES) else []
+        if not candidates:
+            warnings.append("未找到任何领域插件，评分缺少词典依据")
+            return None, None, warnings
+        domain = candidates[0]
+        warnings.append("未指定 --domain，回退使用第一个插件 `%s`" % domain)
+
+    # 插件目录：工作区优先，其次 template
+    ws_profile = os.path.join(workspace, "config")
+    profile_dir = ws_profile if os.path.isfile(
+        os.path.join(ws_profile, "profile.md")) else os.path.join(PROFILES, domain)
+
+    if not os.path.isdir(profile_dir):
+        warnings.append("找不到领域插件 `%s`（已查找 %s 与 %s）"
+                        % (domain, ws_profile, os.path.join(PROFILES, domain)))
+        return None, None, warnings
+
+    # 方向文件
+    dir_dir = os.path.join(profile_dir, "directions")
+    if direction:
+        path = os.path.join(dir_dir, "%s.md" % direction)
+        if os.path.isfile(path):
+            return profile_dir, path, warnings
+        warnings.append("方向 `%s` 不存在于插件 `%s`" % (direction, domain))
+
+    if os.path.isdir(dir_dir):
+        available = sorted(f for f in os.listdir(dir_dir) if f.endswith(".md"))
+        if available:
+            fallback = available[0][:-3]
+            if direction:
+                warnings.append("回退使用方向 `%s`，结论仅供参考" % fallback)
+            return profile_dir, os.path.join(dir_dir, available[0]), warnings
+
+    warnings.append("插件 `%s` 下没有找到任何方向配置" % domain)
+    return profile_dir, None, warnings
+
+
+# ---------------------------------------------------------------------------
+# JD↔简历差距清单
+#
+# 设计要点：把「补关键词」拆成两类，这是服务诚实红线的关键——
+#   injectable：母版里有、这一版没用上 —— 从既有事实召回，不构成编造
+#   missing   ：JD 有而简历与母版都没有 —— 真实缺口，只能靠补经历，不能靠改词
+# 二者的措辞差异，把"补关键词"框定为"召回"而非"编造"。
+# ---------------------------------------------------------------------------
+
+# 词典三级标题（顺序即优先级）
+LEXICON_LEVELS = ["Primary", "Secondary", "Weak"]
+
+# 母版来源：简历主版 + 事实库。它们是"你真实拥有的全部事实"，
+# 出现在母版里的词才算可召回。
+MASTER_FILES = ["简历_主版_v1.0.md"]
+FACT_DIR = "00_事实库"
+RESUME_DIR = "02_简历工坊"
+SOURCE_DIR = "source"
+JD_FILENAME = "JD原文.md"
+
+
+def parse_lexicon(path):
+    """解析词典，返回 [(词条, 分层)]。
+
+    格式：`## Primary（3 分/项）` 之下的每行是用顿号分隔的词条。
+    领域术语来自数据文件，本函数不内含任何领域词（脚本保持领域无关）。
+    """
+    if not path or not os.path.isfile(path):
+        return []
+    with io.open(path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    out = []
+    level = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("##"):
+            head = stripped.lstrip("#").strip()
+            level = None
+            for name in LEXICON_LEVELS:
+                if head.startswith(name):
+                    level = name
+                    break
+            continue
+        if not level or stripped.startswith("#") or stripped.startswith(">"):
+            continue
+        for term in stripped.split("、"):
+            term = term.strip()
+            if term:
+                out.append((term, level))
+    return out
+
+
+def _read_text(path):
+    if not os.path.isfile(path):
+        return ""
+    with io.open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _collect_master_text(workspace):
+    """汇总母版文本：简历主版 + 事实库全部 md。
+
+    这是"你真实拥有的事实全集"。某个词只要出现在这里，就说明召回它
+    不构成编造——它本来就是你的。
+    """
+    parts = []
+    for name in MASTER_FILES:
+        parts.append(_read_text(os.path.join(workspace, RESUME_DIR, name)))
+
+    fact_dir = os.path.join(workspace, FACT_DIR)
+    if os.path.isdir(fact_dir):
+        for root, dirs, files in os.walk(fact_dir):
+            dirs[:] = [d for d in dirs if not d.startswith("__")]
+            for name in sorted(files):
+                if name.startswith("."):
+                    continue
+                if not name.lower().endswith((".md", ".txt")):
+                    continue
+                parts.append(_read_text(os.path.join(root, name)))
+    return "\n".join(parts)
+
+
+def _resume_text(workspace, version):
+    """简历 JSON → 纯文本（用于关键词比对）。"""
+    path = os.path.join(workspace, RESUME_DIR, SOURCE_DIR,
+                        "resume_%s.json" % version)
+    if not os.path.isfile(path):
+        return None
+    raw = _read_text(path)
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+
+    parts = []
+
+    def walk(node):
+        if isinstance(node, str):
+            parts.append(node)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+
+    walk(data)
+    return "\n".join(parts)
+
+
+def _contains(haystack, needle):
+    """子串匹配。英文统一小写比较（EnergyPlus vs energyplus）。"""
+    if not needle:
+        return False
+    h = haystack.lower()
+    n = needle.lower()
+    return n in h
+
+
+def gap_analysis(workspace, card_path, resume_version, domain=None, direction=None):
+    """JD↔简历差距分析。
+
+    返回 (结果字典, 错误列表)。结果含 matched / injectable / missing 三组，
+    以及来源说明，便于前端展示时解释"凭什么这么分"。
+    """
+    errors = []
+
+    # JD 原文与解析卡同目录（01_岗位池/<公司>_<岗位>/）
+    jd_path = os.path.join(os.path.dirname(os.path.abspath(card_path)), JD_FILENAME)
+    jd_text = _read_text(jd_path)
+    if not jd_text:
+        errors.append("找不到 JD 原文（应与解析卡同目录）：%s" % JD_FILENAME)
+
+    resume = _resume_text(workspace, resume_version)
+    if resume is None:
+        errors.append("找不到简历数据或 JSON 解析失败：source/resume_%s.json"
+                      % resume_version)
+
+    profile_dir, _direction_file, warns = resolve_profile(workspace, domain, direction)
+    lexicon = parse_lexicon(os.path.join(profile_dir, "lexicon.md")) if profile_dir else []
+    if not lexicon:
+        errors.append("词典为空或未找到，差距分析缺少词条依据")
+
+    if errors:
+        return None, errors + warns
+
+    master = _collect_master_text(workspace)
+
+    matched, injectable, missing = [], [], []
+    seen = set()
+    for term, level in lexicon:
+        if term in seen:
+            continue
+        if not _contains(jd_text, term):
+            continue          # JD 没提这个词，不参与比对
+        seen.add(term)
+        if _contains(resume, term):
+            matched.append({"term": term, "level": level})
+        elif _contains(master, term):
+            injectable.append({"term": term, "level": level})
+        else:
+            missing.append({"term": term, "level": level})
+
+    return {
+        "jd": os.path.relpath(jd_path, workspace).replace("\\", "/"),
+        "resume": "source/resume_%s.json" % resume_version,
+        "lexicon": os.path.relpath(os.path.join(profile_dir, "lexicon.md"),
+                                   workspace).replace("\\", "/") if profile_dir else None,
+        "matched": matched,
+        "injectable": [item["term"] for item in injectable],
+        "missing": [item["term"] for item in missing],
+        "matchedDetail": matched,
+        "injectableDetail": injectable,
+        "missingDetail": missing,
+        "counts": {
+            "matched": len(matched),
+            "injectable": len(injectable),
+            "missing": len(missing),
+        },
+    }, warns
+
+
+def _build_parser():
+    parser = argparse.ArgumentParser(description="校验 JD 解析卡评分并输出结论档位")
+    # --show-profile 只查插件路径，不需要解析卡，故设为可选
+    parser.add_argument("card", nargs="?", help="解析卡路径")
+    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
+                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--domain", help="领域插件 ID，如 hvac-cooling")
+    parser.add_argument("--direction", help="方向 ID，如 datacenter / hvac")
+    parser.add_argument("--show-profile", action="store_true",
+                        help="打印命中的插件与方向文件路径后退出")
+    parser.add_argument("--gap", action="store_true",
+                        help="输出 JD↔简历差距清单（需配合 --resume）")
+    parser.add_argument("--resume", help="简历版本（source/resume_<版本>.json 的版本名）")
+    return parser
+
+
+def _run_show_profile(workspace, args):
+    """--show-profile：只打印命中的插件与方向文件路径。"""
+    profile_dir, direction_file, warns = resolve_profile(
+        workspace, args.domain, args.direction)
+    print("插件目录：%s" % (profile_dir or "（未找到）"))
+    print("方向文件：%s" % (direction_file or "（未找到）"))
+    print("共用词典：%s" % (os.path.join(profile_dir, "lexicon.md")
+                       if profile_dir else "（未找到）"))
+    for w in warns:
+        print("提示：%s" % w)
+    return 0 if profile_dir and direction_file else 1
+
+
+def _run_gap(workspace, args):
+    """--gap：JD↔简历差距清单（母版召回 / 真实缺口二分）。"""
+    if not args.resume:
+        print("错误：--gap 需要配合 --resume <版本>")
+        return 1
+    result, errs = gap_analysis(workspace, args.card, args.resume,
+                                args.domain, args.direction)
+    for e in errs:
+        print("提示：%s" % e)
+    if result is None:
+        return 1
+    print("JD：%s" % result["jd"])
+    print("简历：%s" % result["resume"])
+    print("词典：%s" % result["lexicon"])
+    print("")
+    print("## 已覆盖（%d）" % result["counts"]["matched"])
+    for item in result["matchedDetail"]:
+        print("  - %s（%s）" % (item["term"], item["level"]))
+    print("")
+    print("## 可召回（%d）—— 母版里有，这一版没用上" % result["counts"]["injectable"])
+    for item in result["injectableDetail"]:
+        print("  - %s（%s）" % (item["term"], item["level"]))
+    print("")
+    print("## 真实缺口（%d）—— 简历与母版都没有，需评估是否补经历" % result["counts"]["missing"])
+    for item in result["missingDetail"]:
+        print("  - %s（%s）" % (item["term"], item["level"]))
+    return 0
+
+
+def _validate_card(fields):
+    """维度与总分校验；返回 (values, total, errors)。"""
+    errors = []
+    values = {}
+    for name, maximum in DIMENSIONS:
+        raw = fields.get(name, "")
+        num, errs = parse_dimension(raw, name, maximum)
+        errors.extend(errs)
+        if num is not None and not errs:
+            values[name] = num
+
+    # 总分校验
+    total_raw = fields.get("总分", "")
+    total = None
+    if not total_raw:
+        errors.append("`总分` 未填写")
+    else:
+        m = re.match(r"^\d+(?:\.\d+)?$", total_raw)
+        if not m:
+            errors.append("`总分: %s` 格式错误，应为纯数字" % total_raw)
+        else:
+            total = float(total_raw)
+            if total > TOTAL_MAX:
+                errors.append("总分 %g 超过满分 %d" % (total, TOTAL_MAX))
+
+    # 加总一致性：只在四个维度都成功解析时才校验
+    if len(values) == len(DIMENSIONS) and total is not None:
+        calc = sum(values.values())
+        if abs(calc - total) > 1e-6:
+            errors.append(
+                "加总不一致：四项之和为 %g，但总分为 %g（差 %g）"
+                % (calc, total, calc - total)
+            )
+    return values, total, errors
+
+
+def _print_verdict(values, total):
+    """输出结论：评分明细表 + 档位与下一步。"""
+    level, action = verdict(total)
+    print("## 评分明细\n")
+    print("| 维度 | 得分 |")
+    print("|---|---:|")
+    for name, maximum in DIMENSIONS:
+        print("| %s | %g / %d |" % (name, values[name], maximum))
+    print("| **总分** | **%g / %d** |" % (total, TOTAL_MAX))
+    print("")
+    print("## 结论\n")
+    print("- **档位**：%s" % level)
+    print("- **下一步**：%s" % action)
+
+
+def main():
+    parser = _build_parser()
+    args = parser.parse_args()
+
+    workspace = os.path.abspath(args.workspace)
+
+    if not args.card and not args.show_profile:
+        parser.error("需要提供解析卡路径，或使用 --show-profile")
+
+    if args.show_profile:
+        return _run_show_profile(workspace, args)
+
+    path = args.card
+    if not os.path.isfile(path):
+        print("错误：找不到解析卡 `%s`" % path)
+        return 1
+
+    if args.gap:
+        return _run_gap(workspace, args)
+
+    with io.open(path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    fields = parse_score_section(text)
+    if not fields:
+        print("错误：解析卡中找不到 `## 评分` 小节，或其下没有 `key: value` 行")
+        return 1
+
+    values, total, errors = _validate_card(fields)
+    if errors:
+        print("## 校验失败\n")
+        for e in errors:
+            print("- %s" % e)
+        print("\n请修正解析卡的 `## 评分` 小节后重新运行。")
+        return 1
+
+    _print_verdict(values, total)
+    return 0
+
+
+if __name__ == "__main__":
+    # 入口已统一到 tools/jobws.py：直接运行本文件不再执行功能，
+    # 只给一条可复制的迁移命令——不保留旧别名，但也不让人对着静默退出发愣。
+    print("该脚本已合并进统一入口，请改用：python tools/jobws.py jd ...")
+    print("查看全部命令：python tools/jobws.py --help")
+    sys.exit(2)

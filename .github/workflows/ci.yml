@@ -98,15 +98,14 @@ jobs:
       # pydantic 钉在 <2.10 与 MCP SDK 的 >=2.12 互斥」那个前提已随 3.12 基线
       # 消失（主干上界放宽到 <2.14，交集 >=2.12,<2.14 且实测同环境全过，见
       # mcp/pyproject.toml 的说明段）。job 名刻意不动（是分支保护的必需检查）。
-      - name: 安装 MCP 包
-        run: pip install -e "./mcp[dev]"
-
-      # 领域包（2026-09-17 批 6）：MCP 侧的领域层调用已开始走 `jobws_core`。装上它，
-      # 这一 job 覆盖的就是**真装形态**；不装也能过（旧路径 shim 会退化到源码形态），
-      # 但那条路径不该是 CI 唯一看到的形态——否则「装上之后 MCP 还能不能用」永远没人验。
-      # 本 job 是 3.12，满足领域包的 requires-python。
+      # 领域包**必须先装**（2026-09-19 PR-B）：`mcp/pyproject.toml` 现在把 `jobws-core`
+      # 写进了 dependencies（领域层全部搬完，MCP 不再需要仓库在侧），而它**不在 PyPI**
+      # ——先装 MCP 会让 pip 去 PyPI 找领域包并失败。
       - name: 安装领域包
         run: pip install ./packages/jobws-core
+
+      - name: 安装 MCP 包
+        run: pip install -e "./mcp[dev]"
 
       - name: 运行 MCP 测试
         run: python -m pytest mcp/tests -q

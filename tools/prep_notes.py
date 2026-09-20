@@ -31,7 +31,7 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-import tracker  # noqa: E402  （复用工作区解析、file_lock 与 ConflictError；
+from jobws_core import tracker  # noqa: E402  （复用工作区解析、file_lock 与 ConflictError；
 # file_lock 经 tracker 包门面的 PEP 562 转发取得——不再引旧名 filelock）
 from jobws_core import workspace_io  # noqa: E402
 

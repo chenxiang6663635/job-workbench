@@ -19,8 +19,8 @@ import pytest
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-import question_bank  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import question_bank  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 
 
 @pytest.fixture()
@@ -243,7 +243,7 @@ def test_scan_reports_unreadable_and_empty_files(ws):
 def test_approval_registry_knows_question_operations():
     """两段式注册表里必须有 question 的三项操作：漏写一行，全仓测试不会红，
     但用户确认落盘时才发现"操作不存在"（第二轨盲区 A——注册表是唯一防线）。"""
-    import approval
+    from jobws_core import approval
     for op in ("question.add", "question.update", "question.import"):
         assert op in approval._OPERATIONS, op
         assert callable(approval._OPERATIONS[op]), op

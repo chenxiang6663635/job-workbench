@@ -50,7 +50,7 @@ rather than hours, and honest *"not planned"* answers with the reasoning attache
 - **TLS downgrade on outbound connections.** Every outbound connection — your mail
   server, fetched job pages, and the BYOK provider (connectivity test and resume
   rewrite) — verifies certificates by default and refuses to continue when the
-  certificate cannot be checked. There is one implementation: `tools/tls_policy.py`.
+  certificate cannot be checked. There is one implementation: `jobws_core.tls_policy`.
   Skipping verification requires an explicit environment opt-in
   (`JOBWS_IMAP_TLS=insecure` for mail, `JOBWS_HTTP_TLS=insecure` for HTTP outbound),
   is only reachable when the system trust store cannot be loaded at all, and never
@@ -104,7 +104,7 @@ rather than hours, and honest *"not planned"* answers with the reasoning attache
   reports `telemetry: false` and the Settings page says the same thing.
 - Credentials are masked in API responses and never written into logs.
 - Certificate verification is on by default on **every** outbound path (mail and
-  HTTP), through a single implementation (`tools/tls_policy.py`). Skipping it requires
+  HTTP), through a single implementation (`jobws_core.tls_policy`). Skipping it requires
   an explicit environment opt-in (`JOBWS_IMAP_TLS=insecure` /
   `JOBWS_HTTP_TLS=insecure`) and is only reachable when the system trust store cannot
   be loaded; otherwise the failure is refused with an actionable message

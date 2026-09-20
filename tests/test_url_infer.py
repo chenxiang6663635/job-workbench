@@ -16,7 +16,7 @@ for _path in (os.path.join(ROOT, "tools"), os.path.join(ROOT, "web", "backend"))
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-import url_infer  # noqa: E402
+from jobws_core import url_infer  # noqa: E402
 
 
 def test_known_job_sites_map_to_sources():

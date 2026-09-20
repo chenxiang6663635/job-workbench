@@ -236,3 +236,17 @@ def write_rows(rows, workspace=None):
     """
     path = csv_path(workspace)
     _atomic_write_csv(path, rows, FIELDS, "utf-8-sig")
+
+
+def sort_key(row):
+    """活跃记录在前、终态在后；按下次动作日期升序，空日期排最后。
+
+    **这是 CLI / Web / MCP 三处共用的排序规则**（两处各写一份迟早会不一致）。
+    2026-09-19 PR-B 从 `tools/tracker/_cli.py` 移进领域层：它原本的注释就写着
+    「供 CLI 与 Web 共用」，而 Web 与 MCP 读的是**领域层**——留在 CLI 模块里，
+    独立安装的 MCP 便取不到（实测 `AttributeError: module 'jobws_core.tracker'
+    has no attribute 'sort_key'`）。
+    """
+    terminal = 1 if row.get("当前阶段") in TERMINAL_STAGES else 0
+    nd = (row.get("下次动作日期") or "").strip()
+    return (terminal, "9999" if not nd else nd, row.get("id", ""))

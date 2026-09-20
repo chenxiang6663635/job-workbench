@@ -307,7 +307,7 @@ python tools/jobws.py jd "personal/01_岗位池/<目录>/解析卡.md" --domain 
 python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<目录>/解析卡.md"   # JD↔简历差距
 ```
 
-> 上文的阶段名（`笔试`、`一面`……）会**原样写进你的数据文件**，所以界面与文档里保留中文；它们按固定词表校验（`STAGES`，定义在 `tools/tracker.py`），不能简单改成英文。
+> 上文的阶段名（`笔试`、`一面`……）会**原样写进你的数据文件**，所以界面与文档里保留中文；它们按固定词表校验（`STAGES`，定义在 `jobws_core.tracker`），不能简单改成英文。
 
 ---
 

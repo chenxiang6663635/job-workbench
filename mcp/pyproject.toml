@@ -7,7 +7,9 @@ name = "jobws-mcp"
 version = "0.1.0"
 description = "求职工作台的 MCP 服务（本地优先：默认只读本机工作区、不出网，写入走两段式确认）"
 readme = "README.md"
-requires-python = ">=3.10"
+# 3.12 起（2026-09-19 批 6 第二批）：本包现在硬依赖 `jobws-core`，而它要求 3.12+。
+# 此前写 3.10 是因为领域层还没搬完、MCP 能独立跑；现在两者同一条基线。
+requires-python = ">=3.12"
 license = { text = "MIT" }
 # 只依赖官方 SDK。**本包与主干后端已不再互斥**（2026-09-16 订正）：
 # 历史上这里写着「主干为兼容 Python 3.8 把 pydantic 钉在 <2.10，而 MCP SDK 要求
@@ -22,7 +24,16 @@ license = { text = "MIT" }
 #
 # 钉下界到实测过的 2.2：SDK 仍在 2.x 内频繁演进，浮动解析会让 CI 与本地跑的
 # 不是同一套代码。uv.lock 被仓库的 *.lock 规则忽略，下界与锁保持一致。
-dependencies = ["mcp>=2.2,<3"]
+# 领域层（批 6 第二批）：tracker / approval / pathres / jd_score / report /
+# question_bank 等**全部**在包里，MCP 因此不再需要仓库在侧——原先那段
+# sys.path 注入与 JOBWS_REPO_ROOT 推导已从 jobws_mcp/paths.py 删除。
+#
+# 注意：`jobws-core` **不在 PyPI**（它是本仓的 packages/jobws-core）。所以
+# `pip install ./mcp` 必须**先**装领域包，否则解析依赖会去 PyPI 找它并失败：
+#     uv pip install packages/jobws-core   # 先
+#     uv pip install ./mcp                 # 后
+# CI 的 mcp job 按这个顺序装（见 .github/workflows/ci.yml）。
+dependencies = ["mcp>=2.2,<3", "jobws-core"]
 
 [project.optional-dependencies]
 # anyio 由 SDK 传递提供，但测试直接 import 它——传递依赖换树就断，显式列出

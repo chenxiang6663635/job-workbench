@@ -22,7 +22,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-import approval
+from jobws_core import approval
 import init_workspace
 from apierror import ApiError
 from deps import ROOT, allowed_roots, data_root, resolve_default_workspace

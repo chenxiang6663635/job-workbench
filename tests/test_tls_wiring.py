@@ -22,7 +22,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-import tls_policy  # noqa: E402
+from jobws_core import tls_policy  # noqa: E402
 from routers import jobs as jobs_router  # noqa: E402
 from routers import provider as provider_router  # noqa: E402
 from routers import resume as resume_router  # noqa: E402
@@ -128,13 +128,21 @@ def test_no_handwritten_unverified_context_outside_policy():
     rules = (
         # (说明, 正则, 允许出现的文件（相对仓库根）, 允许出现的次数)
         ("关校验捷径", re.compile(re.escape("_create_unverified" + "_context")), None, 0),
-        ("手写 CERT_NONE", re.compile(r"ssl\.CERT_NONE"), "tools/tls_policy.py", 1),
+        ("手写 CERT_NONE", re.compile(r"ssl\.CERT_NONE"),
+         "packages/jobws-core/src/jobws_core/tls_policy.py", 1),
         ("手写 check_hostname=False", re.compile(r"check_hostname\s*=\s*False"),
-         "tools/tls_policy.py", 1),
+         "packages/jobws-core/src/jobws_core/tls_policy.py", 1),
     )
-    skip_dirs = ("node_modules", "release", "__pycache__", ".git", "dist")
+    # `build` 必须跳过：`pip install ./packages/jobws-core` 会在源码树里留下
+    # `build/lib/jobws_core/` 这份**构建副本**——把 packages 纳入扫描后（2026-09-19
+    # PR-B：策略实现搬进了领域包），不跳过就会被扫出第二份命中而误报。
+    # 本地 editable 安装不产生 build 目录，所以这个坑只在**真实安装**的形态下
+    # 出现——CI 的 backend job 正是那种形态（首跑失败，本地全绿）。
+    skip_dirs = ("node_modules", "release", "__pycache__", ".git", "dist", "build")
     offenders = []
-    for base in ("web", "tools"):
+    # `packages` 必须一起扫：策略实现 2026-09-19 搬进领域包，只扫 web/tools 会让
+    # 这条检查**静默失效**——正是「搬进去就放行」的形态（与 legacy-imports 同款教训）。
+    for base in ("web", "tools", "packages"):
         for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT_DIR, base)):
             dirnames[:] = [d for d in dirnames if d not in skip_dirs]
             for name in sorted(filenames):
@@ -151,5 +159,5 @@ def test_no_handwritten_unverified_context_outside_policy():
                     for lineno in hits:
                         offenders.append("%s:%d [%s]" % (rel, lineno, label))
     assert offenders == [], (
-        "出网一律走 tools/tls_policy.py；确需跳过校验只能由用户显式设环境变量。命中：%s"
+        "出网一律走 jobws_core.tls_policy；确需跳过校验只能由用户显式设环境变量。命中：%s"
         % offenders)

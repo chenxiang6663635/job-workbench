@@ -14,7 +14,7 @@ import sys
 from fastapi import Query, Request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import pathres  # noqa: E402
+from jobws_core import pathres  # noqa: E402
 from apierror import ApiError  # noqa: E402
 
 # 应用根（只读资源）。打包后 exe 同级，解包为仓库根。

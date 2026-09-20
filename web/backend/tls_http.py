@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""HTTP 出网的统一入口：TLS 策略（`tools/tls_policy.py`）+ 证书类错误的稳定 code。
+"""HTTP 出网的统一入口：TLS 策略（`jobws_core.tls_policy`）+ 证书类错误的稳定 code。
 
 为什么要有这层（issue #59）：三个出网调用点（provider 连通性测试 / JD 抓取 /
 简历改写）原本各写各的，于是出现两种沉默失效——一处**有意关闭**了证书校验
@@ -29,7 +29,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-import tls_policy
+from jobws_core import tls_policy
 
 from apierror import ApiError
 

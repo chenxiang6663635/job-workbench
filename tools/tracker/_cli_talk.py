@@ -44,7 +44,7 @@ def _talk_add(args):
         return 1
 
     if getattr(args, "preview", False):
-        import approval
+        from jobws_core import approval
         result = approval.preview("talk.add", _core.WORKSPACE, plan["payload"],
                                   plan["summary"], plan["diff"], plan["targets"])
         print("## 预览（未写入）\n")

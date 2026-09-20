@@ -228,7 +228,7 @@ def preview_toggle(section: str, rel: str = "", line: int = 0,
     if plan is None:
         raise ApiError(400, "prep.toggleFailed", "勾选预览失败",
                        reason="；".join(errors))
-    import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
     result = approval.preview("prep.toggle", ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])
     return {"token": result["token"], "summary": plan["summary"],

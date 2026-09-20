@@ -13,10 +13,10 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends
 
-import jd_score
-import tracker
+from jobws_core import jd_score
+from jobws_core import tracker
 from deps import DIR_JOBS, safe_join, workspace_dir
-from report import count_by, parse_date, retrospective  # noqa: E402 - report 与 tracker 同目录
+from jobws_core.report import count_by, parse_date, retrospective  # noqa: E402 - report 与 tracker 同目录
 from routers import jobs as jobs_router  # noqa: E402 - 关联口径复用，不写第二份
 
 router = APIRouter(prefix="/api/dashboard")

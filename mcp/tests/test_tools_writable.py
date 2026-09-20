@@ -17,15 +17,16 @@ if MCP_DIR not in sys.path:
     sys.path.insert(0, MCP_DIR)
 
 from jobws_mcp import tools_writable  # noqa: E402
-import approval  # noqa: E402
-import tracker  # noqa: E402  （tools/ 已由 paths.py 加进 sys.path）
+from jobws_core import approval  # noqa: E402
+from jobws_core import tracker  # noqa: E402  （tools/ 已由 paths.py 加进 sys.path）
 
 
 @pytest.fixture(autouse=True)
 def _isolated_token_store(tmp_path, monkeypatch):
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
+    # 这里的 `approval` 是**包内**模块（PR-B 起 MCP 不再走仓内转发层），直接打它。
+    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
 
 
 @pytest.fixture()

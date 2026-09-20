@@ -29,7 +29,7 @@ import logging
 import re
 import socket
 import ssl
-import tls_policy
+from jobws_core import tls_policy
 from email import message_from_bytes
 from email.header import decode_header
 from html.parser import HTMLParser

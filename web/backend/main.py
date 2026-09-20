@@ -20,7 +20,7 @@ _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-import pathres  # noqa: E402
+from jobws_core import pathres  # noqa: E402
 
 # 注入应用根：**必须在导入 deps 之前**——deps 在模块顶层就调 resolve_root()。
 # 解包形态下这里就是仓库根：`_BACKEND_DIR` 已经是 web/backend，**再上溯两级**

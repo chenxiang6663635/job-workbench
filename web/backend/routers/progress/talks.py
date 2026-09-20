@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
-import tracker
+from jobws_core import tracker
 import icsutil
 from apierror import ApiError
 from deps import workspace_dir

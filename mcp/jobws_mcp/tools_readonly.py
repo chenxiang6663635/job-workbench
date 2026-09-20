@@ -23,10 +23,9 @@ from datetime import date, timedelta
 from . import paths
 from .paths import DIR_JOBS, DIR_TRACKING
 
-import jd_score  # noqa: E402  （tools/ 经 paths.py 加进 sys.path）
-import question_bank  # noqa: E402
-import report  # noqa: E402
-import tracker  # noqa: E402
+# 全部走领域包（2026-09-19 PR-B）：原先这里靠 `paths.py` 把 tools/ 加进 sys.path，
+# 那段硬闸已删——本包现在装在哪都能用。
+from jobws_core import jd_score, question_bank, report, tracker  # noqa: E402
 
 # 列表默认精简：全字段（17 列）对宿主是噪声，verbose=True 才给全量
 CORE_FIELDS = ["id", "公司", "岗位", "方向", "批次", "截止日期", "投递日期",
@@ -416,5 +415,10 @@ def score_jd(workspace, job_id, resume_version=None):
         "有JD原文": os.path.isfile(os.path.join(job_dir, JD_FILE)),
     }
     if resume_version:
-        data["差距"] = jd_score.gap_analysis(workspace, card_path, resume_version)
+        # `gap_analysis` 返回 (result, errors)——与后端同款解包（routers/jobs.py）。
+        # 直接赋元组会让宿主收到 `差距: [null, [...]]`（2026-09-19 审查 MINOR 抓到）。
+        gap, gap_errors = jd_score.gap_analysis(workspace, card_path, resume_version)
+        data["差距"] = gap
+        if gap_errors:
+            data["差距错误"] = gap_errors
     return data

@@ -34,9 +34,9 @@ import commit_header  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
 import jobws  # noqa: E402
-import jd_score  # noqa: E402
+from jobws_core import jd_score  # noqa: E402
 import release_assist  # noqa: E402  （`release version` 的号要走同一套判定函数）
-import report  # noqa: E402
+from jobws_core import report  # noqa: E402
 import resume_build  # noqa: E402
 import tracker  # noqa: E402
 
@@ -368,9 +368,11 @@ def test_legacy_script_paths_only_print_migration_hint():
     这条钉的是「不保留旧别名」的**另一半**——不是让旧命令静默退出 0（那更危险：
     用户以为执行了、其实什么都没做），而是明确失败并指出该改用什么。
     """
-    for script in ("tracker", "report", "resume_build", "jd_score",
-                   "init_workspace", "install_skills", "check_skills",
-                   "check_pr_title", "question_bank"):
+    # `report` / `jd_score` / `question_bank` 已于 2026-09-19（PR-B）搬进领域包，
+    # 旧脚本路径连同它们的提示文件一起消失——直跑 `python tools/report.py` 现在是
+    # "文件不存在"，不再需要（也不该）有迁移提示。
+    for script in ("tracker", "resume_build", "init_workspace", "install_skills",
+                   "check_skills", "check_pr_title"):
         path = os.path.join(TOOLS, script + ".py")
         # timeout + cwd：任一脚本将来在导入期阻塞时，别把整轮 pytest 挂死
         proc = subprocess.run([sys.executable, path], stdout=subprocess.PIPE,

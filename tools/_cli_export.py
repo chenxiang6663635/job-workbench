@@ -17,9 +17,10 @@ frontmatter 让 Obsidian 的 Bases / Dataview 能按字段过滤排序，正文�
 八张表：投递记录 / 时间线 / 面试 / 宣讲会 / 邮件 / 联系人 / Offer / 题库。
 题库笔记额外带 spaced-repetition 的卡片语法（`#flashcard` + `题目:: 答案`）。
 
-`--notes` 时另把 `03_面试准备` / `04_知识库` / `00_事实库` 的 Markdown **原样**
-投影成笔记（保留目录层级、**全量读取不截断**——256 KB 截断是只读端点的语义，
-带进导出会把几万字的速记截成半篇）。训练卡目录不重复投影：那些卡已经在题库里。
+`--notes` 时另把 `03_面试准备` / `04_知识库` / `00_事实库` 的 Markdown 投影成
+笔记：保留目录层级、**全量读取不截断**（256 KB 截断是只读端点的语义，带进导出会
+把几万字的速记截成半篇）、正文按原意搬运（剥 BOM、折 CRLF、收尾空行）。训练卡
+目录不重复投影（那些卡已经在题库里），隐藏文件与超限文件跳过并写进产物 README。
 
 命令层只管参数与退出码；导出的每一步都是可单测的纯函数（见 tests/
 test_export_obsidian.py）。
@@ -41,6 +42,8 @@ if _TOOLS_DIR not in sys.path:
 from jobws_core import question_bank  # noqa: E402
 from jobws_core import tracker  # noqa: E402
 from jobws_core import workspace_io  # noqa: E402
+
+from _cli_export_readme import render_base, render_readme  # noqa: E402
 
 # 目录名 → (CSV 字段名列表, 读取函数, 标题字段, 里层子目录)
 # 目录名用中文：与工作区里 01_岗位池 这类命名同款，进 Obsidian 后一眼认得出。
@@ -136,11 +139,18 @@ def export_obsidian(workspace, target_dir, include_notes=False):
     """导出到 `<target_dir>/obsidian-export-<时间戳>/`，返回 (root, 笔记数)。
 
     目录不存在就建（用户指定的导出根目录）；导出目录同名已存在则抛 RuntimeError。
-    `include_notes` 为真时，另把 03/04/00 三个材料目录**原样**投影成笔记。
+    `include_notes` 为真时，另把 03/04/00 三个材料目录投影成笔记（正文按原意搬运）。
     """
     ws = tracker.resolve_ws(workspace)
     if not os.path.isdir(ws):
         raise RuntimeError("工作区不存在：%s" % ws)
+    # 导出目录必须在工作区**之外**（矩阵里写死的承诺：不改工作区）。除了污染工作区，
+    # 更坏的形态是目标落在材料目录里：材料投影会把刚写出的导出目录当成材料再抄一遍
+    # （嵌套复制、README 篇数虚报）。一行守卫消灭这条路径，别指望用户不这么用。
+    if _inside(os.path.realpath(target_dir), os.path.realpath(ws)):
+        raise RuntimeError(
+            "导出目录必须在工作区之外（否则会污染工作区，并被材料投影重复收录）：%s"
+            % target_dir)
     stamp = now_stamp()
     root = os.path.join(target_dir, "obsidian-export-%s" % stamp)
     if os.path.exists(root):
@@ -176,76 +186,24 @@ def export_obsidian(workspace, target_dir, include_notes=False):
         # 顶层互引就是循环依赖
         from _cli_export_notes import export_notes
         note_dirs = export_notes(ws, root)
-        total += sum(count for _name, count in note_dirs)
+        total += sum(item["written"] for item in note_dirs)
     workspace_io.atomic_write_text(
         os.path.join(root, "README.md"), render_readme(dirs, total, note_dirs))
-    workspace_io.atomic_write_text(os.path.join(root, "jobws.base"), render_base())
+    # Bases 视图只显示每张表的前几列（字段由这里算好传进去，渲染模块不依赖 tracker）
+    workspace_io.atomic_write_text(
+        os.path.join(root, "jobws.base"),
+        render_base([(name, field_names(const_name)[:6])
+                     for name, const_name, _reader, _titles in TABLES]))
     return root, total
 
 
-def render_readme(dirs, total, note_dirs=()):
-    """导出说明：目录结构 + 怎么用 + 边界（导出是快照，不是同步）。"""
-    lines = [
-        "# jobws → Obsidian 导出",
-        "",
-        "导出时间：%s" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        # 注意 `%` 比 `+` 紧：先拼好句式再格式化，别写成 A + B % total
-        "共 %d 篇笔记（%s）。" % (
-            total,
-            "每张 CSV 一行 → 一篇 Markdown"
-            + ("；另含材料原文的投影笔记" if note_dirs else ""),
-        ),
-        "",
-        "## 目录",
-        "",
-    ]
-    for name, count in dirs:
-        lines.append("- `%s/`：%d 篇" % (name, count))
-    if note_dirs:
-        lines += [
-            "- **材料笔记**（`--notes` 投影：原文全文 + 保留目录层级）：",
-        ]
-        for name, count in note_dirs:
-            lines.append("  - `%s/`：%d 篇" % (name, count))
-    lines += [
-        "",
-        "## 怎么用",
-        "",
-        "- 每篇的 **frontmatter** 是原 CSV 的全部字段——Obsidian 的 Bases / Dataview",
-        "  可以按它过滤排序（例如按「当前阶段」看在跑的投递）。",
-        "- `jobws.base` 是 Obsidian **Bases** 视图（较新的能力）；若你的 Obsidian",
-        "  版本还不支持 Bases，忽略这个文件即可——笔记本身不依赖它。",
-        "- `题库/` 下的笔记带 `#flashcard` 标签与 `题目:: 答案` 单行卡，供",
-        "  **obsidian-spaced-repetition** 插件排复习。",
-        "",
-        "## 边界",
-        "",
-        "这是**快照**，不是同步：重新导出会生成一个新的带时间戳目录，旧目录不会",
-        "被改写。工作区里的数据仍然是唯一真值——改数据请回工作台或 CSV。",
-        "",
-    ]
-    return "\n".join(lines)
+def _inside(path, root):
+    """`path` 是否就是 `root` 或落在它之下（两侧都应是 realpath）。"""
+    return path == root or path.startswith(root + os.sep)
 
 
-def render_base():
-    """Obsidian Bases 视图：一张按目录分组的总表（各表一个视图）。"""
-    lines = ["filters:", "  or:"]
-    for name, _c, _r, _f in TABLES:
-        lines.append('    - file.folder == "%s"' % name)
-    lines += ["views:"]
-    for name, const_name, _r, _f in TABLES:
-        lines += [
-            '  - type: table',
-            '    name: "%s"' % name,
-            "    filters:",
-            "      and:",
-            '        - file.folder == "%s"' % name,
-            "    order:",
-        ]
-        for field in field_names(const_name)[:6]:
-            lines.append('      - "%s"' % field)
-    lines.append("")
-    return "\n".join(lines)
+# 产物说明（README / jobws.base）的渲染已拆到 `_cli_export_readme.py`：本文件贴着
+# 300 行规模预算，而"渲染说明"只吃数据、不碰文件系统，适合独立演进而非继续堆这里。
 
 
 def cmd_export(args):
@@ -281,7 +239,7 @@ def main(argv=None):
                         help="把八张 CSV 导成 Obsidian 笔记（每行一笔记 + frontmatter）")
     parser.add_argument("--notes", action="store_true",
                         help="另把 03_面试准备 / 04_知识库 / 00_事实库 的 Markdown "
-                             "原样投影成笔记（保留目录层级，全量不截断）")
+                             "投影成笔记（保留目录层级；正文按原意搬运，不截断）")
     parser.add_argument("--workspace", default=None)
     args = parser.parse_args(argv)
     return cmd_export(args)

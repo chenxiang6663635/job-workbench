@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
-"""`jobws export --obsidian --notes`：把工作区的 Markdown 材料**原样**投影成笔记。
+"""`jobws export --obsidian --notes`：把工作区的 Markdown 材料投影成笔记。
 
 为什么单独成模块：`_cli_export.py` 已经 253 行、逼近 300 行的规模预算，而这里
 是另一条通道——上面那条是「CSV 行 → 笔记」，这条是「文件 → 笔记」，生成器不同、
 不该塞进同一处（硬塞就会顶破预算，也会让两条通道互相纠缠）。
 
-两条取舍：
+三条取舍：
 1. **全量读取、不截断**：256 KB 截断是**只读端点**的语义（防止响应体膨胀），
    导出没有这个约束；把几万字的速记截成半篇，比不导出更糟。
-2. **正文不重排**：材料本来就是给人读的 Markdown（表格 / 列表 / 勾选框 / 代码块），
-   重新排版只会丢信息——frontmatter 只补"它从哪来"，正文原样搬。
+2. **正文不重排、但也不是字节级副本**：材料本来就是给人读的 Markdown（表格 /
+   列表 / 勾选框 / 代码块），重新排版只会丢信息——frontmatter 只补"它从哪来"。
+   归一化三处：读时剥 BOM（`utf-8-sig`）、universal newlines 把 CRLF/CR 折成 LF、
+   写出时收掉末尾空行。材料**自带 frontmatter** 时，它那块 `---` 会落成正文
+   （导出笔记自己的 frontmatter 在前）——文档与矩阵的措辞按这个来，别写成
+   "字节级原样"。
+3. **单篇超 `NOTE_MAX_BYTES` 整份跳过、不截断**：截断会产出一篇看着完整、实则
+   缺半截的笔记（最坏的一种"静默少给"）；宁可跳过并在产物 README 里点名。
 
-跳过 `训练卡/`：那些卡是题库的卡源，导入后已在「题库/」下以 flashcard 形态出现，
-再投影一遍就是同一内容两处出现（手机上刷到重复的卡）。
+跳过 `训练卡/`：那是本工作台的**练卡约定目录**（`bank import` 的卡源），导入后已在
+「题库/」下以 flashcard 形态出现，再投影就是同一内容两处出现（手机上刷到重复卡）。
+按目录名判定——换了目录名就不跳，这条要与 `template/workspace/03_面试准备/README`
+的约定一起看。
 """
 
 from __future__ import annotations
@@ -29,6 +37,8 @@ from _cli_export import _ILLEGAL_NAME_RE, yaml_scalar  # noqa: E402
 NOTE_DIRS = ("03_面试准备", "04_知识库", "00_事实库")
 # 训练卡是题库的卡源，导进题库后已在「题库/」下，投影时跳过
 NOTE_SKIP_DIRS = ("训练卡",)
+# 单篇上限（2 MiB，与 prep_notes 的读取上限同口径）：超限**跳过而不是截断**
+NOTE_MAX_BYTES = 2 * 1024 * 1024
 
 _HEADING_RE = re.compile(r"^#\s+(.+)$", re.M)
 
@@ -67,13 +77,22 @@ def _note_target_path(target_root, rel, used):
     return os.path.join(target_root, *parts)
 
 
-def export_notes(ws, root, note_dirs=NOTE_DIRS):
-    """把工作区里的 Markdown 材料原样投影进 `root`，返回 [(目录名, 篇数), ...]。
+def _read_note(source):
+    """读一篇材料。超限 / 非 UTF-8 / 读不动都抛异常，由调用方记进跳过清单。"""
+    if os.path.getsize(source) > NOTE_MAX_BYTES:
+        raise ValueError("超过单篇上限 %d 字节" % NOTE_MAX_BYTES)
+    with io.open(source, "r", encoding="utf-8-sig") as handle:
+        return handle.read()
 
-    读不动（非 UTF-8 / 权限）的文件**报出来再跳过**——静默少给会让人以为导出
-    是完整的。
+
+def export_notes(ws, root, note_dirs=NOTE_DIRS):
+    """把工作区里的 Markdown 材料投影进 `root`。
+
+    返回每个源目录的结果字典：`{"dir": ..., "written": N, "skipped": [(rel, 原因)]}`。
+    读不动（非 UTF-8 / 权限）与超限（`NOTE_MAX_BYTES`）的**都记下来再跳过**——
+    静默少给会让人以为导出是完整的；跳过清单会写进产物 README。
     """
-    counts = []
+    results = []
     for source_dir in note_dirs:
         base = os.path.join(ws, source_dir)
         if not os.path.isdir(base):
@@ -83,21 +102,26 @@ def export_notes(ws, root, note_dirs=NOTE_DIRS):
         os.makedirs(target_root, exist_ok=True)
         used = {}
         written = 0
+        skipped = []
         for dirpath, dirnames, filenames in os.walk(base):
             dirnames[:] = sorted(
                 name for name in dirnames
                 if name not in NOTE_SKIP_DIRS and not name.startswith((".", "__"))
             )
             for name in sorted(filenames):
-                if not name.lower().endswith(".md"):
+                # 隐藏文件与只读端点同口径跳过：`.jobws_tmp_*`（原子写临时名）、
+                # `.draft.md`、AppleDouble 的 `._x.md` 都是"界面上看不见的东西"
+                if name.startswith(".") or not name.lower().endswith(".md"):
                     continue
                 source = os.path.join(dirpath, name)
                 rel = os.path.relpath(source, base).replace(os.sep, "/")
                 try:
-                    with io.open(source, "r", encoding="utf-8-sig") as handle:
-                        text = handle.read()
-                except (OSError, UnicodeDecodeError) as exc:
-                    print("警告：%s 读不到，已跳过（%s）" % (rel, exc), file=sys.stderr)
+                    text = _read_note(source)
+                except (OSError, UnicodeDecodeError, ValueError) as exc:
+                    reason = str(exc) or exc.__class__.__name__
+                    print("警告：%s 没导出，已跳过（%s）" % (rel, reason),
+                          file=sys.stderr)
+                    skipped.append((rel, reason))
                     continue
                 target = _note_target_path(target_root, rel, used)
                 parent = os.path.dirname(target)
@@ -106,5 +130,5 @@ def export_notes(ws, root, note_dirs=NOTE_DIRS):
                 workspace_io.atomic_write_text(
                     target, render_note_projection(rel, text, source_dir))
                 written += 1
-        counts.append((source_dir, written))
-    return counts
+        results.append({"dir": source_dir, "written": written, "skipped": skipped})
+    return results

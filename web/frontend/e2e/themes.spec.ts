@@ -21,6 +21,18 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(ENV_SCRIPT);
 });
 
+test("字体：正文栈含符号回退（CO₂ 下标 / 箭头不掉字）", async ({ page }) => {
+  // 2026-09-20：内置界面 / 等宽字体都是"拉丁子集"，实测共同缺 ₂(U+2082) /
+  // →(U+2192) / ≠ / ①；微软雅黑、宋体也缺 ₂。这里钉住**声明**（不是本机是否
+  // 装了某款字体）：符号回退必须在栈里，否则回退受限的环境（打包版 / Linux /
+  // 移动端）里正文的 CO₂ 下标、箭头会显示成空白。
+  await openPage(page, "prepare");
+  const stack = await page.evaluate(
+    () => getComputedStyle(document.body).fontFamily
+  );
+  expect(stack).toContain("Segoe UI Symbol");
+});
+
 for (const theme of THEMES) {
   test(`主题 @ ${theme}：逐页属性回写、无溢出、无控制台错误`, async ({ page }) => {
     // 预写主题偏好：index.html 的防闪白内联脚本会读它并在首帧前写属性

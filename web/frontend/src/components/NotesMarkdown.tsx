@@ -142,7 +142,13 @@ const baseComponents: Components = {
         </li>
       );
     }
-    return <li {...lineAttr(node)} className={cn("my-1", className)} {...props} />;
+    // 普通列表项也要渲染 children——2026-09-20 修复：此前该分支漏渲染
+    // children，导致所有非任务项（无序 / 有序）只剩标记符号、正文全部丢失。
+    return (
+      <li {...lineAttr(node)} className={cn("my-1", className)} {...props}>
+        {children}
+      </li>
+    );
   },
   blockquote: ({ node, ...props }) => (
     <blockquote

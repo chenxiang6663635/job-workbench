@@ -149,3 +149,24 @@ test("笔记：全文搜索 → 点结果 → 打开并定位到命中行", asyn
     `搜索结果有 serious/critical：${serious.map((v) => v.id).join("、")}`
   ).toEqual([]);
 });
+
+test("笔记：普通列表项的正文要渲染出来（回归：li 分支曾漏渲染 children）", async ({
+  page,
+}) => {
+  // 2026-09-20 实测缺陷：NotesMarkdown 的 li 映射在「非任务项」分支漏渲染
+  // children，页面上只剩编号/圆点、正文全部消失（任务项分支正常，所以既有
+  // 勾选框用例照不出它）。这条用例盯的是**正文字符串必须可见**。
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Notes" }).click();
+  await page.getByRole("button", { name: "_模板_自我介绍" }).click();
+
+  // demo 正文里的两级列表：无序列表项（60 秒版 / 30 秒版）
+  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+  await expect(page.getByText("60 秒版", { exact: false })).toBeVisible();
+  await expect(page.getByText("30 秒版", { exact: false })).toBeVisible();
+
+  // 标记符号单独可见不算通过：列表项里必须有非空文本节点
+  const firstItem = page.locator("li").first();
+  await expect(firstItem).toBeVisible();
+  await expect(firstItem).not.toHaveText("");
+});

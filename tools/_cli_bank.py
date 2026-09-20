@@ -22,6 +22,7 @@ if _TOOLS_DIR not in sys.path:
 from jobws_core.question_bank import (MODULE_DIR, export_csv, preview_add_fields,  # noqa: E402
                            preview_import, preview_import_csv,
                            preview_update_fields, read_questions)
+from jobws_core.question_review import due_questions  # noqa: E402
 
 
 def _print_questions(rows):
@@ -77,6 +78,22 @@ def cmd_bank(args):
         _print_questions(rows)
         return 0
 
+    if args.action == "due":
+        # 只读视图：间隔阶梯与保守规则都在 question_review.due_questions 里
+        items = due_questions(workspace)
+        if not items:
+            print("今日没有待复习的题。")
+            return 0
+        print("| 题目 | 领域 | 状态 | 最近复习 | 原因 |")
+        print("|---|---|---|---|---|")
+        for row, reason in items:
+            print("| %s | %s | %s | %s | %s |" % (
+                row.get("题目") or "", row.get("领域") or "—",
+                row.get("状态") or "未看", row.get("最近复习") or "—", reason))
+        print("")
+        print("共 %d 道待复习。" % len(items))
+        return 0
+
     if args.action == "add":
         errors, plan = preview_add_fields(_bank_changes(args), workspace)
         return _run_preview(errors, plan, "question.add", workspace)
@@ -127,6 +144,9 @@ def main(argv=None):
     p_list.add_argument("--status", help="状态（未看/看过/会了）")
     p_list.add_argument("--keyword", "-k", help="关键词（题目/要点/标签等）")
     p_list.add_argument("--workspace", default=None)
+
+    p_due = subs.add_parser("due", help="今日待复习（只读：未看恒在；看过 3 天 / 会了 14 天）")
+    p_due.add_argument("--workspace", default=None)
 
     p_add = subs.add_parser("add", help="新增一道题（预览后凭令牌落盘）")
     p_add.add_argument("--title", required=True, help="题目")

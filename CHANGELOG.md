@@ -31,6 +31,7 @@
 
 ### Added
 
+- **题库「今日待复习」（2026-09-19）**：`jobws bank due` 列出今天该复习的题——纯视图、零数据迁移：`未看` 恒在（还没学）；`看过` 3 天 / `会了` 14 天（间隔写死在 `question_review.REVIEW_INTERVALS`，不做个性化调参）；`最近复习` 为空 / 不是日期 / 状态未知**一律保守计待复习**（宁可多提醒，不静默漏）。列表带「原因」列（从没复习过 / 已到期 N 天）。
 - **题库 CSV 导入 / 导出（2026-09-19）**：命令行新增 `jobws bank export --csv <文件>`（导出整个题库——表头与工作区一字不差、utf-8-sig、**不覆盖已存在文件**）与 `jobws bank import-csv <文件>`（从 CSV 导入，走既有的两段式落盘通道：预览列出「新增 / 已存在跳过 / 不合法跳过」并注明被忽略的未知列，凭令牌落盘）。导入时 `题目id` 列一律忽略、身份由题库分配——**导出再导入是幂等的**（全部按键判重跳过，不会一题两号）。
 - **领域层包化·第二批 PR-B（续）**：**登记表分层**——包内 `_register_builtin_operations()` 登记「实现已在包内」的十个写操作（`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`），仓库侧 `tools/approval.py` 只追加 `prep.toggle` 与 `init`（那两个领域模块按拍板留仓）。独立安装的 MCP 调这两个会得到 **`unknown_operation`**（稳定错误码，不是崩溃）；其余十个装包即用。旧名清零收尾：`pathres 7→0`（转发层删除）、`tracker 49→11`、`approval 26→9`——剩下的 20 处**刻意保留**（跨层测试的被测对象与转发层入口：改新名会让它们测到包内实现、打桩打空）。顺带：`jd_score` 的 `ROOT` 改注入式（它的 `PROFILES` 读不到时只警告不失败，搬包后会静默缺词典依据）；`pyinstaller.spec` 按自己 `:102-109` 的预告补 `certifi` hiddenimport；TLS 形状扫描补扫 `packages`。
 - **领域层包化·第二批 PR-A：路径注入 + tracker + approval（2026-09-19）**：`pathres` / `tracker`（13 个子模块、2276 行）/ `approval` 协议外壳搬进 `packages/jobws-core`，仓内旧路径留转发 shim——**对外零行为变更**（后端 840 用例 + MCP 47 用例与六条检查器全绿）。三处要点：

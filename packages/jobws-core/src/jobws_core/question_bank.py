@@ -25,6 +25,7 @@ import sys
 
 
 from . import tracker  # noqa: E402  （复用工作区解析、原子写、锁与 ConflictError）
+from . import workspace_io  # noqa: E402  （CSV 导出写外部文件用原子写）
 
 # 字段常量**只在 tracker.py 定义一处**（与 TALK_* / INTERVIEW_* 同区），这里导入
 # 复用——同一张表的列名若在两处各写一遍，改了一边就会静默失配（自检、CSV 表头、
@@ -462,6 +463,128 @@ def apply_approved_import(payload, workspace=None):
             raise tracker.ConflictError("预览之后这些题目都已存在（请重新预览）")
         write_questions(rows, ws)
         return {"written": added, "summary": "已导入 %d 道题" % added}
+
+
+# --- CSV 导入 / 导出（2026-09-19 收口批）--------------------------------------
+
+
+def _read_import_csv(csv_path):
+    """读外部 CSV → (records, unknown_columns, error)。
+
+    `题目id` 列一律忽略、记录里置空：身份由题库分配（导出的 CSV 再导入回来
+    因此**幂等**——判重键是「题目+领域+科目」，结果是"已存在，跳过"，
+    不会制造一题两号）。未知列忽略但把列名带回去，让预览能说清。
+    """
+    if not os.path.isfile(csv_path):
+        return None, None, "文件不存在：%s" % csv_path
+    try:
+        with io.open(csv_path, "r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            columns = [c for c in (reader.fieldnames or []) if c]
+            if "题目" not in columns:
+                return None, None, "CSV 表头缺少「题目」列：%s" % csv_path
+            unknown = [c for c in columns if c not in QUESTION_FIELDS]
+            records = []
+            for row in reader:
+                record = dict((f, (row.get(f) or "").strip())
+                              for f in QUESTION_FIELDS if f != "题目id")
+                record["题目id"] = ""
+                records.append(record)
+    except UnicodeDecodeError:
+        return None, None, "不是 UTF-8 编码的 CSV：%s" % csv_path
+    except OSError as exc:
+        return None, None, "读不到：%s（%s）" % (csv_path, exc)
+    return records, unknown, None
+
+
+def preview_import_csv(csv_path, workspace=None):
+    """预览从 CSV 导入（**不落盘**），返回 (errors, plan)。
+
+    与 Markdown 导入共用判重键与落盘通道（`question.import`）；差异在**预览期
+    就把字段校验做完**——CSV 是外部输入、脏数据概率高，预览说"能落"却在 apply
+    时被拒是最糟的体验（不合法 / 缺题目的行在预览里列出并跳过）。落盘载荷形状
+    与 Markdown 导入一致：`{"items": [...]}`。
+    """
+    ws = tracker.resolve_ws(workspace)
+    records, unknown, error = _read_import_csv(csv_path)
+    if error:
+        return [error], None
+    existing = set(dupe_key(r) for r in read_questions(ws))
+    picked, duplicates, invalid, empty_rows = [], [], [], []
+    seen = set()
+    for index, record in enumerate(records, start=2):
+        if not record.get("题目"):
+            empty_rows.append(index)
+            continue
+        record["状态"] = record["状态"] or "未看"
+        # 来源默认与 Markdown 导入一致用枚举内的「导入」——不新造 "CSV 导入"
+        # 之类的值（来源是与 CLI / 前端共享的数据契约，加值要三处同步）
+        record["来源"] = record["来源"] or "导入"
+        errors = _validate_question_fields(record, ws)
+        if errors:
+            invalid.append((index, "；".join(errors)))
+            continue
+        key = dupe_key(record)
+        if key in existing or key in seen:
+            duplicates.append(record)
+            continue
+        seen.add(key)
+        picked.append(record)
+    if not picked:
+        reasons = []
+        if duplicates:
+            reasons.append("%d 个已存在" % len(duplicates))
+        if invalid:
+            reasons.append("%d 个字段不合法" % len(invalid))
+        if empty_rows:
+            reasons.append("%d 行没有题目" % len(empty_rows))
+        detail = "（%s）" % "、".join(reasons) if reasons else ""
+        return ["CSV 里没有可新增的题目%s" % detail], None
+    diff = ["| 题目 | 领域 | 科目 | 来源 |", "|---|---|---|---|"]
+    for item in picked:
+        diff.append("| %s | %s | %s | CSV 导入 |" % (
+            item["题目"], item["领域"] or "—", item["科目"] or "—"))
+    for item in duplicates:
+        diff.append("| %s | %s | %s | 已存在，跳过 |" % (
+            item["题目"], item["领域"] or "—", item["科目"] or "—"))
+    for index, reason in invalid:
+        diff.append("| — | — | — | 第 %d 行跳过：%s |" % (index, reason))
+    for index in empty_rows:
+        diff.append("| — | — | — | 第 %d 行没有题目，跳过 |" % index)
+    if unknown:
+        diff.append("| — | — | — | 提示：忽略了未知列 %s |" % "、".join(unknown))
+    plan = {
+        "payload": {"items": picked},
+        "summary": "从 CSV 导入 %d 道题（跳过 %d 个已存在、%d 个不合法）" % (
+            len(picked), len(duplicates), len(invalid)),
+        "diff": diff,
+        "targets": _targets(ws),
+    }
+    return [], plan
+
+
+def export_csv(workspace=None, target_path=None):
+    """把整个题库导出成 CSV（**不碰工作区**），返回导出的题数。
+
+    表头与工作区 CSV 一字不差（`QUESTION_FIELDS`）；utf-8-sig 让 Excel 双击
+    不乱码。**不覆盖已存在的文件**——静默覆盖别人的数据文件是数据丢失
+    （与 `jobws export --obsidian` 同一条纪律）。
+    """
+    ws = tracker.resolve_ws(workspace)
+    target_path = (target_path or "").strip()
+    if not target_path:
+        raise ValueError("缺少导出文件路径（--csv <文件>）")
+    if os.path.exists(target_path):
+        raise FileExistsError("目标文件已存在（为免覆盖已拒）：%s" % target_path)
+    rows = read_questions(ws)
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=QUESTION_FIELDS)
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(dict((f, row.get(f) or "") for f in QUESTION_FIELDS))
+    workspace_io.atomic_write_text(target_path, buf.getvalue(),
+                                   encoding="utf-8-sig")
+    return len(rows)
 
 
 if __name__ == "__main__":

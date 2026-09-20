@@ -133,7 +133,12 @@ def test_no_handwritten_unverified_context_outside_policy():
         ("手写 check_hostname=False", re.compile(r"check_hostname\s*=\s*False"),
          "packages/jobws-core/src/jobws_core/tls_policy.py", 1),
     )
-    skip_dirs = ("node_modules", "release", "__pycache__", ".git", "dist")
+    # `build` 必须跳过：`pip install ./packages/jobws-core` 会在源码树里留下
+    # `build/lib/jobws_core/` 这份**构建副本**——把 packages 纳入扫描后（2026-09-19
+    # PR-B：策略实现搬进了领域包），不跳过就会被扫出第二份命中而误报。
+    # 本地 editable 安装不产生 build 目录，所以这个坑只在**真实安装**的形态下
+    # 出现——CI 的 backend job 正是那种形态（首跑失败，本地全绿）。
+    skip_dirs = ("node_modules", "release", "__pycache__", ".git", "dist", "build")
     offenders = []
     # `packages` 必须一起扫：策略实现 2026-09-19 搬进领域包，只扫 web/tools 会让
     # 这条检查**静默失效**——正是「搬进去就放行」的形态（与 legacy-imports 同款教训）。

@@ -403,6 +403,16 @@
       "reason": "界面同效路径已存在：题目详情弹窗的「标签」编辑加/去「错题」即进/出错题本；独立的错题本视图随复习面一并设计。"
     },
     {
+      "end": "mcp",
+      "item": "question.delete",
+      "reason": "删是不可逆的高风险动作，先只留给本人发起的两端（命令行 / 界面）；模型不代删。"
+    },
+    {
+      "end": "plugin",
+      "item": "question.delete",
+      "reason": "同上。"
+    },
+    {
       "end": "cli",
       "item": "job.list",
       "reason": "岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。"

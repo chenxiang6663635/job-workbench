@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 # 用**仓内** approval（不是包内协议壳）：本端点是「已确认写入」的唯一落盘入口，
 # 必须看到**完整**登记表——`prep.toggle`（笔记勾选框）与 `init`（初始化工作区）
-# 两个操作按设计留在仓库侧登记，包内只有「实现已在包内」的十个。用包内壳会让
+# 两个操作按设计留在仓库侧登记，包内只有「实现已在包内」的十一个。用包内壳会让
 # 它们变成 unknown_operation（2026-09-19 PR-B 的 e2e 抓到过：笔记勾选框写回 422）。
 import approval  # noqa: E402
 from apierror import ApiError

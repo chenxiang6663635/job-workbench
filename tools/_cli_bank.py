@@ -85,7 +85,7 @@ def _run_wrong(args, workspace):
 
 
 def _run_preview(errors, plan, op_name, workspace):
-    """add / import / update 三处同构的「校验 → 两段式预览」尾部。"""
+    """add / import / update / delete 四处同构的「校验 → 两段式预览」尾部。"""
     for error in errors:
         print("错误：%s" % error)
     if plan is None:
@@ -186,7 +186,8 @@ def cmd_bank(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="jobws bank",
-        description="题库：list / add / update / import / import-csv / export（写操作走两段式）")
+        description="题库：list / add / update / delete / import / import-csv / export"
+                    "（写操作走两段式）")
     subs = parser.add_subparsers(dest="action")
 
     p_list = subs.add_parser("list", help="列出题目（可按领域/科目/状态/关键词筛选）")

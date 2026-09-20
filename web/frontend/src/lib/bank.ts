@@ -46,6 +46,14 @@ async function requestBank<T>(path: string): Promise<T> {
   const qs = currentWorkspace ? `${sep}ws=${encodeURIComponent(currentWorkspace)}` : "";
   const res = await fetch(`/api${path}${qs}`);
   if (!res.ok) throw new Error(humanize(await res.text(), res.status));
+  // 工作区自检（与 api.ts 的 issue #22 修复同口径）：后端会回显本次实际服务的工作区，
+  // 与所选不一致就报错——静默展示**别的工作区**的题，比报错严重得多。两端都有值才比。
+  const served = res.headers.get("X-Jobws-Workspace");
+  if (currentWorkspace && served && served !== currentWorkspace) {
+    throw new Error(
+      i18n.t("api.workspaceMismatch", { requested: currentWorkspace, served })
+    );
+  }
   return (await res.json()) as T;
 }
 

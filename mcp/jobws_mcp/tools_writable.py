@@ -22,7 +22,7 @@ import os
 from . import paths  # noqa: F401
 
 # 全部走领域包（2026-09-19 PR-B）：`approval` 在这里是**包内的协议外壳**，
-# 它自己登记的十个操作（track.* / talk.add / mail.add / interview.* / question.*）
+# 它自己登记的十一个操作（track.* / talk.add / mail.add / interview.* / question.*）
 # 独立安装下也能用；仓库侧的 `prep.toggle` / `init` 不在其中——调它们会得到
 # `unknown_operation`（稳定 code，显式的「这个操作需要仓库在侧」）。
 from jobws_core import approval, question_bank, tracker

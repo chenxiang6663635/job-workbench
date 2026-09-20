@@ -64,8 +64,9 @@ test("准备 · 题库详情的删除预览：a11y 零 serious/critical", async 
   const panel = page.getByRole("tabpanel");
   await expect(panel).toBeVisible();
   // demo 工作区自带例题：按题目文字定位行（行本身是 button，但导入按钮更靠前，
-  // 不能取第一个 button）
-  await panel.getByText("讲讲 TCP 三次握手").click();
+  // 不能取第一个 button）。题面必须与 template/demo/05_投递追踪/questions.csv 逐字一致——
+  // 用本地工作区里存在、而 CI 的 demo 里没有的题面，这条用例在 CI 上必红。
+  await panel.getByText("TCP 三次握手为什么不是两次").click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 

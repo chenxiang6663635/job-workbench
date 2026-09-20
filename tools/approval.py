@@ -92,6 +92,10 @@ def main(argv=None):
         print("记录 id：%s" % result["id"])
     if result.get("written") is not None:
         print("写入条数：%d" % result["written"])
+    if result.get("trace"):
+        # 删除类操作的留痕路径要**显式打出来**：删错之后全靠它回来，而文档只说了
+        # "在工作区之外"——不给确切路径等于让人去猜（快照根目录还可能被改过）
+        print("留痕（删前整表快照，可整份复制回 questions.csv）：%s" % result["trace"])
     return 0
 
 

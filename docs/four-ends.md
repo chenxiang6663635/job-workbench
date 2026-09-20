@@ -55,6 +55,8 @@
 - **mcp** · `question.wrong`：错题标记是本人的复习动作；模型改题请走 preview_update_question 的既有面。
 - **plugin** · `question.wrong`：同上。
 - **gui** · `question.wrong`：界面同效路径已存在：题目详情弹窗的「标签」编辑加/去「错题」即进/出错题本；独立的错题本视图随复习面一并设计。
+- **mcp** · `question.delete`：删是不可逆的高风险动作，先只留给本人发起的两端（命令行 / 界面）；模型不代删。
+- **plugin** · `question.delete`：同上。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。

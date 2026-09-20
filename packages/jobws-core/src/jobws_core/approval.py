@@ -16,7 +16,7 @@
 
 **操作实现由调用侧登记**（`register()`），本模块只管协议外壳，不碰业务：
 
-    仓库的 `tools/approval.py` 在 import 时登记 12 个操作（track.* / talk.add /
+    仓库的 `tools/approval.py` 在 import 时登记 13 个操作（track.* / talk.add /
     mail.add / interview.* / question.* / prep.toggle / init）。
 
 为什么改成注册制（2026-09-19 批 6 第二批）：原先这里写死

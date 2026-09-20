@@ -7,7 +7,9 @@
 3. **留痕落在工作区之外**：删之前整表快照写走，且快照目录**不在工作区内**——
    与被删对象同处一地的留痕会被同一次误操作一起抹掉；
 4. **预览后目标消失就整体拒绝**：不许删一半（删一半比什么都不做更难解释）；
-5. **--id 与筛选条件互斥**：两条路各走各的，混着给是用法错误。
+5. **--id 与筛选条件互斥**：两条路各走各的，混着给是用法错误；
+6. **落盘前核对行指纹**：题目 id 会被**复用**（编号 = max+1，删掉最大号后再导入就
+   拿到同一个 id），只认 id 会出现"预览删 A、落盘删 B"——指纹不符整体拒绝。
 """
 
 import csv
@@ -64,6 +66,18 @@ def _bytes(path):
         return handle.read()
 
 
+def _fingerprints(ws, ids):
+    """按**当前** CSV 造行指纹（预览会把它放进载荷；落盘据此核对"还是那一行"）。"""
+    rows = dict((row["题目id"], row) for row in read_questions(ws))
+    return [question_delete._fingerprint(rows[qid]) for qid in ids]
+
+
+def _fake_fingerprint(question_id, title):
+    """造一个"预览时存在、现在算不出来"的指纹（用于模拟目标已消失）。"""
+    return {"题目id": question_id, "题目": title, "领域": "", "科目": "",
+            "创建日期": ""}
+
+
 def test_preview_does_not_touch_the_csv(ws):
     path = _seed(ws, [("TCP", "技术面", "网络", "导入", TODAY)])
     before = _bytes(path)
@@ -76,7 +90,8 @@ def test_preview_does_not_touch_the_csv(ws):
 def test_single_delete_removes_only_that_row(ws, outside):
     _seed(ws, [("TCP", "技术面", "网络", "导入", TODAY),
                ("UDP", "技术面", "网络", "自拟", TODAY)])
-    result = question_delete.apply_approved_delete({"ids": ["Q001"]}, ws)
+    result = question_delete.apply_approved_delete(
+        {"ids": ["Q001"], "rows": _fingerprints(ws, ["Q001"])}, ws)
     assert result["written"] == 1
     assert [row["题目"] for row in read_questions(ws)] == ["UDP"]
 
@@ -114,10 +129,60 @@ def test_trace_is_a_full_snapshot_and_lives_outside_the_workspace(ws, outside):
 
 def test_refuses_whole_delete_when_a_target_vanished(ws, outside):
     _seed(ws, [("TCP", "技术面", "网络", "导入", TODAY)])
+    payload = {"ids": ["Q999"], "rows": [_fake_fingerprint("Q999", "TCP")]}
     with pytest.raises(tracker.ConflictError) as excinfo:
-        question_delete.apply_approved_delete({"ids": ["Q999"]}, ws)
+        question_delete.apply_approved_delete(payload, ws)
     assert "预览之后" in str(excinfo.value)
     assert len(read_questions(ws)) == 1
+
+
+def test_apply_without_fingerprints_is_refused(ws, outside):
+    """没有行指纹的老令牌 / 手搓载荷一律拒绝：它是防"删错行"的第二次核对。"""
+    _seed(ws, [("TCP", "技术面", "网络", "导入", TODAY)])
+    with pytest.raises(tracker.ConflictError) as excinfo:
+        question_delete.apply_approved_delete({"ids": ["Q001"]}, ws)
+    assert "行指纹" in str(excinfo.value)
+    assert len(read_questions(ws)) == 1
+
+
+def test_refuses_when_the_id_was_reused_by_another_row(ws, outside):
+    """预览删 Q001，落盘前 Q001 被新题复用：只按 id 匹配就会删掉**新导入的那道**。"""
+    _seed(ws, [("TCP", "技术面", "网络", "导入", TODAY)])
+    errors, plan = question_delete.preview_delete_fields("Q001", None, ws)
+    assert errors == []
+    # 编号 = max+1：删掉最大的 Q001 之后再导入，新题正好拿到同一个 id
+    _seed(ws, [("新导入的题", "技术面", "缓存", "导入", TODAY)])
+
+    with pytest.raises(tracker.ConflictError) as excinfo:
+        question_delete.apply_approved_delete(plan["payload"], ws)
+
+    assert "被改过" in str(excinfo.value)
+    assert [row["题目"] for row in read_questions(ws)] == ["新导入的题"]
+
+
+def test_duplicate_ids_are_refused_at_preview(ws):
+    """CSV 里有重复 id 时，"删一题"会带走多行（落盘按 id 匹配全部同 id 行）。"""
+    _seed(ws, [("TCP", "技术面", "网络", "导入", TODAY),
+               ("UDP", "技术面", "网络", "导入", TODAY)])
+    path = os.path.join(ws, "05_投递追踪", "questions.csv")
+    text = io.open(path, encoding="utf-8-sig").read().replace("Q002", "Q001")
+    io.open(path, "w", encoding="utf-8-sig", newline="").write(text)
+
+    errors, plan = question_delete.preview_delete_fields("Q001", None, ws)
+
+    assert plan is None
+    assert any("重复的题目 id" in e for e in errors)
+
+
+def test_diff_lists_the_filter_basis(ws):
+    """差异表要带**筛选依据**（来源 / 创建日期）：批量撤回靠它核对"删的是不是那批"。"""
+    _seed(ws, [("今天导入的题", "技术面", "网络", "导入", TODAY)])
+    errors, plan = question_delete.preview_delete_fields(
+        None, {"来源": "导入", "今天创建": "1"}, ws)
+
+    assert errors == []
+    assert "来源" in plan["diff"][0] and "创建日期" in plan["diff"][0]
+    assert "导入" in plan["diff"][2] and TODAY in plan["diff"][2]
 
 
 def test_id_and_filters_are_mutually_exclusive(ws):

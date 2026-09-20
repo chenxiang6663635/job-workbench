@@ -72,3 +72,57 @@ def due_questions(workspace=None, today=None):
     result.sort(key=lambda item: ((item[0].get("最近复习") or "").strip(),
                                   item[0].get("题目") or ""))
     return result
+
+
+# --- 错题本（2026-09-19 收口批）---------------------------------------------
+#
+# 用**标签**而不是新增列：questions.csv 的列清单被 schema 自检锁着（缺列即报
+# "schema 不匹配"，加列要动版本与老数据迁移）；「标签」本就是分类位（网络基础、
+# 高频题…），加一个「错题」零迁移、Excel 里手改也自然。代价是它不是枚举列——
+# 用错误拼写（"错提"）不会报错，只会静默不入选；文档与服务端口径都写明这一点。
+
+WRONG_TAG = "错题"
+
+# 标签分隔符：写出去统一用英文逗号；读入时容忍中文逗号 / 顿号 / 分号 / 空白
+# （用户手改 CSV 的分隔习惯不止一种）
+_TAG_SPLIT_RE = re.compile(r"[,，、;；\s]+")
+
+
+def split_tags(text):
+    """标签串 → 列表（去空、保序、不去重——去重交给写入口）。"""
+    return [t for t in _TAG_SPLIT_RE.split((text or "").strip()) if t]
+
+
+def wrong_questions(workspace=None):
+    """错题本：标签里含「错题」的题，按（最近复习升序、题目）排。"""
+    rows = [r for r in question_bank.read_questions(workspace)
+            if WRONG_TAG in split_tags(r.get("标签"))]
+    rows.sort(key=lambda r: ((r.get("最近复习") or "").strip(),
+                             r.get("题目") or ""))
+    return rows
+
+
+def preview_mark_wrong(question_id, on, workspace=None):
+    """预览把一道题标进 / 移出错题本（**不落盘**），返回 (errors, plan)。
+
+    实现是「重算标签串 → 走既有的 update 预览」：**不新增写操作**——落盘通道、
+    字段校验与"预览后数据变了"的冲突语义全部复用（`question.update`）。
+    """
+    qid = (question_id or "").strip()
+    if not qid:
+        return ["缺少题目 id（可用 `jobws bank wrong` 或 `bank list` 查）"], None
+    rows = question_bank.read_questions(workspace)
+    current = question_bank.find_question(rows, qid)
+    if current is None:
+        return ["找不到 id 为 %s 的题目" % qid], None
+    tags = split_tags(current.get("标签"))
+    if on:
+        if WRONG_TAG in tags:
+            return ["这道题的标签里本来就有「%s」（无变化）" % WRONG_TAG], None
+        tags.append(WRONG_TAG)
+    else:
+        if WRONG_TAG not in tags:
+            return ["这道题不在错题本里（无变化）"], None
+        tags = [t for t in tags if t != WRONG_TAG]
+    return question_bank.preview_update_fields(
+        qid, {"标签": ",".join(tags)}, workspace)

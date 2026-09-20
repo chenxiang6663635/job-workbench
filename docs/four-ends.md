@@ -38,6 +38,7 @@
 | 笔记 | `prep.toggle` | — | — | — | `GET /api/prep/{section}/preview-toggle` |
 | 通用 | `export.obsidian` | `export --obsidian` | — | — | — |
 | 题库 | `question.due` | `bank due` | — | — | — |
+| 题库 | `question.wrong` | `bank wrong` | — | — | — |
 
 ## 各端不提供的能力（含原因）
 
@@ -50,6 +51,9 @@
 - **mcp** · `question.due`：复习清单是本人的每日动作，模型不代劳；需要时让用户跑 `jobws bank due`。
 - **plugin** · `question.due`：同上。
 - **gui** · `question.due`：界面侧的复习入口（今日待复习 + 错题本）随复习面一并设计，本批只上 CLI。
+- **mcp** · `question.wrong`：错题标记是本人的复习动作；模型改题请走 preview_update_question 的既有面。
+- **plugin** · `question.wrong`：同上。
+- **gui** · `question.wrong`：界面同效路径已存在：题目详情弹窗的「标签」编辑加/去「错题」即进/出错题本；独立的错题本视图随复习面一并设计。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。

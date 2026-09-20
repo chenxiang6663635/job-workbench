@@ -256,6 +256,15 @@
       "plugin": null,
       "gui": null,
       "note": "只读：今日待复习——未看恒在；看过 3 天 / 会了 14 天；`最近复习` 为空 / 脏 / 状态未知一律保守计待复习（宁可多提醒）。纯视图、零数据迁移；界面侧的复习入口随错题本一并设计。"
+    },
+    {
+      "id": "question.wrong",
+      "stage": "题库",
+      "cli": "bank wrong",
+      "mcp": null,
+      "plugin": null,
+      "gui": null,
+      "note": "错题本：标签里含「错题」的题（零 schema 变更——标签本就是分类位，加列会撞 schema 自检）。列表只读；标记（--add / --remove）**复用 question.update 的两段式**，不新增写操作。界面里在题目详情的「标签」里加/去「错题」即同效。"
     }
   ],
   "error_map": [
@@ -368,6 +377,21 @@
       "end": "gui",
       "item": "question.due",
       "reason": "界面侧的复习入口（今日待复习 + 错题本）随复习面一并设计，本批只上 CLI。"
+    },
+    {
+      "end": "mcp",
+      "item": "question.wrong",
+      "reason": "错题标记是本人的复习动作；模型改题请走 preview_update_question 的既有面。"
+    },
+    {
+      "end": "plugin",
+      "item": "question.wrong",
+      "reason": "同上。"
+    },
+    {
+      "end": "gui",
+      "item": "question.wrong",
+      "reason": "界面同效路径已存在：题目详情弹窗的「标签」编辑加/去「错题」即进/出错题本；独立的错题本视图随复习面一并设计。"
     },
     {
       "end": "cli",

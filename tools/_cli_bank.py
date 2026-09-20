@@ -22,7 +22,8 @@ if _TOOLS_DIR not in sys.path:
 from jobws_core.question_bank import (MODULE_DIR, export_csv, preview_add_fields,  # noqa: E402
                            preview_import, preview_import_csv,
                            preview_update_fields, read_questions)
-from jobws_core.question_review import due_questions  # noqa: E402
+from jobws_core.question_review import (due_questions,  # noqa: E402
+                                        preview_mark_wrong, wrong_questions)
 
 
 def _print_questions(rows):
@@ -37,6 +38,49 @@ def _print_questions(rows):
             row.get("领域") or "—", row.get("状态") or "未看", row.get("来源") or ""))
     print("")
     print("共 %d 道" % len(rows))
+
+
+def _run_due(workspace):
+    """今日待复习：只读列表（间隔阶梯与保守规则都在 question_review 里）。"""
+    items = due_questions(workspace)
+    if not items:
+        print("今日没有待复习的题。")
+        return 0
+    print("| 题目 | 领域 | 状态 | 最近复习 | 原因 |")
+    print("|---|---|---|---|---|")
+    for row, reason in items:
+        print("| %s | %s | %s | %s | %s |" % (
+            row.get("题目") or "", row.get("领域") or "—",
+            row.get("状态") or "未看", row.get("最近复习") or "—", reason))
+    print("")
+    print("共 %d 道待复习。" % len(items))
+    return 0
+
+
+def _run_wrong(args, workspace):
+    """错题本：无参数列出；--add/--remove 走既有 update 的两段式预览。"""
+    if args.add and args.remove:
+        print("--add 与 --remove 一次只能给一个")
+        return 2
+    if args.add or args.remove:
+        # 标记 = 重算标签串 → 既有 update 通道（不新增写操作）
+        errors, plan = preview_mark_wrong(args.add or args.remove,
+                                          bool(args.add), workspace)
+        return _run_preview(errors, plan, "question.update", workspace)
+    rows = wrong_questions(workspace)
+    if not rows:
+        print("错题本为空。标记：`jobws bank wrong --add <题目id>`（加「错题」标签）")
+        return 0
+    print("| 题目id | 题目 | 领域 | 状态 | 最近复习 |")
+    print("|---|---|---|---|---|")
+    for row in rows:
+        print("| %s | %s | %s | %s | %s |" % (
+            row.get("题目id") or "", row.get("题目") or "",
+            row.get("领域") or "—", row.get("状态") or "未看",
+            row.get("最近复习") or "—"))
+    print("")
+    print("共 %d 道错题。" % len(rows))
+    return 0
 
 
 def _run_preview(errors, plan, op_name, workspace):
@@ -79,20 +123,10 @@ def cmd_bank(args):
         return 0
 
     if args.action == "due":
-        # 只读视图：间隔阶梯与保守规则都在 question_review.due_questions 里
-        items = due_questions(workspace)
-        if not items:
-            print("今日没有待复习的题。")
-            return 0
-        print("| 题目 | 领域 | 状态 | 最近复习 | 原因 |")
-        print("|---|---|---|---|---|")
-        for row, reason in items:
-            print("| %s | %s | %s | %s | %s |" % (
-                row.get("题目") or "", row.get("领域") or "—",
-                row.get("状态") or "未看", row.get("最近复习") or "—", reason))
-        print("")
-        print("共 %d 道待复习。" % len(items))
-        return 0
+        return _run_due(workspace)
+
+    if args.action == "wrong":
+        return _run_wrong(args, workspace)
 
     if args.action == "add":
         errors, plan = preview_add_fields(_bank_changes(args), workspace)
@@ -147,6 +181,11 @@ def main(argv=None):
 
     p_due = subs.add_parser("due", help="今日待复习（只读：未看恒在；看过 3 天 / 会了 14 天）")
     p_due.add_argument("--workspace", default=None)
+
+    p_wrong = subs.add_parser("wrong", help="错题本（列表；--add/--remove 标记，走两段式）")
+    p_wrong.add_argument("--add", metavar="题目id", help="把该题标进错题本（加「错题」标签）")
+    p_wrong.add_argument("--remove", metavar="题目id", help="从错题本移除（去掉「错题」标签）")
+    p_wrong.add_argument("--workspace", default=None)
 
     p_add = subs.add_parser("add", help="新增一道题（预览后凭令牌落盘）")
     p_add.add_argument("--title", required=True, help="题目")

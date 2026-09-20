@@ -56,6 +56,40 @@ test("准备 · 题库页签：a11y 零 serious/critical", async ({ page }) => {
   await scanActiveTab(page, "Question bank");
 });
 
+test("准备 · 训练页签：抽题后答案默认折叠（a11y 零 serious/critical）", async ({ page }) => {
+  // 2026-09-20：训练面板是「练」的入口，核心纪律是**答案默认折叠**——先盲答再看。
+  // 这条同时钉住"抽得到题"与"答案不在第一眼"。
+  await openPage(page, "prepare");
+  // 英文页签名是「Drill」（与语言包对齐）
+  await page.getByRole("tab", { name: "Drill" }).click();
+  const panel = page.getByRole("tabpanel");
+  await expect(panel).toBeVisible();
+
+  // 用随机模式：demo 工作区的两道例题按 due 算都还没到期，走重练队列会抽到空；
+  // 随机模式在任何一天都抽得到题（测试不该依赖"今天是哪天"）。
+  await panel.getByRole("button", { name: "Random" }).click();
+  await panel.getByRole("button", { name: "Draw" }).click();
+  await expect(panel.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 10_000 });
+
+  // 盲答：答案要点不给看；点开之后按钮消失（说明答案已展开）
+  const reveal = panel.getByRole("button", { name: "Show answer" });
+  await expect(reveal).toBeVisible();
+  await reveal.click();
+  await expect(panel.getByRole("button", { name: "Show answer" })).toHaveCount(0);
+
+  const results = await new AxeBuilder({ page })
+    .include('[role="tabpanel"]')
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  const serious = results.violations.filter(
+    (v) => v.impact === "serious" || v.impact === "critical"
+  );
+  expect(
+    serious,
+    `训练面板有 serious/critical：${serious.map((v) => v.id).join("、")}`
+  ).toEqual([]);
+});
+
 test("准备 · 题库详情的删除预览：a11y 零 serious/critical", async ({ page }) => {
   // 2026-09-20：新增的「删除确认卡」此前没有任何扫描覆盖过（它是弹窗里的第二层，
   // 只扫页签看不到）。删比改不可逆，这块的无障碍更不该是盲区。
@@ -85,4 +119,23 @@ test("准备 · 题库详情的删除预览：a11y 零 serious/critical", async 
     serious,
     `删除确认卡有 serious/critical：${serious.map((v) => v.id).join("、")}`
   ).toEqual([]);
+});
+
+test("准备 · 训练页签：窄屏 390×844 无横向溢出", async ({ page }) => {
+  // 训练的价值之一就是"碎片化"——窄屏（手机浏览器）不该出现横向滚动条。
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Drill" }).click();
+  const panel = page.getByRole("tabpanel");
+  await panel.getByRole("button", { name: "Random" }).click();
+  await panel.getByRole("button", { name: "Draw" }).click();
+  await expect(panel.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 10_000 });
+
+  // 断言**面板自身**不横向溢出：整站 390px 适配属于另一批未做的计划
+  // （顶栏导航在 390px 下本来就溢出，与本面板无关——拿整页宽度断言会误报）。
+  const overflow = await page.evaluate(() => {
+    const panel = document.querySelector('[role="tabpanel"]') as HTMLElement | null;
+    return panel ? panel.scrollWidth - panel.clientWidth : -1;
+  });
+  expect(overflow, `训练面板自身横向溢出 ${overflow}px`).toBeLessThanOrEqual(1);
 });

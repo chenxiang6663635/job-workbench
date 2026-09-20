@@ -26,6 +26,8 @@ from jobws_core.question_review import (due_questions,  # noqa: E402
                                         preview_mark_wrong, wrong_questions)
 from jobws_core.question_delete import preview_delete_fields  # noqa: E402
 
+import _cli_bank_drill  # noqa: E402  （drill 命令层：只读抽题；拆出去守规模预算）
+
 
 def _print_questions(rows):
     if not rows:
@@ -123,6 +125,9 @@ def cmd_bank(args):
         _print_questions(rows)
         return 0
 
+    if args.action == "drill":
+        return _cli_bank_drill.run(args, workspace)
+
     if args.action == "due":
         return _run_due(workspace)
 
@@ -186,8 +191,8 @@ def cmd_bank(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="jobws bank",
-        description="题库：list / add / update / delete / import / import-csv / export"
-                    "（写操作走两段式）")
+        description="题库：list / due / wrong / add / update / delete / drill / "
+                    "import / import-csv / export（写操作走两段式）")
     subs = parser.add_subparsers(dest="action")
 
     p_list = subs.add_parser("list", help="列出题目（可按领域/科目/状态/关键词筛选）")
@@ -234,6 +239,7 @@ def main(argv=None):
     p_update.add_argument("--note", help="备注")
     p_update.add_argument("--workspace", default=None)
 
+    _cli_bank_drill.add_parser(subs)
     p_delete = subs.add_parser("delete", help="删除题目（预览后凭令牌落盘）")
     p_delete.add_argument("--id", metavar="题目id", help="精确删一题（用 list 查）")
     p_delete.add_argument("--domain", help="领域")

@@ -38,18 +38,19 @@ def _parse_date(text):
         return None
 
 
-def due_questions(workspace=None, today=None):
-    """今日待复习的题：返回 `[(row, reason)]`，按（最近复习升序、题目）排。
+def due_from_rows(rows, today=None):
+    """同上规则，但作用在**已读出的行**上（2026-09-20：抽题要用它）。
 
-    `today` 可注入（测试与"模拟某天"用）；传字符串按 ISO 日期解析，解析不出
-    就当没传。reason 是给人看的一句话，直接展示在 CLI 表格里。
+    为什么拆出这一层：`due_questions` 自己读工作区，而抽题拿到的行是**筛过**的
+    （领域 / 科目 / 关键词在调用方就过滤掉了）。若抽题再按自己的口径算一遍 due，
+    就会出现"界面上的队列和 CLI 不一样"这种无从解释的差异——规则只有一处。
     """
     day = today or datetime.date.today()
     if isinstance(day, str):
         day = _parse_date(day) or datetime.date.today()
 
     result = []
-    for row in question_bank.read_questions(workspace):
+    for row in rows:
         status = (row.get("状态") or "").strip() or "未看"
         raw_last = (row.get("最近复习") or "").strip()
         last = _parse_date(raw_last)
@@ -72,6 +73,15 @@ def due_questions(workspace=None, today=None):
     result.sort(key=lambda item: ((item[0].get("最近复习") or "").strip(),
                                   item[0].get("题目") or ""))
     return result
+
+
+def due_questions(workspace=None, today=None):
+    """今日待复习的题：返回 `[(row, reason)]`，按（最近复习升序、题目）排。
+
+    `today` 可注入（测试与"模拟某天"用）；传字符串按 ISO 日期解析，解析不出
+    就当没传。reason 是给人看的一句话，直接展示在 CLI 表格里。
+    """
+    return due_from_rows(question_bank.read_questions(workspace), today)
 
 
 # --- 错题本（2026-09-19 收口批）---------------------------------------------

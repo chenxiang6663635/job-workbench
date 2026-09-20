@@ -231,19 +231,36 @@ def cmd_export(args):
 
     sync_to = (getattr(args, "sync_to", "") or "").strip()
     if sync_to:
-        # 白名单 = 本次导出真正会产生的顶层条目；sync 只碰它们，库里的其它文件
-        # （用户自己的笔记、.obsidian/）一个字节都不动
+        # 白名单 = 本次导出真正会产生的顶层条目；sync 只碰它们——库里的 .obsidian/
+        # 与白名单外的文件不在任何读写删路径上
         names = [name for name, _c, _reader, _titles in TABLES] + ["README.md", "jobws.base"]
-        if getattr(args, "notes", False):
+        include_notes = bool(getattr(args, "notes", False))
+        if include_notes:
             from _cli_export_notes import NOTE_DIRS  # 函数内 import：避免环状依赖
             names += list(NOTE_DIRS)
         try:
-            from _cli_export_sync import sync_to_vault  # 函数内 import：同上
-            for line in sync_to_vault(root, sync_to, names, workspace,
-                                      dry_run=bool(getattr(args, "dry_run", False))):
+            from _cli_export_sync import sync_execute, sync_plan  # 函数内 import：同上
+            ops, lines = sync_plan(root, sync_to, names, workspace,
+                                   include_notes=include_notes)
+            for line in lines:
+                print(line)  # 计划先见光，再决定是否执行（删除不可逆）
+            if getattr(args, "dry_run", False):
+                print("（--dry-run：库目录一个字节都没动）")
+                return 0
+            deletions = len([op for op in ops if op[0] == "删除"])
+            if deletions and not getattr(args, "yes", False):
+                print("同步未执行：计划里有 %d 个删除（不可逆）。确认无误请加 --yes 重跑；"
+                      "只想预览用 --dry-run。" % deletions, file=sys.stderr)
+                return 1
+            _counts, done_lines = sync_execute(root, sync_to, names, ops)
+            for line in done_lines:
                 print(line)
+            return 0
         except RuntimeError as exc:
             print("同步失败：%s" % exc, file=sys.stderr)
+            return 1
+        except OSError as exc:
+            print("同步失败（写入出错）：%s" % exc, file=sys.stderr)
             return 1
     return 0
 
@@ -262,6 +279,8 @@ def main(argv=None):
                              "插件与复习进度不受影响；库目录必须已存在且在工作区之外）")
     parser.add_argument("--dry-run", action="store_true",
                         help="只打印同步计划，不改库目录（配合 --sync-to）")
+    parser.add_argument("--yes", action="store_true",
+                        help="同步计划里有删除时必须携带（删除不可逆；--dry-run 只预览）")
     parser.add_argument("--workspace", default=None)
     args = parser.parse_args(argv)
     return cmd_export(args)

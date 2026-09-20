@@ -206,3 +206,70 @@ def test_export_prints_where_it_wrote(ws, tmp_path, capsys):
     printed = capsys.readouterr().out
     assert "已导出 1 篇笔记" in printed
     assert "obsidian-export-" in printed
+
+
+# --- 材料投影（`--notes`，2026-09-20）----------------------------------------
+
+
+def _write_note(ws, rel, text):
+    path = ws / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_notes_are_projected_with_structure_and_frontmatter(ws, tmp_path):
+    """`--notes`：03/04/00 的 Markdown 原样投影——保留层级 + frontmatter 记来源。"""
+    _write_note(ws, "03_面试准备/技术面/a.md", "# 题 A\n\n正文 A。\n")
+    _write_note(ws, "04_知识库/液冷/b.md", "# 题 B\n\n正文 B。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    note = io.open(os.path.join(root, "03_面试准备", "技术面", "a.md"),
+                   encoding="utf-8").read()
+    assert "tags: [jobws/笔记]" in note
+    assert '来源目录: "03_面试准备"' in note
+    assert '相对路径: "技术面/a.md"' in note
+    assert '标题: "题 A"' in note
+    assert note.rstrip().endswith("正文 A。")
+    assert os.path.isfile(os.path.join(root, "04_知识库", "液冷", "b.md"))
+    assert total == 2  # 表都是空的，只有两篇材料
+
+
+def test_training_cards_are_not_projected_twice(ws, tmp_path):
+    """训练卡是题库的卡源：已在「题库/」下以 flashcard 出现，不再投影一遍。"""
+    _write_note(ws, "03_面试准备/训练卡/技术面/x.md", "# 卡 X\n\n要点。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, _total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+
+    assert os.path.isdir(os.path.join(root, "03_面试准备"))
+    assert not os.path.exists(os.path.join(root, "03_面试准备", "训练卡"))
+
+
+def test_big_note_is_copied_in_full_not_truncated(ws, tmp_path):
+    """256 KB 截断是只读端点的语义；带进导出会把长速记截成半篇。"""
+    body = "x" * (300 * 1024)
+    _write_note(ws, "00_事实库/big.md", "# 大文件\n\n%s\n\nTAIL-MARKER\n" % body)
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, _total = _cli_export.export_obsidian(str(ws), str(out), include_notes=True)
+    note = io.open(os.path.join(root, "00_事实库", "big.md"), encoding="utf-8").read()
+
+    assert "TAIL-MARKER" in note, "超过 256 KB 的笔记被截断了"
+    assert note.count("x") == 300 * 1024
+
+
+def test_notes_are_off_by_default(ws, tmp_path):
+    """新增能力用新增开关承载：不带 --notes 时既有导出行为不变。"""
+    _write_note(ws, "03_面试准备/技术面/a.md", "# 题 A\n\n正文。\n")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    root, _total = _cli_export.export_obsidian(str(ws), str(out))
+
+    assert not os.path.exists(os.path.join(root, "03_面试准备"))

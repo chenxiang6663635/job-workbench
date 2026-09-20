@@ -17,6 +17,10 @@ frontmatter 让 Obsidian 的 Bases / Dataview 能按字段过滤排序，正文�
 八张表：投递记录 / 时间线 / 面试 / 宣讲会 / 邮件 / 联系人 / Offer / 题库。
 题库笔记额外带 spaced-repetition 的卡片语法（`#flashcard` + `题目:: 答案`）。
 
+`--notes` 时另把 `03_面试准备` / `04_知识库` / `00_事实库` 的 Markdown **原样**
+投影成笔记（保留目录层级、**全量读取不截断**——256 KB 截断是只读端点的语义，
+带进导出会把几万字的速记截成半篇）。训练卡目录不重复投影：那些卡已经在题库里。
+
 命令层只管参数与退出码；导出的每一步都是可单测的纯函数（见 tests/
 test_export_obsidian.py）。
 """
@@ -25,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import io
 import os
 import re
 import sys
@@ -53,6 +58,7 @@ TABLES = [
 # Windows 文件名非法字符与路径分隔符（字段值里可能出现 `/`，如「研发/测试」）
 _ILLEGAL_NAME_RE = re.compile(r'[\\/:*?"<>|\r\n\t]')
 _MAX_NAME_LEN = 60
+
 
 
 def yaml_scalar(value):
@@ -116,15 +122,21 @@ def field_names(const_name):
     return list(getattr(tracker, const_name))
 
 
+# --- 材料投影（`--notes`）---------------------------------------------------
+# 实现在 `_cli_export_notes.py`：那是**另一条通道**（文件 → 笔记，不是 CSV 行 →
+# 笔记），且本文件已逼近 300 行的规模预算，故不并在这里。
+
+
 def now_stamp():
     """导出目录的时间戳（拆成一个函数：测试要固定住它才能钉「不覆盖」这条）。"""
     return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-def export_obsidian(workspace, target_dir):
+def export_obsidian(workspace, target_dir, include_notes=False):
     """导出到 `<target_dir>/obsidian-export-<时间戳>/`，返回 (root, 笔记数)。
 
     目录不存在就建（用户指定的导出根目录）；导出目录同名已存在则抛 RuntimeError。
+    `include_notes` 为真时，另把 03/04/00 三个材料目录**原样**投影成笔记。
     """
     ws = tracker.resolve_ws(workspace)
     if not os.path.isdir(ws):
@@ -158,25 +170,43 @@ def export_obsidian(workspace, target_dir):
             total += 1
         dirs.append((name, len(rows or [])))
 
+    note_dirs = []
+    if include_notes:
+        # 函数内 import：投影模块要用这里的 yaml_scalar / _ILLEGAL_NAME_RE，
+        # 顶层互引就是循环依赖
+        from _cli_export_notes import export_notes
+        note_dirs = export_notes(ws, root)
+        total += sum(count for _name, count in note_dirs)
     workspace_io.atomic_write_text(
-        os.path.join(root, "README.md"), render_readme(dirs, total))
+        os.path.join(root, "README.md"), render_readme(dirs, total, note_dirs))
     workspace_io.atomic_write_text(os.path.join(root, "jobws.base"), render_base())
     return root, total
 
 
-def render_readme(dirs, total):
+def render_readme(dirs, total, note_dirs=()):
     """导出说明：目录结构 + 怎么用 + 边界（导出是快照，不是同步）。"""
     lines = [
         "# jobws → Obsidian 导出",
         "",
         "导出时间：%s" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "共 %d 篇笔记（每张 CSV 一行 → 一篇 Markdown）。" % total,
+        # 注意 `%` 比 `+` 紧：先拼好句式再格式化，别写成 A + B % total
+        "共 %d 篇笔记（%s）。" % (
+            total,
+            "每张 CSV 一行 → 一篇 Markdown"
+            + ("；另含材料原文的投影笔记" if note_dirs else ""),
+        ),
         "",
         "## 目录",
         "",
     ]
     for name, count in dirs:
         lines.append("- `%s/`：%d 篇" % (name, count))
+    if note_dirs:
+        lines += [
+            "- **材料笔记**（`--notes` 投影：原文全文 + 保留目录层级）：",
+        ]
+        for name, count in note_dirs:
+            lines.append("  - `%s/`：%d 篇" % (name, count))
     lines += [
         "",
         "## 怎么用",
@@ -230,7 +260,8 @@ def cmd_export(args):
               file=sys.stderr)
         return 1
     try:
-        root, total = export_obsidian(workspace, target)
+        root, total = export_obsidian(workspace, target,
+                                      include_notes=bool(getattr(args, "notes", False)))
     except RuntimeError as exc:
         print("导出失败：%s" % exc, file=sys.stderr)
         return 1
@@ -248,6 +279,9 @@ def main(argv=None):
         description="导出工作区（目前只有 --obsidian：导成 Obsidian 笔记）")
     parser.add_argument("--obsidian", metavar="目录",
                         help="把八张 CSV 导成 Obsidian 笔记（每行一笔记 + frontmatter）")
+    parser.add_argument("--notes", action="store_true",
+                        help="另把 03_面试准备 / 04_知识库 / 00_事实库 的 Markdown "
+                             "原样投影成笔记（保留目录层级，全量不截断）")
     parser.add_argument("--workspace", default=None)
     args = parser.parse_args(argv)
     return cmd_export(args)

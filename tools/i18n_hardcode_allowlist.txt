@@ -61,6 +61,10 @@ components/QuestionBankRow.tsx = · ${row.关联岗位}|会了|关联公司|未�
 # 题库详情弹窗（2026-09-18）：状态三态与难度档位枚举、CSV 列名——都是数据值
 components/QuestionDetailDialog.tsx = 中|会了|易|未看|状态|看过|答案要点|难|难度|题目
 
+# 新增题目表单（2026-09-21 批次 B-1）：难度档位枚举（易 / 中 / 难）——questions.csv
+# 的真实取值，不翻译（与详情弹窗、列表徽章同一套约定）
+components/QuestionForm.tsx = 中|易|难
+
 # 看板「近 7 天宣讲会」区块（2026-09-18）：时间 / 是否参加 都是 talks.csv 的真实列名（取数）
 components/UpcomingTalks.tsx = 时间|是否参加
 

@@ -174,6 +174,33 @@ test("准备 · 题库详情的删除预览：a11y 零 serious/critical", async 
   ).toEqual([]);
 });
 
+test("准备 · 题库：新增题目表单能预览（不落盘）", async ({ page }) => {
+  // 2026-09-21（批次 B-1）：加题入口从 CLI 挪进界面——此前空态文案把用户往命令行推。
+  // 只走到「预览」为止、不点确认：demo 数据零改动（落盘段走全站唯一 apply 通道，
+  // 已有 update / import 同源覆盖；这条网钉的是**入口与必填校验**真的在界面上）。
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Question bank" }).click();
+  const panel = page.getByRole("tabpanel");
+  await expect(panel).toBeVisible();
+  await expect(panel.locator("input, table, li, p").first()).toBeVisible({ timeout: 10_000 });
+
+  await panel.getByRole("button", { name: "New question" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  // 题目为空时「预览」不可用——必填校验在界面就先拦住（后端也有同一道闸）
+  await expect(dialog.getByRole("button", { name: "Preview" })).toBeDisabled();
+
+  await dialog.getByLabel("题目 (Question)").fill("e2e 新增预览演示");
+  await dialog.getByRole("button", { name: "Preview" }).click();
+  // 预览段真的打到了 preview-add：差异摘要回显题目（此时仍未落盘）
+  await expect(dialog.getByText("新增题目：e2e 新增预览演示")).toBeVisible({ timeout: 10_000 });
+
+  // 取消预览（差异卡收起、表单还在）——弹窗关掉后 demo 数据零改动
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog.getByText("新增题目：e2e 新增预览演示")).toHaveCount(0);
+});
+
 test("准备 · 训练页签：窄屏 390×844 无横向溢出", async ({ page }) => {
   // 训练的价值之一就是"碎片化"——窄屏（手机浏览器）不该出现横向滚动条。
   await page.setViewportSize({ width: 390, height: 844 });

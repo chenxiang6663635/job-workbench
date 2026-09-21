@@ -107,6 +107,46 @@ def questions(ws: str = Depends(workspace_dir), domain: str = None,
 
 
 
+# 新增预览的查询参数名 -> CSV 中文字段名（与 update 同构：字段名即契约，全仓只在
+# 此处做一次映射）。`题目` 必填由领域层校验；其余留空即未填。
+_ADD_FIELD_PARAMS = (("title", "题目"), ("domain", "领域"), ("subject", "科目"),
+                     ("tags", "标签"), ("difficulty", "难度"), ("answer", "答案要点"),
+                     ("origin", "来源"), ("company", "关联公司"), ("role", "关联岗位"),
+                     ("status", "状态"), ("note", "备注"))
+
+
+@router.get("/questions/preview-add")
+def preview_question_add(ws: str = Depends(workspace_dir), title: str = "",
+                         domain: str = None, subject: str = None, tags: str = None,
+                         difficulty: str = None, answer: str = None, origin: str = None,
+                         company: str = None, role: str = None, status: str = None,
+                         note: str = None):
+    """1c 预览：自拟新增一道题（**不落盘**），返回令牌与将写入的字段表。
+
+    与 1a / 1b 同构：只签发一次性令牌，落盘走既有的 `/api/approvals/apply`
+    （写通道只有一条）。校验与判重在领域层 `preview_add_fields`——与 CLI `bank add`
+    和 MCP `preview_add_question` 是**同一份实现**：题目没填、或已存在同名同领域的题，
+    都在预览段就得到明确拒绝，不会等到落盘才炸。
+
+    只把**给了值**的参数转成字段：空串与"没给"同义（领域层视空值为未填），
+    避免把空串当成"显式清空"这类本语义不支持的意图。
+    """
+    provided = {"title": title, "domain": domain, "subject": subject, "tags": tags,
+                "difficulty": difficulty, "answer": answer, "origin": origin,
+                "company": company, "role": role, "status": status, "note": note}
+    fields = dict((field, provided[param]) for param, field in _ADD_FIELD_PARAMS
+                  if (provided[param] or "").strip())
+    errors, plan = question_store.preview_add_fields(fields, ws)
+    if plan is None:
+        raise ApiError(400, "question.addFailed", "题库新增预览失败",
+                       reason="；".join(errors))
+    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
+    result = approval.preview("question.add", ws, plan["payload"], plan["summary"],
+                              plan["diff"], plan["targets"])
+    return {"token": result["token"], "summary": plan["summary"],
+            "diff": plan["diff"], "expiresAt": result["expires_at"]}
+
+
 @router.get("/questions/preview-import")
 def preview_question_import(ws: str = Depends(workspace_dir)):
     """1a 预览：解析 `<工作区>/03_面试准备/**/*.md` 成候选题目——**不落盘**。

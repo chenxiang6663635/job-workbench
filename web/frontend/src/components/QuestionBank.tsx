@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Download, Search } from "lucide-react";
+import { BookOpen, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type BankQuestion } from "../api";
 import { AskedBefore } from "./AskedBefore";
-import { BankPreviewCard } from "./BankPreviewCard";
+import { BankImportButton } from "./BankImportButton";
+import { QuestionForm } from "./QuestionForm";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -32,10 +33,8 @@ function MyBank() {
   const [loading, setLoading] = useState(true);
   // 详情（也就是编辑）弹窗：null = 关闭，否则为被打开的那一行
   const [selected, setSelected] = useState<BankQuestion | null>(null);
-  const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
-    null
-  );
-  const [importing, setImporting] = useState(false);
+  // 「新增题目」弹窗（批次 B-1）：加题入口从 CLI 挪进界面
+  const [adding, setAdding] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -56,31 +55,6 @@ function MyBank() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword, status]);
-
-  const onPreviewImport = () => {
-    setError(null);
-    setImporting(true);
-    api
-      .previewQuestionImport()
-      .then((r) => setPreview({ token: r.token, summary: r.summary, diff: r.diff }))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setImporting(false));
-  };
-
-  const onConfirmImport = () => {
-    if (!preview) return;
-    setImporting(true);
-    setError(null);
-    // 两段式的第二步：凭令牌落盘（与命令行 / MCP 同源，冲突与过期由服务端拒绝）
-    api
-      .applyApproval(preview.token)
-      .then(() => {
-        setPreview(null);
-        load();
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setImporting(false));
-  };
 
   return (
     <div className="space-y-3">
@@ -111,24 +85,15 @@ function MyBank() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" onClick={onPreviewImport} disabled={importing}>
-          <Download size={13} className="mr-1" />
-          {importing ? t("bank.importing") : t("bank.import")}
+        {/* 导入的路整体抽到 BankImportButton（含预览 → 确认的两段式） */}
+        <BankImportButton onImported={load} />
+        <Button size="sm" onClick={() => setAdding(true)}>
+          <Plus size={13} className="mr-1" />
+          {t("bank.addQuestion")}
         </Button>
       </div>
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
-
-      {preview && (
-        <BankPreviewCard
-          summary={preview.summary}
-          diff={preview.diff}
-          busy={importing}
-          confirmLabel={t("bank.confirmImport")}
-          onConfirm={onConfirmImport}
-          onCancel={() => setPreview(null)}
-        />
-      )}
 
       {/* 三态齐全（与「被问过的」同一套）：失败时只出错误条，不再接着显示
           「题库还是空的」——请求失败与真的没有题是两件事，混报会让人以为数据丢了 */}
@@ -170,6 +135,17 @@ function MyBank() {
           onClose={() => setSelected(null)}
           onSaved={() => {
             setSelected(null);
+            load();
+          }}
+        />
+      )}
+
+      {/* 新增题目（批次 B-1）：确认落盘后关窗并重载 */}
+      {adding && (
+        <QuestionForm
+          onClose={() => setAdding(false)}
+          onSaved={() => {
+            setAdding(false);
             load();
           }}
         />

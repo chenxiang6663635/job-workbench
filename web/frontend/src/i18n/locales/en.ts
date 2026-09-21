@@ -95,9 +95,15 @@ export default {
   "bank.import": "Import from 03_面试准备",
   "bank.importing": "Parsing…",
   "bank.confirmImport": "Confirm import",
+  "bank.addQuestion": "New question",
+  "bank.addTitle": "New question",
+  "bank.addDesc": "Add your own question: review the fields to be written, then confirm.",
+  "bank.addNeedTitle": "Question text is required",
+  "bank.previewAdd": "Preview",
+  "bank.confirmAdd": "Confirm add",
   "bank.emptyNoData": "Your question bank is empty",
   "bank.emptyHintNoData":
-    "Use Import above to pull in Markdown from 03_面试准备, or add one with jobws bank add",
+    "Use New question to write your own, or Import to pull in Markdown from 03_面试准备",
   "bank.emptyNoMatch": "No questions match",
   "bank.emptyHintNoMatch": "Try another keyword, or set the status filter back to Any",
   "bank.count_one": "{{count}} question",
@@ -117,6 +123,7 @@ export default {
   "bank.fieldCreated": "创建日期 (Created)",
   "bank.fieldReviewed": "最近复习 (Last reviewed)",
   "bank.fieldLinked": "关联 (Linked to)",
+  "bank.fieldTitle": "题目 (Question)",
   "bank.fieldAnswer": "答案要点 (Answer notes)",
   "bank.fieldNote": "备注 (Notes)",
   "bank.noAnswer": "(No 答案要点 yet — you can add them below)",
@@ -810,6 +817,7 @@ export default {
   "err.question.drillFailed": "Could not draw questions: {{reason}}",
   "err.question.wrongFailed": "Could not flag as wrong: {{reason}}",
   "err.question.deleteFailed": "Could not delete the question: {{reason}}",
+  "err.question.addFailed": "Could not add the question: {{reason}}",
 
   // Notes (03_面试准备 / 04_知识库): read-only browsing and checkbox write-back errors
   "err.prep.unknownSection": "Unknown notes section: {{section}}",

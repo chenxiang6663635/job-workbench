@@ -16,10 +16,14 @@ import {
 } from "./ui/dialog";
 import { ErrorBanner } from "./ErrorBanner";
 import { FormField } from "./FormField";
+import { Segmented } from "./ui/segmented";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 // 状态三态与难度档位：取值即工作区真实数据，不翻译（同列表徽章的约定）
 const STATUSES = ["未看", "看过", "会了"];
 const DIFFICULTIES = ["易", "中", "难"];
+// 「未标」在 Radix Select 里不能再用空串（item 的 value 必须非空）；出参仍还原成 ""
+const DIFFICULTY_NONE = "__none__";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -116,39 +120,37 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
         />
       </FormField>
       <div className="grid grid-cols-2 gap-4">
-        <FormField label={t("bank.fieldStatus")}>
-          <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
-            {STATUSES.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setStatus(value)}
-                className={
-                  status === value
-                    ? "rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                    : "px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
-                }
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-        </FormField>
-        <FormField label={t("bank.fieldDifficulty")}>
-          <select
-            value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value)}
-            className="h-9 w-full rounded-lg border border-border bg-surface-1 px-2 text-xs text-foreground"
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("bank.fieldStatus")}</p>
+          <Segmented
+            value={status}
+            onChange={setStatus}
+            ariaLabel={t("bank.fieldStatus")}
+            options={STATUSES.map((value) => ({ value, label: value }))}
+          />
+        </div>
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("bank.fieldDifficulty")}</p>
+          <Select
+            value={difficulty || DIFFICULTY_NONE}
+            onValueChange={(value) => setDifficulty(value === DIFFICULTY_NONE ? "" : value)}
           >
-            {/* 原值为空时才出现「未标」占位：难度一旦标过，本语义不支持改回空 */}
-            {!item.难度 && <option value="">{t("bank.difficultyNone")}</option>}
-            {DIFFICULTIES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </FormField>
+            <SelectTrigger className="h-9 w-full text-xs" aria-label={t("bank.fieldDifficulty")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {/* 原值为空时才出现「未标」占位：难度一旦标过，本语义不支持改回空 */}
+              {!item.难度 && (
+                <SelectItem value={DIFFICULTY_NONE}>{t("bank.difficultyNone")}</SelectItem>
+              )}
+              {DIFFICULTIES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}

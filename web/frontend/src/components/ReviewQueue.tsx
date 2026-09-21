@@ -17,6 +17,8 @@ import { Card } from "./ui/card";
 import { ErrorBanner } from "./ErrorBanner";
 import { FormField } from "./FormField";
 import { Input } from "./ui/input";
+import { Segmented } from "./ui/segmented";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 // 训练面板（2026-09-20）：抽题 → **盲答**（答案默认折叠）→ 展开对答案 → 自评三态 /
 // 标错题 → 下一题。窄屏（390×844）优先：按钮单手够得着、长答案可滚动。
@@ -147,37 +149,32 @@ export default function ReviewQueue() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
-        <FormField label={t("drill.mode")}>
-          <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
-            {MODES.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setMode(value)}
-                className={
-                  mode === value
-                    ? "rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
-                    : "px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
-                }
-              >
-                {t(`drill.mode.${value}`)}
-              </button>
-            ))}
-          </div>
-        </FormField>
-        <FormField label={t("drill.size")}>
-          <select
-            value={String(size)}
-            onChange={(e) => setSize(Number(e.target.value))}
-            className="h-9 rounded-lg border border-border bg-surface-1 px-2 text-xs text-foreground"
-          >
-            {SIZES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </FormField>
+        {/* 模式切换走 ui/segmented：原生 radio 自带分组语义与方向键，手搓按钮组
+            两者都没有（与看板 / 题库同一套控件） */}
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("drill.mode")}</p>
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            ariaLabel={t("drill.mode")}
+            options={MODES.map((value) => ({ value, label: t(`drill.mode.${value}`) }))}
+          />
+        </div>
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("drill.size")}</p>
+          <Select value={String(size)} onValueChange={(value) => setSize(Number(value))}>
+            <SelectTrigger className="h-9 w-20 text-xs" aria-label={t("drill.size")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SIZES.map((value) => (
+                <SelectItem key={value} value={String(value)}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <FormField label={t("drill.keyword")}>
           <Input
             value={keyword}

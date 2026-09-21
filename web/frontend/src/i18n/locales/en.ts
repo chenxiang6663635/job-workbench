@@ -87,6 +87,7 @@ export default {
   // asked before = what actually happened. Status/domain/origin values are the real
   // data in the workspace — translating them would be renaming the data.
   "bank.tabMyBank": "My bank",
+  "bank.viewSwitch": "Bank view",
   "bank.tabAsked": "Asked before",
   "bank.searchPlaceholder": "Search questions, notes, or tags…",
   "bank.statusFilter": "Filter by status",

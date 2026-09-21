@@ -67,7 +67,13 @@ test("准备 · 训练页签：抽题后答案默认折叠（a11y 零 serious/cr
 
   // 用随机模式：demo 工作区的两道例题按 due 算都还没到期，走重练队列会抽到空；
   // 随机模式在任何一天都抽得到题（测试不该依赖"今天是哪天"）。
-  await panel.getByRole("button", { name: "Random" }).click();
+  // 模式切换已改成 ui/segmented，单选是**原生 radio**（sr-only、1px 被裁切）——
+  // 直接 click 会被外层 label 截住（smoke.spec 同款坑）。改为聚焦后按空格选中，
+  // 顺带钉住"原生单选真的能选上"。
+  const random = panel.getByRole("radio", { name: "Random" });
+  await random.focus();
+  await page.keyboard.press("Space");
+  await expect(random).toBeChecked();
   await panel.getByRole("button", { name: "Draw" }).click();
   await expect(panel.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 10_000 });
 
@@ -127,7 +133,13 @@ test("准备 · 训练页签：窄屏 390×844 无横向溢出", async ({ page }
   await openPage(page, "prepare");
   await page.getByRole("tab", { name: "Drill" }).click();
   const panel = page.getByRole("tabpanel");
-  await panel.getByRole("button", { name: "Random" }).click();
+  // 模式切换已改成 ui/segmented，单选是**原生 radio**（sr-only、1px 被裁切）——
+  // 直接 click 会被外层 label 截住（smoke.spec 同款坑）。改为聚焦后按空格选中，
+  // 顺带钉住"原生单选真的能选上"。
+  const random = panel.getByRole("radio", { name: "Random" });
+  await random.focus();
+  await page.keyboard.press("Space");
+  await expect(random).toBeChecked();
   await panel.getByRole("button", { name: "Draw" }).click();
   await expect(panel.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 10_000 });
 

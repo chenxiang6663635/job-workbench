@@ -90,6 +90,7 @@ const zhCN = {
   // 题库（questions.csv）双视图：我的题库 = 要准备的题，被问过的 = 发生过的事实。
   // 状态 / 领域 / 来源这些中文取值就是工作区里的真实数据，不翻译（翻了等于改名）。
   "bank.tabMyBank": "我的题库",
+  "bank.viewSwitch": "题库视图",
   "bank.tabAsked": "被问过的",
   "bank.searchPlaceholder": "搜题目、要点或标签…",
   "bank.statusFilter": "按状态筛选",

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import type { BankQuestion } from "../api";
+import type { BankRow } from "../lib/bank";
+import { tagsOf, WRONG_TAG } from "../lib/drill";
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
 
@@ -18,7 +19,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "success"> = {
  * 读屏与键盘两套焦点打架；整行当按钮后，Enter / Space 与鼠标走同一条路。
  * 拆成独立文件还有个硬理由：QuestionBank.tsx 是登记过水位的存量文件（只许变小）。
  */
-export function QuestionBankRow({ row, onOpen }: { row: BankQuestion; onOpen: () => void }) {
+export function QuestionBankRow({ row, onOpen }: { row: BankRow; onOpen: () => void }) {
   const { t } = useTranslation();
   return (
     <Card
@@ -41,6 +42,22 @@ export function QuestionBankRow({ row, onOpen }: { row: BankQuestion; onOpen: ()
         >
           {row.状态 || "未看"}
         </Badge>
+        {/* 待复习 / 错题（2026-09-21 批次 B-3）：due 来自后端（复用 due_from_rows
+            的原因，见 title 悬停）；错题按标签判定（与训练面板 WRONG_TAG 同源） */}
+        {row.due && (
+          <Badge
+            variant="warning"
+            className="rounded px-1.5 py-0.5 text-[11px]"
+            title={row.reason}
+          >
+            {t("bank.badgeDue")}
+          </Badge>
+        )}
+        {tagsOf(row.标签 || "").includes(WRONG_TAG) && (
+          <Badge variant="destructive" className="rounded px-1.5 py-0.5 text-[11px]">
+            {t("bank.badgeWrong")}
+          </Badge>
+        )}
         {row.领域 && <span className="text-muted-foreground">{row.领域}</span>}
         {row.科目 && <span className="text-muted-foreground">{row.科目}</span>}
         {row.来源 && <span className="text-muted-foreground">{row.来源}</span>}

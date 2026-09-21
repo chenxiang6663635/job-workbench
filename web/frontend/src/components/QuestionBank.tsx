@@ -1,95 +1,44 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { BookOpen, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import {
-  BookOpen,
-  Download,
-  MessageSquareQuote,
-  Search,
-  Sparkles,
-  X,
-} from "lucide-react";
-import { api, type BankQuestion, type QuestionGroup } from "../api";
-import { Badge } from "./ui/badge";
+
+import { api } from "../api";
+import type { BankRow } from "../lib/bank";
+import { AskedBefore } from "./AskedBefore";
+import { BankCounts } from "./BankCounts";
+import { BankImportButton } from "./BankImportButton";
+import { QuestionForm } from "./QuestionForm";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { EmptyState } from "./ui/empty";
+import { Segmented } from "./ui/segmented";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 import { QuestionBankRow } from "./QuestionBankRow";
 import { QuestionDetailDialog } from "./QuestionDetailDialog";
 
-// 轮次用小徽章标出，同一岗位的不同轮次问题一眼能分开。
-// 这是「数据值 → 样式」的映射（与 badgeVariants.ts 同类）：key 是工作区里的真实
-// 轮次取值，动它等于给数据改名，所以不翻译；只有「没填轮次」这个兜底占位才译。
-const ROUND_VARIANT: Record<string, "default" | "secondary" | "success"> = {
-  测评: "secondary",
-  笔试: "secondary",
-  AI面: "default",
-  群面: "default",
-  一面: "default",
-  二面: "default",
-  三面: "default",
-  HR面: "success",
-  终面: "success",
-};
-
 const BANK_STATUS = ["未看", "看过", "会了"];
 
-function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
-  const { t } = useTranslation();
-  return (
-    <Card className="p-3">
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
-        <Badge
-          variant={ROUND_VARIANT[item.轮次] ?? "secondary"}
-          className="rounded px-1.5 py-0.5 text-[11px]"
-        >
-          {item.轮次 || t("question.roundMissing")}
-        </Badge>
-        {item.面试时间 && <span className="font-mono text-muted-foreground">{item.面试时间}</span>}
-        {item.面试官 && <span className="text-muted-foreground">{item.面试官}</span>}
-        {item.结果 && item.结果 !== "待定" && (
-          <span className={item.结果 === "通过" ? "text-success" : "text-muted-foreground"}>
-            {item.结果}
-          </span>
-        )}
-      </div>
-
-      {/* 三段式：问题 → 我的回答要点 → 复盘，与面试详情同一套视觉语言 */}
-      <p className="flex gap-2 text-sm leading-relaxed text-foreground">
-        <MessageSquareQuote size={14} className="mt-0.5 shrink-0 text-primary" />
-        <span>{item.问题记录}</span>
-      </p>
-      {item.我的回答要点 && (
-        <p className="mt-2 pl-6 text-xs leading-relaxed text-muted-foreground">
-          <span className="mr-1 text-muted-foreground">{t("question.myAnswer")}</span>
-          {item.我的回答要点}
-        </p>
-      )}
-      {item.复盘与改进 && (
-        <p className="mt-1.5 rounded-lg border border-warning/20 bg-warning/5 px-2 py-1.5 pl-6 text-xs leading-relaxed text-warning">
-          {t("question.retrospective", { value: item.复盘与改进 })}
-        </p>
-      )}
-    </Card>
-  );
-}
+// 「全部状态」在 Radix Select 里不能再用空串（item 的 value 必须非空），用一个
+// 不可能与真实状态撞车的哨兵值；出参仍还原成 ""（筛选参数的空值语义不变）。
+const ALL_STATUS = "__all__";
 
 function MyBank() {
   const { t } = useTranslation();
-  const [rows, setRows] = useState<BankQuestion[]>([]);
+  const [rows, setRows] = useState<BankRow[]>([]);
   const [total, setTotal] = useState(0);
+  // 三态计数随列表拉回（B-4）：练到哪了一眼可见
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   // 详情（也就是编辑）弹窗：null = 关闭，否则为被打开的那一行
-  const [selected, setSelected] = useState<BankQuestion | null>(null);
-  const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
-    null
-  );
-  const [importing, setImporting] = useState(false);
+  const [selected, setSelected] = useState<BankRow | null>(null);
+  // 「新增题目」弹窗（批次 B-1）：加题入口从 CLI 挪进界面
+  const [adding, setAdding] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -99,6 +48,7 @@ function MyBank() {
       .then((r) => {
         setRows(r.items);
         setTotal(r.total);
+        setCounts(r.counts);
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -110,31 +60,6 @@ function MyBank() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword, status]);
-
-  const onPreviewImport = () => {
-    setError(null);
-    setImporting(true);
-    api
-      .previewQuestionImport()
-      .then((r) => setPreview({ token: r.token, summary: r.summary, diff: r.diff }))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setImporting(false));
-  };
-
-  const onConfirmImport = () => {
-    if (!preview) return;
-    setImporting(true);
-    setError(null);
-    // 两段式的第二步：凭令牌落盘（与命令行 / MCP 同源，冲突与过期由服务端拒绝）
-    api
-      .applyApproval(preview.token)
-      .then(() => {
-        setPreview(null);
-        load();
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setImporting(false));
-  };
 
   return (
     <div className="space-y-3">
@@ -149,53 +74,41 @@ function MyBank() {
             className="pl-9"
           />
         </div>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-surface-1 px-2 text-xs text-foreground"
-          aria-label={t("bank.statusFilter")}
+        <Select
+          value={status || ALL_STATUS}
+          onValueChange={(value) => setStatus(value === ALL_STATUS ? "" : value)}
         >
-          <option value="">{t("bank.allStatus")}</option>
-          {BANK_STATUS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <Button variant="outline" size="sm" onClick={onPreviewImport} disabled={importing}>
-          <Download size={13} className="mr-1" />
-          {importing ? t("bank.importing") : t("bank.import")}
+          <SelectTrigger className="w-32" aria-label={t("bank.statusFilter")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_STATUS}>{t("bank.allStatus")}</SelectItem>
+            {BANK_STATUS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {/* 导入的路整体抽到 BankImportButton（含预览 → 确认的两段式） */}
+        <BankImportButton onImported={load} />
+        <Button size="sm" onClick={() => setAdding(true)}>
+          <Plus size={13} className="mr-1" />
+          {t("bank.addQuestion")}
         </Button>
       </div>
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
-      {preview && (
-        <Card className="space-y-2 p-3">
-          <p className="text-sm font-medium text-foreground">{preview.summary}</p>
-          {/* diff 是后端给的 Markdown 表格文本：原样等宽展示，不做二次解析——
-              解析错了比显示得丑危险得多（用户据此决定要不要落盘） */}
-          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
-            {preview.diff.join("\n")}
-          </pre>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={onConfirmImport} disabled={importing}>
-              {t("bank.confirmImport")}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setPreview(null)}>
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {loading ? (
+      {/* 三态齐全（与「被问过的」同一套）：失败时只出错误条，不再接着显示
+          「题库还是空的」——请求失败与真的没有题是两件事，混报会让人以为数据丢了 */}
+      {loading && !error ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-20 w-full rounded-lg" />
           ))}
         </div>
-      ) : rows.length === 0 ? (
+      ) : !loading && !error && rows.length === 0 ? (
         <Card className="border-dashed">
           <EmptyState
             icon={<BookOpen size={20} />}
@@ -205,17 +118,22 @@ function MyBank() {
             }
           />
         </Card>
-      ) : (
+      ) : rows.length === 0 ? null : (
         <>
-          <p className="text-xs text-muted-foreground">{t("bank.count", { count: total })}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs text-muted-foreground">{t("bank.count", { count: total })}</p>
+            {/* 三态分布（B-4）：counts 后端早就算好了，此前前端零消费 */}
+            <BankCounts counts={counts} />
+          </div>
           <div className="space-y-2">
-            {rows.map((row) => (
-              <QuestionBankRow
-                key={row.题目id || row.题目}
-                row={row}
-                onOpen={() => setSelected(row)}
-              />
-            ))}
+            {rows.map((row, index) => {
+              // 无 id 且题名重复的行（CSV 手改场景）会撞 key——补 index 后缀保证唯一
+              // （审查 n6；变量拼接而非模板串：`||` 会被 i18n 豁免清单的 `|` 分隔符拆坏）
+              const rowKey = [row.题目id, row.题目, index].join("|");
+              return (
+                <QuestionBankRow key={rowKey} row={row} onOpen={() => setSelected(row)} />
+              );
+            })}
           </div>
         </>
       )}
@@ -231,105 +149,16 @@ function MyBank() {
           }}
         />
       )}
-    </div>
-  );
-}
 
-function AskedBefore() {
-  const { t } = useTranslation();
-  const [groups, setGroups] = useState<QuestionGroup[]>([]);
-  const [total, setTotal] = useState(0);
-  const [keyword, setKeyword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // 输入防抖：题库检索是纯前端过滤不划算（数据在后端 CSV 里），
-  // 但也不能每敲一个字就打一次接口
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(true);
-      setError(null);
-      api
-        .questionBank(keyword.trim() || undefined)
-        .then((r) => {
-          setGroups(r.groups);
-          setTotal(r.total);
-        })
-        .catch((e: Error) => setError(e.message))
-        .finally(() => setLoading(false));
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [keyword]);
-
-  return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder={t("question.searchPlaceholder")}
-          aria-label={t("question.searchPlaceholder")}
-          className="pl-9 pr-28"
+      {/* 新增题目（批次 B-1）：确认落盘后关窗并重载 */}
+      {adding && (
+        <QuestionForm
+          onClose={() => setAdding(false)}
+          onSaved={() => {
+            setAdding(false);
+            load();
+          }}
         />
-        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-          <span className="whitespace-nowrap text-xs text-muted-foreground">
-            {loading ? t("question.searching") : t("question.count", { count: total })}
-          </span>
-          {keyword && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              title={t("common.clear")}
-              onClick={() => setKeyword("")}
-            >
-              <X size={13} />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
-
-      {/* 三态齐全：loading 骨架 / empty 空态 / error 错误条。
-          失败时不再同时显示骨架——两张脸同屏比只说失败更糟 */}
-      {loading && !error && groups.length === 0 ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : !loading && !error && groups.length === 0 ? (
-        <Card className="border-dashed">
-          <EmptyState
-            icon={<BookOpen size={20} />}
-            title={keyword ? t("question.emptyNoMatch") : t("question.emptyNoData")}
-            description={
-              keyword ? t("question.emptyHintNoMatch") : t("question.emptyHintNoData")
-            }
-          />
-        </Card>
-      ) : groups.length === 0 ? null : (
-        <div className="flex flex-1 flex-col gap-4">
-          {groups.map((g) => (
-            <Card key={`${g.公司}__${g.岗位}`} className="rounded-lg p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Sparkles size={14} className="text-primary" />
-                <span className="text-sm font-semibold text-foreground">{g.公司}</span>
-                {g.岗位 && <span className="text-xs text-muted-foreground">{g.岗位}</span>}
-                <Badge variant="secondary" className="ml-auto text-[11px]">
-                  {t("question.groupCount", { count: g.total })}
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                {g.items.map((item) => (
-                  <QuestionCard key={item.id || item.问题记录} item={item} />
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
       )}
     </div>
   );
@@ -340,32 +169,20 @@ export default function QuestionBank() {
   // 双视图：题库是"要准备的题"，被问过的是"发生过的事实"——两件事，不混在一张表里
   const [view, setView] = useState<"bank" | "asked">("bank");
 
-  const tabs = useMemo(
-    () => [
-      { key: "bank" as const, label: t("bank.tabMyBank") },
-      { key: "asked" as const, label: t("bank.tabAsked") },
-    ],
-    [t]
-  );
-
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setView(tab.key)}
-            className={
-              view === tab.key
-                ? "rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                : "px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
-            }
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* 双视图切换走 ui/segmented：原生 radio 自带分组语义与方向键，手搓按钮组
+          既没有 role 也没有键盘支持（与看板 / 设置页同一套控件） */}
+      <Segmented
+        value={view}
+        onChange={setView}
+        ariaLabel={t("bank.viewSwitch")}
+        className="self-start"
+        options={[
+          { value: "bank", label: t("bank.tabMyBank") },
+          { value: "asked", label: t("bank.tabAsked") },
+        ]}
+      />
 
       {view === "bank" ? <MyBank /> : <AskedBefore />}
     </div>

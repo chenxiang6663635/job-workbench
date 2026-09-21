@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Search } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronRight, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../lib/utils";
@@ -29,6 +29,29 @@ function indent(depth: number): string {
   return "pl-8";
 }
 
+// 目录折叠（B-7）：存**折叠的目录**集合（默认全展开——把内容藏起来是用户的动作，
+// 不是默认体验）。localStorage 而非 sessionStorage：折叠偏好跨会话保留即可，
+// 与 jobws_notes_last（上次打开哪篇）同族。
+const COLLAPSED_KEY = "jobws_notes_collapsed";
+
+function readCollapsed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeCollapsed(collapsed: Set<string>): void {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+  } catch {
+    /* 存不上就退回"本次会话内折叠"，不影响浏览 */
+  }
+}
+
 export interface NotesFileTreeProps {
   tree: Record<NotesSectionKey, NotesNode[]>;
   query: string;
@@ -51,6 +74,29 @@ export default function NotesFileTree({
     section,
     nodes: filterNotes(tree[section.key], query),
   }));
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => readCollapsed());
+  const activeRef = useRef<HTMLButtonElement>(null);
+  const filtering = query.trim() !== "";
+
+  // 当前项滚入视野（B-7）：切文件 / 点搜索结果后，树里那一条可能已经在滚动区外——
+  // 不滚的话"当前选中的是哪一个"每次都要自己找（block: nearest 只滚最小距离，
+  // 已经可见时不动，不会打扰浏览）
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [active?.section, active?.rel]);
+
+  const toggleDir = (rel: string) => {
+    // 过滤态目录是**强制全展**（不然命中藏在收起目录里、看着像没搜到）——
+    // 这时点箭头不写偏好，免得退出过滤后目录"莫名其妙"是收起的（审查 m8）
+    if (filtering) return;
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(rel)) next.delete(rel);
+      else next.add(rel);
+      writeCollapsed(next);
+      return next;
+    });
+  };
 
   const renderNodes = (
     nodes: NotesNode[],
@@ -59,12 +105,28 @@ export default function NotesFileTree({
   ): ReactNode =>
     nodes.map((node) => {
       if (node.kind === "dir") {
+        // 过滤时忽略折叠：结果不能藏在收起目录里（否则看着像没搜到）
+        const isCollapsed = !filtering && collapsed.has(node.rel);
         return (
           <li key={node.rel}>
-            <p className={cn("py-1 text-[11px] text-muted-foreground", indent(depth))}>
-              {node.name}
-            </p>
-            <ul>{renderNodes(node.children ?? [], section, depth + 1)}</ul>
+            <button
+              type="button"
+              onClick={() => toggleDir(node.rel)}
+              aria-expanded={!isCollapsed}
+              className={cn(
+                "flex w-full cursor-pointer items-center gap-1 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground",
+                indent(depth)
+              )}
+            >
+              <ChevronRight
+                size={12}
+                className={cn("shrink-0 transition-transform", !isCollapsed && "rotate-90")}
+              />
+              <span className="truncate">{node.name}</span>
+            </button>
+            {!isCollapsed && (
+              <ul>{renderNodes(node.children ?? [], section, depth + 1)}</ul>
+            )}
           </li>
         );
       }
@@ -73,6 +135,7 @@ export default function NotesFileTree({
         <li key={node.rel}>
           <button
             type="button"
+            ref={isActive ? activeRef : undefined}
             onClick={() => onSelect(section, node)}
             className={cn(
               "flex w-full cursor-pointer items-center gap-2 rounded-md border-l-2 border-transparent py-1.5 pr-2 text-left text-[13px] text-foreground transition-colors hover:bg-secondary",

@@ -146,3 +146,35 @@ def test_cli_drill_rejects_unknown_mode(ws, capsys):
     with pytest.raises(SystemExit) as excinfo:
         _cli_bank.main(["drill", "--workspace", str(ws), "--mode", "smart"])
     assert excinfo.value.code == 2
+
+
+def test_reasons_explain_why_each_row_is_in_the_queue():
+    """B-3：抽题附「为什么在队列里」——due 原因复用 due_from_rows（同一处口径），
+    同时是错题的加「错题本 ·」前缀（两个来源都如实告诉用户）。"""
+    rows = [
+        _row("Q001", "未看的题"),                                   # 未看恒在
+        _row("Q002", "错题且到期", status="看过",
+             last=str(TODAY - datetime.timedelta(days=10)), tags="错题"),
+        _row("Q003", "刚复习过", status="会了", last=str(TODAY)),     # 不到期
+    ]
+    picked = question_drill.pick_drill_with_reasons(rows, today=TODAY)
+    reasons = dict((row["题目id"], reason) for row, reason in picked)
+    assert "未看" in reasons["Q001"]
+    # 看过 → 间隔 3 天：10 天前复习 = 逾期 7 天
+    assert reasons["Q002"] == "错题本 · 已到期 7 天"
+    assert "Q003" not in reasons
+
+
+def test_reasons_by_mode():
+    """wrong 模式标「错题本」；random 模式没有"为什么"（空串）。"""
+    rows = [_row("Q001", "错题", tags="错题"), _row("Q002", "普通题")]
+
+    class _KeepOrder:
+        def shuffle(self, seq):
+            return None
+
+    wrong = question_drill.pick_drill_with_reasons(rows, mode="wrong")
+    assert [(row["题目id"], reason) for row, reason in wrong] == [("Q001", "错题本")]
+    drawn = question_drill.pick_drill_with_reasons(
+        rows, mode="random", n=2, rng=_KeepOrder())
+    assert all(reason == "" for _row_, reason in drawn)

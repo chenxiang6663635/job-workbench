@@ -87,6 +87,7 @@ export default {
   // asked before = what actually happened. Status/domain/origin values are the real
   // data in the workspace — translating them would be renaming the data.
   "bank.tabMyBank": "My bank",
+  "bank.viewSwitch": "Bank view",
   "bank.tabAsked": "Asked before",
   "bank.searchPlaceholder": "Search questions, notes, or tags…",
   "bank.statusFilter": "Filter by status",
@@ -94,9 +95,21 @@ export default {
   "bank.import": "Import from 03_面试准备",
   "bank.importing": "Parsing…",
   "bank.confirmImport": "Confirm import",
+  "bank.addQuestion": "New question",
+  "bank.addTitle": "New question",
+  "bank.addDesc": "Add your own question: review the fields to be written, then confirm.",
+  "bank.addNeedTitle": "Question text is required",
+  "bank.previewAdd": "Preview",
+  "bank.confirmAdd": "Confirm add",
+  "bank.badgeDue": "Due",
+  "bank.badgeWrong": "Wrong",
+  "bank.diffAdd": "Add",
+  "bank.diffDup": "Exists",
+  "bank.diffSkip": "Skip",
+  "bank.diffHint": "Note",
   "bank.emptyNoData": "Your question bank is empty",
   "bank.emptyHintNoData":
-    "Use Import above to pull in Markdown from 03_面试准备, or add one with jobws bank add",
+    "Use New question to write your own, or Import to pull in Markdown from 03_面试准备",
   "bank.emptyNoMatch": "No questions match",
   "bank.emptyHintNoMatch": "Try another keyword, or set the status filter back to Any",
   "bank.count_one": "{{count}} question",
@@ -116,6 +129,7 @@ export default {
   "bank.fieldCreated": "创建日期 (Created)",
   "bank.fieldReviewed": "最近复习 (Last reviewed)",
   "bank.fieldLinked": "关联 (Linked to)",
+  "bank.fieldTitle": "题目 (Question)",
   "bank.fieldAnswer": "答案要点 (Answer notes)",
   "bank.fieldNote": "备注 (Notes)",
   "bank.noAnswer": "(No 答案要点 yet — you can add them below)",
@@ -143,6 +157,7 @@ export default {
   "drill.emptyHint": "Hit Draw to start a round — the answer stays folded: answer first, then check.",
   "drill.progress": "Question {{index}} of {{total}}",
   "drill.reveal": "Show answer",
+  "drill.roundMap": "This round",
   "drill.answerMissing": "(No answer yet for this question)",
   "drill.gradeTodo": "Not learned",
   "drill.gradeSeen": "Seen",
@@ -155,6 +170,7 @@ export default {
   "drill.noMatch": "No questions this round",
   "drill.noMatchHint": "The queue is wrong ∪ due-today, so the current mode and keyword can come up empty: switch mode, clear the keyword, or grade some “Not learned” cards first.",
   "drill.restart": "Another round",
+  "drill.kbdHint": "Keyboard: Space / Enter reveal · 1 / 2 / 3 grade · W flag wrong · → next",
 
   "question.searchPlaceholder": "Search questions, answers, or retrospectives…",
   "question.searching": "Searching…",
@@ -750,7 +766,7 @@ export default {
   "err.ws.notFound": "Workspace not found: {{name}} (run tools/jobws.py init first)",
   "err.ws.nameRequired": "The workspace name cannot be empty.",
   "err.ws.nameInvalid": "`{{name}}` is not a valid workspace name — use a single folder name without slashes, not starting with a dot.",
-  "err.ws.initInvalid": "Could not initialize the workspace: {{detail}}",
+  "err.ws.initInvalid": "Could not initialize the workspace: {{reason}}",
   "err.ws.tokenInvalid": "This confirmation is no longer valid (already used, or older than 10 minutes) — preview again and re-confirm.",
   "err.ws.initConflict": "The target folder gained content after the preview, so we refused to overwrite — please preview again.",
   "err.path.illegalSegment": "Illegal path segment: {{part}}",
@@ -808,14 +824,24 @@ export default {
   "err.question.drillFailed": "Could not draw questions: {{reason}}",
   "err.question.wrongFailed": "Could not flag as wrong: {{reason}}",
   "err.question.deleteFailed": "Could not delete the question: {{reason}}",
+  "err.question.addFailed": "Could not add the question: {{reason}}",
 
   // Notes (03_面试准备 / 04_知识库): read-only browsing and checkbox write-back errors
   "err.prep.unknownSection": "Unknown notes section: {{section}}",
   "err.prep.fileNotFound": "File not found: {{rel}}",
   "err.prep.notMarkdown": "Only Markdown files can be opened: {{rel}}",
   "err.prep.readFailed": "Could not read the file: {{rel}}",
-  // Checkbox write-back: preview-stage failures (missing/out-of-range line, not a checkbox line...)
-  "err.prep.toggleFailed": "Could not preview the checkbox change: {{reason}}",
+  // Checkbox write-back: preview-stage failures — structured codes (C-5), each a full
+  // sentence per language; params mirror the domain layer's _err keys.
+  "err.prep.missingRel": "Missing file path",
+  "err.prep.relativeOnly": "Path must be workspace-relative: {{rel}}",
+  "err.prep.invalidRel": "Invalid path: {{rel}}",
+  "err.prep.missingLine": "Missing line number (the 1-based source line of the checkbox)",
+  "err.prep.tooLarge":
+    "File over {{kb}} KB — refusing to write to avoid truncation (edit it in your editor): {{rel}}",
+  "err.prep.lineOutOfRange": "Line {{line}} is beyond the file's {{total}} lines: {{rel}}",
+  "err.prep.badEncoding": "Line {{line}} is not valid UTF-8 and cannot be flipped: {{rel}}",
+  "err.prep.notTaskLine": "Line {{line}} is not a checkbox line (`- [ ]`): {{rel}}",
 
   "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",
@@ -985,6 +1011,10 @@ export default {
   "notes.searchSkipped": "{{count}} file(s) not searched fully (unreadable or over 256 KB)",
   "notes.hitLine": "Line {{line}}",
   "notes.hitInName": "matched in name",
+  "notes.backToTree": "Back to file tree",
+  "notes.imageSkipped": "Image not loaded",
+  "notes.imageSkippedHint":
+    "Images are not loaded in the app — relative paths 404 here and external links would need the network; open the file in your editor to view them",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

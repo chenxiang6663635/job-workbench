@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""题库：聚合视图、自建列表、导入预览与更新预览。
+"""题库的读端点：聚合视图、自建列表与抽题。
+
+写路径预览（新增 / 导入 / 更新 / 错题标记 / 删除）2026-09-21 拆到
+`question_previews.py`——那族职责是「预览 → 令牌 → apply」，与本模块的
+只读端点分开后，各自不再逼近规模预算。
 
 （由 routers/progress.py 拆出；2026-09-16 重构批。经包 __init__
 汇聚到 /api/progress——对外契约零变化。）
@@ -12,7 +16,6 @@ from jobws_core import tracker
 from jobws_core import question_bank as question_store
 from jobws_core import question_drill
 from jobws_core import question_review
-from jobws_core import question_delete
 from apierror import ApiError
 from deps import workspace_dir
 
@@ -101,73 +104,24 @@ def questions(ws: str = Depends(workspace_dir), domain: str = None,
     for row in rows:
         key = (row.get("状态") or "未看").strip() or "未看"
         counts[key] = counts.get(key, 0) + 1
-    return {"items": rows, "total": len(rows), "counts": counts,
+    # 待复习标记（2026-09-21 批次 B-3）：列表行据此显示「到期」徽章——原因复用
+    # due_from_rows（界面不重算"今天该看什么"，与 CLI `bank due` 同源同口径）。
+    due_reasons = {}
+    for row, reason in question_review.due_from_rows(rows):
+        due_reasons[(row.get("题目id") or "").strip()
+                    or (row.get("题目") or "").strip()] = reason
+    items = []
+    for row in rows:
+        item = dict(row)
+        reason = due_reasons.get((row.get("题目id") or "").strip()
+                                 or (row.get("题目") or "").strip(), "")
+        if reason:
+            item["due"] = True
+            item["reason"] = reason
+        items.append(item)
+    return {"items": items, "total": len(items), "counts": counts,
             "filters": {"domain": domain or "", "subject": subject or "",
                         "status": status or "", "keyword": (q or "").strip()}}
-
-
-
-@router.get("/questions/preview-import")
-def preview_question_import(ws: str = Depends(workspace_dir)):
-    """1a 预览：解析 `<工作区>/03_面试准备/**/*.md` 成候选题目——**不落盘**。
-
-    目录是**固定的**（1a 的口径就是这个模块），不接受查询参数：曾经把它做成
-    `module_dir` 参数，而 `os.path.join` 遇绝对路径会丢掉工作区——`?module_dir=C:\\…`
-    就能让服务端去扫任意目录并把正文摘要回进响应（第二轨 MAJOR-1）。固定目录后
-    这条路径不成立；真有第二个目录的需求时再按 `deps.safe_join` 的纪律加。
-
-    只返回一个一次性令牌；真正的落盘走既有的 `/api/approvals/apply`（通用端点），
-    所以这里不新增写端点——写通道只有一条，更容易守住"预览不碰数据"。
-    """
-    errors, plan = question_store.preview_import(ws)
-    if plan is None:
-        # 动态值走 params（语言包按 {{module}} / {{detail}} 渲染），不在文案里写死
-        # 注意：ApiError 的第三个位置参数本身就是 detail，params 里不能再叫 detail
-        raise ApiError(400, "question.importFailed", "题库导入失败",
-                       module=question_store.MODULE_DIR, reason="；".join(errors))
-    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
-    result = approval.preview("question.import", ws, plan["payload"], plan["summary"],
-                              plan["diff"], plan["targets"])
-    return {"token": result["token"], "summary": plan["summary"],
-            "diff": plan["diff"], "expiresAt": result["expires_at"]}
-
-
-# 更新预览的查询参数名 -> CSV 中文字段名。字段名即契约（CSV 表头、领域层
-# `QUESTION_FIELDS`、前端类型三处同一字面量）——全仓只在此处做一次映射，不引入
-# 第二套命名。`题目id` 不在表内：它是身份不是字段，只能由 `?id=` 指定、改不了。
-_UPDATE_FIELD_PARAMS = (("answer", "答案要点"), ("status", "状态"),
-                        ("difficulty", "难度"), ("note", "备注"), ("tags", "标签"))
-
-
-@router.get("/questions/preview-update")
-def preview_question_update(ws: str = Depends(workspace_dir), id: str = "",
-                            answer: str = None, status: str = None,
-                            difficulty: str = None, note: str = None,
-                            tags: str = None):
-    """1b 预览：修改一道题（**不落盘**），返回令牌与「原值 -> 新值」差异表。
-
-    与 1a 导入同构：只签发一次性令牌，落盘走既有的 `/api/approvals/apply`
-    （写通道只有一条）。可改字段是**两层白名单**——这里的五个查询参数，以及
-    领域层 `preview_update_fields` 对 `QUESTION_FIELDS` 的过滤；两处都过才进载荷。
-
-    空值等同「不改」：领域层会滤掉空串（清空字段不在本语义内），界面上如实说明。
-    """
-    provided = {"answer": answer, "status": status, "difficulty": difficulty,
-                "note": note, "tags": tags}
-    changes = dict((field, provided[param])
-                   for param, field in _UPDATE_FIELD_PARAMS
-                   if (provided[param] or "").strip())
-    errors, plan = question_store.preview_update_fields(id, changes, ws)
-    if plan is None:
-        # 只回 reason，不回 id：id 可能本来就没给（「请给 --id」也是一种失败），
-        # 塞进文案会渲染出空括号——具体原因已经在 errors 的句子里。
-        raise ApiError(400, "question.updateFailed", "题库更新预览失败",
-                       reason="；".join(errors))
-    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
-    result = approval.preview("question.update", ws, plan["payload"], plan["summary"],
-                              plan["diff"], plan["targets"])
-    return {"token": result["token"], "summary": plan["summary"],
-            "diff": plan["diff"], "expiresAt": result["expires_at"]}
 
 
 @router.get("/questions/drill")
@@ -189,55 +143,24 @@ def drill_questions(ws: str = Depends(workspace_dir), mode: str = "due",
         status=(status or "").strip() or None,
         keyword=(q or "").strip() or None)
     try:
-        picked = question_drill.pick_drill(rows, mode=(mode or "").strip(), n=n)
+        picked = question_drill.pick_drill_with_reasons(
+            rows, mode=(mode or "").strip(), n=n)
     except ValueError as exc:
         raise ApiError(400, "question.drillFailed", "题库抽题失败",
                        reason=str(exc))
-    return {"items": picked, "total": len(picked),
-            "mode": (mode or "").strip() or "due",
+    # 每行附「为什么在队列里」（B-3）：题卡直接展示，用户不用猜抽题规则
+    items = []
+    for row, reason in picked:
+        item = dict(row)
+        if reason:
+            item["reason"] = reason
+        items.append(item)
+    # 三态计数（筛选范围内，B-4）：训练结束卡显示"练到哪了"——「会了」在涨
+    counts = {}
+    for row in rows:
+        key = (row.get("状态") or "未看").strip() or "未看"
+        counts[key] = counts.get(key, 0) + 1
+    return {"items": items, "total": len(items),
+            "mode": (mode or "").strip() or "due", "counts": counts,
             "filters": {"domain": domain or "", "subject": subject or "",
                         "status": status or "", "keyword": (q or "").strip()}}
-
-
-@router.get("/questions/preview-wrong")
-def preview_question_wrong(ws: str = Depends(workspace_dir), id: str = "",
-                           on: str = "1"):
-    """预览把一道题标进 / 移出错题本（**不落盘**），返回令牌与差异表。
-
-    复用领域层 `preview_mark_wrong`：标签重算规则只有一处——界面不该自己拼
-    「错题」两个字（拼法一漂，今天标的和明天 due 出来的就不是同一批题）。
-    落盘仍是既有的 `question.update` 与通用 apply 通道，不新增写操作。
-    """
-    want = (on or "1").strip().lower() not in ("0", "false", "no")
-    errors, plan = question_review.preview_mark_wrong((id or "").strip(), want, ws)
-    if plan is None:
-        raise ApiError(400, "question.wrongFailed", "错题标记预览失败",
-                       reason="；".join(errors))
-    from jobws_core import approval  # 函数内 import：approval 只在写路径用到
-    result = approval.preview("question.update", ws, plan["payload"], plan["summary"],
-                              plan["diff"], plan["targets"])
-    return {"token": result["token"], "summary": plan["summary"],
-            "diff": plan["diff"], "expiresAt": result["expires_at"]}
-
-
-@router.get("/questions/preview-delete")
-def preview_question_delete(ws: str = Depends(workspace_dir), id: str = ""):
-    """删题预览：把"将删哪一行"列成差异表——**不落盘**，只签发一次性令牌。
-
-    只做**单题**：批量撤回（按 来源 / 创建日期 等条件）留在命令行
-    `jobws bank delete --origin 导入 --today`——界面上没有"选中可见的多行"这个
-    前置动作，把批量删做成一次点击等于鼓励误操作。
-
-    落盘同样走既有的 `/api/approvals/apply`：写通道只有一条，删也得先看过差异。
-    领域层在落盘前会把整表快照写到**工作区之外**（删错可整份复制回来）。
-    """
-    errors, plan = question_delete.preview_delete_fields((id or "").strip(), None, ws)
-    if plan is None:
-        # 与 update 同口径：只回 reason（id 可能本来就没给，塞进文案会渲染出空括号）
-        raise ApiError(400, "question.deleteFailed", "题库删除预览失败",
-                       reason="；".join(errors))
-    from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
-    result = approval.preview("question.delete", ws, plan["payload"], plan["summary"],
-                              plan["diff"], plan["targets"])
-    return {"token": result["token"], "summary": plan["summary"],
-            "diff": plan["diff"], "expiresAt": result["expires_at"]}

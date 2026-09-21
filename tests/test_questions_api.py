@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""题库的四个 HTTP 端点：列表（后端过滤）、导入预览、更新预览、删除预览（都不落盘）。
+"""题库的 HTTP 端点：列表（后端过滤）、新增 / 导入 / 更新 / 删除预览（都不落盘）。
 
 钉住两件容易悄悄坏掉的事：
 1. **筛选在后端**：`?domain=` / `?status=` / `?q=` 必须真的少返回，而不是前端
    拉全量再过滤（那样接口看着一样，数据却每次都传整张表）；
-2. **预览不落盘**：三个预览端点都只给令牌，`questions.csv` **不该**在这时被改——
+2. **预览不落盘**：四个预览端点都只给令牌，`questions.csv` **不该**在这时被改——
    写通道只有 `/api/approvals/apply` 一条。
 """
 
@@ -197,3 +197,100 @@ def test_preview_update_rejects_no_change(client, tmp_path):
                      params={"ws": WS, "id": "Q001", "status": "看过"})
     assert res.status_code == 400
     assert res.json()["error_code"] == "question.updateFailed"
+
+
+def test_list_marks_due_questions_with_reason(client, tmp_path):
+    """B-3：列表行带 due 标记与原因（复用 due_from_rows，与 CLI `bank due` 同口径）。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点,最近复习\n"
+                     "Q001,未看的题,技术面,网络,未看,自拟,要点,\n"
+                     "Q002,刚复习的题,技术面,网络,会了,自拟,要点,2099-01-01\n")
+    res = client.get("/api/progress/questions", params={"ws": WS})
+    assert res.status_code == 200
+    items = dict((row["题目id"], row) for row in res.json()["items"])
+    assert items["Q001"]["due"] is True
+    assert "未看" in items["Q001"]["reason"]
+    assert "due" not in items["Q002"]
+
+
+def test_drill_returns_reasons_and_counts(client, tmp_path):
+    """B-3/B-4：抽题结果带每行的原因与三态计数（结束卡消费 counts 看"练到哪了"）。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点,最近复习\n"
+                     "Q001,未看的题,技术面,网络,未看,自拟,要点,\n"
+                     "Q002,会的题,技术面,网络,会了,自拟,要点,2099-01-01\n")
+    res = client.get("/api/progress/questions/drill",
+                     params={"ws": WS, "mode": "due", "n": 5})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["counts"] == {"未看": 1, "会了": 1}
+    assert [row["题目id"] for row in data["items"]] == ["Q001"]
+    assert "未看" in data["items"][0]["reason"]
+
+
+def test_preview_update_accepts_tags_and_note(client, tmp_path):
+    """B-2：界面补上「标签 / 备注」编辑——后端白名单早就支持，这里钉住契约
+    （改标签是错题标记的界面路径：加/去「错题」都走 preview-update）。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点,标签,备注\n"
+                     "Q001,TCP,技术面,网络,未看,自拟,要点,,\n")
+    res = client.get("/api/progress/questions/preview-update",
+                     params={"ws": WS, "id": "Q001", "tags": "错题,网络",
+                             "note": "复盘一次"})
+    assert res.status_code == 200
+    diff = "\n".join(res.json()["diff"])
+    assert "错题,网络" in diff
+    assert "复盘一次" in diff
+
+
+def test_preview_add_returns_token_without_writing(client, tmp_path):
+    """1c 自拟新增预览：只给令牌，questions.csv 一个字节都不写。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点\n"
+                     "Q001,TCP,技术面,网络,未看,自拟,要点\n")
+    before = _read_questions(tmp_path)
+    res = client.get("/api/progress/questions/preview-add",
+                     params={"ws": WS, "title": "DNS 解析过程", "domain": "技术面",
+                             "subject": "网络", "answer": "递归 + 迭代",
+                             "difficulty": "中"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["token"]
+    assert "新增题目：DNS 解析过程" in data["summary"]
+    # 差异表列的是"将写入的字段"——题目那行必须在
+    assert any("DNS 解析过程" in line for line in data["diff"])
+    assert _read_questions(tmp_path) == before
+
+
+def test_preview_add_defaults_source_and_status(client, tmp_path):
+    """不给来源/状态时由领域层补「自拟」「未看」——GUI 表单不给这两项选择，
+    默认值必须在预览段就体现（预览是"将要落什么"的承诺）。"""
+    res = client.get("/api/progress/questions/preview-add",
+                     params={"ws": WS, "title": "冒泡排序的复杂度"})
+    assert res.status_code == 200
+    diff = "\n".join(res.json()["diff"])
+    assert "| 来源 | 自拟 |" in diff
+    assert "| 状态 | 未看 |" in diff
+
+
+def test_preview_add_rejects_missing_title(client, tmp_path):
+    """题目为空 → 400 + 明确原因，而不是签出一张空题目的令牌。"""
+    res = client.get("/api/progress/questions/preview-add", params={"ws": WS})
+    assert res.status_code == 400
+    body = res.json()
+    assert body["error_code"] == "question.addFailed"
+    assert "题目不能为空" in body["error_params"]["reason"]
+
+
+def test_preview_add_rejects_duplicate(client, tmp_path):
+    """已存在同名同领域的题 → 预览段就拒绝（判重键 = 题目+领域+科目，与导入同口径）。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点\n"
+                     "Q001,TCP,技术面,网络,未看,自拟,要点\n")
+    res = client.get("/api/progress/questions/preview-add",
+                     params={"ws": WS, "title": "TCP", "domain": "技术面",
+                             "subject": "网络"})
+    assert res.status_code == 400
+    body = res.json()
+    assert body["error_code"] == "question.addFailed"
+    assert "已存在" in body["error_params"]["reason"]

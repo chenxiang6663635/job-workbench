@@ -38,6 +38,14 @@ test("笔记：左树、默认渲染与本页大纲", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "面试准备" })
   ).toBeVisible();
   await expect(page.getByRole("navigation", { name: "On this page" })).toBeVisible();
+
+  // 目录折叠（B-7）：点目录名收起 / 再点展开——大量目录不再把树撑爆
+  const dir = page.getByRole("button", { name: "行为面" });
+  await expect(dir).toHaveAttribute("aria-expanded", "true");
+  await dir.click();
+  await expect(page.getByRole("button", { name: "_模板_行为故事" })).toHaveCount(0);
+  await dir.click();
+  await expect(page.getByRole("button", { name: "_模板_行为故事" })).toBeVisible();
 });
 
 test("笔记：切换文件、HTML 注释不渲染、a11y 零命中", async ({ page }) => {
@@ -77,7 +85,15 @@ test("笔记：勾选框可翻转（预览 → 确认 → 落盘 → 重拉）�
 
   const boxes = page.locator('input[type="checkbox"]');
   await expect(boxes.first()).toBeVisible();
-  // demo 基准里这些都是未勾选——本用例末尾翻回去，不把痕迹留在工作区里
+  // demo 基准里这些都是未勾选——本用例末尾翻回去，不把痕迹留在工作区里。
+  // 跨运行自愈：上一次中断（失败 / 手动停）留下的勾选先翻回来，否则本地复用
+  // 工作区时这条用例会一直红在"基准断言"上（审查 m6）
+  if (await boxes.first().isChecked()) {
+    await boxes.first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "Write" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+  }
   expect(await boxes.first().isChecked()).toBe(false);
 
   await boxes.first().click();
@@ -137,6 +153,9 @@ test("笔记：全文搜索 → 点结果 → 打开并定位到命中行", asyn
   await expect(heading).toBeVisible();
   await expect(heading).toBeInViewport();
 
+  // 命中词高亮（B-5）：结果条目里 <mark> 包住关键词——"搜到了"之外还能"看出命中的是哪几个字"
+  await expect(page.locator("mark").first()).toBeVisible();
+
   // 结果列表是新出现的交互面：一并纳入 a11y 扫描
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])
@@ -148,6 +167,11 @@ test("笔记：全文搜索 → 点结果 → 打开并定位到命中行", asyn
     serious,
     `搜索结果有 serious/critical：${serious.map((v) => v.id).join("、")}`
   ).toEqual([]);
+
+  // 搜索态会把左栏目录树整体替换（B-6）——点「返回目录树」明确回来，
+  // 不用先想到"清空输入框"这一层
+  await page.getByRole("button", { name: "Back to file tree" }).click();
+  await expect(page.getByRole("button", { name: "_模板_行为故事" })).toBeVisible();
 });
 
 test("笔记：普通列表项的正文要渲染出来（回归：li 分支曾漏渲染 children）", async ({

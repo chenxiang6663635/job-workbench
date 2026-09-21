@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { api, type BankQuestion } from "../api";
+import { previewQuestionUpdate } from "../lib/bank";
 import { BankPreviewCard } from "./BankPreviewCard";
 import { QuestionDeleteButton } from "./QuestionDeleteButton";
 import { Button } from "./ui/button";
-import { Textarea } from "./ui/input";
+import { Input, Textarea } from "./ui/input";
 import {
   Dialog,
   DialogClose,
@@ -16,10 +17,14 @@ import {
 } from "./ui/dialog";
 import { ErrorBanner } from "./ErrorBanner";
 import { FormField } from "./FormField";
+import { Segmented } from "./ui/segmented";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 // 状态三态与难度档位：取值即工作区真实数据，不翻译（同列表徽章的约定）
 const STATUSES = ["未看", "看过", "会了"];
 const DIFFICULTIES = ["易", "中", "难"];
+// 「未标」在 Radix Select 里不能再用空串（item 的 value 必须非空）；出参仍还原成 ""
+const DIFFICULTY_NONE = "__none__";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -69,6 +74,10 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
   const [answer, setAnswer] = useState(item.答案要点 || "");
   const [status, setStatus] = useState(item.状态 || "未看");
   const [difficulty, setDifficulty] = useState(item.难度 || "");
+  // 2026-09-21 批次 B-2：标签 / 备注可编辑——改标签是错题标记的界面路径
+  // （加/去「错题」），此前只能去命令行，而文档已宣称「界面改标签同效」。
+  const [tags, setTags] = useState(item.标签 || "");
+  const [note, setNote] = useState(item.备注 || "");
   const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
     null
   );
@@ -77,17 +86,24 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
 
   // 只有「与原值不同且非空」的字段才进请求：空值等同不改（领域层同口径），
   // 所以界面上不假装支持"清空"——难度回退到未标这类操作不在本语义内。
-  const changes: { 答案要点?: string; 状态?: string; 难度?: string } = {};
+  const changes: {
+    答案要点?: string;
+    状态?: string;
+    难度?: string;
+    标签?: string;
+    备注?: string;
+  } = {};
   if (answer.trim() && answer.trim() !== (item.答案要点 || "")) changes.答案要点 = answer.trim();
   if (status !== (item.状态 || "未看")) changes.状态 = status;
   if (difficulty && difficulty !== (item.难度 || "")) changes.难度 = difficulty;
+  if (tags.trim() && tags.trim() !== (item.标签 || "")) changes.标签 = tags.trim();
+  if (note.trim() && note.trim() !== (item.备注 || "")) changes.备注 = note.trim();
   const hasChange = Object.keys(changes).length > 0;
 
   const onPreview = () => {
     setBusy(true);
     setError(null);
-    api
-      .previewQuestionUpdate(item.题目id, changes)
+    previewQuestionUpdate(item.题目id, changes)
       .then((r) => setPreview({ token: r.token, summary: r.summary, diff: r.diff }))
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
@@ -115,40 +131,47 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
           className="min-h-[96px] text-xs"
         />
       </FormField>
+      {/* 标签 / 备注（B-2）：标签即错题标记的落点（加/去「错题」），备注是自由记录 */}
       <div className="grid grid-cols-2 gap-4">
-        <FormField label={t("bank.fieldStatus")}>
-          <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
-            {STATUSES.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setStatus(value)}
-                className={
-                  status === value
-                    ? "rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                    : "px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
-                }
-              >
-                {value}
-              </button>
-            ))}
-          </div>
+        <FormField label={t("bank.fieldTags")}>
+          <Input value={tags} onChange={(e) => setTags(e.target.value)} className="text-xs" />
         </FormField>
-        <FormField label={t("bank.fieldDifficulty")}>
-          <select
-            value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value)}
-            className="h-9 w-full rounded-lg border border-border bg-surface-1 px-2 text-xs text-foreground"
+        <FormField label={t("bank.fieldNote")}>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} className="text-xs" />
+        </FormField>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("bank.fieldStatus")}</p>
+          <Segmented
+            value={status}
+            onChange={setStatus}
+            ariaLabel={t("bank.fieldStatus")}
+            options={STATUSES.map((value) => ({ value, label: value }))}
+          />
+        </div>
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("bank.fieldDifficulty")}</p>
+          <Select
+            value={difficulty || DIFFICULTY_NONE}
+            onValueChange={(value) => setDifficulty(value === DIFFICULTY_NONE ? "" : value)}
           >
-            {/* 原值为空时才出现「未标」占位：难度一旦标过，本语义不支持改回空 */}
-            {!item.难度 && <option value="">{t("bank.difficultyNone")}</option>}
-            {DIFFICULTIES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </FormField>
+            <SelectTrigger className="h-9 w-full text-xs" aria-label={t("bank.fieldDifficulty")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {/* 原值为空时才出现「未标」占位：难度一旦标过，本语义不支持改回空 */}
+              {!item.难度 && (
+                <SelectItem value={DIFFICULTY_NONE}>{t("bank.difficultyNone")}</SelectItem>
+              )}
+              {DIFFICULTIES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}

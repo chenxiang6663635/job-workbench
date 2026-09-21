@@ -67,6 +67,22 @@ def pick_drill(rows, mode="due", n=DEFAULT_N, rng=None, today=None):
     - `mode`：`due`（重练队列）/ `wrong`（只错题）/ `random`（全库随机）；
     - `n`：默认 5、上限 20（超了按上限截断，0 / 负数按 1 处理）；
     - `rng`：随机源（测试注入固定序列）；`today`："今天"（测试钉住某一天）。
+
+    界面要展示"为什么在队列里"时走 `pick_drill_with_reasons`——同一份实现。
+    """
+    return [row for row, _reason
+            in pick_drill_with_reasons(rows, mode, n, rng, today)]
+
+
+def pick_drill_with_reasons(rows, mode="due", n=DEFAULT_N, rng=None, today=None):
+    """同 `pick_drill`，但每行附一句「为什么在队列里」——返回 `[(row, reason)]`。
+
+    原因与选取**同一处实现**（不是先抽再补算：那会在两个函数里各写一遍过滤口径，
+    正是"界面队列和 CLI 不一样"这类无从解释差异的温床）：
+    - `due`：复用 `due_from_rows` 的原因（「还没学（未看）」「已到期 N 天」…）；
+      同时是错题的加「错题本 · 」前缀——两个来源都如实告诉用户；
+    - `wrong`：「错题本」；
+    - `random`：空串（随机抽的没有"为什么"）。
     """
     mode = (mode or "").strip() or "due"
     if mode not in MODES:
@@ -79,9 +95,20 @@ def pick_drill(rows, mode="due", n=DEFAULT_N, rng=None, today=None):
     limit = max(1, min(limit, MAX_N))
 
     if mode == "wrong":
-        return wrong_from_rows(rows)[:limit]
+        return [(row, "错题本") for row in wrong_from_rows(rows)[:limit]]
     if mode == "random":
         pool = list(rows)
         (rng or random).shuffle(pool)
-        return pool[:limit]
-    return build_queue(rows, today)[:limit]
+        return [(row, "") for row in pool[:limit]]
+
+    reasons = dict((_row_key(row), reason)
+                   for row, reason in due_from_rows(rows, today))
+    picked = []
+    for row in build_queue(rows, today)[:limit]:
+        due_reason = reasons.get(_row_key(row), "")
+        if WRONG_TAG in split_tags(row.get("标签")):
+            reason = "错题本 · %s" % due_reason if due_reason else "错题本"
+        else:
+            reason = due_reason
+        picked.append((row, reason))
+    return picked

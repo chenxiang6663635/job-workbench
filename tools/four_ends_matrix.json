@@ -200,8 +200,8 @@
       "cli": "bank add",
       "mcp": "preview_add_question",
       "plugin": "bank",
-      "gui": null,
-      "note": "写入：预览 -> 确认 -> 落盘。GUI 无单题新增入口（走批量导入或 CLI）。"
+      "gui": "GET /api/progress/questions/preview-add",
+      "note": "写入：预览 -> 确认 -> 落盘。GUI 在题库页「新增题目」表单里自拟（2026-09-21 补上入口）。"
     },
     {
       "id": "question.update",
@@ -555,11 +555,6 @@
       "end": "plugin",
       "item": "question.update",
       "reason": "做题状态由本人维护。"
-    },
-    {
-      "end": "gui",
-      "item": "question.add",
-      "reason": "界面暂无单题新增入口（走批量导入，或命令行 bank add）——改已有题的入口已在详情弹窗里提供。"
     },
     {
       "end": "gui",

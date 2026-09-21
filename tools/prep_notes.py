@@ -53,6 +53,17 @@ _TASK_RE = re.compile(
     r"^([ \t]*(?:[-*+]|\d+[.)])[ \t]+\[)([ \t xX])(\])(?=[ \t]|\r?$)")
 
 
+def _err(code, message, **params):
+    """结构化错误（2026-09-21 批次 C-5）：`(code, params, message)` 三元组。
+
+    界面按 code 查语言包渲染（`err.<code>`，中英各自成句），message 是中文兜底
+    （日志 / 未知 code 的回落）——此前只有中文 message，英文界面呈
+    "英文前缀 + 中文原因"。params 的键与语言包占位名同名（改一处要同步另一处，
+    `tests/test_prep_toggle.py` 有断言钉住）。
+    """
+    return (code, params, message)
+
+
 def _lock_path(workspace=None):
     """笔记写回的互斥锁：<工作区>/config/prep.lock。
 
@@ -82,26 +93,31 @@ def _target_path(ws, section, rel):
     """
     base_rel = SECTION_DIRS.get(section)
     if base_rel is None:
-        return None, None, "未知笔记分类：%s" % section
+        return None, None, _err("prep.unknownSection",
+                                "未知笔记分类：%s" % section, section=section)
     norm_rel = (rel or "").strip().replace("\\", "/")
     if not norm_rel:
-        return None, None, "缺少文件路径"
+        return None, None, _err("prep.missingRel", "缺少文件路径")
     parts = norm_rel.split("/")
     if norm_rel.startswith("/") or ":" in parts[0]:
-        return None, None, "路径必须是工作区内的相对路径：%s" % norm_rel
+        return None, None, _err("prep.relativeOnly",
+                                "路径必须是工作区内的相对路径：%s" % norm_rel,
+                                rel=norm_rel)
     if any(part in ("", ".", "..") for part in parts):
-        return None, None, "路径不合法：%s" % norm_rel
+        return None, None, _err("prep.invalidRel", "路径不合法：%s" % norm_rel,
+                                rel=norm_rel)
     if os.path.splitext(parts[-1])[1].lower() != TEXT_EXT:
-        return None, None, "只支持 .md 文件：%s" % norm_rel
+        return None, None, _err("prep.notMarkdown", "只支持 .md 文件：%s" % norm_rel,
+                                rel=norm_rel)
     base = os.path.join(ws, base_rel)
     full = os.path.join(base, *parts)
     ws_real = os.path.realpath(ws)
     base_real = os.path.realpath(base)
     full_real = os.path.realpath(full)
     if not base_real.startswith(ws_real + os.sep):
-        return None, None, "路径越出工作区"
+        return None, None, _err("path.escape", "路径越出工作区")
     if not full_real.startswith(base_real + os.sep):
-        return None, None, "路径越出工作区"
+        return None, None, _err("path.escape", "路径越出工作区")
     return full, norm_rel, None
 
 
@@ -110,15 +126,19 @@ def _read_lines(full, norm_rel):
     try:
         size = os.path.getsize(full)
     except OSError as exc:
-        return None, "文件读不到：%s（%s）" % (norm_rel, exc)
+        return None, _err("prep.readFailed", "文件读不到：%s（%s）" % (norm_rel, exc),
+                          rel=norm_rel)
     if size > MAX_BYTES:
-        return None, "文件超过 %d KB，为免截断写坏已拒（请直接在编辑器里改）：%s" % (
-            MAX_BYTES // 1024, norm_rel)
+        return None, _err("prep.tooLarge",
+                          "文件超过 %d KB，为免截断写坏已拒（请直接在编辑器里改）：%s"
+                          % (MAX_BYTES // 1024, norm_rel),
+                          kb=MAX_BYTES // 1024, rel=norm_rel)
     try:
         with open(full, "rb") as handle:
             data = handle.read()
     except OSError as exc:
-        return None, "文件读不到：%s（%s）" % (norm_rel, exc)
+        return None, _err("prep.readFailed", "文件读不到：%s（%s）" % (norm_rel, exc),
+                          rel=norm_rel)
     return data.split(b"\n"), None
 
 
@@ -128,7 +148,9 @@ def _decode_line(line_bytes, norm_rel, line):
     try:
         return line_bytes.decode("utf-8"), None
     except UnicodeDecodeError:
-        return None, "第 %d 行不是合法 UTF-8，无法翻转：%s" % (line, norm_rel)
+        return None, _err("prep.badEncoding",
+                          "第 %d 行不是合法 UTF-8，无法翻转：%s" % (line, norm_rel),
+                          line=line, rel=norm_rel)
 
 
 def _flip(text):
@@ -156,24 +178,30 @@ def preview_toggle(workspace, section, rel, line):
     """
     ws = tracker.resolve_ws(workspace)
     if not isinstance(line, int) or line < 1:
-        return ["缺少行号（需要被点勾选框所在行在 Markdown 源码里的行号，从 1 起）"], None
+        return [_err("prep.missingLine",
+                     "缺少行号（需要被点勾选框所在行在 Markdown 源码里的行号，从 1 起）")], None
     full, norm_rel, error = _target_path(ws, section, rel)
     if error:
         return [error], None
     if not os.path.isfile(full):
-        return ["文件不存在：%s" % norm_rel], None
+        return [_err("prep.fileNotFound", "文件不存在：%s" % norm_rel,
+                     rel=norm_rel)], None
     lines, error = _read_lines(full, norm_rel)
     if error:
         return [error], None
     if line > len(lines):
-        return ["行号 %d 超出文件总行数 %d：%s" % (line, len(lines), norm_rel)], None
+        return [_err("prep.lineOutOfRange",
+                     "行号 %d 超出文件总行数 %d：%s" % (line, len(lines), norm_rel),
+                     line=line, total=len(lines), rel=norm_rel)], None
     text, error = _decode_line(lines[line - 1], norm_rel, line)
     if error:
         return [error], None
     new_text, old, new = _flip(text)
     if new_text is None:
-        return ["第 %d 行不是勾选框行（`- [ ]` 形态），无法翻转：%s"
-                % (line, norm_rel)], None
+        return [_err("prep.notTaskLine",
+                     "第 %d 行不是勾选框行（`- [ ]` 形态），无法翻转：%s"
+                     % (line, norm_rel),
+                     line=line, rel=norm_rel)], None
     payload = {"section": section, "rel": norm_rel, "line": line, "expected": text}
     diff = ["%s（第 %d 行）" % (norm_rel, line),
             "- " + text.rstrip("\r"), "+ " + new_text.rstrip("\r")]
@@ -197,13 +225,15 @@ def apply_approved_toggle(payload, workspace=None):
     expected = payload.get("expected")
     full, norm_rel, error = _target_path(ws, section, rel)
     if error:
-        raise tracker.ConflictError("预览之后目标已不可用（%s），请重新预览" % error)
+        # error 是 (code, params, message) 三元组：插值取 message（第 3 位）——
+        # 直接把三元组 %s 进文案会把 Python repr 泄给用户（C-2 审查 M1）
+        raise tracker.ConflictError("预览之后目标已不可用（%s），请重新预览" % error[2])
     with tracker.file_lock(_lock_path(ws)):
         if not os.path.isfile(full):
             raise tracker.ConflictError("预览之后文件不存在了（请重新预览）")
         lines, error = _read_lines(full, norm_rel)
         if error:
-            raise tracker.ConflictError("预览之后文件不可读（%s），请重新预览" % error)
+            raise tracker.ConflictError("预览之后文件不可读（%s），请重新预览" % error[2])
         if not isinstance(line, int) or line < 1 or line > len(lines):
             raise tracker.ConflictError("预览之后文件行数变了（请重新预览）")
         text, error = _decode_line(lines[line - 1], norm_rel, line)

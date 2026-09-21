@@ -90,6 +90,7 @@ const zhCN = {
   // 题库（questions.csv）双视图：我的题库 = 要准备的题，被问过的 = 发生过的事实。
   // 状态 / 领域 / 来源这些中文取值就是工作区里的真实数据，不翻译（翻了等于改名）。
   "bank.tabMyBank": "我的题库",
+  "bank.viewSwitch": "题库视图",
   "bank.tabAsked": "被问过的",
   "bank.searchPlaceholder": "搜题目、要点或标签…",
   "bank.statusFilter": "按状态筛选",
@@ -97,9 +98,21 @@ const zhCN = {
   "bank.import": "从 03_面试准备 导入",
   "bank.importing": "解析中…",
   "bank.confirmImport": "确认导入",
+  "bank.addQuestion": "新增题目",
+  "bank.addTitle": "新增题目",
+  "bank.addDesc": "自拟一道题入库：先预览将写入的字段，确认后落盘。",
+  "bank.addNeedTitle": "题目不能为空",
+  "bank.previewAdd": "预览新增",
+  "bank.confirmAdd": "确认新增",
+  "bank.badgeDue": "到期",
+  "bank.badgeWrong": "错题",
+  "bank.diffAdd": "新增",
+  "bank.diffDup": "已存在",
+  "bank.diffSkip": "跳过",
+  "bank.diffHint": "提示",
   "bank.emptyNoData": "题库还是空的",
   "bank.emptyHintNoData":
-    "用上面的「导入」把 03_面试准备 里的 Markdown 收进来，或用 jobws bank add 加题",
+    "用「新增题目」自己加，或用「导入」把 03_面试准备 里的 Markdown 收进来",
   "bank.emptyNoMatch": "没有符合条件的题",
   "bank.emptyHintNoMatch": "换个关键词，或把状态筛选调回「全部状态」",
   "bank.count_one": "{{count}} 道",
@@ -119,6 +132,7 @@ const zhCN = {
   "bank.fieldCreated": "创建日期",
   "bank.fieldReviewed": "最近复习",
   "bank.fieldLinked": "关联",
+  "bank.fieldTitle": "题目",
   "bank.fieldAnswer": "答案要点",
   "bank.fieldNote": "备注",
   "bank.noAnswer": "（还没有答案要点——可以在下面补充）",
@@ -146,6 +160,7 @@ const zhCN = {
   "drill.emptyHint": "点「抽题」开始一轮：答案默认折叠——先盲答，再对答案。",
   "drill.progress": "第 {{index}} / {{total}} 道",
   "drill.reveal": "看答案",
+  "drill.roundMap": "本轮题表",
   "drill.answerMissing": "（这道题还没有答案要点）",
   "drill.gradeTodo": "未看",
   "drill.gradeSeen": "看过",
@@ -158,6 +173,7 @@ const zhCN = {
   "drill.noMatch": "这一轮没抽到题",
   "drill.noMatchHint": "队列 = 错题 ∪ 今日待复习，按当前模式与关键词可能为空：换个模式、清掉关键词，或先「未看」的题自评一轮。",
   "drill.restart": "再抽一轮",
+  "drill.kbdHint": "键盘：空格 / 回车 看答案 · 1 / 2 / 3 自评 · W 标错 · → 下一题",
 
   "question.searchPlaceholder": "搜问题、回答或复盘关键词…",
   "question.searching": "检索中…",
@@ -814,7 +830,7 @@ const zhCN = {
   // 首启引导的新建流程（两段式：预览 → 确认 → 落盘）
   "err.ws.nameRequired": "工作区名不能为空。",
   "err.ws.nameInvalid": "`{{name}}` 不是合法的工作区名：只能是一个目录名，不含斜杠、不以点开头。",
-  "err.ws.initInvalid": "无法初始化工作区：{{detail}}",
+  "err.ws.initInvalid": "无法初始化工作区：{{reason}}",
   "err.ws.tokenInvalid": "这次创建的确认已失效（可能已用过，或已超过 10 分钟）——请重新预览再确认。",
   "err.ws.initConflict": "目标目录在预览之后被填了内容，为免覆盖已拒绝——请重新预览。",
   "err.path.illegalSegment": "非法路径片段：{{part}}",
@@ -871,8 +887,16 @@ const zhCN = {
   "err.prep.fileNotFound": "文件不存在：{{rel}}",
   "err.prep.notMarkdown": "只能打开 Markdown 文件：{{rel}}",
   "err.prep.readFailed": "文件读取失败：{{rel}}",
-  // 勾选写回：预览期失败（行号缺失/越界、非勾选框行、文件不可写等）
-  "err.prep.toggleFailed": "无法预览勾选改动：{{reason}}",
+  // 勾选写回：预览期失败——每个失败给**结构化错误码**（2026-09-21 批次 C-5），
+  // 中英各自成句（不再出现"英文前缀 + 中文原因"）；params 与领域层 _err 同名
+  "err.prep.missingRel": "缺少文件路径",
+  "err.prep.relativeOnly": "路径必须是工作区内的相对路径：{{rel}}",
+  "err.prep.invalidRel": "路径不合法：{{rel}}",
+  "err.prep.missingLine": "缺少行号（需要被点勾选框所在行在 Markdown 源码里的行号，从 1 起）",
+  "err.prep.tooLarge": "文件超过 {{kb}} KB，为免截断写坏已拒（请直接在编辑器里改）：{{rel}}",
+  "err.prep.lineOutOfRange": "行号 {{line}} 超出文件总行数 {{total}}：{{rel}}",
+  "err.prep.badEncoding": "第 {{line}} 行不是合法 UTF-8，无法翻转：{{rel}}",
+  "err.prep.notTaskLine": "第 {{line}} 行不是勾选框行（`- [ ]` 形态），无法翻转：{{rel}}",
 
   // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
   "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",
@@ -881,6 +905,7 @@ const zhCN = {
   "err.question.drillFailed": "无法抽题：{{reason}}",
   "err.question.wrongFailed": "无法标记错题：{{reason}}",
   "err.question.deleteFailed": "无法删除题目：{{reason}}",
+  "err.question.addFailed": "无法新增题目：{{reason}}",
 
   "err.sys.unknownTarget": "只支持 workspace / snapshots / dataRoot（收到 {{target}}）",
   "err.sys.openFailed": "打开失败：{{error}}",
@@ -1065,6 +1090,10 @@ const zhCN = {
   "notes.searchSkipped": "{{count}} 个文件没搜全（读不动或超过 256 KB）",
   "notes.hitLine": "第 {{line}} 行",
   "notes.hitInName": "名称命中",
+  "notes.backToTree": "返回目录树",
+  "notes.imageSkipped": "图片未加载",
+  "notes.imageSkippedHint":
+    "应用内不加载图片——相对路径在界面里会 404，外链要联网（与本应用的本地优先相抵）；请在自己的编辑器里查看原文",
   // 邮件台账（批 4.5）：与 mails.csv 列名同源；标签 / 方向是数据键不翻译
   "mail.summary": "共 {{count}} 封",
   "mail.add": "记录邮件",

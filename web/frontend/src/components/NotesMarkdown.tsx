@@ -1,9 +1,11 @@
-import { createContext, useContext, useMemo, type InputHTMLAttributes } from "react";
+import { createContext, memo, useContext, useMemo, type InputHTMLAttributes } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
+import { ImageOff } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
+import i18n from "../i18n";
 import { cn } from "../lib/utils";
 
 // 笔记正文的 Markdown 渲染（react-markdown + remark-gfm）。
@@ -235,9 +237,27 @@ const baseComponents: Components = {
       </span>
     );
   },
+  // 图片一律渲染成明确占位（2026-09-21 批次 C-4）：相对路径在 SPA 里必然 404、
+  // 外链要联网（与本应用"本地优先"相抵）——统一兜底，不做"加载一半失败"
+  // （比不加载更困惑）。真支持需新增笔记侧只读文件端点（复用 ro_files 的
+  // realpath 二次确认写法）。这里用 i18n.t 而非 hook：baseComponents 是模块级常量
+  // （与 lib/bank.ts 的错误本地化同款）。
+  img: ({ node, src, alt, ...props }) => (
+    <span
+      className="my-1 inline-flex max-w-full items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1 align-middle text-[11px] text-muted-foreground"
+      title={i18n.t("notes.imageSkippedHint")}
+      {...props}
+    >
+      <ImageOff size={12} className="shrink-0" />
+      <span className="shrink-0">{i18n.t("notes.imageSkipped")}</span>
+      <span className="truncate font-mono" title={src}>
+        {alt || src}
+      </span>
+    </span>
+  ),
 };
 
-export default function NotesMarkdown({
+function NotesMarkdown({
   content,
   onToggleTask,
   pendingLine = null,
@@ -272,3 +292,8 @@ export default function NotesMarkdown({
     </div>
   );
 }
+
+// memo（A-3）：正文解析是整篇级别的开销，父组件因为**别的**状态重渲染时（例如
+// 展开大纲、切换页签）不该把整篇再解析一遍。props 不变就跳过——`onToggleTask` 在
+// 编排侧已经是 useCallback，pendingLine / locked 只在写回流程里变。
+export default memo(NotesMarkdown);

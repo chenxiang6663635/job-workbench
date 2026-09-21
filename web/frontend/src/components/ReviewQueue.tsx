@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type BankQuestion } from "../api";
+import { api } from "../api";
+import { previewQuestionUpdate, type BankRow } from "../lib/bank";
 import {
   fetchDrill,
   previewMarkWrong,
@@ -10,11 +11,17 @@ import {
   WRONG_TAG,
   type DrillMode,
 } from "../lib/drill";
+import { DRILL_KEY_IGNORE_SELECTOR, drillKeyAction } from "../lib/drillKeys";
+import { BankPreviewCard } from "./BankPreviewCard";
+import { DrillDoneCard } from "./DrillDoneCard";
+import { DrillRoundMap } from "./DrillRoundMap";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { ErrorBanner } from "./ErrorBanner";
 import { FormField } from "./FormField";
 import { Input } from "./ui/input";
+import { Segmented } from "./ui/segmented";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 // 训练面板（2026-09-20）：抽题 → **盲答**（答案默认折叠）→ 展开对答案 → 自评三态 /
 // 标错题 → 下一题。窄屏（390×844）优先：按钮单手够得着、长答案可滚动。
@@ -25,38 +32,6 @@ import { Input } from "./ui/input";
 //    `question.update` 预览 + `/api/approvals/apply` 落盘，不新增写通道。
 const MODES: DrillMode[] = ["due", "wrong", "random"];
 const SIZES = [5, 10, 20];
-/** 差异确认：与题库详情里的写入确认同一套手感（摘要 + 差异表 + 确认/取消）。 */
-function DrillPreviewCard({
-  summary,
-  diff,
-  busy,
-  onConfirm,
-  onCancel,
-}: {
-  summary: string;
-  diff: string[];
-  busy: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <Card className="space-y-2 p-3">
-      <p className="text-sm font-medium text-foreground">{summary}</p>
-      <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
-        {diff.join("\n")}
-      </pre>
-      <div className="flex gap-2">
-        <Button size="sm" onClick={onConfirm} disabled={busy}>
-          {busy ? t("bank.writing") : t("bank.confirmWrite")}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
-          {t("common.cancel")}
-        </Button>
-      </div>
-    </Card>
-  );
-}
 
 export default function ReviewQueue() {
   const { t } = useTranslation();
@@ -65,11 +40,19 @@ export default function ReviewQueue() {
   const [mode, setMode] = useState<DrillMode>("due");
   const [size, setSize] = useState(5);
   const [keyword, setKeyword] = useState("");
-  const [items, setItems] = useState<BankQuestion[]>(() => saved?.items ?? []);
+  const [items, setItems] = useState<BankRow[]>(() => saved?.items ?? []);
   const [index, setIndex] = useState(() => saved?.index ?? 0);
   const [revealed, setRevealed] = useState(() => saved?.revealed ?? false);
   const [drawn, setDrawn] = useState(() => saved?.drawn ?? false);
   const [graded, setGraded] = useState(() => saved?.graded ?? 0);
+  // 三态计数（B-4）：抽题时随结果带回（旧存储没有这字段，读取处兜底 {}）
+  const [counts, setCounts] = useState<Record<string, number>>(() => saved?.counts ?? {});
+  // 本轮已落盘的题序号（C-2）：题表据此打勾；只增不减——写错了靠回退到那题改回来。
+  // Array.isArray 兜底：旧存储 / 手改形态下 `new Set(非可迭代)` 会抛 TypeError
+  // 崩掉整个面板（审查 m9）
+  const [written, setWritten] = useState<Set<number>>(
+    () => new Set(Array.isArray(saved?.written) ? saved.written : [])
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
@@ -78,11 +61,14 @@ export default function ReviewQueue() {
 
   // 令牌刻意**不**持久化：它十分钟过期，存下来只会让"确认"在 reload 之后报"令牌没了"
   useEffect(() => {
-    saveDrillRound({ items, index, revealed, drawn, graded });
-  }, [items, index, revealed, drawn, graded]);
+    saveDrillRound({ items, index, revealed, drawn, graded, counts, written: [...written] });
+  }, [items, index, revealed, drawn, graded, counts, written]);
 
-  const current = items[index] as BankQuestion | undefined;
+  const current = items[index] as BankRow | undefined;
   const wrongFlagged = !!current && tagsOf(current.标签 || "").includes(WRONG_TAG);
+  // 差异卡待确认期间锁住动作按钮：题卡内联之后不再被替换，不锁的话可以在确认框
+  // 开着的时候继续自评 / 跳到下一题，确认的差异与眼前这道题就对不上了
+  const locked = busy || preview !== null;
 
   const runPreview = (promise: Promise<{ token: string; summary: string; diff: string[] }>) => {
     setBusy(true);
@@ -100,21 +86,28 @@ export default function ReviewQueue() {
     fetchDrill({ mode, n: size, keyword })
       .then((r) => {
         setItems(r.items);
+        setCounts(r.counts);
         setIndex(0);
         setRevealed(false);
         setGraded(0);
+        setWritten(new Set());  // 新一轮：打勾清零
         setDrawn(true);   // "抽过了但没命中"与"还没抽"是两种空态，文案不同
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
   };
 
+  // 跳题（下一题 / 题表点击 / 键盘 ←→）：一律先收起答案——换了题还摊着上一个
+  // 答案等于剧透，C-2 新加的回退路径也必须守住"盲答"这条纪律。
+  // 上界是 items.length（**越过末题 = 完成态**）：夹到 length-1 会把结束卡做成
+  // 死代码——练完最后一题「下一题」无反应（C-2 独立审查 B1）。
   // 定义在使用之前（`onConfirm` 落盘成功后要调到下一题）：`no-use-before-define`
   // 是 eslint 的 error 级，且这条顺序在运行时也是真正需要的依赖方向。
-  const next = () => {
+  const goTo = (target: number) => {
     setRevealed(false);
-    setIndex((currentIndex) => currentIndex + 1);
+    setIndex(Math.max(0, Math.min(target, items.length)));
   };
+  const next = () => goTo(index + 1);
 
   const onConfirm = () => {
     if (!preview) return;
@@ -126,6 +119,7 @@ export default function ReviewQueue() {
         setPreview(null);
         // 只数**真正落盘**的：取消 / 预览 400 / 落盘 409 都不该让"本轮写入 N 道"虚高
         setGraded((count) => count + 1);
+        setWritten((prev) => new Set(prev).add(index));
         next();
       })
       .catch((e: Error) => setError(e.message))
@@ -140,7 +134,7 @@ export default function ReviewQueue() {
       next();
       return;
     }
-    runPreview(api.previewQuestionUpdate(current.题目id, { 状态: status }));
+    runPreview(previewQuestionUpdate(current.题目id, { 状态: status }));
   };
 
   const toggleWrong = () => {
@@ -148,40 +142,59 @@ export default function ReviewQueue() {
     runPreview(previewMarkWrong(current.题目id, !wrongFlagged));
   };
 
+  // 键盘操作（2026-09-21）：一轮 5 道题纯鼠标要 16 次点击（抽题 + 每题 3 次），
+  // 标错题再加——桌面端对着键盘练最省事。键位判定在 lib/drillKeys.ts（纯函数、
+  // 有单测）；这里只把动作接到既有的预览 / 落盘函数上，**不绕写通道**。
+  // 焦点在输入框 / 按钮上时不抢键（打字与浏览器自己"点"按钮都不该被劫）。
+  // 刻意不写依赖数组：每次渲染重挂，闭包永远拿到最新的 current / preview / locked。
+  useEffect(() => {
+    if (!current) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(DRILL_KEY_IGNORE_SELECTOR)) return;
+      const action = drillKeyAction(event, { locked, hasPreview: preview !== null, busy });
+      if (!action) return;
+      event.preventDefault();
+      if (action === "cancelPreview") setPreview(null);
+      else if (action === "reveal") setRevealed(true);
+      else if (action === "next") next();
+      else if (action === "prev") goTo(index - 1);
+      else if (action === "toggleWrong") toggleWrong();
+      else grade(action.slice("grade:".length));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
-        <FormField label={t("drill.mode")}>
-          <div className="inline-flex rounded-lg border border-border bg-surface-1 p-0.5">
-            {MODES.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setMode(value)}
-                className={
-                  mode === value
-                    ? "rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
-                    : "px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
-                }
-              >
-                {t(`drill.mode.${value}`)}
-              </button>
-            ))}
-          </div>
-        </FormField>
-        <FormField label={t("drill.size")}>
-          <select
-            value={String(size)}
-            onChange={(e) => setSize(Number(e.target.value))}
-            className="h-9 rounded-lg border border-border bg-surface-1 px-2 text-xs text-foreground"
-          >
-            {SIZES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </FormField>
+        {/* 模式切换走 ui/segmented：原生 radio 自带分组语义与方向键，手搓按钮组
+            两者都没有（与看板 / 题库同一套控件） */}
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("drill.mode")}</p>
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            ariaLabel={t("drill.mode")}
+            options={MODES.map((value) => ({ value, label: t(`drill.mode.${value}`) }))}
+          />
+        </div>
+        <div>
+          <p className="mb-1 text-[11px] text-muted-foreground">{t("drill.size")}</p>
+          <Select value={String(size)} onValueChange={(value) => setSize(Number(value))}>
+            <SelectTrigger className="h-9 w-20 text-xs" aria-label={t("drill.size")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SIZES.map((value) => (
+                <SelectItem key={value} value={String(value)}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <FormField label={t("drill.keyword")}>
           <Input
             value={keyword}
@@ -209,17 +222,15 @@ export default function ReviewQueue() {
         </Card>
       )}
 
-      {current && preview && (
-        <DrillPreviewCard
-          summary={preview.summary}
-          diff={preview.diff}
-          busy={busy}
-          onConfirm={onConfirm}
-          onCancel={() => setPreview(null)}
-        />
+      {/* 本轮题表（C-2）：多于一道题时才值得占一行；点格子跳题、已落盘的打勾 */}
+      {current && items.length > 1 && (
+        <DrillRoundMap items={items} index={index} written={written} onJump={goTo} />
       )}
 
-      {current && !preview && (
+      {/* 题目卡**常驻**（2026-09-21）：此前 preview 一生效就把整张题卡换成差异卡，
+          点完自评看不到刚答的题——而确认写入时恰恰最需要对着题面与答案再核一眼。
+          差异卡改为内联在按钮组上方，确认语义与两段式流程一个字节都没动。 */}
+      {current && (
         <Card className="flex flex-1 flex-col gap-3 p-4">
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
             <span>
@@ -229,6 +240,8 @@ export default function ReviewQueue() {
               {current.领域 || "—"} / {current.科目 || "—"}
             </span>
             <span>{current.状态 || "未看"}</span>
+            {/* 为什么在队列里（B-3）：抽题规则不写在界面上，用户不用猜"为什么是这道" */}
+            {current.reason && <span>{current.reason}</span>}
           </div>
 
           <p className="text-base leading-relaxed text-foreground">{current.题目}</p>
@@ -243,20 +256,33 @@ export default function ReviewQueue() {
             </Button>
           )}
 
+          {preview && (
+            <BankPreviewCard
+              summary={preview.summary}
+              diff={preview.diff}
+              busy={busy}
+              onConfirm={onConfirm}
+              onCancel={() => setPreview(null)}
+            />
+          )}
+
+          {/* 键位要写出来才有人知道（A-5）：不写的话这功能等于不存在 */}
+          <p className="text-[11px] text-muted-foreground">{t("drill.kbdHint")}</p>
+
           <div className="mt-auto flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => grade("未看")} disabled={busy}>
+            <Button size="sm" onClick={() => grade("未看")} disabled={locked}>
               {t("drill.gradeTodo")}
             </Button>
-            <Button size="sm" onClick={() => grade("看过")} disabled={busy}>
+            <Button size="sm" onClick={() => grade("看过")} disabled={locked}>
               {t("drill.gradeSeen")}
             </Button>
-            <Button size="sm" onClick={() => grade("会了")} disabled={busy}>
+            <Button size="sm" onClick={() => grade("会了")} disabled={locked}>
               {t("drill.gradeKnown")}
             </Button>
-            <Button variant="ghost" size="sm" onClick={toggleWrong} disabled={busy}>
+            <Button variant="ghost" size="sm" onClick={toggleWrong} disabled={locked}>
               {t(wrongFlagged ? "drill.unmarkWrong" : "drill.markWrong")}
             </Button>
-            <Button variant="ghost" size="sm" onClick={next} disabled={busy}>
+            <Button variant="ghost" size="sm" onClick={next} disabled={locked}>
               {t("drill.next")}
             </Button>
           </div>
@@ -264,17 +290,7 @@ export default function ReviewQueue() {
       )}
 
       {items.length > 0 && !current && (
-        <Card className="space-y-1 p-4">
-          <p className="text-sm font-medium text-foreground">{t("drill.done")}</p>
-          <p className="text-xs text-muted-foreground">
-            {t("drill.doneHint", { count: graded })}
-          </p>
-          <div className="pt-1">
-            <Button size="sm" onClick={onDraw} disabled={busy}>
-              {t("drill.restart")}
-            </Button>
-          </div>
-        </Card>
+        <DrillDoneCard graded={graded} counts={counts} busy={busy} onRestart={onDraw} />
       )}
     </div>
   );

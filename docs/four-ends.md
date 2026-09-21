@@ -42,6 +42,8 @@
 | 跟进 | `talk.delete` | `track talk delete` | — | — | `GET /api/progress/talks/preview-delete` |
 | 跟进 | `offer.delete` | `track offer delete` | — | — | `GET /api/progress/offers/preview-delete` |
 | 投递 | `application.delete` | `track delete` | — | — | `GET /api/applications/preview-delete` |
+| 岗位池 | `job.delete` | — | — | — | `GET /api/jobs/preview-delete` |
+| 岗位池 | `job.rename` | — | — | — | `GET /api/jobs/preview-rename` |
 | 通用 | `approval.apply` | `apply` | `apply_approval` | — | `POST /api/approvals/apply` |
 | 笔记 | `prep.toggle` | — | — | — | `GET /api/prep/{section}/preview-toggle` |
 | 通用 | `export.obsidian` | `export --obsidian` | — | — | — |
@@ -76,6 +78,12 @@
 - **plugin** · `offer.delete`：同上。
 - **mcp** · `application.delete`：同上（2026-09-21 批 D）。
 - **plugin** · `application.delete`：同上。
+- **cli** · `job.delete`：岗位池无 CLI 命令族；在文件管理器删目录是既有退路，但该入口没有预览与留痕——需要安全网时走 GUI（2026-09-21 批 D）。
+- **mcp** · `job.delete`：删是不可逆的高风险动作，只留给本人发起的两端；模型不代删（2026-09-21 批 D）。
+- **plugin** · `job.delete`：同上。
+- **cli** · `job.rename`：岗位池无 CLI 命令族；改名入口在 GUI（2026-09-21 批 D）。
+- **mcp** · `job.rename`：改名会同时动目录与 JD 标题，只留给本人发起的两端（2026-09-21 批 D）。
+- **plugin** · `job.rename`：同上。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。

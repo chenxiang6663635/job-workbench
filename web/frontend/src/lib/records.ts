@@ -74,3 +74,20 @@ export function previewDeleteApplication(id: string): Promise<RecordPreview> {
     `/applications/preview-delete?id=${encodeURIComponent(id)}`
   );
 }
+
+/** 岗位目录删除预览：差异表逐条列目录内文件 + 关联投递保留提示。 */
+export function previewDeleteJob(name: string): Promise<RecordPreview> {
+  return requestRecords<RecordPreview>(
+    `/jobs/preview-delete?name=${encodeURIComponent(name)}`
+  );
+}
+
+/** 岗位改名预览：目录名 `旧 → 新`；JD 首行标题可同步时一并列出。 */
+export function previewRenameJob(
+  name: string,
+  company: string,
+  role: string
+): Promise<RecordPreview> {
+  const params = new URLSearchParams({ name, company, role });
+  return requestRecords<RecordPreview>(`/jobs/preview-rename?${params.toString()}`);
+}

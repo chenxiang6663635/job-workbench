@@ -71,6 +71,14 @@ const zhCN = {
   "lineage.tip": "提示：投递时在追踪表里填「简历版本」列，谱系才能把版本和岗位连起来。",
 
   "job.backToPool": "返回岗位池",
+  "jobs.deleteTitle": "删除岗位",
+  "jobs.renameTitle": "改名岗位",
+  "jobs.renameDesc": "改目录名与 JD 首行标题——先预览将改什么，确认后落盘。",
+  "jobs.renameCompany": "公司",
+  "jobs.renameRole": "岗位",
+  "jobs.renamePreview": "预览改名",
+  "jobs.renameConfirm": "确认改名",
+  "jobs.renaming": "正在改名…",
   "job.hardGates": "资格硬门槛",
   "job.gatePending": "待确认",
   "job.gateReason": "原因：{{reason}}",
@@ -883,6 +891,8 @@ const zhCN = {
   "err.job.notFound": "岗位不存在：{{id}}",
   "err.job.resumeVersionMissing": "简历工坊里还没有任何版本，先在简历工坊创建一个",
   "err.job.gapFailed": "差距分析失败：{{errors}}",
+  "err.job.deleteFailed": "无法删除岗位：{{reason}}",
+  "err.job.renameFailed": "无法改名：{{reason}}",
 
   "err.lib.unknownSection": "未知素材库分类：{{section}}",
   "err.lib.fileNotFound": "文件不存在：{{rel}}",

@@ -7,6 +7,9 @@ import { EmptyState } from "./ui/empty";
 import { StatValue } from "./ui/number";
 import DimensionRow from "./DimensionRow";
 import GapPanel from "./GapPanel";
+import DeleteRecordButton from "./DeleteRecordButton";
+import RenameJobDialog from "./RenameJobDialog";
+import { previewDeleteJob } from "../lib/records";
 import { gateBadgeVariant, levelBadgeVariant } from "./badgeVariants";
 import type { JobDetail } from "../api";
 
@@ -15,20 +18,34 @@ export default function JobDetailView({
   expanded,
   onToggleDimension,
   onBack,
+  onChanged,
 }: {
   detail: JobDetail;
   expanded: string | null;
   onToggleDimension: (name: string) => void;
   onBack: () => void;
+  /** 删除 / 改名成功后（父级关详情 + 重拉列表） */
+  onChanged: () => void;
 }) {
   const { t } = useTranslation();
   const gates = detail.card?.hardGates;
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
-        <ArrowLeft size={16} /> {t("job.backToPool")}
-      </Button>
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
+          <ArrowLeft size={16} /> {t("job.backToPool")}
+        </Button>
+        {/* 破坏性操作（批 D）：都走预览 → 确认 → 凭令牌落盘 */}
+        <div className="flex items-center gap-1">
+          <RenameJobDialog dir={detail.dir} onRenamed={onChanged} />
+          <DeleteRecordButton
+            preview={() => previewDeleteJob(detail.dir)}
+            onDeleted={onChanged}
+            titleKey="jobs.deleteTitle"
+          />
+        </div>
+      </div>
 
       <h2 className="text-lg font-semibold text-foreground">{detail.dir}</h2>
 

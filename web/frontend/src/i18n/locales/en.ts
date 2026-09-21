@@ -69,6 +69,14 @@ export default {
   "lineage.tip": "Tip: fill in the 简历版本 (resume version) column in the tracker when you apply — that is what links a version to its jobs.",
 
   "job.backToPool": "Back to job pool",
+  "jobs.deleteTitle": "Delete job",
+  "jobs.renameTitle": "Rename job",
+  "jobs.renameDesc": "Change the folder name and the JD title line — preview, then confirm.",
+  "jobs.renameCompany": "Company",
+  "jobs.renameRole": "Role",
+  "jobs.renamePreview": "Preview rename",
+  "jobs.renameConfirm": "Confirm rename",
+  "jobs.renaming": "Renaming…",
   "job.hardGates": "Eligibility gates",
   "job.gatePending": "Pending",
   "job.gateReason": "Reason: {{reason}}",
@@ -818,6 +826,8 @@ export default {
   "err.job.notFound": "No such job: {{id}}",
   "err.job.resumeVersionMissing": "No résumé version exists yet — create one in the résumé workshop first",
   "err.job.gapFailed": "Gap analysis failed: {{errors}}",
+  "err.job.deleteFailed": "Could not delete the job: {{reason}}",
+  "err.job.renameFailed": "Could not rename the job: {{reason}}",
 
   "err.lib.unknownSection": "Unknown library section: {{section}}",
   "err.lib.fileNotFound": "File not found: {{rel}}",

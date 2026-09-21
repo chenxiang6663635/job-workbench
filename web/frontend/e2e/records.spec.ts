@@ -41,3 +41,26 @@ test("进展 · 邮件：删除走预览弹窗、Cancel 不落盘", async ({ pag
   await expect(dialog).toBeHidden();
   await expect(rows).toHaveCount(before);
 });
+
+test("岗位池：删除走预览弹窗（列目录内文件）、Cancel 不落盘", async ({ page }) => {
+  await openPage(page, "jobs");
+  // 进某个岗位的详情：卡片主区是一个按钮，accessible name 含公司名
+  await page.getByRole("button", { name: /示例科技/ }).first().click();
+
+  const del = page.getByRole("button", { name: "Delete job" });
+  await expect(del).toBeVisible();
+  await del.click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/删除岗位：示例科技_后端开发工程师/)).toBeVisible({
+    timeout: 10_000,
+  });
+  // 差异表逐条列目录内文件——"将失去什么"的事前告知
+  await expect(dialog.locator("pre")).toContainText("JD原文.md");
+
+  // Cancel：关弹窗、目录还在（详情页仍显示删除入口）——demo 数据零改动
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(del).toBeVisible();
+});

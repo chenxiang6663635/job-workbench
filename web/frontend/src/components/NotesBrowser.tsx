@@ -202,7 +202,8 @@ export default function NotesBrowser() {
   const activeNode = active ? findNodeByRel(tree[active.section], active.rel) : null;
   return (
     <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start">
-      <div className="flex w-full flex-col gap-3 lg:w-[17.5rem] lg:shrink-0">
+      {/* 左栏吸顶（B-7）：读长文往下滚时目录树与搜索框不跟着滚走 */}
+      <div className="flex w-full flex-col gap-3 lg:sticky lg:top-6 lg:w-[17.5rem] lg:shrink-0">
         <NotesSearch
           keyword={keyword}
           onKeywordChange={setKeyword}

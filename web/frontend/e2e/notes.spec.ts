@@ -38,6 +38,14 @@ test("笔记：左树、默认渲染与本页大纲", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "面试准备" })
   ).toBeVisible();
   await expect(page.getByRole("navigation", { name: "On this page" })).toBeVisible();
+
+  // 目录折叠（B-7）：点目录名收起 / 再点展开——大量目录不再把树撑爆
+  const dir = page.getByRole("button", { name: "行为面" });
+  await expect(dir).toHaveAttribute("aria-expanded", "true");
+  await dir.click();
+  await expect(page.getByRole("button", { name: "_模板_行为故事" })).toHaveCount(0);
+  await dir.click();
+  await expect(page.getByRole("button", { name: "_模板_行为故事" })).toBeVisible();
 });
 
 test("笔记：切换文件、HTML 注释不渲染、a11y 零命中", async ({ page }) => {

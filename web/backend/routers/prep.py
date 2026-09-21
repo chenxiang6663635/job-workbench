@@ -226,8 +226,11 @@ def preview_toggle(section: str, rel: str = "", line: int = 0,
     import prep_notes
     errors, plan = prep_notes.preview_toggle(ws, section, rel, line)
     if plan is None:
-        raise ApiError(400, "prep.toggleFailed", "勾选预览失败",
-                       reason="；".join(errors))
+        # 结构化错误（2026-09-21 批次 C-5）：code 走 err.<code> 的语言包（中英各自
+        # 成句），message 只是中文兜底（未知 code 时前端回落 detail）——不再出现
+        # "英文前缀 + 中文原因"。params 的键与语言包占位名同名。
+        code, params, message = errors[0]
+        raise ApiError(400, code, message, **params)
     from jobws_core import approval  # 函数内 import：approval 只在写路径用到，保持顶层最小
     result = approval.preview("prep.toggle", ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])

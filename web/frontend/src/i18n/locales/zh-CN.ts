@@ -887,8 +887,16 @@ const zhCN = {
   "err.prep.fileNotFound": "文件不存在：{{rel}}",
   "err.prep.notMarkdown": "只能打开 Markdown 文件：{{rel}}",
   "err.prep.readFailed": "文件读取失败：{{rel}}",
-  // 勾选写回：预览期失败（行号缺失/越界、非勾选框行、文件不可写等）
-  "err.prep.toggleFailed": "无法预览勾选改动：{{reason}}",
+  // 勾选写回：预览期失败——每个失败给**结构化错误码**（2026-09-21 批次 C-5），
+  // 中英各自成句（不再出现"英文前缀 + 中文原因"）；params 与领域层 _err 同名
+  "err.prep.missingRel": "缺少文件路径",
+  "err.prep.relativeOnly": "路径必须是工作区内的相对路径：{{rel}}",
+  "err.prep.invalidRel": "路径不合法：{{rel}}",
+  "err.prep.missingLine": "缺少行号（需要被点勾选框所在行在 Markdown 源码里的行号，从 1 起）",
+  "err.prep.tooLarge": "文件超过 {{kb}} KB，为免截断写坏已拒（请直接在编辑器里改）：{{rel}}",
+  "err.prep.lineOutOfRange": "行号 {{line}} 超出文件总行数 {{total}}：{{rel}}",
+  "err.prep.badEncoding": "第 {{line}} 行不是合法 UTF-8，无法翻转：{{rel}}",
+  "err.prep.notTaskLine": "第 {{line}} 行不是勾选框行（`- [ ]` 形态），无法翻转：{{rel}}",
 
   // 题库导入（1a）：从 03_面试准备 的 Markdown 解析，失败原因逐条回传
   "err.question.importFailed": "无法从 {{module}} 导入：{{reason}}",
@@ -1083,6 +1091,9 @@ const zhCN = {
   "notes.hitLine": "第 {{line}} 行",
   "notes.hitInName": "名称命中",
   "notes.backToTree": "返回目录树",
+  "notes.imageSkipped": "图片未加载",
+  "notes.imageSkippedHint":
+    "应用内不加载图片——相对路径在界面里会 404，外链要联网（与本应用的本地优先相抵）；请在自己的编辑器里查看原文",
   // 邮件台账（批 4.5）：与 mails.csv 列名同源；标签 / 方向是数据键不翻译
   "mail.summary": "共 {{count}} 封",
   "mail.add": "记录邮件",

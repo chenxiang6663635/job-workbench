@@ -831,8 +831,17 @@ export default {
   "err.prep.fileNotFound": "File not found: {{rel}}",
   "err.prep.notMarkdown": "Only Markdown files can be opened: {{rel}}",
   "err.prep.readFailed": "Could not read the file: {{rel}}",
-  // Checkbox write-back: preview-stage failures (missing/out-of-range line, not a checkbox line...)
-  "err.prep.toggleFailed": "Could not preview the checkbox change: {{reason}}",
+  // Checkbox write-back: preview-stage failures — structured codes (C-5), each a full
+  // sentence per language; params mirror the domain layer's _err keys.
+  "err.prep.missingRel": "Missing file path",
+  "err.prep.relativeOnly": "Path must be workspace-relative: {{rel}}",
+  "err.prep.invalidRel": "Invalid path: {{rel}}",
+  "err.prep.missingLine": "Missing line number (the 1-based source line of the checkbox)",
+  "err.prep.tooLarge":
+    "File over {{kb}} KB — refusing to write to avoid truncation (edit it in your editor): {{rel}}",
+  "err.prep.lineOutOfRange": "Line {{line}} is beyond the file's {{total}} lines: {{rel}}",
+  "err.prep.badEncoding": "Line {{line}} is not valid UTF-8 and cannot be flipped: {{rel}}",
+  "err.prep.notTaskLine": "Line {{line}} is not a checkbox line (`- [ ]`): {{rel}}",
 
   "err.sys.unknownTarget": "Only workspace / snapshots / dataRoot are supported (got {{target}})",
   "err.sys.openFailed": "Could not open it: {{error}}",
@@ -1003,6 +1012,9 @@ export default {
   "notes.hitLine": "Line {{line}}",
   "notes.hitInName": "matched in name",
   "notes.backToTree": "Back to file tree",
+  "notes.imageSkipped": "Image not loaded",
+  "notes.imageSkippedHint":
+    "Images are not loaded in the app — relative paths 404 here and external links would need the network; open the file in your editor to view them",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

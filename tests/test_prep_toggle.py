@@ -3,7 +3,9 @@
 
 覆盖四组：
 1. **预览不落盘**且校验明确（非勾选框行 / 行号越界 / 未知分类 / 路径穿越 /
-   超限文件）——失败统一 `400 prep.toggleFailed` + reason（与题库预览同家族）；
+   超限文件）——失败给**结构化错误码**（`prep.notTaskLine` / `prep.lineOutOfRange` …
+   界面按语言渲染，中英各自成句；2026-09-21 批次 C-5 从「统一 prep.toggleFailed +
+   中文 reason」演进——后者在英文界面呈"英文前缀 + 中文原因"）；
 2. **字节级翻转正确**：LF / CRLF / BOM / `[X]` / `[\t]` / 缩进 / 有序列表 /
    行内第二个 `[ ]` 不动；翻转后除目标行外其余字节逐字一致；
 3. **两段式语义**：令牌一次性；预览后文件被改（外部编辑器不拿我们的锁）→
@@ -91,8 +93,8 @@ def test_preview_rejects_non_task_line(client, tmp_path):
                          params={"ws": WS, "rel": "x.md", "line": line})
         assert res.status_code == 400, line
         body = res.json()
-        assert body["error_code"] == "prep.toggleFailed", line
-        assert "不是勾选框行" in body["error_params"]["reason"], line
+        assert body["error_code"] == "prep.notTaskLine", line
+        assert body["error_params"] == {"line": line, "rel": "x.md"}, line
 
 
 def test_preview_rejects_line_out_of_range_and_missing(client, tmp_path):
@@ -100,19 +102,25 @@ def test_preview_rejects_line_out_of_range_and_missing(client, tmp_path):
     res = client.get("/api/prep/interview/preview-toggle",
                      params={"ws": WS, "rel": "x.md", "line": 99})
     assert res.status_code == 400
-    assert "超出文件总行数" in res.json()["error_params"]["reason"]
+    body = res.json()
+    assert body["error_code"] == "prep.lineOutOfRange"
+    assert body["error_params"]["line"] == 99
+    # 按 `\n` 切行："- [ ] a\n" 切出两个元素（末尾换行留一个空段）——2 是既有口径
+    assert body["error_params"]["total"] == 2
 
     res = client.get("/api/prep/interview/preview-toggle",
                      params={"ws": WS, "rel": "x.md"})
     assert res.status_code == 400
-    assert "缺少行号" in res.json()["error_params"]["reason"]
+    assert res.json()["error_code"] == "prep.missingLine"
 
 
 def test_preview_rejects_unknown_section(client):
     res = client.get("/api/prep/nope/preview-toggle",
                      params={"ws": WS, "rel": "x.md", "line": 1})
     assert res.status_code == 400
-    assert "未知笔记分类" in res.json()["error_params"]["reason"]
+    body = res.json()
+    assert body["error_code"] == "prep.unknownSection"
+    assert body["error_params"]["section"] == "nope"
 
 
 def test_preview_rejects_bad_rel(client, tmp_path):
@@ -125,7 +133,8 @@ def test_preview_rejects_bad_rel(client, tmp_path):
         res = client.get("/api/prep/interview/preview-toggle",
                          params={"ws": WS, "rel": bad, "line": 1})
         assert res.status_code == 400, bad
-        assert res.json()["error_code"] == "prep.toggleFailed", bad
+        assert res.json()["error_code"] in ("prep.relativeOnly",
+                                            "prep.invalidRel"), bad
 
 
 def test_preview_rejects_non_markdown(client, tmp_path):
@@ -133,7 +142,9 @@ def test_preview_rejects_non_markdown(client, tmp_path):
     res = client.get("/api/prep/interview/preview-toggle",
                      params={"ws": WS, "rel": "x.txt", "line": 1})
     assert res.status_code == 400
-    assert "只支持 .md" in res.json()["error_params"]["reason"]
+    body = res.json()
+    assert body["error_code"] == "prep.notMarkdown"
+    assert body["error_params"]["rel"] == "x.txt"
 
 
 def test_preview_rejects_oversize_file(client, tmp_path):
@@ -142,14 +153,18 @@ def test_preview_rejects_oversize_file(client, tmp_path):
     res = client.get("/api/prep/interview/preview-toggle",
                      params={"ws": WS, "rel": "big.md", "line": 1})
     assert res.status_code == 400
-    assert "超过" in res.json()["error_params"]["reason"]
+    body = res.json()
+    assert body["error_code"] == "prep.tooLarge"
+    assert body["error_params"]["kb"] == prep_notes.MAX_BYTES // 1024
 
 
 def test_preview_missing_file(client, tmp_path):
     res = client.get("/api/prep/interview/preview-toggle",
                      params={"ws": WS, "rel": "无此文件.md", "line": 1})
     assert res.status_code == 400
-    assert "文件不存在" in res.json()["error_params"]["reason"]
+    body = res.json()
+    assert body["error_code"] == "prep.fileNotFound"
+    assert body["error_params"]["rel"] == "无此文件.md"
 
 
 # --- 第二组：字节级翻转正确 ---------------------------------------------------

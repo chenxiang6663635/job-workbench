@@ -223,8 +223,8 @@ def preview_toggle(section: str, rel: str = "", line: int = 0,
     line 的完整校验与读写都在领域层 `prep_notes`（白名单、realpath 防护、
     字节级翻转），本端点不重复实现——没有第二份校验就没有失配的机会。
     """
-    import prep_notes
-    errors, plan = prep_notes.preview_toggle(ws, section, rel, line)
+    import prep_toggle
+    errors, plan = prep_toggle.preview_toggle(ws, section, rel, line)
     if plan is None:
         # 结构化错误（2026-09-21 批次 C-5）：code 走 err.<code> 的语言包（中英各自
         # 成句），message 只是中文兜底（未知 code 时前端回落 detail）——不再出现

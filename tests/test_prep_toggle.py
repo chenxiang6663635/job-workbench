@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 import approval  # noqa: E402
 import deps  # noqa: E402
 import prep_notes  # noqa: E402
+import prep_toggle  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 WS = "ws-ok"
@@ -111,7 +112,9 @@ def test_preview_rejects_line_out_of_range_and_missing(client, tmp_path):
     res = client.get("/api/prep/interview/preview-toggle",
                      params={"ws": WS, "rel": "x.md"})
     assert res.status_code == 400
-    assert res.json()["error_code"] == "prep.missingLine"
+    # C-1 起领域层统一用 `prep.missingLines`（行号是列表；旧码 prep.missingLine
+    # 与语言包条目在笔 2 一并删除）
+    assert res.json()["error_code"] == "prep.missingLines"
 
 
 def test_preview_rejects_unknown_section(client):
@@ -221,7 +224,7 @@ def test_knowledge_section_toggle(client, tmp_path):
 
 def test_flip_unit_forms():
     """纯函数边界：预览与落盘共用这一处，形态钉全。"""
-    flip = prep_notes._flip
+    flip = prep_toggle._flip
     assert flip("- [ ] a")[0] == "- [x] a"
     assert flip("- [X] a")[0] == "- [ ] a"
     assert flip("  - [ ] a")[0] == "  - [x] a"          # 缩进保留
@@ -280,7 +283,7 @@ def test_token_is_single_use(client, tmp_path):
 
 
 def test_registry_has_toggle():
-    assert approval._OPERATIONS.get("prep.toggle") is prep_notes.apply_approved_toggle
+    assert approval._OPERATIONS.get("prep.toggle") is prep_toggle.apply_approved_toggle
 
 
 def test_section_dirs_match_web_layer():
@@ -297,13 +300,13 @@ def test_apply_uses_prep_lock(client, tmp_path, monkeypatch):
     _write(tmp_path, "x.md", "- [ ] a\n")
     token = _preview(client, "x.md", 1)["token"]
     called = []
-    real = prep_notes._lock_path
+    real = prep_toggle._lock_path
 
     def spy(workspace=None):
         called.append(workspace)
         return real(workspace)
 
-    monkeypatch.setattr(prep_notes, "_lock_path", spy)
+    monkeypatch.setattr(prep_toggle, "_lock_path", spy)
     assert _apply(client, token).status_code == 200
     assert called
     # 锁落在 config（与 imap / provider 同款），不进业务目录
@@ -332,3 +335,112 @@ def test_lock_file_hidden_from_listing(client, tmp_path):
         res = client.get("/api/prep/%s" % section, params={"ws": WS})
         rels = [item["rel"] for item in res.json()["items"]]
         assert ".prep.lock" not in rels
+
+
+# --- 第五组：批量翻转（C-1，2026-09-21）---------------------------------------
+#
+# 直接调领域层（不绕 HTTP）——批量是载荷形态的扩展，端点改造是后一笔；走 HTTP
+# 的既有四组在笔 2 之后覆盖同一份语义。分叉定案：整批原子（3=A）、上限 100（4）、
+# 老单行载荷显式兼容（5=A）。
+
+
+def test_preview_batch_lists_every_line_and_touches_nothing(client, tmp_path):
+    path = _write(tmp_path, "打卡.md",
+                 "# 计划\n- [ ] 学习\n- [x] 复习\n- [ ] 复盘\n")
+    before = path.read_bytes()
+
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "打卡.md", [2, 3])
+
+    assert errors == []
+    assert plan["payload"]["lines"] == [
+        {"line": 2, "expected": "- [ ] 学习"},
+        {"line": 3, "expected": "- [x] 复习"}]
+    # diff = N 个既有 3 行块平铺（块间空一行）
+    assert plan["diff"] == ["打卡.md（第 2 行）", "- - [ ] 学习", "+ - [x] 学习", "",
+                            "打卡.md（第 3 行）", "- - [x] 复习", "+ - [ ] 复习"]
+    assert plan["summary"] == "翻转勾选框：打卡.md 第 2、3 行（2 项）"
+    # 预览是承诺：一个字节都不动
+    assert path.read_bytes() == before
+
+
+def test_preview_single_line_keeps_existing_wording(client, tmp_path):
+    """N=1 是批量的特例：文案与现状**逐字**相同（老界面与既有用例不受影响）。"""
+    _write(tmp_path, "打卡.md", "# 计划\n- [ ] 学习\n")
+
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "打卡.md", [2])
+
+    assert errors == []
+    assert plan["diff"] == ["打卡.md（第 2 行）", "- - [ ] 学习", "+ - [x] 学习"]
+    assert plan["summary"] == "翻转勾选框：打卡.md 第 2 行（未勾选 → 已勾选）"
+
+
+def test_apply_batch_writes_once_and_counts(client, tmp_path):
+    path = _write(tmp_path, "打卡.md", "# 计划\n- [ ] 学习\n- [x] 复习\n结尾\n")
+
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "打卡.md", [2, 3])
+    result = prep_toggle.apply_approved_toggle(plan["payload"], str(tmp_path / WS))
+
+    assert result["written"] == 2
+    assert result["summary"] == "已写回：打卡.md 2 行（勾选 1、取消 1）"
+    assert path.read_bytes() == "# 计划\n- [x] 学习\n- [ ] 复习\n结尾\n".encode("utf-8")
+
+
+def test_apply_batch_rejects_all_when_one_row_changed(client, tmp_path):
+    """分叉 3=A：任一不符 → 整批拒绝、零字节写入（不做"翻能翻的"）。"""
+    path = _write(tmp_path, "x.md", "- [ ] a\n- [ ] b\n- [ ] c\n")
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "x.md", [1, 2, 3])
+    # 模拟外部编辑器（不拿我们的锁）在预览后改了中间一行
+    path.write_bytes("- [ ] a\n- [x] b\n- [ ] c\n".encode("utf-8"))
+    before = path.read_bytes()
+
+    with pytest.raises(prep_toggle.tracker.ConflictError) as exc:
+        prep_toggle.apply_approved_toggle(plan["payload"], str(tmp_path / WS))
+
+    assert "第 2 行" in str(exc.value)
+    assert path.read_bytes() == before
+
+
+def test_apply_accepts_legacy_single_payload(client, tmp_path):
+    """分叉 5=A：老形态载荷（line / expected 单数字段）仍落盘。
+
+    钉这个是因为最坏形态不是报错——是 `payload.get("lines") or []` 得到空列表、
+    循环零次、返回"成功翻转 0 行"：用户确认了却什么都没写。
+    """
+    path = _write(tmp_path, "x.md", "- [ ] a\n")
+
+    result = prep_toggle.apply_approved_toggle(
+        {"section": "interview", "rel": "x.md", "line": 1,
+         "expected": "- [ ] a"}, str(tmp_path / WS))
+
+    assert result["written"] == 1
+    assert path.read_bytes() == "- [x] a\n".encode("utf-8")
+
+
+def test_preview_rejects_duplicate_empty_and_too_many_lines(client, tmp_path):
+    _write(tmp_path, "x.md", "- [ ] a\n- [ ] b\n")
+    # 重复行号：不静默去重（哪条被吞了用户无从知晓）
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "x.md", [1, 1])
+    assert plan is None
+    assert errors[0][0] == "prep.duplicateLine"
+    assert errors[0][1]["line"] == 1
+    # 空：没给行号
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "x.md", [])
+    assert plan is None
+    assert errors[0][0] == "prep.missingLines"
+    # 超上限（防御性：正常清单 10-30 行）
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "x.md",
+                                             list(range(1, 102)))
+    assert plan is None
+    assert errors[0][0] == "prep.tooManyLines"
+    assert errors[0][1]["limit"] == 100
+
+
+def test_preview_reports_which_line_is_bad(client, tmp_path):
+    """逐行校验：哪一行不行就报哪一行（含糊失败比明确报错更贵）。"""
+    _write(tmp_path, "x.md", "- [ ] a\n普通行\n")
+
+    errors, plan = prep_toggle.preview_toggle(str(tmp_path / WS), "interview", "x.md", [1, 2])
+
+    assert plan is None
+    assert errors[0][0] == "prep.notTaskLine"
+    assert errors[0][1]["line"] == 2

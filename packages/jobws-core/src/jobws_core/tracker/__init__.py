@@ -20,7 +20,7 @@
 """
 
 _HOME = ("_core", "_schema", "_check", "applications", "interviews", "talks",
-         "mails", "contacts", "offers", "importing", "preview_app",
+         "mails", "contacts", "offers", "importing", "deletes", "preview_app",
          "preview_interview", "preview_update")
 
 

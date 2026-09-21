@@ -103,6 +103,10 @@ export default {
   "bank.confirmAdd": "Confirm add",
   "bank.badgeDue": "Due",
   "bank.badgeWrong": "Wrong",
+  "bank.diffAdd": "Add",
+  "bank.diffDup": "Exists",
+  "bank.diffSkip": "Skip",
+  "bank.diffHint": "Note",
   "bank.emptyNoData": "Your question bank is empty",
   "bank.emptyHintNoData":
     "Use New question to write your own, or Import to pull in Markdown from 03_面试准备",

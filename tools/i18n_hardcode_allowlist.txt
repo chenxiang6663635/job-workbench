@@ -78,6 +78,10 @@ components/UpcomingTalks.tsx = 时间|是否参加
 # `_UPDATE_FIELD_PARAMS` 的映射同源（CSV 列名，不翻译；从 api.ts 迁来）
 lib/bank.ts = 答案要点|难度|备注|标签|状态
 
+# 导入预览差异表的解析（2026-09-21 批次 C-3）：表头与末列的分类值都是领域层
+# 生成的数据（question_bank.preview_import 的 diff 行），归类后徽章文案走 i18n
+lib/bankDiff.ts = 题目|领域|科目|来源|导入|CSV 导入|已存在|跳过|提示
+
 # 笔记页（2026-09-18）：工作区真实目录名与文件前缀约定——与后端 deps.DIR_PREP/DIR_KB、
 # 工作区 README（_模板_ 是待复制样板 / _示例_ 是只读参考）同源，不翻译；
 # 目录名集中在这一个文件里（组件经 NOTES_SECTIONS 常量渲染），改名时同步删本条

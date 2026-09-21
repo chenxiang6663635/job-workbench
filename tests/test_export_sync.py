@@ -23,7 +23,7 @@ import _cli_export_sync  # noqa: E402
 from jobws_core import tracker  # noqa: E402
 
 TRACKING = "05_投递追踪"
-SENTINEL = "SR-PROGRESS-MARKER"
+SENTINEL = "SR-PLUGIN-MARKER"
 
 
 def _names():
@@ -39,7 +39,7 @@ def ws(tmp_path):
 
 @pytest.fixture()
 def vault(tmp_path):
-    """一个「已在用」的库：.obsidian（插件 + 进度）+ 一篇用户自己的笔记。"""
+    """一个「已在用」的库：.obsidian（插件与设置）+ 一篇用户自己的笔记。"""
     target = tmp_path / "phone-vault"
     plugin_dir = target / ".obsidian" / "plugins" / "obsidian-spaced-repetition"
     plugin_dir.mkdir(parents=True)
@@ -93,7 +93,7 @@ def test_first_sync_copies_snapshot_and_preserves_vault_state(ws, vault, tmp_pat
     assert os.path.isfile(os.path.join(str(vault), "README.md"))
     assert os.path.isfile(os.path.join(str(vault), "jobws.base"))
     assert len(os.listdir(os.path.join(str(vault), "题库"))) == 2
-    # `.obsidian/`（插件与复习进度）与用户自己的笔记一个字节都不动
+    # `.obsidian/`（插件与设置）与用户自己的笔记一个字节都不动
     sentinel = vault / ".obsidian" / "plugins" / "obsidian-spaced-repetition" / "data.json"
     assert SENTINEL in sentinel.read_text(encoding="utf-8")
     assert "我自己的笔记" in (vault / "我的笔记.md").read_text(encoding="utf-8")
@@ -302,7 +302,7 @@ def test_inline_review_progress_comment_is_not_wiped(ws, vault, tmp_path):
 
 
 def test_real_content_change_still_updates_despite_progress(ws, vault, tmp_path):
-    """正文真改了要照常更新（代价：这一张卡的进度归零——可接受，文档写明）。"""
+    """正文真改了要照常更新（代价：这一篇里的卡进度归零——可接受，文档写明）。"""
     _seed_questions(ws, [("题目 A", "要点 A")])
     root = _snapshot(ws, tmp_path, 1)
     ops, _lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
@@ -317,3 +317,59 @@ def test_real_content_change_still_updates_despite_progress(ws, vault, tmp_path)
     _cli_export_sync.sync_execute(root2, str(vault), _names(), ops2)
     note = _read(vault, "题库/题目 A.md")
     assert "改过的答案要点" in note
+
+
+def test_whitespace_and_extra_comments_are_not_overwritten(ws, vault, tmp_path):
+    """空白差异（空行 / 行尾空格）与多条排程注释同样保守不覆盖——规则要能钉住。"""
+    _seed_questions(ws, [("题目 A", "要点 A")])
+    root = _snapshot(ws, tmp_path, 1)
+    ops, _lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops)
+
+    rel = "题库/题目 A.md"
+    path = os.path.join(str(vault), rel)
+    text = io.open(path, encoding="utf-8").read().rstrip("\n")
+    text = text + "  \n\n" + SR_COMMENT + "\n<!--SR:!2026-09-24,4,270-->\n"
+    io.open(path, "w", encoding="utf-8", newline="").write(text)
+    before = _read(vault, rel)
+
+    ops2, lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+
+    assert not any(rel2.endswith("题目 A.md") for _action, rel2 in ops2), ops2
+    assert any("保留复习进度" in line for line in lines), lines
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops2)
+    assert _read(vault, rel) == before
+
+
+def test_non_sr_comment_change_still_updates(ws, vault, tmp_path):
+    """正则只认 `<!--SR:`——普通 HTML 注释的改动是正文差异，必须照常更新（防放宽）。"""
+    _seed_questions(ws, [("题目 A", "要点 A")])
+    root = _snapshot(ws, tmp_path, 1)
+    ops, _lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops)
+
+    rel = "题库/题目 A.md"
+    path = os.path.join(str(vault), rel)
+    text = io.open(path, encoding="utf-8").read().rstrip("\n")
+    io.open(path, "w", encoding="utf-8", newline="").write(
+        text + "\n<!-- 我自己的批注 -->\n")
+
+    ops2, _lines2 = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+
+    assert any(rel2.endswith("题目 A.md") for _action, rel2 in ops2), ops2
+
+
+def test_unreadable_dst_falls_back_to_bytes(ws, vault, tmp_path):
+    """库端那份不是合法 UTF-8 → 回退按字节比（保守方向 = 照旧覆盖，不静默跳过）。"""
+    _seed_questions(ws, [("题目 A", "要点 A")])
+    root = _snapshot(ws, tmp_path, 1)
+    ops, _lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops)
+
+    rel = "题库/题目 A.md"
+    with io.open(os.path.join(str(vault), rel), "wb") as handle:
+        handle.write(b"\xff\xfe not utf8 \x00")
+
+    ops2, _lines2 = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+
+    assert any(rel2.endswith("题目 A.md") for _action, rel2 in ops2), ops2

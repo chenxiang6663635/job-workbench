@@ -61,7 +61,8 @@ def _same_bytes(a, b):
         return fa.read() == fb.read()
 
 
-# spaced-repetition 的排程注释：`<!--SR:!到期日,间隔,易度-->`（同行模式也匹配）
+# spaced-repetition 的排程注释：`<!--SR:!到期日,间隔,易度-->`（同行模式也匹配；
+# 插件实际只把注释插在卡片行之后——独占下一行或行尾，不插行中间）
 _SR_COMMENT_RE = re.compile(r"<!--SR:[^>]*-->")
 
 
@@ -84,7 +85,8 @@ def _strip_sr_notes(text):
 def _same_content(a, b):
     """两文件"正文层面"是否一致（剥掉复习注释后比）。字节不同时才走到这里。
 
-    读不出 UTF-8（二进制 / 损坏）就退回字节比较——不猜。
+    读不出 UTF-8（二进制 / 损坏）就退回字节比较——不猜；回退的后果 = 该文件照旧
+    按字节判"更新"并覆盖（它已不可解析，保它没有意义）。
     """
     try:
         with io.open(a, "r", encoding="utf-8") as fa:
@@ -164,8 +166,8 @@ def sync_plan(snapshot_root, target, names, workspace, include_notes=False):
     for action, rel in ops:
         lines.append("  %s %s" % (action, rel))
     if kept:
-        lines.append("保留复习进度：%d 篇笔记只差 spaced-repetition 的排程注释，未覆盖"
-                     "（正文有改动的才会更新）" % kept)
+        lines.append("保留复习进度：%d 篇笔记只差排程注释或空白（空行 / 行尾空格），"
+                     "未覆盖（正文有改动的才会更新）" % kept)
     if not include_notes:
         from _cli_export_notes import NOTE_DIRS  # 函数内 import：避免环状依赖
         stale = [d for d in NOTE_DIRS

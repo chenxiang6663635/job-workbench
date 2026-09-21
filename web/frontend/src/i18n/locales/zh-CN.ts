@@ -1077,6 +1077,7 @@ const zhCN = {
   "notes.searchSkipped": "{{count}} 个文件没搜全（读不动或超过 256 KB）",
   "notes.hitLine": "第 {{line}} 行",
   "notes.hitInName": "名称命中",
+  "notes.backToTree": "返回目录树",
   // 邮件台账（批 4.5）：与 mails.csv 列名同源；标签 / 方向是数据键不翻译
   "mail.summary": "共 {{count}} 封",
   "mail.add": "记录邮件",

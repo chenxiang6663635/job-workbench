@@ -137,6 +137,9 @@ test("笔记：全文搜索 → 点结果 → 打开并定位到命中行", asyn
   await expect(heading).toBeVisible();
   await expect(heading).toBeInViewport();
 
+  // 命中词高亮（B-5）：结果条目里 <mark> 包住关键词——"搜到了"之外还能"看出命中的是哪几个字"
+  await expect(page.locator("mark").first()).toBeVisible();
+
   // 结果列表是新出现的交互面：一并纳入 a11y 扫描
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])
@@ -148,6 +151,11 @@ test("笔记：全文搜索 → 点结果 → 打开并定位到命中行", asyn
     serious,
     `搜索结果有 serious/critical：${serious.map((v) => v.id).join("、")}`
   ).toEqual([]);
+
+  // 搜索态会把左栏目录树整体替换（B-6）——点「返回目录树」明确回来，
+  // 不用先想到"清空输入框"这一层
+  await page.getByRole("button", { name: "Back to file tree" }).click();
+  await expect(page.getByRole("button", { name: "_模板_行为故事" })).toBeVisible();
 });
 
 test("笔记：普通列表项的正文要渲染出来（回归：li 分支曾漏渲染 children）", async ({

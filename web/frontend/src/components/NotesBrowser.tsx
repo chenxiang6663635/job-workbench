@@ -51,6 +51,8 @@ export default function NotesBrowser() {
   // 与四种结果形态都在 NotesSearch 里自包含。focusLine = 点中的结果要定位到第几行。
   const [keyword, setKeyword] = useState(restoredUi.keyword);
   const [focusLine, setFocusLine] = useState<number | null>(restoredUi.focusLine);
+  // 每次点搜索结果自增（B-5）：同一条重复点击时行号没变、effect 不会重跑——nonce 逼它重定位
+  const [focusNonce, setFocusNonce] = useState(0);
   // 上一次加载的文件（section/rel）：只有换文件才撤正文，写回重拉时保留（A-2）
   const loadedKey = useRef<string | null>(null);
 
@@ -166,6 +168,7 @@ export default function NotesBrowser() {
       clearToggleError();
       setActive(next);
       setFocusLine(line);
+      setFocusNonce((value) => value + 1);
       writeLastOpened(ws, next);
     },
     [ws, onCancelToggle, clearToggleError]
@@ -200,7 +203,16 @@ export default function NotesBrowser() {
   return (
     <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start">
       <div className="flex w-full flex-col gap-3 lg:w-[17.5rem] lg:shrink-0">
-        <NotesSearch keyword={keyword} onKeywordChange={setKeyword} onPick={onPickHit} />
+        <NotesSearch
+          keyword={keyword}
+          onKeywordChange={setKeyword}
+          onPick={onPickHit}
+          activeHit={
+            active && focusLine != null
+              ? { section: active.section, rel: active.rel, line: focusLine }
+              : null
+          }
+        />
         {/* 搜着的时候结果列表替代目录树——两个列表并排会让人分不清哪个是哪个 */}
         {keyword.trim() ? null : (
           <NotesFileTree
@@ -224,6 +236,15 @@ export default function NotesBrowser() {
         pendingLine={flow?.phase === "previewing" ? flow.line : null}
         locked={flow !== null}
         focusLine={focusLine}
+        focusNonce={focusNonce}
+        onBackToTree={
+          keyword.trim()
+            ? () => {
+                setKeyword("");
+                setFocusLine(null);
+              }
+            : undefined
+        }
       />
       <NotesToggleDialog flow={flow} onConfirm={onConfirmToggle} onCancel={onCancelToggle} />
     </div>

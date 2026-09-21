@@ -41,6 +41,10 @@ export interface NotesReaderProps {
   locked: boolean;
   /** 搜索命中的行号（1-based）：非 null 时滚到所属块并标记；null = 不定位 */
   focusLine: number | null;
+  /** 每次「点搜索结果」自增：同一条重复点击也要重新定位（行号没变时 effect 不重跑） */
+  focusNonce: number;
+  /** 回目录树（搜索态下路径行的目录段可点）：清搜索、左栏换回目录树 */
+  onBackToTree?: () => void;
 }
 
 export default function NotesReader({
@@ -54,6 +58,8 @@ export default function NotesReader({
   pendingLine,
   locked,
   focusLine,
+  focusNonce,
+  onBackToTree,
 }: NotesReaderProps) {
   const { t } = useTranslation();
   const dir = NOTES_SECTIONS.find((s) => s.key === section)?.dir ?? "";
@@ -81,7 +87,8 @@ export default function NotesReader({
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add(...HIT_CLASS);
     return () => el.classList.remove(...HIT_CLASS);
-  }, [focusLine, content]);
+    // focusNonce：同一条结果重复点击时行号没变，靠它逼 effect 重跑（重新滚 + 重新标记）
+  }, [focusLine, focusNonce, content]);
 
   // 阅读位置记忆（A-2）：滚动时把"视口顶部所在的块"记下来（节流 400ms）。写回后的
   // 重拉、外部编辑触发的整页 reload 都靠它回到原处——此前两者都会把人打回顶部。
@@ -139,10 +146,24 @@ export default function NotesReader({
 
   return (
     <section className="min-w-0 flex-1 rounded-lg bg-card-gradient p-6 shadow-card ring-1 ring-highlight/5 lg:p-8">
-      <p className="mb-3 font-mono text-[11px] text-muted-foreground">
-        {dir}
-        {subPath && ` / ${subPath}`} / {name}
-      </p>
+      {/* 路径行（B-6）：搜索态下首段（目录名）可点 = 回目录树——「我在哪、怎么回去」
+          在正文区也答得上，不用回左栏找入口 */}
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-1 font-mono text-[11px] text-muted-foreground">
+        {onBackToTree ? (
+          <button
+            type="button"
+            onClick={onBackToTree}
+            title={t("notes.backToTree")}
+            className="cursor-pointer transition-colors hover:text-foreground hover:underline"
+          >
+            {dir}
+          </button>
+        ) : (
+          <span>{dir}</span>
+        )}
+        {subPath && <span>/ {subPath}</span>}
+        <span className="text-foreground">/ {name}</span>
+      </div>
 
       {toggleError && (
         <div className="mb-3">

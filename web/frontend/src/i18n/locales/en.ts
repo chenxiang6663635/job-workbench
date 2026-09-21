@@ -997,6 +997,7 @@ export default {
   "notes.searchSkipped": "{{count}} file(s) not searched fully (unreadable or over 256 KB)",
   "notes.hitLine": "Line {{line}}",
   "notes.hitInName": "matched in name",
+  "notes.backToTree": "Back to file tree",
   // Email ledger (batch 4.5): keys mirror mails.csv columns; tag/direction values stay untranslated.
   "mail.summary": "{{count}} emails",
   "mail.add": "Record email",

@@ -106,6 +106,16 @@
 - **其它 version 字段（私有 / 独立包，不参与发布）**：`web/frontend/package.json` 与 `mcp/pyproject.toml` 的 `version` 是各自包的私有字段，**不得与发布号联动**；`.codebuddy-plugin/marketplace.json` 无 version 字段。**例外（派生物，不是真值源）**：领域包 `packages/jobws-core` 的版本在**构建期**由它自己的 `setup.py` 读 `web/electron/package.json` 写进 wheel 元数据，运行时从 `importlib.metadata` 读回（CI 断言三者一致，见 `jobws_core/_version.py`）。它同样**不是**真值源——改版本仍然只改 `package.json` 一处，不要去改包的 `pyproject.toml`。
 - **当代参考**：tag 序列从 `v0.1.0`（2026-09-08）到 `v0.3.2`（2026-09-14）为语义化时代；**下一个版本是首个时间戳版本**（号 = 发布当日生成），实际值一律以 `web/electron/package.json` 与 `git tag` 为准。
 
+## CHANGELOG 写法（单文件两级制，2026-09-20 起）
+
+对外发布时 CHANGELOG 是读者的第一站，写法按「写给人读」约束（Keep a Changelog 的落地方案，参考了 Tailwind / Ant Design 等项目的实际形态）：
+
+- **每个版本段两级**：段顶先写 `### Highlights (English)`（3–5 行英文摘要——**英文只承诺摘要，不承诺逐条**）与 `### 看得见的变化`（中文白话 3–5 条：动词开头、一条一事、行尾挂 PR / issue 号）；下面用 `### 技术细节` 收原始详注（历史原文不改）。
+- **内部工程条目只进 `Infrastructure` 节**（CI / 测试 / 水位 / 重构 / 包化 / 脚本 / 文档校对），该节首行保持「不影响使用、是内部质量改进」的固定导语；判据 = **是否改变分发形态软件的用户可见行为**。
+- **术语不许裸奔**：新出现的内部术语要么在条目里当场一句话解释，要么收进 `docs/glossary.md` 并从条目链接过去。
+- **版本段要自洽**：段内按日期倒序；底部 compare 引用补齐（指向真实 tag）；`[Unreleased]` 是发布前的累积区，发布时改为发布号 + ISO 日期（见 §发布流程）。
+- **历史段保持原样**（0.3.2 及以前）：只加一行「本节为原始详注，格式自下版起统一」的注记，不回填。
+
 ## 发布流程（手动归档）
 
 从 `main` 打 tag，不从分支发（**单一发布节点**：中间不发布，见 §版本号体系）：

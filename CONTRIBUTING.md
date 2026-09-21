@@ -156,7 +156,7 @@
     `fastapi<0.142` / `pydantic<2.14` / `pypdf>=6.18.1`（`uvicorn<0.53` 未动）。放宽不是
     一次性动作而是**逐条实测**——每条都装上新版跑全量回归才合（PR #109 / #127 / #129）。
     实测口径：`fastapi 0.141.1` + `starlette 1.6.0` + `pydantic 2.13.5` + `pypdf 6.19.0`
-    下 679 项全过；**跨 starlette 大版本（0.46→1.6）无碍**。
+    下 679 项全过（2026-09-16 当时的用例数，现为 934 条）；**跨 starlette 大版本（0.46→1.6）无碍**。
     仍被卡住的两条（**major，需先排迁移批次**）：`@vitejs/plugin-react` 6.x 要 `vite ^8`
     （仓库 vite 6.4.3）、`typescript` 7.x 不被 typescript-eslint 支持（`npm run lint` 直接
     失败）。两条都在 `.github/dependabot.yml` 记了到期条件，且**刻意不加 ignore**。

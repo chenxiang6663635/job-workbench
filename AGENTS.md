@@ -20,7 +20,7 @@
 
 | 入口 | 形态 | 写入口令 |
 |---|---|---|
-| 命令行 | `tools/jobws.py`（唯一入口） | `--preview` 拿令牌 → `jobws apply <令牌>` |
+| 命令行 | `tools/jobws.py`（唯一入口） | track 类显式 `--preview`、题库类（bank）**默认即出预览** → 令牌 → `jobws apply <令牌>`；contact / offer 直接落盘 |
 | AI 宿主 | MCP 服务（`mcp/jobws_mcp`） | `preview_*` 拿令牌 → `apply_approval` |
 | 编辑器插件 | 仓库根 `commands/` 与 `agents/` | 命令内仍走命令行的两段式 |
 | 桌面端 | `web/backend/routers` + 前端页面 | 界面弹窗确认 |

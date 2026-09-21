@@ -4,10 +4,10 @@
 背景：本仓库 77 份 Markdown 中的路径引用全部是纯文本形式（多数被反引号包裹），
 几乎不存在 Markdown 链接语法 ](...) 。因此本脚本做的是路径文本替换，而非链接重写。
 
-用法：
-    python tools/fix_links.py                 # 演练模式，只报告将要修改的内容
-    python tools/fix_links.py --apply         # 实际写入
-    python tools/fix_links.py --apply --verbose
+用法（本文件已归档至 docs/deprecated/，路径按归档后的位置写）：
+    python docs/deprecated/fix_links.py                 # 演练模式，只报告将要修改的内容
+    python docs/deprecated/fix_links.py --apply         # 实际写入
+    python docs/deprecated/fix_links.py --apply --verbose
 
 设计要点：
 1. 按最长前缀匹配。02_作战手册 分裂成三个目标目录，因此必须匹配到二级子目录粒度，

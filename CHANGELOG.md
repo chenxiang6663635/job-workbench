@@ -26,6 +26,7 @@
 
 ### Highlights (English)
 
+- **Notes and drilling, tidied up (2026-09-21)** — search results are grouped by file with highlighted hits and arrow-key navigation; the file tree collapses, follows the active file and sticks while you read; ticking a checkbox no longer throws you back to the top. The question bank gains an in-app "new question" form, due / wrong badges, editable tags & notes, and colour-coded import previews. Drills explain why each question was drawn, support a full keyboard round, and show a per-round map so a mis-tap can be undone.
 - **Question bank: delete, undo, and drill** — remove a question or withdraw a whole mistaken import (preview the exact rows, snapshot the table outside the workspace, row-fingerprint re-check on apply), and practise in a drill panel: draw a question, answer blind, reveal, self-grade or flag it as wrong.
 - **A phone vault that survives updates** — `export --notes` projects your Markdown material into the same Obsidian notes; `export --sync-to` mirrors the snapshot into one fixed vault and never overwrites notes whose only change is spaced-repetition progress.
 - **Notes you can search and tick** — full-text search across file names and bodies (jump straight to the hit), clickable checkboxes that write back a single character after a diff, and a shared read-only core for the library view.
@@ -34,6 +35,9 @@
 
 ### 看得见的变化
 
+- **笔记体验整理（2026-09-21）**：搜索结果按文件分组、命中词高亮，↑↓ / Enter 在结果间移动，重复点击同一条也重新定位；搜索时左栏固定「返回目录树」，正文路径行的目录段点一下也能回去。目录树可折叠（过滤时自动全展）、切换文件后当前项自动滚入视野、往下读长文时左栏吸顶。打一个勾不再被打回文档顶部（写回重拉保留位置），切页签再回来搜索词、过滤词与定位行都还在。图片统一显示为明确占位；勾选失败提示中英各自成句。
+- **题库界面补齐（2026-09-21）**：界面可直接**自拟新增题目**（此前只能命令行）——填题面 / 领域 / 科目 / 难度 / 标签 / 答案要点 / 备注，先看差异表再确认。列表行标出**到期**与**错题**；详情弹窗可编辑**标签与备注**（错题标记的界面路径）。导入预览的差异表按**新增 / 已存在 / 跳过 / 提示**分色，哪几行会真落盘一眼可见。
+- **训练反馈闭环（2026-09-21）**：题卡注明**为什么抽到这道题**（还没学 / 已到期 N 天 / 错题本）；键盘可走完一轮（空格看答案、1/2/3 自评、W 标错、←→ 前后跳题）；**本轮题表**可点格跳题、误点可退（已写的打勾、错题红边）；题库头部与结束卡显示**未看 / 看过 / 会了**分布——"练到哪了"一眼可见。
 - **题库能删、能练了**：单题删除与整批误导入撤回（先看将删哪几行、整表快照留档、落盘前行指纹复核），外加训练面板——抽题、盲答（答案默认折叠）、看答案、自评三态 / 标错题。
 - **手机端既能刷题也能读材料**：`export --notes` 把 03/04/00 的 Markdown 投影成同一批 Obsidian 笔记；`export --sync-to` 一键镜像进固定库，且只差复习注释或空白的笔记不会被覆盖。
 - **笔记搜得到、勾得上**：全文搜索直达命中行；勾选框经差异确认后只改一个字符；素材库与笔记共用同一套只读原语。
@@ -53,6 +57,9 @@
 
 #### Added
 
+- **题库：新增 / 到期 / 错题 / 标签备注 / 导入分色（2026-09-21）**：① `GET /questions/preview-add` + `QuestionForm`（复用领域层 `preview_add_fields` 与 `question.add` 注册项——与 CLI `bank add`、MCP `preview_add_question` 同一份实现与校验），四端矩阵 `question.add` 的 gui 列开闸；② `/questions` 每行附 `due` + `reason`（复用 `question_review.due_from_rows`，与 `bank due` 同口径），`/questions/drill` 每行附 `reason` 与三态 `counts`（`pick_drill_with_reasons` 让选取与原因同一处实现）；③ 详情弹窗编辑区补**标签 / 备注**——改标签是错题标记的界面路径（此前文档已宣称「界面改标签同效」而界面没有），`previewQuestionUpdate` 迁到 `lib/bank.ts` 并补字段映射；④ 新 `lib/bankDiff.ts` 只在**能确定性解析**时把导入差异表渲染成分色表格（表头逐字 + 四列 + 末列可归类，任一条不满足回落 `<pre>`——用户照着这张表决定落盘，宁可丑不可错）。
+- **笔记：搜索导航 / 目录树 / 图片兜底 / 错误双语（2026-09-21）**：① 搜索结果按文件分组 + `<mark>` 高亮 + ↑↓/Enter + `focusNonce`（同一条重复点击也重定位）+ 底部「返回目录树」；② 目录树折叠（localStorage；过滤时自动全展）、当前项 `scrollIntoView`、左栏 `lg:sticky`；③ `img` 统一渲染成明确占位（相对路径在 SPA 必 404、外链与本地优先相抵）；④ 勾选写回错误改为 `(code, params, message)` 结构化——`err.prep.*` 中英各自成句，`err.prep.toggleFailed` 退役。
+- **训练：键盘 / 题表 / 回退（2026-09-21）**：`drillKeys` 增 `prev`（←），跳题统一 `goTo`（夹取边界 + 收起答案——回退不破坏「盲答」纪律）；新 `DrillRoundMap`（已写打勾 / 错题红边 / 点格跳题）与 `DrillDoneCard`（结束卡从 ReviewQueue 拆出）；本轮写入集合随 sessionStorage 持久化（刷新不丢）、重抽清零。
 - **题库能「练」了：抽题与重练队列（2026-09-20）**：新增训练入口（界面「准备 → 训练」页签 + 命令行 `jobws bank drill`），抽题 → **盲答（答案默认折叠）** → 展开对答案 → 自评三态 / 标错题 → 下一题。三种模式：**重练队列**（错题 ∪ 当日待复习，去重后按「最近复习升序」排）、只错题、随机；可按领域 / 科目 / 状态 / 关键词收窄。CLI 与界面共用同一套纯函数口径（`question_drill`，随机源与「今天」可注入），所以两边抽到的队列不会各说各话。写操作**零新增**：自评是改「状态」、标错题是改「标签」，都复用既有的 `question.update` 两段式；**不引入记忆曲线**（间隔仍是写死的阶梯：看过 3 天 / 会了 14 天）。**本轮存在会话里**：每写一题工作区指纹都会触发整页刷新，抽到的题 / 进度 / 折叠状态会原样回来（sessionStorage；令牌不存——它十分钟过期）；「未看」在状态本来就是未看时不发写请求（没有可写的差异），直接进下一题；本轮计数只数**真正落盘**的（取消 / 预览失败 / 冲突不计）；「标错题」用与领域层同一套分词判定（`错题本`、`高频错题` 不会被误判成已标），按钮文案随状态切换；「抽了但没命中」与「还没抽」分开提示。队列空闲的边界也因此说清了：抽题是只读的，写回仍是一次一行。
 - **题库删除与撤回（`jobws bank delete`，2026-09-20）**：「导入」第一次有了刹车——删单题用 `--id Q012`；误导入想整批撤回用 `--origin 导入 --today`（也可按 `--domain` / `--subject` / `--keyword` / `--company` 组合）。同样是**先看「将删哪几行」的预览 → 确认 → 凭令牌落盘**（差异表带「来源 / 创建日期」，批量撤回时靠它核对「删的是不是那批」）；落盘前把**整表快照**写到工作区之外（确切路径由 `jobws apply` 打印：`<快照根>/<工作区名>/question-deletes/questions-before-delete-<时间戳>.csv`；**恢复 = 回到删除前一刻的整表状态**，把那份 CSV 复制回 `05_投递追踪/questions.csv`——删除之后的其它改动会一并被冲掉，先另存），工作区内一个字节不多写。界面侧在题目详情弹窗底部加了「删除这道题」，与改题共用同一张差异确认卡；**批量删只在命令行**——界面没有「选中可见多行」这个前置，把批量删做成一次点击等于鼓励误操作。匹配 0 题报**错误**而不是「删除 0 道题」的空转；预览之后目标题少了、**id 被新题复用**（编号 = max+1，只认 id 会出现「预览删 A、落盘删 B」）、或那一行被改过，一律**整体拒绝并要求重新预览**——载荷带行指纹（id + 题目 + 领域 + 科目 + 创建日期），落盘前逐行核对，不许删一半，更不许删错行。CSV 里有重复 id 时预览就拒绝（一次删除会带走多行）。
 - **导出可以一键更新固定库（`jobws export --obsidian <目录> --sync-to <库目录>`，2026-09-20）**：导出目录带时间戳留档，但手机端真正需要的是**一个固定名字的 Obsidian 库**——`--sync-to` 把新快照**镜像**进去：白名单条目（八张表目录 / `README.md` / `jobws.base` / 材料目录）按**托管**语义覆盖——源里删了的题库里也删，**有删除时必须加 `--yes` 确认**（否则拒绝执行、库目录零改动）；白名单**之外**的文件与库里的 `.obsidian/`（插件与设置）一个字节不动。每次先打印「新增 / 更新 / 删除」计划再执行；`--dry-run` 只看计划不改库。库目录必须**已存在**且在工作区之外。**同步不冲掉复习进度**：spaced-repetition 把排程写回笔记本身（`<!--SR:…-->`），比较时先剥掉这类注释——字节不同但剥完一致的笔记**跳过不覆盖**（否则手机刷出的进度会被整批清零）；只有正文真改了才更新（那一篇笔记里的卡进度归零），计划里会报（`--dry-run` 也报）「保留复习进度：N 篇」（只差注释或空白的，都保守不覆盖）。
@@ -117,6 +124,8 @@
 #### Infrastructure（内部工程）
 
 > 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
+
+- **笔记与训练批的工程注记（2026-09-21）**：`question_previews.py` 从 `questions.py` 拆出（311→144 行，规模预算；包 `__init__` 注册紧随 questions）；`api.ts` 的 `previewQuestionUpdate` 迁到 `lib/bank.ts`、水位下调 1265→1258，`ReviewQueue` 拆出 `DrillRoundMap` / `DrillDoneCard`（291 行）；新增单测 `bankDiff`（解析回落负例）与 `drillKeys` 的 `prev`。
 
 - **「投入节奏」口径修正：不再承诺「每周 1–2 个 PR」（2026-09-20）**：README 两版与 `docs/maintenance.md` 原先写着「大约每周一两个 PR 的推进量」——这个数字随工具（AI 结对）与批次（面试周停工）波动，发布当天就可能过期（同日合入 7 个 PR），不是稳定承诺。现改为如实描述**投入形态**（分批——可能集中几天推进一批、也可能整周无动作；面试周 / 笔试周停工）＋**响应目标**（issue 首复 48 小时、滑期公示，见 `docs/maintenance.md`）；`CONTRIBUTING.md`「可持续性约定」同步改口径并明确**不写吞吐量数字**。
 - **MCP 写工具的协议级确认：四类拒绝在壳层补齐（2026-09-19）**：多轮往返（`preview_*` → 展示 diff → `apply_approval`）与令牌（随机 + 载荷指纹 + 工作区绑定 + 10 分钟 TTL + 一次性 = 签名请求态）此前已具备；本批把「**过期**」与「**指纹不符**」补到 MCP 壳层的端到端用例（此前只在协议层覆盖；重放 / 跨工作区绑定 / 输入校验在壳层已有）。四类拒绝现在**两层各自有覆盖**，且都断言稳定 `code`——宿主据码分流，不解析中文文案。

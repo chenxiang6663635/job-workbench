@@ -213,18 +213,44 @@ def prep_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
     return {"rel": rel, "content": text, "truncated": truncated, "bytes": size}
 
 
-@router.get("/{section}/preview-toggle")
-def preview_toggle(section: str, rel: str = "", line: int = 0,
-                   ws: str = Depends(workspace_dir)):
-    """预览翻转某一行的勾选框（**不落盘**），返回令牌与「原行 → 新行」差异。
+def _parse_lines(raw):
+    """端点唯一的解析职责：「3,7,9」→ [3, 7, 9]。
 
-    与题库改题（`/api/progress/questions/preview-update`）同构：只签发一次性
-    令牌，落盘走既有的 `/api/approvals/apply`（写通道只有一条）。section/rel/
-    line 的完整校验与读写都在领域层 `prep_notes`（白名单、realpath 防护、
-    字节级翻转），本端点不重复实现——没有第二份校验就没有失配的机会。
+    解析不了返回 (None, True)；**空串不算解析失败**——那是"没给行号"，交给
+    领域层报 `prep.missingLines`（文案与占位参数都在领域层一处）。业务校验
+    （范围 / 重复 / 上限 / 是不是勾选框行）一律留给领域层——端点不建第二份。
     """
+    text = (raw or "").strip()
+    if not text:
+        return [], False
+    items = []
+    for part in text.split(","):
+        part = part.strip()
+        if not part or not part.isdigit():
+            return None, True
+        items.append(int(part))
+    return items, False
+
+
+@router.get("/{section}/preview-toggle")
+def preview_toggle(section: str, rel: str = "", lines: str = "",
+                   ws: str = Depends(workspace_dir)):
+    """预览翻转勾选框（**不落盘**），返回令牌与「原行 → 新行」差异。
+
+    `lines` 是逗号分隔的行号（"3,7,9"）；单行 = 长度 1 的列表——**单行是批量
+    的特例**，只留一条路径。与题库改题（`/api/progress/questions/preview-update`）
+    同构：只签发一次性令牌，落盘走既有的 `/api/approvals/apply`（写通道只有
+    一条）。section/rel/lines 的完整校验与读写都在领域层 `prep_toggle`
+    （白名单、realpath 防护、字节级翻转），本端点不重复实现——没有第二份校验
+    就没有失配的机会。
+    """
+    parsed, bad = _parse_lines(lines)
+    if bad:
+        raise ApiError(400, "prep.invalidLines",
+                       "行号看不懂：%s（用逗号分隔的行号，如 3,7,9）" % lines,
+                       lines=lines)
     import prep_toggle
-    errors, plan = prep_toggle.preview_toggle(ws, section, rel, line)
+    errors, plan = prep_toggle.preview_toggle(ws, section, rel, parsed)
     if plan is None:
         # 结构化错误（2026-09-21 批次 C-5）：code 走 err.<code> 的语言包（中英各自
         # 成句），message 只是中文兜底（未知 code 时前端回落 detail）——不再出现

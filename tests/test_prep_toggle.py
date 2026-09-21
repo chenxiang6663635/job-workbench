@@ -59,9 +59,10 @@ def _write(tmp_path, rel, content, base=PREP_DIR):
     return path
 
 
-def _preview(client, rel, line, section="interview"):
+def _preview(client, rel, lines, section="interview"):
+    """C-1 起端点是 `lines`（逗号分隔）；单行 = 长度 1 的列表。"""
     res = client.get("/api/prep/%s/preview-toggle" % section,
-                     params={"ws": WS, "rel": rel, "line": line})
+                     params={"ws": WS, "rel": rel, "lines": str(lines)})
     assert res.status_code == 200, res.text
     return res.json()
 
@@ -91,7 +92,7 @@ def test_preview_rejects_non_task_line(client, tmp_path):
     _write(tmp_path, "x.md", "# t\n普通行\n- 文本 [ ] 行内出现\n")
     for line in (1, 2, 3):
         res = client.get("/api/prep/interview/preview-toggle",
-                         params={"ws": WS, "rel": "x.md", "line": line})
+                         params={"ws": WS, "rel": "x.md", "lines": line})
         assert res.status_code == 400, line
         body = res.json()
         assert body["error_code"] == "prep.notTaskLine", line
@@ -101,7 +102,7 @@ def test_preview_rejects_non_task_line(client, tmp_path):
 def test_preview_rejects_line_out_of_range_and_missing(client, tmp_path):
     _write(tmp_path, "x.md", "- [ ] a\n")
     res = client.get("/api/prep/interview/preview-toggle",
-                     params={"ws": WS, "rel": "x.md", "line": 99})
+                     params={"ws": WS, "rel": "x.md", "lines": 99})
     assert res.status_code == 400
     body = res.json()
     assert body["error_code"] == "prep.lineOutOfRange"
@@ -119,7 +120,7 @@ def test_preview_rejects_line_out_of_range_and_missing(client, tmp_path):
 
 def test_preview_rejects_unknown_section(client):
     res = client.get("/api/prep/nope/preview-toggle",
-                     params={"ws": WS, "rel": "x.md", "line": 1})
+                     params={"ws": WS, "rel": "x.md", "lines": 1})
     assert res.status_code == 400
     body = res.json()
     assert body["error_code"] == "prep.unknownSection"
@@ -134,7 +135,7 @@ def test_preview_rejects_bad_rel(client, tmp_path):
     for bad in ("../x.md", "..\\x.md", "/etc/passwd", "C:/x.md", "a/../x.md",
                 "行为面/../../x.md"):
         res = client.get("/api/prep/interview/preview-toggle",
-                         params={"ws": WS, "rel": bad, "line": 1})
+                         params={"ws": WS, "rel": bad, "lines": 1})
         assert res.status_code == 400, bad
         assert res.json()["error_code"] in ("prep.relativeOnly",
                                             "prep.invalidRel"), bad
@@ -143,7 +144,7 @@ def test_preview_rejects_bad_rel(client, tmp_path):
 def test_preview_rejects_non_markdown(client, tmp_path):
     _write(tmp_path, "x.txt", "- [ ] a\n")
     res = client.get("/api/prep/interview/preview-toggle",
-                     params={"ws": WS, "rel": "x.txt", "line": 1})
+                     params={"ws": WS, "rel": "x.txt", "lines": 1})
     assert res.status_code == 400
     body = res.json()
     assert body["error_code"] == "prep.notMarkdown"
@@ -154,7 +155,7 @@ def test_preview_rejects_oversize_file(client, tmp_path):
     # 写路径不做截断读写（截断 + 写回 = 后半文件丢失）——超限在预览期直接拒
     _write(tmp_path, "big.md", b"- [ ] a\n" + b"x" * (prep_notes.MAX_BYTES + 1))
     res = client.get("/api/prep/interview/preview-toggle",
-                     params={"ws": WS, "rel": "big.md", "line": 1})
+                     params={"ws": WS, "rel": "big.md", "lines": 1})
     assert res.status_code == 400
     body = res.json()
     assert body["error_code"] == "prep.tooLarge"
@@ -163,7 +164,7 @@ def test_preview_rejects_oversize_file(client, tmp_path):
 
 def test_preview_missing_file(client, tmp_path):
     res = client.get("/api/prep/interview/preview-toggle",
-                     params={"ws": WS, "rel": "无此文件.md", "line": 1})
+                     params={"ws": WS, "rel": "无此文件.md", "lines": 1})
     assert res.status_code == 400
     body = res.json()
     assert body["error_code"] == "prep.fileNotFound"
@@ -433,6 +434,32 @@ def test_preview_rejects_duplicate_empty_and_too_many_lines(client, tmp_path):
     assert plan is None
     assert errors[0][0] == "prep.tooManyLines"
     assert errors[0][1]["limit"] == 100
+
+
+def test_endpoint_accepts_lines_csv(client, tmp_path):
+    """端点只做「字符串 → int 列表」解析，业务校验全在领域层。"""
+    _write(tmp_path, "打卡.md", "# 计划\n- [ ] 学习\n- [x] 复习\n")
+
+    res = client.get("/api/prep/interview/preview-toggle",
+                     params={"ws": WS, "rel": "打卡.md", "lines": "2,3"})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["token"]
+    assert body["summary"] == "翻转勾选框：打卡.md 第 2、3 行（2 项）"
+    assert body["diff"] == ["打卡.md（第 2 行）", "- - [ ] 学习", "+ - [x] 学习", "",
+                            "打卡.md（第 3 行）", "- - [x] 复习", "+ - [ ] 复习"]
+
+
+def test_endpoint_rejects_unparsable_lines(client, tmp_path):
+    _write(tmp_path, "x.md", "- [ ] a\n- [ ] b\n")
+    for bad in ("a", "2,", ",2", "2,,3", "1.5", "二"):
+        res = client.get("/api/prep/interview/preview-toggle",
+                         params={"ws": WS, "rel": "x.md", "lines": bad})
+        assert res.status_code == 400, bad
+        body = res.json()
+        assert body["error_code"] == "prep.invalidLines", bad
+        assert body["error_params"]["lines"] == bad, bad
 
 
 def test_preview_reports_which_line_is_bad(client, tmp_path):

@@ -47,9 +47,13 @@ components/JobDetailView.tsx = 解析卡.md
 components/OfferCompare.tsx = 公司|关联记录|其他条件|备注|岗位|工作地点|年终|月薪|答复截止日|签字费|股票期权|薪资构成
 components/OfferForm.tsx = 公司|关联记录|其他条件|备注|岗位|工作地点|年终|月薪|答复截止日|签字费|股票期权|薪资构成
 
-# 面试轮次枚举（ROUND_VARIANT 的键；「面」来自 HR面/终面/AI面 的切分）+ 归集键拼接
-# （列表行 2026-09-18 拆到 QuestionBankRow.tsx，随行走的片段已迁到下面那条）
-components/QuestionBank.tsx = ${g.公司}__${g.岗位}|一面|三面|二面|会了|公司|复盘与改进|待定|我的回答要点|未看|测评|看过|笔试|终面|结果|群面|通过|面
+# 题库状态筛选枚举（未看 / 看过 / 会了）——questions.csv 的真实取值，不翻译
+# （被问过的视图与轮次枚举 2026-09-21 拆到 AskedBefore.tsx，随行走的片段已迁到下面那条）
+components/QuestionBank.tsx = 会了|未看|看过
+
+# 被问过的视图（2026-09-21 从 QuestionBank.tsx 拆出）：轮次枚举（ROUND_VARIANT 的键；
+# 「面」来自 HR面/终面/AI面 的切分）+ 面试记录 CSV 列名与归集键拼接——都是数据值
+components/AskedBefore.tsx = ${g.公司}__${g.岗位}|一面|三面|二面|公司|复盘与改进|待定|我的回答要点|测评|笔试|终面|结果|群面|通过|面
 
 # 题库列表行拆出（2026-09-18）后的状态枚举与 CSV 列名 / 关联展示拼接
 components/QuestionBankRow.tsx = · ${row.关联岗位}|会了|关联公司|未看|看过|答案要点|题目

@@ -158,6 +158,7 @@ const zhCN = {
   "drill.noMatch": "这一轮没抽到题",
   "drill.noMatchHint": "队列 = 错题 ∪ 今日待复习，按当前模式与关键词可能为空：换个模式、清掉关键词，或先「未看」的题自评一轮。",
   "drill.restart": "再抽一轮",
+  "drill.kbdHint": "键盘：空格 / 回车 看答案 · 1 / 2 / 3 自评 · W 标错 · → 下一题",
 
   "question.searchPlaceholder": "搜问题、回答或复盘关键词…",
   "question.searching": "检索中…",

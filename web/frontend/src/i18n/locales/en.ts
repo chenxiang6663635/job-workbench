@@ -155,6 +155,7 @@ export default {
   "drill.noMatch": "No questions this round",
   "drill.noMatchHint": "The queue is wrong ∪ due-today, so the current mode and keyword can come up empty: switch mode, clear the keyword, or grade some “Not learned” cards first.",
   "drill.restart": "Another round",
+  "drill.kbdHint": "Keyboard: Space / Enter reveal · 1 / 2 / 3 grade · W flag wrong · → next",
 
   "question.searchPlaceholder": "Search questions, answers, or retrospectives…",
   "question.searching": "Searching…",

@@ -10,6 +10,7 @@ import {
   WRONG_TAG,
   type DrillMode,
 } from "../lib/drill";
+import { DRILL_KEY_IGNORE_SELECTOR, drillKeyAction } from "../lib/drillKeys";
 import { BankPreviewCard } from "./BankPreviewCard";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -120,6 +121,29 @@ export default function ReviewQueue() {
     runPreview(previewMarkWrong(current.题目id, !wrongFlagged));
   };
 
+  // 键盘操作（2026-09-21）：一轮 5 道题纯鼠标要 16 次点击（抽题 + 每题 3 次），
+  // 标错题再加——桌面端对着键盘练最省事。键位判定在 lib/drillKeys.ts（纯函数、
+  // 有单测）；这里只把动作接到既有的预览 / 落盘函数上，**不绕写通道**。
+  // 焦点在输入框 / 按钮上时不抢键（打字与浏览器自己"点"按钮都不该被劫）。
+  // 刻意不写依赖数组：每次渲染重挂，闭包永远拿到最新的 current / preview / locked。
+  useEffect(() => {
+    if (!current) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(DRILL_KEY_IGNORE_SELECTOR)) return;
+      const action = drillKeyAction(event, { locked, hasPreview: preview !== null });
+      if (!action) return;
+      event.preventDefault();
+      if (action === "cancelPreview") setPreview(null);
+      else if (action === "reveal") setRevealed(true);
+      else if (action === "next") next();
+      else if (action === "toggleWrong") toggleWrong();
+      else grade(action.slice("grade:".length));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -217,6 +241,9 @@ export default function ReviewQueue() {
               onCancel={() => setPreview(null)}
             />
           )}
+
+          {/* 键位要写出来才有人知道（A-5）：不写的话这功能等于不存在 */}
+          <p className="text-[11px] text-muted-foreground">{t("drill.kbdHint")}</p>
 
           <div className="mt-auto flex flex-wrap gap-2">
             <Button size="sm" onClick={() => grade("未看")} disabled={locked}>

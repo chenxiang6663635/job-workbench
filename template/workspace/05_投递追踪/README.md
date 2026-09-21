@@ -7,8 +7,12 @@
 | 文件 | 说明 |
 |---|---|
 | `tracker.csv` | 追踪表。首次 `jobws track add` 时自动创建，不要手工编辑 |
+| `history.csv` | 变更时间线（阶段 / 字段变更时自动追加）。随首次变更自动创建 |
 | `interviews.csv` | 面试记录。首次 `jobws track interview add` 时自动创建 |
 | `talks.csv` | 宣讲会 / 招聘会。首次 `jobws track talk add` 时自动创建 |
+| `mails.csv` | 邮件台账。首次「从邮箱拉取」记入或 `jobws track mail add` 时自动创建 |
+| `contacts.csv` | 招聘方联系人。首次 `jobws track contact add` 时自动创建 |
+| `offers.csv` | Offer 对比事实。首次 `jobws track offer add` 时自动创建 |
 | `questions.csv` | 面试题库。首次 `jobws bank add`（或 `bank import`）时自动创建 |
 | `_示例_tracker.csv` | **仅用于查看字段长什么样**，可随时删除。脚本不会读它 |
 | `看板.md` | `jobws report` 生成的漏斗看板，每次运行覆盖 |

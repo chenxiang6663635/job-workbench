@@ -4,6 +4,8 @@
 状态：执行中
 前置文档：`2026-08-30-autumn-recruit-workbench-design.md`（v1.0，个人工具定位，已被本文档取代）
 
+> **时效注记（2026-09-20）**：文中「tools/ 下共 6 个脚本」等清单是当时的记录——脚本已归并为 `tools/jobws.py` 唯一入口；现状见 `CONTRIBUTING.md`。
+
 ---
 
 ## 1. 定位变更

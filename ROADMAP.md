@@ -1,10 +1,11 @@
 # Roadmap
 
-A living document. Each item links to a tracking issue; finished items move to the
-[changelog](CHANGELOG.md). Historical implementation records stay in
+A living document. Current work is in **Now** (below the shipped log); finished
+items move to the [changelog](CHANGELOG.md), and items link to a tracking issue
+when one exists. Historical implementation records stay in
 [`docs/specs/`](docs/specs/) — they are engineering provenance, not the plan.
 
-## Now
+## Shipped — recent batches (details in the changelog)
 
 - [x] **v0.3.0 "agent-ready workbench" batch (2026-09-14)** — the CLI is one entry point now (`jobws`, PR #95 — **breaking**: the old script names no longer run features, they print a migration hint and exit 2, full mapping table in the changelog); an MCP server (`jobws-mcp`, three read-only tools at v0.3.0, PR #94; the three two-phase write tools landed after) puts the tracker / job pool / dashboard in front of an agent host; **writes became two-phase everywhere** (preview → one-shot token → apply, for `track add` / `import` / `update` / `init`, PR #98 / #99) and the MCP side ships the same flow as three tools sharing one implementation; **outbound TLS got a third, safe option** (fall back to a bundled CA list when the system trust store cannot be loaded — verification stays on by default, PR #96); first-run guidance for an empty workspace (PR #100) and a data-location card in settings (PR #101); skill bodies now use command names and a check keeps repo paths out of them (PR #97); the CodeBuddy plugin shell and cross-host review assets landed (PR #102); the domain contract is written down with `jobws lint domains` + `jobws release check` (PR #103, closing B13/B14); all 14 screenshots were re-shot in both languages (PR #104). **Released 2026-09-14 as `v0.3.0`** (tag → workflow built the installer and attached it) — read the changelog before upgrading, the CLI rename is breaking. Post-release: the IMAP edge case from [#50](https://github.com/chenxiang6663635/job-workbench/issues/50) was verified against a real mailbox and closed — the extra probe connection stays, its removal is tied to the Python 3.12 baseline registered below.
 - [x] [#2](https://github.com/chenxiang6663635/job-workbench/issues/2) — Shared UI primitive migration (batch B + batch C), empty / loading / error states on every page. Shipped in PR #15 / #16; the legacy palette still left in `Applications` / `Dashboard` / shell / `ErrorBoundary` is tracked separately as [#17](https://github.com/chenxiang6663635/job-workbench/issues/17) (2026-09-11: scheduled into the v0.2.0 batch)
@@ -16,44 +17,45 @@ A living document. Each item links to a tracking issue; finished items move to t
 - [x] **v0.2.2 bilingual + hardening batch (2026-09-13)** — the interface ships bilingual (English + 简体中文, header switch, system language on first run, choice remembered); outbound TLS now follows one policy (`tools/tls_policy.py`: verify by default, refuse when the trust store can't be loaded, opt-in downgrade only — issue [#59](https://github.com/chenxiang6663635/job-workbench/issues/59)); the IMAP edges got their audit follow-ups (issue [#50](https://github.com/chenxiang6663635/job-workbench/issues/50)); accessibility pass **B15** (native radio groups replace tabs-as-segmented-controls, axe exemptions emptied, keyboard walkthrough, **all seven pages share one content width**); docs screenshots became two sets (English in `docs/screenshots/`, 简体中文 in `docs/screenshots/zh-CN/`). **Shipped: PR #75 / #76 / #78 / #79 / #80 / #81 / #85, released 2026-09-13** — see the changelog for the outbound-TLS behaviour change. (Tag `v0.2.2` was cut only after #85, which fixed a release-blocking packaging defect: the PyInstaller dependency graph missed the `tools/` modules, so the packaged backend crashed on startup — now guarded by a packaged-backend smoke step in the release workflow.)
 - [x] **v0.2.0 closeout batch (2026-09-11)** — job pool ↔ tracker linking (directory-name match + one-click apply), job pool four sorts + status filter, dashboard "high-score not applied" + score-tier × status distribution; legacy palette migration ([#17](https://github.com/chenxiang6663635/job-workbench/issues/17)); regression expansion ([#4](https://github.com/chenxiang6663635/job-workbench/issues/4)); then a single-pass re-shoot of all 7 screenshots and release **v0.2.0** — which carries the breaking `jwb-` skill rename (migration steps go into the Release notes). **Shipped: PR #29 / #30 / #31 / #32 / #33 / #34, released 2026-09-12**
 
-## Next
+### Earlier batches (details in the changelog)
 
 - [x] Reproducible desktop packaging (PyInstaller backend exe → Electron NSIS) — shipped as `job-workbench-setup-0.1.1-win64.exe` on the v0.1.1 release; one-command rebuild via `scripts/build_desktop.ps1`
 - [x] [#3](https://github.com/chenxiang6663635/job-workbench/issues/3) — One-command demo workspace (`init_workspace.py --demo`) so a fresh clone shows a fully populated workbench in 30 seconds — shipped in PR #20
 - [x] [#4](https://github.com/chenxiang6663635/job-workbench/issues/4) — Expand privacy & anti-fabrication regression coverage as the Web surface grows — **shipped in PR #32**: portability resolution, CSV-import privacy & atomicity, and doc relative-link reachability (three previously untested surfaces)
 - [x] **Release automation** — shipped in PR #23: tag (`v*`) triggers the Windows build and attaches the installer to the Release, so the v0.1.1 asset drift is now structurally impossible; the v0.2.0 release will be its first real run
 
-## Registered next (2026-09-15, single-release plan)
+## Now — single-release plan (registered 2026-09-15)
 
 **Release practice changed on 2026-09-15**: version numbers are timestamps — the release number is
 `YY.MM.DD.N` (generated on release day, `N` increments for repeat releases on the same day), the
 machine-readable `package.json` version is that day's `YY.M.D`, and the tag is `v<release number>`
 (see [CONTRIBUTING.md](CONTRIBUTING.md), section 版本号体系). There is a **single release node**:
 every batch below lands before it, none of them ships on its own, and the whole plan goes out as
-**one timestamped release**. Each batch still lands as its own PR.
+**one timestamped release**. Each batch still lands as its own PR; items below carry a
+**2026-09-20 verified status note** (已实现 / 部分完成 / 未开始).
 
 - [x] **Versioning switch** (first) — timestamp release numbers end to end: the generator and the
   derived tag check in `tools/release_assist.py` (`jobws release version`), the release-workflow
   gates, the changelog / contributing rules, and an **about card in settings** showing the running
   (machine) version and platform. **Build date was dropped**: nothing ever produced
   `JOBWS_BUILD_DATE`, so the field could only render as empty (found in review, 2026-09-15).
-- [ ] **Question bank** — stops being a mirror of interview records: a first-class personal bank
+- [x] **Question bank** — **已实现（2026-09-20 核实）**：题库成为一等公民（独立 `questions.csv`）、错题本与「今日待复习」、CSV 导入/导出、**删除与撤回**（行指纹 + 工作区外整表快照）、**抽题与重练训练面板**均已落地（后两条超出原登记范围）。原描述：stops being a mirror of interview records: a first-class personal bank
   with import/export (CSV and workspace Markdown, preview-then-apply with a one-shot token), a
   wrong-answer book and a "due today" review; the talks table follow-ups land alongside.
-- [ ] **UI visual pass** — background depth, typography scale, eight-page polish and number
+- [x] **UI visual pass** — **大部已落地（2026-09-20 核实）**：数字体系、字号连续可调、主题与字体体系、八页精修均已随 v0.2.x–09 月批次落地，中英两套截图已重拍（16 张）。原描述：background depth, typography scale, eight-page polish and number
   rendering (tabular figures); the acceptance bar is "a screenshot diff you can point at", carried
   over from the earlier visual-polish plan (whose token and primitive layers already shipped).
-- [ ] **Agent & MCP line** — write tools move to **protocol-level confirmation** (multi-round-trip
+- [x] **Agent & MCP line** — **已实现（2026-09-20 核实）**：MCP 写工具协议级确认（多轮往返 + 四类拒绝用例）、领域层独立可分发包 + CI 独立安装冒烟、工作区文件资源与提示模板均已落地（PR #156 前后）。原描述：write tools move to **protocol-level confirmation** (multi-round-trip
   + signed request state, four rejection classes tested) and the domain layer is extracted into an
   installable package with a standalone-install smoke in CI; then workspace files become MCP
   resources, prompt templates ship, and the modern protocol is kept with legacy compatibility.
-- [ ] **Exams track** — stage names become per-track configuration (defaults identical to today,
+- [ ] **Exams track** — **未开始（2026-09-20 核实）**：全仓无赛道配置实现。stage names become per-track configuration (defaults identical to today,
   so an existing workspace changes in no way) so 考公 flows through the same workbench instead of
   a parallel one; the question bank grows exam subject presets.
-- [ ] **Mail structuring** — extract candidate facts from message bodies (times, meeting links,
+- [ ] **Mail structuring** — **部分完成（2026-09-20 核实）**：阶段与公司线索的解析与联动已落地（`status_parse` + 邮件台账联动）；时间与会议链接抽取未做。extract candidate facts from message bodies (times, meeting links,
   stages, companies) into suggestion cards that only write after row-by-row confirmation; no
   background workers, ever.
-- [ ] **Skills & plugin distribution** — the eight skills move onto the cross-host standard
+- [ ] **Skills & plugin distribution** — **部分完成（2026-09-20 核实）**：插件壳已含 5 命令 + 2 子代理；技能跨宿主标准分发与渐进披露未做。the eight skills move onto the cross-host standard
   distribution channel with progressive disclosure; the plugin shell grows from skills-only to
   commands + subagents; hooks stay local, auditable and off by default.
 

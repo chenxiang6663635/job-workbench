@@ -34,7 +34,7 @@ npm run dev
 | 追踪表 | 投递记录列表，按阶段/方向/批次筛选 + 关键字搜索 + 排序（含**健康度**），行内改阶段与「状态原因」，新增投递（含终态不回退/去重/原因必填约束，「我拒绝的 offer」为双向选择终态），**CSV 批量导入**（预览差异表，新增/重复/错误分色，有错误禁提交），行展开查看变更时间线与停留天数 |
 | 岗位池 | 岗位卡片（含评分与档位）、新建岗位粘贴 JD 或**从链接抓取正文**（抓不到会明确提示手动粘贴，不留空壳）、详情页（资格硬门槛置顶 + 评分四维下钻 + 证据标签 + **简历差距面板**：可召回 / 真实缺口二分） |
 | 简历工坊 | **双模式**：「标准版式」= 数据驱动编辑（左结构化表单、右 A4 实时预览、生成 PDF + ATS 校验、防超页护栏，页面上直接新建版本）+ **一键导入**（PDF/Word/MD/TXT 抽取 → 核对页逐段确认才落盘）+ **AI 改写建议**（反编造校验不过不能采用）+ **导出 Word**（零依赖，只保证文本可复制，排版以 PDF 为准）；「高级模板」= 手写 HTML 精排版的只读浏览与一键生成；底部**版本谱系**（该版本投了哪些岗位） |
-| 准备 | **投递之前**的事归一处：**宣讲会 / 招聘会**（时间 / 形式 / 地点与收获，导出 `.ics`；看板「近 7 天宣讲会」可一键直达）、**题库**（自建题可点开详情改答案要点 / 标三态 / 调难度；也可按公司归集**被问过的问题**做关键词检索）、**笔记**（`03_面试准备` / `04_知识库` 的 Markdown 浏览：目录树 + 渲染 + 本页大纲；**勾选框可点写回**——弹差异确认后只改该行一个字符；**全文搜索**文件名与正文，点结果定位到命中行） |
+| 准备 | **投递之前**的事归一处：**宣讲会 / 招聘会**（时间 / 形式 / 地点与收获，导出 `.ics`；看板「近 7 天宣讲会」可一键直达）、**题库**（自建题可点开详情改答案要点 / 标三态 / 调难度；也可按公司归集**被问过的问题**做关键词检索）、**训练**（抽题 → 盲答（答案默认折叠）→ 展开对答案 → 自评三态 / 标错题 → 下一题；重练队列 / 只错题 / 随机三种模式，可按领域 / 科目 / 状态 / 关键词收窄）、**笔记**（`03_面试准备` / `04_知识库` 的 Markdown 浏览：目录树 + 渲染 + 本页大纲；**勾选框可点写回**——弹差异确认后只改该行一个字符；**全文搜索**文件名与正文，点结果定位到命中行） |
 | 进展 | 投递之后的主战场，四个子 Tab：**面试**（三段式复盘记录 + 导出 `.ics` 日程）、**邮件**（往来邮件台账；Message-ID 深链或降级提示；不自动改阶段）、**联系人**（跟进节奏管理，超期琥珀提醒）、**Offer 对比**（只并排已知事实，绝不给建议） |
 | 素材库 | 事实库浏览（**正文排版显示**，与「笔记」同款渲染；超 256 KB 截断提示；简历文件已迁往简历工坊，避免同名混淆） |
 | 设置 | Provider（BYOK）：base_url/key（脱敏）/ 测试连接；**数据与隐私**：整包导出 zip / 立即快照备份 / 打开数据目录 / 无遥测声明 |
@@ -46,7 +46,7 @@ npm run dev
 Web 只是同一份文件的另一个视图：
 
 - 数据都在 `personal/` 下，Web 不复制、不缓存
-- 在网页新增投递 → `python tools/jobws.py track --workspace personal list` 能查到
+- 在网页新增投递 → `python tools/jobws.py track list --workspace personal` 能查到
 - 用 CLI 或 AI 生成的解析卡 → 岗位池详情页自动展示四维度评分与档位
 - 所有改动都能被 `git diff` 追踪
 
@@ -54,7 +54,7 @@ Web 只是同一份文件的另一个视图：
 
 ## 技术栈
 
-后端 FastAPI（Python 3.12 基线，直接 import `tools/` 下现有脚本，不重复实现业务逻辑）；前端 React + TypeScript + Vite + Tailwind + recharts。
+后端 FastAPI（Python 3.12 基线；领域逻辑从 `jobws_core` 导入，仅审批 / IMAP / 笔记 / 初始化等留仓模块从 `tools/` 导入——不重复实现业务逻辑）；前端 React + TypeScript + Vite + Tailwind + recharts。
 
 ## 目录
 
@@ -63,8 +63,7 @@ web/
 ├── start.ps1                 一键启动（依赖预检/端口/前后端诊断）
 ├── backend/
 │   ├── main.py               FastAPI 入口、CORS、路由挂载、同源托管 dist、双击三态启动
-│   ├── pathres.py            路径解析：解包/打包双模式、可写数据目录 fallback
-│   ├── deps.py               工作区解析、safe_join 路径安全、数据根
+│   ├── deps.py               工作区解析、safe_join 路径安全、数据根（路径解析已搬进 jobws_core.pathres，由这里 import）
 │   ├── ro_files.py           只读浏览共享原语（遍历 / 受限读取 / 解码 / realpath 归属）
 │   ├── atomicio.py           原子写：tmp + os.replace，.jobws_tmp_ 前缀
 │   ├── icsutil.py            RFC 5545 日程导出（纯标准库手写）
@@ -75,7 +74,7 @@ web/
 │   ├── resume_import.py      简历导入抽取（PDF / Word / MD / TXT）
 │   ├── tls_http.py           出网证书策略接线
 │   ├── pyinstaller.spec      PyInstaller onedir 打包配置
-│   └── routers/              dashboard / applications / jobs / progress / resume / library / provider / system / sync / workspace / approvals / imap
+│   └── routers/              dashboard / applications / jobs / progress / resume / library / prep / provider / system / sync / workspace / approvals / imap
 │                             （sync = 工作区指纹端点，供界面感知外部改动）
 ├── electron/                 Electron 桌面壳（探测打包 exe → spawn → 开窗 → 退出杀进程树）
 └── frontend/

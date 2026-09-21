@@ -2,7 +2,7 @@
 
 按阅读顺序排列。不确定先看哪份时，从第一份开始。
 
-## 先读这两份
+## 先读这几份
 
 | 文档 | 说明 |
 |---|---|
@@ -14,15 +14,15 @@
 
 | 文档 | 状态 | 说明 |
 |---|---|---|
-| [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射 |
+| [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射。**注意**：文中「tools/ 下共 6 个脚本」等清单是 2026-08 的当时记录——脚本已归并为 `tools/jobws.py` 唯一入口，现状见 `CONTRIBUTING.md` |
 | [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | 历史（部分章节已被取代） | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录。**注意**：依赖版本与 Python 基线等章节是 2026-08 的当时记录（3.8 时代），现状以 `CONTRIBUTING.md` 与 `web/backend/requirements.txt` 为准 |
 | [`specs/2026-08-31-job-workbench-productization.md`](specs/2026-08-31-job-workbench-productization.md) | **现行** | 产品化三期路线（差异化点/架构/桌面壳/扩展）+ 一期与 P0+P1 完成记录 |
 | [`specs/2026-09-02-tracking-enhancement.md`](specs/2026-09-02-tracking-enhancement.md) | **现行** | 投递追踪增强：面试/联系人/Offer 独立 CSV、反编造护栏、时间线 |
-| [`specs/2026-09-02-resume-data-driven.md`](specs/2026-09-02-resume-data-driven.md) | **现行** | 简历数据驱动「标准版式」：JSON + 内置模板渲染 PDF + ATS 校验 |
+| [`specs/2026-09-02-resume-data-driven.md`](specs/2026-09-02-resume-data-driven.md) | **现行** | 简历数据驱动「标准版式」：JSON + 内置模板渲染 PDF + ATS 校验。**注意**：文中的 `resume_build.py render` 等旧命令现已只打印迁移提示并退出 2（现状：`python tools/jobws.py resume …`）；「Python 3.8 兼容」为当时基线（现为 3.12） |
 | [`specs/2026-09-02-resume-probe.md`](specs/2026-09-02-resume-probe.md) | 已完成 | 简历 PDF 文本抽取探针（ATS 阈值定的依据） |
 | [`specs/2026-09-03-p0-p3-roadmap.md`](specs/2026-09-03-p0-p3-roadmap.md) | **现行** | P0–P3 四批：工程底座、投递后闭环、增强、长期资产（含验收记录） |
 | [`specs/2026-09-05-batch1-3-roadmap.md`](specs/2026-09-05-batch1-3-roadmap.md) | **现行** | 第一~三批：导入导出闭环、题库与健康度、失败聚类与 JD 抓取（含验收记录） |
-| [`specs/2026-09-07-open-source-release.md`](specs/2026-09-07-open-source-release.md) | **现行** | 开源发布：隐私清洗、MIT、治理入口、CI 与发布流程 |
+| [`specs/2026-09-07-open-source-release.md`](specs/2026-09-07-open-source-release.md) | **现行** | 开源发布：隐私清洗、MIT、治理入口、CI 与发布流程。**注意**：开头的「现状审计」一节（LICENSE 缺失、`.github/` 仅 ISSUE_TEMPLATE 等）是 2026-09-07 的当时记录，均已反转，现状以仓库实际为准 |
 | [`specs/2026-08-30-autumn-recruit-workbench-design.md`](specs/2026-08-30-autumn-recruit-workbench-design.md) | ⚠️ **已废弃** | v1.0 个人工具设计。目录结构已失效，**勿据此开发**。保留作评分框架的设计依据追溯 |
 | [`domain-contract.md`](domain-contract.md) | **现行** | 领域插件契约：结构、格式、边界与校验方式（`jobws lint domains` 的判定依据） |
 
@@ -47,12 +47,14 @@
 | 文件 | 说明 |
 |---|---|
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **开发流程规范**：新需求四道门、分支策略、提交与版本规则、发布流程、可持续性约定、隐私约定与 CI 验证链 |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（Keep a Changelog 格式）；版本号唯一来源为 `web/electron/package.json` |
+| [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（单文件两级制：白话「看得见的变化」+ 英文摘要 + 「技术细节」；格式基于 Keep a Changelog）；版本号唯一来源为 `web/electron/package.json` |
+| [`four-ends.md`](four-ends.md) | 四端能力对照与例外清单（`jobws lint four-ends` 的说明页，由 `tools/four_ends_matrix.json` 生成，勿手改） |
+| [`glossary.md`](glossary.md) | 术语表：文档与 CHANGELOG 里出现的内部术语集中定义一次 |
 | [`maintenance.md`](maintenance.md) | 仓库维护说明（英文）：发布节奏、版本号纪律与项目健康度的对外交代 |
 | [`../SECURITY.md`](../SECURITY.md) | 安全策略：威胁模型、local-first 取舍记录（如 unsigned 自动更新链）与报告方式 |
-| [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Next / Later 与已完成批次（细节进 CHANGELOG） |
+| [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Later 与已完成批次日志（细节进 CHANGELOG） |
 | [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md) | 第三方依赖与许可清单 |
-| [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Issue 模板：bug 报告专用；功能请求走 CONTRIBUTING 四道门 |
+| [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Issue 模板：bug 报告与功能请求两份（功能请求含 fit check；新需求仍按 CONTRIBUTING 四道门评估） |
 
 ## 约定文件
 
@@ -83,7 +85,8 @@
 |---|---|
 | [`../web/README.md`](../web/README.md) | Web 界面层：八个页面、与 CLI 的关系、目录结构、已知边界 |
 | [`../web/frontend/README.md`](../web/frontend/README.md) | 前端工程说明（构建链与运行方式） |
-| [`../mcp/README.md`](../mcp/README.md) | MCP 服务：六个工具（3 只读 + 3 两段式写入）、安装与宿主配置、工作区解析 |
+| [`../mcp/README.md`](../mcp/README.md) | MCP 服务：14 个工具（6 只读 + 7 个两段式预览 + `apply_approval`）、安装与宿主配置、工作区解析 |
+| [`mcp-integration.md`](mcp-integration.md) | MCP 接入专篇：安装、宿主配置（三种形态，键名各异）、工作区解析、两段式用法与故障排查 |
 
 ## 已归档代码
 

@@ -9,7 +9,7 @@
       "plugin": "宿主插件 commands/ 与 agents/",
       "gui": "桌面端 web/backend/routers + 前端页面"
     },
-    "write_rule": "写入类能力一律「预览 -> 确认 -> 落盘」：预览返回令牌与差异，落盘走 apply。GUI 的确认形态是界面弹窗，CLI/MCP 是令牌——机制不同、语义相同。",
+    "write_rule": "写入类能力的机制是「预览 -> 确认 -> 落盘」：预览返回令牌与差异，落盘走 apply；GUI 的确认形态是界面弹窗，CLI/MCP 是令牌——机制不同、语义相同。各端的如实形态：CLI 的 track 类（track add/update、interview、talk、mail、import 与 init）需显式 `--preview` 才出令牌；题库类命令（bank add/import/update/delete 等）**默认即出预览**；联系人 / Offer（contact/offer）不经令牌、直接落盘（界面同）；MCP 侧写入走 `preview_*` -> `apply_approval`。",
     "error_map_scope": "只登记跨端共用的令牌（approval）域：MCP 透出 ApprovalError.code 的稳定值，HTTP 侧对外只有 approval.tokenInvalid / approval.conflict 两个码。其余接口错误码（数量随界面迭代而变，不写死）是 GUI 内部细节，不在此登记。",
     "excluded_primitives": "MCP 的**只读资源（jobws:// 静态资源与岗位正文模板）与提示模板（review_jd 等）不在本矩阵登记**：它们是 MCP 端专属形态，其余三端没有同名概念，硬塞进「能力 × 四端」会出现没有比对对象的行。反向检查只认 @mcp.tool（见 four_ends_probe.mcp_tools），不会因此误报。"
   },
@@ -264,7 +264,7 @@
       "mcp": null,
       "plugin": null,
       "gui": null,
-      "note": "只读：把八张 CSV 导成 Obsidian 笔记——每行一笔记，frontmatter 带上原表全部字段（供 Bases / Dataview 过滤排序），题库笔记带 spaced-repetition 卡片语法。导出到**用户指定的工作区外目录**，带时间戳、不覆盖、不改工作区——目录落在工作区内会被直接拒绝（否则会被材料投影重复收录）。加 `--notes` 时另把 `03_面试准备` / `04_知识库` / `00_事实库` 的 Markdown 投影成笔记（保留目录层级、全量读取不截断、正文按原意搬运；隐藏文件与单篇超 2 MiB 的跳过并列进产物 README；训练卡目录跳过——那些卡已在题库里以 flashcard 形态出现）。加 `--sync-to <库目录>` 可再把新快照**镜像**进一个固定的 Obsidian 库目录（白名单条目按托管语义覆盖，有删除需 `--yes` 确认；只差复习注释 `<!--SR:…-->`（或空白）的笔记不覆盖——保护手机端进度，正文真改才更新；`.obsidian/` 与白名单外文件不动；`--dry-run` 只出计划）。"
+      "note": "只读：把八张 CSV 导成 Obsidian 笔记——每行一笔记，frontmatter 带上原表全部字段（供 Bases / Dataview 过滤排序），题库笔记带 spaced-repetition 卡片语法。导出到**用户指定的工作区外目录**，带时间戳、不覆盖、不改工作区——目录落在工作区内会被直接拒绝（否则会被材料投影重复收录）。加 `--notes` 时另把 `03_面试准备` / `04_知识库` / `00_事实库` 的 Markdown 投影成笔记（保留目录层级、全量读取不截断、正文按原意搬运；隐藏文件（草稿、原子写临时名等）按设计跳过、不入清单，读失败与单篇超 2 MiB 的跳过并列进产物 README；训练卡目录跳过——那些卡已在题库里以 flashcard 形态出现）。加 `--sync-to <库目录>` 可再把新快照**镜像**进一个固定的 Obsidian 库目录（白名单条目按托管语义覆盖，有删除需 `--yes` 确认；只差复习注释 `<!--SR:…-->`（或空白）的笔记不覆盖——保护手机端进度，正文真改才更新；`.obsidian/` 与白名单外文件不动；`--dry-run` 只出计划）。"
     },
     {
       "id": "question.due",

@@ -13,7 +13,7 @@ build before reporting.
 
 | Version | Supported |
 |---|---|
-| latest release (timestamp scheme, e.g. `v26.09.15.1`) | Yes |
+| latest release (currently `v0.3.2`; version numbers switch to the timestamp scheme `YY.MM.DD.N` at the first timestamped release) | Yes |
 | older tags | No |
 
 ## Reporting a vulnerability
@@ -36,8 +36,9 @@ If you cannot use GitHub private reporting, open a minimal public issue that say
 only *"I have a security report and need a private channel"* — no details in the
 issue body.
 
-This is a single-maintainer, unpaid project: expect a best-effort reply in days
-rather than hours, and honest *"not planned"* answers with the reasoning attached.
+This is a single-maintainer, unpaid project: the target for a first response is
+**48 hours**; when that slips, it is said so in a pinned issue. Expect honest
+*"not planned"* answers with the reasoning attached.
 
 ## Threat model — what is in scope
 

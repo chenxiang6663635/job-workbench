@@ -208,7 +208,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_desktop.ps1
 - **API Key**：只存本地，界面只显示脱敏后的末尾 4 位
 - **测试连接**：调 `{base_url}/models` 验证 key 有效并列出模型。出网 HTTPS 默认校验证书（抓取 JD、简历改写同一策略）：本机证书库加载失败时会**拒绝连接**并提示修证书库（`certmgr.msc`），不会静默跳过校验——key 不会在未校验的连接上发出。显式降级用 `JOBWS_HTTP_TLS=insecure`（不推荐）
 - **数据与隐私**：整包导出 zip、快照备份到系统用户目录、打开数据目录、无遥测声明
-- **导成 Obsidian 笔记**（命令行）：`python tools/jobws.py export --obsidian <目录>`——八张 CSV 各成一个目录、**每行一笔记**，frontmatter 带上原表全部字段（供 Obsidian Bases / Dataview 过滤排序），题库笔记带 spaced-repetition 卡片语法；输出目录带时间戳、**不覆盖旧导出**、**不改工作区**（是快照，不是同步）。加 `--notes` 另把 `03_面试准备` / `04_知识库` / `00_事实库` 的 Markdown 投影成笔记（保留目录层级、全量不截断、正文按原意搬运），这样手机上除了刷题也读得到材料全文；训练卡目录不重复投影（它已在题库里），隐藏文件与超 2 MiB 的单篇跳过并列进导出目录的 README；导出目录必须在工作区之外（落在里面会直接报错）。**更新手机端**：加 `--sync-to <固定的库目录>`，把新快照**镜像**进一个固定名字的 Obsidian 库——白名单条目（八张表目录 / `README.md` / `jobws.base` / 材料目录）按**托管**语义镜像（会被覆盖；源里删了的题库里也删，**有删除时必须加 `--yes` 确认**，否则拒绝执行、库目录零改动）；白名单**之外**的文件与库里的 `.obsidian/` 一个字节不动；**只差复习注释（`<!--SR:…-->`）或空白（空行 / 行尾空格）的笔记不覆盖**——前者是手机刷出的进度，被覆盖就归零；正文真改了才更新（那篇笔记里的卡进度归零）。没有强制覆盖开关：确要对齐就删掉库目录里对应文件后重跑（会被当「新增」复制过去）。每次先打印「新增 / 更新 / 删除」计划再执行，`--dry-run` 只看计划不改库；**升级版本后第一次同步先 `--dry-run`**（渲染模板若变会整库更新、所有卡进度归零）。**更新的完整顺序**（手工拷贝时）：① 手机库拷回电脑、覆盖电脑上的库目录（把进度带回来）→ ② 跑同步 → ③ 把库目录拷回手机；用网盘双向同步则该往返自动完成
+- **导成 Obsidian 笔记**（命令行）：`python tools/jobws.py export --obsidian <目录>`——八张 CSV 各成一个目录、**每行一笔记**，frontmatter 带上原表全部字段（供 Obsidian Bases / Dataview 过滤排序），题库笔记带 spaced-repetition 卡片语法；输出目录带时间戳、**不覆盖旧导出**、**不改工作区**（是快照，不是同步）。加 `--notes` 另把 `03_面试准备` / `04_知识库` / `00_事实库` 的 Markdown 投影成笔记（保留目录层级、全量不截断、正文按原意搬运），这样手机上除了刷题也读得到材料全文；训练卡目录不重复投影（它已在题库里）；隐藏文件（草稿、原子写临时名等）按设计跳过、不入清单，读失败与超 2 MiB 的单篇**跳过并列进导出目录的 README**；导出目录必须在工作区之外（落在里面会直接报错）。**更新手机端**：加 `--sync-to <固定的库目录>`，把新快照**镜像**进一个固定名字的 Obsidian 库——白名单条目（八张表目录 / `README.md` / `jobws.base` / 材料目录）按**托管**语义镜像（会被覆盖；源里删了的题库里也删，**有删除时必须加 `--yes` 确认**，否则拒绝执行、库目录零改动）；白名单**之外**的文件与库里的 `.obsidian/` 一个字节不动；**只差复习注释（`<!--SR:…-->`）或空白（空行 / 行尾空格）的笔记不覆盖**——前者是手机刷出的进度，被覆盖就归零；正文真改了才更新（那篇笔记里的卡进度归零）。没有强制覆盖开关：确要对齐就删掉库目录里对应文件后重跑（会被当「新增」复制过去）。每次先打印「新增 / 更新 / 删除」计划再执行，`--dry-run` 只看计划不改库；**升级版本后第一次同步先 `--dry-run`**（渲染模板若变会整库更新、所有卡进度归零）。**更新的完整顺序**（手工拷贝时）：① 手机库拷回电脑、覆盖电脑上的库目录（把进度带回来）→ ② 跑同步 → ③ 把库目录拷回手机；用网盘双向同步则该往返自动完成
 - **还没有 API Key？**：未存 key 时，页面会给出一个推荐 Provider 的注册入口，以及一个「一键填入该 Provider 端点」的按钮（预设值只在源码里定义一处）。这个入口在界面上明确标注为推广链接——通过它注册会给本项目作者返佣，你的价格与权益不受影响；点击只是打开网页，不会有任何数据从本应用发出。该入口当前指向 [OrcaRouter](https://www.orcarouter.ai/ref/ref_f34ad879f774bce8bc82)。
 
 > 本工作台的 AI 判断默认由 AI CLI（CodeBuddy 等）完成，Provider 是可选的 BYOK 增强入口（简历导入 / AI 改写用）。
@@ -251,7 +251,7 @@ Gemini CLI 等）：AI 能读投递记录、岗位池与看板，并在**你确�
 1. 在 `personal/01_岗位池/<公司>_<岗位>/` 存 JD 原文
 2. 跑硬门槛过滤（学历→专业→届数→英语→城市，对照 `personal/AGENTS.md`）
 3. 通过后四维度评分（技术30/经历25/方向30/培养15），回查事实卡核验
-4. 校验加总并输出档位（75+ 强烈投 / 60-74 投 / 45-59 斟酌 / <45 不投）
+4. 校验加总并输出档位（75–100 强烈投 / 60–74 投 / 45–59 斟酌 / 30–44 大概率跳过 / 0–29 不投）
 
 **硬门槛不过会直接拦下**，不打分不写材料。比如对外语有硬性要求的岗位会被你的外语红线拦住。
 
@@ -321,9 +321,9 @@ python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<目录>/解
 | `00_事实库/` | 项目/实习事实卡——唯一事实源 |
 | `01_岗位池/` | 每个岗位一个目录：JD 原文 + 解析卡 |
 | `02_简历工坊/` | 简历 md + HTML 模板 + 生成的 PDF + 照片 |
-| `03_面试准备/` | 自我介绍、项目表达、题库、行为面、复盘 |
+| `03_面试准备/` | 自我介绍、项目表达、行为面、复盘（题库已迁至下方 `05_投递追踪/questions.csv`） |
 | `04_知识库/` | 知识词典目录——按需自建（骨架里只有一份 README） |
-| `05_投递追踪/` | tracker.csv + history.csv（变更时间线）+ interviews / contacts / offers.csv |
+| `05_投递追踪/` | 八张表：tracker.csv（投递）+ history.csv（变更时间线）+ interviews / contacts / offers / talks / mails / questions.csv |
 | `AGENTS.md` | 你的档案：硬门槛事实、诚实红线 |
 
 **备份（重要）**：`personal/` 已整体 gitignore——**git 不追踪你的数据**，仓库镜像克隆不会带走它们。主备份方式：
@@ -406,7 +406,7 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 设置页「外观」卡（设备级偏好，只影响这台机器、不随工作区导出）：
 
 - **主题**：默认暗之外内置浅色与 8 套开源皮肤（Catppuccin Mocha·Latte / Nord / Tokyo Night / Rosé Pine + Dawn / Gruvbox / Everforest），支持「跟随系统」；「自定义主题…」改关键色并实时显示对比度，保存后进入主题列表；可导入 tweakcn / shadcn 的 CSS 或导出的 JSON。
-- **字体**：界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible，以及系统字体与衬线）；等宽字体**独立**可选 **6 款**（Maple Mono 默认，另有 JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro），管代码 / 编号 / 日期；**数字字体**另设一槽（Geist Mono 默认，可选 JetBrains Mono、IBM Plex Mono 或「跟随界面字体」），管 KPI / 计数 / 天数 / 百分比等数值。全部随应用本地打包（OFL-1.1、离线可用），只含拉丁子集——中文始终走系统栈。**界面字号**为连续滑块（80%–150%，步进 5%）。终端字体请在你的终端软件里设置——`jobws prefs doctor` 会给出推荐清单（Maple Mono / JetBrains Mono / 更纱黑体）。
+- **字体**：界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible Next，以及系统字体与衬线）；等宽字体**独立**可选 **6 款**（Maple Mono 默认，另有 JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro），管代码 / 编号 / 日期；**数字字体**另设一槽（Geist Mono 默认，可选 JetBrains Mono、IBM Plex Mono 或「跟随界面字体」），管 KPI / 计数 / 天数 / 百分比等数值。全部随应用本地打包（OFL-1.1、离线可用），只含拉丁子集——中文始终走系统栈。**界面字号**为连续滑块（80%–150%，步进 5%）。终端字体请在你的终端软件里设置——`jobws prefs doctor` 会给出推荐清单（Maple Mono / JetBrains Mono / 更纱黑体）。
 - **偏好分层**：主题 / 字体是**设备级**（存本机）；`jobws prefs`（theme / font / resume_style）是**工作区级**物料偏好，供 CLI、技能与导出使用。
 
 主题改动会过门禁 `jobws lint themes`（完整性 / 对比度 / 明度阶梯）——10 套内置主题全部满足正文 4.5:1、大字与图形 3:1。

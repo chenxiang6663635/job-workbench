@@ -37,12 +37,12 @@ The workbench turns all of that into queryable, traceable files.
 ## Features at a glance
 
 - **Four CLI workflows**: `jwb-jd` (JD parsing & scoring), `jwb-apply` (application package), `jwb-track` (tracker & funnel), `jwb-resume` (PDF rebuild & validation) — full command reference in the [usage guide](docs/usage-guide.md)
-- **Web UI** (`web/`): eight pages sharing the very same data files — dashboard, tracker, resume workshop (one-click import that *extracts rather than generates* + guarded AI rewrite + Word export), prepare (talks & your question bank), progress (interviews, emails, contacts), retrospectives; see [`web/README.md`](web/README.md)
+- **Web UI** (`web/`): eight pages sharing the very same data files — dashboard, tracker, job pool, resume workshop (one-click import that *extracts rather than generates* + guarded AI rewrite + Word export), prepare (talks & your question bank), progress (interviews, emails, contacts), library (notes & material), settings; see [`web/README.md`](web/README.md)
 - **Post-application loop**: interview records (one-click `.ics` export), recruiter contact follow-ups, offer comparison (**side-by-side facts, never a recommendation**), resume version lineage, stage-conversion retros, failure clustering, application health in four states — each with concrete reasons instead of a black-box score
 - **Read-only email fetch (optional)**: with your own IMAP authorization code, pull recent recruiting emails and turn them into per-record status suggestions; read-only, connected only when you click, credentials kept local, dry-run until you confirm — details in the [usage guide](docs/usage-guide.md)
 - **Email ledger & honest deep links** (`mails.csv` + `jobws track mail`): interview invites, test notices and rejections become first-class records that link back to an application — pulled emails carry their Message-ID and can be filed with one click. "Open original" is graded honestly: your own pasted link wins; Gmail gets a real `rfc822msgid` search deep link; other providers (Outlook / QQ / 163 / …) get a "copy the subject and search" fallback instead of a fake link. **Emails never change stages by themselves** — you always confirm.
 - **Resume layouts & accent colors**: three built-in layouts (Classic / Compact / Accent) share a single placeholder skeleton, all single-column and ATS-checked; four accent colors combine freely with any layout, and the generated PDF matches the preview. Drop your own compliant HTML into the templates directory and it appears in the picker.
-- **Interface typography**: a continuous size slider (80%–150%, 5% steps — root-font scaling, decoupled from desktop zoom and available in a plain browser); **12 UI typefaces** (Inter by default, plus Geist, IBM Plex Sans, Manrope, Plus Jakarta Sans, DM Sans, Figtree, Outfit, Public Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible, and system/serif) and an independent **6-family monospace slot** (Maple Mono by default; JetBrains Mono, Fira Code, Geist Mono, IBM Plex Mono, Source Code Pro) plus a dedicated **numerals slot** (Geist Mono by default, or JetBrains Mono / IBM Plex Mono / follow the UI typeface) — all bundled locally under OFL-1.1, Latin subsets only (CJK falls back to the system stack).
+- **Interface typography**: a continuous size slider (80%–150%, 5% steps — root-font scaling, decoupled from desktop zoom and available in a plain browser); **12 UI typefaces** (Inter by default, plus Geist, IBM Plex Sans, Manrope, Plus Jakarta Sans, DM Sans, Figtree, Outfit, Public Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible Next, and system/serif) and an independent **6-family monospace slot** (Maple Mono by default; JetBrains Mono, Fira Code, Geist Mono, IBM Plex Mono, Source Code Pro) plus a dedicated **numerals slot** (Geist Mono by default, or JetBrains Mono / IBM Plex Mono / follow the UI typeface) — all bundled locally under OFL-1.1, Latin subsets only (CJK falls back to the system stack).
 - **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; any fail means no scoring), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 
 ## UI Preview
@@ -115,7 +115,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 
 ## Download
 
-> **Note**: the interface is **bilingual** — every page ships in 简体中文 and English, with a `中文 / English` switch in the header (first run follows your system language, and the choice is remembered). The code, the comments, this README and the [usage guide](docs/usage-guide.md) are in English. What stays Chinese **by design**: the values stored in your CSV / Markdown files (stage names, column headers) — they are the shared data contract with the CLI and with your own history, so translating them would desync the UI from your data — plus the CLI's built-in help. The screenshots above show the English UI; the same pages in 简体中文 are in the [Chinese README](README.zh-CN.md).
+> **Note**: the interface is **bilingual** — every page ships in 简体中文 and English, with a `中文 / English` switch in the header (first run follows your system language, and the choice is remembered). The code, this README and the [usage guide](docs/usage-guide.md) are in English — with one deliberate exception: **code comments are Chinese by convention** (see CONTRIBUTING §文案与 i18n). What stays Chinese **by design**: the values stored in your CSV / Markdown files (stage names, column headers) — they are the shared data contract with the CLI and with your own history, so translating them would desync the UI from your data — plus the CLI's built-in help. The screenshots above show the English UI; the same pages in 简体中文 are in the [Chinese README](README.zh-CN.md).
 
 A packaged Windows desktop app (no Python/Node needed) is attached to the
 latest release — grab `job-workbench-setup-*.exe` from
@@ -127,15 +127,16 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 
 ## Docs
 
-- [Roadmap](ROADMAP.md) — Now / Next / Later, each item linked to a tracking issue
+- [Roadmap](ROADMAP.md) — Now / Later plus a shipped-batch log; items link to a tracking issue when one exists
 - [Doc index](docs/README.md) — status of every document (current / deprecated)
 - [Usage guide](docs/usage-guide.md) — startup, the eight pages, AI workflows, CLI reference, FAQ
 - [Design documents](docs/specs/) — architecture, Web contract, productization, open-source release
 - [Changelog](CHANGELOG.md)
+- [Glossary](docs/glossary.md) — the internal terms used across these docs and the changelog, defined once
 
 ## Contributing
 
-Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). **Found a security problem? Use the private channel described in [SECURITY.md](SECURITY.md) — please do not open a public issue.** Code changes go through a PR with green CI (pytest + frontend lint/build + PR-title check + UI smoke); doc fixes can go straight to `main`.
+Issues and PRs are welcome — bug fixes, documentation, new domain profiles, privacy safeguards, tests and interoperability improvements are particularly useful. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first (the four-gate process for new features, branching strategy, release flow) and the [code of conduct](.github/CODE_OF_CONDUCT.md). **Found a security problem? Use the private channel described in [SECURITY.md](SECURITY.md) — please do not open a public issue.** Code changes go through a PR with green CI (pytest + frontend lint/build + PR-title check + UI smoke); doc fixes can go straight to `main`. **Pace expectation**: this is a single-maintainer project — roughly one to two PRs' worth of progress a week, and occasionally a few days without a reply.
 
 ## License
 

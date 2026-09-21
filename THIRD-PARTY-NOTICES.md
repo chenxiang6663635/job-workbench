@@ -27,6 +27,7 @@
 | [Radix UI](https://github.com/radix-ui/primitives)（`@radix-ui/react-*`） | MIT | 无障碍组件原语（对话框 / 标签页 / 下拉…） |
 | [i18next](https://github.com/i18next/i18next) / [react-i18next](https://github.com/i18next/react-i18next) | MIT | 界面双语 |
 | [clsx](https://github.com/lukeed/clsx) / [class-variance-authority](https://github.com/joe-bell/cva) / [tailwind-merge](https://github.com/dcastil/tailwind-merge) | MIT | 类名组合工具 |
+| [react-markdown](https://github.com/remarkjs/react-markdown) / [remark-gfm](https://github.com/remarkjs/remark-gfm) | MIT | 笔记 / 素材库的 Markdown 渲染（随应用分发） |
 
 ## 字体（`web/frontend` 本地打包，经 [Fontsource](https://fontsource.org/) 分发）
 
@@ -52,6 +53,8 @@
 |---|---|---|
 | [git-filter-repo](https://github.com/newren/git-filter-repo) | GPL-2.0 | 历史清洗（仅维护者本地使用，不打包、不分发） |
 | [pytest](https://github.com/pytest-dev/pytest) | MIT | 测试 |
+| [httpx](https://github.com/encode/httpx) | BSD-3-Clause | 测试用 HTTP 客户端（`fastapi.testclient` 依赖；仅开发） |
+| [build](https://github.com/pypa/build) | MIT | 领域包构建（`jobws-core` 的 dev 依赖；仅开发） |
 | [PyInstaller](https://github.com/pyinstaller/pyinstaller) | GPL-2.0-or-later（附随包例外条款） | 打包后端 exe；其 bootloader 进入打包产物，例外条款允许随非自由应用分发 |
 
 ## 数据与隐私

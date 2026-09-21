@@ -22,7 +22,8 @@ for contributors and for anyone evaluating the project's health.
 ## Issue triage
 
 - **First response within 48 hours** — even if the answer is just
-  "reproduced, will look into it" or "need more info".
+  "reproduced, will look into it" or "need more info". When that target
+  slips, it is said so in a pinned issue.
 - Labels stay minimal: `bug`, `feature`, `docs`. No priority or status
   taxonomies for a single-maintainer project.
 - Issues are closed with a written conclusion (fixed in PR #X / won't fix

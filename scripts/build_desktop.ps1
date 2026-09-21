@@ -1,6 +1,6 @@
-﻿# 一键构建 Windows 桌面安装包（求职工作台 Setup *.exe）
+﻿# 一键构建 Windows 桌面安装包（job-workbench-setup-<版本>-win64.exe）
 # 链路：前端 dist → PyInstaller 后端 exe（含前端同源托管组装）→ electron-builder NSIS
-# 产物：web/electron/dist/求职工作台 Setup <版本>.exe（+ blockmap）
+# 产物：web/electron/release/job-workbench-setup-<版本>-win64.exe（+ blockmap）
 # 前置：目标 Python 环境需含 fastapi/uvicorn/PyInstaller（探测逻辑同 build_backend_exe.ps1）
 # 用法：powershell -ExecutionPolicy Bypass -File scripts/build_desktop.ps1 [-Py "D:\path\python.exe"]
 # 冒烟：Setup.exe /S /D=<目录> 静默安装 → 启动 → 验证 http://127.0.0.1:8765 → Uninstall /S

@@ -103,7 +103,7 @@ def _classify(src, dst):
     if _same_bytes(src, dst):
         return "未变"
     if _same_content(src, dst):
-        return "仅进度"  # 只差复习注释：保留目的端——进度在那边
+        return "仅进度"  # 只差复习注释/空白：保留目的端——进度在那边
     return "更新"
 
 
@@ -123,12 +123,12 @@ def sync_plan(snapshot_root, target, names, workspace, include_notes=False):
 
     动作 ∈ {新增, 更新, 删除}；本函数**只读**。计划由 CLI 先打印、再决定是否执行
     （有删除时 CLI 要求 --yes）。白名单条目在快照里缺失时跳过、不删库里的对应物。
-    "字节不同、剥掉复习注释后一致"的文件**不进 ops**（视为未变、保留库里的版本），
+    "字节不同、剥掉复习注释与空白后一致"的文件**不进 ops**（视为未变、保留库里的版本），
     只在 lines 里报个数——那是手机上刷出来的进度，覆盖掉不可接受。
     """
     _check_target(target, workspace)
     ops = []
-    kept = 0  # 只差复习注释 → 保留库里的（进度在那边）
+    kept = 0  # 只差注释/空白 → 保留库里的（进度在那边）
     for name in names:
         src_entry = os.path.join(snapshot_root, name)
         dst_entry = os.path.join(target, name)

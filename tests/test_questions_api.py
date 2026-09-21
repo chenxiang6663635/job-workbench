@@ -228,6 +228,21 @@ def test_drill_returns_reasons_and_counts(client, tmp_path):
     assert "未看" in data["items"][0]["reason"]
 
 
+def test_preview_update_accepts_tags_and_note(client, tmp_path):
+    """B-2：界面补上「标签 / 备注」编辑——后端白名单早就支持，这里钉住契约
+    （改标签是错题标记的界面路径：加/去「错题」都走 preview-update）。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点,标签,备注\n"
+                     "Q001,TCP,技术面,网络,未看,自拟,要点,,\n")
+    res = client.get("/api/progress/questions/preview-update",
+                     params={"ws": WS, "id": "Q001", "tags": "错题,网络",
+                             "note": "复盘一次"})
+    assert res.status_code == 200
+    diff = "\n".join(res.json()["diff"])
+    assert "错题,网络" in diff
+    assert "复盘一次" in diff
+
+
 def test_preview_add_returns_token_without_writing(client, tmp_path):
     """1c 自拟新增预览：只给令牌，questions.csv 一个字节都不写。"""
     _write_questions(client, tmp_path,

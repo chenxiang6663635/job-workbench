@@ -32,7 +32,7 @@ web/backend/routers/system.py = 328  # 备份/导出/快照淘汰（本次为加
 # （2026-09-16 重构批：dashboard() 已拆为五个 section helper，本行按自洁删除）
 #
 # --- 前端：刻意集中的单一真源 / 页面级容器 ---
-web/frontend/src/api.ts = 1265  # 前端唯一 API 客户端（错误码与 ws 参数拼接刻意集中在一处）；2026-09-17 加 deleteMail（1174→1181）；2026-09-18 题库详情批加 previewQuestionUpdate（1181→1191）；2026-09-18 方案 B 加 UpcomingTalkItem 与 DashboardData.upcomingTalks（1191→1206）；2026-09-18 笔记批加 prepList/prepContent 与三个类型（1206→1234）；2026-09-18 笔记勾选批加 PrepTogglePreview 与 previewPrepToggle（1234→1243）；2026-09-19 笔记搜索批加 PrepSearch/PrepSearchHit 与 prepSearch（1243→1265）
+web/frontend/src/api.ts = 1258  # 前端唯一 API 客户端（错误码与 ws 参数拼接刻意集中在一处）；2026-09-17 加 deleteMail（1174→1181）；2026-09-18 题库详情批加 previewQuestionUpdate（1181→1191）；2026-09-18 方案 B 加 UpcomingTalkItem 与 DashboardData.upcomingTalks（1191→1206）；2026-09-18 笔记批加 prepList/prepContent 与三个类型（1206→1234）；2026-09-18 笔记勾选批加 PrepTogglePreview 与 previewPrepToggle（1234→1243）；2026-09-19 笔记搜索批加 PrepSearch/PrepSearchHit 与 prepSearch（1243→1265）；2026-09-21 批次 B-2 把 previewQuestionUpdate 迁到 lib/bank.ts（题库窄模块收拢题库接口；同步下调登记 1265→1258）
 web/frontend/src/pages/Applications.tsx = 818  # 页面容器（筛选 + 表格 + 表单 + 弹窗编排）；2026-09-17 关联邮件块 + 页头 + 空态原语 + 偏移同步（811→818）
 web/frontend/src/pages/Settings.tsx = 693  # 设置页八张卡（Provider / 邮箱 / 数据 / 关于…）；2026-09-17 页头原语替换后回落
 web/frontend/src/pages/Dashboard.tsx = 700  # 看板（统计卡 + 漏斗 + 待推进 + 复盘）；2026-09-17 页头 + 两处空态原语（698→700）

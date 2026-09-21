@@ -68,6 +68,32 @@ export function previewQuestionDelete(id: string): Promise<BankPreview> {
   );
 }
 
+/** 改题的预览（1b）：参数名 -> CSV 中文字段名的映射与后端 `_UPDATE_FIELD_PARAMS`
+ *  对齐；空值等同不改（领域层同口径）。2026-09-21 批次 B-2 从 api.ts 迁来
+ *  （那里是登记过水位的存量文件，只许变小）并补齐「标签 / 备注」两个可改字段——
+ *  改标签是错题标记的界面路径（加/去「错题」都走这里），此前界面只能改
+ *  答案要点 / 状态 / 难度，而文档已宣称「界面改标签同效」（失实）。 */
+export function previewQuestionUpdate(
+  id: string,
+  changes: {
+    答案要点?: string;
+    状态?: string;
+    难度?: string;
+    标签?: string;
+    备注?: string;
+  }
+): Promise<BankPreview> {
+  const params = new URLSearchParams({ id });
+  if (changes.答案要点?.trim()) params.set("answer", changes.答案要点.trim());
+  if (changes.状态?.trim()) params.set("status", changes.状态.trim());
+  if (changes.难度?.trim()) params.set("difficulty", changes.难度.trim());
+  if (changes.标签?.trim()) params.set("tags", changes.标签.trim());
+  if (changes.备注?.trim()) params.set("note", changes.备注.trim());
+  return requestBank<BankPreview>(
+    `/progress/questions/preview-update?${params.toString()}`
+  );
+}
+
 /** 新增题目的预览（1c）：字段给英文查询参数名（与后端 `_ADD_FIELD_PARAMS` 对齐）。
  *  空值不传——领域层视空值为未填（来源 / 状态的默认值由领域层补，预览表会列出）。 */
 export function previewQuestionAdd(fields: {

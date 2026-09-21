@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
-import type { BankRow } from "../lib/bank";
+import { previewQuestionUpdate, type BankRow } from "../lib/bank";
 import {
   fetchDrill,
   previewMarkWrong,
@@ -120,7 +120,7 @@ export default function ReviewQueue() {
       next();
       return;
     }
-    runPreview(api.previewQuestionUpdate(current.题目id, { 状态: status }));
+    runPreview(previewQuestionUpdate(current.题目id, { 状态: status }));
   };
 
   const toggleWrong = () => {

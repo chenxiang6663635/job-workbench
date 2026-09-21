@@ -7,7 +7,6 @@ import {
   Mail as MailIcon,
   Pencil,
   Plus,
-  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -17,6 +16,7 @@ import {
   type Application,
   type Mail,
 } from "../api";
+import { previewDeleteRecord } from "../lib/records";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -30,6 +30,7 @@ import {
 import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
+import DeleteRecordButton from "./DeleteRecordButton";
 import { ApplicationSelect } from "./ApplicationSelect";
 import { FormField } from "./FormField";
 import {
@@ -254,8 +255,6 @@ export default function MailList() {
   const [showForm, setShowForm] = useState(false);
   // 编辑 / 详情（2026-09-17 收尾批）：null = 关闭，否则为被编辑的行——详情就是编辑弹窗
   const [editing, setEditing] = useState<Mail | null>(null);
-  // 删除的两段确认：第一次点变「确认删除？」，再点才真删（误删不可撤销）
-  const [confirming, setConfirming] = useState<string | null>(null);
   // 复制主题的短暂反馈（无深链邮箱的降级路径）
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -290,17 +289,8 @@ export default function MailList() {
     window.location.hash = "applications";
   };
 
-  const remove = (id: string) => {
-    if (confirming !== id) {
-      setConfirming(id);
-      return;
-    }
-    setConfirming(null);
-    api
-      .deleteMail(id)
-      .then(() => reload())
-      .catch((e: Error) => setError(e.message));
-  };
+  // 删除已改为两段式（DeleteRecordButton：预览 → 确认弹窗 → 凭令牌落盘），
+  // 上一版「点两次直删」的本地状态与 remove() 已撤除（批 D）。
 
   const copySubject = (r: Mail) => {
     if (!navigator.clipboard?.writeText) return;
@@ -391,7 +381,8 @@ export default function MailList() {
                   ))}
                 </SelectContent>
               </Select>
-              {/* 编辑（详情）与删除（两段确认；删除不可撤销，第二次点才发请求） */}
+              {/* 编辑（详情）与删除（批 D 改造：预览 → 确认弹窗 → 凭令牌落盘；
+                  旧版「点两次直删」已撤——删除与全站其余写操作同走两段式） */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -402,20 +393,10 @@ export default function MailList() {
               >
                 <Pencil size={13} />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-7 w-7 ${
-                  confirming === r.邮件id ? "text-destructive" : "text-muted-foreground"
-                }`}
-                title={
-                  confirming === r.邮件id ? t("mail.deleteConfirm") : t("mail.deleteTitle")
-                }
-                aria-label={t("common.delete")}
-                onClick={() => remove(r.邮件id)}
-              >
-                {confirming === r.邮件id ? <Check size={13} /> : <Trash2 size={13} />}
-              </Button>
+              <DeleteRecordButton
+                preview={() => previewDeleteRecord("mails", r.邮件id)}
+                onDeleted={reload}
+              />
             </div>
           </div>
 

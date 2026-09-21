@@ -324,8 +324,11 @@ def test_api_mail_patch_not_found(tmp_path, client):
     assert res.json()["error_code"] == "progress.mailNotFound"
 
 
-def test_api_mail_delete(tmp_path, client):
-    """全站首个 DELETE（2026-09-17 收尾批）：持锁删行、返回被删 id；删后列表为空。"""
+def test_api_mail_direct_delete_is_gone(tmp_path, client):
+    """2026-09-21 批 D：旧版直删 `DELETE /mails/{id}`（2026-09-17 的「全站首个
+    DELETE」）已撤除——删除只走两段式（`GET /mails/preview-delete` → 令牌 →
+    `/api/approvals/apply`）。这条网防的是"旧直删被顺手复活"：它复活就等于
+    绕过预览与留痕，是全站唯一一条不走确认的写路径。"""
     _seed_main(os.path.join(str(tmp_path), WS))
     created = client.post("/api/progress/mails", params={"ws": WS},
                           json={"主题": "面试通知", "关联记录": "A001"})
@@ -333,16 +336,18 @@ def test_api_mail_delete(tmp_path, client):
     mail_id = created.json()["邮件id"]
 
     res = client.delete("/api/progress/mails/%s" % mail_id, params={"ws": WS})
-    assert res.status_code == 200, res.text
-    assert res.json() == {"邮件id": mail_id, "_deleted": True}
 
+    # PATCH 还挂在同一路径上 → 方法不允许；数据原样
+    assert res.status_code == 405
     left = client.get("/api/progress/mails", params={"ws": WS})
-    assert left.status_code == 200
-    assert left.json()["total"] == 0
+    assert left.json()["total"] == 1
 
 
-def test_api_mail_delete_not_found(client):
-    """404 语义与 PATCH 对齐（同一错误码 progress.mailNotFound）。"""
-    res = client.delete("/api/progress/mails/M404", params={"ws": WS})
-    assert res.status_code == 404
-    assert res.json()["error_code"] == "progress.mailNotFound"
+def test_api_mail_preview_delete_not_found(client):
+    """预览端点的「找不到」语义：400 + progress.mailDeleteFailed + 具体 reason
+    （空转等于骗人——不存在就该在预览段说清，而不是签一张空令牌）。"""
+    res = client.get("/api/progress/mails/preview-delete",
+                     params={"ws": WS, "id": "M404"})
+    assert res.status_code == 400
+    assert res.json()["error_code"] == "progress.mailDeleteFailed"
+    assert "找不到" in res.json()["error_params"]["reason"]

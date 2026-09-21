@@ -1035,13 +1035,6 @@ export const api = {
       { method: "PATCH", body }
     ),
 
-  // 删除（2026-09-17 收尾批；全站首个 DELETE）：返回被删 id——前端据此刷新列表
-  deleteMail: (id: string) =>
-    request<{ 邮件id: string; _deleted: boolean }>(
-      `/progress/mails/${encodeURIComponent(id)}`,
-      { method: "DELETE" }
-    ),
-
   updateTalk: (id: string, body: Partial<Talk>) =>
     request<Talk & { _changed?: string[] }>(
       `/progress/talks/${encodeURIComponent(id)}`,

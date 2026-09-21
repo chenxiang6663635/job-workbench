@@ -17,7 +17,7 @@ from jobws_core.filelock import file_lock
 
 router = APIRouter()
 
-from ._shared import (_lock_path)
+from ._shared import (_lock_path, delete_preview_response)
 
 VALID_TALK_FORMS = tracker.TALK_FORMS
 
@@ -178,3 +178,17 @@ def export_talks_ics(ws: str = Depends(workspace_dir), app: str = None):
             "Content-Disposition": 'attachment; filename="talks.ics"',
         },
     )
+
+
+@router.get("/talks/preview-delete")
+def preview_talk_delete(id: str = "", ws: str = Depends(workspace_dir)):
+    """预览删除一场宣讲会 / 招聘会记录（**不落盘**），返回令牌与将删的整行。
+
+    2026-09-21 批 D：与其余记录删除同纪律——领域层校验（存在性 / 重复 id）→
+    确认 → 凭令牌走 `/api/approvals/apply` 落盘；落盘前整表快照写到工作区之外。
+    """
+    from jobws_core.tracker import deletes
+    errors, plan = deletes.preview_delete_talk(id, ws)
+    return delete_preview_response("talk.delete", errors, plan,
+                                   "progress.talkDeleteFailed",
+                                   "宣讲会删除预览失败", ws)

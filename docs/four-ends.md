@@ -36,6 +36,12 @@
 | 题库 | `question.import` | `bank import` | `preview_import_questions` | `bank` | `GET /api/progress/questions/preview-import` |
 | 题库 | `question.drill` | `bank drill` | — | — | `GET /api/progress/questions/drill` |
 | 题库 | `question.delete` | `bank delete` | — | — | `GET /api/progress/questions/preview-delete` |
+| 跟进 | `mail.delete` | `track mail delete` | — | — | `GET /api/progress/mails/preview-delete` |
+| 面试 | `interview.delete` | `track interview delete` | — | — | `GET /api/progress/interviews/preview-delete` |
+| 跟进 | `contact.delete` | `track contact delete` | — | — | `GET /api/progress/contacts/preview-delete` |
+| 跟进 | `talk.delete` | `track talk delete` | — | — | `GET /api/progress/talks/preview-delete` |
+| 跟进 | `offer.delete` | `track offer delete` | — | — | `GET /api/progress/offers/preview-delete` |
+| 投递 | `application.delete` | `track delete` | — | — | `GET /api/applications/preview-delete` |
 | 通用 | `approval.apply` | `apply` | `apply_approval` | — | `POST /api/approvals/apply` |
 | 笔记 | `prep.toggle` | — | — | — | `GET /api/prep/{section}/preview-toggle` |
 | 通用 | `export.obsidian` | `export --obsidian` | — | — | — |
@@ -58,6 +64,18 @@
 - **plugin** · `question.drill`：同上。
 - **mcp** · `question.delete`：删是不可逆的高风险动作，先只留给本人发起的两端（命令行 / 界面）；模型不代删。
 - **plugin** · `question.delete`：同上。
+- **mcp** · `mail.delete`：删是不可逆的高风险动作，只留给本人发起的两端（命令行 / 界面）；模型不代删（2026-09-21 批 D）。
+- **plugin** · `mail.delete`：同上。
+- **mcp** · `interview.delete`：同上（2026-09-21 批 D）。
+- **plugin** · `interview.delete`：同上。
+- **mcp** · `contact.delete`：同上（2026-09-21 批 D）。
+- **plugin** · `contact.delete`：同上。
+- **mcp** · `talk.delete`：同上（2026-09-21 批 D）。
+- **plugin** · `talk.delete`：同上。
+- **mcp** · `offer.delete`：同上（2026-09-21 批 D）。
+- **plugin** · `offer.delete`：同上。
+- **mcp** · `application.delete`：同上（2026-09-21 批 D）。
+- **plugin** · `application.delete`：同上。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。

@@ -17,7 +17,7 @@ from jobws_core.filelock import file_lock
 
 router = APIRouter()
 
-from ._shared import (_lock_path)
+from ._shared import (_lock_path, delete_preview_response)
 
 VALID_MAIL_DIRECTIONS = tracker.MAIL_DIRECTIONS
 
@@ -173,21 +173,16 @@ def update_mail(mail_id: str, item: PatchMail, ws: str = Depends(workspace_dir))
     return _with_open_link(dict(row, _changed=changed))
 
 
-@router.delete("/mails/{mail_id}")
-def delete_mail(mail_id: str, ws: str = Depends(workspace_dir)):
-    """删除一封邮件台账记录（**全站首个 DELETE**；契约与 PATCH 对齐）。
+@router.get("/mails/preview-delete")
+def preview_mail_delete(id: str = "", ws: str = Depends(workspace_dir)):
+    """预览删除一封邮件台账（**不落盘**），返回令牌与将删的整行。
 
-    - 持同一把 file_lock：与创建 / 更新 / 其它表的写入互斥；
-    - 不存在 → 404（与 PATCH 同错误码 progress.mailNotFound）；
-    - 整表重读 → 剔除该行 → 重写；不做软删除（台账是"记错了就删"的场景，
-      数据文件保持可读可手改）。
+    2026-09-21 批 D：本节目的旧版 `DELETE /mails/{id}` **直删**已撤除——删除
+    在全站与其余写操作同纪律：预览（领域层校验存在性 / 重复 id）→ 确认 →
+    凭令牌走 `/api/approvals/apply` 落盘（写通道只有一条）；落盘段由领域层在
+    锁内重校验并把整表快照写到**工作区之外**（删错可整份拷回）。
     """
-    with file_lock(_lock_path(ws)):
-        rows = tracker.read_mails(ws)
-        row = tracker.find_mail(rows, mail_id)
-        if row is None:
-            raise ApiError(404, "progress.mailNotFound",
-                           "找不到邮件 %s" % mail_id, id=mail_id)
-        rows.remove(row)
-        tracker.write_mails(rows, ws)
-    return {"邮件id": mail_id, "_deleted": True}
+    from jobws_core.tracker import deletes
+    errors, plan = deletes.preview_delete_mail(id, ws)
+    return delete_preview_response("mail.delete", errors, plan,
+                                   "progress.mailDeleteFailed", "邮件删除预览失败", ws)

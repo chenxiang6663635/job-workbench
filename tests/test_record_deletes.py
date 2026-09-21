@@ -17,6 +17,7 @@
 import csv
 import io
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -215,3 +216,74 @@ def test_registry_has_all_delete_operations():
     ]
     for name, handler in pairs:
         assert approval._OPERATIONS.get(name) is handler, name
+
+
+# --- 第三组：CLI（经统一入口 jobws）-------------------------------------------
+#
+# 删除永远两段式：CLI 只发令牌，`jobws apply <令牌>` 才落盘。这组网跟着**用户
+# 实际走的路**（jobws 统一入口），而不是各模块的 main()——B8 入口统一的教训。
+
+
+def _invoke_jobws(monkeypatch, capsys, argv):
+    """经统一入口调一次命令（与 test_cli_surface 同款）。"""
+    import jobws  # noqa: E402  （tools/ 已在文件顶部进 sys.path）
+
+    monkeypatch.setattr(sys, "argv", ["jobws"] + list(argv))
+    try:
+        result = jobws.main()
+        code = 0 if result is None else result
+    except SystemExit as exc:
+        code = 0 if exc.code is None else exc.code
+    captured = capsys.readouterr()
+    return code, captured.out + captured.err
+
+
+CLI_SUB = {"mails": "mail", "interviews": "interview", "contacts": "contact",
+           "talks": "talk", "offers": "offer"}
+
+
+@pytest.mark.parametrize("store_key,record_id,values", CASES)
+def test_cli_delete_previews_without_writing(ws, outside, monkeypatch, capsys,
+                                             store_key, record_id, values):
+    path = _seed(ws, store_key, [(record_id, values)])
+    before = path.read_bytes()
+
+    code, out = _invoke_jobws(
+        monkeypatch, capsys,
+        ["track", "--workspace", ws, CLI_SUB[store_key], "delete", "--id", record_id])
+
+    assert code == 0
+    assert "预览（未删除）" in out
+    assert "要落盘请执行" in out
+    assert path.read_bytes() == before
+
+
+def test_cli_delete_then_apply_lands_with_trace(ws, outside, monkeypatch, capsys):
+    """端到端：CLI 预览拿令牌 → `jobws apply` 落盘 → 行删了 + 留痕在。"""
+    _seed(ws, "mails", [("M001", {"主题": "面试邀约"}),
+                        ("M002", {"主题": "笔试通知"})])
+    code, out = _invoke_jobws(
+        monkeypatch, capsys,
+        ["track", "--workspace", ws, "mail", "delete", "--id", "M001"])
+    assert code == 0
+    match = re.search(r"apply ([0-9a-f]{32})", out)
+    assert match, out
+    token = match.group(1)
+
+    code, out = _invoke_jobws(monkeypatch, capsys, ["apply", token, "--workspace", ws])
+
+    assert code == 0
+    assert "已执行" in out
+    assert "留痕" in out
+    assert [row["邮件id"] for row in tracker.read_mails(ws)] == ["M002"]
+
+
+def test_cli_delete_missing_id_exits_one(ws, outside, monkeypatch, capsys):
+    _seed(ws, "mails", [("M001", {"主题": "面试邀约"})])
+
+    code, out = _invoke_jobws(
+        monkeypatch, capsys,
+        ["track", "--workspace", ws, "mail", "delete", "--id", "M999"])
+
+    assert code == 1
+    assert "找不到" in out

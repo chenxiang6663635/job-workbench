@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 from . import _core
 # （WORKSPACE 经 `from . import _core` 动态引用，不再有值快照导入）
+from ._cli_delete import run_delete_preview
 from ._schema import (MAIL_DIRECTIONS, MAIL_FIELDS, MAIL_TAGS)
 from .applications import (read_rows)
 from .mails import (apply_approved_mail, find_mail, preview_mail_fields, read_mails, write_mails)
@@ -110,6 +111,11 @@ def _mail_update(args):
 
 
 
+def _mail_delete(args):
+    """邮件删除：预览（不落盘）→ 凭令牌落盘；删除类永远两段式。"""
+    return run_delete_preview("mails", args.id, "mail.delete")
+
+
 def cmd_mail(args):
     """邮件记录：独立表沉淀往来邮件，与投递记录用「关联记录」相连。
 
@@ -149,6 +155,9 @@ def cmd_mail(args):
 
     if args.action == "update":
         return _mail_update(args)
+
+    if args.action == "delete":
+        return _mail_delete(args)
 
     print("错误：未知动作 %s" % args.action)
     return 1

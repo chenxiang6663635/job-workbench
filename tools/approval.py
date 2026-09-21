@@ -94,8 +94,10 @@ def main(argv=None):
         print("写入条数：%d" % result["written"])
     if result.get("trace"):
         # 删除类操作的留痕路径要**显式打出来**：删错之后全靠它回来，而文档只说了
-        # "在工作区之外"——不给确切路径等于让人去猜（快照根目录还可能被改过）
-        print("留痕（删前整表快照，可整份复制回 questions.csv）：%s" % result["trace"])
+        # "在工作区之外"——不给确切路径等于让人去猜（快照根目录还可能被改过）。
+        # 2026-09-21 批 D：留痕从题库专属扩到六类记录（mail/interview/…），
+        # 文案不再点名 questions.csv——恢复方式是拷回**该操作对应的数据文件**。
+        print("留痕（删除前的数据快照，可整份复制回对应数据文件）：%s" % result["trace"])
     return 0
 
 

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 from . import _core
 # （WORKSPACE 经 `from . import _core` 动态引用，不再有值快照导入）
+from ._cli_delete import run_delete_preview
 from ._schema import (TALK_FIELDS)
 from .applications import (read_rows)
 from .talks import (apply_approved_talk, find_talk, preview_talk_fields, read_talks, write_talks)
@@ -62,6 +63,11 @@ def _talk_add(args):
         print(line)
     return 0
 
+
+
+def _talk_delete(args):
+    """宣讲会删除：预览（不落盘）→ 凭令牌落盘；删除类永远两段式。"""
+    return run_delete_preview("talks", args.id, "talk.delete")
 
 
 def cmd_talk(args):
@@ -125,6 +131,9 @@ def cmd_talk(args):
         write_talks(rows)
         print("已更新宣讲会 %s：%s" % (args.id, "、".join(changed)))
         return 0
+
+    if args.action == "delete":
+        return _talk_delete(args)
 
     print("错误：未知动作 %s" % args.action)
     return 1

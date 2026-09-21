@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """`jobws export --sync-to`：把新快照镜像进固定的 Obsidian 库目录。
 
-钉住五条：首次同步=全量复制且 .obsidian/ 与白名单外文件零改动；幂等（同快照再计划
+钉住六条：首次同步=全量复制且 .obsidian/ 与白名单外文件零改动；幂等（同快照再计划
 =0/0/0）；镜像语义+删除需 --yes 确认（CLI 拒绝执行、退出码 1）；守卫（不存在 /
 是文件 / 在工作区内 → 拒绝，--dry-run 零写入）；边界（快照缺失条目跳过不删库里的、
---notes 关掉后材料目录不更新不删除且输出提示）。
+--notes 关掉后材料目录不更新不删除且输出提示）；**复习进度保留**（只差
+`<!--SR:-->` 注释的笔记不进计划、不被覆盖；正文真改了仍照常更新）。
 """
 
 import csv
@@ -247,3 +248,72 @@ def test_notes_projection_syncs_then_warns_without_notes(ws, vault, tmp_path, ca
                              "--workspace", str(ws)]) == 0
     assert "本次没开 --notes" in capsys.readouterr().out
     assert os.path.isfile(os.path.join(str(vault), "03_面试准备", "技术面", "材料.md"))
+
+
+SR_COMMENT = "<!--SR:!2026-09-21,1,250-->"
+
+
+def _append_sr_comment(vault, rel, inline=False):
+    """模拟手机端插件写回进度：注释插在卡片行后面（默认）或同一行（同行模式）。"""
+    path = os.path.join(str(vault), rel)
+    text = io.open(path, encoding="utf-8").read().rstrip("\n")
+    text = text + (" " + SR_COMMENT if inline else "\n" + SR_COMMENT)
+    io.open(path, "w", encoding="utf-8", newline="").write(text + "\n")
+
+
+def _read(vault, rel):
+    return io.open(os.path.join(str(vault), rel), encoding="utf-8").read()
+
+
+def test_review_progress_comment_is_not_wiped(ws, vault, tmp_path):
+    """只差 SR 注释的笔记不进计划、不被覆盖——复习进度就写在注释里。"""
+    _seed_questions(ws, [("题目 A", "要点 A"), ("题目 B", "要点 B")])
+    root = _snapshot(ws, tmp_path, 1)
+    ops, _lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops)
+
+    _append_sr_comment(vault, "题库/题目 A.md")
+    before = _read(vault, "题库/题目 A.md")
+
+    ops2, lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+    assert not any(rel.endswith("题目 A.md") for _action, rel in ops2), ops2
+    assert any("保留复习进度：1" in line for line in lines), lines
+
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops2)
+    assert _read(vault, "题库/题目 A.md") == before
+    assert SR_COMMENT in _read(vault, "题库/题目 A.md")
+
+
+def test_inline_review_progress_comment_is_not_wiped(ws, vault, tmp_path):
+    """同行模式也认：注释贴在卡片行尾（不独占一行）时同样不覆盖。"""
+    _seed_questions(ws, [("题目 A", "要点 A")])
+    root = _snapshot(ws, tmp_path, 1)
+    ops, _lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops)
+
+    _append_sr_comment(vault, "题库/题目 A.md", inline=True)
+    before = _read(vault, "题库/题目 A.md")
+    ops2, lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+
+    assert ops2 == [], ops2
+    assert any("保留复习进度" in line for line in lines), lines
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops2)
+    assert _read(vault, "题库/题目 A.md") == before
+
+
+def test_real_content_change_still_updates_despite_progress(ws, vault, tmp_path):
+    """正文真改了要照常更新（代价：这一张卡的进度归零——可接受，文档写明）。"""
+    _seed_questions(ws, [("题目 A", "要点 A")])
+    root = _snapshot(ws, tmp_path, 1)
+    ops, _lines = _cli_export_sync.sync_plan(root, str(vault), _names(), str(ws))
+    _cli_export_sync.sync_execute(root, str(vault), _names(), ops)
+    _append_sr_comment(vault, "题库/题目 A.md")
+
+    _seed_questions(ws, [("题目 A", "改过的答案要点")])
+    root2 = _snapshot(ws, tmp_path, 2)
+    ops2, lines = _cli_export_sync.sync_plan(root2, str(vault), _names(), str(ws))
+
+    assert any(rel.endswith("题目 A.md") for _action, rel in ops2), ops2
+    _cli_export_sync.sync_execute(root2, str(vault), _names(), ops2)
+    note = _read(vault, "题库/题目 A.md")
+    assert "改过的答案要点" in note

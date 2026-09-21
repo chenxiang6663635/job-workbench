@@ -19,12 +19,18 @@
 3. 白名单条目在快照里缺失时**跳过而不删库里的**（例如某材料目录本来就不存在）；
 4. 目标必须**已存在**（且是目录）、**在工作区之外**（与导出同一条守卫）；
 5. 复制走 `workspace_io.atomic_write_bytes`（按目标唯一命名的临时文件 + Windows
-   `os.replace` 退避重试）——不在这自造更弱的原子写原语。
+   `os.replace` 退避重试）——不在这自造更弱的原子写原语；
+6. **复习进度优先于镜像**：spaced-repetition 把排程写进笔记本身（每张卡下面追加
+   `<!--SR:!到期日,间隔,易度-->`）。比较时先剥掉这类注释再比：字节不同但"剥完一致"
+   的文件**跳过、不覆盖**——镜像若把它当"更新"，手机上刷出来的进度会被电脑快照
+   整批清零。只有正文真的改了才更新（那一张卡的进度会归零，属可接受代价）。
 """
 
 from __future__ import print_function
 
+import io
 import os
+import re
 
 from _cli_export import _inside  # noqa: E402  （与导出同一条「工作区之外」守卫）
 from jobws_core import tracker  # noqa: E402  （解析工作区，供守卫用）
@@ -54,6 +60,50 @@ def _same_bytes(a, b):
         return fa.read() == fb.read()
 
 
+# spaced-repetition 的排程注释：`<!--SR:!到期日,间隔,易度-->`（同行模式也匹配）
+_SR_COMMENT_RE = re.compile(r"<!--SR:[^>]*-->")
+
+
+def _strip_sr_notes(text):
+    """"正文指纹"：删掉复习注释、注释单独占的行与所有空行，再去行尾空白。
+
+    为什么空行也不计：注释插在卡片行后面，是否顺带留下空行取决于插件版本 / 同行模式——
+    空行没有信息量，两边统一不算，比较才对得上。代价是"只改了空行"的差异检测不出来，
+    可以接受（产物是生成的，改了内容必然改到文字行）。
+    """
+    lines = []
+    for line in text.splitlines():
+        cleaned = _SR_COMMENT_RE.sub("", line).rstrip()
+        if cleaned.strip() == "":
+            continue
+        lines.append(cleaned)
+    return "\n".join(lines)
+
+
+def _same_content(a, b):
+    """两文件"正文层面"是否一致（剥掉复习注释后比）。字节不同时才走到这里。
+
+    读不出 UTF-8（二进制 / 损坏）就退回字节比较——不猜。
+    """
+    try:
+        with io.open(a, "r", encoding="utf-8") as fa:
+            text_a = fa.read()
+        with io.open(b, "r", encoding="utf-8") as fb:
+            text_b = fb.read()
+    except (OSError, UnicodeDecodeError):
+        return _same_bytes(a, b)
+    return _strip_sr_notes(text_a) == _strip_sr_notes(text_b)
+
+
+def _classify(src, dst):
+    """文件级判定：'未变' / '仅进度' / '更新'（'更新' = 正文真的变了，需要覆盖）。"""
+    if _same_bytes(src, dst):
+        return "未变"
+    if _same_content(src, dst):
+        return "仅进度"  # 只差复习注释：保留目的端——进度在那边
+    return "更新"
+
+
 def _check_target(target, workspace):
     """守卫：目标必须是已存在的目录，且在工作区之外。"""
     if os.path.exists(target) and not os.path.isdir(target):
@@ -70,17 +120,24 @@ def sync_plan(snapshot_root, target, names, workspace, include_notes=False):
 
     动作 ∈ {新增, 更新, 删除}；本函数**只读**。计划由 CLI 先打印、再决定是否执行
     （有删除时 CLI 要求 --yes）。白名单条目在快照里缺失时跳过、不删库里的对应物。
+    "字节不同、剥掉复习注释后一致"的文件**不进 ops**（视为未变、保留库里的版本），
+    只在 lines 里报个数——那是手机上刷出来的进度，覆盖掉不可接受。
     """
     _check_target(target, workspace)
     ops = []
+    kept = 0  # 只差复习注释 → 保留库里的（进度在那边）
     for name in names:
         src_entry = os.path.join(snapshot_root, name)
         dst_entry = os.path.join(target, name)
         if os.path.isfile(src_entry):
             if not os.path.isfile(dst_entry):
                 ops.append(("新增", name))
-            elif not _same_bytes(src_entry, dst_entry):
-                ops.append(("更新", name))
+            else:
+                verdict = _classify(src_entry, dst_entry)
+                if verdict == "更新":
+                    ops.append(("更新", name))
+                elif verdict == "仅进度":
+                    kept += 1
             continue
         if not os.path.isdir(src_entry):
             continue
@@ -89,8 +146,12 @@ def sync_plan(snapshot_root, target, names, workspace, include_notes=False):
         for rel in sorted(src_files):
             if rel not in dst_files:
                 ops.append(("新增", "%s/%s" % (name, rel)))
-            elif not _same_bytes(src_files[rel], dst_files[rel]):
+                continue
+            verdict = _classify(src_files[rel], dst_files[rel])
+            if verdict == "更新":
                 ops.append(("更新", "%s/%s" % (name, rel)))
+            elif verdict == "仅进度":
+                kept += 1
         for rel in sorted(dst_files):
             if rel not in src_files:
                 ops.append(("删除", "%s/%s" % (name, rel)))
@@ -101,6 +162,9 @@ def sync_plan(snapshot_root, target, names, workspace, include_notes=False):
         counts["新增"], counts["更新"], counts["删除"])]
     for action, rel in ops:
         lines.append("  %s %s" % (action, rel))
+    if kept:
+        lines.append("保留复习进度：%d 篇笔记只差 spaced-repetition 的排程注释，未覆盖"
+                     "（正文有改动的才会更新）" % kept)
     if not include_notes:
         from _cli_export_notes import NOTE_DIRS  # 函数内 import：避免环状依赖
         stale = [d for d in NOTE_DIRS

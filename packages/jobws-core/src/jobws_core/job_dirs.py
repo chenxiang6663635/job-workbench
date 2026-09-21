@@ -15,13 +15,11 @@
 """
 
 import datetime
-import io
 import os
 import shutil
 
 from . import pathres  # noqa: E402  （快照根目录：**必须**在工作区之外）
 from . import tracker  # noqa: E402  （工作区解析、dedup_key、ConflictError、file_lock）
-from . import workspace_io  # noqa: E402
 
 DIR_JOBS = "01_岗位池"
 

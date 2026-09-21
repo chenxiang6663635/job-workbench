@@ -215,6 +215,10 @@ def apply_approved_delete(payload, workspace=None):
     with file_lock(_lock_path(ws)):
         rows = store["read"](ws)
         _validate_fingerprint(store, rows, expected[0])
+        # 纵深防御：指纹里的 id 必须与载荷 id 一致（approval 层哈希已挡篡改，
+        # 这里防的是构造路径上的"验 A 删 B"）
+        if (expected[0].get(store["id_field"]) or "").strip() != record_id:
+            raise ConflictError("载荷里记录 id 与行指纹不一致（请重新预览）")
         keeping = [item for item in rows
                    if (item.get(store["id_field"]) or "").strip() != record_id]
         removed = len(rows) - len(keeping)

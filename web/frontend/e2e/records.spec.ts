@@ -64,3 +64,26 @@ test("岗位池：删除走预览弹窗（列目录内文件）、Cancel 不落�
   await expect(dialog).toBeHidden();
   await expect(del).toBeVisible();
 });
+
+test("岗位池：改名走表单 → 预览（列新旧目录名与 JD 首行）、Cancel 不落盘", async ({ page }) => {
+  await openPage(page, "jobs");
+  await page.getByRole("button", { name: /示例科技/ }).first().click();
+
+  await page.getByRole("button", { name: "Rename job" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  // 表单预填当前值：改岗位名后再预览（同值会被领域层拒「新旧相同」）
+  await dialog.locator("input").nth(1).fill("平台开发");
+  await dialog.getByRole("button", { name: "Preview rename" }).click();
+
+  await expect(
+    dialog.getByText(/改名：示例科技_后端开发工程师 → 示例科技_平台开发/)
+  ).toBeVisible({ timeout: 10_000 });
+  // JD 首行标题同步列出（demo 的 JD 以 `# 公司 岗位` 开头）
+  await expect(dialog.locator("pre")).toContainText("+ # 示例科技 平台开发");
+
+  // Cancel：零改动
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+});

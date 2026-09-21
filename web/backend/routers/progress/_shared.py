@@ -29,9 +29,10 @@ def _lock_path(ws: str) -> str:
 def delete_preview_response(operation, errors, plan, error_code, error_message, ws):
     """删除类预览端点的统一出口：错误 → 400 结构化；成功 → 令牌 + 差异表。
 
-    2026-09-21 批 D：六个删除预览端点（五张从表 + 投递主表）共用——响应形状
-    与错误投影只在这一处定义，各端点只负责调各自的领域预览函数与给错误文案
-    （与领域层"同一份实现"的纪律同源：没有第二份就会有失配的机会）。
+    2026-09-21 批 D：八个删除预览端点（五张从表 + 投递主表 + 岗位目录的删除
+    与改名）共用——响应形状与错误投影只在这一处定义，各端点只负责调各自的
+    领域预览函数与给错误文案（与领域层"同一份实现"的纪律同源：没有第二份
+    就会有失配的机会）。
     """
     if plan is None:
         raise ApiError(400, error_code, error_message, reason="；".join(errors))

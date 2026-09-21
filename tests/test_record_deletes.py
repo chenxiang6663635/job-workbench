@@ -386,6 +386,30 @@ def test_apply_application_delete_conflict_when_linked_row_changed(ws, outside):
     assert [p.read_bytes() for p in (app_path, mail_path)] == before
 
 
+def test_apply_application_delete_rejects_rows_linked_after_preview(ws, outside):
+    """预览之后又给这条投递新挂关联记录 → 整体拒绝、零字节改动。
+
+    「将解绑哪些行」是落盘内容的一部分：清单是预览时列明的，预览后新挂上的行
+    不在清单里——静默删主行会让它外键悬空，所以必须重新预览。
+    """
+    app_path = _seed_application(ws, [
+        ("A001", {"公司": "TCL", "岗位": "前端开发", "当前阶段": "已投"})])
+    mail_path = _seed(ws, "mails", [("M001", {"主题": "面试邀约",
+                                              "关联记录": "A001"})])
+    errors, plan = application_delete.preview_delete_application("A001", ws)
+    # 预览之后新挂一条关联邮件（此刻 A001 还在，录入本身合法）
+    mails = tracker.read_mails(ws)
+    new_row = dict((field, "") for field in tracker.MAIL_FIELDS)
+    new_row.update({"邮件id": "M002", "主题": "笔试通知", "关联记录": "A001"})
+    tracker.write_mails(mails + [new_row], ws)
+    before = [p.read_bytes() for p in (app_path, mail_path)]
+
+    with pytest.raises(tracker.ConflictError):
+        application_delete.apply_approved_application_delete(plan["payload"], ws)
+
+    assert [p.read_bytes() for p in (app_path, mail_path)] == before
+
+
 def test_apply_application_delete_without_links(ws, outside):
     _seed_application(ws, [("A001", {"公司": "TCL", "岗位": "前端开发"})])
     errors, plan = application_delete.preview_delete_application("A001", ws)

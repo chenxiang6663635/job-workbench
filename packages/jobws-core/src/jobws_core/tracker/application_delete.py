@@ -121,7 +121,7 @@ def preview_delete_application(application_id, workspace=None):
 
 
 def apply_approved_application_delete(payload, workspace=None):
-    """投递删除的落盘段：全部核对 → 全部留痕 → 删主表行 → 解绑 → 写回 → 追记。
+    """投递删除的落盘段：全部核对 → 全部留痕 → 解绑从表 → 删主表行 → 追记时间线。
 
     顺序纪律与泛型一致，只是范围更大：**任一待解绑行与主表行不符就整体拒绝**
     （还没动任何字节）；留痕覆盖每一张将被改动的表（主表 + 被解绑的从表），
@@ -142,27 +142,38 @@ def apply_approved_application_delete(payload, workspace=None):
         rows = read_rows(ws)
         _validate_fingerprint(_APP_STORE, rows, expected[0])
         row = _application_row(rows, application_id)
-        # 先把全部待解绑行读出来核指纹——任一不符整体拒绝（仍在"零改动"之前）
+        # 先把全部待解绑行读出来核指纹——任一不符整体拒绝（仍在"零改动"之前）。
+        # 同时对五张从表重扫「现在实际指回这条投递的行」：预览之后用户又给这条
+        # 投递新挂了关联记录（不在预览清单里）的话，静默删主行会让新行外键悬空
+        # ——「将解绑哪些行」是落盘内容的一部分，它变了就必须整体拒绝。
         unbind_plan = []
         for store_key in _UNBIND_STORES:
-            wanted = [item for item in (unbind.get(store_key) or [])
-                      if isinstance(item, dict)]
-            if not wanted:
-                continue
             store = _STORES[store_key]
             table_rows = store["read"](ws)
+            current_ids = set(
+                (item.get(store["id_field"]) or "").strip()
+                for item in table_rows
+                if (item.get("关联记录") or "").strip() == application_id)
+            wanted = [item for item in (unbind.get(store_key) or [])
+                      if isinstance(item, dict)]
             for item in wanted:
                 _validate_fingerprint(store, table_rows, item)
-            unbind_plan.append((store, table_rows, wanted))
+                # 清单内的行不算"多出来的"（指纹通过 = 它还在且仍指回本投递）
+                current_ids.discard((item.get(store["id_field"]) or "").strip())
+            if current_ids:
+                raise ConflictError(
+                    "预览之后「%s」又有 %d 条记录新挂到这条投递上（%s）——将解绑"
+                    "的清单变了，已拒绝本次删除，请重新预览"
+                    % (store["name_cn"], len(current_ids),
+                       "、".join(sorted(current_ids))))
+            if wanted:
+                unbind_plan.append((store, table_rows, wanted))
         # 留痕：主表 + 每一张将被改动的从表，覆盖"本次操作会动到的全部数据"
         traces.append(_write_trace(_APP_STORE, rows, ws))
         for store, table_rows, _wanted in unbind_plan:
             traces.append(_write_trace(store, table_rows, ws))
-        # 删主表行
-        keeping = [item for item in rows
-                   if (item.get("id") or "").strip() != application_id]
-        write_rows(keeping, ws)
-        # 解绑：清空「关联记录」后写回（同行其它字段逐字保留）
+        # 先解绑（清空「关联记录」后写回，同行其它字段逐字保留）——把"中途崩溃"
+        # 的窗口收窄成无害形态：留"解绑了但主行还在"可重试，反向则留悬空外键
         unbound_total = 0
         for store, table_rows, wanted in unbind_plan:
             wanted_ids = set((item.get(store["id_field"]) or "").strip()
@@ -172,6 +183,10 @@ def apply_approved_application_delete(payload, workspace=None):
                     table_row["关联记录"] = ""
                     unbound_total += 1
             store["write"](table_rows, ws)
+        # 再删主表行
+        keeping = [item for item in rows
+                   if (item.get("id") or "").strip() != application_id]
+        write_rows(keeping, ws)
         # 时间线追记一条（history 不删——行没了，但"这件事发生过"留在时间线上）
         append_history([{"id": application_id, "字段": "记录",
                          "原值": _application_label(row), "新值": "已删除"}], ws)

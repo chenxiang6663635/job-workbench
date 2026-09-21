@@ -10,6 +10,7 @@ import {
   WRONG_TAG,
   type DrillMode,
 } from "../lib/drill";
+import { BankPreviewCard } from "./BankPreviewCard";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { ErrorBanner } from "./ErrorBanner";
@@ -25,38 +26,6 @@ import { Input } from "./ui/input";
 //    `question.update` 预览 + `/api/approvals/apply` 落盘，不新增写通道。
 const MODES: DrillMode[] = ["due", "wrong", "random"];
 const SIZES = [5, 10, 20];
-/** 差异确认：与题库详情里的写入确认同一套手感（摘要 + 差异表 + 确认/取消）。 */
-function DrillPreviewCard({
-  summary,
-  diff,
-  busy,
-  onConfirm,
-  onCancel,
-}: {
-  summary: string;
-  diff: string[];
-  busy: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <Card className="space-y-2 p-3">
-      <p className="text-sm font-medium text-foreground">{summary}</p>
-      <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
-        {diff.join("\n")}
-      </pre>
-      <div className="flex gap-2">
-        <Button size="sm" onClick={onConfirm} disabled={busy}>
-          {busy ? t("bank.writing") : t("bank.confirmWrite")}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
-          {t("common.cancel")}
-        </Button>
-      </div>
-    </Card>
-  );
-}
 
 export default function ReviewQueue() {
   const { t } = useTranslation();
@@ -83,6 +52,9 @@ export default function ReviewQueue() {
 
   const current = items[index] as BankQuestion | undefined;
   const wrongFlagged = !!current && tagsOf(current.标签 || "").includes(WRONG_TAG);
+  // 差异卡待确认期间锁住动作按钮：题卡内联之后不再被替换，不锁的话可以在确认框
+  // 开着的时候继续自评 / 跳到下一题，确认的差异与眼前这道题就对不上了
+  const locked = busy || preview !== null;
 
   const runPreview = (promise: Promise<{ token: string; summary: string; diff: string[] }>) => {
     setBusy(true);
@@ -209,17 +181,10 @@ export default function ReviewQueue() {
         </Card>
       )}
 
-      {current && preview && (
-        <DrillPreviewCard
-          summary={preview.summary}
-          diff={preview.diff}
-          busy={busy}
-          onConfirm={onConfirm}
-          onCancel={() => setPreview(null)}
-        />
-      )}
-
-      {current && !preview && (
+      {/* 题目卡**常驻**（2026-09-21）：此前 preview 一生效就把整张题卡换成差异卡，
+          点完自评看不到刚答的题——而确认写入时恰恰最需要对着题面与答案再核一眼。
+          差异卡改为内联在按钮组上方，确认语义与两段式流程一个字节都没动。 */}
+      {current && (
         <Card className="flex flex-1 flex-col gap-3 p-4">
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
             <span>
@@ -243,20 +208,30 @@ export default function ReviewQueue() {
             </Button>
           )}
 
+          {preview && (
+            <BankPreviewCard
+              summary={preview.summary}
+              diff={preview.diff}
+              busy={busy}
+              onConfirm={onConfirm}
+              onCancel={() => setPreview(null)}
+            />
+          )}
+
           <div className="mt-auto flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => grade("未看")} disabled={busy}>
+            <Button size="sm" onClick={() => grade("未看")} disabled={locked}>
               {t("drill.gradeTodo")}
             </Button>
-            <Button size="sm" onClick={() => grade("看过")} disabled={busy}>
+            <Button size="sm" onClick={() => grade("看过")} disabled={locked}>
               {t("drill.gradeSeen")}
             </Button>
-            <Button size="sm" onClick={() => grade("会了")} disabled={busy}>
+            <Button size="sm" onClick={() => grade("会了")} disabled={locked}>
               {t("drill.gradeKnown")}
             </Button>
-            <Button variant="ghost" size="sm" onClick={toggleWrong} disabled={busy}>
+            <Button variant="ghost" size="sm" onClick={toggleWrong} disabled={locked}>
               {t(wrongFlagged ? "drill.unmarkWrong" : "drill.markWrong")}
             </Button>
-            <Button variant="ghost" size="sm" onClick={next} disabled={busy}>
+            <Button variant="ghost" size="sm" onClick={next} disabled={locked}>
               {t("drill.next")}
             </Button>
           </div>

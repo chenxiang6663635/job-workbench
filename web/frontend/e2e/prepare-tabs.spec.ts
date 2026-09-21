@@ -65,8 +65,9 @@ test("准备 · 训练页签：抽题后答案默认折叠（a11y 零 serious/cr
   const panel = page.getByRole("tabpanel");
   await expect(panel).toBeVisible();
 
-  // 用随机模式：demo 工作区的六道例题里只有个别按 due 到期，走重练队列在多数
-  // 日子会抽到空；随机模式在任何一天都抽得到题（测试不该依赖"今天是哪天"）。
+  // 用随机模式：demo 有两道「未看」恒在重练队列（队列不会空），其余四道的
+  // due 状态随"今天是哪天"漂移；随机模式对日期完全免疫——本用例只关心
+  // "抽得到题 + 答案默认折叠"，用最不依赖数据状态的模式。
   // 模式切换已改成 ui/segmented，单选是**原生 radio**（sr-only、1px 被裁切）——
   // 直接 click 会被外层 label 截住（smoke.spec 同款坑）。改为聚焦后按空格选中，
   // 顺带钉住"原生单选真的能选上"。
@@ -199,6 +200,26 @@ test("准备 · 题库：新增题目表单能预览（不落盘）", async ({ p
   // 取消预览（差异卡收起、表单还在）——弹窗关掉后 demo 数据零改动
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog.getByText("新增题目：e2e 新增预览演示")).toHaveCount(0);
+});
+
+test("准备 · 题库/训练：到期标记与「为什么在队列里」可见（B-3）", async ({ page }) => {
+  // 2026-09-21（批次 B-3）：抽题规则不该让用户猜"为什么是这道题"——
+  // ① 列表行用「Due」徽章标出当日待复习（demo 六道例题今天都在 due 集合里：
+  //    未看恒在、过期未复习也在；reason 挂在 title 上悬停可看）；
+  // ② 训练题卡头部显示抽到这道题的原因。
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Question bank" }).click();
+  const panel = page.getByRole("tabpanel");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText("Due").first()).toBeVisible({ timeout: 10_000 });
+
+  await page.getByRole("tab", { name: "Drill" }).click();
+  const drillPanel = page.getByRole("tabpanel");
+  await expect(drillPanel).toBeVisible();
+  // 默认的「重练队列」模式：抽到的第一道必然有原因——三种可能文案都在正则里
+  await drillPanel.getByRole("button", { name: "Draw" }).click();
+  await expect(drillPanel.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 10_000 });
+  await expect(drillPanel.getByText(/还没学|从没复习过|已到期/)).toBeVisible();
 });
 
 test("准备 · 训练页签：窄屏 390×844 无横向溢出", async ({ page }) => {

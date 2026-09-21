@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type BankQuestion } from "../api";
+import { api } from "../api";
+import type { BankRow } from "../lib/bank";
 import {
   fetchDrill,
   previewMarkWrong,
@@ -11,6 +12,7 @@ import {
   type DrillMode,
 } from "../lib/drill";
 import { DRILL_KEY_IGNORE_SELECTOR, drillKeyAction } from "../lib/drillKeys";
+import { BankCounts } from "./BankCounts";
 import { BankPreviewCard } from "./BankPreviewCard";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -37,11 +39,13 @@ export default function ReviewQueue() {
   const [mode, setMode] = useState<DrillMode>("due");
   const [size, setSize] = useState(5);
   const [keyword, setKeyword] = useState("");
-  const [items, setItems] = useState<BankQuestion[]>(() => saved?.items ?? []);
+  const [items, setItems] = useState<BankRow[]>(() => saved?.items ?? []);
   const [index, setIndex] = useState(() => saved?.index ?? 0);
   const [revealed, setRevealed] = useState(() => saved?.revealed ?? false);
   const [drawn, setDrawn] = useState(() => saved?.drawn ?? false);
   const [graded, setGraded] = useState(() => saved?.graded ?? 0);
+  // 三态计数（B-4）：抽题时随结果带回（旧存储没有这字段，读取处兜底 {}）
+  const [counts, setCounts] = useState<Record<string, number>>(() => saved?.counts ?? {});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
@@ -50,10 +54,10 @@ export default function ReviewQueue() {
 
   // 令牌刻意**不**持久化：它十分钟过期，存下来只会让"确认"在 reload 之后报"令牌没了"
   useEffect(() => {
-    saveDrillRound({ items, index, revealed, drawn, graded });
-  }, [items, index, revealed, drawn, graded]);
+    saveDrillRound({ items, index, revealed, drawn, graded, counts });
+  }, [items, index, revealed, drawn, graded, counts]);
 
-  const current = items[index] as BankQuestion | undefined;
+  const current = items[index] as BankRow | undefined;
   const wrongFlagged = !!current && tagsOf(current.标签 || "").includes(WRONG_TAG);
   // 差异卡待确认期间锁住动作按钮：题卡内联之后不再被替换，不锁的话可以在确认框
   // 开着的时候继续自评 / 跳到下一题，确认的差异与眼前这道题就对不上了
@@ -75,6 +79,7 @@ export default function ReviewQueue() {
     fetchDrill({ mode, n: size, keyword })
       .then((r) => {
         setItems(r.items);
+        setCounts(r.counts);
         setIndex(0);
         setRevealed(false);
         setGraded(0);
@@ -215,6 +220,8 @@ export default function ReviewQueue() {
               {current.领域 || "—"} / {current.科目 || "—"}
             </span>
             <span>{current.状态 || "未看"}</span>
+            {/* 为什么在队列里（B-3）：抽题规则不写在界面上，用户不用猜"为什么是这道" */}
+            {current.reason && <span>{current.reason}</span>}
           </div>
 
           <p className="text-base leading-relaxed text-foreground">{current.题目}</p>
@@ -268,6 +275,8 @@ export default function ReviewQueue() {
           <p className="text-xs text-muted-foreground">
             {t("drill.doneHint", { count: graded })}
           </p>
+          {/* 题库现状（B-4）：练完看"会了"在涨——进度可见才有继续的动力 */}
+          <BankCounts counts={counts} className="pt-1" />
           <div className="pt-1">
             <Button size="sm" onClick={onDraw} disabled={busy}>
               {t("drill.restart")}

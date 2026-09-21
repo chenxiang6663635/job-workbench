@@ -101,6 +101,8 @@ export default {
   "bank.addNeedTitle": "Question text is required",
   "bank.previewAdd": "Preview",
   "bank.confirmAdd": "Confirm add",
+  "bank.badgeDue": "Due",
+  "bank.badgeWrong": "Wrong",
   "bank.emptyNoData": "Your question bank is empty",
   "bank.emptyHintNoData":
     "Use New question to write your own, or Import to pull in Markdown from 03_面试准备",

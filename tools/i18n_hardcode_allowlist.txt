@@ -56,7 +56,8 @@ components/QuestionBank.tsx = 会了|未看|看过
 components/AskedBefore.tsx = ${g.公司}__${g.岗位}|一面|三面|二面|公司|复盘与改进|待定|我的回答要点|测评|笔试|终面|结果|群面|通过|面
 
 # 题库列表行拆出（2026-09-18）后的状态枚举与 CSV 列名 / 关联展示拼接
-components/QuestionBankRow.tsx = · ${row.关联岗位}|会了|关联公司|未看|看过|答案要点|题目
+# （2026-09-21 批次 B-3 加「错题」徽章：`标签` 是判定错题的 CSV 列名）
+components/QuestionBankRow.tsx = · ${row.关联岗位}|会了|关联公司|未看|看过|答案要点|题目|标签
 
 # 题库详情弹窗（2026-09-18）：状态三态与难度档位枚举、CSV 列名——都是数据值
 components/QuestionDetailDialog.tsx = 中|会了|易|未看|状态|看过|答案要点|难|难度|题目
@@ -64,6 +65,10 @@ components/QuestionDetailDialog.tsx = 中|会了|易|未看|状态|看过|答案
 # 新增题目表单（2026-09-21 批次 B-1）：难度档位枚举（易 / 中 / 难）——questions.csv
 # 的真实取值，不翻译（与详情弹窗、列表徽章同一套约定）
 components/QuestionForm.tsx = 中|易|难
+
+# 题库三态计数（2026-09-21 批次 B-4）：状态值「未看 / 看过 / 会了」是 CSV 的真实
+# 取值（题库头部与训练结束卡共用）——与 QuestionBankRow / QuestionBank 同一条理由
+components/BankCounts.tsx = 会了|未看|看过
 
 # 看板「近 7 天宣讲会」区块（2026-09-18）：时间 / 是否参加 都是 talks.csv 的真实列名（取数）
 components/UpcomingTalks.tsx = 时间|是否参加

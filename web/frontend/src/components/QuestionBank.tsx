@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { BookOpen, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { api, type BankQuestion } from "../api";
+import { api } from "../api";
+import type { BankRow } from "../lib/bank";
 import { AskedBefore } from "./AskedBefore";
+import { BankCounts } from "./BankCounts";
 import { BankImportButton } from "./BankImportButton";
 import { QuestionForm } from "./QuestionForm";
 import { Button } from "./ui/button";
@@ -25,14 +27,16 @@ const ALL_STATUS = "__all__";
 
 function MyBank() {
   const { t } = useTranslation();
-  const [rows, setRows] = useState<BankQuestion[]>([]);
+  const [rows, setRows] = useState<BankRow[]>([]);
   const [total, setTotal] = useState(0);
+  // 三态计数随列表拉回（B-4）：练到哪了一眼可见
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   // 详情（也就是编辑）弹窗：null = 关闭，否则为被打开的那一行
-  const [selected, setSelected] = useState<BankQuestion | null>(null);
+  const [selected, setSelected] = useState<BankRow | null>(null);
   // 「新增题目」弹窗（批次 B-1）：加题入口从 CLI 挪进界面
   const [adding, setAdding] = useState(false);
 
@@ -44,6 +48,7 @@ function MyBank() {
       .then((r) => {
         setRows(r.items);
         setTotal(r.total);
+        setCounts(r.counts);
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -115,7 +120,11 @@ function MyBank() {
         </Card>
       ) : rows.length === 0 ? null : (
         <>
-          <p className="text-xs text-muted-foreground">{t("bank.count", { count: total })}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs text-muted-foreground">{t("bank.count", { count: total })}</p>
+            {/* 三态分布（B-4）：counts 后端早就算好了，此前前端零消费 */}
+            <BankCounts counts={counts} />
+          </div>
           <div className="space-y-2">
             {rows.map((row) => (
               <QuestionBankRow

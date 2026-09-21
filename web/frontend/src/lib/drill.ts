@@ -6,7 +6,8 @@
 // 因此这里自带一份极薄的 GET 封装：ws 参数与错误本地化都照 api.ts 的口径，
 // **不另立标准**（后端错误码 → `err.<code>` 文案，查不到才回落 detail）。
 import i18n from "../i18n";
-import { currentWorkspace, type BankQuestion } from "../api";
+import { currentWorkspace } from "../api";
+import type { BankRow } from "./bank";
 
 // 数据值，不翻译：标签里的「错题」就是 CSV 里的真实取值（与 due / wrong 的口径同源）。
 // 拿翻译串去比会随界面语言漂移——中文界面标的错题，英文界面就认不出来了。
@@ -28,11 +29,13 @@ export function tagsOf(text: string): string[] {
 const ROUND_KEY = "jobws_drill_round";
 
 export type DrillRound = {
-  items: BankQuestion[];
+  items: BankRow[];
   index: number;
   revealed: boolean;
   drawn: boolean;
   graded: number;
+  /** 三态计数（抽题时后端给的快照）：结束卡显示"练到哪了"；旧存储没有这字段，读取处兜底 */
+  counts: Record<string, number>;
 };
 
 /** 读回上一轮（存储被禁用 / 内容不是 JSON 时当作没存过，不影响功能）。 */
@@ -58,9 +61,11 @@ export function saveDrillRound(round: DrillRound): void {
 export type DrillMode = "due" | "wrong" | "random";
 
 export type DrillResult = {
-  items: BankQuestion[];
+  items: BankRow[];
   total: number;
   mode: DrillMode;
+  /** 三态计数（当前筛选范围内）：结束卡显示"练到哪了"——「会了」在涨（B-4） */
+  counts: Record<string, number>;
   filters: { domain: string; subject: string; status: string; keyword: string };
 };
 

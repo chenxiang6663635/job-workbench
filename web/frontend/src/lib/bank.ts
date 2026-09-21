@@ -6,7 +6,7 @@
 // 代价是这里自带一份极薄的 GET 封装：ws 参数与错误本地化都照 api.ts 的口径，
 // **不另立标准**（后端错误码 → `err.<code>` 文案，查不到才回落 detail）。
 import i18n from "../i18n";
-import { currentWorkspace } from "../api";
+import { currentWorkspace, type BankQuestion } from "../api";
 
 export type BankPreview = {
   token: string;
@@ -14,6 +14,10 @@ export type BankPreview = {
   diff: string[];
   expiresAt: number;
 };
+
+/** 列表 / 抽题返回的行：领域层会附带 `due`（当日待复习）与 `reason`（为什么在队列里）。
+ *  单独定义而不是往 api.ts 的 BankQuestion 里加字段——那个文件登记过水位（只许变小）。 */
+export type BankRow = BankQuestion & { due?: boolean; reason?: string };
 
 function humanize(raw: string, status: number): string {
   try {

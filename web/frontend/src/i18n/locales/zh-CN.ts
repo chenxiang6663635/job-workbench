@@ -104,6 +104,8 @@ const zhCN = {
   "bank.addNeedTitle": "题目不能为空",
   "bank.previewAdd": "预览新增",
   "bank.confirmAdd": "确认新增",
+  "bank.badgeDue": "到期",
+  "bank.badgeWrong": "错题",
   "bank.emptyNoData": "题库还是空的",
   "bank.emptyHintNoData":
     "用「新增题目」自己加，或用「导入」把 03_面试准备 里的 Markdown 收进来",

@@ -199,6 +199,35 @@ def test_preview_update_rejects_no_change(client, tmp_path):
     assert res.json()["error_code"] == "question.updateFailed"
 
 
+def test_list_marks_due_questions_with_reason(client, tmp_path):
+    """B-3：列表行带 due 标记与原因（复用 due_from_rows，与 CLI `bank due` 同口径）。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点,最近复习\n"
+                     "Q001,未看的题,技术面,网络,未看,自拟,要点,\n"
+                     "Q002,刚复习的题,技术面,网络,会了,自拟,要点,2099-01-01\n")
+    res = client.get("/api/progress/questions", params={"ws": WS})
+    assert res.status_code == 200
+    items = dict((row["题目id"], row) for row in res.json()["items"])
+    assert items["Q001"]["due"] is True
+    assert "未看" in items["Q001"]["reason"]
+    assert "due" not in items["Q002"]
+
+
+def test_drill_returns_reasons_and_counts(client, tmp_path):
+    """B-3/B-4：抽题结果带每行的原因与三态计数（结束卡消费 counts 看"练到哪了"）。"""
+    _write_questions(client, tmp_path,
+                     "题目id,题目,领域,科目,状态,来源,答案要点,最近复习\n"
+                     "Q001,未看的题,技术面,网络,未看,自拟,要点,\n"
+                     "Q002,会的题,技术面,网络,会了,自拟,要点,2099-01-01\n")
+    res = client.get("/api/progress/questions/drill",
+                     params={"ws": WS, "mode": "due", "n": 5})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["counts"] == {"未看": 1, "会了": 1}
+    assert [row["题目id"] for row in data["items"]] == ["Q001"]
+    assert "未看" in data["items"][0]["reason"]
+
+
 def test_preview_add_returns_token_without_writing(client, tmp_path):
     """1c 自拟新增预览：只给令牌，questions.csv 一个字节都不写。"""
     _write_questions(client, tmp_path,

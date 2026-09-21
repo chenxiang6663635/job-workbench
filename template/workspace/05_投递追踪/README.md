@@ -7,6 +7,7 @@
 | 文件 | 说明 |
 |---|---|
 | `tracker.csv` | 追踪表。首次 `jobws track add` 时自动创建，不要手工编辑 |
+| `history.csv` | 变更时间线（阶段 / 字段变更时自动追加）。随首次变更自动创建 |
 | `interviews.csv` | 面试记录。首次 `jobws track interview add` 时自动创建 |
 | `talks.csv` | 宣讲会 / 招聘会。首次 `jobws track talk add` 时自动创建 |
 | `mails.csv` | 邮件台账。首次「从邮箱拉取」记入或 `jobws track mail add` 时自动创建 |

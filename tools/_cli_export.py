@@ -276,7 +276,7 @@ def main(argv=None):
                              "投影成笔记（保留目录层级；正文按原意搬运，不截断）")
     parser.add_argument("--sync-to", metavar="库目录",
                         help="把新快照镜像进这个**固定**的 Obsidian 库目录（保留其 .obsidian/；"
-                             "只差复习注释的笔记不覆盖，正文改动才更新；"
+                             "只差复习注释或空白的笔记不覆盖，正文改动才更新；"
                              "库目录必须已存在且在工作区之外）")
     parser.add_argument("--dry-run", action="store_true",
                         help="只打印同步计划，不改库目录（配合 --sync-to）")

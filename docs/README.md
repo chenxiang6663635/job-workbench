@@ -52,7 +52,7 @@
 | [`glossary.md`](glossary.md) | 术语表：文档与 CHANGELOG 里出现的内部术语集中定义一次 |
 | [`maintenance.md`](maintenance.md) | 仓库维护说明（英文）：发布节奏、版本号纪律与项目健康度的对外交代 |
 | [`../SECURITY.md`](../SECURITY.md) | 安全策略：威胁模型、local-first 取舍记录（如 unsigned 自动更新链）与报告方式 |
-| [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Next / Later 与已完成批次（细节进 CHANGELOG） |
+| [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Later 与已完成批次日志（细节进 CHANGELOG） |
 | [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md) | 第三方依赖与许可清单 |
 | [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Issue 模板：bug 报告与功能请求两份（功能请求含 fit check；新需求仍按 CONTRIBUTING 四道门评估） |
 
@@ -86,7 +86,7 @@
 | [`../web/README.md`](../web/README.md) | Web 界面层：八个页面、与 CLI 的关系、目录结构、已知边界 |
 | [`../web/frontend/README.md`](../web/frontend/README.md) | 前端工程说明（构建链与运行方式） |
 | [`../mcp/README.md`](../mcp/README.md) | MCP 服务：14 个工具（6 只读 + 7 个两段式预览 + `apply_approval`）、安装与宿主配置、工作区解析 |
-| [`mcp-integration.md`](mcp-integration.md) | MCP 接入专篇：安装、四种宿主配置（键名各异）、工作区解析、两段式用法与故障排查 |
+| [`mcp-integration.md`](mcp-integration.md) | MCP 接入专篇：安装、宿主配置（三种形态，键名各异）、工作区解析、两段式用法与故障排查 |
 
 ## 已归档代码
 

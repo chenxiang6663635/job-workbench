@@ -40,7 +40,7 @@ web/frontend/src/pages/Resume.tsx = 544  # 简历工坊（模式切换 + 表单 
 web/frontend/src/pages/Jobs.tsx = 524  # 岗位池（列表 + 详情双栏）；2026-09-17 页头 + 空态原语（520→524）
 web/frontend/src/components/StatusUpdateDialog.tsx = 559  # 解析 → 建议 → 确认三段式
 web/frontend/src/components/MailList.tsx = 475  # 邮件列表 + 8 字段表单；2026-09-17 空态改 EmptyState 原语（469→475）
-web/frontend/src/components/TalkList.tsx = 341  # 宣讲会列表 + 表单；2026-09-17 空态改走 EmptyState 原语（340→341）
+
 web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（逐段确认）
 web/frontend/src/components/ThemeEditor.tsx = 307  # 主题编辑器（10 关键色 + 实时对比度 + 导入导出）；2026-09-17 加「复制 CSS」与重命名（越过 300；拆分列入后续重构）
 web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导入导出；2026-09-17 加 renameCustomTheme / exportThemeVarsAsCss 后越过 300（字体 / 字号已拆出到 fonts.ts；拆分列入后续重构）

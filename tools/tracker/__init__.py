@@ -39,10 +39,11 @@ warnings.warn(
 )
 
 _DOMAIN = ("_core", "_schema", "_check", "applications", "interviews", "talks",
-           "mails", "contacts", "offers", "importing", "preview_app",
+           "mails", "contacts", "offers", "importing", "deletes",
+           "application_delete", "preview_app",
            "preview_interview", "preview_update")
 _CLI = ("_cli", "_cli_interview", "_cli_talk", "_cli_mail", "_cli_contact",
-        "_cli_offer", "_cli_misc")
+        "_cli_offer", "_cli_misc", "_cli_delete")
 
 # 先确保应用根有值：真身的 `_core` 在**模块顶层**就调 `pathres.resolve_root()`，
 # 而它已不再从 `__file__` 推断——晚一步这里就是 ImportError。`tools/report.py`

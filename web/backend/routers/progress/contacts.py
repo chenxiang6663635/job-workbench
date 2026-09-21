@@ -16,7 +16,7 @@ from jobws_core.filelock import file_lock
 
 router = APIRouter()
 
-from ._shared import (_lock_path)
+from ._shared import (_lock_path, delete_preview_response)
 
 
 
@@ -112,3 +112,17 @@ def update_contact(contact_id: str, item: PatchContact,
         tracker.write_contacts(rows, ws)
 
     return dict(row, _changed=changed)
+
+
+@router.get("/contacts/preview-delete")
+def preview_contact_delete(id: str = "", ws: str = Depends(workspace_dir)):
+    """预览删除一条联系人记录（**不落盘**），返回令牌与将删的整行。
+
+    2026-09-21 批 D：与其余记录删除同纪律——领域层校验（存在性 / 重复 id）→
+    确认 → 凭令牌走 `/api/approvals/apply` 落盘；落盘前整表快照写到工作区之外。
+    """
+    from jobws_core.tracker import deletes
+    errors, plan = deletes.preview_delete_contact(id, ws)
+    return delete_preview_response("contact.delete", errors, plan,
+                                   "progress.contactDeleteFailed",
+                                   "联系人删除预览失败", ws)

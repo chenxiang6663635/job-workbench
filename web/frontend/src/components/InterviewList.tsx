@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, Download, Plus } from "lucide-react";
+import DeleteRecordButton from "./DeleteRecordButton";
+import { previewDeleteRecord } from "../lib/records";
 import {
   api,
   INTERVIEW_RESULTS,
@@ -220,21 +222,28 @@ export default function InterviewList() {
                     </a>
                   )}
                 </div>
-                <Select
-                  value={current.结果}
-                  onValueChange={(v) => quickSetResult(current.面试id, v)}
-                >
-                  <SelectTrigger className="w-28 shrink-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INTERVIEW_RESULTS.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {domainLabel("result", r, t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Select
+                    value={current.结果}
+                    onValueChange={(v) => quickSetResult(current.面试id, v)}
+                  >
+                    <SelectTrigger className="w-28 shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INTERVIEW_RESULTS.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {domainLabel("result", r, t)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {/* 删除（批 D）：预览 → 确认弹窗 → 落盘；删完右栏自动回落「选择提示」 */}
+                  <DeleteRecordButton
+                    preview={() => previewDeleteRecord("interviews", current.面试id)}
+                    onDeleted={reload}
+                  />
+                </div>
               </div>
 
               {(

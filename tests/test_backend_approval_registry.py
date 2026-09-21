@@ -19,8 +19,8 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# 13 项 = 包内自登记的十一个 + 仓内追加的 prep.toggle / init
-_EXPECTED = 13
+# 21 项 = 包内自登记的十九个（含批 D 的六类记录删除与岗位删除/改名）+ 仓内追加的 prep.toggle / init
+_EXPECTED = 21
 
 
 def test_backend_apply_entry_sees_the_full_registry():
@@ -43,5 +43,5 @@ print("ok")
     )
     assert proc.returncode == 0, (
         "后端的 apply 入口看不到完整登记表——routers/approvals.py 是不是用了"
-        "包内协议壳（那样只有十个操作，prep.toggle / init 会在用户点确认时才 422）：\n%s"
+        "包内协议壳（那样只有十九个操作，prep.toggle / init 会在用户点确认时才 422）：\n%s"
         % (proc.stderr or proc.stdout))

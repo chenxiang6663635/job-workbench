@@ -20,14 +20,14 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from jobws_core import approval
+from jobws_core import job_dirs
 from jobws_core import status_parse
 from jobws_core import tracker
 from jobws_core import url_infer
 from apierror import ApiError
 from deps import DIR_TRACKING, workspace_dir
 from jobws_core.filelock import file_lock
-# 目录名拆分只有一处实现（jobs._split_dir）。前端「一键投递」传目录名过来，
-# 由这里拆——不再让每个调用方各自镜像一份拆分规则。
+# 目录名拆分只有一处实现（job_dirs.split_dir_name）；前端「一键投递」传目录名过来，由这里拆。
 from routers import jobs as jobs_router
 
 router = APIRouter(prefix="/api/applications")
@@ -50,7 +50,7 @@ HEALTH_ORDER = {"urgent": 0, "overdue": 1, "stale": 2, "ok": 3}
 
 class NewApplication(BaseModel):
     # 岗位目录名（`<公司>_<岗位>`）。**给了它就以它为准**：公司与岗位由后端拆分，
-    # 客户端不必也不该自己拆——拆分口径只该有一处实现（`jobs._split_dir`）。
+    # 客户端不必也不该自己拆——拆分口径只该有一处实现（`job_dirs.split_dir_name`）。
     # 此前前端镜像了一份 JavaScript 版，两份实现迟早会漂。
     岗位目录: str = None
     公司: str = ""
@@ -318,7 +318,7 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
     # 否则按字面值用。**不接受「目录名和字面值都给」时两边不一致还照字面值写**，
     # 那样又会写出匹配不上的记录。
     if (app.岗位目录 or "").strip():
-        company, role = jobs_router._split_dir(app.岗位目录)
+        company, role = job_dirs.split_dir_name(app.岗位目录)
         if not (company and role):
             # 面向用户的文案不写内部口径（「按首个下划线拆分」是实现细节，
             # 会被 humanizeError 原样直出到界面上）

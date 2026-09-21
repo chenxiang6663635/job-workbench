@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 from . import _core
+from ._cli_delete import run_delete_preview
 from ._schema import (INTERVIEW_FIELDS)
 from .interviews import (find_interview, read_interviews)
 # 两段式的载荷构造与落盘收在 preview_interview：CLI 与 MCP 走同一份，
@@ -84,6 +85,11 @@ def _interview_add(args):
 
 
 
+def _interview_delete(args):
+    """面试记录删除：预览（不落盘）→ 凭令牌落盘；删除类永远两段式。"""
+    return run_delete_preview("interviews", args.id, "interview.delete")
+
+
 def cmd_interview(args):
     """面试记录：投递之后的每一次交流都记下来，复盘是唯一能复利的部分。"""
     action = args.action
@@ -145,6 +151,9 @@ def cmd_interview(args):
         result = apply_approved_interview_update(plan["payload"])
         print(result["summary"])
         return 0
+
+    if action == "delete":
+        return _interview_delete(args)
 
     print("错误：未知动作 %s" % action)
     return 1

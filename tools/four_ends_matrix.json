@@ -240,6 +240,78 @@
       "note": "写入：删题——预览列出将删哪一行 -> 确认 -> 落盘，落盘前把整表快照写到**工作区之外**（删错可整份复制回来）。批量撤回（`--origin 导入 --today` 等条件）**只在命令行**：界面没有「选中可见的多行」这个前置，把批量删做成一次点击等于鼓励误操作；MCP 同样不提供——删是高风险动作，先只留给本人发起的两端。"
     },
     {
+      "id": "mail.delete",
+      "stage": "跟进",
+      "cli": "track mail delete",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/progress/mails/preview-delete",
+      "note": "写入：删一封邮件台账——预览列出将删的整行 -> 确认 -> 落盘，落盘前整表快照写到**工作区之外**（删错可整份拷回）。MCP 不提供——删是高风险动作，只留给本人发起的两端。2026-09-21 批 D：旧版直删 `DELETE /mails/{id}` 已撤除，删除与全站写操作同走两段式。"
+    },
+    {
+      "id": "interview.delete",
+      "stage": "面试",
+      "cli": "track interview delete",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/progress/interviews/preview-delete",
+      "note": "写入：删一条面试记录——同 mail.delete 的两段式与留痕纪律（2026-09-21 批 D）。"
+    },
+    {
+      "id": "contact.delete",
+      "stage": "跟进",
+      "cli": "track contact delete",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/progress/contacts/preview-delete",
+      "note": "写入：删一条联系人——同 mail.delete 的两段式与留痕纪律（2026-09-21 批 D）。"
+    },
+    {
+      "id": "talk.delete",
+      "stage": "跟进",
+      "cli": "track talk delete",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/progress/talks/preview-delete",
+      "note": "写入：删一场宣讲会 / 招聘会——同 mail.delete 的两段式与留痕纪律（2026-09-21 批 D）。"
+    },
+    {
+      "id": "offer.delete",
+      "stage": "跟进",
+      "cli": "track offer delete",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/progress/offers/preview-delete",
+      "note": "写入：删一条 Offer——同 mail.delete 的两段式与留痕纪律（2026-09-21 批 D）。"
+    },
+    {
+      "id": "application.delete",
+      "stage": "投递",
+      "cli": "track delete",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/applications/preview-delete",
+      "note": "写入：删一条投递记录——带**解绑联动**：邮件 / 面试 / 联系人 / 宣讲会 / Offer 里以「关联记录」指回它的行清空外键（记录保留，差异表逐条列明），时间线不删、追记一条「已删除」；落盘前主表与被解绑表各留一份工作区外快照（2026-09-21 批 D）。"
+    },
+    {
+      "id": "job.delete",
+      "stage": "岗位池",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/jobs/preview-delete",
+      "note": "写入：删一个岗位目录——预览逐条列目录内文件（含关联投递保留提示）-> 确认 -> 落盘，落盘前**整个目录**复制到工作区之外（恢复 = 拷回 01_岗位池/）。仅 GUI：岗位池无 CLI 命令族（文件管理器删目录是既有退路，但无预览与留痕）；MCP / 插件不提供——删是高风险动作，只留给本人发起的两端（2026-09-21 批 D）。"
+    },
+    {
+      "id": "job.rename",
+      "stage": "岗位池",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/jobs/preview-rename",
+      "note": "写入：改岗位目录名 + 同步 JD原文.md 首行标题（只在首行确实是 `# 标题` 时替换，其余内容一字不动）——预览 `旧 → 新` -> 确认 -> 落盘。改名可逆、不设目录快照；仅 GUI；MCP / 插件不提供（2026-09-21 批 D）。"
+    },
+    {
       "id": "approval.apply",
       "stage": "通用",
       "cli": "apply",
@@ -419,6 +491,96 @@
     {
       "end": "plugin",
       "item": "question.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "mcp",
+      "item": "mail.delete",
+      "reason": "删是不可逆的高风险动作，只留给本人发起的两端（命令行 / 界面）；模型不代删（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "mail.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "mcp",
+      "item": "interview.delete",
+      "reason": "同上（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "interview.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "mcp",
+      "item": "contact.delete",
+      "reason": "同上（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "contact.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "mcp",
+      "item": "talk.delete",
+      "reason": "同上（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "talk.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "mcp",
+      "item": "offer.delete",
+      "reason": "同上（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "offer.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "mcp",
+      "item": "application.delete",
+      "reason": "同上（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "application.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "cli",
+      "item": "job.delete",
+      "reason": "岗位池无 CLI 命令族；在文件管理器删目录是既有退路，但该入口没有预览与留痕——需要安全网时走 GUI（2026-09-21 批 D）。"
+    },
+    {
+      "end": "mcp",
+      "item": "job.delete",
+      "reason": "删是不可逆的高风险动作，只留给本人发起的两端；模型不代删（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "job.delete",
+      "reason": "同上。"
+    },
+    {
+      "end": "cli",
+      "item": "job.rename",
+      "reason": "岗位池无 CLI 命令族；改名入口在 GUI（2026-09-21 批 D）。"
+    },
+    {
+      "end": "mcp",
+      "item": "job.rename",
+      "reason": "改名会同时动目录与 JD 标题，只留给本人发起的两端（2026-09-21 批 D）。"
+    },
+    {
+      "end": "plugin",
+      "item": "job.rename",
       "reason": "同上。"
     },
     {

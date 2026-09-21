@@ -18,6 +18,7 @@ if _TOOLS_DIR not in sys.path:
 logger = logging.getLogger(__name__)
 
 
+from ._cli_delete import run_delete_preview
 from ._schema import (CONTACT_FIELDS)
 from .applications import (read_rows)
 from .contacts import (find_contact, next_contact_id, read_contacts, write_contacts)
@@ -55,6 +56,11 @@ def _contact_add(args):
     print("已记录联系人 %s：%s" % (row["联系人id"], row["姓名"]))
     return 0
 
+
+
+def _contact_delete(args):
+    """联系人删除：预览（不落盘）→ 凭令牌落盘；删除类永远两段式。"""
+    return run_delete_preview("contacts", args.id, "contact.delete")
 
 
 def cmd_contact(args):
@@ -112,5 +118,8 @@ def cmd_contact(args):
         write_contacts(rows)
         print("已更新联系人 %s：%s" % (args.id, "、".join(changed)))
         return 0
+
+    if args.action == "delete":
+        return _contact_delete(args)
 
     return 1

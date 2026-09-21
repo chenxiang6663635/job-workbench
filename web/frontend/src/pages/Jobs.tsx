@@ -256,11 +256,11 @@ export default function Jobs() {
 
   if (detail) {
     return (
-      <JobDetailView
-        detail={detail}
-        expanded={expanded}
+      <JobDetailView detail={detail} expanded={expanded}
         onToggleDimension={(name) => setExpanded(expanded === name ? null : name)}
         onBack={closeDetail}
+        // 删除 / 改名后：详情引用的目录已变，关详情并重拉列表
+        onChanged={() => { closeDetail(); load(); }}
       />
     );
   }

@@ -47,7 +47,7 @@ CLI_MODULES = [["track"], ["bank"], ["report"], ["resume"], ["jd"], ["init"],
                ["lint", "size"], ["lint", "four-ends"], ["lint", "legacy-imports"],
                ["release", "check"], ["release", "version"]]
 
-TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
+TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history", "delete",
                        "interview", "talk", "mail", "contact", "offer",
                        "import", "check"]
 
@@ -126,7 +126,7 @@ def test_interview_contact_offer_keep_their_positional_action(monkeypatch, capsy
     """这三组是「位置参数 action + 四个取值」的形态，搬家时最容易被改成子子命令。"""
     for sub in ("interview", "contact", "offer"):
         _code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [sub, "--help"])
-        for action in ("add", "list", "show", "update"):
+        for action in ("add", "list", "show", "update", "delete"):
             assert action in out, "%s 少了 action %s" % (sub, action)
 
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Scale } from "lucide-react";
+import DeleteRecordButton from "./DeleteRecordButton";
+import { previewDeleteRecord } from "../lib/records";
 import { api, type Offer } from "../api";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { Badge } from "./ui/badge";
@@ -122,9 +124,16 @@ export default function OfferCompare() {
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold text-foreground">{o.公司}</p>
-                <Badge variant="outline" className="rounded-md px-1.5 py-0 font-mono text-[10px]">
-                  {o.offer_id}
-                </Badge>
+                <div className="flex items-center gap-1">
+                  <Badge variant="outline" className="rounded-md px-1.5 py-0 font-mono text-[10px]">
+                    {o.offer_id}
+                  </Badge>
+                  {/* 删除（批 D）：预览 → 确认弹窗 → 落盘 */}
+                  <DeleteRecordButton
+                    preview={() => previewDeleteRecord("offers", o.offer_id)}
+                    onDeleted={reload}
+                  />
+                </div>
               </div>
 
               <div className="mt-3 space-y-2">

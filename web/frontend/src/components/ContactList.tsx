@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, PhoneCall, Plus, UserRound } from "lucide-react";
+import DeleteRecordButton from "./DeleteRecordButton";
+import { previewDeleteRecord } from "../lib/records";
 import { api, type Contact } from "../api";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -194,15 +196,22 @@ export default function ContactList() {
                       ? t("contact.nextFollowAt", { date: c.下次跟进 })
                       : t("contact.noPlan")}
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => markContacted(c)}
-                    title={t("contact.markTitle")}
-                    className="h-6 px-2 text-[11px]"
-                  >
-                    <PhoneCall size={11} /> {t("contact.marked")}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => markContacted(c)}
+                      title={t("contact.markTitle")}
+                      className="h-6 px-2 text-[11px]"
+                    >
+                      <PhoneCall size={11} /> {t("contact.marked")}
+                    </Button>
+                    {/* 删除（批 D）：预览 → 确认弹窗 → 落盘 */}
+                    <DeleteRecordButton
+                      preview={() => previewDeleteRecord("contacts", c.联系人id)}
+                      onDeleted={reload}
+                    />
+                  </div>
                 </div>
 
                 {c.备注 && (

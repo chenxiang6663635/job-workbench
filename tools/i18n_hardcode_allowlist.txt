@@ -94,7 +94,14 @@ components/DrillRoundMap.tsx = 标签|${i}-${item.题目}
 lib/notes.ts = 03_面试准备|04_知识库|_模板_|_示例_
 
 # 宣讲会表字段名与枚举默认值 + 用模板串拼「· 形式 · 关联记录」展示串
-components/TalkList.tsx = · ${domainLabel("talkForm", r.形式, t)}|· ${t("interview.related", { value: r.关联记录 })}|公司|关联记录|地点或链接|备注|形式|待定|收获|时间|是否参加|线下
+components/TalkList.tsx = · ${domainLabel("talkForm", r.形式, t)}|· ${t("interview.related", { value: r.关联记录 })}|地点或链接|收获
+
+# 宣讲会表单（2026-09-21 从 TalkList 拆出）：CSV 字段名与枚举默认值——数据值，不翻译
+components/TalkForm.tsx = 线下|待定|公司|时间|形式|地点或链接|关联记录|是否参加|收获|备注
+
+# 变更时间线（2026-09-21 从 Applications 拆出）：时间线字段名——数据值
+#（history.csv 的真实取值「当前阶段 / 创建」等，不翻译）
+components/HistoryTimeline.tsx = 当前阶段|创建|字段|时间|原值
 
 # 邮件表字段名与枚举默认值 + 展示串拼接（列名/枚举/接口键与 mails.csv 同源）
 components/MailList.tsx = · ${r.发件人}|· ${r.方向}|其他|关联记录|发件人|日期|方向|标签|消息|收|邮件|主题|链接
@@ -119,7 +126,7 @@ components/VersionLineage.tsx = 已挂|已放弃|投递日期|签约|（未填�
 
 # 阶段枚举与终态 + 变更时间线的字段名（「创建」是字段名不是按钮）+
 # 新建表单的「来源 / 链接」字段键与缺下一步筛选的「下次动作」（与 tracker.FIELDS 同源）
-pages/Applications.tsx = 下次动作|下次动作日期|公司|创建|原值|字段|岗位|已挂|已放弃|当前阶段|待投|我拒绝的 offer|截止日期|批次|方向|时间|来源|正式批|状态原因|签约|评分|链接|消息|主题|发件人|日期
+pages/Applications.tsx = 下次动作|下次动作日期|公司|岗位|已挂|已放弃|当前阶段|待投|我拒绝的 offer|截止日期|批次|方向|来源|正式批|状态原因|签约|评分|链接|消息|主题|发件人|日期
 
 # 阶段枚举与投递状态枚举（「面」来自 HR面/终面/AI面 的切分；色板键即阶段真值）
 pages/Dashboard.tsx = 一面|三面|下次动作|二面|已投|已挂|已放弃|已终态|当前阶段|待投|未投递|流程中|测评|笔试|签约|终面|群面|面

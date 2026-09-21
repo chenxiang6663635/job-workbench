@@ -18,6 +18,7 @@ if _TOOLS_DIR not in sys.path:
 logger = logging.getLogger(__name__)
 
 
+from ._cli_delete import run_delete_preview
 from ._schema import (OFFER_FIELDS)
 from .applications import (append_history, read_rows)
 from .offers import (find_offer, next_offer_id, read_offers, write_offers)
@@ -73,6 +74,11 @@ def _offer_add(args):
 
 
 
+def _offer_delete(args):
+    """Offer 删除：预览（不落盘）→ 凭令牌落盘；删除类永远两段式。"""
+    return run_delete_preview("offers", args.id, "offer.delete")
+
+
 def cmd_offer(args):
     """Offer 已知事实：只记录，不判断——选择是多目标决策，由用户自己做。"""
     if args.action == "add":
@@ -126,5 +132,8 @@ def cmd_offer(args):
         write_offers(rows)
         print("已更新 offer %s：%s" % (args.id, "、".join(changed)))
         return 0
+
+    if args.action == "delete":
+        return _offer_delete(args)
 
     return 1

@@ -38,7 +38,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import applications, approvals, dashboard, imap, jobs, library, prep, progress, provider, resume, sync, system, workspace  # noqa: E402
+from routers import application_delete, applications, approvals, dashboard, imap, jobs, library, prep, progress, provider, resume, sync, system, workspace  # noqa: E402
 
 # ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
 #
@@ -165,6 +165,7 @@ async def _workspace_guard(request: Request, call_next):
 
 app.include_router(dashboard.router)
 app.include_router(applications.router)
+app.include_router(application_delete.router)  # 投递删除预览（批 D；applications.py 水位只许降故拆出）
 app.include_router(approvals.router)
 app.include_router(jobs.router)
 app.include_router(progress.router)

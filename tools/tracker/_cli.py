@@ -224,6 +224,18 @@ def cmd_history(args):
 
 
 
+def cmd_delete(args):
+    """删除投递记录：预览（含「将解绑的关联记录」清单）→ 凭令牌落盘。
+
+    删除永远两段式（与 add / update 的 --preview 可选项不同）：不给直写口。
+    有关联记录（邮件 / 面试 / 联系人 / 宣讲会 / Offer）时**不级联删除**——
+    解绑（清空「关联记录」列）保留它们记下的事实，差异表逐条列明；时间线
+    不删、追记一条「已删除」。
+    """
+    from ._cli_delete import run_application_delete_preview  # 延迟导入（与 cmd_add 的 approval 同款）
+    return run_application_delete_preview(args.id, _core.WORKSPACE)
+
+
 def cmd_check(args):
     """schema 自检：只读扫描，坏文件隔离，问题清单可直接照着修。"""
     result = run_check()

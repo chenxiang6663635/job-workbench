@@ -23,18 +23,20 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import atomicio
+from jobws_core import job_dirs
+from jobws_core import job_rename
 from jobws_core import jd_score
 import tls_http
 from jobws_core import tracker
 from apierror import ApiError
-from deps import DIR_JOBS, DIR_TRACKING, safe_join, workspace_dir
+from deps import DIR_JOBS, safe_join, workspace_dir
 from jobws_core.filelock import file_lock
+from routers.progress._shared import delete_preview_response
 
 router = APIRouter(prefix="/api/jobs")
 
 JD_FILE = "JD原文.md"
 CARD_FILE = "解析卡.md"
-INVALID_DIR_CHARS = set('\\/:*?"<>|')
 
 # 四排序。未知键静默回退——前端传参可能来自 URL，容错比严格更好
 # （与 applications.py 的 SORTS 同一策略，避免两页同一类控件的容忍度不一致）
@@ -54,25 +56,13 @@ FETCH_MAX_BYTES = 3 * 1024 * 1024
 
 
 def _dir_name(company: str, role: str) -> str:
-    name = ("%s_%s" % (company.strip(), role.strip())).strip()
-    bad = [c for c in name if c in INVALID_DIR_CHARS or ord(c) < 32]
-    if bad:
-        raise ApiError(422, "job.nameInvalid",
-                       "公司或岗位名含非法字符: %s" % "".join(sorted(set(bad))),
-                       chars="".join(sorted(set(bad))))
-    if not name or name.strip(". ") in ("", ".", ".."):
-        raise ApiError(422, "job.nameEmpty", "目录名不能为空或纯点号")
+    """薄包装：生成与校验在领域层（job_dirs.build_dir_name，单一事实源——
+    改名预览与创建必须同一份口径）；错误码按消息分派，维持既有契约不变。"""
+    name, error = job_dirs.build_dir_name(company, role)
+    if error:
+        code = "job.nameEmpty" if "不能为空" in error else "job.nameInvalid"
+        raise ApiError(422, code, error)
     return name
-
-
-def _split_dir(name: str):
-    """反向还原目录名里的 (公司, 岗位)，与 `_dir_name` 互为逆运算。
-
-    取**首个**下划线切分。公司名自带下划线时会还原偏左——这是刻意选的可预测口径：
-    宁可显示「未投递」让用户补一张解析卡，也不要自作聪明地猜哪一刀是公司的边界。
-    """
-    company, _, role = (name or "").partition("_")
-    return company.strip(), role.strip()
 
 
 def _read(path):
@@ -158,59 +148,27 @@ def _job_company_role(workspace: str, name: str):
     给人看的详细描述（如「示例集团（空调事业部＝…）」），当键会与追踪表系统性失配。
     """
     return (_card_basic_info(workspace, os.path.join(DIR_JOBS, name))
-            or _split_dir(name))
-
-
-def _applications_by_key(ws: str):
-    """{dedup_key: row} 索引，供岗位池按 (公司, 岗位) 查出投递状态。
-
-    一次性建索引：对每个岗位各查一次会退化成 O(n²)。追踪表还不存在时
-    （工作区刚初始化）返回空字典，此时所有岗位一律「未投递」。
-    """
-    if not os.path.isdir(os.path.join(ws, DIR_TRACKING)):
-        return {}
-    index = {}
-    for row in tracker.read_rows(ws):
-        key = tracker.dedup_key(row.get("公司"), row.get("岗位"))
-        if not (key[0] and key[1]):
-            continue
-        old = index.get(key)
-        # 同键多行是合法数据（挂了再投一次）：保留仍在流程中的那行——
-        # 状态展示要回答「这一岗现在走到哪了」，历史终态行不该盖住它
-        if old is not None and _apply_state(old) != "已终态" and _apply_state(row) == "已终态":
-            continue
-        index[key] = row
-    return index
-
-
-def _apply_state(row) -> str:
-    """未投递 / 流程中 / 已终态——终态口径直接复用 tracker，不另立清单。"""
-    if not row:
-        return "未投递"
-    stage = (row.get("当前阶段") or "").strip()
-    if not stage:
-        return "未投递"
-    return "已终态" if stage in tracker.TERMINAL_STAGES else "流程中"
+            or job_dirs.split_dir_name(name))
 
 
 def _link_fields(workspace: str, name: str, app_index: dict = None):
     """岗位与追踪表记录的关联字段——列表与详情共用，保证两处口径一致。
 
-    **匹配键只取目录名拆分**（`_split_dir`）：追踪表里的 (公司, 岗位) 是按
+    **匹配键只取目录名拆分**（`job_dirs.split_dir_name`）：追踪表里的 (公司, 岗位) 是按
     目录名口径录的，两边同源才匹配得上；解析卡「基本信息」里的名值往往更
     详细（真实数据里就与追踪表不一致），拿它当键会系统性失配。
 
     没有记录时后三个字段全为空，前端据此显示「未投递」。
     """
     company, role = _job_company_role(workspace, name)   # 展示名：卡片优先
-    match_company, match_role = _split_dir(name)         # 匹配键：目录名口径
+    match_company, match_role = job_dirs.split_dir_name(name)  # 匹配键：目录名口径
     if app_index is None:
-        app_index = _applications_by_key(workspace)
+        app_index = job_dirs.applications_by_key(workspace)
     row = app_index.get(tracker.dedup_key(match_company, match_role))
     return {
         "company": company,
         "role": role,
-        "applyState": _apply_state(row),
+        "applyState": job_dirs.apply_state(row),
         "stage": (row or {}).get("当前阶段") or None,
         "applicationId": (row or {}).get("id") or None,
     }
@@ -219,7 +177,7 @@ def _link_fields(workspace: str, name: str, app_index: dict = None):
 def _summary(workspace: str, name: str, app_index: dict = None):
     """单个岗位的列表条目。
 
-    列表端点一次建好索引整批传入（`_applications_by_key`）；单条调用
+    列表端点一次建好索引整批传入（`job_dirs.applications_by_key`）；单条调用
     （新建、抓取 JD）不传时就地建一次——避免调用方忘传后静默滑成「未投递」。
     """
     d = safe_join(workspace, DIR_JOBS, name)
@@ -291,7 +249,7 @@ def list_jobs(sort: str = "dir", order: str = None, status: str = None,
     if not os.path.isdir(base):
         return {"items": [], "total": 0}
 
-    index = _applications_by_key(ws)
+    index = job_dirs.applications_by_key(ws)
     items = []
     for name in sorted(os.listdir(base)):
         d = os.path.join(base, name)
@@ -445,6 +403,33 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
                                    encoding="utf-8")
 
     return dict(_summary(ws, name), characters=len(text), url=url)
+
+
+# 2026-09-21 批 D：删除 / 改名的预览端点。**必须注册在 `/{job_id}` 之前**——
+# FastAPI 按注册顺序匹配，否则 "preview-delete" 会被当成一个岗位名（404）。
+@router.get("/preview-delete")
+def preview_delete_job(name: str = "", ws: str = Depends(workspace_dir)):
+    """预览删除一个岗位目录（**不落盘**）：列目录内全部文件 + 关联投递提示。
+
+    确认后凭令牌走 `/api/approvals/apply` 落盘；落盘前**整个目录**复制到快照区
+    （工作区之外），恢复 = 拷回 `01_岗位池/`。
+    """
+    errors, plan = job_dirs.preview_delete_job(name, ws)
+    return delete_preview_response("job.delete", errors, plan,
+                                   "job.deleteFailed", "岗位删除预览失败", ws)
+
+
+@router.get("/preview-rename")
+def preview_rename_job(name: str = "", company: str = "", role: str = "",
+                       ws: str = Depends(workspace_dir)):
+    """预览岗位改名（**不落盘**）：目录名 `旧 → 新`；JD 首行标题可同步时一并列出。
+
+    改名 = os.rename（可逆，不做目录快照）；只在 JD 首行确实是 `# 标题` 时
+    同步改写，其余内容一字不动。
+    """
+    errors, plan = job_rename.preview_rename_job(name, company, role, ws)
+    return delete_preview_response("job.rename", errors, plan,
+                                   "job.renameFailed", "岗位改名预览失败", ws)
 
 
 @router.get("/{job_id}")

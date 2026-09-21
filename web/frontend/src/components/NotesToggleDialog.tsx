@@ -14,10 +14,11 @@ import {
 // 展示型组件——流程状态机在 NotesBrowser（本组件只画当前阶段、回抛两个动作）。
 // 两段式纪律：确认按钮触发的是**凭令牌落盘**（apply），不是直接写文件。
 
+// C-1：一次可以是一批行号（单行 = 长度 1 的列表——批量是唯一路径）。
 export type ToggleFlow =
-  | { phase: "previewing"; line: number }
-  | { phase: "confirm"; line: number; token: string; summary: string; diff: string[] }
-  | { phase: "applying"; line: number; token: string; summary: string; diff: string[] };
+  | { phase: "previewing"; lines: number[] }
+  | { phase: "confirm"; lines: number[]; token: string; summary: string; diff: string[] }
+  | { phase: "applying"; lines: number[]; token: string; summary: string; diff: string[] };
 
 export default function NotesToggleDialog({
   flow,

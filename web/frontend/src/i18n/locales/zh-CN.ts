@@ -1101,6 +1101,13 @@ const zhCN = {
   "notes.emptyFileHint": "在编辑器里写点内容，回来就能看到",
   "notes.loadFailed": "笔记加载失败：{{reason}}",
   // 勾选写回（两段式）：确认框文案——diff 与摘要由后端签发，不翻译
+  "notes.batchToggle": "批量勾选",
+  "notes.batchHint": "打开后可以连点多项，最后一次确认全部写回。",
+  "notes.batchPending_one": "已选 {{count}} 项",
+  "notes.batchPending_other": "已选 {{count}} 项",
+  "notes.batchSubmit_one": "提交 {{count}} 项",
+  "notes.batchSubmit_other": "提交 {{count}} 项",
+  "notes.batchClear": "清空",
   "notes.toggleTitle": "翻转这一行的勾选状态？",
   "notes.toggleHint": "只改这一行的标记字符，文件其余内容一个字节都不动。",
   "notes.toggleConfirm": "确认写入",

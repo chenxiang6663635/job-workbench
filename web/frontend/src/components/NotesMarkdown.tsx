@@ -1,12 +1,13 @@
-import { createContext, memo, useContext, useMemo, type InputHTMLAttributes } from "react";
+import { memo, useMemo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
-import { useTranslation } from "react-i18next";
 import { ImageOff } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
 import i18n from "../i18n";
 import { cn } from "../lib/utils";
+import { TaskCheckbox } from "./NotesTaskCheckbox";
+import { TaskLineContext } from "./notesTaskLine";
 
 // 笔记正文的 Markdown 渲染（react-markdown + remark-gfm）。
 //
@@ -39,49 +40,6 @@ const lineAttr = (node: NodeLike) => {
   const line = node?.position?.start?.line;
   return typeof line === "number" ? { "data-line": line } : {};
 };
-
-// 任务项行号（1-based 源码行）：li 写入、input 读取——同一次渲染、同一棵树。
-const TaskLineContext = createContext<number | null>(null);
-
-function TaskCheckbox({
-  checked,
-  onToggle,
-  pendingLine,
-  locked,
-  ...props
-}: {
-  checked?: boolean;
-  onToggle?: (line: number) => void;
-  /** 正在预览的行号——该项呈 pending 禁用态 */
-  pendingLine: number | null;
-  /** 有写回流程在进行中：整篇勾选框都禁用（避免连点时"点 A 弹出 B 的确认框"） */
-  locked?: boolean;
-} & InputHTMLAttributes<HTMLInputElement>) {
-  const { t } = useTranslation();
-  const line = useContext(TaskLineContext);
-  // 有回调且行号可定位才可点击；否则退回只读展示（缺任一条件都不写）。
-  // aria-label 走 t()——它是 form 元素，axe 的 label 规则要求可访问名称
-  // （disabled 也不例外），且文案要能翻译。
-  const interactive = onToggle != null && line != null;
-  const pending = interactive && pendingLine === line;
-  return (
-    <input
-      type="checkbox"
-      checked={checked}
-      {...props}
-      readOnly={!interactive}
-      // 展开之后再写 disabled / onChange：GFM 生成的 props 里带 disabled:true，
-      // 放前面会被它覆盖（那是只读批的形态，写回批要能点）。
-      disabled={!interactive || pending || locked}
-      onChange={interactive ? () => onToggle?.(line) : undefined}
-      aria-label={t("notes.checkboxLabel")}
-      className={cn(
-        "mr-2 h-4 w-4 accent-primary align-middle",
-        interactive && !pending && "cursor-pointer"
-      )}
-    />
-  );
-}
 
 const baseComponents: Components = {
   h1: ({ node, ...props }) => (
@@ -261,11 +219,14 @@ function NotesMarkdown({
   content,
   onToggleTask,
   pendingLine = null,
+  queuedLines,
   locked = false,
 }: {
   content: string;
   onToggleTask?: (line: number) => void;
   pendingLine?: number | null;
+  /** 批量待提交的行号（C-1） */
+  queuedLines?: number[];
   locked?: boolean;
 }) {
   const components = useMemo<Components>(
@@ -276,12 +237,13 @@ function NotesMarkdown({
           checked={checked}
           onToggle={onToggleTask}
           pendingLine={pendingLine}
+          queuedLines={queuedLines}
           locked={locked}
           {...props}
         />
       ),
     }),
-    [onToggleTask, pendingLine, locked]
+    [onToggleTask, pendingLine, queuedLines, locked]
   );
 
   return (

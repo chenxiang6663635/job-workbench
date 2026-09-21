@@ -1118,9 +1118,14 @@ export const api = {
   prepSearch: (q: string) => request<PrepSearch>(`/prep/search?q=${encodeURIComponent(q)}`),
 
   // 笔记勾选写回：预览（签发令牌）→ 确认后走既有 applyApproval 落盘
-  previewPrepToggle: (section: "interview" | "knowledge", rel: string, line: number) =>
+  // C-1：一次可翻多行（逗号分隔）；单行 = 长度 1 的列表（批量是唯一路径）
+  previewPrepToggle: (
+    section: "interview" | "knowledge",
+    rel: string,
+    lines: number[]
+  ) =>
     request<PrepTogglePreview>(
-      `/prep/${section}/preview-toggle?rel=${encodeURIComponent(rel)}&line=${line}`
+      `/prep/${section}/preview-toggle?rel=${encodeURIComponent(rel)}&lines=${lines.join(",")}`
     ),
 
   listWorkspaces: () =>

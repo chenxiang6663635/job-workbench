@@ -14,6 +14,8 @@
 const POS_KEY = "jobws_notes_pos";
 const UI_KEY = "jobws_notes_ui";
 const FLOW_KEY = "jobws_notes_flow";
+// 批量待提交集合（C-1）：按「工作区 + 文件」各自一份，切文件是换键不是清空
+const PENDING_KEY = "jobws_notes_pending";
 
 export interface NotesViewPos {
   /** 工作区（换了就别把别的工作区的阅读位置搬过来） */
@@ -153,7 +155,7 @@ export interface NotesToggleSnapshot {
   ws: string;
   section: string;
   rel: string;
-  line: number;
+  lines: number[];
   token: string;
   summary: string;
   diff: string[];
@@ -163,15 +165,23 @@ export function readToggleSnapshot(ws: string): NotesToggleSnapshot | null {
   try {
     const raw = sessionStorage.getItem(FLOW_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<NotesToggleSnapshot>;
+    const parsed = JSON.parse(raw) as Partial<NotesToggleSnapshot> & { line?: number };
     if (parsed?.ws !== ws) return null;
     if (typeof parsed.rel !== "string" || typeof parsed.section !== "string") return null;
-    if (typeof parsed.line !== "number" || typeof parsed.token !== "string") return null;
+    if (typeof parsed.token !== "string") return null;
+    // 兼容：C-1 之前的快照是 `line` 单数字段——升级瞬间在途的那一个确认框要
+    // 读得回来（读不回来的话用户会以为"刚点的确认丢了"）
+    const lines = Array.isArray(parsed.lines)
+      ? parsed.lines.filter((item): item is number => typeof item === "number" && item >= 1)
+      : typeof parsed.line === "number" && parsed.line >= 1
+        ? [parsed.line]
+        : null;
+    if (!lines || !lines.length) return null;
     return {
       ws,
       section: parsed.section,
       rel: parsed.rel,
-      line: parsed.line,
+      lines: [...lines].sort((a, b) => a - b),
       token: parsed.token,
       summary: typeof parsed.summary === "string" ? parsed.summary : "",
       diff: Array.isArray(parsed.diff) ? parsed.diff.map(String) : [],
@@ -195,4 +205,71 @@ export function clearToggleSnapshot(): void {
   } catch {
     /* 同上 */
   }
+}
+
+// --- 批量待提交集合（C-1）----------------------------------------------------
+//
+// 为什么落 sessionStorage：App 级的外部改动检测（10s 指纹）会整页 reload，
+// 切页签也会卸载组件——集合只放 useState 的话"勾到一半"会全丢（drill 轮次
+// 的先例同因）。按「工作区 + 文件」分键：切文件是换键，各自记住各自的。
+
+function pendingKey(ws: string, section: string, rel: string): string {
+  return `${ws}::${section}::${rel}`;
+}
+
+function readPendingMap(): Record<string, number[]> {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Record<string, number[]> = {};
+    for (const [key, value] of Object.entries(parsed ?? {})) {
+      if (Array.isArray(value)) {
+        out[key] = value.filter(
+          (item): item is number => typeof item === "number" && item >= 1
+        );
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writePendingMap(map: Record<string, number[]>): void {
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify(map));
+  } catch {
+    /* 存不上就退回"切走即丢"，不值得为此报错 */
+  }
+}
+
+export function readPendingLines(ws: string, section: string, rel: string): number[] {
+  return readPendingMap()[pendingKey(ws, section, rel)] ?? [];
+}
+
+export function writePendingLines(
+  ws: string,
+  section: string,
+  rel: string,
+  lines: number[]
+): void {
+  const map = readPendingMap();
+  const key = pendingKey(ws, section, rel);
+  if (lines.length) map[key] = [...lines].sort((a, b) => a - b);
+  else delete map[key];
+  writePendingMap(map);
+}
+
+export function clearPendingLines(ws: string, section: string, rel: string): void {
+  const map = readPendingMap();
+  delete map[pendingKey(ws, section, rel)];
+  writePendingMap(map);
+}
+
+/** 点选是切换（再点一次移出集合）；结果始终升序——与差异表里的行号顺序一致。 */
+export function togglePendingLine(lines: number[], line: number): number[] {
+  return lines.includes(line)
+    ? lines.filter((item) => item !== line)
+    : [...lines, line].sort((a, b) => a - b);
 }

@@ -11,13 +11,25 @@
 // 3. **跨"切页签 / 刷新"只恢复 confirm 态**：previewing 的预览请求与 applying 的
 //    落盘都是组件内的 promise，组件一卸载就作废，恢复它们只会得到一个永远不落地的
 //    确认框（而且整篇勾选框被 locked 卡死）。令牌十分钟过期，过期由服务端拒绝。
+//
+// C-1 批量：多一条**待提交集合**（pending）——批量模式下点选只翻本地集合（不发
+// 请求），点「提交」才把整批送进同一条两段式通道（一次预览列出全部将翻转的行、
+// 一次确认全部落盘）。集合落 sessionStorage：10s 指纹轮询会整页 reload、切页签
+// 也卸载组件，只放 useState 的话"勾到一半"会全丢（drill 轮次的先例同因）。
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "../api";
 import type { ToggleFlow } from "../components/NotesToggleDialog";
 import type { NotesActive } from "../lib/notes";
-import { clearToggleSnapshot, readToggleSnapshot, writeToggleSnapshot } from "../lib/notesView";
+import {
+  clearToggleSnapshot,
+  readPendingLines,
+  readToggleSnapshot,
+  togglePendingLine,
+  writePendingLines,
+  writeToggleSnapshot,
+} from "../lib/notesView";
 
 export function useNotesToggle(
   ws: string,
@@ -27,33 +39,97 @@ export function useNotesToggle(
 ) {
   const [flow, setFlow] = useState<ToggleFlow | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const [batchMode, setBatchMode] = useState(false);
+  const [pending, setPending] = useState<number[]>([]);
+
+  // 切文件 = 换键：各文件各自记住自己的集合（不是清空——集合是廉价可重建的
+  // 本地态，但勾了一半就丢很烦）
+  const fileKey = active ? `${active.section}::${active.rel}` : null;
+  useEffect(() => {
+    if (!ws || !fileKey) return;
+    const [section, rel] = fileKey.split("::");
+    setPending(readPendingLines(ws, section, rel));
+  }, [ws, fileKey]);
+
+  useEffect(() => {
+    if (!ws || !fileKey) return;
+    const [section, rel] = fileKey.split("::");
+    writePendingLines(ws, section, rel, pending);
+  }, [ws, fileKey, pending]);
 
   const onToggleTask = useCallback(
     (line: number) => {
       if (!active || flow) return;
       setToggleError(null);
-      setFlow({ phase: "previewing", line });
+      // 批量模式：点选只翻本地集合（一次请求都不发——"打勾"的反馈是即时的）
+      if (batchMode) {
+        setPending((prev) => togglePendingLine(prev, line));
+        return;
+      }
+      const lines = [line];
+      setFlow({ phase: "previewing", lines });
       api
-        .previewPrepToggle(active.section, active.rel, line)
+        .previewPrepToggle(active.section, active.rel, lines)
         .then((p) =>
-          setFlow({ phase: "confirm", line, token: p.token, summary: p.summary, diff: p.diff })
+          setFlow({
+            phase: "confirm",
+            lines,
+            token: p.token,
+            summary: p.summary,
+            diff: p.diff,
+          })
         )
         .catch((e: Error) => {
           setFlow(null);
           setToggleError(e.message);
         });
     },
-    [active, flow]
+    [active, flow, batchMode]
   );
+
+  /** 把待提交集合整批送进同一条两段式通道（一次预览、一次确认）。 */
+  const onBatchSubmit = useCallback(() => {
+    if (!active || flow || !pending.length) return;
+    const lines = [...pending].sort((a, b) => a - b);
+    setToggleError(null);
+    setFlow({ phase: "previewing", lines });
+    api
+      .previewPrepToggle(active.section, active.rel, lines)
+      .then((p) =>
+        setFlow({
+          phase: "confirm",
+          lines,
+          token: p.token,
+          summary: p.summary,
+          diff: p.diff,
+        })
+      )
+      .catch((e: Error) => {
+        setFlow(null);
+        setToggleError(e.message);
+      });
+  }, [active, flow, pending]);
+
+  const onToggleBatchMode = useCallback(() => {
+    setBatchMode((prev) => {
+      // 退出批量模式：集合失去意义（它只在批量模式下可累积），一并清掉
+      if (prev) setPending([]);
+      return !prev;
+    });
+  }, []);
+
+  const onClearPending = useCallback(() => setPending([]), []);
 
   const onConfirmToggle = useCallback(() => {
     if (!flow || flow.phase !== "confirm") return;
-    const { line, token, summary, diff } = flow;
-    setFlow({ phase: "applying", line, token, summary, diff });
+    const { lines, token, summary, diff } = flow;
+    setFlow({ phase: "applying", lines, token, summary, diff });
     api
       .applyApproval(token)
       .then(() => {
         setFlow(null);
+        setPending([]);
+        setBatchMode(false);
         onApplied();
       })
       .catch((e: Error) => {
@@ -77,7 +153,7 @@ export function useNotesToggle(
     if (!snapshot || !sameFile) return;
     setFlow({
       phase: "confirm",
-      line: snapshot.line,
+      lines: snapshot.lines,
       token: snapshot.token,
       summary: snapshot.summary,
       diff: snapshot.diff,
@@ -92,7 +168,7 @@ export function useNotesToggle(
         ws,
         section: active.section,
         rel: active.rel,
-        line: flow.line,
+        lines: flow.lines,
         token: flow.token,
         summary: flow.summary,
         diff: flow.diff,
@@ -102,5 +178,17 @@ export function useNotesToggle(
     }
   }, [flow, active, ws]);
 
-  return { flow, toggleError, clearToggleError, onToggleTask, onConfirmToggle, onCancelToggle };
+  return {
+    flow,
+    toggleError,
+    clearToggleError,
+    onToggleTask,
+    onConfirmToggle,
+    onCancelToggle,
+    batchMode,
+    pending,
+    onToggleBatchMode,
+    onBatchSubmit,
+    onClearPending,
+  };
 }

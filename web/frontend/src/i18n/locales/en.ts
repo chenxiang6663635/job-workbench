@@ -1022,6 +1022,13 @@ export default {
   "notes.emptyFileHint": "Write something in your editor and come back",
   "notes.loadFailed": "Could not load notes: {{reason}}",
   // Checkbox write-back (two-phase): confirm dialog copy — diff and summary come from the server, untranslated
+  "notes.batchToggle": "Batch check",
+  "notes.batchHint": "Turn it on to tick several at once, then confirm them all in one go.",
+  "notes.batchPending_one": "{{count}} selected",
+  "notes.batchPending_other": "{{count}} selected",
+  "notes.batchSubmit_one": "Write {{count}}",
+  "notes.batchSubmit_other": "Write {{count}}",
+  "notes.batchClear": "Clear",
   "notes.toggleTitle": "Flip this checkbox?",
   "notes.toggleHint": "Only the marker character on this line changes — the rest of the file stays byte-identical.",
   "notes.toggleConfirm": "Write",

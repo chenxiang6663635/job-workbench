@@ -59,8 +59,19 @@ export default function NotesBrowser() {
   // 勾选写回：预览 → 确认 → 落盘的状态机在 hooks/useNotesToggle（含跨切页签 /
   // 刷新的待确认恢复）。落盘成功后重拉正文——写后的真值在文件里，本地不做乐观翻转。
   const reload = useCallback(() => setRefreshTick((tick) => tick + 1), []);
-  const { flow, toggleError, clearToggleError, onToggleTask, onConfirmToggle, onCancelToggle } =
-    useNotesToggle(ws, active, reload);
+  const {
+    flow,
+    toggleError,
+    clearToggleError,
+    onToggleTask,
+    onConfirmToggle,
+    onCancelToggle,
+    batchMode,
+    pending,
+    onToggleBatchMode,
+    onBatchSubmit,
+    onClearPending,
+  } = useNotesToggle(ws, active, reload);
 
   useEffect(() => {
     let cancelled = false;
@@ -234,8 +245,13 @@ export default function NotesBrowser() {
         error={contentError}
         toggleError={toggleError}
         onToggleTask={onToggleTask}
-        pendingLine={flow?.phase === "previewing" ? flow.line : null}
+        pendingLine={flow?.phase === "previewing" ? flow.lines[0] ?? null : null}
         locked={flow !== null}
+        batchMode={batchMode}
+        pending={pending}
+        onToggleBatchMode={onToggleBatchMode}
+        onSubmitBatch={onBatchSubmit}
+        onClearPending={onClearPending}
         focusLine={focusLine}
         focusNonce={focusNonce}
         onBackToTree={

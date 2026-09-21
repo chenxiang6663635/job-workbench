@@ -16,8 +16,10 @@ Checks:
      （tools/check_size.py）——存量已登记（水位线只许变小），不误伤既有提交
   4. quick regression - pytest -q tests (skipped gracefully if env lacks pytest
      or its interpreter is below the 3.12 baseline)
-     快速回归：全量 pytest 很快（<1s）；环境缺 pytest、或解释器低于基线（3.12）
-     时降级为提示，不阻塞——那种情况下结论本就不可信，CI 兜底
+     快速回归：全量 pytest（2026-09-20 实测 ≈25s / 934 条用例；随套件增长，耗时
+     超过 TEST_SLOW_WARN_SECONDS 会在输出里点名阈值——见 CONTRIBUTING「测试规模
+     与阈值」）；环境缺 pytest、或解释器低于基线（3.12）时降级为提示，不阻塞
+     ——那种情况下结论本就不可信，CI 兜底
 
 Emergency bypass / 紧急跳过: git commit --no-verify
 """
@@ -28,6 +30,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 HEADER = "pre-commit / 提交前校验"
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -41,6 +44,10 @@ if _TOOLS_DIR not in sys.path:
 import check_size as size_budget  # noqa: E402
 # 解释器基线：与 tests/conftest.py 的护栏同源（两处都改才算同步）
 PY_BASELINE = (3, 12)
+# 全量 pytest 的"动手阈值"：到点就该上并行/子集，而不是等到提交难受才想起来。
+# 当前基线 ≈25s（2026-09-20 实测 934 条用例）；阈值 60s 与 CONTRIBUTING
+# 「测试规模与阈值」同源——只提示、不阻断：让数字每次提交自己说话。
+TEST_SLOW_WARN_SECONDS = 60
 PHONE_PATTERN = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
 # 占位号白名单：文档/模板里规范推荐的示例号（13800000000 是本项目 CONTRIBUTING 的占位示例）
 PLACEHOLDER_NUMBERS = {"13800000000", "13800138000", "12345678901"}
@@ -165,7 +172,10 @@ def interpreter_version(python: str) -> tuple[int, ...] | None:
 
 
 def check_tests() -> str | None:
-    """全量 pytest 很快（<1s）。环境缺 pytest/依赖时降级提示，CI 兜底。"""
+    """全量 pytest（当前 ≈25s；阈值提示见 TEST_SLOW_WARN_SECONDS）。
+
+    环境缺 pytest/依赖时降级提示，CI 兜底。
+    """
     python = resolve_interpreter()
     version = interpreter_version(python)
     if version is not None and version < PY_BASELINE:
@@ -174,6 +184,7 @@ def check_tests() -> str | None:
         print("  设 JOBWS_PYTHON=<3.12 的 python> 可让钩子跑快检"
               "（维护者环境见 CONTRIBUTING「解释器基线」）；CI 会兜底。")
         return None
+    started = time.monotonic()
     result = subprocess.run(
         [python, "-m", "pytest", "tests", "-q", "--no-header"],
         capture_output=True,
@@ -182,8 +193,12 @@ def check_tests() -> str | None:
         errors="replace",
         check=False,
     )
+    elapsed = time.monotonic() - started
     if result.returncode == 0:
-        print("pytest: PASS (%s)" % python)
+        print("pytest: PASS (%s, %.1fs)" % (python, elapsed))
+        if elapsed >= TEST_SLOW_WARN_SECONDS:
+            print("  注意：全量已 %.0fs（阈值 %ds）——按 CONTRIBUTING「测试规模与阈值」"
+                  "处理（先上 xdist，覆盖率不降）。" % (elapsed, TEST_SLOW_WARN_SECONDS))
         return None
     # 4 = 用法/路径错误，5 = 收集到 0 项，2 = 被中断（如解释器护栏拦下）：
     # 都是环境问题而非测试失败，降级提示（CI 兜底）

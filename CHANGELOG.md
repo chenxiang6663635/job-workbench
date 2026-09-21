@@ -16,7 +16,7 @@
 
 **取材原则**：只记录对使用者可见的软件变更（功能 / 修复 / 破坏性变更）。向工作区录入个人数据（岗位评分、事实补齐等）属于数据操作，不是软件变更，不入此册。
 
-- **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 CONTRIBUTING「CHANGELOG 写法」。
+- **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 CONTRIBUTING「CHANGELOG 写法」；内部术语见 [`docs/glossary.md`](docs/glossary.md)。
 
 ## [Unreleased]
 

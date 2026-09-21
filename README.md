@@ -132,6 +132,7 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 - [Usage guide](docs/usage-guide.md) — startup, the eight pages, AI workflows, CLI reference, FAQ
 - [Design documents](docs/specs/) — architecture, Web contract, productization, open-source release
 - [Changelog](CHANGELOG.md)
+- [Glossary](docs/glossary.md) — the internal terms used across these docs and the changelog, defined once
 
 ## Contributing
 

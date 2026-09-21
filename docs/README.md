@@ -49,6 +49,7 @@
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **开发流程规范**：新需求四道门、分支策略、提交与版本规则、发布流程、可持续性约定、隐私约定与 CI 验证链 |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（单文件两级制：白话「看得见的变化」+ 英文摘要 + 「技术细节」；格式基于 Keep a Changelog）；版本号唯一来源为 `web/electron/package.json` |
 | [`four-ends.md`](four-ends.md) | 四端能力对照与例外清单（`jobws lint four-ends` 的说明页，由 `tools/four_ends_matrix.json` 生成，勿手改） |
+| [`glossary.md`](glossary.md) | 术语表：文档与 CHANGELOG 里出现的内部术语集中定义一次 |
 | [`maintenance.md`](maintenance.md) | 仓库维护说明（英文）：发布节奏、版本号纪律与项目健康度的对外交代 |
 | [`../SECURITY.md`](../SECURITY.md) | 安全策略：威胁模型、local-first 取舍记录（如 unsigned 自动更新链）与报告方式 |
 | [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Next / Later 与已完成批次（细节进 CHANGELOG） |

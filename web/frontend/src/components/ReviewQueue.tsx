@@ -12,8 +12,9 @@ import {
   type DrillMode,
 } from "../lib/drill";
 import { DRILL_KEY_IGNORE_SELECTOR, drillKeyAction } from "../lib/drillKeys";
-import { BankCounts } from "./BankCounts";
 import { BankPreviewCard } from "./BankPreviewCard";
+import { DrillDoneCard } from "./DrillDoneCard";
+import { DrillRoundMap } from "./DrillRoundMap";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { ErrorBanner } from "./ErrorBanner";
@@ -46,6 +47,8 @@ export default function ReviewQueue() {
   const [graded, setGraded] = useState(() => saved?.graded ?? 0);
   // 三态计数（B-4）：抽题时随结果带回（旧存储没有这字段，读取处兜底 {}）
   const [counts, setCounts] = useState<Record<string, number>>(() => saved?.counts ?? {});
+  // 本轮已落盘的题序号（C-2）：题表据此打勾；只增不减——写错了靠回退到那题改回来
+  const [written, setWritten] = useState<Set<number>>(() => new Set(saved?.written ?? []));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
@@ -54,8 +57,8 @@ export default function ReviewQueue() {
 
   // 令牌刻意**不**持久化：它十分钟过期，存下来只会让"确认"在 reload 之后报"令牌没了"
   useEffect(() => {
-    saveDrillRound({ items, index, revealed, drawn, graded, counts });
-  }, [items, index, revealed, drawn, graded, counts]);
+    saveDrillRound({ items, index, revealed, drawn, graded, counts, written: [...written] });
+  }, [items, index, revealed, drawn, graded, counts, written]);
 
   const current = items[index] as BankRow | undefined;
   const wrongFlagged = !!current && tagsOf(current.标签 || "").includes(WRONG_TAG);
@@ -83,18 +86,22 @@ export default function ReviewQueue() {
         setIndex(0);
         setRevealed(false);
         setGraded(0);
+        setWritten(new Set());  // 新一轮：打勾清零
         setDrawn(true);   // "抽过了但没命中"与"还没抽"是两种空态，文案不同
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
   };
 
+  // 跳题（下一题 / 题表点击 / 键盘 ←→）：一律先收起答案——换了题还摊着上一个
+  // 答案等于剧透，C-2 新加的回退路径也必须守住"盲答"这条纪律。
   // 定义在使用之前（`onConfirm` 落盘成功后要调到下一题）：`no-use-before-define`
   // 是 eslint 的 error 级，且这条顺序在运行时也是真正需要的依赖方向。
-  const next = () => {
+  const goTo = (target: number) => {
     setRevealed(false);
-    setIndex((currentIndex) => currentIndex + 1);
+    setIndex(Math.max(0, Math.min(target, items.length - 1)));
   };
+  const next = () => goTo(index + 1);
 
   const onConfirm = () => {
     if (!preview) return;
@@ -106,6 +113,7 @@ export default function ReviewQueue() {
         setPreview(null);
         // 只数**真正落盘**的：取消 / 预览 400 / 落盘 409 都不该让"本轮写入 N 道"虚高
         setGraded((count) => count + 1);
+        setWritten((prev) => new Set(prev).add(index));
         next();
       })
       .catch((e: Error) => setError(e.message))
@@ -144,6 +152,7 @@ export default function ReviewQueue() {
       if (action === "cancelPreview") setPreview(null);
       else if (action === "reveal") setRevealed(true);
       else if (action === "next") next();
+      else if (action === "prev") goTo(index - 1);
       else if (action === "toggleWrong") toggleWrong();
       else grade(action.slice("grade:".length));
     };
@@ -205,6 +214,11 @@ export default function ReviewQueue() {
             {t(drawn ? "drill.noMatchHint" : "drill.emptyHint")}
           </p>
         </Card>
+      )}
+
+      {/* 本轮题表（C-2）：多于一道题时才值得占一行；点格子跳题、已落盘的打勾 */}
+      {current && items.length > 1 && (
+        <DrillRoundMap items={items} index={index} written={written} onJump={goTo} />
       )}
 
       {/* 题目卡**常驻**（2026-09-21）：此前 preview 一生效就把整张题卡换成差异卡，
@@ -270,19 +284,7 @@ export default function ReviewQueue() {
       )}
 
       {items.length > 0 && !current && (
-        <Card className="space-y-1 p-4">
-          <p className="text-sm font-medium text-foreground">{t("drill.done")}</p>
-          <p className="text-xs text-muted-foreground">
-            {t("drill.doneHint", { count: graded })}
-          </p>
-          {/* 题库现状（B-4）：练完看"会了"在涨——进度可见才有继续的动力 */}
-          <BankCounts counts={counts} className="pt-1" />
-          <div className="pt-1">
-            <Button size="sm" onClick={onDraw} disabled={busy}>
-              {t("drill.restart")}
-            </Button>
-          </div>
-        </Card>
+        <DrillDoneCard graded={graded} counts={counts} busy={busy} onRestart={onDraw} />
       )}
     </div>
   );

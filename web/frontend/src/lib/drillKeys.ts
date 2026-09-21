@@ -15,6 +15,7 @@ export type DrillKeyAction =
   | "grade:会了"
   | "toggleWrong"
   | "next"
+  | "prev"
   | "cancelPreview";
 
 /** 数字键 1 / 2 / 3 → 三态自评（顺序即按钮顺序） */
@@ -42,6 +43,7 @@ export function drillKeyAction(
   if (state.locked) return null;
   if (event.key === " " || event.key === "Enter") return "reveal";
   if (event.key === "ArrowRight") return "next";
+  if (event.key === "ArrowLeft") return "prev";
   if (event.key === "1" || event.key === "2" || event.key === "3") {
     return GRADE_KEYS[Number(event.key) - 1] ?? null;
   }

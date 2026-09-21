@@ -156,6 +156,7 @@ const zhCN = {
   "drill.emptyHint": "点「抽题」开始一轮：答案默认折叠——先盲答，再对答案。",
   "drill.progress": "第 {{index}} / {{total}} 道",
   "drill.reveal": "看答案",
+  "drill.roundMap": "本轮题表",
   "drill.answerMissing": "（这道题还没有答案要点）",
   "drill.gradeTodo": "未看",
   "drill.gradeSeen": "看过",

@@ -153,6 +153,7 @@ export default {
   "drill.emptyHint": "Hit Draw to start a round — the answer stays folded: answer first, then check.",
   "drill.progress": "Question {{index}} of {{total}}",
   "drill.reveal": "Show answer",
+  "drill.roundMap": "This round",
   "drill.answerMissing": "(No answer yet for this question)",
   "drill.gradeTodo": "Not learned",
   "drill.gradeSeen": "Seen",

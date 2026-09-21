@@ -222,6 +222,37 @@ test("准备 · 题库/训练：到期标记与「为什么在队列里」可见
   await expect(drillPanel.getByText(/还没学|从没复习过|已到期/)).toBeVisible();
 });
 
+test("准备 · 训练：本轮题表可跳题、可回退（C-2）", async ({ page }) => {
+  // 2026-09-21（批次 C-2）：误点自评此前只能重抽整轮——现在题表（或 ← 键）回到那题。
+  // 用随机模式保证抽满 5 题（全库 6 道，与"今天是哪天"无关）。
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Drill" }).click();
+  const panel = page.getByRole("tabpanel");
+  await expect(panel).toBeVisible();
+  const random = panel.getByRole("radio", { name: "Random" });
+  await random.focus();
+  await page.keyboard.press("Space");
+  await panel.getByRole("button", { name: "Draw" }).click();
+  await expect(panel.getByText("Question 1 of 5")).toBeVisible({ timeout: 10_000 });
+
+  // 题表：5 个格子，当前格 aria-current=step
+  const map = panel.getByRole("group", { name: "This round" });
+  await expect(map).toBeVisible();
+  const cells = map.getByRole("button");
+  await expect(cells).toHaveCount(5);
+  await expect(cells.nth(0)).toHaveAttribute("aria-current", "step");
+
+  // 点第 3 格直接跳过去；← 键回退一格（跳转一律收起答案——不剧透）
+  await cells.nth(2).click();
+  await expect(panel.getByText("Question 3 of 5")).toBeVisible();
+  await page.evaluate(() => {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+  });
+  await page.keyboard.press("ArrowLeft");
+  await expect(panel.getByText("Question 2 of 5")).toBeVisible();
+});
+
 test("准备 · 训练页签：窄屏 390×844 无横向溢出", async ({ page }) => {
   // 训练的价值之一就是"碎片化"——窄屏（手机浏览器）不该出现横向滚动条。
   await page.setViewportSize({ width: 390, height: 844 });

@@ -22,10 +22,11 @@ describe("drillKeyAction（键位 → 动作）", () => {
     expect(drillKeyAction(key("3"), idle)).toBe("grade:会了");
   });
 
-  it("W（不分大小写）标错题、→ 下一题", () => {
+  it("W（不分大小写）标错题、←→ 前后跳题（C-2 加回退）", () => {
     expect(drillKeyAction(key("w"), idle)).toBe("toggleWrong");
     expect(drillKeyAction(key("W"), idle)).toBe("toggleWrong");
     expect(drillKeyAction(key("ArrowRight"), idle)).toBe("next");
+    expect(drillKeyAction(key("ArrowLeft"), idle)).toBe("prev");
   });
 
   it("修饰键组合一律不拦（Ctrl / Cmd / Alt 是浏览器与系统的）", () => {
@@ -52,6 +53,6 @@ describe("drillKeyAction（键位 → 动作）", () => {
   it("无关按键返回 null", () => {
     expect(drillKeyAction(key("q"), idle)).toBeNull();
     expect(drillKeyAction(key("4"), idle)).toBeNull();
-    expect(drillKeyAction(key("ArrowLeft"), idle)).toBeNull();
+    expect(drillKeyAction(key("ArrowUp"), idle)).toBeNull();
   });
 });

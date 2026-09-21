@@ -36,6 +36,8 @@ export type DrillRound = {
   graded: number;
   /** 三态计数（抽题时后端给的快照）：结束卡显示"练到哪了"；旧存储没有这字段，读取处兜底 */
   counts: Record<string, number>;
+  /** 本轮**已落盘**的题序号（题表据此打勾，只增不减）；旧存储没有这字段，读取处兜底 */
+  written: number[];
 };
 
 /** 读回上一轮（存储被禁用 / 内容不是 JSON 时当作没存过，不影响功能）。 */

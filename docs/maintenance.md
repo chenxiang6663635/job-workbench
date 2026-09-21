@@ -38,8 +38,10 @@ for contributors and for anyone evaluating the project's health.
 
 ## Maintenance rhythm
 
-- 1–2 small PRs per week, driven by actual usage — no batch dumps, no
-  performative activity.
+- Work is bursty and usage-driven: small single-theme PRs in focused batches —
+  some days land a batch, some weeks land none (interview / exam weeks are
+  off). No unrelated-change dumps, no performative activity. The stable
+  commitment is the **response time** above, not a throughput number.
 - [ROADMAP.md](../ROADMAP.md) is updated as items land; its Now section reflects
   current work.
 - If maintenance ever pauses, a pinned issue will say so. This project does

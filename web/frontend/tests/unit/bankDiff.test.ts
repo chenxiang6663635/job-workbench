@@ -38,4 +38,29 @@ describe("parseImportDiff（导入预览差异表）", () => {
     // 没有数据行
     expect(parseImportDiff([HEADER, SEP])).toBeNull();
   });
+
+  it("一行坏掉 = 整表回落（全有全无语义）", () => {
+    expect(
+      parseImportDiff([HEADER, SEP, "| 好 | — | — | 导入 |", "| 坏 | 只两列 |"])
+    ).toBeNull();
+  });
+
+  it("「提示」优先于「跳过」：正文带『跳过』字样的提示行仍归提示", () => {
+    const table = parseImportDiff([
+      HEADER,
+      SEP,
+      "| — | — | — | 提示：忽略了未知列 跳过原因 |",
+    ]);
+    expect(table?.rows[0].kind).toBe("hint");
+  });
+
+  it("真实形态：第 N 行跳过 / 第 N 行没有题目", () => {
+    const table = parseImportDiff([
+      HEADER,
+      SEP,
+      "| — | — | — | 第 2 行跳过：字段不合法 |",
+      "| — | — | — | 第 5 行没有题目，跳过 |",
+    ]);
+    expect(table?.rows.map((row) => row.kind)).toEqual(["skip", "skip"]);
+  });
 });

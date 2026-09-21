@@ -38,8 +38,10 @@ function splitCells(line: string): string[] | null {
 function classify(origin: string): BankDiffKind | null {
   if (origin === "导入" || origin === "CSV 导入") return "add";
   if (origin.startsWith("已存在")) return "dup";
-  if (origin.startsWith("跳过") || origin.includes("跳过")) return "skip";
+  // 「提示」先于「跳过」：提示正文里可能带"跳过"字样（如未知列名叫「跳过原因」），
+  // 反过来判会把提示行染成红「跳过」徽章（C-2 审查 m1）
   if (origin.startsWith("提示")) return "hint";
+  if (origin.startsWith("跳过") || origin.includes("跳过")) return "skip";
   return null;
 }
 

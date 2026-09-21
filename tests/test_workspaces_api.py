@@ -68,6 +68,19 @@ def test_preview_does_not_create_then_apply_creates(client, tmp_path):
     assert (target / "AGENTS.md").is_file()
 
 
+def test_preview_init_invalid_reports_reason_param(client, tmp_path):
+    """初始化失败要 422 + 可渲染的 reason 参数（C-2 审查 B2 顺带修：此前
+    `detail=detail` 让这条失败路径 500——ApiError 的第三个形参就叫 detail，
+    重复传会 TypeError；前端 err.ws.initInvalid 的占位符同步改为 {{reason}}）。"""
+    resp = client.post("/api/workspaces/preview",
+                       json={"name": "ws-bad", "domain": "no-such-domain"})
+
+    assert resp.status_code == 422
+    body = resp.json()
+    assert body["error_code"] == "ws.initInvalid"
+    assert "no-such-domain" in body["error_params"]["reason"]
+
+
 def test_apply_rejects_replayed_token(client):
     token = client.post("/api/workspaces/preview",
                         json={"name": "ws-a"}).json()["token"]

@@ -54,7 +54,8 @@ export function BankPreviewCard({
       <p className="text-sm font-medium text-foreground">{summary}</p>
       {table ? (
         <div className="max-h-48 overflow-auto rounded-lg border border-border bg-surface-0">
-          <table className="w-full border-collapse text-[11px] leading-relaxed">
+          {/* aria-label 用 summary（数据串）：表内容的自然描述，免新键 */}
+          <table aria-label={summary} className="w-full border-collapse text-[11px] leading-relaxed">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
                 {table.header.map((cell) => (

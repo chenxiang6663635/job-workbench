@@ -126,13 +126,14 @@ function MyBank() {
             <BankCounts counts={counts} />
           </div>
           <div className="space-y-2">
-            {rows.map((row) => (
-              <QuestionBankRow
-                key={row.题目id || row.题目}
-                row={row}
-                onOpen={() => setSelected(row)}
-              />
-            ))}
+            {rows.map((row, index) => {
+              // 无 id 且题名重复的行（CSV 手改场景）会撞 key——补 index 后缀保证唯一
+              // （审查 n6；变量拼接而非模板串：`||` 会被 i18n 豁免清单的 `|` 分隔符拆坏）
+              const rowKey = [row.题目id, row.题目, index].join("|");
+              return (
+                <QuestionBankRow key={rowKey} row={row} onOpen={() => setSelected(row)} />
+              );
+            })}
           </div>
         </>
       )}

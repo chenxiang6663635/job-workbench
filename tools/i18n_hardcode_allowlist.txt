@@ -49,7 +49,9 @@ components/OfferForm.tsx = 公司|关联记录|其他条件|备注|岗位|工作
 
 # 题库状态筛选枚举（未看 / 看过 / 会了）——questions.csv 的真实取值，不翻译
 # （被问过的视图与轮次枚举 2026-09-21 拆到 AskedBefore.tsx，随行走的片段已迁到下面那条）
-components/QuestionBank.tsx = 会了|未看|看过
+# 行 key 拼接读的 CSV 列名（审查 n6：无 id 且题名重复的行会撞键，加 index 后缀；
+# `题目` 片段同时覆盖 `row.题目id` 的命中）
+components/QuestionBank.tsx = 会了|未看|看过|题目
 
 # 被问过的视图（2026-09-21 从 QuestionBank.tsx 拆出）：轮次枚举（ROUND_VARIANT 的键；
 # 「面」来自 HR面/终面/AI面 的切分）+ 面试记录 CSV 列名与归集键拼接——都是数据值
@@ -81,6 +83,10 @@ lib/bank.ts = 答案要点|难度|备注|标签|状态
 # 导入预览差异表的解析（2026-09-21 批次 C-3）：表头与末列的分类值都是领域层
 # 生成的数据（question_bank.preview_import 的 diff 行），归类后徽章文案走 i18n
 lib/bankDiff.ts = 题目|领域|科目|来源|导入|CSV 导入|已存在|跳过|提示
+
+# 本轮题表（2026-09-21 批次 C-2 从 ReviewQueue 拆出）：`标签` 是错题判定的 CSV
+# 列名（field 命中）；key 模板串按整串豁免（与 InterviewList / TalkList 的展示串先例同款）
+components/DrillRoundMap.tsx = 标签|${i}-${item.题目}
 
 # 笔记页（2026-09-18）：工作区真实目录名与文件前缀约定——与后端 deps.DIR_PREP/DIR_KB、
 # 工作区 README（_模板_ 是待复制样板 / _示例_ 是只读参考）同源，不翻译；
@@ -131,9 +137,6 @@ pages/Resume.tsx = 商务蓝
 # 这些是工作区里的真实数据不是界面文案——翻了界面就与 CSV 对不上；「错题」同时是领域层
 # WRONG_TAG 的字面量（拿翻译串去比会随界面语言漂移）。
 components/ReviewQueue.tsx = 状态|题目|标签|未看|看过|会了
-# 本轮题表（2026-09-21 批次 C-2 从 ReviewQueue 拆出）：`标签` 是错题判定的 CSV 列名
-# （field 命中）；key 模板串按整串豁免（与 InterviewList / TalkList 的展示串先例同款）
-components/DrillRoundMap.tsx = 标签|${i}-${item.题目}
 # 训练面板的数据口径模块：`错题` 是 CSV 标签的**真实取值**（question_review.WRONG_TAG
 # 的中文面），翻了标签判定就与领域层对不上——与上面的组件条目同一条理由。
 lib/drill.ts = 错题

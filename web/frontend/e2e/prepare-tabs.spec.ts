@@ -242,15 +242,19 @@ test("准备 · 训练：本轮题表可跳题、可回退（C-2）", async ({ p
   await expect(cells).toHaveCount(5);
   await expect(cells.nth(0)).toHaveAttribute("aria-current", "step");
 
-  // 点第 3 格直接跳过去；← 键回退一格（跳转一律收起答案——不剧透）
+  // 点第 3 格直接跳过去；← 键回退一格（跳转一律收起答案——不剧透）。
+  // 不需要手动 blur：点格子后焦点自动离开（审查 M2 修），← 直接可用。
   await cells.nth(2).click();
   await expect(panel.getByText("Question 3 of 5")).toBeVisible();
-  await page.evaluate(() => {
-    const el = document.activeElement;
-    if (el instanceof HTMLElement) el.blur();
-  });
   await page.keyboard.press("ArrowLeft");
   await expect(panel.getByText("Question 2 of 5")).toBeVisible();
+
+  // 走到尽头 = 完成态出结束卡（审查 B1：夹取上界曾把结束卡做成死代码——
+  // 练完最后一题「下一题」无反应）
+  await cells.nth(4).click();
+  await expect(panel.getByText("Question 5 of 5")).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(panel.getByRole("button", { name: "Another round" })).toBeVisible();
 });
 
 test("准备 · 训练页签：窄屏 390×844 无横向溢出", async ({ page }) => {

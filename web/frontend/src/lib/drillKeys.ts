@@ -26,6 +26,9 @@ export interface DrillKeyState {
   locked: boolean;
   /** 差异确认卡是否开着——决定 Esc 是否有效 */
   hasPreview: boolean;
+  /** 请求在飞（预览 / 落盘）：Esc 也不响应——关掉卡拦不住已在路上的写入
+   *  （与笔记页勾选确认框同口径；C-2 审查 m5） */
+  busy?: boolean;
 }
 
 /**
@@ -39,7 +42,9 @@ export function drillKeyAction(
   state: DrillKeyState
 ): DrillKeyAction | null {
   if (event.ctrlKey || event.metaKey || event.altKey) return null;
-  if (event.key === "Escape") return state.hasPreview ? "cancelPreview" : null;
+  if (event.key === "Escape") {
+    return state.hasPreview && !state.busy ? "cancelPreview" : null;
+  }
   if (state.locked) return null;
   if (event.key === " " || event.key === "Enter") return "reveal";
   if (event.key === "ArrowRight") return "next";
@@ -51,6 +56,10 @@ export function drillKeyAction(
   return null;
 }
 
-/** 键盘焦点落在这些元素上时不该抢键（在输入框里打字 / 浏览器自己会"点"按钮）。 */
+/** 键盘焦点落在这些元素上时不该抢键（在输入框里打字 / 浏览器自己会"点"按钮；
+ *  Radix 的浮层——Select 弹层 / 菜单 / 对话框——同样让行：打开「一轮题数」下拉
+ *  后，空格会变成"看答案"、1/2/3 会触发自评，破坏盲答纪律；C-2 审查 m4）。 */
 export const DRILL_KEY_IGNORE_SELECTOR =
-  "input, textarea, select, [contenteditable='true'], button, a";
+  "input, textarea, select, [contenteditable='true'], button, a, " +
+  "[role='option'], [role='listbox'], [role='menu'], [role='dialog'], " +
+  "[data-radix-popper-content-wrapper]";

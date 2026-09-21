@@ -86,6 +86,9 @@ export default function NotesFileTree({
   }, [active?.section, active?.rel]);
 
   const toggleDir = (rel: string) => {
+    // 过滤态目录是**强制全展**（不然命中藏在收起目录里、看着像没搜到）——
+    // 这时点箭头不写偏好，免得退出过滤后目录"莫名其妙"是收起的（审查 m8）
+    if (filtering) return;
     setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(rel)) next.delete(rel);

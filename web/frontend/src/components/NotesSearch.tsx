@@ -105,14 +105,19 @@ export default function NotesSearch({
     };
   }, [keyword]);
 
-  // 按文件分组（保序：服务端已按相关度/位置排过，分组不重排组内顺序）
+  // 按文件分组（保序：服务端已按相关度/位置排过，分组不重排组内顺序）。
+  // key 必须含 section：两个 section 各有 README.md，只用 rel 会让它们同 key
+  // （React 重复 key 警告 + 重排错配；C-2 审查 m3）
   const groups = useMemo(() => {
-    const map = new Map<string, { rel: string; name: string; hits: Hit[] }>();
+    const map = new Map<
+      string,
+      { section: NotesSectionKey; rel: string; name: string; hits: Hit[] }
+    >();
     for (const hit of data?.items ?? []) {
       const key = `${hit.section}/${hit.rel}`;
       const group = map.get(key);
       if (group) group.hits.push(hit);
-      else map.set(key, { rel: hit.rel, name: hit.name, hits: [hit] });
+      else map.set(key, { section: hit.section, rel: hit.rel, name: hit.name, hits: [hit] });
     }
     return Array.from(map.values());
   }, [data]);
@@ -188,7 +193,7 @@ export default function NotesSearch({
               className="max-h-[22rem] space-y-1 overflow-y-auto"
             >
               {groups.map((group) => (
-                <li key={group.rel}>
+                <li key={`${group.section}/${group.rel}`}>
                   {/* 组头 = 文件名（含本文件命中数）：结果按文件归拢 */}
                   <p className="truncate px-2 pt-1.5 text-[11px] font-medium text-muted-foreground">
                     {group.name}

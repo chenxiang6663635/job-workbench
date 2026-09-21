@@ -47,8 +47,12 @@ export default function ReviewQueue() {
   const [graded, setGraded] = useState(() => saved?.graded ?? 0);
   // 三态计数（B-4）：抽题时随结果带回（旧存储没有这字段，读取处兜底 {}）
   const [counts, setCounts] = useState<Record<string, number>>(() => saved?.counts ?? {});
-  // 本轮已落盘的题序号（C-2）：题表据此打勾；只增不减——写错了靠回退到那题改回来
-  const [written, setWritten] = useState<Set<number>>(() => new Set(saved?.written ?? []));
+  // 本轮已落盘的题序号（C-2）：题表据此打勾；只增不减——写错了靠回退到那题改回来。
+  // Array.isArray 兜底：旧存储 / 手改形态下 `new Set(非可迭代)` 会抛 TypeError
+  // 崩掉整个面板（审查 m9）
+  const [written, setWritten] = useState<Set<number>>(
+    () => new Set(Array.isArray(saved?.written) ? saved.written : [])
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ token: string; summary: string; diff: string[] } | null>(
@@ -95,11 +99,13 @@ export default function ReviewQueue() {
 
   // 跳题（下一题 / 题表点击 / 键盘 ←→）：一律先收起答案——换了题还摊着上一个
   // 答案等于剧透，C-2 新加的回退路径也必须守住"盲答"这条纪律。
+  // 上界是 items.length（**越过末题 = 完成态**）：夹到 length-1 会把结束卡做成
+  // 死代码——练完最后一题「下一题」无反应（C-2 独立审查 B1）。
   // 定义在使用之前（`onConfirm` 落盘成功后要调到下一题）：`no-use-before-define`
   // 是 eslint 的 error 级，且这条顺序在运行时也是真正需要的依赖方向。
   const goTo = (target: number) => {
     setRevealed(false);
-    setIndex(Math.max(0, Math.min(target, items.length - 1)));
+    setIndex(Math.max(0, Math.min(target, items.length)));
   };
   const next = () => goTo(index + 1);
 
@@ -146,7 +152,7 @@ export default function ReviewQueue() {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest(DRILL_KEY_IGNORE_SELECTOR)) return;
-      const action = drillKeyAction(event, { locked, hasPreview: preview !== null });
+      const action = drillKeyAction(event, { locked, hasPreview: preview !== null, busy });
       if (!action) return;
       event.preventDefault();
       if (action === "cancelPreview") setPreview(null);

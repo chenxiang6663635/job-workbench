@@ -85,7 +85,15 @@ test("笔记：勾选框可翻转（预览 → 确认 → 落盘 → 重拉）�
 
   const boxes = page.locator('input[type="checkbox"]');
   await expect(boxes.first()).toBeVisible();
-  // demo 基准里这些都是未勾选——本用例末尾翻回去，不把痕迹留在工作区里
+  // demo 基准里这些都是未勾选——本用例末尾翻回去，不把痕迹留在工作区里。
+  // 跨运行自愈：上一次中断（失败 / 手动停）留下的勾选先翻回来，否则本地复用
+  // 工作区时这条用例会一直红在"基准断言"上（审查 m6）
+  if (await boxes.first().isChecked()) {
+    await boxes.first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "Write" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+  }
   expect(await boxes.first().isChecked()).toBe(false);
 
   await boxes.first().click();

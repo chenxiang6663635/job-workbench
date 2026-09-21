@@ -45,6 +45,11 @@ describe("drillKeyAction（键位 → 动作）", () => {
     expect(drillKeyAction(key("ArrowRight"), open)).toBeNull();
   });
 
+  it("落盘请求在飞时连 Esc 都不响应（关掉卡拦不住已在路上的写入）", () => {
+    const applying = { locked: true, hasPreview: true, busy: true };
+    expect(drillKeyAction(key("Escape"), applying)).toBeNull();
+  });
+
   it("没有确认卡时 Esc 不拦（交还浏览器）", () => {
     expect(drillKeyAction(key("Escape"), idle)).toBeNull();
     expect(drillKeyAction(key("Escape"), { locked: true, hasPreview: false })).toBeNull();

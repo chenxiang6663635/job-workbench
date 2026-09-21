@@ -225,13 +225,15 @@ def apply_approved_toggle(payload, workspace=None):
     expected = payload.get("expected")
     full, norm_rel, error = _target_path(ws, section, rel)
     if error:
-        raise tracker.ConflictError("预览之后目标已不可用（%s），请重新预览" % error)
+        # error 是 (code, params, message) 三元组：插值取 message（第 3 位）——
+        # 直接把三元组 %s 进文案会把 Python repr 泄给用户（C-2 审查 M1）
+        raise tracker.ConflictError("预览之后目标已不可用（%s），请重新预览" % error[2])
     with tracker.file_lock(_lock_path(ws)):
         if not os.path.isfile(full):
             raise tracker.ConflictError("预览之后文件不存在了（请重新预览）")
         lines, error = _read_lines(full, norm_rel)
         if error:
-            raise tracker.ConflictError("预览之后文件不可读（%s），请重新预览" % error)
+            raise tracker.ConflictError("预览之后文件不可读（%s），请重新预览" % error[2])
         if not isinstance(line, int) or line < 1 or line > len(lines):
             raise tracker.ConflictError("预览之后文件行数变了（请重新预览）")
         text, error = _decode_line(lines[line - 1], norm_rel, line)

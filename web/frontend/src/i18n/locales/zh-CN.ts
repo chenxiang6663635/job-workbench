@@ -830,7 +830,7 @@ const zhCN = {
   // 首启引导的新建流程（两段式：预览 → 确认 → 落盘）
   "err.ws.nameRequired": "工作区名不能为空。",
   "err.ws.nameInvalid": "`{{name}}` 不是合法的工作区名：只能是一个目录名，不含斜杠、不以点开头。",
-  "err.ws.initInvalid": "无法初始化工作区：{{detail}}",
+  "err.ws.initInvalid": "无法初始化工作区：{{reason}}",
   "err.ws.tokenInvalid": "这次创建的确认已失效（可能已用过，或已超过 10 分钟）——请重新预览再确认。",
   "err.ws.initConflict": "目标目录在预览之后被填了内容，为免覆盖已拒绝——请重新预览。",
   "err.path.illegalSegment": "非法路径片段：{{part}}",

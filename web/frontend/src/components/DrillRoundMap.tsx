@@ -38,7 +38,13 @@ export function DrillRoundMap({
           <button
             key={`${i}-${item.题目}`}
             type="button"
-            onClick={() => onJump(i)}
+            onClick={(event) => {
+              onJump(i);
+              // 跳完把焦点从格子移开（审查 M2）：全局键位对 button 一律让行
+              // （空格 / 回车是按钮自己的语义），焦点留在格子上会让 ←/→ 静默失效
+              // ——而"误点可退"正是题表的一半价值。
+              event.currentTarget.blur();
+            }}
             aria-current={isCurrent ? "step" : undefined}
             title={item.题目}
             className={cn(

@@ -766,7 +766,7 @@ export default {
   "err.ws.notFound": "Workspace not found: {{name}} (run tools/jobws.py init first)",
   "err.ws.nameRequired": "The workspace name cannot be empty.",
   "err.ws.nameInvalid": "`{{name}}` is not a valid workspace name — use a single folder name without slashes, not starting with a dot.",
-  "err.ws.initInvalid": "Could not initialize the workspace: {{detail}}",
+  "err.ws.initInvalid": "Could not initialize the workspace: {{reason}}",
   "err.ws.tokenInvalid": "This confirmation is no longer valid (already used, or older than 10 minutes) — preview again and re-confirm.",
   "err.ws.initConflict": "The target folder gained content after the preview, so we refused to overwrite — please preview again.",
   "err.path.illegalSegment": "Illegal path segment: {{part}}",

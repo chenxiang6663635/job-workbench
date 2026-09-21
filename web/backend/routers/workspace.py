@@ -150,9 +150,12 @@ def preview_workspace(body: WorkspaceInitBody):
     errors, plan = init_workspace.plan_init(target, body.domain, body.demo, body.force)
     if errors:
         detail = "；".join(errors)
-        # detail 同时作为 error_params 传下去：前端命中本地化文案时 detail 会被
-        # 忽略，具体的失败原因（"找不到领域插件 x"）只能靠参数带过去。
-        raise ApiError(422, "ws.initInvalid", detail, detail=detail)
+        # 具体失败原因（"找不到领域插件 x"）经 error_params 传下去（前端命中本地化
+        # 文案时 detail 会被忽略，只能靠参数带）。
+        # 参数名必须是 `reason` **不能叫 detail**：ApiError.__init__ 的第三个形参
+        # 就叫 detail，`detail=detail` 会 TypeError（multiple values）——这条失败
+        # 路径此前是 500（C-2 独立审查 B2 顺带修）。
+        raise ApiError(422, "ws.initInvalid", detail, reason=detail)
 
     result = approval.preview("init", target, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])

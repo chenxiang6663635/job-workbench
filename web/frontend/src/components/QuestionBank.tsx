@@ -128,13 +128,15 @@ function MyBank() {
         </Card>
       )}
 
-      {loading ? (
+      {/* 三态齐全（与「被问过的」同一套）：失败时只出错误条，不再接着显示
+          「题库还是空的」——请求失败与真的没有题是两件事，混报会让人以为数据丢了 */}
+      {loading && !error ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-20 w-full rounded-lg" />
           ))}
         </div>
-      ) : rows.length === 0 ? (
+      ) : !loading && !error && rows.length === 0 ? (
         <Card className="border-dashed">
           <EmptyState
             icon={<BookOpen size={20} />}
@@ -144,7 +146,7 @@ function MyBank() {
             }
           />
         </Card>
-      ) : (
+      ) : rows.length === 0 ? null : (
         <>
           <p className="text-xs text-muted-foreground">{t("bank.count", { count: total })}</p>
           <div className="space-y-2">

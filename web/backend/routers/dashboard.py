@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends
 
 from jobws_core import jd_score
+from jobws_core import job_dirs
 from jobws_core import tracker
 from deps import DIR_JOBS, safe_join, workspace_dir
 from jobws_core.report import count_by, parse_date, retrospective  # noqa: E402 - report 与 tracker 同目录
@@ -68,7 +69,7 @@ def job_pool_overview(ws):
                  if n and not n.startswith("_")
                  and os.path.isdir(os.path.join(base, n))]
 
-    index = jobs_router._applications_by_key(ws) if names else {}
+    index = job_dirs.applications_by_key(ws) if names else {}
     dist = {tier: {"unapplied": 0, "active": 0, "terminal": 0}
             for _lo, _hi, tier, _a in jd_score.THRESHOLDS}
     unapplied_high = []
@@ -77,8 +78,8 @@ def job_pool_overview(ws):
         card = jobs_router._parse_card(ws, os.path.join(DIR_JOBS, name))
         if not (card and card.get("consistent") and card.get("total") is not None):
             continue
-        company, role = jobs_router._split_dir(name)
-        state = jobs_router._apply_state(index.get(tracker.dedup_key(company, role)))
+        company, role = job_dirs.split_dir_name(name)
+        state = job_dirs.apply_state(index.get(tracker.dedup_key(company, role)))
         tier = tier_of(card["total"])
         dist[tier][_STATE_KEY[state]] += 1
         if state == "未投递" and card["total"] >= HIGH_SCORE_FLOOR:

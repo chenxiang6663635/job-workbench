@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 import deps  # noqa: E402
 import routers.jobs as jobs_router  # noqa: E402
+from jobws_core import job_dirs  # noqa: E402
 from jobws_core import tracker  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -85,22 +86,22 @@ def _items(client, **params):
 # --- 目录名还原与规范化键 ----------------------------------------------------
 
 def test_split_dir_reverses_dir_name():
-    assert jobs_router._split_dir("某科技公司_暖通研发") == ("某科技公司", "暖通研发")
+    assert job_dirs.split_dir_name("某科技公司_暖通研发") == ("某科技公司", "暖通研发")
     # 与 _dir_name 互为逆运算（创建侧已把首尾空格裁掉）；期望写字面量，别用实现推实现
-    assert jobs_router._split_dir(jobs_router._dir_name("  某科技公司 ", " 暖通研发 ")) == (
+    assert job_dirs.split_dir_name(jobs_router._dir_name("  某科技公司 ", " 暖通研发 ")) == (
         "某科技公司", "暖通研发")
 
 
 def test_split_dir_takes_first_underscore():
     # 公司名自带下划线时会还原偏左——刻意选的可预测口径，不是可以「优化」的 bug
-    assert jobs_router._split_dir("A_B_C") == ("A", "B_C")
+    assert job_dirs.split_dir_name("A_B_C") == ("A", "B_C")
     # 完全没有下划线时岗位为空，匹配键不成立 → 显示为「未投递」
-    assert jobs_router._split_dir("单独一段") == ("单独一段", "")
+    assert job_dirs.split_dir_name("单独一段") == ("单独一段", "")
 
 
 def test_split_dir_trims_both_sides():
     # 两端 trim。前端 `Jobs.tsx` 的 splitDir 是这份实现的镜像，必须同步这个行为
-    assert jobs_router._split_dir("  A公司 _ 甲岗位  ") == ("A公司", "甲岗位")
+    assert job_dirs.split_dir_name("  A公司 _ 甲岗位  ") == ("A公司", "甲岗位")
 
 
 def test_dedup_key_is_trim_and_case_insensitive():
@@ -353,12 +354,12 @@ def test_apply_writes_dir_name_key_while_display_comes_from_card(client, tmp_pat
     展示名会回退到目录名拆分、两者相等，于是「写目录名」与「写展示名」都能判绿
     ——绿了但没钉住（独立审查抓出的正是这条）。
 
-    写入值走 jobs 路由的 `_split_dir`，与前端 `splitDir` 同一口径（首个下划线）。
+    写入值走领域层 `job_dirs.split_dir_name`，与前端 `splitDir` 同一口径（首个下划线）。
     注：前端那份是 TS 镜像，pytest 打不到；要真正收敛得把拆分下沉到后端。
     """
     _make_job(tmp_path, "A公司_甲岗位",
               card_text=_basic_info_card("展示用公司", "展示用岗位"))
-    company, role = jobs_router._split_dir("A公司_甲岗位")
+    company, role = job_dirs.split_dir_name("A公司_甲岗位")
     assert (company, role) == ("A公司", "甲岗位")
 
     r = _apply(client, 公司=company, 岗位=role)

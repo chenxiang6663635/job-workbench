@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -15,11 +15,13 @@ import {
   type NotesNode,
   type NotesSectionKey,
 } from "../lib/notes";
+import { readNotesUi, writeNotesUi } from "../lib/notesView";
+import { useNotesToggle } from "../hooks/useNotesToggle";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesFileTree from "./NotesFileTree";
 import NotesReader from "./NotesReader";
 import NotesSearch from "./NotesSearch";
-import NotesToggleDialog, { type ToggleFlow } from "./NotesToggleDialog";
+import NotesToggleDialog from "./NotesToggleDialog";
 import { Card } from "./ui/card";
 import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
@@ -32,23 +34,31 @@ import { Skeleton } from "./ui/skeleton";
 
 export default function NotesBrowser() {
   const { t } = useTranslation();
+  const ws = useMemo(readWorkspace, []);
+  // 三个输入态都从 sessionStorage 起步（A-6）：切页签会**卸载**本组件（Radix Tabs
+  // 不 forceMount），不记住的话"去宣讲会看一眼再回来"就把搜索结果全清空了。
+  const [restoredUi] = useState(() => readNotesUi(ws));
   const [items, setItems] = useState<Record<NotesSectionKey, PrepFile[]> | null>(null);
   const [listError, setListError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(restoredUi.query);
   const [active, setActive] = useState<NotesActive | null>(null);
   const [content, setContent] = useState<PrepContent | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
   const [unreadable, setUnreadable] = useState<string[]>([]);
-  const [flow, setFlow] = useState<ToggleFlow | null>(null);
-  const [toggleError, setToggleError] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   // 全文搜索：这里只持有关键词（据此决定左栏显示结果还是目录树）——防抖、请求
   // 与四种结果形态都在 NotesSearch 里自包含。focusLine = 点中的结果要定位到第几行。
-  const [keyword, setKeyword] = useState("");
-  const [focusLine, setFocusLine] = useState<number | null>(null);
+  const [keyword, setKeyword] = useState(restoredUi.keyword);
+  const [focusLine, setFocusLine] = useState<number | null>(restoredUi.focusLine);
+  // 上一次加载的文件（section/rel）：只有换文件才撤正文，写回重拉时保留（A-2）
+  const loadedKey = useRef<string | null>(null);
 
-  const ws = useMemo(readWorkspace, []);
+  // 勾选写回：预览 → 确认 → 落盘的状态机在 hooks/useNotesToggle（含跨切页签 /
+  // 刷新的待确认恢复）。落盘成功后重拉正文——写后的真值在文件里，本地不做乐观翻转。
+  const reload = useCallback(() => setRefreshTick((tick) => tick + 1), []);
+  const { flow, toggleError, clearToggleError, onToggleTask, onConfirmToggle, onCancelToggle } =
+    useNotesToggle(ws, active, reload);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,14 +101,25 @@ export default function NotesBrowser() {
     }
   }, [tree, active, items, ws]);
 
+  // 输入态记忆：切页签 / 外部刷新回来仍是同一套过滤与搜索（A-6）
+  useEffect(() => {
+    writeNotesUi({ ws, keyword, query, focusLine });
+  }, [ws, keyword, query, focusLine]);
+
   // 内容加载：切换文件时取消上一次（回包乱序不覆盖新内容）；refreshTick 用于
   // 写回成功后重拉（写后的真值在文件里，本地不做乐观翻转）。
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    // 先撤掉旧正文：换文件时若留着旧内容，NotesReader 的定位 effect 会先按
-    // **旧文件**的块算锚点并滚一次错位的位置（子组件的 effect 比本组件的先跑）
-    setContent(null);
+    // 只有**换文件**才撤旧正文：留着旧内容会让 NotesReader 的定位 effect 先按
+    // **旧文件**的块算锚点、滚一次错位的位置（子组件的 effect 比本组件的先跑）。
+    // 同一文件重拉（写回后的 refreshTick）则保留旧正文 + 局部 loading——撤掉正文
+    // 会让卡片塌成骨架、把人打回文档顶部（A-2）。
+    const key = `${active.section}/${active.rel}`;
+    if (loadedKey.current !== key) {
+      loadedKey.current = key;
+      setContent(null);
+    }
     setContentLoading(true);
     setContentError(null);
     api
@@ -127,13 +148,13 @@ export default function NotesBrowser() {
     (section: NotesSectionKey, node: NotesNode) => {
       const next = { section, rel: node.rel };
       // 换文件时清掉上一份写回的残留：错误横幅指向的是上一个文件，不该挂在新文件上
-      setFlow(null);
-      setToggleError(null);
+      onCancelToggle();
+      clearToggleError();
       setFocusLine(null);
       setActive(next);
       writeLastOpened(ws, next);
     },
-    [ws]
+    [ws, onCancelToggle, clearToggleError]
   );
 
   // 点搜索结果：打开该文件并记下要定位的行（真定位在 NotesReader——那里才拿得到
@@ -141,52 +162,14 @@ export default function NotesBrowser() {
   const onPickHit = useCallback(
     (section: NotesSectionKey, rel: string, line: number) => {
       const next = { section, rel };
-      setFlow(null);
-      setToggleError(null);
+      onCancelToggle();
+      clearToggleError();
       setActive(next);
       setFocusLine(line);
       writeLastOpened(ws, next);
     },
-    [ws]
+    [ws, onCancelToggle, clearToggleError]
   );
-
-  // 勾选写回：点击 → 预览（签发令牌）→ 确认框 → 凭令牌落盘 → 重拉内容。
-  // 与题库改题同一套两段式（落盘走唯一写通道 /api/approvals/apply）。
-  const onToggleTask = useCallback(
-    (line: number) => {
-      // 有流程在进行中就不再接新点击：两个预览并发时，后到的响应决定弹窗显示
-      // 哪一行——"点 A 弹出 B 的确认框"是错配；此时勾选框已整体禁用（locked）
-      if (!active || flow) return;
-      setToggleError(null);
-      setFlow({ phase: "previewing", line });
-      api
-        .previewPrepToggle(active.section, active.rel, line)
-        .then((p) =>
-          setFlow({ phase: "confirm", line, token: p.token, summary: p.summary, diff: p.diff })
-        )
-        .catch((e: Error) => {
-          setFlow(null);
-          setToggleError(e.message);
-        });
-    },
-    [active, flow]
-  );
-
-  const onConfirmToggle = useCallback(() => {
-    if (!flow || flow.phase !== "confirm") return;
-    const { line, token, summary, diff } = flow;
-    setFlow({ phase: "applying", line, token, summary, diff });
-    api
-      .applyApproval(token)
-      .then(() => {
-        setFlow(null);
-        setRefreshTick((tick) => tick + 1);
-      })
-      .catch((e: Error) => {
-        setFlow(null);
-        setToggleError(e.message);
-      });
-  }, [flow]);
 
   if (listError) {
     return <ErrorBanner message={t("notes.loadFailed", { reason: listError })} />;
@@ -242,11 +225,7 @@ export default function NotesBrowser() {
         locked={flow !== null}
         focusLine={focusLine}
       />
-      <NotesToggleDialog
-        flow={flow}
-        onConfirm={onConfirmToggle}
-        onCancel={() => setFlow(null)}
-      />
+      <NotesToggleDialog flow={flow} onConfirm={onConfirmToggle} onCancel={onCancelToggle} />
     </div>
   );
 }

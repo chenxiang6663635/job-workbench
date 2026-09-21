@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { BookOpen, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -8,10 +8,12 @@ import {
   extractOutline,
   findAnchorLine,
   NOTES_SECTIONS,
+  readWorkspace,
   stripHtmlComments,
   type NotesNode,
   type NotesSectionKey,
 } from "../lib/notes";
+import { captureNotesPos, readNotesPos, restoreNotesPos } from "../lib/notesView";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesMarkdown from "./NotesMarkdown";
 import { EmptyState } from "./ui/empty";
@@ -55,6 +57,13 @@ export default function NotesReader({
 }: NotesReaderProps) {
   const { t } = useTranslation();
   const dir = NOTES_SECTIONS.find((s) => s.key === section)?.dir ?? "";
+  const ws = useMemo(readWorkspace, []);
+  // 先剥 HTML 注释再交给渲染与大纲——同一份文本，两侧行号才不会漂移。
+  // 两处都按正文 memo（A-3）：它们都是整篇扫描，此前每次交互（展开答案、勾选预览）
+  // 都要重跑一遍——长笔记在窄屏上的卡顿就是这么来的。位置刻意在所有早退**之前**：
+  // hooks 必须在每次渲染里同序调用。
+  const clean = useMemo(() => (content ? stripHtmlComments(content.content) : ""), [content]);
+  const outline = useMemo(() => extractOutline(clean), [clean]);
 
   // 搜索命中后的定位：命中行 → 它所属的块（起始行 ≤ 它的最后一个块）→ 滚过去并
   // 标记。**用 DOM 不用 hash 跳转**：App 是 hash 路由，原生 #hash 会被判无效并
@@ -74,6 +83,40 @@ export default function NotesReader({
     return () => el.classList.remove(...HIT_CLASS);
   }, [focusLine, content]);
 
+  // 阅读位置记忆（A-2）：滚动时把"视口顶部所在的块"记下来（节流 400ms）。写回后的
+  // 重拉、外部编辑触发的整页 reload 都靠它回到原处——此前两者都会把人打回顶部。
+  // 写在滚动里而不是卸载时，是为了绕开"卸载时 DOM 还在不在"的不确定性。
+  useEffect(() => {
+    if (!file || !content) return;
+    let timer = 0;
+    const onScroll = () => {
+      if (timer) return;
+      timer = window.setTimeout(() => {
+        timer = 0;
+        captureNotesPos(ws, section, file.rel);
+      }, 400);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [file, content, section, ws]);
+
+  // 位置恢复：内容就绪后**每个文件只做一次**——追着滚动条回位置会让页面自己抖。
+  // 有搜索命中时让位：那是用户刚点过的明确目标，优先级更高。
+  const restoredKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!content || loading || !file || focusLine != null) return;
+    const key = `${section}/${file.rel}`;
+    if (restoredKey.current === key) return;
+    const pos = readNotesPos(ws);
+    if (!pos || pos.section !== section || pos.rel !== file.rel) return;
+    restoredKey.current = key;
+    // rAF：等这一帧布局稳定（data-line 的块已经渲染完）再算目标位置
+    requestAnimationFrame(() => restoreNotesPos(pos));
+  }, [content, loading, file, focusLine, section, ws]);
+
   if (!file) {
     return (
       <div className="min-w-0 flex-1 rounded-lg border border-dashed border-border p-6">
@@ -90,9 +133,6 @@ export default function NotesReader({
   const parts = file.rel.split("/");
   const name = parts[parts.length - 1];
   const subPath = parts.slice(0, -1).join(" / ");
-  // 先剥 HTML 注释再交给渲染与大纲——同一份文本，两侧行号才不会漂移
-  const clean = content ? stripHtmlComments(content.content) : "";
-  const outline = extractOutline(clean);
   const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };

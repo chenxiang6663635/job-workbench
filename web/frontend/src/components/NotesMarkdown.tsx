@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type InputHTMLAttributes } from "react";
+import { createContext, memo, useContext, useMemo, type InputHTMLAttributes } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
@@ -237,7 +237,7 @@ const baseComponents: Components = {
   },
 };
 
-export default function NotesMarkdown({
+function NotesMarkdown({
   content,
   onToggleTask,
   pendingLine = null,
@@ -272,3 +272,8 @@ export default function NotesMarkdown({
     </div>
   );
 }
+
+// memo（A-3）：正文解析是整篇级别的开销，父组件因为**别的**状态重渲染时（例如
+// 展开大纲、切换页签）不该把整篇再解析一遍。props 不变就跳过——`onToggleTask` 在
+// 编排侧已经是 useCallback，pendingLine / locked 只在写回流程里变。
+export default memo(NotesMarkdown);

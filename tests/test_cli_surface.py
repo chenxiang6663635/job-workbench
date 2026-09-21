@@ -47,7 +47,7 @@ CLI_MODULES = [["track"], ["bank"], ["report"], ["resume"], ["jd"], ["init"],
                ["lint", "size"], ["lint", "four-ends"], ["lint", "legacy-imports"],
                ["release", "check"], ["release", "version"]]
 
-TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history",
+TRACKER_SUBCOMMANDS = ["add", "update", "list", "show", "history", "delete",
                        "interview", "talk", "mail", "contact", "offer",
                        "import", "check"]
 

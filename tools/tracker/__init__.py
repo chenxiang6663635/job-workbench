@@ -39,7 +39,8 @@ warnings.warn(
 )
 
 _DOMAIN = ("_core", "_schema", "_check", "applications", "interviews", "talks",
-           "mails", "contacts", "offers", "importing", "deletes", "preview_app",
+           "mails", "contacts", "offers", "importing", "deletes",
+           "application_delete", "preview_app",
            "preview_interview", "preview_update")
 _CLI = ("_cli", "_cli_interview", "_cli_talk", "_cli_mail", "_cli_contact",
         "_cli_offer", "_cli_misc", "_cli_delete")

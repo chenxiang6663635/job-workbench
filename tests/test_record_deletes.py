@@ -27,7 +27,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 from jobws_core import tracker  # noqa: E402
-from jobws_core.tracker import deletes  # noqa: E402
+from jobws_core.tracker import application_delete, deletes  # noqa: E402
 
 
 # (store 键, 记录 id, 种子字段值)——五表各一条样本行
@@ -287,3 +287,141 @@ def test_cli_delete_missing_id_exits_one(ws, outside, monkeypatch, capsys):
 
     assert code == 1
     assert "找不到" in out
+
+
+# --- 第四组：投递删除（解绑联动 + 时间线追记）--------------------------------
+
+
+def _seed_application(ws, rows):
+    """主表种子：rows = [(id, {字段: 值}), ...]。"""
+    path = os.path.join(ws, "05_投递追踪", "tracker.csv")
+    with io.open(path, "w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=tracker.FIELDS)
+        writer.writeheader()
+        for record_id, values in rows:
+            row = dict((field, "") for field in tracker.FIELDS)
+            row.update(values)
+            row["id"] = record_id
+            writer.writerow(row)
+    return Path(path)
+
+
+def test_preview_application_delete_lists_unbind_candidates(ws, outside):
+    """差异表逐条列出将解绑的关联记录（"哪几条"正是判断依据），且不落盘。"""
+    app_path = _seed_application(ws, [
+        ("A001", {"公司": "TCL", "岗位": "前端开发", "当前阶段": "已投"}),
+        ("A002", {"公司": "格力", "岗位": "后端", "当前阶段": "已投"})])
+    mail_path = _seed(ws, "mails", [("M001", {"主题": "面试邀约",
+                                              "关联记录": "A001"})])
+    itv_path = _seed(ws, "interviews", [("I001", {"公司": "TCL", "轮次": "一面",
+                                                   "关联记录": "A001"})])
+    before = [p.read_bytes() for p in (app_path, mail_path, itv_path)]
+
+    errors, plan = application_delete.preview_delete_application("A001", ws)
+
+    assert errors == []
+    assert plan["payload"]["id"] == "A001"
+    assert plan["payload"]["unbind"]["mails"][0]["邮件id"] == "M001"
+    assert plan["payload"]["unbind"]["interviews"][0]["面试id"] == "I001"
+    diff = "\n".join(plan["diff"])
+    assert "将解绑 2 条关联记录" in diff
+    assert "M001" in diff and "I001" in diff
+    assert "A001" in plan["summary"]
+    # 预览是承诺：三张表一个字节都不动
+    assert [p.read_bytes() for p in (app_path, mail_path, itv_path)] == before
+
+
+def test_apply_application_delete_unbinds_and_records_history(ws, outside):
+    _seed_application(ws, [
+        ("A001", {"公司": "TCL", "岗位": "前端开发", "当前阶段": "已投"}),
+        ("A002", {"公司": "格力", "岗位": "后端", "当前阶段": "已投"})])
+    _seed(ws, "mails", [("M001", {"主题": "面试邀约", "关联记录": "A001"}),
+                        ("M002", {"主题": "笔试通知", "关联记录": "A002"})])
+    _seed(ws, "interviews", [("I001", {"公司": "TCL", "轮次": "一面",
+                                       "关联记录": "A001"})])
+    errors, plan = application_delete.preview_delete_application("A001", ws)
+
+    result = application_delete.apply_approved_application_delete(plan["payload"], ws)
+
+    assert result["written"] == 1
+    assert result["unbound"] == 2
+    assert "已删除投递：A001" in result["summary"]
+    assert "并解绑 2 条关联记录" in result["summary"]
+    # 主表少一行、别家不动
+    assert [row["id"] for row in tracker.read_rows(ws)] == ["A002"]
+    # 从表保留行、仅外键清空（别家的关联一字不动）
+    mails = tracker.read_mails(ws)
+    assert [row["邮件id"] for row in mails] == ["M001", "M002"]
+    assert mails[0]["关联记录"] == ""
+    assert mails[1]["关联记录"] == "A002"
+    assert tracker.read_interviews(ws)[0]["关联记录"] == ""
+    # 时间线不删、追记一条「已删除」
+    assert any(entry["id"] == "A001" and entry["新值"] == "已删除"
+               for entry in tracker.read_history(ws))
+    # 留痕：主表 + 每张被解绑的从表各一份「改前整表」快照，都在工作区之外
+    traces = result["trace"].split(";")
+    assert len(traces) == 3
+    names = sorted(os.path.basename(trace) for trace in traces)
+    assert any(name.startswith("applications-before-delete") for name in names)
+    assert any(name.startswith("mails-before-delete") for name in names)
+    assert any(name.startswith("interviews-before-delete") for name in names)
+    for trace in traces:
+        assert os.path.isfile(trace)
+        assert not os.path.abspath(trace).startswith(os.path.abspath(ws) + os.sep)
+
+
+def test_apply_application_delete_conflict_when_linked_row_changed(ws, outside):
+    """任一待解绑行被改过 → 整体拒绝，主表与从表都零字节改动。"""
+    app_path = _seed_application(ws, [
+        ("A001", {"公司": "TCL", "岗位": "前端开发", "当前阶段": "已投"})])
+    mail_path = _seed(ws, "mails", [("M001", {"主题": "面试邀约",
+                                              "关联记录": "A001"})])
+    errors, plan = application_delete.preview_delete_application("A001", ws)
+    _rewrite(mail_path, "面试邀约", "面试邀约（改过）")
+    before = [p.read_bytes() for p in (app_path, mail_path)]
+
+    with pytest.raises(tracker.ConflictError):
+        application_delete.apply_approved_application_delete(plan["payload"], ws)
+
+    assert [p.read_bytes() for p in (app_path, mail_path)] == before
+
+
+def test_apply_application_delete_without_links(ws, outside):
+    _seed_application(ws, [("A001", {"公司": "TCL", "岗位": "前端开发"})])
+    errors, plan = application_delete.preview_delete_application("A001", ws)
+    assert not plan["payload"]["unbind"]
+
+    result = application_delete.apply_approved_application_delete(plan["payload"], ws)
+
+    assert result["written"] == 1
+    assert result["unbound"] == 0
+    assert tracker.read_rows(ws) == []
+
+
+def test_preview_application_delete_missing_id(ws):
+    errors, plan = application_delete.preview_delete_application("A999", ws)
+    assert plan is None
+    assert any("找不到" in error for error in errors)
+
+
+def test_cli_application_delete_previews_and_lands(ws, outside, monkeypatch, capsys):
+    """端到端：`track delete --id` 预览（含解绑清单）→ `jobws apply` 落盘。"""
+    _seed_application(ws, [("A001", {"公司": "TCL", "岗位": "前端开发",
+                                     "当前阶段": "已投"})])
+    _seed(ws, "mails", [("M001", {"主题": "面试邀约", "关联记录": "A001"})])
+
+    code, out = _invoke_jobws(
+        monkeypatch, capsys,
+        ["track", "--workspace", ws, "delete", "--id", "A001"])
+
+    assert code == 0
+    assert "将解绑 1 条关联记录" in out
+    match = re.search(r"apply ([0-9a-f]{32})", out)
+    assert match, out
+
+    code, out = _invoke_jobws(monkeypatch, capsys,
+                              ["apply", match.group(1), "--workspace", ws])
+
+    assert code == 0
+    assert tracker.read_rows(ws) == []
+    assert tracker.read_mails(ws)[0]["关联记录"] == ""

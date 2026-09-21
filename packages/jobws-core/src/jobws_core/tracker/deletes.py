@@ -140,9 +140,12 @@ def preview_delete(store_key, record_id, workspace=None):
     return [], plan
 
 
-def trace_path(store_key, workspace=None):
-    """删除留痕目录：**工作区之外**（与题库快照同域，按工作区名分目录）。"""
-    store = _STORES[store_key]
+def _trace_dir(store, workspace=None):
+    """删除留痕目录：**工作区之外**（与题库快照同域，按工作区名分目录）。
+
+    收 store 描述符而不是 key：主表（applications）的描述符住兄弟模块
+    `application_delete.py`——留痕工具按值传，不回头查全局表。
+    """
     ws = resolve_ws(workspace)
     name = os.path.basename(os.path.normpath(ws)) or "workspace"
     return os.path.join(pathres.snapshot_root(), name, store["trace_dir"])
@@ -155,7 +158,7 @@ def _write_trace(store, rows, workspace=None):
     同处一地，一次误操作会连它一起抹掉；而"没有后路的删除"不该被执行——
     它恰恰是唯一不可逆的写。
     """
-    target_dir = trace_path(store["key"], workspace)
+    target_dir = _trace_dir(store, workspace)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     path = os.path.join(target_dir, "%s-before-delete-%s.csv" % (store["key"], stamp))
     try:

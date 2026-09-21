@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 from . import _core
-from ._cli import (cmd_add, cmd_check, cmd_history, cmd_list, cmd_show, cmd_update)
+from ._cli import (cmd_add, cmd_check, cmd_delete, cmd_history, cmd_list, cmd_show, cmd_update)
 from ._cli_contact import (cmd_contact)
 from ._cli_interview import (cmd_interview)
 from ._cli_mail import (cmd_mail)
@@ -89,6 +89,11 @@ def _add_app_parsers(sub):
     p_hist = sub.add_parser("history", help="查看变更时间线")
     p_hist.add_argument("--id", help="只看某条记录，省略则看全部")
     p_hist.add_argument("--limit", type=int, help="只显示最近 N 条")
+
+    # 2026-09-21 批 D：删除永远两段式——没有 --preview 开关，它是唯一路径
+    p_del = sub.add_parser(
+        "delete", help="删除投递记录（有关联记录会解绑；预览后凭令牌落盘）")
+    p_del.add_argument("--id", required=True, help="记录 id，如 A001")
 
 
 
@@ -247,6 +252,7 @@ def main():
         "list": cmd_list,
         "show": cmd_show,
         "history": cmd_history,
+        "delete": cmd_delete,
         "interview": cmd_interview,
         "talk": cmd_talk,
         "mail": cmd_mail,

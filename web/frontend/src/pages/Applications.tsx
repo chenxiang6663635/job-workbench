@@ -1,17 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ChevronDown,
-  ChevronRight,
-  ChevronsUpDown,
-  ExternalLink,
-  FileUp,
-  Inbox,
-  Mail,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { FileUp, Inbox, Mail, Plus, Search, X } from "lucide-react";
 import {
   api,
   BATCHES,
@@ -22,17 +11,11 @@ import {
   type Application,
   type HistoryEntry,
 } from "../api";
-// 模块级常量表里放 key 而不是文案：TranslationKey 让拼错的 key 在编译期就报错
-import type { TranslationKey } from "../i18n/locales/zh-CN";
+import { ALL, NONE, readDrill, type SortKey } from "../lib/applicationMeta";
 import { domainLabel } from "../lib/domainLabels";
-import { reasonLines } from "../lib/healthReasons";
-import { Num } from "../components/ui/number";
+import ApplicationsTable from "../components/ApplicationsTable";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
-import RecordMails from "../components/RecordMails";
-import DeleteRecordButton from "../components/DeleteRecordButton";
-import HistoryTimeline from "../components/HistoryTimeline";
-import { previewDeleteApplication } from "../lib/records";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -46,68 +29,6 @@ import {
 import { EmptyState } from "../components/ui/empty";
 import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
-
-// Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
-const ALL = "__all__";
-// 新建表单的「来源」是可选字段：空值也用哨兵表达（见「不填」选项）
-const NONE = "__none__";
-
-// 静默阈值与后端 tracker.STALE_DAYS 一致；停留超过该值高亮
-const STALE_DAYS = 14;
-
-type SortKey = "next" | "score" | "stale" | "health";
-
-// 健康度四态：颜色即严重度，具体理由放在 hover 的 title 里（给理由不给黑箱分数）
-const HEALTH_META: Record<string, { labelKey: TranslationKey; cls: string }> = {
-  // 徽章小字（11px）要过 4.5:1——语义色只做底色，文字统一前景色：
-  // warning 58% / primary 58% 直接当小字色在深底上只有 ~4.4（a11y 实测）。
-  urgent: { labelKey: "app.healthUrgent", cls: "bg-destructive/15 text-foreground" },
-  overdue: { labelKey: "app.healthOverdue", cls: "bg-warning/15 text-foreground" },
-  stale: { labelKey: "app.healthStale", cls: "bg-primary/15 text-foreground" },
-  ok: { labelKey: "app.healthOk", cls: "bg-secondary/60 text-muted-foreground" },
-};
-
-type Drill = {
-  stage?: string;
-  direction?: string;
-  batch?: string;
-  active?: boolean;
-  overdue?: boolean;
-  dueWithin?: number;
-  sort?: "health";
-  focusId?: string;
-};
-
-// 页面初始状态：若来自看板下钻则读 sessionStorage，否则全空
-function readDrill(): Drill {
-  try {
-    const raw = sessionStorage.getItem("jobws_drill");
-    if (!raw) return {};
-    return JSON.parse(raw) as Drill;
-  } catch {
-    return {};
-  }
-}
-
-function stageStyle(stage: string) {
-  if (stage === "已挂") return "bg-destructive/15 text-foreground";
-  if (stage === "已放弃") return "bg-secondary/60 text-muted-foreground";
-  // 我拒绝的 offer 是双向选择，不是失败——用成功色，区别于失败红
-  // 小字徽章（11px）要过 4.5:1：语义色做底色，文字统一前景色——
-  // success 55% / primary 58% 当小字色在深底上只有 ~4.4（a11y 实测三处命中）。
-  if (stage === "我拒绝的 offer") return "bg-success/10 text-foreground";
-  if (stage === "offer" || stage === "签约")
-    return "bg-success/15 text-foreground";
-  return "bg-primary/15 text-foreground";
-}
-
-// 值是 key 不是文案——模块级常量没法调 t()，渲染处再翻
-const SORT_LABELS: Record<SortKey, TranslationKey> = {
-  next: "app.sortNext",
-  score: "app.sortScore",
-  stale: "app.sortStale",
-  health: "app.sortHealth",
-};
 
 
 export default function Applications() {
@@ -219,24 +140,6 @@ export default function Applications() {
         .then((h) => setTimelines((prev) => ({ ...prev, [id]: h.items })))
         .catch((e: Error) => setError(e.message));
     }
-  };
-
-  const sortBtn = (key: SortKey) => {
-    const active = sort === key;
-    return (
-      <button
-        onClick={() => setSort(active ? "next" : key)}
-        className={`flex cursor-pointer items-center gap-1 font-medium transition-colors ${
-          active
-            ? "text-foreground underline underline-offset-2"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-        title={t("app.sortByHint", { name: t(SORT_LABELS[key]) })}
-      >
-        {t(SORT_LABELS[key])}
-        <ChevronsUpDown size={12} className={active ? "opacity-100" : "opacity-40"} />
-      </button>
-    );
   };
 
   return (
@@ -542,247 +445,16 @@ export default function Applications() {
           />
         </div>
       ) : (
-        /* 撑满 + 内部滚动 + 粘性纯色表头（批 4 编排总则）：表格是主内容区，
-           容器吃掉视口剩余高度、长表在内部滚动；表头必须纯色——半透明会
-           透出滚动内容，是粘性表头的经典事故。 */
-        /* max-h 偏移：19 → 22.25rem——2026-09-17 新增页头（约 3.25rem）后同步，
-           否则表格底部会被页头挤进来的高度盖住。这类魔法偏移正在被逐页算法化
-           （Progress 页的 17rem 同样待后续批处理）。 */
-        <div className="max-h-[calc(100dvh-22.25rem)] overflow-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">{t("app.colCompanyRole")}</th>
-                <th className="px-4 py-3 text-left font-medium">{t("app.colDirection")}</th>
-                <th className="px-4 py-3 text-left font-medium">{t("app.colBatch")}</th>
-                <th className="px-4 py-3 text-left font-medium">{t("app.colStage")}</th>
-                <th className="px-4 py-3 text-left font-medium">{t("app.colReason")}</th>
-                <th className="px-4 py-3 text-left font-medium">
-                  <span className="inline-flex items-center gap-1">
-                    {sortBtn("next")}
-                  </span>
-                </th>
-                <th className="px-4 py-3 text-left font-medium">{t("app.colDeadline")}</th>
-                <th className="px-4 py-3 text-right font-medium">
-                  <span className="inline-flex items-center gap-1">
-                    {sortBtn("score")}
-                  </span>
-                </th>
-                <th className="px-4 py-3 text-left font-medium">
-                  <span className="inline-flex items-center gap-1">
-                    {sortBtn("stale")}
-                  </span>
-                </th>
-                <th className="px-4 py-3 text-left font-medium">
-                  <span className="inline-flex items-center gap-1">
-                    {sortBtn("health")}
-                  </span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {visibleItems.map((it) => {
-                const isExpanded = expanded[it.id];
-                const staleDays = typeof it.stageDays === "number" ? it.stageDays : null;
-                const isStale = staleDays !== null && staleDays >= STALE_DAYS;
-                return (
-                  <Fragment key={it.id}>
-                    <tr
-                      id={`row-${it.id}`}
-                      className="group bg-card/40 shadow-card ring-1 ring-highlight/5 transition-colors hover:bg-secondary"
-                    >
-                      <td className="border-l-2 border-transparent px-4 py-3 transition-colors group-hover:border-primary">
-                        <button
-                          onClick={() => toggleTimeline(it.id)}
-                          className="mr-2 inline-flex cursor-pointer align-middle text-muted-foreground transition-colors hover:text-primary"
-                          title={t(isExpanded ? "app.collapseTimeline" : "app.expandTimeline")}
-                        >
-                          {isExpanded ? (
-                            <ChevronDown size={14} />
-                          ) : (
-                            <ChevronRight size={14} />
-                          )}
-                        </button>
-                        <span className="font-medium text-foreground">
-                          {it.公司 || "—"}
-                        </span>
-                        <div className="pl-6 text-xs text-muted-foreground">
-                          {it.岗位 || t("app.roleMissing")}
-                        </div>
-                        {/* 岗位链接：有链接才出现，不新增一整列（表宽已经不小）；
-                            新标签打开，避免把追踪表上下文顶掉 */}
-                        {it.链接 && (
-                          <a
-                            href={it.链接}
-                            target="_blank"
-                            rel="noreferrer"
-                            title={t("app.openLink")}
-                            aria-label={t("app.openLink")}
-                            className="ml-6 mt-0.5 inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-2 transition-colors hover:text-primary"
-                          >
-                            <ExternalLink size={11} />
-                            {t("app.jobLink")}
-                          </a>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">
-                        {it.方向 ? domainLabel("direction", it.方向, t) : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">
-                        {it.批次 ? domainLabel("batch", it.批次, t) : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {TERMINAL.includes(it.当前阶段) ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span
-                              className={`rounded-md px-2 py-1 text-xs font-medium ${stageStyle(
-                                it.当前阶段
-                              )}`}
-                            >
-                              {domainLabel("stage", it.当前阶段, t)}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {t("app.terminalLocked")}
-                            </span>
-                          </div>
-                        ) : (
-                          <Select
-                            value={it.当前阶段}
-                            onValueChange={(v) => patch(it.id, { 当前阶段: v })}
-                          >
-                            <SelectTrigger
-                              // 行内阶段编辑器：可视文本是阶段取值，而 role=combobox
-                              // 按 ARIA 不能从内容取名字，必须显式给 aria-label；
-                              // 且每行都长得一样——名字里带上公司与岗位，屏幕阅读器
-                              // 才分得清是哪一条投递（独立审查提出）
-                              aria-label={t("app.stageEditorAria", {
-                                company: it.公司,
-                                role: it.岗位,
-                              })}
-                              className={`h-auto w-auto cursor-pointer gap-2 rounded-md border-0 px-2 py-1 text-xs font-medium shadow-none ${stageStyle(
-                                it.当前阶段
-                              )}`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STAGES.map((s) => (
-                                <SelectItem key={s} value={s} className="text-xs">
-                                  {domainLabel("stage", s, t)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          defaultValue={it.状态原因}
-                          onBlur={(e) => {
-                            if (e.target.value !== it.状态原因) {
-                              patch(it.id, { 状态原因: e.target.value });
-                            }
-                          }}
-                          placeholder={
-                            TERMINAL.includes(it.当前阶段) ? t("app.reasonRequired") : t("app.reasonOptional")
-                          }
-                          className="w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground hover:border-border-strong focus:border-primary/50"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          defaultValue={it.下次动作日期}
-                          onBlur={(e) => {
-                            if (e.target.value !== it.下次动作日期) {
-                              patch(it.id, { 下次动作日期: e.target.value });
-                            }
-                          }}
-                          type="date"
-                          title={t("app.sortNext")}
-                          className="w-36 rounded border border-transparent bg-transparent px-2 py-1 font-mono text-xs text-foreground outline-none transition-colors hover:border-border-strong focus:border-primary/50"
-                        />
-                        <div className="pl-2 text-xs text-muted-foreground">
-                          {it.下次动作 || "—"}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                        {it.截止日期 || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Num align="right" className="text-xs">
-                          {it.评分 || "—"}
-                        </Num>
-                      </td>
-                      <td className="px-4 py-3">
-                        {staleDays !== null ? (
-                          <Num
-                            className={`inline-flex items-center gap-1 text-xs ${
-                              isStale ? "text-warning" : "text-muted-foreground"
-                            }`}
-                          >
-                            {isStale && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-                            )}
-                            {t("app.daysUnit", { count: staleDays })}
-                          </Num>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {(() => {
-                          const h = it.health;
-                          if (!h || !h.level) {
-                            return <span className="text-xs text-muted-foreground">—</span>;
-                          }
-                          const meta = HEALTH_META[h.level];
-                          return (
-                            <span
-                              title={
-                                reasonLines(h.reasons, h.hints, t).join(t("app.reasonJoiner")) ||
-                                t("app.noHealthIssue")
-                              }
-                              className={`cursor-help rounded-md px-2 py-1 text-xs font-medium ${meta.cls}`}
-                            >
-                              {t(meta.labelKey)}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="bg-background/60">
-                        <td
-                          colSpan={10}
-                          className="border-l-2 border-primary/30 px-6 py-4"
-                        >
-                          <HistoryTimeline entries={timelines[it.id] ?? []} />
-                          {/* 关联邮件（2026-09-17 收尾批）：批 4.5 承诺过的
-                              「投递详情显示关联邮件」——只读 + 打开原邮件；
-                              增 / 改 / 删在「进展 → 邮件」的台账里做 */}
-                          <div className="mt-4 border-t border-border pt-3">
-                            <p className="mb-2 text-xs font-medium text-foreground">
-                              {t("app.relatedMails")}
-                            </p>
-                            <RecordMails appId={it.id} />
-                          </div>
-                          {/* 删除（批 D）：预览（含「将解绑的关联记录」清单）→
-                              确认弹窗 → 凭令牌落盘 */}
-                          <div className="mt-4 border-t border-border pt-3">
-                            <DeleteRecordButton
-                              preview={() => previewDeleteApplication(it.id)}
-                              onDeleted={load}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ApplicationsTable
+          items={visibleItems}
+          sort={sort}
+          onSortChange={setSort}
+          expanded={expanded}
+          timelines={timelines}
+          onToggleTimeline={toggleTimeline}
+          onPatch={patch}
+          onReload={load}
+        />
       )}
     </div>
   );

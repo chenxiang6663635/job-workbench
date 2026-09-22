@@ -205,6 +205,36 @@ def lock_path(workspace: str, kind: str) -> str:
 # --- 目录指纹 --------------------------------------------------------------
 
 
+# 指纹的两级短路缓存（P 批 2026-09-21）：桌面端每 10s 轮询一次 dir_fingerprint，
+# 原先每次都全目录 walk + 逐文件 stat + sha256（体检测得 >5k 文件时 0.2–1s）。
+# 按 (工作区, 目录集, 扩展集) 记住上一轮的目录 mtime 与逐文件 (size, mtime_ns)：
+#   一级门：已见目录 mtime 未变 → 文件集合未变（增删 / 改名都会碰所在目录的
+#           mtime），连 walk 都省掉；
+#   二级门：已见文件 (size, mtime_ns) 未变 → 内容未变（**in-place 追加不碰目录
+#           mtime，只有这一级能兜住**），跳过排序与 sha256。
+# 任一门失配即回退全量扫描——缓存只影响快慢、不影响结果（正确性不依赖缓存）。
+_FP_CACHE = {}
+_FP_CACHE_MAX = 8  # 至多缓存几个工作区；超出按插入序淘汰最旧（本地工具，够用）
+
+
+def _fingerprint_probe_unchanged(cached) -> bool:
+    """两级门探测：目录 mtime（文件集合）+ 逐文件 (size, mtime_ns)（内容）。"""
+    for path, mtime_ns in cached["dirs"]:
+        try:
+            if os.stat(path).st_mtime_ns != mtime_ns:
+                return False
+        except OSError:
+            return False
+    for path, size, mtime_ns in cached["files"]:
+        try:
+            stat = os.stat(path)
+        except OSError:
+            return False
+        if stat.st_size != size or stat.st_mtime_ns != mtime_ns:
+            return False
+    return True
+
+
 def dir_fingerprint(
     workspace: str,
     rel_dirs=None,
@@ -217,12 +247,23 @@ def dir_fingerprint(
     空工作区 / 目录缺失时返回稳定值（同一空状态 → 同一指纹）。
     """
     roots = rel_dirs if rel_dirs is not None else DEFAULT_TRACKED_DIRS
+    key = (os.path.realpath(workspace), tuple(roots), tuple(exts))
+    cached = _FP_CACHE.get(key)
+    if cached is not None and _fingerprint_probe_unchanged(cached):
+        return cached["digest"]
+
     entries = []
+    dirs = []
+    files = []
     for rel in roots:
         base = os.path.join(workspace, rel)
         if not os.path.isdir(base):
             continue
         for dirpath, _dirnames, filenames in os.walk(base):
+            try:
+                dirs.append((dirpath, os.stat(dirpath).st_mtime_ns))
+            except OSError:
+                pass  # 扫描间隙被删：下一轮探测必然失配，回退全量
             for name in filenames:
                 # 排除簿记文件：临时文件、锁、以及 "." 开头的（如 .schema.json——
                 # 自检补写它会造成假阳性「数据变了」，独立审查 m4）
@@ -237,5 +278,9 @@ def dir_fingerprint(
                     continue  # 扫描间隙被删：跳过一次，下次指纹自会变化
                 rel_path = os.path.relpath(full, workspace).replace("\\", "/")
                 entries.append("%s|%d|%d" % (rel_path, stat.st_size, stat.st_mtime_ns))
-    digest = hashlib.sha256("\n".join(sorted(entries)).encode("utf-8")).hexdigest()
-    return digest[:16]
+                files.append((full, stat.st_size, stat.st_mtime_ns))
+    digest = hashlib.sha256("\n".join(sorted(entries)).encode("utf-8")).hexdigest()[:16]
+    if key not in _FP_CACHE and len(_FP_CACHE) >= _FP_CACHE_MAX:
+        _FP_CACHE.pop(next(iter(_FP_CACHE)))
+    _FP_CACHE[key] = {"digest": digest, "dirs": dirs, "files": files}
+    return digest

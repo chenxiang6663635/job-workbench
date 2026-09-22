@@ -1108,6 +1108,7 @@ const zhCN = {
   "notes.batchSubmit_one": "提交 {{count}} 项",
   "notes.batchSubmit_other": "提交 {{count}} 项",
   "notes.batchClear": "清空",
+  "notes.toggleDiff": "文件差异（可滚动，用方向键翻看）",
   "notes.toggleTitle": "翻转这一行的勾选状态？",
   "notes.toggleHint": "只改这一行的标记字符，文件其余内容一个字节都不动。",
   "notes.toggleConfirm": "确认写入",

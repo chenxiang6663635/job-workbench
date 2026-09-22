@@ -196,3 +196,82 @@ test("笔记：普通列表项的正文要渲染出来（回归：li 分支曾�
     page.locator("li", { hasText: "30 秒版" }).first()
   ).toContainText("只留钩子");
 });
+
+test("笔记：批量勾选（开关 → 连点 3 项 → 一次确认写 3 项 → 取消零改动）", async ({
+  page,
+}) => {
+  // 批量模式的核心语义是「点选不发请求」——用请求监听钉死它，而不是只看界面反馈
+  // （界面反馈由本地翻转给出，即使真发了请求也看不出差别）
+  const previews: string[] = [];
+  page.on("request", (req) => {
+    if (req.url().includes("preview-toggle")) previews.push(req.url());
+  });
+
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Notes" }).click();
+  await page.getByRole("button", { name: "_模板_行为故事" }).click();
+
+  const boxes = page.locator('input[type="checkbox"]');
+  await expect(boxes.first()).toBeVisible();
+  // 三条勾选框的**点击前状态**：末尾靠它证明「取消 = 文件零改动」——退出批量
+  // 模式后本地翻转被撤销，勾选框只剩文件真值。不假设基准是未勾选：本地复用
+  // demo 工作区时它可能被上一轮操作改过（与单行用例同样的自愈思路）。
+  const read = () =>
+    boxes.evaluateAll((els) =>
+      els.slice(0, 3).map((el) => (el as HTMLInputElement).checked)
+    );
+  const before = await read();
+
+  const batchBtn = page.getByRole("button", { name: "Batch check" });
+  await expect(batchBtn).toHaveAttribute("aria-pressed", "false");
+  await batchBtn.click();
+  await expect(batchBtn).toHaveAttribute("aria-pressed", "true");
+
+  // 待提交条：集合为空时提交禁用（"点了没反应"比按钮灰着更费解）
+  const count = page.getByTestId("notes-pending-count");
+  await expect(count).toHaveText("0 selected");
+  await expect(page.getByRole("button", { name: "Write 0" })).toBeDisabled();
+
+  // 连点三项：只翻本地集合——一个请求都不发，勾选框即时翻转并带待提交环
+  for (let i = 0; i < 3; i += 1) await boxes.nth(i).click();
+  await expect(count).toHaveText("3 selected");
+  await expect(boxes.nth(0)).toHaveAttribute("data-queued", "true");
+  expect(await boxes.nth(0).isChecked()).toBe(!before[0]);
+  expect(previews).toEqual([]);
+
+  // 切走再切回：集合按文件分键存着（切文件是换键不是清空）
+  await page.getByRole("button", { name: "_模板_自我介绍" }).click();
+  await expect(page.getByRole("navigation", { name: "On this page" })).toBeVisible();
+  await page.getByRole("button", { name: "_模板_行为故事" }).click();
+  await expect(count).toHaveText("3 selected");
+
+  // 提交 = 整批合成**一条**预览：差异表平铺三个行号块（一块 = 原行 / 新行两行）
+  await page.getByRole("button", { name: "Write 3" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  expect(previews).toHaveLength(1);
+  const pre = dialog.locator("pre");
+  await expect(pre).toContainText("- - [");
+  const diff = (await pre.textContent()) ?? "";
+  expect(diff.match(/（第 \d+ 行）/g) ?? []).toHaveLength(3);
+
+  // 确认框（批量形态）也是新的可交互面：一并扫描
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  const serious = results.violations.filter(
+    (v) => v.impact === "serious" || v.impact === "critical"
+  );
+  expect(
+    serious,
+    `批量勾选确认框有 serious/critical：${serious.map((v) => v.id).join("、")}`
+  ).toEqual([]);
+
+  // 取消不落盘：退出批量模式（集合清空 → 本地翻转撤销）后逐项回到点击前状态。
+  // 落盘段的「差异表之外零字节」由 pytest 钉死，这里只管交互链与取消语义。
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  await batchBtn.click();
+  await expect(count).toHaveCount(0);
+  expect(await read()).toEqual(before);
+});

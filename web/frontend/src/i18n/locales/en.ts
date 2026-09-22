@@ -1029,6 +1029,7 @@ export default {
   "notes.batchSubmit_one": "Write {{count}}",
   "notes.batchSubmit_other": "Write {{count}}",
   "notes.batchClear": "Clear",
+  "notes.toggleDiff": "File diff (scroll with arrow keys)",
   "notes.toggleTitle": "Flip this checkbox?",
   "notes.toggleHint": "Only the marker character on this line changes — the rest of the file stays byte-identical.",
   "notes.toggleConfirm": "Write",

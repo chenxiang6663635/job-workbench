@@ -47,8 +47,15 @@ export default function NotesToggleDialog({
           <div className="space-y-2">
             <p className="break-words text-sm font-medium text-foreground">{flow.summary}</p>
             {/* diff 是后端给的「原行 / 新行」两行文本：原样等宽展示，不做二次解析——
-                解析错了比显示得丑危险得多（用户据此决定要不要落盘） */}
-            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                解析错了比显示得丑危险得多（用户据此决定要不要落盘）。
+                tabIndex：批量（C-1）之后它常常超过限高、成为**可滚动区域**——
+                不可聚焦的话键盘用户看不全后半段（axe serious；单行 diff 不溢出，
+                所以批量之前照不出这条）。 */}
+            <pre
+              tabIndex={0}
+              aria-label={t("notes.toggleDiff")}
+              className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground"
+            >
               {flow.diff.join("\n")}
             </pre>
           </div>

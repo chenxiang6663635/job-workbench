@@ -45,17 +45,34 @@ export function useNotesToggle(
   // 切文件 = 换键：各文件各自记住自己的集合（不是清空——集合是廉价可重建的
   // 本地态，但勾了一半就丢很烦）
   const fileKey = active ? `${active.section}::${active.rel}` : null;
-  useEffect(() => {
-    if (!ws || !fileKey) return;
-    const [section, rel] = fileKey.split("::");
-    setPending(readPendingLines(ws, section, rel));
-  }, [ws, fileKey]);
+  // pending 的最新值另存 ref：动作回调要拿它算下一态，而又不该把「集合变化」塞进
+  // useCallback 依赖（那会让整篇正文跟着重渲染）
+  const pendingRef = useRef<number[]>([]);
 
+  /** 集合的唯一写入口：更新内存 + 落**当前文件**的键。
+   *
+   * 为什么不跟着 pending 用 effect 写：键切换那一帧 effect 里的 `pending` 还是
+   * 上一个文件的值，会把 A 的集合写进 B 的键（切回来像"凭空多选了三项"）。
+   * 动作驱动没有这个窗口——集合只在用户动作（点选 / 清空 / 落盘后）时落盘。 */
+  const updatePending = useCallback(
+    (next: number[]) => {
+      pendingRef.current = next;
+      setPending(next);
+      if (!ws || !fileKey) return;
+      const [section, rel] = fileKey.split("::");
+      writePendingLines(ws, section, rel, next);
+    },
+    [ws, fileKey]
+  );
+
+  // 切键（含首次挂载）：读回该文件自己的集合
   useEffect(() => {
     if (!ws || !fileKey) return;
     const [section, rel] = fileKey.split("::");
-    writePendingLines(ws, section, rel, pending);
-  }, [ws, fileKey, pending]);
+    const saved = readPendingLines(ws, section, rel);
+    pendingRef.current = saved;
+    setPending(saved);
+  }, [ws, fileKey]);
 
   const onToggleTask = useCallback(
     (line: number) => {
@@ -63,7 +80,7 @@ export function useNotesToggle(
       setToggleError(null);
       // 批量模式：点选只翻本地集合（一次请求都不发——"打勾"的反馈是即时的）
       if (batchMode) {
-        setPending((prev) => togglePendingLine(prev, line));
+        updatePending(togglePendingLine(pendingRef.current, line));
         return;
       }
       const lines = [line];
@@ -84,7 +101,7 @@ export function useNotesToggle(
           setToggleError(e.message);
         });
     },
-    [active, flow, batchMode]
+    [active, flow, batchMode, updatePending]
   );
 
   /** 把待提交集合整批送进同一条两段式通道（一次预览、一次确认）。 */
@@ -111,14 +128,12 @@ export function useNotesToggle(
   }, [active, flow, pending]);
 
   const onToggleBatchMode = useCallback(() => {
-    setBatchMode((prev) => {
-      // 退出批量模式：集合失去意义（它只在批量模式下可累积），一并清掉
-      if (prev) setPending([]);
-      return !prev;
-    });
-  }, []);
+    // 退出批量模式：集合失去意义（它只在批量模式下可累积），一并清掉
+    if (batchMode) updatePending([]);
+    setBatchMode((prev) => !prev);
+  }, [batchMode, updatePending]);
 
-  const onClearPending = useCallback(() => setPending([]), []);
+  const onClearPending = useCallback(() => updatePending([]), [updatePending]);
 
   const onConfirmToggle = useCallback(() => {
     if (!flow || flow.phase !== "confirm") return;
@@ -128,7 +143,7 @@ export function useNotesToggle(
       .applyApproval(token)
       .then(() => {
         setFlow(null);
-        setPending([]);
+        updatePending([]);
         setBatchMode(false);
         onApplied();
       })
@@ -136,7 +151,7 @@ export function useNotesToggle(
         setFlow(null);
         setToggleError(e.message);
       });
-  }, [flow, onApplied]);
+  }, [flow, onApplied, updatePending]);
 
   const onCancelToggle = useCallback(() => setFlow(null), []);
   const clearToggleError = useCallback(() => setToggleError(null), []);

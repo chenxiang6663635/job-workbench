@@ -23,6 +23,7 @@ import { api } from "../api";
 import type { ToggleFlow } from "../components/NotesToggleDialog";
 import type { NotesActive } from "../lib/notes";
 import {
+  clearPendingLines,
   clearToggleSnapshot,
   readPendingLines,
   readToggleSnapshot,
@@ -30,6 +31,10 @@ import {
   writePendingLines,
   writeToggleSnapshot,
 } from "../lib/notesView";
+
+// 待提交集合的键分隔符：文件名里不可能出现的 NUL（`::` 会被含 `:` 的路径串键，
+// POSIX 下合法——Windows 上不可达，但没必要留雷）。与 notesView 的 pendingKey 同源。
+const SEP = "\u0000";
 
 export function useNotesToggle(
   ws: string,
@@ -44,7 +49,7 @@ export function useNotesToggle(
 
   // 切文件 = 换键：各文件各自记住自己的集合（不是清空——集合是廉价可重建的
   // 本地态，但勾了一半就丢很烦）
-  const fileKey = active ? `${active.section}::${active.rel}` : null;
+  const fileKey = active ? `${active.section}${SEP}${active.rel}` : null;
   // pending 的最新值另存 ref：动作回调要拿它算下一态，而又不该把「集合变化」塞进
   // useCallback 依赖（那会让整篇正文跟着重渲染）
   const pendingRef = useRef<number[]>([]);
@@ -59,8 +64,25 @@ export function useNotesToggle(
       pendingRef.current = next;
       setPending(next);
       if (!ws || !fileKey) return;
-      const [section, rel] = fileKey.split("::");
+      const [section, rel] = fileKey.split(SEP);
       writePendingLines(ws, section, rel, next);
+    },
+    [ws, fileKey]
+  );
+
+  /** 清掉**某个文件**的待提交集合（落盘成功后调用）。
+   *
+   * 锚定"流程所属文件"而不是"当前文件"：预览在飞 / 确认框开着时用户可能已经
+   * 切走，那时按当前文件清会把另一个文件的集合误删（审查 MAJOR）。内存态与
+   * 批量开关只在"人还在那个文件"时才动。 */
+  const clearPendingFor = useCallback(
+    (section: string, rel: string) => {
+      clearPendingLines(ws, section, rel);
+      if (fileKey === `${section}${SEP}${rel}`) {
+        pendingRef.current = [];
+        setPending([]);
+        setBatchMode(false);
+      }
     },
     [ws, fileKey]
   );
@@ -68,7 +90,7 @@ export function useNotesToggle(
   // 切键（含首次挂载）：读回该文件自己的集合
   useEffect(() => {
     if (!ws || !fileKey) return;
-    const [section, rel] = fileKey.split("::");
+    const [section, rel] = fileKey.split(SEP);
     const saved = readPendingLines(ws, section, rel);
     pendingRef.current = saved;
     setPending(saved);
@@ -94,6 +116,8 @@ export function useNotesToggle(
             token: p.token,
             summary: p.summary,
             diff: p.diff,
+            section: active.section,
+            rel: active.rel,
           })
         )
         .catch((e: Error) => {
@@ -119,6 +143,8 @@ export function useNotesToggle(
           token: p.token,
           summary: p.summary,
           diff: p.diff,
+          section: active.section,
+          rel: active.rel,
         })
       )
       .catch((e: Error) => {
@@ -137,21 +163,21 @@ export function useNotesToggle(
 
   const onConfirmToggle = useCallback(() => {
     if (!flow || flow.phase !== "confirm") return;
-    const { lines, token, summary, diff } = flow;
-    setFlow({ phase: "applying", lines, token, summary, diff });
+    const { lines, token, summary, diff, section, rel } = flow;
+    setFlow({ phase: "applying", lines, token, summary, diff, section, rel });
     api
       .applyApproval(token)
       .then(() => {
         setFlow(null);
-        updatePending([]);
-        setBatchMode(false);
+        // 清的是**流程所属文件**的集合（不是当前文件——见 clearPendingFor）
+        clearPendingFor(section, rel);
         onApplied();
       })
       .catch((e: Error) => {
         setFlow(null);
         setToggleError(e.message);
       });
-  }, [flow, onApplied, updatePending]);
+  }, [flow, onApplied, clearPendingFor]);
 
   const onCancelToggle = useCallback(() => setFlow(null), []);
   const clearToggleError = useCallback(() => setToggleError(null), []);
@@ -172,6 +198,8 @@ export function useNotesToggle(
       token: snapshot.token,
       summary: snapshot.summary,
       diff: snapshot.diff,
+      section: snapshot.section,
+      rel: snapshot.rel,
     });
   }, [active, ws]);
 

@@ -214,7 +214,9 @@ export function clearToggleSnapshot(): void {
 // 的先例同因）。按「工作区 + 文件」分键：切文件是换键，各自记住各自的。
 
 function pendingKey(ws: string, section: string, rel: string): string {
-  return `${ws}::${section}::${rel}`;
+  // NUL 分隔：文件名里不可能出现（`::` 会被含 `:` 的路径串键——POSIX 下合法）；
+  // 与 hook 里的 SEP 同源，两处要一起改
+  return `${ws}\u0000${section}\u0000${rel}`;
 }
 
 function readPendingMap(): Record<string, number[]> {

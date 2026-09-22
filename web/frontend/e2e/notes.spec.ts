@@ -201,10 +201,14 @@ test("笔记：批量勾选（开关 → 连点 3 项 → 一次确认写 3 项 
   page,
 }) => {
   // 批量模式的核心语义是「点选不发请求」——用请求监听钉死它，而不是只看界面反馈
-  // （界面反馈由本地翻转给出，即使真发了请求也看不出差别）
+  // （界面反馈由本地翻转给出，即使真发了请求也看不出差别）。写请求另记一笔：
+  // 「取消 = 零改动」不能只靠勾选态未变来推断，要直接证明没有落盘请求
   const previews: string[] = [];
+  const writes: string[] = [];
   page.on("request", (req) => {
-    if (req.url().includes("preview-toggle")) previews.push(req.url());
+    const url = req.url();
+    if (url.includes("preview-toggle")) previews.push(url);
+    if (url.includes("/api/approvals/apply")) writes.push(url);
   });
 
   await openPage(page, "prepare");
@@ -274,4 +278,6 @@ test("笔记：批量勾选（开关 → 连点 3 项 → 一次确认写 3 项 
   await batchBtn.click();
   await expect(count).toHaveCount(0);
   expect(await read()).toEqual(before);
+  // 取消路径上一次落盘请求都没有（差异表之外的字节由 pytest 钉死）
+  expect(writes).toEqual([]);
 });

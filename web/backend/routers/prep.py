@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 from fastapi import APIRouter, Depends
 from apierror import ApiError
@@ -213,6 +214,11 @@ def prep_content(section: str, rel: str, ws: str = Depends(workspace_dir)):
     return {"rel": rel, "content": text, "truncated": truncated, "bytes": size}
 
 
+# 只认 ASCII 数字：`str.isdigit()` 对 Unicode 上标数字（"²"、"①"）也为真，而
+# int() 对它们抛 ValueError——那会把应有的 400 变成 500（审查实测）。
+_LINES_PART_RE = re.compile(r"[0-9]+")
+
+
 def _parse_lines(raw):
     """端点唯一的解析职责：「3,7,9」→ [3, 7, 9]。
 
@@ -226,7 +232,7 @@ def _parse_lines(raw):
     items = []
     for part in text.split(","):
         part = part.strip()
-        if not part or not part.isdigit():
+        if not part or not _LINES_PART_RE.fullmatch(part):
             return None, True
         items.append(int(part))
     return items, False

@@ -3,8 +3,13 @@
 
 背景：Web「准备 · 笔记」页（`web/backend/routers/prep.py`）只读浏览这两个目录，
 本模块补上唯一的"写"——把某一行的勾选状态翻转（"打勾即学习打卡"）。两段式照
-题库改题同构：`preview_toggle` 只读不落盘，`apply_approved_toggle` 在锁内重校验
-后写回；落盘通道只有 `/api/approvals/apply` 一条（不在本模块开写端点）。
+题库改题同构：预览只读不落盘，落盘在锁内重校验后写回；写通道只有
+`/api/approvals/apply` 一条（不在本模块开写端点）。
+
+**翻转的两个入口已迁出**（2026-09-21 C-1 批量撑破规模预算）：`preview_toggle` 与
+`apply_approved_toggle` 在 `tools/prep_toggle.py`。本模块留"哪个目录、哪个文件、
+怎么按字节切行"（`_target_path` / `_read_lines` / `_decode_line` / `_TASK_RE`），
+由它按同包兄弟直接取用。下面三条纪律仍是翻转语义的真值源，执行面在那边。
 
 三条纪律（每条都有代价近似的替代方案，选它们的理由如下）：
 

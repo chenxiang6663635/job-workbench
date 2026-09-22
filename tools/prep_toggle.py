@@ -44,15 +44,21 @@ def _normalize_lines(lines):
     """行号参数 → 升序 int 列表；(None, error) 表示参数不可用。
 
     单个 int 也收（**单行是批量的特例**——老调用方与老用例不必改签名）。
+    逐项只认真正的**正整数**：bool（`True` 会静默变成 1）与浮点（`1.9` 会静默
+    取整）都不算——"看着对、写错行"是这里最贵的失败。行号 < 1 与非法类型报
+    `prep.invalidLines`（"缺少行号"只留给"一个都没给"——对"0"说"没给"是误导）。
     重复行号**不静默去重**：哪一条被吞掉用户无从知晓，宁可报错指名。
     """
     if isinstance(lines, int) and not isinstance(lines, bool):
         lines = [lines]
-    try:
-        items = [int(item) for item in (lines or [])]
-    except (TypeError, ValueError):
-        items = []
-    if not items or any(item < 1 for item in items):
+    items = []
+    for item in (lines or []):
+        if isinstance(item, bool) or not isinstance(item, int) or item < 1:
+            return None, _err("prep.invalidLines",
+                              "行号必须是正整数（从 1 起）：%s" % (item,),
+                              lines=str(item))
+        items.append(item)
+    if not items:
         return None, _err("prep.missingLines",
                           "缺少行号（需要被点勾选框所在行在 Markdown 源码里的行号，从 1 起）")
     seen = set()
@@ -76,15 +82,27 @@ def _payload_lines(payload):
     升级瞬间在途的老确认框（令牌 TTL 内）点确认必须仍能落盘；若不做兼容而写
     `payload.get("lines") or []`，落盘会循环零次、返回"成功翻转 0 行"——用户
     确认了却什么都没写，比报错糟得多。
+
+    形态不对（`lines` 不是列表 / 条目不是 dict / 行号非法 / 同一行出现两次）一律
+    显式冲突：签名令牌挡的是"没预览就落盘"，挡不住载荷本身被写坏——静默丢条目、
+    静默合并同号行都会让 `written` 与确认书不符。
     """
-    items = [item for item in (payload.get("lines") or [])
-             if isinstance(item, dict)]
-    if items:
-        pairs = []
-        for item in items:
-            line = item.get("line")
-            if isinstance(line, int) and not isinstance(line, bool) and line >= 1:
-                pairs.append((line, item.get("expected")))
+    raw = payload.get("lines")
+    if raw is None:
+        raw = []
+    if not isinstance(raw, list):
+        raise tracker.ConflictError("载荷形态不对（请重新预览）")
+    pairs = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise tracker.ConflictError("载荷里有不认识的条目（请重新预览）")
+        line = item.get("line")
+        if isinstance(line, bool) or not isinstance(line, int) or line < 1:
+            raise tracker.ConflictError("载荷里的行号不合法（请重新预览）")
+        pairs.append((line, item.get("expected")))
+    if pairs:
+        if len({line for line, _ in pairs}) != len(pairs):
+            raise tracker.ConflictError("载荷里同一行出现了两次（请重新预览）")
         return pairs
     line = payload.get("line")
     expected = payload.get("expected")

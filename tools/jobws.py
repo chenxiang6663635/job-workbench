@@ -85,7 +85,7 @@ import _cli_jd_score  # noqa: E402  （JD 评分命令层；领域层在 jobws_c
 import prefs  # noqa: E402
 import release_assist  # noqa: E402
 from jobws_core import report  # noqa: E402
-import resume_build  # noqa: E402
+import _cli_resume  # noqa: E402  （简历 PDF 命令层；渲染 / 校验领域函数在 resume_build.py）
 # 这里**只能**用旧名：`jobws track` 要的是留仓 CLI 的 `main`（在 `_cli_misc` 里），
 # 而包内真身没有它。shim 会发废弃告警，但那条告警对**本入口是误报**——`jobws track`
 # 本来就该走它（真正该被劝退的是直跑 `python tools/tracker.py` 的人）。CLI 契约要求
@@ -101,7 +101,7 @@ TARGETS = [
     ("bank", _cli_bank, "题库：list 查、add 加题、update 改题、delete 删题/批量撤回、"
                         "import 从 03_面试准备 导入（写操作走两段式）"),
     ("report", report, "复盘与统计（转化率、停留时长、失败归因）"),
-    ("resume", resume_build, "按岗位生成投递材料"),
+    ("resume", _cli_resume, "按岗位生成投递材料"),
     ("jd", _cli_jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
     ("export", _cli_export, "导出工作区（--obsidian：八张 CSV → Obsidian 笔记，每行一笔记）"),

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PREPARE_TAB_KEY } from "../lib/pageDrill";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import {
   Bar,
@@ -108,7 +109,7 @@ function drillToJob(dir: string) {
 // 与 writeDrill 的 jobws_drill 是两个协议——那边的消费方是追踪表 / 岗位池。
 function drillToPrepare() {
   try {
-    sessionStorage.setItem("jobws_prepare_tab", "talks");
+    sessionStorage.setItem(PREPARE_TAB_KEY, "talks");
   } catch {
     // 存储不可用：退化为落在「准备」的默认页签（恰好就是宣讲会）
   }

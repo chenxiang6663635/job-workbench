@@ -6,7 +6,12 @@ import { STAGES, TERMINAL, type Application, type HistoryEntry } from "../api";
 import { HEALTH_META, STALE_DAYS, stageStyle } from "../lib/applicationMeta";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
-import { drillToJob, drillToTab } from "../lib/pageDrill";
+import {
+  drillToJob,
+  drillToTab,
+  PREPARE_TAB_KEY,
+  PROGRESS_TAB_KEY,
+} from "../lib/pageDrill";
 import { previewDeleteApplication } from "../lib/records";
 import DeleteRecordButton from "./DeleteRecordButton";
 import HistoryTimeline from "./HistoryTimeline";
@@ -247,21 +252,21 @@ export default function ApplicationRow({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => drillToTab("progress", "jobws_progress_tab", "interviews")}
+                  onClick={() => drillToTab("progress", PROGRESS_TAB_KEY, "interviews")}
                 >
                   {t("interview.add")}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => drillToTab("progress", "jobws_progress_tab", "contacts")}
+                  onClick={() => drillToTab("progress", PROGRESS_TAB_KEY, "contacts")}
                 >
                   {t("contact.add")}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => drillToTab("prepare", "jobws_prepare_tab", "talks")}
+                  onClick={() => drillToTab("prepare", PREPARE_TAB_KEY, "talks")}
                 >
                   {t("talk.add")}
                 </Button>

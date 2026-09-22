@@ -79,9 +79,9 @@ import check_themes  # noqa: E402
 import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
-from jobws_core import jd_score  # noqa: E402
 import _cli_bank  # noqa: E402  （题库的命令层；领域层在 question_bank.py，二者 2026-09-18 分离）
 import _cli_export  # noqa: E402  （导出：八张 CSV → Obsidian 笔记；只读工作区）
+import _cli_jd_score  # noqa: E402  （JD 评分命令层；领域层在 jobws_core.jd_score，二者 2026-09-21 分离）
 import prefs  # noqa: E402
 import release_assist  # noqa: E402
 from jobws_core import report  # noqa: E402
@@ -102,7 +102,7 @@ TARGETS = [
                         "import 从 03_面试准备 导入（写操作走两段式）"),
     ("report", report, "复盘与统计（转化率、停留时长、失败归因）"),
     ("resume", resume_build, "按岗位生成投递材料"),
-    ("jd", jd_score, "JD 解析与岗位评分"),
+    ("jd", _cli_jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
     ("export", _cli_export, "导出工作区（--obsidian：八张 CSV → Obsidian 笔记，每行一笔记）"),
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),

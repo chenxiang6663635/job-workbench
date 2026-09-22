@@ -405,6 +405,7 @@ const zhCN = {
   "app.expandTimeline": "展开详情",
   "app.collapseTimeline": "收起详情",
   "app.relatedMails": "关联邮件",
+  "app.quickLog": "快捷记录",
   "app.relatedMailsEmpty": "还没有关联邮件——在「进展 → 邮件」记录后会显示在这里",
   "app.relatedMailsFailed": "关联邮件加载失败：{{error}}",
   "app.roleMissing": "未填岗位",
@@ -1291,6 +1292,8 @@ const zhCN = {
   "settings.themeDelete": "删除",
   "settings.themeRename": "重命名",
   "settings.themeDeleted": "已删除",
+  "settings.themeDeleteConfirmTitle": "删除自定义主题？",
+  "settings.themeDeleteConfirmDesc": "「{{name}}」将被删除且不可撤销；内置主题不受影响。",
   "settings.themeReadFailed": "读不到当前主题变量（getComputedStyle 为空）",
   "settings.themeResetFromCurrent": "从当前主题重新开始",
   // 字体方案（4g → 2026-09-17 扩到 12 款界面 + 6 款等宽；批 4.6 加数字第三槽。

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Copy, Download, Pencil, Trash2, Upload } from "lucide-react";
+import { Check, Copy, Download, Upload } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import ThemePresetList from "./ThemePresetList";
 import { cn } from "../lib/utils";
 import {
   THEME_VAR_KEYS,
@@ -71,9 +72,6 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
   const [note, setNote] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [previewOn, setPreviewOn] = useState(true);
-  // 重命名（2026-09-17）：非空 = 该行处于行内编辑态
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameDraft, setRenameDraft] = useState("");
 
   useEffect(() => {
     setVars(readCurrentVars());
@@ -154,9 +152,8 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
     onSaved?.();
   };
 
-  const submitRename = (id: string, fallback: string) => {
-    renameCustomTheme(id, renameDraft.trim() || fallback);
-    setRenamingId(null);
+  const onRename = (id: string, draft: string, fallback: string) => {
+    renameCustomTheme(id, draft.trim() || fallback);
     onSaved?.();
   };
 
@@ -240,56 +237,7 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
         </Button>
       </div>
 
-      {customThemes.length > 0 && (
-        <div className="space-y-1 border-t border-border pt-3">
-          {customThemes.map((theme) => (
-            <div key={theme.id} className="flex items-center justify-between gap-2">
-              {renamingId === theme.id ? (
-                <>
-                  <Input
-                    value={renameDraft}
-                    onChange={(event) => setRenameDraft(event.target.value)}
-                    aria-label={t("settings.themeRename")}
-                    className="h-7 flex-1 text-xs"
-                  />
-                  <Button
-                    size="sm"
-                    className="h-7 shrink-0 px-2 text-[11px]"
-                    onClick={() => submitRename(theme.id, theme.label)}
-                  >
-                    {t("common.save")}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <span className="truncate text-xs text-foreground">{theme.label}</span>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRenamingId(theme.id);
-                        setRenameDraft(theme.label);
-                      }}
-                      className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:text-primary"
-                    >
-                      <Pencil size={11} aria-hidden="true" />
-                      {t("settings.themeRename")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(theme.id)}
-                      className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:text-destructive"
-                    >
-                      <Trash2 size={11} aria-hidden="true" />
-                      {t("settings.themeDelete")}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <ThemePresetList items={customThemes} onRename={onRename} onDelete={onDelete} />
 
       {note && <p className="text-[11px] text-muted-foreground">{note}</p>}
       {Object.keys(currentVars).length === 0 && (

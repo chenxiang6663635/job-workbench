@@ -10,6 +10,7 @@ import { previewDeleteApplication } from "../lib/records";
 import DeleteRecordButton from "./DeleteRecordButton";
 import HistoryTimeline from "./HistoryTimeline";
 import RecordMails from "./RecordMails";
+import { Button } from "./ui/button";
 import { Num } from "./ui/number";
 import {
   Select,
@@ -27,6 +28,19 @@ type Props = {
   onPatch: (body: Partial<Application>) => void;
   onReload: () => void;
 };
+
+// UX-4（体检）：行内入口对称——「记邮件」之外，面试 / 联系人 / 宣讲会也给一键落点。
+// 三个列表的增改表单都是内联形态（不是独立弹窗），这里只负责把用户送到正确页签：
+// 与看板下钻同一套 sessionStorage 协议（页签键由目标页 mount 时读一次即清；
+// 存储不可用就退化成只跳页面，落在默认页签）。键名与目标页自己的 DRILL_KEY 一致。
+function drillToTab(page: "progress" | "prepare", key: string, tab: string) {
+  try {
+    sessionStorage.setItem(key, tab);
+  } catch {
+    // 存储不可用：退化为只跳页面
+  }
+  window.location.hash = page;
+}
 
 export default function ApplicationRow({
   it,
@@ -219,6 +233,33 @@ export default function ApplicationRow({
                 {t("app.relatedMails")}
               </p>
               <RecordMails appId={it.id} />
+            </div>
+            {/* UX-4（体检）：行内入口对称——面试 / 联系人 / 宣讲会与「记邮件」并列 */}
+            <div className="mt-4 border-t border-border pt-3">
+              <p className="mb-2 text-xs font-medium text-foreground">{t("app.quickLog")}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => drillToTab("progress", "jobws_progress_tab", "interviews")}
+                >
+                  {t("interview.add")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => drillToTab("progress", "jobws_progress_tab", "contacts")}
+                >
+                  {t("contact.add")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => drillToTab("prepare", "jobws_prepare_tab", "talks")}
+                >
+                  {t("talk.add")}
+                </Button>
+              </div>
             </div>
             {/* 删除（批 D）：预览（含「将解绑的关联记录」清单）→
                 确认弹窗 → 凭令牌落盘 */}

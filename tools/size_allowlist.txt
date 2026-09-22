@@ -42,5 +42,7 @@ web/frontend/src/components/StatusUpdateDialog.tsx = 559  # 解析 → 建议 �
 web/frontend/src/components/MailList.tsx = 475  # 邮件列表 + 8 字段表单；2026-09-17 空态改 EmptyState 原语（469→475）
 
 web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（逐段确认）
-web/frontend/src/components/ThemeEditor.tsx = 307  # 主题编辑器（10 关键色 + 实时对比度 + 导入导出）；2026-09-17 加「复制 CSS」与重命名（越过 300；拆分列入后续重构）
+# ThemeEditor.tsx 原 307 行登记：2026-09-22 UX-5 把已存主题列表与删除确认拆出
+# 为 ThemePresetList.tsx（307→233，跌破 300 阈值）→ 按自洁规则删掉这一行。
+
 web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导入导出；2026-09-17 加 renameCustomTheme / exportThemeVarsAsCss 后越过 300（字体 / 字号已拆出到 fonts.ts；拆分列入后续重构）

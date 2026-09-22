@@ -383,6 +383,7 @@ export default {
   "app.expandTimeline": "Expand details",
   "app.collapseTimeline": "Collapse details",
   "app.relatedMails": "Related emails",
+  "app.quickLog": "Quick log",
   "app.relatedMailsEmpty": "No related emails yet — record them under Progress → Mail and they will appear here",
   "app.relatedMailsFailed": "Failed to load related emails: {{error}}",
   "app.roleMissing": "No role",
@@ -1211,6 +1212,9 @@ export default {
   "settings.themeDelete": "Delete",
   "settings.themeRename": "Rename",
   "settings.themeDeleted": "Deleted",
+  "settings.themeDeleteConfirmTitle": "Delete custom theme?",
+  "settings.themeDeleteConfirmDesc":
+    "\"{{name}}\" will be removed and cannot be undone. Built-in themes are unaffected.",
   "settings.themeReadFailed": "Could not read the current theme variables (getComputedStyle empty)",
   "settings.themeResetFromCurrent": "Restart from the active theme",
   // Typeface (4g → 2026-09-17 expanded to 12 UI + 6 mono families; batch 4.6 adds

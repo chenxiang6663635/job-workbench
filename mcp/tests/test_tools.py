@@ -176,6 +176,41 @@ def test_dashboard_summary_matches_backend_semantics(seeded):
     assert isinstance(data["conversion"], list) and data["conversion"]
 
 
+def test_dashboard_summary_reads_history_once_and_passes_own_entries(seeded, monkeypatch):
+    """P 批治理：时间线整表只读一次，且逐行只收「该 id 的条目」。
+
+    与后端 applications / dashboard 两处同款修复——MCP 这份此前也是每行全量遍历。
+    """
+    # 给 id=1 补一条时间线：验证「只收自己的条目」不是空对空
+    tracker.append_history([{"id": "1", "字段": "当前阶段",
+                             "原值": "待投", "新值": "一面"}], seeded)
+
+    reads = {"n": 0}
+    real_read = tracker.read_history
+
+    def counting_read(*args, **kwargs):
+        reads["n"] += 1
+        return real_read(*args, **kwargs)
+
+    seen = []
+    real_stale = tracker.stale_days
+
+    def capturing_stale(row, entries, today=None):
+        seen.append(((row.get("id") or "").strip(), [e.get("id", "") for e in entries]))
+        return real_stale(row, entries, today)
+
+    monkeypatch.setattr(tracker, "read_history", counting_read)
+    monkeypatch.setattr(tracker, "stale_days", capturing_stale)
+
+    tools_readonly.dashboard_summary(seeded, today=TODAY)
+
+    assert reads["n"] == 1, "时间线应整表只读一次"
+    assert len(seen) == 2, "两行非终态各判一次 stale_days（第三行是终态，先跳过）"
+    assert any(ids for _, ids in seen), "夹具没造出时间线条目——捕获网没验到东西"
+    for row_id, entry_ids in seen:
+        assert all(eid == row_id for eid in entry_ids), (row_id, entry_ids)
+
+
 # --- 工作区解析（安全边界） --------------------------------------------------
 
 def test_resolve_workspace_default_and_env(ws, monkeypatch):

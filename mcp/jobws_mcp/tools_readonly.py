@@ -210,6 +210,9 @@ def dashboard_summary(workspace, today=None, stale_days=None):
     """
     rows = tracker.read_rows(workspace)
     history = tracker.read_history(workspace)
+    # 索引一次：stale_days / health_score 逐行只收「该 id 的条目」——P 批治理，
+    # 与后端 applications / dashboard 同款（此前每行各自全量遍历时间线）
+    by_id = tracker.history_by_id(history)
     today = today or date.today()
     if stale_days is None:
         stale_days = tracker.STALE_DAYS
@@ -256,10 +259,11 @@ def dashboard_summary(workspace, today=None, stale_days=None):
     for row in rows:
         if (row.get("当前阶段") or "").strip() in terminal:
             continue
-        days = tracker.stale_days(row, history, today)
+        own = by_id.get((row.get("id") or "").strip(), [])
+        days = tracker.stale_days(row, own, today)
         if days is None or days < stale_days:
             continue
-        base = tracker.stage_base_date(row, history)
+        base = tracker.stage_base_date(row, own)
         stale.append({
             "id": (row.get("id") or "").strip(),
             "公司": (row.get("公司") or "").strip(),
@@ -272,7 +276,8 @@ def dashboard_summary(workspace, today=None, stale_days=None):
 
     pending = []
     for row in rows:
-        health = tracker.health_score(row, history, today)
+        own = by_id.get((row.get("id") or "").strip(), [])
+        health = tracker.health_score(row, own, today)
         if health["level"] in (None, "ok"):
             continue
         pending.append({

@@ -40,9 +40,9 @@ SCAN_DIRS = ("tools", "web/backend", "mcp", "tests", "scripts", "packages")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", ".venv"}
 
 # shim 自身不算调用点：它们就是被观测对象的别名文件。
-# （filelock / workspace_io 的 shim 已于 2026-09-19 A-4 删除——旧名清零。）
+# （filelock / workspace_io 的 shim 已于 2026-09-19 A-4 删除——旧名清零；
+#  pathres.py 条目已于 2026-09-21 H-3 批删除——该文件早已随之删除。）
 SKIP_FILES = {
-    os.path.join("web", "backend", "pathres.py"),
     os.path.join("tools", "tracker", "__init__.py"),
     os.path.join("tools", "approval.py"),
 }

@@ -20,13 +20,14 @@
 # 这两个的最终水位**不是「没改完」**，而是**改不动**——剩下的调用点在两类位置上，
 # 改新名会破坏被测对象：
 #   ① **跨层测试**：`test_tracker_facade.py` 专测旧名门面契约（含留仓的 `_cli*`）；
-#      `test_talks.py` / `test_mails.py` / `test_cli_surface.py` 走 CLI 侧（`_cli*`
-#      只存在于留仓的 `tools/tracker/`）；`test_approval*.py` / `test_workspaces_api.py`
+#      `test_cli_surface.py` 走统一入口的 CLI 面（`_cli*` 只存在于留仓的
+#      `tools/tracker/`）；`test_approval*.py` / `test_workspaces_api.py`
 #      / `test_prep_toggle.py` 给**仓内** approval 的令牌目录打桩、断言它那张登记表。
 #   ② **转发层自身与其入口**：`tools/jobws.py` 的 `track` 分发要的是留仓 CLI 的 `main`。
 # 改新名会让它们测到包内实现、打桩打空——正是本项目反复记的那条教训：
 # 「patch 要打到**调用点所在的模块**」。
-tracker = 11  # 49 → 11：产品代码全部改新名，余下的是上面两类
+tracker = 9  # 49 → 11 → 9：产品代码全部改新名；2026-09-21 H-3 批修正归因——
+             # test_talks / test_mails 原先被记成「走 CLI 侧」，实测只调包内函数、改新名全绿，已改
 approval = 9  # 26 → 9：8 处跨层/转发层 + **1 处后端 apply 入口**
               # （`web/backend/routers/approvals.py` 需要**完整**登记表——`prep.toggle`
               #  与 `init` 按设计留仓登记，包内只有十一个；用包内壳会让笔记勾选框写回

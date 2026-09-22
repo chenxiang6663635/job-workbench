@@ -133,6 +133,8 @@ personal/         个人事实；已 gitignore，0 个跟踪文件，历史经 f
 
 **位置**：`tools/filelock.py`（70 行，**被 0 个测试文件引用**）
 
+> **时点注记（2026-09-22）**：本节是 2026-09-16 的快照，`tools/filelock.py` 此后已搬进领域包（`jobws_core.filelock`），路径与引用数都已过时；结论（"加锁行为本身需要真并发测试"）是否被后续批次兑现，请查当期 `tests/` 与 CHANGELOG，不要按本节的行号去找文件。
+
 **证据**：
 - `grep -rn "file_lock" tests/` → 仅 `test_approval_flow.py:291-308` 用 **spy 替换**验证「调用发生了」，**从未测试加锁行为本身**。
 - 无任何并发竞争测试（`Thread`/`concurrent` 在 tests/ 中只命中 2 个无关文件）。

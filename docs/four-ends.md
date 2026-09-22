@@ -7,11 +7,13 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
+**基数（随本文件自动生成）**：登记能力 **42** 条、各端不提供的例外 **61** 条、错误标识 **9** 条、宿主专属字段 **7** 条。
+
 ## 能力矩阵
 
 | 阶段 | 能力 | 命令行 | AI 宿主（MCP） | 插件 | 桌面端 |
 |---|---|---|---|---|---|
-| JD 解析 | `jd.score` | `jd` | `score_jd` | `jd` | `GET /api/jobs/{job_id}/gap` |
+| JD 解析 | `jd.score` | `jd` | `score_jd` | `jd` | — |
 | JD 解析 | `jd.fetch` | — | — | — | `POST /api/jobs/fetch-jd` |
 | 岗位池 | `job.list` | — | `list_jobs` | `resume-jd-gap` | `GET /api/jobs` |
 | 岗位池 | `job.create` | — | — | — | `POST /api/jobs` |
@@ -23,9 +25,13 @@
 | 投递 | `application.check` | `track check` | — | — | — |
 | 跟进 | `mail.record` | `track mail` | — | — | `POST /api/progress/mails` |
 | 跟进 | `imap.fetch` | — | — | — | `POST /api/imap/fetch` |
+| 跟进 | `mail.update` | `track mail update` | — | — | `PATCH /api/progress/mails/{mail_id}` |
 | 跟进 | `contact.record` | `track contact` | — | — | `POST /api/progress/contacts` |
+| 跟进 | `contact.update` | `track contact update` | — | — | `PATCH /api/progress/contacts/{contact_id}` |
 | 跟进 | `talk.record` | `track talk` | — | — | `POST /api/progress/talks` |
+| 跟进 | `talk.update` | `track talk update` | — | — | `PATCH /api/progress/talks/{talk_id}` |
 | 跟进 | `offer.record` | `track offer` | — | — | `POST /api/progress/offers` |
+| 跟进 | `offer.update` | `track offer update` | — | — | `PATCH /api/progress/offers/{offer_id}` |
 | 面试 | `interview.list` | `track interview` | `list_interviews` | `retro` | `GET /api/progress/interviews` |
 | 面试 | `interview.add` | `track interview` | `preview_add_interview` | — | `POST /api/progress/interviews` |
 | 面试 | `interview.update` | `track interview` | `preview_update_interview` | — | `PATCH /api/progress/interviews/{interview_id}` |

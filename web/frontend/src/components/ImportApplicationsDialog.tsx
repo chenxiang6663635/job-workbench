@@ -19,6 +19,7 @@ import { Button } from "./ui/button";
 import { Textarea } from "./ui/input";
 import { ErrorBanner } from "./ErrorBanner";
 import { EmptyState } from "./ui/empty";
+import { announce } from "../lib/announce";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 interface Props {
@@ -182,6 +183,9 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
     api
       .applyApproval(token)
       .then(() => {
+        // UX-6：批量写入完成后表格会整片变化，读屏用户得到的只有一片沉默——
+        // 播报一句「导了多少条」，把结果的规模说出来。
+        announce(t("app.importedCount", { count: preview?.counts.ok ?? 0 }));
         onImported();
         onClose();
       })

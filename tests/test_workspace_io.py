@@ -150,6 +150,104 @@ def test_default_tracked_dirs_include_fact_base(tmp_path):
     assert workspace_io.dir_fingerprint(str(workspace)) != first
 
 
+def test_dir_fingerprint_short_circuits_when_unchanged(tmp_path, monkeypatch):
+    """P 批：两级门都过时不再走目录扫描（10s 轮询的成本大头），指纹不变。"""
+    workspace = tmp_path / "ws"
+    tracking = workspace / "05_投递追踪"
+    tracking.mkdir(parents=True)
+    (tracking / "tracker.csv").write_text("id\nA001\n", encoding="utf-8")
+    first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
+
+    calls = {"n": 0}
+    real_walk = os.walk
+
+    def counting_walk(*args, **kwargs):
+        calls["n"] += 1
+        return real_walk(*args, **kwargs)
+
+    monkeypatch.setattr(workspace_io.os, "walk", counting_walk)
+    again = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
+
+    assert again == first
+    assert calls["n"] == 0, "状态未变时不该再走目录扫描（两级短路失效）"
+
+
+def test_dir_fingerprint_detects_in_place_append(tmp_path):
+    """in-place 追加不改目录 mtime：二级门（逐文件 stat）必须兜住这类改动。"""
+    workspace = tmp_path / "ws"
+    tracking = workspace / "05_投递追踪"
+    tracking.mkdir(parents=True)
+    path = tracking / "history.csv"
+    path.write_text("时间,id\n", encoding="utf-8")
+    first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
+
+    time.sleep(0.01)
+    with io.open(str(path), "a", encoding="utf-8") as handle:
+        handle.write("2026-09-21,A001\n")
+
+    assert workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"]) != first
+
+
+def test_dir_fingerprint_detects_new_file_in_subdir(tmp_path):
+    """缓存之后，子目录里新落一个文件也必须被发现（一级门：目录 mtime）。"""
+    workspace = tmp_path / "ws"
+    notes = workspace / "03_面试准备" / "技术面"
+    notes.mkdir(parents=True)
+    (notes / "tcp.md").write_text("# TCP", encoding="utf-8")
+    first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["03_面试准备"])
+
+    time.sleep(0.01)
+    (notes / "udp.md").write_text("# UDP", encoding="utf-8")
+
+    assert workspace_io.dir_fingerprint(str(workspace), rel_dirs=["03_面试准备"]) != first
+
+
+def test_dir_fingerprint_ttl_forces_rescan_when_dir_mtime_lies(tmp_path, monkeypatch):
+    """目录 mtime 不可信时，TTL 是最后一道防线（独立审查 M2）。
+
+    一级门把「有没有增删文件」押在目录 mtime 上；在 SMB / exFAT 这类介质上它可能
+    根本不动。这里手工把目录 mtime 按回原值，模拟那种说谎的介质：
+    - 有 TTL → 过期后强制全量重扫，新增文件一定被发现；
+    - 没有 TTL → 指纹停在旧值，外部改动再也不触发刷新（最坏情况不是延迟，是停摆）。
+
+    顺带断言另一件事：TTL 未过期**且**两级门都通过时仍然短路（缓存不是被废掉）。
+    """
+    monkeypatch.setattr(workspace_io, "_FP_CACHE_TTL", 0.0)  # 每轮都全量
+    workspace = tmp_path / "ws"
+    notes = workspace / "03_面试准备"
+    notes.mkdir(parents=True)
+    (notes / "tcp.md").write_text("# TCP", encoding="utf-8")
+    first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["03_面试准备"])
+
+    frozen = os.stat(str(notes)).st_mtime_ns
+    (notes / "udp.md").write_text("# UDP", encoding="utf-8")
+    os.utime(str(notes), ns=(frozen, frozen))  # 目录 mtime 说谎：装作没变过
+
+    assert workspace_io.dir_fingerprint(str(workspace), rel_dirs=["03_面试准备"]) != first
+
+
+def test_dir_fingerprint_cache_still_short_circuits_within_ttl(tmp_path, monkeypatch):
+    """TTL 之内且状态未变：仍然一次 walk 都不走（缓存没有被 TTL 废掉）。"""
+    workspace = tmp_path / "ws"
+    tracking = workspace / "05_投递追踪"
+    tracking.mkdir(parents=True)
+    (tracking / "tracker.csv").write_text("id\nA001\n", encoding="utf-8")
+    first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
+
+    calls = {"n": 0}
+    real_walk = os.walk
+
+    def counting_walk(*args, **kwargs):
+        calls["n"] += 1
+        return real_walk(*args, **kwargs)
+
+    monkeypatch.setattr(workspace_io.os, "walk", counting_walk)
+    again = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
+
+    assert again == first
+    assert calls["n"] == 0, "TTL 之内状态未变，不该回退到全量扫描"
+
+
 # --- 锁名工厂 --------------------------------------------------------------
 
 

@@ -119,6 +119,24 @@ def apply_state(row):
     return "已终态" if stage in tracker.TERMINAL_STAGES else "流程中"
 
 
+def match_keyword(item, keyword, fields=("company", "role", "dir")):
+    """岗位条目的关键词筛选：**小写子串**，命中任一字段即算。
+
+    与追踪表列表的关键词筛选同一口径——两个列表在用户眼里都是「一个搜索框」，
+    同样的输入不该一个查得到另一个查不到。岗位池没有「备注」列，第三个字段取
+    **目录名**（`公司_岗位`）：它顺带覆盖公司 / 岗位的前段，也最接近用户会敲的东西。
+    """
+    if not keyword:
+        return True
+    k = keyword.strip().lower()
+    if not k:
+        return True
+    for field in fields:
+        if k in (item.get(field) or "").lower():
+            return True
+    return False
+
+
 def applications_by_key(workspace=None):
     """`{dedup_key: row}` 索引，供岗位池按 (公司, 岗位) 查出投递状态。
 

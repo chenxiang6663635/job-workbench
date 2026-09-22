@@ -59,6 +59,9 @@ def test_classify_splits_logic_and_data():
     assert check_size.classify("web/backend/routers/progress/questions.py") == "logic"
     assert check_size.classify("tests/test_tracker.py") == "data"
     assert check_size.classify("web/frontend/src/i18n/locales/zh-CN.ts") == "data"
+    # 纯声明区（H-2a 批自 api.ts 外移）按数据·声明型计：80+ 个声明平铺，
+    # 按 300 行拆碎只会把 import 路径打散
+    assert check_size.classify("web/frontend/src/lib/domainTypes.ts") == "data"
     assert check_size.limit_for("logic") == 300
     assert check_size.limit_for("data") == 1500
 

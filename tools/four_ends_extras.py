@@ -133,6 +133,13 @@ def render_doc(matrix):
         "题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见"
         "矩阵源的 `_meta.write_rule`。",
         "",
+        # 基数（FC-1）：此前口头与文档里出现过与真值不符的条数，根因是**手写**。
+        # 改成随真值现算：能力 / 例外 / 错误码的条数永远是这一版矩阵自己的数字。
+        "**基数（随本文件自动生成）**：登记能力 **%d** 条、各端不提供的例外 **%d** 条、"
+        "错误标识 **%d** 条、宿主专属字段 **%d** 条。"
+        % (len(matrix.get("capabilities", [])), len(matrix.get("exceptions", [])),
+           len(matrix.get("error_map", [])), len(matrix.get("host_fields", []))),
+        "",
         "## 能力矩阵",
         "",
         "| 阶段 | 能力 | 命令行 | AI 宿主（MCP） | 插件 | 桌面端 |",

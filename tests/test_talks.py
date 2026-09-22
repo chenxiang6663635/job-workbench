@@ -23,7 +23,7 @@ for _path in (os.path.join(ROOT, "tools"), os.path.join(ROOT, "web", "backend"))
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-import tracker  # noqa: E402
+from jobws_core import tracker  # noqa: E402
 
 
 def _ws(tmp_path):

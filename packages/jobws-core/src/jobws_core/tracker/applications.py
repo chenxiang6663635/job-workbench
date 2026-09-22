@@ -40,6 +40,20 @@ def read_history(workspace=None, app_id=None):
     return rows
 
 
+def history_by_id(entries):
+    """按 id 归组时间线条目——列表端点 O(行数 × 条目数) 扫描的索引化入口。
+
+    子集与原列表在消费函数（_history_date / stage_base_date / health_score）
+    下语义一致：它们都先按 entry["id"] 过滤，传子集等价于传全量
+    （2026-09-21 P 批治理：此前每行各自全量遍历一次）。
+    """
+    grouped = {}
+    for entry in entries:
+        key = (entry.get("id") or "").strip()
+        grouped.setdefault(key, []).append(entry)
+    return grouped
+
+
 
 def append_history(entries, workspace=None):
     """追加变更条目。entries 为字典列表，键为 id / 字段 / 原值 / 新值。

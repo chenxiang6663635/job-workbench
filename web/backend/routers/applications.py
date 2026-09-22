@@ -119,13 +119,17 @@ def _with_stage_days(rows, ws):
     附加字段混进去虽会被 extrasaction 忽略，但让它根本不出现更安全。
     """
     entries = tracker.read_history(ws)
+    # 索引一次：stale_days / health_score 都以「该 id 的条目」为输入，逐行传子集
+    # 把 O(行数 × 条目数) 的全量扫描降为 O(条目数)（P 批治理，2026-09-21）
+    by_id = tracker.history_by_id(entries)
     out = []
     for row in rows:
         item = dict(row)
-        days = tracker.stale_days(row, entries)
+        own = by_id.get((row.get("id") or "").strip(), [])
+        days = tracker.stale_days(row, own)
         item["stageDays"] = days if days is not None else ""
         # 健康度与健康度理由：给理由不给黑箱分数，前端逐条照抄展示
-        item["health"] = tracker.health_score(row, entries)
+        item["health"] = tracker.health_score(row, own)
         out.append(item)
     return out
 

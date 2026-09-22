@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarClock, Mail, Scale, Users } from "lucide-react";
 import ContactList from "../components/ContactList";
 import InterviewList from "../components/InterviewList";
@@ -22,15 +22,59 @@ const SUBTABS: { key: SubTab; labelKey: TranslationKey; icon: React.ReactNode }[
   { key: "offers", labelKey: "progress.offers", icon: <Scale size={15} /> },
 ];
 
+// 下钻 + 记忆：与「准备」页同一套协议——写方（看板 / 邮件台账等）往 sessionStorage
+// 写「要落在哪个页签」再跳 `#progress`，本页 mount 时读一次即清；localStorage 记
+// 「上次停留」——指纹刷新会整页 reload，不记住就把用户打回第一个页签（UX-2）。
+const DRILL_KEY = "jobws_progress_tab";
+const LAST_KEY = "jobws_progress_tab_last";
+
+const TAB_KEYS = ["interviews", "mails", "contacts", "offers"] as const;
+
+function readTab(key: string, kind: "session" | "local"): SubTab | null {
+  try {
+    const storage = kind === "session" ? sessionStorage : localStorage;
+    const raw = storage.getItem(key);
+    if (raw && (TAB_KEYS as readonly string[]).includes(raw)) {
+      return raw as SubTab;
+    }
+  } catch {
+    // 存储不可用：退回默认页签（不值得因此让页面挂掉）
+  }
+  return null;
+}
+
 export default function Progress() {
   const { t } = useTranslation();
-  const [sub, setSub] = useState<SubTab>("interviews");
+  // 初值：下钻（一次性指令）优先，其次上次停留，最后默认「面试」
+  const [sub, setSub] = useState<SubTab>(
+    () => readTab(DRILL_KEY, "session") ?? readTab(LAST_KEY, "local") ?? "interviews"
+  );
+
+  // 下钻只生效一次：读过就清，否则下次从导航进来还会停在旧页签
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(DRILL_KEY);
+    } catch {
+      // 存储不可用：无妨
+    }
+  }, []);
+
+  // 页签切换即记忆——reload（外部编辑 / 写回触发的指纹刷新）后回到原页签
+  const onTabChange = (value: string) => {
+    const next = value as SubTab;
+    setSub(next);
+    try {
+      localStorage.setItem(LAST_KEY, next);
+    } catch {
+      // 存储不可用：记忆失效无妨（不影响使用）
+    }
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader title={t("nav.progress")} description={t("progress.subtitle")} />
 
-      <Tabs value={sub} onValueChange={(v) => setSub(v as SubTab)}>
+      <Tabs value={sub} onValueChange={onTabChange}>
         <TabsList>
           {/* 参数不能叫 t：会遮蔽 useTranslation 给的翻译函数（骨架那批踩过同一个坑） */}
           {SUBTABS.map((item) => (

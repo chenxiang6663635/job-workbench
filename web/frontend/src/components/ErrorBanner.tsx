@@ -34,11 +34,14 @@ const TONES = {
 export function ErrorBanner({
   message,
   onClose,
+  onRetry,
   tone = "error",
   className,
 }: {
   message: string;
   onClose?: () => void;
+  /** UX-1：失败态附带「重试」——把自救入口收进提示条本身，调用方不再各摆一个按钮 */
+  onRetry?: () => void;
   tone?: "error" | "warning" | "success";
   className?: string;
 }) {
@@ -51,6 +54,15 @@ export function ErrorBanner({
     >
       <Icon size={16} className={cn("mt-0.5 shrink-0", iconCls)} />
       <span className="flex-1 leading-relaxed">{message}</span>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="shrink-0 cursor-pointer self-center text-xs font-medium underline underline-offset-2 opacity-80 transition-opacity hover:opacity-100"
+        >
+          {t("common.retry")}
+        </button>
+      )}
       {onClose && (
         <button
           type="button"

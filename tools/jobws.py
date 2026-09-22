@@ -5,10 +5,11 @@
 几十处 `python tools/xxx.py`；一个入口之后，用户只需记住 `jobws`，迁移对照表
 见 CHANGELOG 与 Release 说明。
 
-**刻意保留的一件事**：各脚本的 argparse 与 `main()` 都留在原处（**唯一例外**：
-`bank` 的命令层 2026-09-18 与领域模块分离，在 `tools/_cli_bank.py`——领域层
-`question_bank.py` 不再连带 argparse），jobws 只做第一层分发——把剩余参数
-**原样转发**给对应模块。这样：
+**刻意保留的一件事**：各脚本的 argparse 与 `main()` 都留在原处（**例外**：
+与领域模块分离的命令层——`bank` 于 2026-09-18 拆到 `tools/_cli_bank.py`，
+`jd` / `resume` 于 2026-09-21 H 批拆到 `tools/_cli_jd_score.py` /
+`tools/_cli_resume.py`，对应领域层不再连带 argparse），jobws 只做第一层分发——
+把剩余参数**原样转发**给对应模块。这样：
 
 - 参数名、子命令、退出码（0 通过 / 1 业务失败 / 2 用法或配置错误）**一字不改**，
   `tests/test_cli_surface.py` 那张安全网可以平移过来继续钉；
@@ -79,13 +80,13 @@ import check_themes  # noqa: E402
 import check_ui_tokens  # noqa: E402
 import init_workspace  # noqa: E402
 import install_skills  # noqa: E402
-from jobws_core import jd_score  # noqa: E402
 import _cli_bank  # noqa: E402  （题库的命令层；领域层在 question_bank.py，二者 2026-09-18 分离）
 import _cli_export  # noqa: E402  （导出：八张 CSV → Obsidian 笔记；只读工作区）
+import _cli_jd_score  # noqa: E402  （JD 评分命令层；领域层在 jobws_core.jd_score，二者 2026-09-21 分离）
 import prefs  # noqa: E402
 import release_assist  # noqa: E402
 from jobws_core import report  # noqa: E402
-import resume_build  # noqa: E402
+import _cli_resume  # noqa: E402  （简历 PDF 命令层；渲染 / 校验领域函数在 resume_build.py）
 # 这里**只能**用旧名：`jobws track` 要的是留仓 CLI 的 `main`（在 `_cli_misc` 里），
 # 而包内真身没有它。shim 会发废弃告警，但那条告警对**本入口是误报**——`jobws track`
 # 本来就该走它（真正该被劝退的是直跑 `python tools/tracker.py` 的人）。CLI 契约要求
@@ -101,8 +102,8 @@ TARGETS = [
     ("bank", _cli_bank, "题库：list 查、add 加题、update 改题、delete 删题/批量撤回、"
                         "import 从 03_面试准备 导入（写操作走两段式）"),
     ("report", report, "复盘与统计（转化率、停留时长、失败归因）"),
-    ("resume", resume_build, "按岗位生成投递材料"),
-    ("jd", jd_score, "JD 解析与岗位评分"),
+    ("resume", _cli_resume, "按岗位生成投递材料"),
+    ("jd", _cli_jd_score, "JD 解析与岗位评分"),
     ("init", init_workspace, "初始化工作区（--demo 铺示例数据）"),
     ("export", _cli_export, "导出工作区（--obsidian：八张 CSV → Obsidian 笔记，每行一笔记）"),
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),

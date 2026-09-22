@@ -3,11 +3,9 @@
 // hooks/useWorkspaceSync.ts 同一条理由）。落盘仍复用 `api.applyApproval`——
 // 写通道全站只有一条，不在这里另开。
 //
-// 因此这里自带一份极薄的 GET 封装：ws 参数与错误本地化都照 api.ts 的口径，
-// **不另立标准**（后端错误码 → `err.<code>` 文案，查不到才回落 detail）。
-import i18n from "../i18n";
-import { currentWorkspace } from "../api";
+// HTTP 封装用 lib/http.ts 的单一实现（H-1 批：四处副本合一，不再自带）。
 import type { BankRow } from "./bank";
+import { requestJson } from "./http";
 
 // 数据值，不翻译：标签里的「错题」就是 CSV 里的真实取值（与 due / wrong 的口径同源）。
 // 拿翻译串去比会随界面语言漂移——中文界面标的错题，英文界面就认不出来了。
@@ -78,48 +76,6 @@ export type PreviewToken = {
   expiresAt: number;
 };
 
-function humanize(raw: string, status: number): string {
-  try {
-    const parsed = JSON.parse(raw) as {
-      detail?: string;
-      error_code?: string;
-      error_params?: Record<string, unknown>;
-    };
-    const code = typeof parsed.error_code === "string" ? parsed.error_code : "";
-    if (code) {
-      const key = `err.${code}`;
-      if (i18n.exists(key)) {
-        const params: Record<string, string> = {};
-        for (const [k, v] of Object.entries(parsed.error_params ?? {})) {
-          params[k] = String(v);
-        }
-        return i18n.t(key, params);
-      }
-    }
-    if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail;
-  } catch {
-    /* 不是 JSON：回落原文 */
-  }
-  if (!raw.trim()) return i18n.t("api.requestFailed", { status });
-  return raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
-}
-
-async function requestDrill<T>(path: string): Promise<T> {
-  const sep = path.includes("?") ? "&" : "?";
-  const qs = currentWorkspace ? `${sep}ws=${encodeURIComponent(currentWorkspace)}` : "";
-  const res = await fetch(`/api${path}${qs}`);
-  if (!res.ok) throw new Error(humanize(await res.text(), res.status));
-  // 工作区自检（与 api.ts 的 issue #22 修复同口径）：后端回显本次实际服务的工作区，
-  // 与所选不一致就报错——静默把**别的工作区**的题当成你的题，比报错严重得多。
-  const served = res.headers.get("X-Jobws-Workspace");
-  if (currentWorkspace && served && served !== currentWorkspace) {
-    throw new Error(
-      i18n.t("api.workspaceMismatch", { requested: currentWorkspace, served })
-    );
-  }
-  return (await res.json()) as T;
-}
-
 /** 抽一轮题（只读）。筛选由后端做，与列表页 / CLI 同一口径。 */
 export function fetchDrill(params: {
   mode: DrillMode;
@@ -132,13 +88,13 @@ export function fetchDrill(params: {
   if (params.domain?.trim()) q.set("domain", params.domain.trim());
   if (params.subject?.trim()) q.set("subject", params.subject.trim());
   if (params.keyword?.trim()) q.set("q", params.keyword.trim());
-  return requestDrill<DrillResult>(`/progress/questions/drill?${q.toString()}`);
+  return requestJson<DrillResult>(`/progress/questions/drill?${q.toString()}`);
 }
 
 /** 标 / 取消标错题的预览（领域层重算标签 → 令牌；落盘走 applyApproval）。 */
 export function previewMarkWrong(id: string, on: boolean): Promise<PreviewToken> {
   const q = new URLSearchParams({ id, on: on ? "1" : "0" });
-  return requestDrill<PreviewToken>(
+  return requestJson<PreviewToken>(
     `/progress/questions/preview-wrong?${q.toString()}`
   );
 }

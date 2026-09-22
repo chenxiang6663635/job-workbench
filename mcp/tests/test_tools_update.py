@@ -25,7 +25,7 @@ if MCP_DIR not in sys.path:
 
 from jobws_mcp import tools_writable  # noqa: E402
 
-from jobws_core import approval  # noqa: E402  （tools/ 已由 jobws_mcp.paths 加进 sys.path）
+from jobws_core import approval  # noqa: E402
 from jobws_core import tracker  # noqa: E402
 
 

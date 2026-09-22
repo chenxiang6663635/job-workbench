@@ -458,6 +458,8 @@ export default {
   "job.emptyPool": "The job pool is empty",
   "job.emptyFilteredHint": "Either the pool is genuinely empty or everything was filtered out — switch back to “{{all}}”, or add a job.",
   "job.emptyPoolHint": "Use “{{action}}” to paste a JD, then have the AI build a parsing card to see the match score.",
+  "job.emptySearch": "No jobs match “{{q}}”",
+  "job.emptySearchHint": "Try another keyword, or clear the search box to see all jobs.",
   "job.splitDirFailed": "Directory “{{dir}}” does not split into a company and a role (the key is the directory name, split at the first underscore) — please add it from the tracker instead",
   "job.fetchNeedCompanyRole": "Fill in company and role before fetching (they decide which job directory the JD lands in)",
 

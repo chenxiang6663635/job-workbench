@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, Inbox, Loader2, Plus, Search } from "lucide-react";
 import {
@@ -124,18 +124,30 @@ export default function Jobs() {
     投递日期: today(),
   });
 
+  // 只看最后一次请求的结果：300ms 防抖之外仍可能乱序返回（改关键词后旧响应后到，
+  // 会把新结果盖掉，列表与关键词对不上）。序号守卫即可，不动 http 层签名
+  // （2026-09-22 审查 MINOR）。
+  const loadSeq = useRef(0);
+
   const load = () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     api
       .listJobs({ sort, order, status, q })
       .then(
         (r) => {
+          if (seq !== loadSeq.current) return; // 过期响应：丢弃
           setItems(r.items);
           setError(null); // 重新拉到数据就撤掉上一次的报错，别让旧错误条常驻
         },
-        (e: Error) => setError(e.message)
+        (e: Error) => {
+          if (seq !== loadSeq.current) return;
+          setError(e.message);
+        }
       )
-      .then(() => setLoading(false));
+      .then(() => {
+        if (seq === loadSeq.current) setLoading(false);
+      });
   };
 
   useEffect(load, [sort, order, status, q]);
@@ -242,6 +254,24 @@ export default function Jobs() {
         setApplying(null);
       });
   };
+
+  // 空态文案在这里分支（避免三层嵌套三元）：搜索无匹配 ≠ 筛选筛空了 ≠ 岗位池本来就空，
+  // 三者要说清各自"下一步"（2026-09-22 审查 MINOR）。
+  const emptyCopy = (() => {
+    if (q) {
+      return { title: t("job.emptySearch", { q }), hint: t("job.emptySearchHint") };
+    }
+    if (status) {
+      return {
+        title: t("job.emptyFiltered"),
+        hint: t("job.emptyFilteredHint", { all: t("job.allStatus") }),
+      };
+    }
+    return {
+      title: t("job.emptyPool"),
+      hint: t("job.emptyPoolHint", { action: t("job.newJob") }),
+    };
+  })();
 
   if (detail) {
     return (
@@ -447,14 +477,12 @@ export default function Jobs() {
         </div>
       ) : items.length === 0 ? (
         <Card>
+          {/* 三种空态分开说：搜索无匹配 ≠ 筛选筛空了 ≠ 岗位池本来就空。
+              原先搜索无命中会落到「岗位池还是空的」，是误导性提示（2026-09-22 审查 MINOR） */}
           <EmptyState
             icon={<Inbox size={20} />}
-            title={status ? t("job.emptyFiltered") : t("job.emptyPool")}
-            description={
-              status
-                ? t("job.emptyFilteredHint", { all: t("job.allStatus") })
-                : t("job.emptyPoolHint", { action: t("job.newJob") })
-            }
+            title={emptyCopy.title}
+            description={emptyCopy.hint}
           />
         </Card>
       ) : (

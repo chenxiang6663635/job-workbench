@@ -489,6 +489,8 @@ const zhCN = {
   "job.emptyPool": "岗位池还是空的",
   "job.emptyFilteredHint": "可能是岗位池本来就空，也可能是都被筛掉了：切回「{{all}}」看看，或新建一个岗位。",
   "job.emptyPoolHint": "点击「{{action}}」粘贴一份 JD，随后让 AI 生成解析卡，即可看到匹配度评分。",
+  "job.emptySearch": "没有匹配「{{q}}」的岗位",
+  "job.emptySearchHint": "换个关键词试试，或清空搜索框回到全部岗位。",
   // 目录名拆不出公司+岗位时，一键投递必须把话说清楚（更要紧的是别让用户白填一屏）
   "job.splitDirFailed": "目录「{{dir}}」拆不出完整的公司与岗位（关联键 = 目录名，按首个下划线拆分），请到追踪表手动新增",
   "job.fetchNeedCompanyRole": "抓取前先填公司与岗位（决定 JD 存在哪个岗位目录）",

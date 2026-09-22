@@ -88,6 +88,14 @@ test("岗位池搜索：输入关键词只剩匹配岗位（FC-8）", async ({ p
   // 清空即恢复全量：筛过之后还得回得来
   await box.fill("");
   await expect(yunfan).toBeVisible();
+
+  // 无匹配：必须说"没有匹配"，不能落回"岗位池是空的"（2026-09-22 审查 MINOR 笔 3）
+  await box.fill("zzz-no-such-job");
+  await expect(page.getByText(/No jobs match/)).toBeVisible();
+  await expect(page.getByText("The job pool is empty")).not.toBeVisible();
+
+  await box.fill("");
+  await expect(yunfan).toBeVisible();
 });
 
 test("删除自定义主题：先确认，点一次不落盘（UX-5）", async ({ page }) => {

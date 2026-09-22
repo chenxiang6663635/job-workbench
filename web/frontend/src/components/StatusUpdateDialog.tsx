@@ -197,7 +197,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
               value={manualId || NONE}
               onValueChange={(v) => setManualId(v === NONE ? "" : v)}
             >
-              <SelectTrigger className="w-72">
+              <SelectTrigger aria-label={t("status.pickRecord")} className="w-72">
                 <SelectValue placeholder={t("status.pickRecord")} />
               </SelectTrigger>
               <SelectContent>

@@ -111,7 +111,7 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
               value={String(sinceDays)}
               onValueChange={(v) => setSinceDays(Number(v))}
             >
-              <SelectTrigger className="h-8 w-32 text-xs">
+              <SelectTrigger aria-label={t("imap.rangeLabel")} className="h-8 w-32 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

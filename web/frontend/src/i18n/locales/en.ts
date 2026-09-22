@@ -646,6 +646,7 @@ export default {
   "imap.range30": "Last 30 days",
   "imap.range90": "Last 90 days",
   "imap.rangeAny": "Any time",
+  "imap.rangeLabel": "Fetch range",
   "imap.filterPlaceholder": "Filter out noise by subject / sender / body",
   "imap.refetch": "Fetch again",
   "imap.fetching": "Fetching (read-only connection)...",

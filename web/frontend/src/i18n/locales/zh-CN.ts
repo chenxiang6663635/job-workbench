@@ -694,6 +694,7 @@ const zhCN = {
   "imap.range30": "最近 30 天",
   "imap.range90": "最近 90 天",
   "imap.rangeAny": "不限时间",
+  "imap.rangeLabel": "拉取范围",
   "imap.filterPlaceholder": "按主题 / 发件人 / 正文筛掉无关邮件",
   "imap.refetch": "重新拉取",
   "imap.fetching": "拉取中（只读连接）...",

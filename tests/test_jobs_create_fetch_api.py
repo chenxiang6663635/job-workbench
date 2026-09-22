@@ -108,6 +108,36 @@ def test_create_job_reject_branches_use_stable_codes(client, tmp_path):
     assert payload["error_params"]["name"] == "云帆_后端"
 
 
+# --- 列表关键词筛选（FC-8） --------------------------------------------------
+
+
+def _dirs(client, q=None):
+    params = {"ws": WS}
+    if q is not None:
+        params["q"] = q
+    res = client.get("/api/jobs", params=params)
+    assert res.status_code == 200, res.text
+    return [i["dir"] for i in res.json()["items"]]
+
+
+def test_list_jobs_keyword_hits_company_role_and_dirname(client, tmp_path):
+    """与追踪表 q 同口径：小写子串，覆盖公司 / 岗位 / 目录名。
+
+    纯空白等于不筛选（用户退格删空的常见中间态，不能变成「什么都查不到」）。
+    """
+    for company, role in (("云帆", "后端开发"), ("星野", "热管理")):
+        res = client.post("/api/jobs", params={"ws": WS}, json={
+            "公司": company, "岗位": role, "JD文本": "职责。"})
+        assert res.status_code == 200, res.text
+
+    assert _dirs(client) == ["云帆_后端开发", "星野_热管理"]
+    assert _dirs(client, "云帆") == ["云帆_后端开发"]
+    assert _dirs(client, "热管理") == ["星野_热管理"]
+    assert _dirs(client, "星野_热") == ["星野_热管理"]  # 目录名连写也算命中
+    assert _dirs(client, "不存在") == []
+    assert _dirs(client, "   ") == ["云帆_后端开发", "星野_热管理"]
+
+
 # --- JD 抓取 ------------------------------------------------------------------
 
 

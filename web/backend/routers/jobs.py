@@ -244,7 +244,7 @@ def _sort_jobs(items, sort: str, order: str = None):
 
 @router.get("")
 def list_jobs(sort: str = "dir", order: str = None, status: str = None,
-              ws: str = Depends(workspace_dir)):
+              q: str = None, ws: str = Depends(workspace_dir)):
     base = safe_join(ws, DIR_JOBS)
     if not os.path.isdir(base):
         return {"items": [], "total": 0}
@@ -260,6 +260,10 @@ def list_jobs(sort: str = "dir", order: str = None, status: str = None,
     if status in JOB_STATUS:
         want = JOB_STATUS[status]
         items = [i for i in items if i["applyState"] == want]
+    # 关键词在 _summary 之后过滤：公司 / 岗位来自目录名拆分与解析卡，只有条目里有。
+    # 匹配口径在领域层（job_dirs.match_keyword），与追踪表的搜索同源。
+    if q and q.strip():
+        items = [i for i in items if job_dirs.match_keyword(i, q)]
     items = _sort_jobs(items, sort if sort in JOB_SORTS else "dir", order)
     return {"items": items, "total": len(items)}
 

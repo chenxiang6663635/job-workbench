@@ -13,6 +13,7 @@ import Settings from "./pages/Settings";
 import { useBackendBoot } from "./hooks/useBackendBoot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Button } from "./components/ui/button";
+import LiveRegion from "./components/LiveRegion";
 import { LANGS } from "./i18n";
 import type { TranslationKey } from "./i18n/locales/zh-CN";
 
@@ -188,6 +189,9 @@ export default function App() {
           </div>
         </div>
       </nav>
+
+      {/* UX-6：全站唯一的成功播报区（错误侧由 ErrorBanner 的 role="alert" 管） */}
+      <LiveRegion />
 
       <main className="relative mx-auto max-w-7xl px-6 pb-16 pt-24">
         {online === false ? (

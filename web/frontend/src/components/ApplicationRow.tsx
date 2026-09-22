@@ -1,11 +1,12 @@
 // 投递追踪表单行（H-2b 批自 pages/Applications.tsx 拆出）：主行 + 展开行
 // （时间线 / 关联邮件 / 删除）。受控组件——数据与动作全由表格容器传入。
-import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { STAGES, TERMINAL, type Application, type HistoryEntry } from "../api";
 import { HEALTH_META, STALE_DAYS, stageStyle } from "../lib/applicationMeta";
 import { domainLabel } from "../lib/domainLabels";
 import { reasonLines } from "../lib/healthReasons";
+import { drillToJob, drillToTab } from "../lib/pageDrill";
 import { previewDeleteApplication } from "../lib/records";
 import DeleteRecordButton from "./DeleteRecordButton";
 import HistoryTimeline from "./HistoryTimeline";
@@ -27,20 +28,11 @@ type Props = {
   onToggleTimeline: () => void;
   onPatch: (body: Partial<Application>) => void;
   onReload: () => void;
+  /** UX-3：岗位池里与该条投递对应的目录名（没有就不显示解析卡入口） */
+  jobDir?: string;
 };
 
-// UX-4（体检）：行内入口对称——「记邮件」之外，面试 / 联系人 / 宣讲会也给一键落点。
-// 三个列表的增改表单都是内联形态（不是独立弹窗），这里只负责把用户送到正确页签：
-// 与看板下钻同一套 sessionStorage 协议（页签键由目标页 mount 时读一次即清；
-// 存储不可用就退化成只跳页面，落在默认页签）。键名与目标页自己的 DRILL_KEY 一致。
-function drillToTab(page: "progress" | "prepare", key: string, tab: string) {
-  try {
-    sessionStorage.setItem(key, tab);
-  } catch {
-    // 存储不可用：退化为只跳页面
-  }
-  window.location.hash = page;
-}
+// 行内入口的两条去路（UX-3 解析卡 / UX-4 快捷记录）都走 lib/pageDrill 的统一出口。
 
 export default function ApplicationRow({
   it,
@@ -49,6 +41,7 @@ export default function ApplicationRow({
   onToggleTimeline,
   onPatch,
   onReload,
+  jobDir,
 }: Props) {
   const { t } = useTranslation();
   const staleDays = typeof it.stageDays === "number" ? it.stageDays : null;
@@ -91,6 +84,18 @@ export default function ApplicationRow({
               <ExternalLink size={11} />
               {t("app.jobLink")}
             </a>
+          )}
+          {/* UX-3（体检）：解析卡是这份 JD 的全部沉淀（评分 / 维度 / 下一步），
+              从投递行能直接回去看——此前只能自己去岗位池重找 */}
+          {jobDir && (
+            <button
+              type="button"
+              onClick={() => drillToJob(jobDir)}
+              className="ml-6 mt-0.5 inline-flex cursor-pointer items-center gap-1 text-xs text-foreground underline underline-offset-2 transition-colors hover:text-primary"
+            >
+              <FileText size={11} aria-hidden="true" />
+              {t("app.viewCard")}
+            </button>
           )}
         </td>
         <td className="px-4 py-3 text-foreground">

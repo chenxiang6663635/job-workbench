@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, Inbox, Link2, Loader2, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Inbox, Loader2, Plus, Search } from "lucide-react";
 import {
   api,
   BATCHES,
@@ -17,7 +17,7 @@ import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { domainLabel } from "../lib/domainLabels";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { Input, Textarea } from "../components/ui/input";
+import { Input } from "../components/ui/input";
 import {
   Select,
   SelectContent,
@@ -29,8 +29,10 @@ import { EmptyState } from "../components/ui/empty";
 import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { announce } from "../lib/announce";
 import JobCard from "../components/JobCard";
 import JobDetailView from "../components/JobDetailView";
+import JobCreateForm from "../components/JobCreateForm";
 import { Segmented } from "../components/ui/segmented";
 
 // 四排序与后端 jobs.py 的 JOB_SORTS 白名单一致；未知键由后端静默回退 dir
@@ -92,13 +94,18 @@ export default function Jobs() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const { t } = useTranslation();
-  const [draft, setDraft] = useState({ 公司: "", 岗位: "", JD文本: "" });
-  // JD 链接抓取（第三批）：尽力而为，失败即明确降级提示手动粘贴
-  const [jdUrl, setJdUrl] = useState("");
-  const [fetching, setFetching] = useState(false);
   const [sort, setSort] = useState<JobSort>("dir");
   const [order, setOrder] = useState<JobOrder>("asc");
   const [status, setStatus] = useState<JobStatus>("");
+  // FC-8（体检）：关键词搜索。输入框的值与真正去请求的值**分开**——
+  // 岗位列表每条都要读一次解析卡（磁盘读），按键即请求会把键入变成一串 IO；
+  // 300ms 防抖后再落到一个真正参与取数的 q 上。
+  const [qInput, setQInput] = useState("");
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setQ(qInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [qInput]);
   // 当前筛选项是个 labelKey（模块级常量存不下翻译后的字符串）。
   // **必须放在 status 声明之后**：放前面会踩 TDZ（`Cannot access 'status' before
   // initialization`），而 tsc 与 eslint 都拦不住——只有真正打开本页才会炸
@@ -120,7 +127,7 @@ export default function Jobs() {
   const load = () => {
     setLoading(true);
     api
-      .listJobs({ sort, order, status })
+      .listJobs({ sort, order, status, q })
       .then(
         (r) => {
           setItems(r.items);
@@ -131,7 +138,7 @@ export default function Jobs() {
       .then(() => setLoading(false));
   };
 
-  useEffect(load, [sort, order, status]);
+  useEffect(load, [sort, order, status, q]);
 
   // 详情拉取期间补 loading 态：此前点击到返回前无任何骨架，像卡住
   const open = (dir: string) => {
@@ -162,40 +169,22 @@ export default function Jobs() {
     }
   }, []);
 
-  // 抓取成功后后端已写入 JD原文.md，直接打开详情让用户核对原文——
-  // 抓取只是省掉复制粘贴，内容仍必须由用户过目（不做任何改写或摘要）
-  const fetchJd = () => {
-    if (!draft.公司.trim() || !draft.岗位.trim()) {
-      setError(t("job.fetchNeedCompanyRole"));
-      return;
-    }
-    setFetching(true);
-    setError(null);
-    api
-      .fetchJd({ url: jdUrl.trim(), 公司: draft.公司.trim(), 岗位: draft.岗位.trim() })
-      .then((r) => {
-        setFetching(false);
-        setCreating(false);
-        setJdUrl("");
-        setDraft({ 公司: "", 岗位: "", JD文本: "" });
-        load();
-        open(r.dir);
-      })
-      .catch((e: Error) => {
-        setError(e.message);
-        setFetching(false);
-      });
+  // 新建 / 抓取两条写入路径的结果都在父级落地（重拉列表、打开详情、播报一句）：
+  // 表单自己只管草稿与请求，见 components/JobCreateForm.tsx
+  const onCreated = (company: string, role: string) => {
+    setCreating(false);
+    load();
+    // 与行编辑不同：新建是"整条记录凭空出现"，必须给读屏一句确认
+    announce(t("job.created", { company, role }));
   };
 
-  const submit = () => {
-    api
-      .createJob(draft)
-      .then(() => {
-        setCreating(false);
-        setDraft({ 公司: "", 岗位: "", JD文本: "" });
-        load();
-      })
-      .catch((e: Error) => setError(e.message));
+  const onFetched = (dir: string, company: string, role: string) => {
+    setCreating(false);
+    load();
+    // 抓取成功后后端已写入 JD原文.md，直接打开详情让用户核对原文——
+    // 抓取只是省掉复制粘贴，内容仍必须由用户过目（不做任何改写或摘要）
+    open(dir);
+    announce(t("job.created", { company, role }));
   };
 
   // 换维度就回到该维度的自然方向：评分默认想看高分，目录名默认想看 A→Z
@@ -293,6 +282,23 @@ export default function Jobs() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2">
+          {/* FC-8（体检）：与追踪表同款搜索框——能看到「什么被筛掉了」之外，
+              还得能按公司 / 岗位直接找。aria-label 复用占位文案：
+              只给 placeholder 的搜索框在部分读屏上名字是空的 */}
+          <div className="relative w-48">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              value={qInput}
+              onChange={(event) => setQInput(event.target.value)}
+              placeholder={t("job.searchPlaceholder")}
+              aria-label={t("job.searchPlaceholder")}
+              className="h-9 pl-8 text-xs"
+            />
+          </div>
+
           {/* 分段控件与简历工坊的模式切换条同一形态：原先的文字按钮 + 双向箭头
               既看不出当前选中谁，也放不下「顺序 / 逆序」这半个控制。
               2026-09-13 起改用 ui/segmented（原生 radio group）：Tabs 当单选开关用
@@ -335,66 +341,12 @@ export default function Jobs() {
       </div>
 
       {creating && (
-        <Card className="space-y-3 border-primary/30 p-5">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              placeholder={t("form.phCompany")}
-              value={draft.公司}
-              onChange={(e) => setDraft({ ...draft, 公司: e.target.value })}
-            />
-            <Input
-              placeholder={t("form.phRole")}
-              value={draft.岗位}
-              onChange={(e) => setDraft({ ...draft, 岗位: e.target.value })}
-            />
-          </div>
-          {/* JD 链接抓取：省掉复制粘贴，但抓不到会直说，不假装成功 */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              className="flex-1"
-              placeholder={t("job.phJdUrl")}
-              value={jdUrl}
-              onChange={(e) => setJdUrl(e.target.value)}
-            />
-            <Button
-              variant="outline"
-              onClick={fetchJd}
-              disabled={
-                fetching || !jdUrl.trim() || !draft.公司.trim() || !draft.岗位.trim()
-              }
-              title={
-                !draft.公司.trim() || !draft.岗位.trim()
-                  ? t("job.fetchNeedFillHint")
-                  : t("job.fetchTitle")
-              }
-            >
-              {fetching ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-              {fetching ? t("job.fetching") : t("job.fetchFromUrl")}
-            </Button>
-          </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            {t("job.fetchNote")}
-          </p>
-          <Textarea
-            className="min-h-[12rem] resize-y font-mono text-xs leading-relaxed"
-            placeholder={t("job.phJdText")}
-            value={draft.JD文本}
-            onChange={(e) => setDraft({ ...draft, JD文本: e.target.value })}
-          />
-          <div className="flex gap-2">
-            <Button
-              onClick={submit}
-              disabled={
-                !draft.公司.trim() || !draft.岗位.trim() || !draft.JD文本.trim()
-              }
-            >
-              {t("job.saveJob")}
-            </Button>
-            <Button variant="ghost" onClick={() => setCreating(false)}>
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </Card>
+        <JobCreateForm
+          onCreated={onCreated}
+          onFetched={onFetched}
+          onError={setError}
+          onClose={() => setCreating(false)}
+        />
       )}
 
       {applyTarget && (

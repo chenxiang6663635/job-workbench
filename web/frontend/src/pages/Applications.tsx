@@ -7,11 +7,12 @@ import {
   DIRECTIONS,
   SOURCES,
   STAGES,
-  TERMINAL,
   type Application,
   type HistoryEntry,
 } from "../api";
 import { ALL, NONE, readDrill, type SortKey } from "../lib/applicationMeta";
+import { useJobDirs } from "../hooks/useJobDirs";
+import { useMissingNext } from "../hooks/useMissingNext";
 import { domainLabel } from "../lib/domainLabels";
 import ApplicationsTable from "../components/ApplicationsTable";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
@@ -27,6 +28,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { EmptyState } from "../components/ui/empty";
+import { announce } from "../lib/announce";
 import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 
@@ -63,20 +65,8 @@ export default function Applications() {
     截止日期: "",
     当前阶段: "待投",
   });
-  // 「没有下一步动作」引导（v0.4.0-A）：进行中（非终态）但没填「下次动作」的记录
-  const [showMissingOnly, setShowMissingOnly] = useState(false);
-  const missingNext = useMemo(
-    () =>
-      items.filter(
-        (it) => !TERMINAL.includes(it.当前阶段) && !(it.下次动作 || "").trim()
-      ),
-    [items]
-  );
-  // 全部补齐后自动退出「只看缺下一步」视图，避免停在空表格上
-  useEffect(() => {
-    if (showMissingOnly && missingNext.length === 0) setShowMissingOnly(false);
-  }, [showMissingOnly, missingNext.length]);
-  const visibleItems = showMissingOnly ? missingNext : items;
+  const { showMissingOnly, setShowMissingOnly, missingNext, visibleItems } =
+    useMissingNext(items);
 
   const load = () => {
     setLoading(true);
@@ -103,6 +93,9 @@ export default function Applications() {
     sessionStorage.removeItem("jobws_drill");
   }, []);
 
+  // UX-3（体检）：岗位池目录名反查表，供行内「查看解析卡」入口使用
+  const jobDirs = useJobDirs();
+
   const patch = (id: string, body: Partial<Application>) => {
     api
       .updateApplication(id, body)
@@ -115,6 +108,8 @@ export default function Applications() {
       .addApplication({ ...draft, 评分: String(draft.评分) })
       .then(() => {
         setCreating(false);
+        // UX-6：写入成功只体现在表格里多了一行，读屏用户听不到——播报一句
+        announce(t("app.created", { company: draft.公司, role: draft.岗位 }));
         setDraft({
           公司: "",
           岗位: "",
@@ -454,6 +449,7 @@ export default function Applications() {
           onToggleTimeline={toggleTimeline}
           onPatch={patch}
           onReload={load}
+          jobDirs={jobDirs}
         />
       )}
     </div>

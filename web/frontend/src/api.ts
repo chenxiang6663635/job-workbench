@@ -145,16 +145,16 @@ export const api = {
       body,
     }),
 
-  // 列表参数与 applications 同一范式：非默认值才传，白名单外的键由后端静默回退
-  listJobs: (params?: { sort?: JobSort; order?: JobOrder; status?: JobStatus }) => {
+  // 列表参数与 applications 同一范式：非默认值才传，白名单外的键由后端静默回退。
+  // q 为关键词（FC-8）：空串与纯空白一律不传，交给后端当"不筛选"。
+  listJobs: (params?: { sort?: JobSort; order?: JobOrder; status?: JobStatus; q?: string }) => {
     const q = new URLSearchParams();
     if (params?.sort && params.sort !== "dir") q.set("sort", params.sort);
     if (params?.order) q.set("order", params.order);
     if (params?.status) q.set("status", params.status);
+    if (params?.q?.trim()) q.set("q", params.q.trim());
     const qs = q.toString();
-    return request<{ items: JobSummary[]; total: number }>(
-      `/jobs${qs ? `?${qs}` : ""}`
-    );
+    return request<{ items: JobSummary[]; total: number }>(`/jobs${qs ? `?${qs}` : ""}`);
   },
 
   jobGap: (dir: string, resume?: string) => {

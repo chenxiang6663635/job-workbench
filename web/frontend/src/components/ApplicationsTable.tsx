@@ -3,7 +3,7 @@
 import { ChevronsUpDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Application, HistoryEntry } from "../api";
-import { jobDirKey, SORT_LABELS, type SortKey } from "../lib/applicationMeta";
+import { SORT_LABELS, type SortKey } from "../lib/applicationMeta";
 import ApplicationRow from "./ApplicationRow";
 
 type Props = {
@@ -15,7 +15,7 @@ type Props = {
   onToggleTimeline: (id: string) => void;
   onPatch: (id: string, body: Partial<Application>) => void;
   onReload: () => void;
-  /** UX-3：(公司, 岗位) → 岗位池目录名。没有对应岗位的行不显示解析卡入口 */
+  /** UX-3：投递 id → 岗位池目录名（由后端关联给出）。没有对应岗位的行不显示入口 */
   jobDirs: Record<string, string>;
 };
 
@@ -99,7 +99,7 @@ export default function ApplicationsTable({
               onToggleTimeline={() => onToggleTimeline(it.id)}
               onPatch={(body) => onPatch(it.id, body)}
               onReload={onReload}
-              jobDir={jobDirs[jobDirKey(it.公司, it.岗位)]}
+              jobDir={jobDirs[it.id]}
             />
           ))}
         </tbody>

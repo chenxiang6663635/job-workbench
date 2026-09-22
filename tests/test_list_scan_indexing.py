@@ -177,7 +177,14 @@ def test_applications_list_reads_history_once_and_passes_own_entries(
         assert all(eid == row_id for eid in entry_ids), (row_id, entry_ids)
 
 
-def test_dashboard_reads_history_once(client, tmp_path, monkeypatch):
+def test_dashboard_reads_history_once_and_passes_own_entries(
+        client, tmp_path, monkeypatch):
+    """看板与列表页**同一张结构网**（独立审查 M1）。
+
+    只数 `read_history` 次数是不够的：把 `by_id.get(...)` 改回传全量 history，
+    次数仍然是 1——用例照样绿，而 O(行数 × 条目数) 已经悄悄回来了。
+    所以这里与 applications 那条一样，既数次数、也捕获**每行实际收到的条目 id**。
+    """
     ws_dir = str(tmp_path / WS)
     _seed(ws_dir)
 
@@ -188,12 +195,23 @@ def test_dashboard_reads_history_once(client, tmp_path, monkeypatch):
         reads["n"] += 1
         return real_read(*args, **kwargs)
 
+    seen = []
+    real_stale = tracker.stale_days
+
+    def capturing_stale(row, entries, today=None):
+        seen.append((row.get("id", ""), [e.get("id", "") for e in entries]))
+        return real_stale(row, entries, today)
+
     monkeypatch.setattr(tracker, "read_history", counting_read)
+    monkeypatch.setattr(tracker, "stale_days", capturing_stale)
 
     res = client.get("/api/dashboard", params={"ws": WS})
 
     assert res.status_code == 200, res.text
     assert reads["n"] == 1, "看板时间线应整表只读一次"
+    assert seen, "捕获网没挂上——看板已不走 tracker.stale_days，这条用例失去意义"
+    for row_id, entry_ids in seen:
+        assert all(eid == row_id for eid in entry_ids), (row_id, entry_ids)
 
 
 # --- 4. 端到端对账：端点输出 == 领域函数 ------------------------------------------

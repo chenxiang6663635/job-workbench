@@ -129,7 +129,7 @@
       "mcp": null,
       "plugin": null,
       "gui": "PATCH /api/progress/mails/{mail_id}",
-      "note": "写入：改一条邮件台账（标签 / 关联记录 / 方向…）——预览列出逐字段差异 -> 确认 -> 落盘，与 interview.update 同一条通道（FC-3：CLI 与 GUI 早已有实现，此前未登记）。"
+      "note": "写入：改一条邮件台账（标签 / 关联记录 / 方向…）——**不经令牌、直接落盘**（与 contact.update / offer.update 同形态；CLI 的 `--preview` 在 mail 的 update 分支不生效，只有 add 走两段式）。对照：interview.update 才是两段式。FC-3 补登记。"
     },
     {
       "id": "contact.record",
@@ -165,7 +165,7 @@
       "mcp": null,
       "plugin": null,
       "gui": "PATCH /api/progress/talks/{talk_id}",
-      "note": "写入：改一场宣讲会（时间 / 形式 / 是否参加 / 收获…）——同一条两段式通道。FC-3 补登记。"
+      "note": "写入：改一场宣讲会（时间 / 形式 / 是否参加 / 收获…）——**不经令牌、直接落盘**（与 contact.update / offer.update 同形态）。FC-3 补登记。"
     },
     {
       "id": "offer.record",

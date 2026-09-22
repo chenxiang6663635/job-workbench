@@ -206,15 +206,23 @@ def lock_path(workspace: str, kind: str) -> str:
 
 
 # 指纹的两级短路缓存（P 批 2026-09-21）：桌面端每 10s 轮询一次 dir_fingerprint，
-# 原先每次都全目录 walk + 逐文件 stat + sha256（体检测得 >5k 文件时 0.2–1s）。
-# 按 (工作区, 目录集, 扩展集) 记住上一轮的目录 mtime 与逐文件 (size, mtime_ns)：
-#   一级门：已见目录 mtime 未变 → 文件集合未变（增删 / 改名都会碰所在目录的
-#           mtime），连 walk 都省掉；
-#   二级门：已见文件 (size, mtime_ns) 未变 → 内容未变（**in-place 追加不碰目录
-#           mtime，只有这一级能兜住**），跳过排序与 sha256。
-# 任一门失配即回退全量扫描——缓存只影响快慢、不影响结果（正确性不依赖缓存）。
+# 原先每次都全目录 walk + 逐文件 stat + sha256。按 (工作区, 目录集, 扩展集)
+# 记住上一轮的目录 mtime 与逐文件 (size, mtime_ns)：
+#   一级门：目录 mtime 未变 → 文件集合未变（增删 / 改名都会碰目录 mtime）；
+#   二级门：文件 (size, mtime_ns) 未变 → 内容未变（in-place 追加只有这级能兜住）。
+# 两级**都**通过才短路（省 walk / 排序 / sha256），任一门失配即回退全量扫描。
+#
+# **TTL 是正确性的一部分，不是优化**（独立审查 M2）：一级门押在目录 mtime 上，
+# 而它在部分介质上并不跟得上（SMB / 网络盘、exFAT 的 2 秒粒度）——没有 TTL 时
+# 最坏不是「延迟 10 秒」而是「停在旧值、再也不刷新」；加上界后退化为有界延迟。
 _FP_CACHE = {}
 _FP_CACHE_MAX = 8  # 至多缓存几个工作区；超出按插入序淘汰最旧（本地工具，够用）
+_FP_CACHE_TTL = 30.0  # 秒。超过就全量重扫一次（轮询间隔 10s，30s 是最多三轮的延迟）
+
+
+def _fingerprint_fresh(cached, now: float) -> bool:
+    """缓存是否还在有效期内。TTL 可被测出来（单测改成 0 即"每轮全量"）。"""
+    return (now - cached.get("ts", 0.0)) < _FP_CACHE_TTL
 
 
 def _fingerprint_probe_unchanged(cached) -> bool:
@@ -249,7 +257,12 @@ def dir_fingerprint(
     roots = rel_dirs if rel_dirs is not None else DEFAULT_TRACKED_DIRS
     key = (os.path.realpath(workspace), tuple(roots), tuple(exts))
     cached = _FP_CACHE.get(key)
-    if cached is not None and _fingerprint_probe_unchanged(cached):
+    now = time.time()
+    if (
+        cached is not None
+        and _fingerprint_fresh(cached, now)
+        and _fingerprint_probe_unchanged(cached)
+    ):
         return cached["digest"]
 
     entries = []
@@ -282,5 +295,5 @@ def dir_fingerprint(
     digest = hashlib.sha256("\n".join(sorted(entries)).encode("utf-8")).hexdigest()[:16]
     if key not in _FP_CACHE and len(_FP_CACHE) >= _FP_CACHE_MAX:
         _FP_CACHE.pop(next(iter(_FP_CACHE)))
-    _FP_CACHE[key] = {"digest": digest, "dirs": dirs, "files": files}
+    _FP_CACHE[key] = {"digest": digest, "dirs": dirs, "files": files, "ts": now}
     return digest

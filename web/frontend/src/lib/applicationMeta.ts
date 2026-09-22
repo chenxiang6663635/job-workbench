@@ -56,15 +56,6 @@ export function stageStyle(stage: string) {
   return "bg-primary/15 text-foreground";
 }
 
-// UX-3：岗位池目录名反查表的键（公司 + 岗位）。
-//
-// 单独成函数不只是为了复用——**连接符只许有一处定义**：投递侧与公司侧的字段
-// 名一个中文一个英文（`it.公司` / `job.company`），把拼接写在调用处就会得到
-// 一个含中文标识符的模板字符串，既难读也踩 i18n 硬编码检查（它按字面量判）。
-export function jobDirKey(company: string, role: string): string {
-  return `${company}|${role}`;
-}
-
 // 值是 key 不是文案——模块级常量没法调 t()，渲染处再翻
 export const SORT_LABELS: Record<SortKey, TranslationKey> = {
   next: "app.sortNext",

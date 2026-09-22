@@ -86,7 +86,8 @@ export default function ApplicationRow({
             </a>
           )}
           {/* UX-3（体检）：解析卡是这份 JD 的全部沉淀（评分 / 维度 / 下一步），
-              从投递行能直接回去看——此前只能自己去岗位池重找 */}
+              从投递行能直接回去看——此前只能自己去岗位池重找。
+              对应关系由后端给出（`JobSummary.applicationId`），不由前端拼名字 */}
           {jobDir && (
             <button
               type="button"

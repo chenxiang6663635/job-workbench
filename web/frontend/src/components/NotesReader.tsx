@@ -16,6 +16,7 @@ import {
 import { captureNotesPos, readNotesPos, restoreNotesPos } from "../lib/notesView";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesMarkdown from "./NotesMarkdown";
+import { Button } from "./ui/button";
 import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 
@@ -39,6 +40,12 @@ export interface NotesReaderProps {
   pendingLine: number | null;
   /** 有写回流程在进行中：整篇勾选框禁用（连点不会弹出别的行的确认框） */
   locked: boolean;
+  // --- 批量勾选（C-1）：开关 + 待提交集合 + 提交 / 清空 ---
+  batchMode: boolean;
+  pending: number[];
+  onToggleBatchMode: () => void;
+  onSubmitBatch: () => void;
+  onClearPending: () => void;
   /** 搜索命中的行号（1-based）：非 null 时滚到所属块并标记；null = 不定位 */
   focusLine: number | null;
   /** 每次「点搜索结果」自增：同一条重复点击也要重新定位（行号没变时 effect 不重跑） */
@@ -57,6 +64,11 @@ export default function NotesReader({
   onToggleTask,
   pendingLine,
   locked,
+  batchMode,
+  pending,
+  onToggleBatchMode,
+  onSubmitBatch,
+  onClearPending,
   focusLine,
   focusNonce,
   onBackToTree,
@@ -165,6 +177,39 @@ export default function NotesReader({
         <span className="text-foreground">/ {name}</span>
       </div>
 
+      {/* 批量勾选条（C-1）：开关常显，集合条只在批量模式下出现——"点了没反应"
+          比"按钮灰着"更费解，所以集合为空时提交与清空都禁用 */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Button
+          variant={batchMode ? "default" : "outline"}
+          size="sm"
+          onClick={onToggleBatchMode}
+          disabled={locked}
+          aria-pressed={batchMode}
+          title={t("notes.batchHint")}
+        >
+          {t("notes.batchToggle")}
+        </Button>
+        {batchMode && (
+          <>
+            <span className="text-xs text-muted-foreground" data-testid="notes-pending-count">
+              {t("notes.batchPending", { count: pending.length })}
+            </span>
+            <Button size="sm" onClick={onSubmitBatch} disabled={locked || !pending.length}>
+              {t("notes.batchSubmit", { count: pending.length })}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClearPending}
+              disabled={locked || !pending.length}
+            >
+              {t("notes.batchClear")}
+            </Button>
+          </>
+        )}
+      </div>
+
       {toggleError && (
         <div className="mb-3">
           <ErrorBanner message={toggleError} />
@@ -193,6 +238,7 @@ export default function NotesReader({
               content={clean}
               onToggleTask={onToggleTask}
               pendingLine={pendingLine}
+              queuedLines={batchMode ? pending : undefined}
               locked={locked}
             />
             {content.truncated && (

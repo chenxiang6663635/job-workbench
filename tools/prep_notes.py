@@ -3,8 +3,13 @@
 
 背景：Web「准备 · 笔记」页（`web/backend/routers/prep.py`）只读浏览这两个目录，
 本模块补上唯一的"写"——把某一行的勾选状态翻转（"打勾即学习打卡"）。两段式照
-题库改题同构：`preview_toggle` 只读不落盘，`apply_approved_toggle` 在锁内重校验
-后写回；落盘通道只有 `/api/approvals/apply` 一条（不在本模块开写端点）。
+题库改题同构：预览只读不落盘，落盘在锁内重校验后写回；写通道只有
+`/api/approvals/apply` 一条（不在本模块开写端点）。
+
+**翻转的两个入口已迁出**（2026-09-21 C-1 批量撑破规模预算）：`preview_toggle` 与
+`apply_approved_toggle` 在 `tools/prep_toggle.py`。本模块留"哪个目录、哪个文件、
+怎么按字节切行"（`_target_path` / `_read_lines` / `_decode_line` / `_TASK_RE`），
+由它按同包兄弟直接取用。下面三条纪律仍是翻转语义的真值源，执行面在那边。
 
 三条纪律（每条都有代价近似的替代方案，选它们的理由如下）：
 
@@ -153,101 +158,4 @@ def _decode_line(line_bytes, norm_rel, line):
                           line=line, rel=norm_rel)
 
 
-def _flip(text):
-    """翻转一行的任务标记。返回 (new_text, old_mark, new_mark)；非任务行全 None。
-
-    预览与落盘共用这一处——两处各写一份正是「预览说翻这行、落盘多动一行」的温床。
-    """
-    match = _TASK_RE.match(text)
-    if match is None:
-        return None, None, None
-    old = match.group(2)
-    new = " " if old in ("x", "X") else "x"
-    return match.group(1) + new + match.group(3) + text[match.end():], old, new
-
-
-def _mark_name(mark):
-    return "已勾选" if mark in ("x", "X") else "未勾选"
-
-
-def preview_toggle(workspace, section, rel, line):
-    """预览翻转某一行勾选框（**不落盘**），返回 (errors, plan)。
-
-    校验都在预览期做完并给出**具体原因**（哪行、为什么不行）——预览是
-    "将要落什么"的承诺，含糊失败比明确报错更贵。
-    """
-    ws = tracker.resolve_ws(workspace)
-    if not isinstance(line, int) or line < 1:
-        return [_err("prep.missingLine",
-                     "缺少行号（需要被点勾选框所在行在 Markdown 源码里的行号，从 1 起）")], None
-    full, norm_rel, error = _target_path(ws, section, rel)
-    if error:
-        return [error], None
-    if not os.path.isfile(full):
-        return [_err("prep.fileNotFound", "文件不存在：%s" % norm_rel,
-                     rel=norm_rel)], None
-    lines, error = _read_lines(full, norm_rel)
-    if error:
-        return [error], None
-    if line > len(lines):
-        return [_err("prep.lineOutOfRange",
-                     "行号 %d 超出文件总行数 %d：%s" % (line, len(lines), norm_rel),
-                     line=line, total=len(lines), rel=norm_rel)], None
-    text, error = _decode_line(lines[line - 1], norm_rel, line)
-    if error:
-        return [error], None
-    new_text, old, new = _flip(text)
-    if new_text is None:
-        return [_err("prep.notTaskLine",
-                     "第 %d 行不是勾选框行（`- [ ]` 形态），无法翻转：%s"
-                     % (line, norm_rel),
-                     line=line, rel=norm_rel)], None
-    payload = {"section": section, "rel": norm_rel, "line": line, "expected": text}
-    diff = ["%s（第 %d 行）" % (norm_rel, line),
-            "- " + text.rstrip("\r"), "+ " + new_text.rstrip("\r")]
-    summary = "翻转勾选框：%s 第 %d 行（%s → %s）" % (
-        norm_rel, line, _mark_name(old), _mark_name(new))
-    return [], {"payload": payload, "summary": summary, "diff": diff,
-                "targets": [full]}
-
-
-def apply_approved_toggle(payload, workspace=None):
-    """两段式第二步：按已确认的载荷翻转勾选框（锁内读最新 → 重校验 → 写）。
-
-    重校验比预览多一层意义：从预览到确认之间文件可能被任何编辑器改过
-    （Obsidian 等外部程序不拿我们的锁），所以锁**只**保证本仓进程互斥，
-    真正兜底的是「行号 + 行内容」双条件——任一不符就拒绝并请用户重新预览。
-    """
-    ws = tracker.resolve_ws(workspace)
-    section = (payload.get("section") or "").strip()
-    rel = (payload.get("rel") or "").strip()
-    line = payload.get("line")
-    expected = payload.get("expected")
-    full, norm_rel, error = _target_path(ws, section, rel)
-    if error:
-        # error 是 (code, params, message) 三元组：插值取 message（第 3 位）——
-        # 直接把三元组 %s 进文案会把 Python repr 泄给用户（C-2 审查 M1）
-        raise tracker.ConflictError("预览之后目标已不可用（%s），请重新预览" % error[2])
-    with tracker.file_lock(_lock_path(ws)):
-        if not os.path.isfile(full):
-            raise tracker.ConflictError("预览之后文件不存在了（请重新预览）")
-        lines, error = _read_lines(full, norm_rel)
-        if error:
-            raise tracker.ConflictError("预览之后文件不可读（%s），请重新预览" % error[2])
-        if not isinstance(line, int) or line < 1 or line > len(lines):
-            raise tracker.ConflictError("预览之后文件行数变了（请重新预览）")
-        text, error = _decode_line(lines[line - 1], norm_rel, line)
-        if error:
-            raise tracker.ConflictError("预览之后目标行不可解码（请重新预览）")
-        if text != expected:
-            raise tracker.ConflictError(
-                "预览之后这一行被改过（可能是编辑器或同步），请重新预览")
-        new_text, _old, new = _flip(text)
-        if new_text is None:
-            raise tracker.ConflictError("预览之后这一行不再是勾选框（请重新预览）")
-        data = b"\n".join(lines[:line - 1] + [new_text.encode("utf-8")]
-                          + lines[line:])
-        workspace_io.atomic_write_bytes(full, data)
-    return {"rel": norm_rel, "line": line, "written": 1,
-            "summary": "已%s：%s 第 %d 行" % (
-                "勾选" if new == "x" else "取消勾选", norm_rel, line)}
+# 勾选框的翻转（预览 / 落盘）在 prep_toggle.py——本模块只管定位与按字节读取。

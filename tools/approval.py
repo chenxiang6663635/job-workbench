@@ -43,6 +43,7 @@ def _register_operations():
     """
     import init_workspace
     import prep_notes
+    import prep_toggle
 
     from jobws_core import tracker
 
@@ -51,7 +52,7 @@ def _register_operations():
     # interview.* / question.*）的实现已在领域包里，由 `jobws_core.approval`
     # 自己登记——独立安装下也拿得到（见包内 `_register_builtin_operations`）。
     for name, handler in (
-        ("prep.toggle", prep_notes.apply_approved_toggle),
+        ("prep.toggle", prep_toggle.apply_approved_toggle),
         ("init", init_workspace.apply_approved_init),
     ):
         _shell.register(name, handler, conflict_type=conflict)

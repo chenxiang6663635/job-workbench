@@ -14,10 +14,29 @@ import {
 // 展示型组件——流程状态机在 NotesBrowser（本组件只画当前阶段、回抛两个动作）。
 // 两段式纪律：确认按钮触发的是**凭令牌落盘**（apply），不是直接写文件。
 
+// C-1：一次可以是一批行号（单行 = 长度 1 的列表——批量是唯一路径）。
+// `section` / `rel` 是**流程所属的文件**：落盘成功后按它清待提交集合——预览在飞
+// 或确认框开着时用户可能已经切走，那时"当前文件"已经不是它了（审查 MAJOR）。
 export type ToggleFlow =
-  | { phase: "previewing"; line: number }
-  | { phase: "confirm"; line: number; token: string; summary: string; diff: string[] }
-  | { phase: "applying"; line: number; token: string; summary: string; diff: string[] };
+  | { phase: "previewing"; lines: number[] }
+  | {
+      phase: "confirm";
+      lines: number[];
+      token: string;
+      summary: string;
+      diff: string[];
+      section: string;
+      rel: string;
+    }
+  | {
+      phase: "applying";
+      lines: number[];
+      token: string;
+      summary: string;
+      diff: string[];
+      section: string;
+      rel: string;
+    };
 
 export default function NotesToggleDialog({
   flow,
@@ -46,8 +65,17 @@ export default function NotesToggleDialog({
           <div className="space-y-2">
             <p className="break-words text-sm font-medium text-foreground">{flow.summary}</p>
             {/* diff 是后端给的「原行 / 新行」两行文本：原样等宽展示，不做二次解析——
-                解析错了比显示得丑危险得多（用户据此决定要不要落盘） */}
-            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                解析错了比显示得丑危险得多（用户据此决定要不要落盘）。
+                tabIndex：批量（C-1）之后它常常超过限高、成为**可滚动区域**——
+                不可聚焦的话键盘用户看不全后半段（axe serious；单行 diff 不溢出，
+                所以批量之前照不出这条）。副作用是 Radix 的自动聚焦会落在第一个
+                可聚焦元素上（焦点从确认按钮变成差异表）：确认前先看清内容是更好
+                的默认，键盘路径 = Tab 到确认 / 取消。 */}
+            <pre
+              tabIndex={0}
+              aria-label={t("notes.toggleDiff")}
+              className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground"
+            >
               {flow.diff.join("\n")}
             </pre>
           </div>

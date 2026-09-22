@@ -22,6 +22,7 @@ from jobws_core.jd_score import (DEFAULT_WORKSPACE, DIMENSIONS, TOTAL_MAX,  # no
                                  gap_analysis, parse_dimension,
                                  parse_score_section, resolve_profile, verdict)
 
+
 def _build_parser():
     parser = argparse.ArgumentParser(description="校验 JD 解析卡评分并输出结论档位")
     # --show-profile 只查插件路径，不需要解析卡，故设为可选
@@ -169,6 +170,7 @@ def main():
 
     _print_verdict(values, total)
     return 0
+
 
 if __name__ == "__main__":
     print("该脚本已合并进统一入口，请改用：python tools/jobws.py jd ...")

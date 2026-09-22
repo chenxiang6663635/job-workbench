@@ -19,7 +19,6 @@
 # 中文预授权。生成草稿：`python tools/check_i18n_hardcode.py --print-allowlist`。
 
 # 接口中文字段名（与后端 JSON 契约同源，一改就全盘失配）+ 阶段/轮次/来源/宣讲会枚举值
-# 接口中文字段名（与后端 JSON 契约同源，一改就全盘失配）+ 阶段/轮次/来源/宣讲会枚举值
 # （H-2a 批类型 / 枚举区自 api.ts 整体外移 lib/domainTypes.ts；两条清单按
 #   `lint i18n --print-allowlist` 草稿重取——命中判定不是纯文本包含）
 api.ts = 下次动作|下次动作日期|依据|原阶段|状态原因|阶段

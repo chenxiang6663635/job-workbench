@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setWorkspace as setWorkspaceViaApi } from "../../src/api";
 import { humanizeError, requestJson, setWorkspace } from "../../src/lib/http";
 
 /**
@@ -142,5 +145,26 @@ describe("requestJson（请求 + 工作区自检）", () => {
       vi.fn(async () => okResponse({ done: true }, { "X-Jobws-Workspace": "other" }))
     );
     await expect(requestJson("/b")).resolves.toEqual({ done: true }); // 未选工作区
+  });
+});
+
+describe("H 批回归（独立审查补充）", () => {
+  it("api.ts 的再导出是活绑定：从 api 导入 setWorkspace 后请求立即带上 ws", async () => {
+    setWorkspaceViaApi("personal");
+    const fetchMock = vi.fn(async () => okResponse({}));
+    vi.stubGlobal("fetch", fetchMock);
+    await requestJson("/x");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/x?ws=personal");
+  });
+
+  it("三个窄模块不再自带 HTTP 副本（守卫与 humanize 只能在 lib/http.ts 一份）", () => {
+    for (const rel of ["lib/bank.ts", "lib/drill.ts", "lib/records.ts"]) {
+      const text = readFileSync(
+        fileURLToPath(new URL(`../../src/${rel}`, import.meta.url)),
+        "utf-8"
+      );
+      expect(text, `${rel} 不应再自带 ws 守卫`).not.toContain("X-Jobws-Workspace");
+      expect(text, `${rel} 不应再自带 humanize 副本`).not.toContain("function humanize");
+    }
   });
 });

@@ -1,4 +1,4 @@
-// H-2a 批：类型 / 枚举区整体外移 `lib/domainTypes.ts`（80 个声明、约 740 行）——
+// H-2a 批：类型 / 枚举区整体外移 `lib/domainTypes.ts`（86 个声明、约 740 行）——
 // 本文件只留 api 客户端、resumeOptQuery 与工作区状态再导出，水位继续只降不升。
 // 声明区经 `export *` 原样再导出，既有 `import { Application } from "../api"` 零改动；
 // 新代码请直接从 `lib/domainTypes` 引入类型（此后新增类型不再撑 api.ts 的水位）。

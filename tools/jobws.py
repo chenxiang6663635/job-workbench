@@ -5,10 +5,11 @@
 几十处 `python tools/xxx.py`；一个入口之后，用户只需记住 `jobws`，迁移对照表
 见 CHANGELOG 与 Release 说明。
 
-**刻意保留的一件事**：各脚本的 argparse 与 `main()` 都留在原处（**唯一例外**：
-`bank` 的命令层 2026-09-18 与领域模块分离，在 `tools/_cli_bank.py`——领域层
-`question_bank.py` 不再连带 argparse），jobws 只做第一层分发——把剩余参数
-**原样转发**给对应模块。这样：
+**刻意保留的一件事**：各脚本的 argparse 与 `main()` 都留在原处（**例外**：
+与领域模块分离的命令层——`bank` 于 2026-09-18 拆到 `tools/_cli_bank.py`，
+`jd` / `resume` 于 2026-09-21 H 批拆到 `tools/_cli_jd_score.py` /
+`tools/_cli_resume.py`，对应领域层不再连带 argparse），jobws 只做第一层分发——
+把剩余参数**原样转发**给对应模块。这样：
 
 - 参数名、子命令、退出码（0 通过 / 1 业务失败 / 2 用法或配置错误）**一字不改**，
   `tests/test_cli_surface.py` 那张安全网可以平移过来继续钉；

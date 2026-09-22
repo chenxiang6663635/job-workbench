@@ -3,8 +3,9 @@
 
 （2026-09-21 从 `resume_build.py` 拆出：模块此前 717 行、紧贴规模预算；渲染与
 校验的领域函数留在 resume_build.py，后端（routers/resume.py）继续直接调用它们。
-命令名与参数逐字未变；VERIFY_FACTS_FILE 的模块级赋值一并取消——改为显式传参
-（verify_pdf 的注释本就要求 Web 并发场景显式传，CLI 同样照办）。）
+命令名与参数逐字未变；手工 HTML 路径不再写 VERIFY_FACTS_FILE 全局——改为显式
+传参（verify_pdf 的注释本就要求 Web 并发场景显式传，CLI 同样照办；render 路径
+仍沿用 cmd_render → _render_one 写全局的旧形态，单线程 CLI 下无并发问题）。）
 退出码：0 成功 / 1 业务失败或环境缺失 / 2 用法错误。
 """
 
@@ -21,6 +22,7 @@ if _TOOLS_DIR not in sys.path:
 from resume_build import (DEFAULT_TEMPLATE, DEFAULT_WORKSPACE, MIN_TEXT_LENGTH,  # noqa: E402
                           RESUME_ACCENTS, build_pdf, cmd_render, discover_jobs,
                           find_browser, list_templates, verify_pdf)
+
 
 def _build_parser():
     parser = argparse.ArgumentParser(
@@ -176,6 +178,8 @@ def main():
         return 1
 
     return 0
+
+
 if __name__ == "__main__":
     # 入口已统一到 tools/jobws.py：直接运行本文件不再执行功能，
     # 只给一条可复制的迁移命令——不保留旧别名，但也不让人对着静默退出发愣。

@@ -447,3 +447,41 @@ def test_commit_header_has_no_cli():
     """commit_header 是纯库（无 main、无 argparse）：B8 合并入口时它不该凭空长出子命令。"""
     assert not hasattr(commit_header, "main")
     assert callable(commit_header.validate)
+
+
+# --- 6. 命令层分离的回归（2026-09-21 H 批：jd / resume）----------------------
+
+def test_resume_cli_passes_facts_file_explicitly(tmp_path, monkeypatch, capsys):
+    """手工 HTML 路径显式传 facts_file（H-2d 的行为变化点），不再靠模块级全局。
+
+    打桩浏览器与 PDF 生成，只断言 verify_pdf 收到了 <ws>/config/ats_required_facts.txt——
+    这条钉住「显式传参」这条链，防止将来有人把它改回 main 里写全局。
+    """
+    import io
+    import _cli_resume
+
+    ws = tmp_path / "ws"
+    pdf_dir = ws / "02_简历工坊" / "pdf"
+    pdf_dir.mkdir(parents=True)
+    (pdf_dir / "resume_hvac.html").write_text("<html></html>", encoding="utf-8")
+    facts = ws / "config" / "ats_required_facts.txt"
+    facts.parent.mkdir()
+    facts.write_text("关键事实一\n", encoding="utf-8")
+
+    def fake_build(_browser, _html, pdf_path):
+        io.open(pdf_path, "w", encoding="utf-8").write("x")
+        return True
+
+    seen = {}
+
+    def fake_verify(pdf_path, min_len, facts_file=None):
+        seen["facts"] = facts_file
+        return True, [("页数", "1 页", True)]
+
+    monkeypatch.setattr(_cli_resume, "find_browser", lambda: "chrome")
+    monkeypatch.setattr(_cli_resume, "build_pdf", fake_build)
+    monkeypatch.setattr(_cli_resume, "verify_pdf", fake_verify)
+
+    code, out = _invoke_jobws(monkeypatch, capsys, ["resume", "--workspace", str(ws)])
+    assert code == 0, out
+    assert seen["facts"] == os.path.join(str(ws), "config", "ats_required_facts.txt")

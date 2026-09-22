@@ -24,7 +24,7 @@ if MCP_DIR not in sys.path:
     sys.path.insert(0, MCP_DIR)
 
 from jobws_mcp import paths, tools_readonly  # noqa: E402
-from jobws_core import tracker  # noqa: E402  （tools/ 已由 paths.py 加进 sys.path）
+from jobws_core import tracker  # noqa: E402
 
 TODAY = date(2026, 9, 14)
 

@@ -122,8 +122,8 @@ def resolve_workspace(name=None, must_exist=False):
             "工作区越出允许范围：%s（允许的根：%s）" % (path, "、".join(roots)))
     if must_exist and not os.path.isdir(real):
         raise WorkspaceError(
-            "工作区不存在：%s（可先用 `python tools/jobws.py init --demo` "
-            "生成一个）" % path)
+            "工作区不存在：%s（请先在你打开的工作台里初始化，"
+            "或设置 JOBWS_DATA_DIR 指向数据根）" % path)
     return real
 
 

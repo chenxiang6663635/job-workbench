@@ -9,11 +9,11 @@ name = "jobws-core"
 # tools/release_assist.py）后写入 wheel 元数据。运行时从
 # importlib.metadata 读回（jobws_core._version）。
 dynamic = ["version"]
-description = "求职工作台领域层（写入原语与文件锁）——本地优先，不联网"
+description = "求职工作台领域层（解析 / 评分 / 复盘 / 题库 / 追踪读写等核心原语）——本地优先，不联网"
 readme = "README.md"
 requires-python = ">=3.12"
-# 本批只含两个零依赖叶子（filelock / workspace_io）→ 依赖为空。
-# 后续 tracker 主体迁入时按需在此声明。
+# 依赖为空：包内实现只用标准库（含自有的文件锁与原子写原语），不引第三方。
+# 将来若确需新依赖，在此声明并同步 CI 的安装顺序（mcp 硬依赖本包）。
 dependencies = []
 
 [project.optional-dependencies]

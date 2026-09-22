@@ -14,7 +14,6 @@ import csv
 import io
 import os
 import sys
-import time
 
 import pytest
 
@@ -103,6 +102,18 @@ def test_replace_raises_after_retries_exhausted(tmp_path, monkeypatch):
 # --- 目录指纹 --------------------------------------------------------------
 
 
+def _age_mtime(path, delta_ns=3_000_000_000):
+    """把路径的 mtime 显式往前推，让"变更可检出"是写死的条件、而不是等时钟前进。
+
+    此前这里用 time.sleep(0.01)：在 mtime 粒度粗的介质（exFAT / SMB 以秒计）上，
+    "等 10ms"可能落在同一粒度里，断言就会偶发假红。delta 取 3s 是为了越过这类粒度；
+    本文件多数断言其实还能靠 size 变化或"新文件"破门，推 mtime 是把另一半写显式。
+    （2026-09-22 审查 MINOR；独立审查指出原注释把 delta 说大了，此处按实际口径改写。）
+    """
+    stat = os.stat(str(path))
+    os.utime(str(path), ns=(stat.st_atime_ns, stat.st_mtime_ns + delta_ns))
+
+
 def test_dir_fingerprint_changes_on_write(tmp_path):
     workspace = tmp_path / "ws"
     tracking = workspace / "05_投递追踪"
@@ -110,8 +121,8 @@ def test_dir_fingerprint_changes_on_write(tmp_path):
     (tracking / "tracker.csv").write_text("id\nA001\n", encoding="utf-8")
     first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
 
-    time.sleep(0.01)
     (tracking / "tracker.csv").write_text("id\nA001\nA002\n", encoding="utf-8")
+    _age_mtime(tracking / "tracker.csv")
     second = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
     assert first != second
 
@@ -145,8 +156,8 @@ def test_default_tracked_dirs_include_fact_base(tmp_path):
     (facts / "事实卡.md").write_text("# 一", encoding="utf-8")
     first = workspace_io.dir_fingerprint(str(workspace))  # 不带 rel_dirs → 默认集合
 
-    time.sleep(0.01)
     (facts / "事实卡.md").write_text("# 一\n# 二", encoding="utf-8")
+    _age_mtime(facts / "事实卡.md")
     assert workspace_io.dir_fingerprint(str(workspace)) != first
 
 
@@ -181,9 +192,9 @@ def test_dir_fingerprint_detects_in_place_append(tmp_path):
     path.write_text("时间,id\n", encoding="utf-8")
     first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"])
 
-    time.sleep(0.01)
     with io.open(str(path), "a", encoding="utf-8") as handle:
         handle.write("2026-09-21,A001\n")
+    _age_mtime(path)
 
     assert workspace_io.dir_fingerprint(str(workspace), rel_dirs=["05_投递追踪"]) != first
 
@@ -196,8 +207,8 @@ def test_dir_fingerprint_detects_new_file_in_subdir(tmp_path):
     (notes / "tcp.md").write_text("# TCP", encoding="utf-8")
     first = workspace_io.dir_fingerprint(str(workspace), rel_dirs=["03_面试准备"])
 
-    time.sleep(0.01)
     (notes / "udp.md").write_text("# UDP", encoding="utf-8")
+    _age_mtime(notes)
 
     assert workspace_io.dir_fingerprint(str(workspace), rel_dirs=["03_面试准备"]) != first
 

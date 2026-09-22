@@ -7,6 +7,7 @@ import MailList from "../components/MailList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PageHeader } from "../components/ui/page-header";
 import { useTranslation } from "react-i18next";
+import { PROGRESS_TAB_KEY } from "../lib/pageDrill";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 // 「进展」= **投递之后**的事（面试 / 邮件 / 联系人 / Offer）。
@@ -25,7 +26,7 @@ const SUBTABS: { key: SubTab; labelKey: TranslationKey; icon: React.ReactNode }[
 // 下钻 + 记忆：与「准备」页同一套协议——写方（看板 / 邮件台账等）往 sessionStorage
 // 写「要落在哪个页签」再跳 `#progress`，本页 mount 时读一次即清；localStorage 记
 // 「上次停留」——指纹刷新会整页 reload，不记住就把用户打回第一个页签（UX-2）。
-const DRILL_KEY = "jobws_progress_tab";
+const DRILL_KEY = PROGRESS_TAB_KEY;
 const LAST_KEY = "jobws_progress_tab_last";
 
 const TAB_KEYS = ["interviews", "mails", "contacts", "offers"] as const;

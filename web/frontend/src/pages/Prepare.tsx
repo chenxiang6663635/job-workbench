@@ -7,6 +7,7 @@ import TalkList from "../components/TalkList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PageHeader } from "../components/ui/page-header";
 import { useTranslation } from "react-i18next";
+import { PREPARE_TAB_KEY } from "../lib/pageDrill";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 // 「准备」板块：**投递之前**的事归一处（宣讲会 + 题库 + 笔记）。
@@ -25,7 +26,7 @@ const SUBTABS: { key: SubTab; labelKey: TranslationKey; icon: React.ReactNode }[
 
 // 看板「近 7 天宣讲会」点进来时带的页签初值（与追踪表/邮件台账的下钻同一套
 // sessionStorage 协议：写方是 Dashboard，读方在 mount 时取一次后即清）。
-const DRILL_KEY = "jobws_prepare_tab";
+const DRILL_KEY = PREPARE_TAB_KEY;
 
 // 上次停留的页签（localStorage）：勾选写回会触发 App 级指纹刷新（整页 reload），
 // 不记住的话用户打完一个勾就被打回「宣讲会」，连打几个勾时每轮重来一次。

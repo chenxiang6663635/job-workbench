@@ -7,7 +7,7 @@
 
 两档阈值（与 CONTRIBUTING 一致）：
 - **逻辑型**（业务代码）：文件 ≤300 行、函数 ≤80 行；
-- **数据/声明型**（i18n 语言包、常量表、测试与 fixtures）：≤1500 行——
+- **数据/声明型**（i18n 语言包、常量表、纯声明区、测试与 fixtures）：≤1500 行——
   声明式代码行数多但复杂度低，与业务逻辑同阈值只会逼人把常量表拆碎。
 
 存量用 `size_allowlist.txt` 登记（`路径 = 行数  # 理由`），并守两条：
@@ -47,8 +47,10 @@ SCAN_DIRS = ("tools", "web/backend", "web/frontend/src", "tests", "packages")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", "release", ".venv"}
 SOURCE_SUFFIX = (".py", ".ts", ".tsx")
 
-# 数据/声明型：行数多但复杂度低，与业务代码同阈值没有意义
-DATA_MARKERS = ("locales/", "conftest", "fixture", "allowlist")
+# 数据/声明型：行数多但复杂度低，与业务代码同阈值没有意义。
+# `domainTypes`：纯类型 / 枚举声明区（H-2a 批自 api.ts 外移，80+ 个声明平铺）——
+# 行数与复杂度同样不成正比；按 300 行拆碎只会把 import 路径打散。
+DATA_MARKERS = ("locales/", "conftest", "fixture", "allowlist", "domainTypes")
 
 
 def classify(rel_path):

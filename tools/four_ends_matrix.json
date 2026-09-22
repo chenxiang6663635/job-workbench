@@ -20,8 +20,8 @@
       "cli": "jd",
       "mcp": "score_jd",
       "plugin": "jd",
-      "gui": "GET /api/jobs/{job_id}/gap",
-      "note": "只读：读解析卡并给出评分/差距。解析卡本身由 AI 或用户写入 Markdown，程序不生成。投递流程里由 apply-pack 命令顺带调用。"
+      "gui": null,
+      "note": "只读：读解析卡并给出评分/差距。解析卡本身由 AI 或用户写入 Markdown，程序不生成。投递流程里由 apply-pack 命令顺带调用。桌面端列刻意留空（FC-2 修正）：界面**不评分**，它只把 `GET /api/jobs/{job_id}/gap` 的差距面板呈现出来——把那条路由登记成 `jd.score` 的桌面端实现，与下方「gui 不提供 jd.score」的例外自相矛盾；评分校验的入口只有命令行 `jd` 与 MCP `score_jd`。"
     },
     {
       "id": "jd.fetch",
@@ -123,6 +123,15 @@
       "note": "只读（dry-run）：从邮箱拉取邮件正文，不改动任何数据；仅 GUI 提供（凭证配在界面）。"
     },
     {
+      "id": "mail.update",
+      "stage": "跟进",
+      "cli": "track mail update",
+      "mcp": null,
+      "plugin": null,
+      "gui": "PATCH /api/progress/mails/{mail_id}",
+      "note": "写入：改一条邮件台账（标签 / 关联记录 / 方向…）——预览列出逐字段差异 -> 确认 -> 落盘，与 interview.update 同一条通道（FC-3：CLI 与 GUI 早已有实现，此前未登记）。"
+    },
+    {
       "id": "contact.record",
       "stage": "跟进",
       "cli": "track contact",
@@ -130,6 +139,15 @@
       "plugin": null,
       "gui": "POST /api/progress/contacts",
       "note": "写入：招聘方联系人。"
+    },
+    {
+      "id": "contact.update",
+      "stage": "跟进",
+      "cli": "track contact update",
+      "mcp": null,
+      "plugin": null,
+      "gui": "PATCH /api/progress/contacts/{contact_id}",
+      "note": "写入：改一条联系人（角色 / 联系方式 / 备注…）——同一条两段式通道；不经令牌、直接落盘（与 contact.record 同形态）。FC-3 补登记。"
     },
     {
       "id": "talk.record",
@@ -141,6 +159,15 @@
       "note": "写入：宣讲会 / 招聘会。"
     },
     {
+      "id": "talk.update",
+      "stage": "跟进",
+      "cli": "track talk update",
+      "mcp": null,
+      "plugin": null,
+      "gui": "PATCH /api/progress/talks/{talk_id}",
+      "note": "写入：改一场宣讲会（时间 / 形式 / 是否参加 / 收获…）——同一条两段式通道。FC-3 补登记。"
+    },
+    {
       "id": "offer.record",
       "stage": "跟进",
       "cli": "track offer",
@@ -148,6 +175,15 @@
       "plugin": null,
       "gui": "POST /api/progress/offers",
       "note": "写入：Offer 事实记录。"
+    },
+    {
+      "id": "offer.update",
+      "stage": "跟进",
+      "cli": "track offer update",
+      "mcp": null,
+      "plugin": null,
+      "gui": "PATCH /api/progress/offers/{offer_id}",
+      "note": "写入：改一条 Offer（薪资构成 / 答复截止日 / 备注…）——不经令牌、直接落盘（与 offer.record 同形态）。FC-3 补登记。"
     },
     {
       "id": "interview.list",

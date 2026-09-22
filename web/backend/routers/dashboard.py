@@ -175,14 +175,18 @@ def _stale_rows(rows, history, today, stale_days):
     基准日由 tracker.stage_base_date 决定（阶段变更 → 任意变更 → 投递日期），
     取不到基准日的记录不参与判定——没有依据就不该报警。
     """
+    # 索引一次：stale_days / stage_base_date 都以「该 id 的条目」为输入，
+    # 逐行传子集把 O(行数 × 条目数) 的全量扫描降为 O(条目数)（P 批治理）
+    by_id = tracker.history_by_id(history)
     stale = []
     for row in rows:
         if row.get("当前阶段") in TERMINAL:
             continue
-        days = tracker.stale_days(row, history, today)
+        own = by_id.get((row.get("id") or "").strip(), [])
+        days = tracker.stale_days(row, own, today)
         if days is None or days < stale_days:
             continue
-        base = tracker.stage_base_date(row, history)
+        base = tracker.stage_base_date(row, own)
         stale.append({
             "id": row.get("id", ""), "公司": row.get("公司", ""),
             "岗位": row.get("岗位", ""), "当前阶段": row.get("当前阶段", ""),
@@ -199,9 +203,11 @@ def _pending_health(rows, history, today):
     与追踪表 health 排序同源（tracker.health_score），看板只做搬运——
     两处各写一套判据迟早会给出互相矛盾的结论。
     """
+    by_id = tracker.history_by_id(history)
     pending = []
     for row in rows:
-        health = tracker.health_score(row, history, today)
+        own = by_id.get((row.get("id") or "").strip(), [])
+        health = tracker.health_score(row, own, today)
         if health["level"] in (None, "ok"):
             continue
         pending.append({

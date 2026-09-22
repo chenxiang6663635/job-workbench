@@ -24,7 +24,7 @@ packages/jobws-core/src/jobws_core/status_parse.py = 329  # 阶段同义词映�
 # （2026-09-16 重构批：check_skills / install_skills 的长函数已拆，两行按自洁删除）
 #
 # --- 单域 router：端点 + 校验 + pydantic 模型 ---
-web/backend/routers/applications.py = 568
+web/backend/routers/applications.py = 572  # 时间线索引化（P 批 2026-09-21，+4）：history_by_id 建索引一次、逐行传子集
 web/backend/routers/resume.py = 614  # 版式/风格清单 + 预览/Word/生成三处渲染
 web/backend/routers/jobs.py = 499
 web/backend/routers/imap.py = 304  # IMAP 配置 / 测试连接 / 只读拉取集中一处；本次加降级提示后越过 300 行

@@ -25,6 +25,7 @@ import {
   type StaleItem,
 } from "../api";
 import ActivityFeed from "../components/ActivityFeed";
+import { ErrorBanner } from "../components/ErrorBanner";
 import RetrospectivePanel from "../components/RetrospectivePanel";
 import { UpcomingTalks } from "../components/UpcomingTalks";
 import { EmptyOnboarding } from "../components/OnboardingWizard";
@@ -318,12 +319,8 @@ export default function Dashboard() {
   };
 
   if (error) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-        <AlertTriangle size={16} />
-        {t("dash.loadFailed", { error })}
-      </div>
-    );
+    // UX-1：失败也要能自救——统一提示条内嵌重试（重跑同一 effect）
+    return <ErrorBanner message={t("dash.loadFailed", { error })} onRetry={() => setReloadKey((k) => k + 1)} />;
   }
 
   if (!data) {

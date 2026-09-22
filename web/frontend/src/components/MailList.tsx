@@ -17,6 +17,7 @@ import {
   type Mail,
 } from "../api";
 import { previewDeleteRecord } from "../lib/records";
+import { drillToApplication } from "../lib/pageDrill";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -278,15 +279,10 @@ export default function MailList() {
       .catch((e: Error) => setError(e.message));
   };
 
-  // 跳到追踪表并展开该记录（2026-09-17 收尾批）：复用看板的 focusId 下钻——
+  // 跳到追踪表并展开该记录（2026-09-17 收尾批）：写方统一在 lib/pageDrill——
   // sessionStorage 传参 + hash 切页；App 是条件渲染，切过去会重挂载并消费。
   const jumpToRecord = (id: string) => {
-    try {
-      sessionStorage.setItem("jobws_drill", JSON.stringify({ focusId: id }));
-    } catch {
-      // 存储不可用：退化为不带聚焦的跳转
-    }
-    window.location.hash = "applications";
+    drillToApplication(id);
   };
 
   // 删除已改为两段式（DeleteRecordButton：预览 → 确认弹窗 → 凭令牌落盘），

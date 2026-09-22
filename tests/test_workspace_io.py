@@ -102,11 +102,13 @@ def test_replace_raises_after_retries_exhausted(tmp_path, monkeypatch):
 # --- 目录指纹 --------------------------------------------------------------
 
 
-def _age_mtime(path, delta_ns=1_000_000):
-    """把路径的 mtime 显式往前推：指纹只认 (size, mtime_ns)，mtime 得由测试写死。
+def _age_mtime(path, delta_ns=3_000_000_000):
+    """把路径的 mtime 显式往前推，让"变更可检出"是写死的条件、而不是等时钟前进。
 
-    此前这里用 time.sleep(0.01) 等时钟前进——在 mtime 粒度粗的介质上会偶发假红，
-    而"等 10ms"本身也不保证 stat 分辨率跟得上（2026-09-22 审查 MINOR）。
+    此前这里用 time.sleep(0.01)：在 mtime 粒度粗的介质（exFAT / SMB 以秒计）上，
+    "等 10ms"可能落在同一粒度里，断言就会偶发假红。delta 取 3s 是为了越过这类粒度；
+    本文件多数断言其实还能靠 size 变化或"新文件"破门，推 mtime 是把另一半写显式。
+    （2026-09-22 审查 MINOR；独立审查指出原注释把 delta 说大了，此处按实际口径改写。）
     """
     stat = os.stat(str(path))
     os.utime(str(path), ns=(stat.st_atime_ns, stat.st_mtime_ns + delta_ns))

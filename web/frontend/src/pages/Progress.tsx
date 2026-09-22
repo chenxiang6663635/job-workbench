@@ -7,7 +7,7 @@ import MailList from "../components/MailList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PageHeader } from "../components/ui/page-header";
 import { useTranslation } from "react-i18next";
-import { PREPARE_TAB_KEY, PROGRESS_TAB_KEY } from "../lib/pageDrill";
+import { PROGRESS_TAB_KEY } from "../lib/pageDrill";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 // 「进展」= **投递之后**的事（面试 / 邮件 / 联系人 / Offer）。

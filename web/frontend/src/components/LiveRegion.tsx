@@ -12,15 +12,10 @@ import { createAnnounceQueue } from "../lib/announceQueue";
 // 排队与计时都交给 lib/announceQueue（2026-09-22 审查 MINOR）：
 // 同帧连发不吞句；后台标签页也能播（rAF 会被暂停，setTimeout 仍会触发）。
 export default function LiveRegion() {
-  const [notice, setNotice] = useState<{ text: string; seq: number }>({
-    text: "",
-    seq: 0,
-  });
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    const queue = createAnnounceQueue((text) =>
-      setNotice((prev) => ({ text, seq: prev.seq + 1 }))
-    );
+    const queue = createAnnounceQueue(setNotice);
     const onAnnounce = (event: Event) => {
       queue.push(String((event as CustomEvent).detail ?? ""));
     };
@@ -33,7 +28,7 @@ export default function LiveRegion() {
 
   return (
     <div role="status" aria-live="polite" className="sr-only">
-      {notice.text}
+      {notice}
     </div>
   );
 }

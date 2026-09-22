@@ -7,7 +7,7 @@ import TalkList from "../components/TalkList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PageHeader } from "../components/ui/page-header";
 import { useTranslation } from "react-i18next";
-import { PREPARE_TAB_KEY, PROGRESS_TAB_KEY } from "../lib/pageDrill";
+import { PREPARE_TAB_KEY } from "../lib/pageDrill";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 
 // 「准备」板块：**投递之前**的事归一处（宣讲会 + 题库 + 笔记）。

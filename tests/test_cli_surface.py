@@ -485,3 +485,76 @@ def test_resume_cli_passes_facts_file_explicitly(tmp_path, monkeypatch, capsys):
     code, out = _invoke_jobws(monkeypatch, capsys, ["resume", "--workspace", str(ws)])
     assert code == 0, out
     assert seen["facts"] == os.path.join(str(ws), "config", "ats_required_facts.txt")
+
+
+# --- 7. CLI 真接线补网（T 批，2026-09-21）--------------------------------------
+
+BANK_SUBCOMMANDS = ["list", "due", "wrong", "add", "update", "delete", "drill",
+                    "import", "import-csv", "export"]
+
+
+@pytest.mark.parametrize("sub", BANK_SUBCOMMANDS)
+def test_bank_subcommand_help_exits_zero(sub, monkeypatch, capsys):
+    """bank 分发层每个子命令都能被 --help 叫醒（此前只冒烟到 bank 这一层）。"""
+    code, out = _invoke_jobws(monkeypatch, capsys, ["bank", sub, "--help"])
+    assert code == 0, out
+    assert "usage" in out.lower(), out
+
+
+def test_track_contact_add_list_show_roundtrip(tmp_path, monkeypatch, capsys):
+    """contact 此前只有 --help 名录：真跑 add → list → show，断言落盘与回读。"""
+    ws = _make_ws(tmp_path)
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "contact", "add",
+        "--name", "林工", "--role", "HR", "--company", "云帆",
+        "--next-follow", "2026-09-25"])
+    assert code == 0, out
+    assert "已记录联系人" in out
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "contact", "list"])
+    assert code == 0, out
+    assert "林工" in out and "C001" in out
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "contact", "show", "--id", "C001"])
+    assert code == 0, out
+    assert "林工" in out
+
+
+def test_track_offer_add_list_roundtrip(tmp_path, monkeypatch, capsys):
+    """offer 同上：真跑 add（未关联时 --company 必给）→ list 回读。"""
+    ws = _make_ws(tmp_path)
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "offer", "add",
+        "--company", "云帆", "--monthly", "20k", "--deadline", "2026-10-01"])
+    assert code == 0, out
+    assert "已记录 offer" in out
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "offer", "list"])
+    assert code == 0, out
+    assert "O001" in out and "20k" in out
+
+
+def test_track_show_and_history_roundtrip(tmp_path, monkeypatch, capsys):
+    """show / history 此前只有 --help 名录：先 add 一条（写时间线）再真读。"""
+    ws = _make_ws(tmp_path)
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "add",
+        "--company", "云帆", "--role", "后端", "--direction", "other",
+        "--batch", "正式批", "--stage", "已投"])
+    assert code == 0, out
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "show", "--id", "A001"])
+    assert code == 0, out
+    assert "云帆" in out
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", str(ws), "history", "--id", "A001"])
+    assert code == 0, out
+    assert "已投" in out or "A001" in out

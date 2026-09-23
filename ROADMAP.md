@@ -49,15 +49,15 @@ every batch below lands before it, none of them ships on its own, and the whole 
   + signed request state, four rejection classes tested) and the domain layer is extracted into an
   installable package with a standalone-install smoke in CI; then workspace files become MCP
   resources, prompt templates ship, and the modern protocol is kept with legacy compatibility.
-- [ ] **Exams track** — **未开始（2026-09-20 核实）**：全仓无赛道配置实现。stage names become per-track configuration (defaults identical to today,
+- [ ] **Exams track** — **暂缓（2026-09-22 拍板）**：不实现，整条降级为候选池条目（见下方「候选池」表首行，含触发条件）。原描述：stage names become per-track configuration (defaults identical to today,
   so an existing workspace changes in no way) so 考公 flows through the same workbench instead of
   a parallel one; the question bank grows exam subject presets.
-- [ ] **Mail structuring** — **部分完成（2026-09-20 核实）**：阶段与公司线索的解析与联动已落地（`status_parse` + 邮件台账联动）；时间与会议链接抽取未做。extract candidate facts from message bodies (times, meeting links,
+- [x] **Mail structuring** — **已实现（2026-09-22，PR #176）**：日历附件优先（`.ics` 最小解析）+ 正文正则兜底抽事实——时间、会议链接、阶段、公司与岗位；建议卡**逐条确认**才写入（不确认不落盘），会议链接进邮件台账新列（缺列按空、零迁移）；引用块与签名先剥离、截断按行边界保留含链接/日期行；可选 AI 增强 BYOK、只产建议、强制低把握；**无后台路径**（无定时器 / 轮询 / 保活）。原描述：extract candidate facts from message bodies (times, meeting links,
   stages, companies) into suggestion cards that only write after row-by-row confirmation; no
   background workers, ever.
-- [ ] **Skills & plugin distribution** — **部分完成（2026-09-20 核实）**：插件壳已含 5 命令 + 2 子代理；技能跨宿主标准分发与渐进披露未做。the eight skills move onto the cross-host standard
+- [x] **Skills & plugin distribution** — **已实现（2026-09-22，PR #177）**：8 个技能补标准元数据（`license` / `metadata.version` / 按需 `allowed-tools`）并把最长三份的大段内容拆进 `references/`（渐进披露）；校验器加字段白名单、`references/` 可达、正文 ≤500 行与**版本号一致性**四条规则；分发从「只有技能」扩到**技能 + 命令 + 子代理**三类（`skill_assets.py` 的资产表 + `--link` 实验选项），镜像比对按资产类型泛化并进 CI；零克隆通道（插件市场 / `npx skills add`）写进 README。原描述：the eight skills move onto the cross-host standard
   distribution channel with progressive disclosure; the plugin shell grows from skills-only to
-  commands + subagents; hooks stay local, auditable and off by default.
+  commands + subagents; hooks stay local, auditable and off by default. **hooks 仍保持本地、默认关闭**（决策见 [`docs/decisions/keep-hooks-local-and-off.md`](docs/decisions/keep-hooks-local-and-off.md)）。
 
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
 is stable for daily use and the workspace format promises **backward compatibility** — new columns

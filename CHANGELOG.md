@@ -13,6 +13,7 @@
 **版本号唯一来源**：`web/electron/package.json` 的 `version` 字段。
 **tag 约定**：每个版本发布时打 `v<发布号>` tag（如 `v26.09.15.1`）；**CHANGELOG 段名与该发布号同名**。
 **破坏性变更**：不再由主版本号承载——写在该版本的「破坏性变更」小节，并在段首「升级须知」说明影响与迁移步骤。
+**过渡纪律（2026-09-22 起）**：删除或改名列这类破坏性变更**先废弃、后移除**——先在 `### Deprecated` 登记并保持读时兼容，至少一个发布节点后才进 `### Removed` 并给出迁移办法；**即使某次升级什么都不用做，也必须在段里列出**被废弃/移除的东西（Keep a Changelog 的要求）。数据格式侧的承诺见 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)。
 
 **取材原则**：只记录对使用者可见的软件变更（功能 / 修复 / 破坏性变更）。向工作区录入个人数据（岗位评分、事实补齐等）属于数据操作，不是软件变更，不入此册。
 
@@ -26,6 +27,7 @@
 
 ### Highlights (English)
 
+- **Governance written down, not implied (2026-09-22)** — deferred work now lives in a candidate pool where every entry states the condition that would make it worth doing; the decisions that shaped the tool (human-confirmed writes, a single release node with timestamp versions, backwards-compatible workspace data) are recorded as short ADRs, and a new support & compatibility page spells out what counts as a stable release (four checkable conditions), what environments are supported, and why upgrades never ask you to convert your data.
 - **Skills, commands and subagents now ship as one standard package (2026-09-22)** — every skill gains the standard metadata (licence, version), and the three longest ones move their heavy reference material into on-demand `references/` files so the main file stays short. Distribution covers all three asset types now, not just skills, with a new `--link` option that points hosts at the single source instead of stale copies, and drift between copies and source is reported per asset type. Host hooks stay local and off by default — recorded as an explicit decision with re-evaluation triggers.
 - **Robust announcements & honest search (2026-09-22)** — two things you would only notice by their absence: confirmations now survive rapid-fire bursts and still land while the tab is in the background (screen-reader users hear every one), and the job-pool search can no longer show a list that does not match the keyword — an empty result now says “no match” instead of pretending the pool is empty.
 - **UX gaps closed (2026-09-22)** — error banners can now be retried instead of forcing a page reload, and the Progress tabs survive a refresh. An application row jumps straight to the parsed card of the matching role (or to the interview / contact / talk form) instead of making you hunt for it; deleting a custom theme asks for confirmation first; the job pool gained a keyword search; and successful writes are announced, so screen-reader users hear "created" instead of silence.
@@ -40,6 +42,7 @@
 
 ### 看得见的变化
 
+- **治理写进文档，不再靠默认（批 11，2026-09-22）**：① **候选池**——暂缓事项集中登记，每条写明「什么条件下才值得做」（含暂缓的考公赛道），将来不必重新论证一遍；② **决策记录**——塑造这个工具的四条关键决策各有短档：写入一律人工确认（不做自动投递、不代登录）、单一发布节点 + 时间戳版本、工作区数据向后兼容、宿主 hooks 默认关闭；③ **毕业条件与兼容承诺成文**——什么时候算正式版（四条可核判据）、支持哪些环境（版本 / 平台 / 宿主）、以及**升级永远不需要你转换数据**（读时缺列按空、写时统一表头）。CHANGELOG 头部同时补上「先废弃、后移除」的过渡纪律。
 - **技能、命令与子代理作为一整套分发（批 10，2026-09-22）**：八个技能补上标准元数据（许可、版本），最长的三份（`jwb-track` / `jwb-recruit-coach` / `jwb-jd`）把大段参考资料拆进 `references/`——主文件回归精简，细节按需读取。分发脚本从「只装技能」扩到**技能 + 命令 + 子代理**三类资产，并新增 `--link` 实验选项（用符号链接指向真源，不再有副本过期问题；Windows 需开发者模式或管理员权限）。镜像校验同步扩到三类：**仓库内项目级副本**的过期与内容不一致会被 `lint four-ends` 逐项指名（技能目录还会报「多出」，用户自有文件不算；用户级与插件缓存副本不在视野内）。宿主 hooks 保持本地、默认关闭——写成决策记录并留了复评条件。
 - **播报与搜索的两处小修（2026-09-22）**：① 同一瞬间连着完成两件事时，播报不再吞掉前一句；任务在**后台标签页**里完成时也会播报（此前读屏用户一声都听不到）。② 岗位池搜索：快速改关键词时，列表不会再被「上一笔请求的结果」盖住（结果与关键词对不上）；搜不到时明确说「没有匹配该关键词的岗位」，不再误报「岗位池还是空的」。
 - **界面细节补齐（U-1，2026-09-22）**：① 看板与「连不上后端」离线屏的错误条都给了**重试**按钮——此前只有一句报错，想重连得整页刷新；「进展」页的页签**被记住**（写回引起的整页刷新、切走再回来都停在原页签）。② 投递行展开后，除了「记邮件」，还能一键落到**面试 / 联系人 / 宣讲会**的录入表单；行内多了**「查看解析卡」**——直接跳到岗位池里这条投递对应的岗位详情（岗位池里没有对应岗位时入口不出现，不做点了没反应的入口）。③ **删自定义主题先出确认框**（此前点一下即删、不可撤销）。④ **岗位池能搜索了**：按公司 / 岗位关键词过滤（与追踪表的搜索同口径，输入停顿 300ms 才发请求——每条岗位都要读一次解析卡，按键即请求会变成一串磁盘读）。⑤ 写入成功会**播报**一句（新建投递 / 批量导入 / 新建岗位 / 抓取 JD）：视觉上只是界面多了一行，读屏用户此前完全听不到发生了什么。
@@ -139,6 +142,8 @@
 #### Infrastructure（内部工程）
 
 > 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
+
+- **治理文档成文（批 11，2026-09-22）**：① `ROADMAP.md` 增「候选池」——暂缓事项集中登记、每条带**触发条件**（含 2026-09-22 暂缓的考公赛道），并写明「往这里加条目只需一行；开工时先走 `Now` 的四道门」；② 新建 `docs/decisions/`（ADR，一条一文件、祈使动词命名）收录四条已定型决策：`keep-hooks-local-and-off`、`keep-writes-human-confirmed`、`ship-once-per-release`、`read-missing-columns-as-empty`——每条写背景、决策、已评估的替代方案与**复评条件**；③ 新建 `docs/support-and-compatibility.md`（毕业条件四条判据 / 支持策略表 / 数据兼容四条条款 / 升级路径 / 已知边界），由 `ROADMAP` 的 Graduation 段与 README 中英的文档列表交叉引用；④ `docs/README.md` 增「决策记录」索引节；⑤ `CHANGELOG.md` 头部补「先废弃、后移除」的过渡纪律（Deprecated → Removed，至少一个发布节点，且即使无需动作也要列出）。
 
 - **契约单一来源与测试健壮性（2026-09-22，审查 MINOR）**：① 页签下钻键收成单一来源——`ApplicationRow` / `Dashboard` 改用 `lib/pageDrill` 导出常量，`Progress` / `Prepare` 页的本地 `DRILL_KEY` 也引用同一常量（收口范围仅**页签键**；`jobws_drill` 的写方仍散在 Jobs / Dashboard / applicationMeta / MailList / Applications 五处，留作后续），新增 `pageDrill` 键值契约单测 4 条。② `tests/test_workspace_io.py` 的 4 处 `time.sleep(0.01)` 改为 `_age_mtime()`（`os.utime` 显式推 mtime）——mtime 粒度粗的介质上「等 10ms」不保证被检出，会偶发假红。前端单测 10 文件 / 72 用例 → **12 文件 / 80 用例**。
 - **文档对账与四端矩阵修正（U-2，2026-09-22）**：① `CONTRIBUTING.md` 的测试计数回到**实测**（pytest 77 文件 / 1060 条、前端单测 10 文件 72 用例、Playwright 11 spec / 94 用例、MCP 61 条），并写清「数字随批次变动、以本地实跑为准」——旧数字是 09-20 的快照，早已失真。② usage-guide 中英补上 09-21 的新界面（题库自拟新增、到期 / 错题徽章、训练结束卡的进度与"真正落盘了几条"、一轮可全程键盘操作）。③ CHANGELOG 里「不做单题新增入口」的旧边界加注记（该边界已于 09-21 取消，原文不动、不改写历史）；审计报告里 `filelock` 那条加时点注记（`tools/filelock.py` 已搬进领域包，行号与引用数都不再成立）。④ **四端矩阵**：基数（能力 / 例外 / 错误码条数）改为**随真值生成**——此前口头与文档里出现过与真值不符的条数，根因是手写；`jd.score` 的桌面端列清空（界面只呈现 gap 面板、不评分，与「GUI 不提供 jd.score」的例外不再自相矛盾）；补登记 `mail.update` / `talk.update` / `contact.update` / `offer.update`（CLI 与 GUI 早有实现，此前漏登记）。⑤ `.codebuddy/plans/` 归档：52 份历史计划整体移入 `archive/`，主目录只留现行 7 份，索引补录 09-16 起的施工单（这些计划从不进 git，属本机思考留痕）。

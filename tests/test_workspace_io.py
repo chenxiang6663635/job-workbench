@@ -105,10 +105,12 @@ def test_csv_cells_round_trip_keeps_a_leading_apostrophe(tmp_path):
     """
     from jobws_core.csv_cells import csv_cell, csv_read_cell
 
-    for raw in ("'- 待定", "'=SUM(A1)", "'+86 13800000000"):
+    for raw in ("'- 待定", "'=SUM(A1)", "'+86 13800000000",
+                # 两个引号 + 公式前缀：写侧只补一层时读侧会多剥一层（二轮审查的反例）
+                "''=x", "''- 待定", "'''=x"):
         assert csv_read_cell(csv_cell(raw)) == raw, raw
-    # 幂等：往返后的值再走一轮，结果不变（不会每存一次多一个引号）
-    for raw in ("'- 待定", "=1+1", "'引用'"):
+    # 幂等：往返后的值再走一轮，结果不变（不会每存一次就多/少一个引号）
+    for raw in ("'- 待定", "=1+1", "'引用'", "''=x", "''''- a"):
         once = csv_read_cell(csv_cell(raw))
         assert csv_read_cell(csv_cell(once)) == once, raw
 

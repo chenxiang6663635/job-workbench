@@ -11,6 +11,7 @@
 超时 0.2s 的同款实现，避免测试真的干等。
 """
 
+import importlib
 import os
 import sys
 
@@ -59,11 +60,24 @@ def _cmd(ws, *rest):
 
 
 def test_contact_add_waits_for_the_lock(ws, short_lock, monkeypatch, capsys):
-    """锁被占住时联系人新增必须写不进去（而不是照旧整表覆盖）。"""
+    """锁被占住时联系人新增必须写不进去（而不是照旧整表覆盖）。
+
+    除"表为空"之外，另断言**写函数一次都没被调用**（2026-09-23 二轮审查）：
+    只看表为空时，把锁只包住读、写留在锁外也能骗过测试——那种写法同样丢更新。
+    """
+    # 用 importlib 取模块对象而不是写 `import tracker._cli_contact`：后者会新增一个
+    # 旧名（`tracker`）的静态 import 点，而那条水位闸门只许下降
+    cli_contact = importlib.import_module("tracker._cli_contact")
+
+    calls = []
+    monkeypatch.setattr(cli_contact, "write_contacts",
+                        lambda rows, *a, **k: calls.append(list(rows)))
+
     with filelock_mod.file_lock(tracker._lock_path(ws), timeout=5.0):
         code = _invoke(monkeypatch, capsys,
                        _cmd(ws, "contact", "add", "--name", "张老师"))
     assert code != 0, "锁被占住时不该成功落盘"
+    assert calls == [], "拿不到锁却仍执行了写回——锁只包住了读"
     assert tracker.read_contacts(ws) == [], "锁外写入了——丢更新的通道还开着"
 
 

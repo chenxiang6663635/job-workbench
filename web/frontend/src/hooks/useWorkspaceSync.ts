@@ -17,12 +17,17 @@
 // 行为：
 // - 每 10s 拉一次工作区指纹（cache: no-store）；窗口隐藏时暂停、可见时补一次；
 // - 窗口聚焦 / 可见性变化时也查一次（"从 CLI / MCP 切回 GUI"的主场景）；
-// - **仅在"指纹变化 且 近 10s 无输入活动"时回调**；
+// - **仅在"指纹变化 且 近 3s 无指针/键盘活动"时回调**；
 // - 网络错误不吞：首次失败给一条 console.warn（禁静默吞错是本仓纪律），之后静默重试。
 import { useEffect, useRef } from "react";
 
 const POLL_MS = 10_000;
-const ACTIVITY_GRACE_MS = 10_000;
+// 宽限期**必须明显小于轮询间隔**（2026-09-23 二轮审查）：两者相等时，用户只要在
+// 上一轮窗口里点过任意一下（指针事件现在也算活动），这一轮检测到的外部改动就会被
+// 判成"正在输入"而吃掉——而基线照样推进，于是**那一次外部改动永远不会浮出来**，
+// 界面停在旧值直到下一次外部改动。取 3s：足够覆盖本端的防抖保存（百毫秒级），
+// 又不会吃掉整整一个轮询周期的外部变化。
+const ACTIVITY_GRACE_MS = 3_000;
 const WS_STORAGE_KEY = "jobws_selected_workspace";
 
 function currentWorkspaceQuery(): string {

@@ -12,7 +12,7 @@ import {
   PREPARE_TAB_KEY,
   PROGRESS_TAB_KEY,
 } from "../lib/pageDrill";
-import { commitInline } from "../lib/inlineCommit";
+import { commitInline, type PatchOutcome } from "../lib/inlineCommit";
 import { previewDeleteApplication } from "../lib/records";
 import DeleteRecordButton from "./DeleteRecordButton";
 import HistoryTimeline from "./HistoryTimeline";
@@ -33,7 +33,7 @@ type Props = {
   timeline: HistoryEntry[];
   onToggleTimeline: () => void;
   /** 返回 false 表示写入失败（调用方据此把行内输入回滚，见 `commitInline`） */
-  onPatch: (body: Partial<Application>) => unknown;
+  onPatch: (body: Partial<Application>) => PatchOutcome;
   onReload: () => void;
   /** UX-3：岗位池里与该条投递对应的目录名（没有就不显示解析卡入口） */
   jobDir?: string;

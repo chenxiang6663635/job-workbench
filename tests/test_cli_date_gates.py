@@ -63,6 +63,28 @@ def test_check_when_rejects_impossible_moments():
         assert tracker.check_when(raw, "时间"), raw
 
 
+def test_check_when_agrees_with_web_parse_when():
+    """领域层与 Web 侧必须对同一组样本给出同样的结论（2026-09-23 二轮审查）。
+
+    两处各有一套正则：领域层 `check_when`（CLI / MCP 用）与 Web 的
+    `icsutil.parse_when`（界面校验 + .ics 导出用）。不一致的后果是双向的——
+    "CLI 收得进、界面判 422"，以及"写进去的时间在 .ics 里静默消失"。带秒的写法
+    正是第一版漏掉的那一处，所以这里把它钉进样本集。
+    """
+    import icsutil  # web/backend 在 sys.path 上（本文件顶部已加）
+
+    # 不把空值放进样本：空表示"还没定"，两侧都按"没有可判的内容"处理，语义本就不同
+    samples = ["2026-09-30", "2026-09-30 14:00", "2026-09-30T14:00",
+               "2026-09-30 14:00:30", BAD_DAY, BAD_DAY + " 14:00",
+               "2026-09-30 25:00", "9/30/2026", "2026-9-30"]
+    for raw in samples:
+        accepted_by_domain = tracker.check_when(raw, "时间") is None
+        accepted_by_web = icsutil.parse_when(raw) is not None
+        assert accepted_by_domain == accepted_by_web, (
+            "两处对 %r 的结论不一致：领域层 %s / Web %s"
+            % (raw, accepted_by_domain, accepted_by_web))
+
+
 # ---- CLI：纯日期 -------------------------------------------------------------
 
 def test_cli_offer_deadline_rejects_impossible_day(tmp_path, monkeypatch, capsys):

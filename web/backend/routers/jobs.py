@@ -33,7 +33,6 @@ from deps import DIR_JOBS, safe_join, workspace_dir
 from iocaps import read_text_capped
 from lockctx import locked
 from ro_files import inside
-from ro_files import inside
 from routers.progress._shared import delete_preview_response
 
 router = APIRouter(prefix="/api/jobs")
@@ -198,17 +197,18 @@ def _summary(workspace: str, name: str, app_index: dict = None):
     （新建、抓取 JD）不传时就地建一次——避免调用方忘传后静默滑成「未投递」。
     """
     d = safe_join(workspace, DIR_JOBS, name)
-    # 与 job_detail 调用方式相同，传带 DIR_JOBS 前缀的相对路径
+    # 与 job_detail 同款调用（带 DIR_JOBS 前缀）；以解析成功为基准而非文件存在
     card = _parse_card(workspace, os.path.join(DIR_JOBS, name))
-    # 以解析成功为基准，而非文件存在——存在但不通过的卡片不算"已评分"
     has_card = card is not None and card.get("consistent") and card.get("total") is not None
+    # 读穿防护也覆盖「存在与否 / mtime」：junction 指向工作区外时泄漏量只是布尔与时间戳
+    inside_ws = inside(workspace, d) and os.path.isdir(d)
     return dict({
         "dir": name,
-        "hasJD": _read(os.path.join(d, JD_FILE)) is not None,
+        "hasJD": inside_ws and _read_in_workspace(workspace, DIR_JOBS, name, JD_FILE) is not None,
         "hasCard": has_card,
         "score": card["total"] if has_card else None,
         "level": card["level"] if card else None,
-        "mtime": int(os.path.getmtime(d)) if os.path.isdir(d) else None,
+        "mtime": int(os.path.getmtime(d)) if inside_ws else None,
     }, **_link_fields(workspace, name, app_index))
 
 

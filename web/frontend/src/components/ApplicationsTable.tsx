@@ -4,6 +4,7 @@ import { ChevronsUpDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Application, HistoryEntry } from "../api";
 import { SORT_LABELS, type SortKey } from "../lib/applicationMeta";
+import type { PatchOutcome } from "../lib/inlineCommit";
 import ApplicationRow from "./ApplicationRow";
 
 type Props = {
@@ -13,7 +14,8 @@ type Props = {
   expanded: Record<string, boolean>;
   timelines: Record<string, HistoryEntry[]>;
   onToggleTimeline: (id: string) => void;
-  onPatch: (id: string, body: Partial<Application>) => void;
+  /** 返回值一路透到行组件：`false` = 写入失败，行内输入据此回滚（见 inlineCommit） */
+  onPatch: (id: string, body: Partial<Application>) => PatchOutcome;
   onReload: () => void;
   /** UX-3：投递 id → 岗位池目录名（由后端关联给出）。没有对应岗位的行不显示入口 */
   jobDirs: Record<string, string>;

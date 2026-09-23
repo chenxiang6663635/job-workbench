@@ -32,12 +32,13 @@ import ssl
 from jobws_core import tls_policy
 from email import message_from_bytes
 from email.header import decode_header
-# 正文 / ICS 的抽取与截断已下沉到领域包（批 9，见 packages/jobws-core 的
-# mail_text.py）：按原名字再导出，既有调用方（后端 / MCP / 测试）不受影响。
+# 正文 / ICS 的抽取与截断已下沉到领域包（批 9）：按原名再导出，调用方不受影响。
 from jobws_core.mail_text import (MAX_BODY_CHARS, extract_body, extract_calendar,
                                   smart_truncate)
 
 logger = logging.getLogger(__name__)
+
+BODY_CHUNK_BYTES = 512 * 1024  # 单封拉取上限（审计 P0-4）：分段 BODY.PEEK[]<0.N>；内存上界 = limit × 此值
 
 DEFAULT_PORT = 993
 DEFAULT_FOLDER = "INBOX"
@@ -254,8 +255,7 @@ def _fetch_recent(conn, folder, since_days, limit):
     if typ != "OK":
         raise ImapFetchError("打开文件夹失败：%s" % (data,))
 
-    # 时间窗在服务端过滤（SINCE 是 ASCII 安全的条件）：
-    # 只取「最近 N 封」在几千封的真实邮箱里会被广告邮件淹没
+    # 时间窗在服务端过滤（SINCE 是 ASCII 安全的条件）——只取「最近 N 封」防广告淹没。
     criteria = ["SINCE", _imap_since(since_days)] if since_days else ["ALL"]
     try:
         # UID SEARCH（不是 SEARCH）：拿到的是稳定 UID。
@@ -272,12 +272,11 @@ def _fetch_recent(conn, folder, since_days, limit):
     if not recent:
         return []
 
-    # 批量 FETCH：一条命令取回全部。逐封 FETCH 要 N 个网络来回，
-    # 在真实邮箱（50 封）上就是「点一下等半分钟」的主因。
-    # 显式请求 UID 而不是靠响应顺序对齐——顺序对齐依赖服务器实现。
+    # 批量 FETCH 一次取回（逐封要 N 个网络来回）；显式请求 UID——顺序对齐依赖服务器实现。
     seq = ",".join(uid.decode("ascii", errors="replace") for uid in recent)
     try:
-        typ, fetched = conn.uid("FETCH", seq, "(UID BODY.PEEK[])")
+        typ, fetched = conn.uid(
+            "FETCH", seq, "(UID BODY.PEEK[]<0.%d>)" % BODY_CHUNK_BYTES)
     except imaplib.IMAP4.error as exc:
         raise ImapFetchError("读取邮件失败：%s" % exc)
     if typ != "OK":
@@ -299,8 +298,7 @@ def _fetch_recent(conn, folder, since_days, limit):
         msg = message_from_bytes(raw)
         messages.append({
             "uid": uid.decode("ascii", errors="replace"),
-            # Message-ID（批 4.5）：BODY.PEEK[] 已含 headers，无需额外请求；
-            # 规范值供 mails 去重与 Gmail 深链构造（其余邮箱诚实降级）。
+            # Message-ID（批 4.5）：BODY.PEEK[] 已含 headers——供 mails 去重与 Gmail 深链。
             "messageId": _clean_message_id(msg.get("Message-ID")),
             "subject": _decode_mime_header(msg.get("Subject")),
             "from": _decode_mime_header(msg.get("From")),
@@ -308,6 +306,8 @@ def _fetch_recent(conn, folder, since_days, limit):
             "body": extract_body(msg),
             # 会议邀请的 ICS 原文（无则为空串）：解析优先级高于正文正则
             "calendar": extract_calendar(msg),
+            # 分段拉取标注：raw 顶到上限即视为截断（大附件尾部被切，头与 ICS 在前段）
+            "truncated": len(raw) >= BODY_CHUNK_BYTES,
         })
     return messages
 

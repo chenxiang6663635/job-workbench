@@ -34,7 +34,7 @@ import imap_fetch
 from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 from redact import mask_secret
 
 router = APIRouter(prefix="/api/imap")
@@ -48,7 +48,7 @@ def _config_path(ws):
 
 
 def _lock_path(ws):
-    """独立锁文件：与配置内容分离，避免 file_lock 锁内容文件本身的问题（同 provider）。"""
+    """独立锁文件：与配置内容分离，避免 locked 锁内容文件本身的问题（同 provider）。"""
     return safe_join(ws, "config", "imap.lock")
 
 
@@ -200,7 +200,7 @@ def save_imap(body: SaveImap, ws: str = Depends(workspace_dir)):
     path = _config_path(ws)
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         cfg = _read_config(path)
         raw_host = body.host.strip()
         # 留空是合法输入（表示"按邮箱域名推断"）；非空则先过形状校验

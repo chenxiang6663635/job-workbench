@@ -30,7 +30,8 @@ import tls_http
 from jobws_core import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, safe_join, workspace_dir
-from jobws_core.filelock import file_lock
+from iocaps import read_text_capped
+from lockctx import locked
 from routers.progress._shared import delete_preview_response
 
 router = APIRouter(prefix="/api/jobs")
@@ -68,8 +69,10 @@ def _dir_name(company: str, role: str) -> str:
 def _read(path):
     if not os.path.isfile(path):
         return None
-    with io.open(path, "r", encoding="utf-8") as f:
-        return f.read()
+    # 带上限：解析卡是文本，但目录里也可能躺着一个被误放进去的大文件——
+    # 列表接口对每条记录都要读一次，无上限的 read() 会把一次列表变成一次全盘读
+    text, _truncated = read_text_capped(path)
+    return text
 
 
 def _parse_card(workspace: str, job_dir: str):
@@ -284,7 +287,7 @@ def create_job(job: NewJob, ws: str = Depends(workspace_dir)):
     lock_path = safe_join(ws, DIR_JOBS, ".jobs.lock")
     os.makedirs(safe_join(ws, DIR_JOBS), exist_ok=True)
 
-    with file_lock(lock_path):
+    with locked(lock_path):
         if os.path.exists(job_dir):  # 双检：并发下同名
             raise ApiError(409, "job.exists", "岗位已存在: %s" % name, name=name)
         os.makedirs(job_dir)
@@ -396,7 +399,7 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
 
     lock_path = safe_join(ws, DIR_JOBS, ".jobs.lock")
     os.makedirs(safe_join(ws, DIR_JOBS), exist_ok=True)
-    with file_lock(lock_path):
+    with locked(lock_path):
         if not os.path.isdir(job_dir):
             os.makedirs(job_dir)
         content = ("# %s %s\n\n来源：%s\n抓取时间：%s\n\n%s\n"

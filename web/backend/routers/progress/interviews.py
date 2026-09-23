@@ -12,8 +12,9 @@ from pydantic import BaseModel
 from jobws_core import tracker
 import icsutil
 from apierror import ApiError
+from datecheck import check_when_fields
 from deps import workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 
 router = APIRouter()
 
@@ -101,7 +102,7 @@ def create_interview(item: NewInterview, ws: str = Depends(workspace_dir)):
     company = (item.公司 or "").strip()
     role = (item.岗位 or "").strip()
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         main_rows = tracker.read_rows(ws)
         if link:
             src = next(
@@ -122,6 +123,8 @@ def create_interview(item: NewInterview, ws: str = Depends(workspace_dir)):
         row["公司"] = company
         row["岗位"] = role
         row["轮次"] = item.轮次
+        # 入口校验（审计 P1 补网）：非法时间让面试从 .ics 与看板时间线里静默消失
+        check_when_fields([(item.面试时间, "面试时间")])
         row["面试时间"] = (item.面试时间 or "").strip()
         row["形式"] = item.形式
         row["链接"] = (item.链接 or "").strip()
@@ -160,8 +163,9 @@ def update_interview(
         updates["链接"] = (updates["链接"] or "").strip()
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
+    check_when_fields([(updates.get("面试时间"), "面试时间")])
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         rows = tracker.read_interviews(ws)
         row = tracker.find_interview(rows, interview_id)
         if row is None:

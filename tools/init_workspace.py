@@ -32,6 +32,10 @@ import os
 import shutil
 import sys
 
+# 复制机制另置一处（2026-09-23 审计修复批）：本文件是水位文件，覆盖保护的新逻辑
+# 进来就必须给老内容找新家——「怎么复制」拆到 init_copy，「编排与 CLI」留在这里。
+from init_copy import copy_tree, copy_tree_file, plan_tree as _plan_tree  # noqa: E402
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "template")
@@ -60,41 +64,6 @@ def list_domains():
         return []
     return sorted(d for d in os.listdir(PROFILES)
                   if os.path.isdir(os.path.join(PROFILES, d)))
-
-
-def copy_tree_file(src, dst):
-    """复制单个文件，已存在则跳过。"""
-    if not os.path.isfile(dst):
-        shutil.copy2(src, dst)
-
-
-def copy_tree(src, dst, overwrite=False):
-    """按 overwrite 语义复制目录树。
-
-    不用 `shutil.copytree`：它给不出「覆盖了哪些文件」这份清单，而调用方必须把
-    覆盖这件事说出口（见下）。
-
-    overwrite=False（默认）用于模板骨架：已存在的文件不动，避免覆盖用户内容。
-    overwrite=True 用于 demo 数据：它要覆盖模板里的同名空骨架（如 tracker.csv）。
-
-    返回被覆盖的文件绝对路径列表——调用方必须把这件事说出口：--demo 落到
-    一个已经填了真实数据的工作区上就是数据丢失，静默覆盖不能接受。
-    """
-    if not os.path.isdir(dst):
-        os.makedirs(dst)
-    replaced = []
-    for item in os.listdir(src):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            replaced.extend(copy_tree(s, d, overwrite))
-        elif os.path.isfile(d):
-            if overwrite:
-                shutil.copy2(s, d)
-                replaced.append(d)
-        else:
-            shutil.copy2(s, d)
-    return replaced
 
 
 def demo_counts():
@@ -165,32 +134,6 @@ def _display_path(path, base):
         return os.path.relpath(path, base)
     except ValueError:
         return path
-
-
-def _plan_tree(src, dst, overwrite=False):
-    """只读遍历：算出复制时**会新建**与**会覆盖**哪些文件（**不落盘**）。
-
-    判定规则与 `copy_tree` 保持一致（默认跳过已存在文件，overwrite=True 才覆盖）
-    ——否则「预览说会覆盖 3 个」和「实际覆盖了 5 个」就开始各说各话。真正的复制
-    仍由 `copy_tree` 执行。
-
-    只数**文件**：`copy_tree` 会顺带把空目录建出来（如 `applications/`），但目录
-    不会覆盖任何东西，也不在「新建 N 个文件」的口径里（独立审查 MINOR-3）。
-    """
-    creates, replaces = [], []
-    for item in sorted(os.listdir(src)):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            sub_creates, sub_replaces = _plan_tree(s, d, overwrite)
-            creates.extend(sub_creates)
-            replaces.extend(sub_replaces)
-        elif os.path.isfile(d):
-            if overwrite:
-                replaces.append(d)
-        else:
-            creates.append(d)
-    return creates, replaces
 
 
 def plan_init(target, domain=None, demo=False, force=False):
@@ -344,12 +287,23 @@ def main():
                         help="额外铺上占位 demo 数据（8 投递 / 3 面试 / 2 联系人 / "
                              "1 Offer / 3 宣讲会 / 6 道题）")
     parser.add_argument("--force", action="store_true", help="目标已存在时仍继续")
+    parser.add_argument("--yes", action="store_true",
+                        help="非交互环境的覆盖确认：与 --force 连用时跳过交互确认"
+                             "（脚本 / CI 用；交互环境仍会先展示覆盖清单）")
     parser.add_argument("--preview", action="store_true",
                         help="只预览将新建 / 覆盖哪些文件（不落盘）；"
                              "确认后用 python tools/jobws.py apply <令牌> 执行")
     args = parser.parse_args()
 
     target = os.path.join(ROOT, args.target)
+
+    # 审计 P0-5：--target 只允许落在仓库根之内——绝对路径 / `..` 会把初始化
+    # （连同 --force --demo 的覆盖）落到仓库外的任意目录。
+    root_real = os.path.realpath(ROOT)
+    target_real = os.path.realpath(target)
+    if target_real != root_real and not target_real.startswith(root_real + os.sep):
+        print("错误：--target 必须在仓库根之内：%s" % args.target)
+        return 1
 
     if os.path.exists(target) and os.listdir(target) and not args.force:
         print("目标目录已存在且不为空：%s" % args.target)
@@ -375,6 +329,26 @@ def main():
         print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
         print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
         return 0
+
+    # 审计 P0-5：--force 直接落盘前，把「将覆盖哪些文件」摆到用户眼前并要求确认。
+    # 清单来自 plan["diff"]（与 --preview 同一份判定，无第二套逻辑）。非 TTY
+    # （脚本 / CI）没有确认渠道：未显式 --yes 一律拒绝——demo 覆盖真实数据是
+    # 数据丢失级事故，事后提示救不回来。两段式路径（--preview → apply）不受影响：
+    # apply_approved_init 在落盘前会重查目录状态。
+    will_replace = any("将覆盖" in line for line in plan["diff"])
+    if will_replace and not args.yes:
+        print("## 将覆盖以下既有文件（不可自动恢复）")
+        for line in plan["diff"]:
+            if "将覆盖" in line:
+                print(line)
+        if not sys.stdin.isatty():
+            print("非交互环境：请加 --yes 显式确认，或改用 --preview 走两段式"
+                  "（apply 前会复查目录状态）。")
+            return 1
+        answer = input("确认覆盖？输入 yes 继续：").strip().lower()
+        if answer != "yes":
+            print("已取消，未写入。")
+            return 1
 
     domain = plan["payload"]["domain"]
     demo = plan["payload"]["demo"]

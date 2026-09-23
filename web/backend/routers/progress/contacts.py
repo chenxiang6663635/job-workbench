@@ -11,8 +11,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from jobws_core import tracker
 from apierror import ApiError
+from datecheck import check_date_fields
 from deps import workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 
 router = APIRouter()
 
@@ -63,13 +64,14 @@ def create_contact(item: NewContact, ws: str = Depends(workspace_dir)):
     if not item.姓名.strip():
         raise ApiError(422, "progress.nameRequired", "姓名必填")
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         if link:
             main_rows = tracker.read_rows(ws)
             if not any((r.get("id") or "").strip() == link for r in main_rows):
                 raise ApiError(404, "progress.linkNotFound",
                                "找不到关联记录 %s" % link, id=link)
 
+        check_date_fields([(item.最近联系, "最近联系"), (item.下次跟进, "下次跟进")])
         rows = tracker.read_contacts(ws)
         row = {field: "" for field in tracker.CONTACT_FIELDS}
         row["联系人id"] = tracker.next_contact_id(rows)
@@ -95,8 +97,10 @@ def update_contact(contact_id: str, item: PatchContact,
     updates = {k: v for k, v in item.dict().items() if v is not None}
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
+    check_date_fields([(updates.get("最近联系"), "最近联系"),
+                       (updates.get("下次跟进"), "下次跟进")])
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         rows = tracker.read_contacts(ws)
         row = tracker.find_contact(rows, contact_id)
         if row is None:

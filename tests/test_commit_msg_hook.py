@@ -112,6 +112,23 @@ def test_gbk_encoded_message_is_decoded_not_mangled(hook, tmp_path):
     assert hook.main([str(path)]) == 0
 
 
+def test_non_utf8_message_says_which_encoding_was_used(hook, tmp_path, capsys):
+    """回退解码必须出声（2026-09-23 审计 P2）。
+
+    gb18030 几乎能解出任何字节序列，所以「按 gb18030 读通了」本身不代表内容正确：
+    若不出声，作者看到的是一条基于可能是乱码的文本给出的判定（"中文够了" /
+    "要改编码"都无法分辨），比直接报编码错误更误导。
+    """
+    path = tmp_path / "gbk.txt"
+    path.write_bytes("feat(ui): 迁移到新原语".encode("gbk"))
+    assert hook.main([str(path)]) == 0
+    out = capsys.readouterr().out
+    # 具体编哪个取决于平台首选编码（Windows 是 cp936，Linux 上会落到 gb18030），
+    # 断言的是"点名了一个非 UTF-8 的编码"这件事，而不是那一个名字
+    assert "UTF-8" in out
+    assert ("gb18030" in out or "cp936" in out or "gbk" in out)
+
+
 def test_undecodable_message_reports_encoding_not_language(hook, tmp_path, capsys):
     """解不开的文件要报编码问题，不能报成语言问题。"""
     path = tmp_path / "broken.txt"

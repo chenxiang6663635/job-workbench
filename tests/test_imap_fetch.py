@@ -159,6 +159,25 @@ def test_fetch_selects_readonly_and_uses_peek(fake):
     assert fake.logged_out, "结束必须登出"
 
 
+def test_fetch_caps_per_message_bytes_and_marks_truncation(fake, monkeypatch):
+    """审计 P0-4：`BODY.PEEK[]<0.N>` 分段拉取（单封字节上限），超限的消息标注
+    truncated——大附件邮箱整封拉回会吃掉数百 MB 内存。头与 ICS 都在邮件前段，
+    截断只牺牲超大附件的尾部。"""
+    monkeypatch.setattr(imap_fetch, "BODY_CHUNK_BYTES", 64)
+    messages = imap_fetch.fetch_messages("imap.example.com", "a@example.com", "code", limit=3)
+
+    fetches = [c for c in fake.calls if c[0] == "uid:fetch"]
+    assert any("<0.64>" in str(arg) for args in fetches for arg in args[1:]), fetches
+    assert all(m["truncated"] for m in messages), messages
+
+
+def test_fetch_marks_small_messages_not_truncated(fake):
+    """未触上限的正常邮件：truncated=False（字段始终在，界面与解析不用判缺）。"""
+    messages = imap_fetch.fetch_messages("imap.example.com", "a@example.com", "code", limit=3)
+
+    assert messages and all(m["truncated"] is False for m in messages), messages
+
+
 def test_fetch_returns_the_most_recent_first(fake):
     messages = imap_fetch.fetch_messages(
         "imap.example.com", "a@example.com", "code", limit=2)

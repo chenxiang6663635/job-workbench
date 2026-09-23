@@ -30,7 +30,8 @@ import tls_http
 from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
-from jobws_core.filelock import file_lock
+from iocaps import MAX_BINARY_BYTES, read_bytes_capped, read_response, read_text_capped
+from lockctx import locked
 from routers import provider
 
 router = APIRouter(prefix="/api/resume")
@@ -98,9 +99,8 @@ def list_versions(ws: str = Depends(workspace_dir)):
 
 
 # ---------------------------------------------------------------------------
-# 高级模板（手写 HTML 精排版）：只读浏览 + 生成。
-# 原为素材库的「简历工坊」分类，2026-09-03 收拢到简历域（/api/resume/templates）。
-# 编辑仍走手写 HTML / CLI，Web 不提供编辑入口。
+# 高级模板（手写 HTML 精排版）：只读浏览 + 生成（原素材库的「简历工坊」分类，
+# 2026-09-03 收拢到简历域 /api/resume/templates；编辑仍走手写 HTML / CLI）。
 # 注意：这些具体路由必须注册在 /{version} 之前，否则 GET /templates 会被
 # 动态参数路由抢先匹配成 version="templates"。
 # ---------------------------------------------------------------------------
@@ -179,12 +179,9 @@ def list_layouts(ws: str = Depends(workspace_dir)):
 
 
 # ---------------------------------------------------------------------------
-# 简历一键导入（第一批）
-#
-# 上传 PDF/docx/MD/TXT → 抽取文本 → BYOK 结构化 → 可溯源校验 → 返回核对数据。
-# 本端点**绝不落盘**：结果必须经前端核对页逐段确认后，再走既有 PUT 保存。
-# 上传文件只在本机临时目录短暂驻留，用完即删，不进工作区（也就不会进快照/git）。
-# 注意：具体路由必须注册在 /{version} 之前，否则会被动态参数路由抢先匹配。
+# 简历一键导入：上传 PDF/docx/MD/TXT → 抽取文本 → BYOK 结构化 → 可溯源校验 →
+# 返回核对数据。**绝不落盘**（结果经前端核对页确认后才走既有 PUT 保存）；上传文件
+# 只在本机临时目录短暂驻留、用完即删，不进工作区。具体路由须注册在 /{version} 前。
 # ---------------------------------------------------------------------------
 
 class ImportRequest(BaseModel):
@@ -203,8 +200,7 @@ def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
     if not (item.model or "").strip():
         raise ApiError(422, "resume.modelRequired", "请填写模型名（如 deepseek-chat）")
 
-    # 前端把文件读成 base64 随 JSON 提交——multipart 需要额外依赖
-    # python-multipart，而本项目不引入任何新运行时依赖
+    # 前端把文件读成 base64 随 JSON 提交——multipart 要额外依赖，本项目不引入
     try:
         content = base64.b64decode(item.content_base64 or "", validate=True)
     except (ValueError, TypeError):
@@ -265,8 +261,11 @@ def template_content(rel: str, ws: str = Depends(workspace_dir)):
                            "文件不存在: %s" % rel, rel=rel)
     if os.path.splitext(rel)[1].lower() not in TEMPLATE_TEXT_EXT:
         return {"rel": rel, "type": "binary"}
-    with io.open(full, "r", encoding="utf-8") as f:
-        return {"rel": rel, "type": "text", "content": f.read()}
+    # 带上限；`truncated` 必须如实返回——静默把截断当全文正是这条护栏要防的事
+    # （与 /api/library 的只读入口同款字段，前端据此给提示）
+    content, truncated = read_text_capped(full)
+    return {"rel": rel, "type": "text", "content": content,
+            "truncated": truncated, "bytes": os.path.getsize(full)}
 
 
 @router.get("/templates/file/{rel:path}")
@@ -289,10 +288,13 @@ def template_file(rel: str, ws: str = Depends(workspace_dir)):
     else:
         media_type = "application/octet-stream"
 
-    with open(full, "rb") as f:
-        data = f.read()
-    # 不设 Content-Disposition：中文文件名放 header 会触发 latin-1 编码异常，
-    # 这里是内联预览（iframe / img），浏览器用 URL 定位即可
+    # 超限**拒绝**（413）而不是截断：截断的 PDF / HTML 会以 200 返回，用户拿到坏文件
+    # 或半页渲染而没有任何提示——比报错更糟。先看元信息，不必先读进内存。
+    if os.path.getsize(full) > MAX_BINARY_BYTES:
+        raise ApiError(413, "file.tooLarge", "文件过大，无法在此预览",
+                       rel=rel, mb=MAX_BINARY_BYTES // (1024 * 1024))
+    data, _truncated = read_bytes_capped(full)
+    # 不设 Content-Disposition：中文名放 header 会触发 latin-1 异常，内联预览不需要
     return Response(content=data, media_type=media_type)
 
 
@@ -310,7 +312,7 @@ def build_template(version: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "resume.templateNotFound",
                        "找不到手写模板: resume_%s.html" % version, version=version)
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         pdf_path = os.path.join(pdf_dir, "简历_%s.pdf" % version)
         ok = resume_build.build_pdf(browser, html_path, pdf_path)
         if not ok:
@@ -351,11 +353,11 @@ def save_resume(version: str, body: ResumeData, ws: str = Depends(workspace_dir)
     _check_version(version)
     path = _data_path(ws, version)
     source_dir = os.path.dirname(path)
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         if not os.path.isdir(source_dir):
             os.makedirs(source_dir)
-        # 原子写：简历 JSON 是用户唯一的数据源，写到一半被中断会留下半截文件。
-        # 注意必须先序列化再落盘——若边序列化边写，序列化中途异常会写出残缺 JSON。
+        # 原子写：简历 JSON 是唯一数据源。必须先序列化再落盘——边序列化边写的话，
+        # 序列化中途异常会写出残缺 JSON
         content = json.dumps(body.data, ensure_ascii=False, indent=2)
         atomicio.atomic_write_text(path, content, encoding="utf-8")
     return {"version": version, "saved": True}
@@ -416,7 +418,7 @@ def export_doc(version: str, template: str = "", accent: str = "",
         raise ApiError(500, "resume.renderFailed",
                        "渲染失败：%s" % exc, error=str(exc))
 
-    # Word 的 HTML 兼容头：显式 charset（否则中文按系统默认码页解码会乱码）
+    # Word HTML 兼容头：显式 charset（否则中文按系统默认码页解码会乱码）
     doc_html = (
         '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
         'xmlns:w="urn:schemas-microsoft-com:office:word">'
@@ -425,8 +427,7 @@ def export_doc(version: str, template: str = "", accent: str = "",
         "<body>%s</body></html>" % (version, body)
     )
 
-    # Content-Disposition 的文件名含中文：header 只允许 latin-1，
-    # 用 RFC 5987 的 filename* 携带 UTF-8 名字，ASCII 名做降级兜底
+    # 文件名含中文而 header 只允许 latin-1：用 RFC 5987 的 filename* 带 UTF-8 名
     quoted = urllib.parse.quote("简历_%s.doc" % version)
     headers = {
         "Content-Disposition": 'attachment; filename="resume_%s.doc"; '
@@ -445,8 +446,7 @@ def build_resume(version: str, template: str = "", accent: str = "",
     生成的 PDF 就是什么（预览与交付物不允许是两套渲染参数）。
     """
     _check_version(version)
-    # 参数校验先于环境检查：「输入不合法」与「有没有 Chrome」无关，
-    # 先报 422 让用户改输入，而不是被 500 chromeMissing 掩盖
+    # 参数校验先于环境检查：先报 422 让用户改输入，别被 500 chromeMissing 掩盖
     tpl = _prepare_template(template, accent)
     browser = resume_build.find_browser()
     if not browser:
@@ -457,7 +457,7 @@ def build_resume(version: str, template: str = "", accent: str = "",
         raise ApiError(404, "resume.dataNotFound",
                        "找不到简历数据: resume_%s.json" % version, version=version)
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         try:
             with io.open(path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
@@ -553,11 +553,11 @@ def _call_llm(cfg, prompt, model):
         "Content-Type": "application/json",
         "Authorization": "Bearer " + cfg["api_key"],
     })
-    # 出网统一走 tls_http：默认严格校验。此前这里没传 context，证书库损坏的机器上
-    # 只会抛 ASN1 原文，被调用点兜成"模型调用失败"（issue #59）。
+    # 出网统一走 tls_http（默认严格校验），响应体经 read_response 限流——
+    # 网络读的大小由对方决定，不能无界
     with tls_http.open_url(req, timeout=LLM_TIMEOUT,
                            purpose="简历改写（模型调用）") as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
+        payload = json.loads(read_response(resp).decode("utf-8"))
     try:
         return payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError):

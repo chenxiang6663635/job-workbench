@@ -2,18 +2,18 @@
 """题库 `questions.csv` 的领域层，以及 1a 从 `03_面试准备/**/*.md` 的两段式导入。
 
 为什么单独立表（不并进 `interviews.csv`）：面试记录是**被问过的事实**，题库是
-**要准备的题**。并表的后果是「要准备的题」被「只发生过一次的题」淹没，而且复习
-状态（未看 / 看过 / 会了）没有地方安放。两者用「来源 = 面试记录 + 关联公司 /
-岗位」串起来做溯源，不合并。
+**要准备的题**——并表会让「要准备的题」被「只发生过一次的题」淹没，复习状态
+（未看 / 看过 / 会了）也没有地方安放。两者按「来源 = 面试记录 + 关联公司 / 岗位」
+串联做溯源，不合并。
 
-1a 口径（2026-09-15 冻结）：读 `03_面试准备/**/*.md`——**只读，不动用户的
-Markdown**——解析成候选题目后**预览**（新增 / 重复 / 跳过），用户确认后凭一次性
+1a 口径（2026-09-15 冻结）：读 `03_面试准备/**/*.md`（**只读，不动用户的
+Markdown**）→ 解析成候选题目 → **预览**（新增 / 重复 / 跳过）→ 用户确认后凭一次性
 令牌落 `questions.csv`。Markdown 没有统一的「题目 / 答案」分隔符，解析只能是
-**启发式**的，所以这一步必须走两段式：让人看过「将要落什么」再落。
+**启发式**的，所以必须走两段式：让人看过「将要落什么」再落。
 
-两段式共三对：add / update / import——预览签发令牌（校验与载荷构造都在本模块），
-落盘统一走 approval 的 `question.*` 注册项。**本模块只提供读写与校验、不含
-argparse**：命令层 2026-09-18 拆到 `_cli_bank.py`（后端 import 领域层不再连带 CLI）。
+两段式共三对：add / update / import——预览签发令牌（校验与载荷构造都在本模块），落盘
+统一走 approval 的 `question.*` 注册项。**本模块只提供读写与校验、不含 argparse**：
+命令层 2026-09-18 拆到 `_cli_bank.py`（后端 import 领域层不再连带 CLI）。
 """
 
 import csv
@@ -23,9 +23,9 @@ import os
 import re
 import sys
 
-
-from . import tracker  # noqa: E402  （复用工作区解析、原子写、锁与 ConflictError）
-from . import workspace_io  # noqa: E402  （CSV 导出写外部文件用原子写）
+from . import tracker  # noqa: E402  （工作区解析、原子写、锁与 ConflictError）
+from . import workspace_io  # noqa: E402
+from .csv_cells import restore_row  # noqa: E402  （读回时还原写入侧的中和引号）
 
 # 字段常量**只在 tracker.py 定义一处**（与 TALK_* / INTERVIEW_* 同区），这里导入
 # 复用——同一张表的列名若在两处各写一遍，改了一边就会静默失配（自检、CSV 表头、
@@ -62,7 +62,7 @@ def read_questions(workspace=None, domain=None, subject=None, status=None,
     if not os.path.isfile(path):
         return []
     with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        rows = [dict(row) for row in csv.DictReader(f)]
+        rows = [restore_row(dict(row)) for row in csv.DictReader(f)]
 
     def _match(row, field, value):
         return not value or (row.get(field) or "").strip() == value

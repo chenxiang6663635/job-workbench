@@ -195,7 +195,11 @@ def main():
         return 1
 
     print("")
+    # 失败的落点必须被清点：此前 `_install_one` 的失败只被 `return False` 吞掉、
+    # 出口无条件 `return 0`——CI 里拿到 0 就当全部分发成功，而实际上有一个宿主
+    # 目录没装成（留着旧版本或干脆是空的）。
     done = 0
+    failed_keys = []
     for asset, rel_src, targets in ASSETS:
         src = os.path.join(ROOT, rel_src)
         if not os.path.isdir(src):
@@ -210,7 +214,14 @@ def main():
         for key, desc, kind, rel in selected:
             if _install_one(asset, src, key, desc, kind, rel, args):
                 done += 1
+            else:
+                failed_keys.append(key)
         print("")
+
+    if failed_keys:
+        print("有 %d 个落点分发失败：%s" % (len(failed_keys), "、".join(failed_keys)))
+        print("这些宿主目录不在最新状态：先解决上面的失败原因（权限 / 符号链接），再重跑本脚本。")
+        return 1
 
     if args.dry_run:
         print("演练模式，未写入。去掉 --dry-run 实际执行。")

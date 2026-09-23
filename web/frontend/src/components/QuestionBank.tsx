@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -40,18 +40,29 @@ function MyBank() {
   // 「新增题目」弹窗（批次 B-1）：加题入口从 CLI 挪进界面
   const [adding, setAdding] = useState(false);
 
+  // 序号守卫：250ms 防抖只减少请求数，拦不住「改筛选后旧响应后到」——
+  // 它 `.finally` 里的 setLoading(false) 还会把正在进行的那一次提前解锁
+  const loadSeq = useRef(0);
   const load = () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError(null);
     api
       .bankQuestions({ q: keyword.trim() || undefined, status: status || undefined })
-      .then((r) => {
-        setRows(r.items);
-        setTotal(r.total);
-        setCounts(r.counts);
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then(
+        (r) => {
+          if (seq !== loadSeq.current) return;
+          setRows(r.items);
+          setTotal(r.total);
+          setCounts(r.counts);
+        },
+        (e: Error) => {
+          if (seq === loadSeq.current) setError(e.message);
+        }
+      )
+      .then(() => {
+        if (seq === loadSeq.current) setLoading(false);
+      });
   };
 
   // 防抖：关键词每敲一下就打接口不划算；筛选变化则立即重载

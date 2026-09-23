@@ -59,6 +59,68 @@ def test_atomic_write_csv_bom_and_restval(tmp_path):
     assert "None" not in text
 
 
+@pytest.mark.parametrize("danger", ["=1+1", "+HYPERLINK(\"http://x\")", "-2+3",
+                                    "@SUM(A1:A9)"])
+def test_atomic_write_csv_neutralizes_formula_prefixes(tmp_path, danger):
+    """`= + - @` 开头的单元格会被 Excel / WPS 当公式算——导出文件被人打开即中招。
+
+    追踪表里的「备注」「公司」等字段是用户手填的，也可能来自粘贴进来的邮件原文；
+    把它们原样写进 CSV，等于给表格软件递一段可执行的公式。缓解办法是在危险前缀
+    前加一个单引号——表格软件会按文本显示它，代价只有一个字符。
+    """
+    target = tmp_path / "tracker.csv"
+    workspace_io.atomic_write_csv(str(target), [{"备注": danger}], ["备注"])
+    with io.open(str(target), "r", encoding="utf-8-sig", newline="") as handle:
+        cell = list(csv.reader(handle))[1][0]
+    assert cell.startswith("'"), "危险前缀必须以单引号中和：%r" % cell
+    assert danger in cell
+
+
+def test_csv_cells_round_trip_restores_the_quote(tmp_path):
+    """读回时要还原写侧为主和公式而加的单引号（批末独立审查抓出的漏项）。
+
+    只做写侧中和、读侧不还原，用户数据里就会永久多一个引号：备注 `- 二面待定`
+    落盘成 `'- 二面待定`，界面、CLI、导出、下一次写回都带着它——"写进去什么、
+    读出来什么"是这份数据最基本的承诺。
+    """
+    from jobws_core.csv_cells import csv_cell, csv_read_cell
+
+    for danger in ("=1+1", "+HYPERLINK(\"http://x\")", "- 二面待定", "@SUM(A1)"):
+        assert csv_read_cell(csv_cell(danger)) == danger
+
+
+def test_csv_read_cell_keeps_a_real_apostrophe(tmp_path):
+    """否定验证：用户真正想留的引号不能被吃掉（只有紧跟公式前缀才还原）。"""
+    from jobws_core.csv_cells import csv_read_cell
+
+    assert csv_read_cell("'这是引用'") == "'这是引用'"
+    assert csv_read_cell("'") == "'"
+
+
+def test_tracker_round_trip_keeps_remark_unchanged(tmp_path):
+    """落盘再读回，备注逐字符相同（追踪表是最容易踩这个坑的那张表）。"""
+    from jobws_core import tracker
+
+    ws = str(tmp_path)
+    os.makedirs(os.path.join(ws, "05_投递追踪"))
+    row = {field: "" for field in tracker.FIELDS}
+    row.update({"id": "A001", "公司": "示例公司", "岗位": "示例岗位",
+                "备注": "- 二面待定；详情见邮件"})
+    tracker.write_rows([row], ws)
+
+    assert tracker.read_rows(ws)[0]["备注"] == "- 二面待定；详情见邮件"
+
+
+def test_atomic_write_csv_leaves_plain_values_untouched(tmp_path):
+    """否定验证：中和不能变成对所有单元格动刀——普通中文一个字都不许改。"""
+    target = tmp_path / "tracker.csv"
+    rows = [{"公司": "云帆科技", "备注": "2026-09-25 内推"}]
+    workspace_io.atomic_write_csv(str(target), rows, ["公司", "备注"])
+    with io.open(str(target), "r", encoding="utf-8-sig", newline="") as handle:
+        row = list(csv.reader(handle))[1]
+    assert row == ["云帆科技", "2026-09-25 内推"]
+
+
 def test_atomic_write_replaces_old_content(tmp_path):
     target = tmp_path / "data.csv"
     workspace_io.atomic_write_csv(str(target), [{"a": "1"}], ["a"])

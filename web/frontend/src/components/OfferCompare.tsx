@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Plus, Scale } from "lucide-react";
 import DeleteRecordButton from "./DeleteRecordButton";
 import { previewDeleteRecord } from "../lib/records";
+import { daysUntil } from "../lib/date";
 import { api, type Offer } from "../api";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { Badge } from "./ui/badge";
@@ -30,11 +31,12 @@ const FIELDS: { key: keyof Offer; labelKey: TranslationKey }[] = [
   { key: "其他条件", labelKey: "offer.field.other" },
 ];
 
-// 答复截止日临近（3 天内）用琥珀提示，但不排序不打分
+// 答复截止日临近（3 天内）用琥珀提示，但不排序不打分。
+// 必须按本地时区解析：`new Date("2026-09-30")` 是 UTC 零点（比本地早 8 小时），
+// 临界日会被判成"已过"或"还差一天"。
 function deadlineSoon(date: string): boolean {
-  if (!date) return false;
-  const diff = new Date(date).getTime() - Date.now();
-  return diff > 0 && diff < 3 * 86400_000;
+  const days = daysUntil(date);
+  return days !== null && days > 0 && days <= 3;
 }
 
 export default function OfferCompare() {

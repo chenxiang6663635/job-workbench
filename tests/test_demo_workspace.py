@@ -235,8 +235,9 @@ def test_demo_reports_overwritten_data_files(tmp_path, monkeypatch, capsys):
         f.write("id,公司\nA001,我的真实公司\n")
 
     capsys.readouterr()  # 丢掉第一次初始化的输出
+    # 审计 P0-5 后覆盖需要确认：非交互（pytest）下必须显式 --yes
     assert _run_init(monkeypatch, tmp_path,
-                     ["--target", "ws", "--demo", "--force"]) == 0
+                     ["--target", "ws", "--demo", "--force", "--yes"]) == 0
     out = capsys.readouterr().out
     assert "已被 demo 数据覆盖" in out
     assert "tracker.csv" in out

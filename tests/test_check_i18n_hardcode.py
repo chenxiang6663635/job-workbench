@@ -109,6 +109,35 @@ def test_jsx_bare_text_is_a_hit(tmp_path):
     assert [u[2] for u in unallowed] == ["写死的一句话"]
 
 
+def test_text_between_two_expressions_on_one_line_is_a_hit(tmp_path):
+    """门禁盲区（2026-09-23 审计 P2）：一行两组表达式之间的中文必须被抓到。
+
+    旧判定是「左侧最近的 `{` + 右侧最近的 `}`」：`{count} 条记录 {total}` 里，
+    左半的 `{` 与右半的 `}` 被配成一对，于是两组之间的中文字被当成"表达式里的
+    取数"而放行——可它恰恰是写给人看的文案（`{count}` 能翻，`条记录` 不能）。
+    """
+    unallowed, _, _ = _run(
+        tmp_path, {"a.tsx": "const el = <span>{count} 条记录 {total}</span>;\n"})
+    assert [u[2] for u in unallowed] == ["条记录"]
+
+
+def test_unicode_escaped_chinese_is_a_hit(tmp_path):
+    """`\\u4e2d\\u6587` 这种转义写法不算"看不见"（同一个盲区的另一半）。
+
+    不还原转义的话，源码里是一串 ASCII，扫描器什么都不报；而它在页面上渲染出来
+    就是中文。转义本身合法，但用它绕开文案检查没有任何正当理由。
+    """
+    unallowed, _, _ = _run(
+        tmp_path, {"a.ts": 'const s = "\\u5199\\u6b7b\\u7684\\u4e00\\u53e5\\u8bdd";\n'})
+    assert [u[2] for u in unallowed] == ["写死的一句话"]
+
+
+def test_plain_ascii_string_is_still_clean(tmp_path):
+    """否定验证：还原转义不能把本来就合法的 ASCII 串变成命中。"""
+    unallowed, _, _ = _run(tmp_path, {"a.ts": 'const s = "\\u00e9lan vital";\n'})
+    assert unallowed == []
+
+
 # ---- 5. 清单：片段级放行 ----
 
 def test_missing_from_allowlist_is_reported(tmp_path):
@@ -369,7 +398,7 @@ def test_jsx_expression_continuation_is_not_reported(tmp_path):
 def test_single_line_block_comment_is_not_reported(tmp_path):
     """单行块注释里的属性不算命中（独立审查 m1）。
 
-    `/* title="X" */` 这种写法：进 `_scan_line` 时置 in_block=True 又立刻闭合，
+    `/* title="X" */` 这种写法：进 `scan_line` 时置 in_block=True 又立刻闭合，
     返回的 in_block 是 False——只看"行首是否在块注释里"会漏掉它，于是注释里的
     文案被当成真命中。注释不翻是本项目口径，误报会把人逼去清单里塞假条目。
     """

@@ -5,15 +5,30 @@ on:
     branches: [main]
   pull_request:
 
+# 同一 PR 的新提交让上一次运行作废：CI 里最贵的 job（Windows exe 构建）要好几分钟，
+# 排队等着跑一份已被替换的 diff 没有意义（release 那条刻意不取消——发版不能半途而废）。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: 后端测试（pytest）
     runs-on: ubuntu-latest
+    # 没有 timeout 的 job 在卡住时会一直占着队列而不报错（runner 抽风、`pip` 挂起
+    # 都会表现为无限等待）。上限给得比实测宽松，是为了让它只在真的卡死时才动手。
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      # fetch-depth: 0 —— 隐私护栏的 CI 闸要拿 `git diff <base>...HEAD`，而 checkout
+      # 默认是浅克隆（depth=1）：base 对象不在本地，diff 直接退出 128（2026-09-23
+      # 批末独立审查发现"这道闸在 PR 上必然红"）。只有这一个 job 需要完整历史，
+      # 其余 job 保持默认浅克隆。
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -77,6 +92,14 @@ jobs:
       - name: 校验规模预算
         run: python tools/jobws.py lint size
 
+      # 隐私护栏（第二道闸，2026-09-23 审计 P2）：本地 pre-commit 的 `--no-verify`
+      # 是有意保留的逃生口，但它会连带跳过这一项。CI 拿的是 PR 的完整 diff，
+      # 与本地共用同一份判定（`.githooks/pre_commit.py` 的 privacy_problem）。
+      - name: 隐私护栏（personal/ 与真实联系方式）
+        env:
+          JOBWS_PRIVACY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python .githooks/pre_commit.py --privacy-ci
+
       # 旧名 import 存量（2026-09-17 批 6）：领域层包化后旧路径保留为转发 shim，
       # 这条闸门把旧名 import 点数记成**只许下降**的水位。不跑它就等于没有——
       # 谁随手新增一处 `import filelock`，水位上涨无人拦，shim 就永远删不掉。
@@ -91,11 +114,12 @@ jobs:
   mcp:
     name: MCP 包（3.12）
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -120,11 +144,12 @@ jobs:
   frontend:
     name: 前端构建（lint + tsc + vite）
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: 安装 Node 20
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: "20"
           cache: npm
@@ -152,10 +177,14 @@ jobs:
       # 就靠这两条兜住：① 缩放上下限与按键映射（zoom.js）零依赖单测；
       # ② 打包白名单守卫——新增模块忘了加进 build.files 时，源码形态照跑、
       # 安装版启动即崩，只有这条检查能在合并前发现。
-      - name: Electron 主进程自检（缩放逻辑 + 打包白名单）
+      - name: Electron 主进程自检（缩放逻辑 + 打包白名单 + URL 守卫）
+        # url_guard.test.js 是 P0-2（导航 origin 严格比对 / 外链 scheme 白名单）的
+        # 回归网——批末审查发现它当时只在有人手工 `node` 时才跑（测试文件里却写着
+        # "CI 也跑这一步"）。护栏没进 CI 等于没有护栏。
         run: |
           node web/electron/zoom.test.js
           node web/electron/check_packaging.js
+          node web/electron/url_guard.test.js
 
       - name: 构建
         working-directory: web/frontend
@@ -168,11 +197,12 @@ jobs:
   ui-smoke:
     name: UI 冒烟（布局 + a11y）
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -190,7 +220,7 @@ jobs:
         run: python tools/jobws.py init --target demo --demo
 
       - name: 安装 Node 20
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: "20"
           cache: npm
@@ -222,11 +252,12 @@ jobs:
   install-smoke:
     name: 领域包独立安装冒烟
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -265,17 +296,19 @@ jobs:
   exe-smoke:
     name: 后端 exe 冒烟
     runs-on: windows-latest
+    # Windows 上装依赖 + 打 PyInstaller 包最慢，上限放宽到 60 分钟
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
 
       - name: 安装 Node 20
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: "20"
           cache: npm

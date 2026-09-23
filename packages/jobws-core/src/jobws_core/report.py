@@ -23,7 +23,7 @@ from datetime import date, timedelta
 
 from .tracker import (
     DEFAULT_WORKSPACE, FAIL_STAGES, ROOT, STAGES, TERMINAL_STAGES,
-    csv_path, read_history, read_rows, set_workspace,
+    csv_path, parse_iso_date, read_history, read_rows, set_workspace,
 )
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # 时间线时间戳的日期部分（YYYY-MM-DD HH:MM）
@@ -34,10 +34,10 @@ FUNNEL_ORDER = STAGES + TERMINAL_STAGES
 
 
 def parse_date(value):
-    if value and DATE_RE.match(value.strip()):
-        y, m, d = (int(x) for x in value.strip().split("-"))
-        return date(y, m, d)
-    return None
+    """解析 YYYY-MM-DD；形状对但不是真日期（存量脏数据 2026-02-31）容错返回 None
+    ——统计跳过该行，绝不炸整页看板（审计 P0-3）。入口侧由 tracker.check_date 拒新数据。
+    与 tracker.parse_iso_date 同一实现（report 导入 tracker 是既定的无环方向）。"""
+    return parse_iso_date(value)
 
 
 def count_by(rows, field, order=None):

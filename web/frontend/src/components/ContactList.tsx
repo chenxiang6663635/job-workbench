@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, PhoneCall, Plus, UserRound } from "lucide-react";
 import DeleteRecordButton from "./DeleteRecordButton";
 import { previewDeleteRecord } from "../lib/records";
+import { todayISO } from "../lib/date";
 import { api, type Contact } from "../api";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -12,10 +13,12 @@ import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
 
-// 下次跟进早于今天 → 超期，琥珀提醒；今天 → 今日跟进，绿色
+// 下次跟进早于今天 → 超期，琥珀提醒；今天 → 今日跟进，绿色。
+// 「今天」必须是**本地**日历日：此前这里用 `toISOString().slice(0, 10)`，
+// UTC+8 的 0–8 点会拿到"昨天"，于是当天该跟进的人被标成已超期（反之亦然）。
 function followState(date: string): "overdue" | "today" | null {
   if (!date) return null;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   if (date < today) return "overdue";
   if (date === today) return "today";
   return null;
@@ -86,7 +89,7 @@ export default function ContactList() {
 
   // 标记已联系：最近联系=今天，下次跟进清空
   const markContacted = (c: Contact) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO();
     api
       .updateContact(c.联系人id, { 最近联系: today, 下次跟进: "" })
       .then(reload)

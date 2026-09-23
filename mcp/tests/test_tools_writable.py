@@ -216,11 +216,16 @@ def test_preview_import_questions_then_apply(ws):
 
 
 def test_preview_import_questions_rejects_escape_attempts(ws):
-    """module_dir 只收工作区内相对目录：绝对路径与 .. 都在工具层先拒。"""
-    for bad in (os.path.abspath(os.sep), "../03_面试准备"):
+    """module_dir 只收工作区内相对目录：绝对路径、..、盘符相对路径都在工具层先拒。"""
+    for bad in (os.path.abspath(os.sep), "../03_面试准备",
+                "C:foo",               # 盘符相对路径：isabs()==False，join 时重置根
+                "C:/Windows/System32"):
         data = tools_writable.preview_import_questions(ws, bad)
         assert data["ok"] is False, bad
         assert data["errors"], bad
+    # 盘符相对路径要有专属提示——普通「相对目录」文案说不清这类写法危险在哪
+    drive = tools_writable.preview_import_questions(ws, "C:foo")
+    assert any("盘符" in problem for problem in drive["errors"]), drive
     assert not os.path.isfile(question_bank.question_path(ws))
 
 

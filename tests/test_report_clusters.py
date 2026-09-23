@@ -19,6 +19,17 @@ def _fail_row(stage="已挂", company="示例科技", reason="技术深度不足
     return {"当前阶段": stage, "公司": company, "状态原因": reason}
 
 
+def test_parse_date_tolerates_calendar_invalid_values():
+    """存量脏数据（手改 CSV 的 2026-02-31）不许炸整页看板（审计 P0-3）：
+    解析容错返回 None（该行被统计忽略），入口侧由 check_date 拒新数据。"""
+    assert report.parse_date("2026-02-31") is None
+    assert report.parse_date("2026-13-01") is None
+    import datetime
+    assert report.parse_date("2026-09-23") == datetime.date(2026, 9, 23)
+    assert report.parse_date("") is None
+    assert report.parse_date(None) is None
+
+
 def _fail_rows(n):
     return [_fail_row(company="公司%d" % i) for i in range(n)]
 

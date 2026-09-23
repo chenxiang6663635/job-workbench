@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Inbox } from "lucide-react";
 import { api, type LibraryItem } from "../api";
 import { Button } from "../components/ui/button";
@@ -39,18 +39,27 @@ export default function Library() {
       .then(() => setLoading(false));
   }, []);
 
+  // 打开详情的序号守卫：连点两个文件时先点的慢响应会把内容盖到后点的标题下，
+  // 而界面上看不出冲突（只能凭内容判断自己点的是哪一个）
+  const detailSeq = useRef(0);
   const open = (item: LibraryItem) => {
     setError(null);
+    const seq = ++detailSeq.current;
     if (item.kind === "binary") {
       setView({ rel: item.rel, fileUrl: api.libraryFileUrl(SECTION, item.rel), isBinary: true });
       return;
     }
     api
       .libraryContent(SECTION, item.rel)
-      .then((r) =>
-        setView({ rel: item.rel, text: r.content, truncated: r.truncated, isBinary: false })
-      )
-      .catch((e: Error) => setError(e.message));
+      .then(
+        (r) => {
+          if (seq !== detailSeq.current) return;
+          setView({ rel: item.rel, text: r.content, truncated: r.truncated, isBinary: false });
+        },
+        (e: Error) => {
+          if (seq === detailSeq.current) setError(e.message);
+        }
+      );
   };
 
   if (view) {

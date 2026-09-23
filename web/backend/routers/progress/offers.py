@@ -11,8 +11,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from jobws_core import tracker
 from apierror import ApiError
+from datecheck import check_date_fields
 from deps import workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 
 router = APIRouter()
 
@@ -67,7 +68,7 @@ def create_offer(item: NewOffer, ws: str = Depends(workspace_dir)):
     link = (item.关联记录 or "").strip()
     company = (item.公司 or "").strip()
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         if link:
             main_rows = tracker.read_rows(ws)
             src = next((r for r in main_rows
@@ -79,6 +80,8 @@ def create_offer(item: NewOffer, ws: str = Depends(workspace_dir)):
         elif not company:
             raise ApiError(422, "progress.companyRequired", "未关联记录时必须提供公司")
 
+        # 入口校验（审计 P1 补网）：非法日历日会让 .ics 导出与看板时间线静默跳过
+        check_date_fields([(item.答复截止日, "答复截止日")])
         rows = tracker.read_offers(ws)
         row = {field: "" for field in tracker.OFFER_FIELDS}
         row["offer_id"] = tracker.next_offer_id(rows)
@@ -117,8 +120,9 @@ def update_offer(offer_id: str, item: PatchOffer,
     updates = {k: v for k, v in item.dict().items() if v is not None}
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
+    check_date_fields([(updates.get("答复截止日"), "答复截止日")])
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         rows = tracker.read_offers(ws)
         row = tracker.find_offer(rows, offer_id)
         if row is None:

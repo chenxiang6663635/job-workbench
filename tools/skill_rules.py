@@ -29,6 +29,10 @@ BODY_MAX_LINES = 500
 # 正文里引用的参考资料相对路径（`references/xxx.md`，相对技能根）。
 REFERENCE_RE = re.compile(r"references/[A-Za-z0-9][A-Za-z0-9._\-/]*")
 
+# 块标量标识符：`|` / `>` 后可跟 ± 修饰符与数字缩进指示符（YAML 的 |- / >+ / |2 …）。
+# 这类写法在本地单行解析器眼里只是一串符号，在宿主眼里却是一整段多行文本。
+BLOCK_SCALAR_RE = re.compile(r"[|>]\d*[+-]?")
+
 # 本仓库技能的命名空间。用户级 ~/.agents/skills/ 是与别人共用的同一个目录，
 # 通用名（apply / resume / track …）撞车概率高，而撞车的结果是**静默覆盖**。
 NAME_RE = re.compile(r"^jwb-[a-z0-9]+(-[a-z0-9]+)*$")
@@ -90,8 +94,10 @@ def frontmatter_problems(text, frontmatter_end, fields, entry):
             problems.append("frontmatter 缺 %s" % key)
 
     desc = fields.get("description")
-    if desc in ("|", ">"):
-        # 本解析器只认单行值；块标量会被读成 "|" 从而绕过长度校验
+    if desc and BLOCK_SCALAR_RE.fullmatch(desc):
+        # 本解析器只认单行值；块标量会被读成那一串符号本身（"|" / "|-" / "|2"…）
+        # 从而绕过长度校验。带修饰符与缩进指示符的写法同样是块标量——只认裸
+        # `|` 与 `>`，写 `-`（去末尾换行）、`+`（保留）、`2`（缩进两格）就能过。
         problems.append(
             "frontmatter 不支持块标量写法（description: %s），请改成单行" % desc)
     elif desc and len(desc) > DESC_MAX:

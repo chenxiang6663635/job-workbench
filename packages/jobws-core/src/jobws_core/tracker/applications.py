@@ -18,8 +18,10 @@ from datetime import date, datetime
 logger = logging.getLogger(__name__)
 
 
+from ..csv_cells import csv_cell
 from ._core import (TERMINAL_STAGES, _atomic_write_csv, csv_path, parse_iso_date, resolve_ws)
 from ._schema import (FIELDS, HEALTH_LEVELS, HISTORY_FIELDS, HISTORY_FILE, HISTORY_TRACKED, STALE_DAYS, URGENT_DAYS)
+from ..csv_cells import restore_row
 
 
 
@@ -34,7 +36,7 @@ def read_history(workspace=None, app_id=None):
     if not os.path.isfile(path):
         return []
     with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        rows = [dict(row) for row in csv.DictReader(f)]
+        rows = [restore_row(dict(row)) for row in csv.DictReader(f)]
     if app_id:
         rows = [r for r in rows if (r.get("id") or "").strip() == app_id]
     return rows
@@ -83,8 +85,11 @@ def append_history(entries, workspace=None):
         if is_new:
             writer.writeheader()
         for entry in entries:
+            # 原值 / 新值来自用户数据，走与主表同一个单元格出口（`csv_cell`）——
+            # 否则「感谢语里带一行 =SUM(...)」这种文本会在 Excel 里变成公式
             row = {"时间": now, "id": entry.get("id", ""), "字段": entry.get("字段", ""),
-                   "原值": entry.get("原值", ""), "新值": entry.get("新值", "")}
+                   "原值": csv_cell(entry.get("原值", "")),
+                   "新值": csv_cell(entry.get("新值", ""))}
             writer.writerow(row)
         f.flush()
         os.fsync(f.fileno())
@@ -235,10 +240,11 @@ def read_rows(workspace=None):
     path = csv_path(workspace)
     if not os.path.isfile(path):
         return []
-    # utf-8-sig 读取时自动去掉 BOM
+    # utf-8-sig 读取时自动去掉 BOM；`restore_row` 还原写入侧为 Excel 中和掉的引号
+    # （与 history / 其余五张表同一条口径，否则备注里会永久多一个引号）
     with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
-        return [dict(row) for row in reader]
+        return [restore_row(dict(row)) for row in reader]
 
 
 

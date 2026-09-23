@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileUp, Inbox, Mail, Plus, Search, X } from "lucide-react";
 import {
@@ -6,15 +6,15 @@ import {
   BATCHES,
   DIRECTIONS,
   SOURCES,
-  STAGES,
   type Application,
   type HistoryEntry,
 } from "../api";
-import { ALL, NONE, readDrill, type SortKey } from "../lib/applicationMeta";
+import { NONE, readDrill, type SortKey } from "../lib/applicationMeta";
 import { DRILL_KEY } from "../lib/pageDrill";
 import { useJobDirs } from "../hooks/useJobDirs";
 import { useMissingNext } from "../hooks/useMissingNext";
 import { domainLabel } from "../lib/domainLabels";
+import ApplicationFilters from "../components/ApplicationFilters";
 import ApplicationsTable from "../components/ApplicationsTable";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
@@ -39,11 +39,11 @@ export default function Applications() {
   const drill = useMemo(readDrill, []);
   const [items, setItems] = useState<Application[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // 搜索词不进 filter：它有防抖后的 `q`，两个来源会飘。
   const [filter, setFilter] = useState({
     stage: drill.stage ?? "",
     direction: drill.direction ?? "",
     batch: drill.batch ?? "",
-    q: "",
   });
   const [sort, setSort] = useState<SortKey>(drill.sort ?? "next");
   const [creating, setCreating] = useState(false);
@@ -69,26 +69,53 @@ export default function Applications() {
   const { showMissingOnly, setShowMissingOnly, missingNext, visibleItems } =
     useMissingNext(items);
 
+  // 输入框的值与真正去取数的值**分开**（同 Jobs 的 FC-8 口径）：每敲一个字就把
+  // filter 换成新对象会立刻触发一次列表请求（每条记录都要读磁盘），键入变成一串 IO。
+  const [qInput, setQInput] = useState("");
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setQ(qInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [qInput]);
+
+  // 序号守卫：300ms 防抖之外仍可能乱序返回（旧响应后到会把新列表盖掉，
+  // 于是列表与搜索框里的关键词对不上）。写法与 Jobs.load 同源
+  const loadSeq = useRef(0);
+
   const load = () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     api
-      .listApplications({ ...filter, sort })
+      .listApplications({
+        stage: filter.stage,
+        direction: filter.direction,
+        batch: filter.batch,
+        q,
+        sort,
+      })
       .then(
         (r) => {
+          if (seq !== loadSeq.current) return;
           setItems(r.items);
           // 若下钻带 focusId，自动展开并滚动到该行
           if (drill.focusId) {
             setExpanded((prev) => ({ ...prev, [drill.focusId!]: true }));
           }
+          setError(null);
         },
-        (e: Error) => setError(e.message)
+        (e: Error) => {
+          if (seq !== loadSeq.current) return;
+          setError(e.message);
+        }
       )
-      .then(() => setLoading(false));
+      .then(() => {
+        if (seq === loadSeq.current) setLoading(false);
+      });
   };
 
-  // drill 是 useMemo([]) 的稳定引用，focusId 在生命周期内不变——
-  // 放进依赖只是让 lint 满意，不会造成重复触发
-  useEffect(load, [filter, sort, drill]);
+  // 依赖里放 `filter` 的字段而不是整个对象：`q` 已由上面的防抖单独负责，
+  // 否则每敲一个字都会重新拉一次列表
+  useEffect(load, [filter.stage, filter.direction, filter.batch, q, sort, drill]);
   // 下钻筛选只生效一次：首次加载后清掉，避免重复返回看板时的旧筛选残留
   useEffect(() => {
     sessionStorage.removeItem(DRILL_KEY);
@@ -158,70 +185,14 @@ export default function Applications() {
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
-            value={filter.q}
-            onChange={(e) => setFilter({ ...filter, q: e.target.value })}
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
             placeholder={t("app.searchPlaceholder")}
             className="pl-8"
           />
         </div>
 
-        {/* Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达 */}
-        <Select
-          value={filter.stage || ALL}
-          onValueChange={(v) =>
-            setFilter({ ...filter, stage: v === ALL ? "" : v })
-          }
-        >
-          <SelectTrigger className="w-36" aria-label={t("app.filterStage")}>
-            <SelectValue placeholder={t("app.allStages")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t("app.allStages")}</SelectItem>
-            {STAGES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {domainLabel("stage", s, t)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filter.direction || ALL}
-          onValueChange={(v) =>
-            setFilter({ ...filter, direction: v === ALL ? "" : v })
-          }
-        >
-          <SelectTrigger className="w-32" aria-label={t("app.filterDirection")}>
-            <SelectValue placeholder={t("app.allDirections")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t("app.allDirections")}</SelectItem>
-            {DIRECTIONS.map((d) => (
-              <SelectItem key={d} value={d}>
-                {domainLabel("direction", d, t)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filter.batch || ALL}
-          onValueChange={(v) =>
-            setFilter({ ...filter, batch: v === ALL ? "" : v })
-          }
-        >
-          <SelectTrigger className="w-32" aria-label={t("app.filterBatch")}>
-            <SelectValue placeholder={t("app.allBatches")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t("app.allBatches")}</SelectItem>
-            {BATCHES.map((b) => (
-              <SelectItem key={b} value={b}>
-                {domainLabel("batch", b, t)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ApplicationFilters value={filter} onChange={setFilter} />
 
         <Button variant="outline" onClick={() => setShowStatus(true)}>
           <Mail size={15} /> {t("app.pasteMail")}

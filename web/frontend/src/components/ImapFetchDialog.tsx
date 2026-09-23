@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { TranslationKey } from "../i18n/locales/zh-CN";
+import { RANGE_OPTIONS, rangeLabelKey } from "../lib/imapRange";
 import { Check, ChevronRight, Inbox, Loader2, MailPlus, RefreshCw, Search, Sparkles, X } from "lucide-react";
 import MailSuggestions from "./MailSuggestions";
 import { api, type ImapMessage } from "../api";
@@ -33,13 +33,6 @@ interface Props {
   onRecord?: (m: ImapMessage) => Promise<unknown>;
 }
 
-const RANGE_OPTIONS: { value: string; labelKey: TranslationKey }[] = [
-  { value: "7", labelKey: "imap.range7" },
-  { value: "30", labelKey: "imap.range30" },
-  { value: "90", labelKey: "imap.range90" },
-  { value: "0", labelKey: "imap.rangeAny" },
-];
-
 /**
  * 从邮箱只读拉取邮件（服务端按时间窗搜索，最新在前），选一封交给
  * 「解析 → 建议 → 确认」流程。
@@ -64,17 +57,28 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
   // 展开「解析建议」的那一行（同一时刻只开一行，避免弹窗被卡片撑爆）
   const [suggestUid, setSuggestUid] = useState<string | null>(null);
 
+  // 序号守卫：切窗口与手动刷新可以叠加发出，旧响应迟到会盖掉新窗口的列表
+  const loadSeq = useRef(0);
   const load = () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError(null);
+    setMessages(null); // 等待期间标题已是新范围，列表不许还是上一窗口的邮件
     api
       .fetchImapMessages({ limit: 50, since_days: sinceDays })
-      .then((r) => {
-        setMessages(r.messages);
-        setServer(r.server);
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then(
+        (r) => {
+          if (seq !== loadSeq.current) return;
+          setMessages(r.messages);
+          setServer(r.server);
+        },
+        (e: Error) => {
+          if (seq === loadSeq.current) setError(e.message);
+        }
+      )
+      .then(() => {
+        if (seq === loadSeq.current) setLoading(false);
+      });
   };
 
   // 切换时间窗即重新拉取（首次挂载也走这里）——用户改的是服务端搜索条件，
@@ -86,8 +90,8 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
     (m) => !q || (m.subject + " " + m.from + " " + m.body).toLowerCase().includes(q)
   );
   // 时间范围是个 labelKey（模块级常量存不下翻译后的字符串）
-  const rangeLabelKey = RANGE_OPTIONS.find((o) => o.value === String(sinceDays))?.labelKey;
-  const rangeLabel = rangeLabelKey ? t(rangeLabelKey) : "";
+  const rangeKey = rangeLabelKey(sinceDays);
+  const rangeLabel = rangeKey ? t(rangeKey) : "";
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>

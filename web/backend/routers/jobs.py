@@ -30,7 +30,7 @@ import tls_http
 from jobws_core import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, safe_join, workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 from routers.progress._shared import delete_preview_response
 
 router = APIRouter(prefix="/api/jobs")
@@ -284,7 +284,7 @@ def create_job(job: NewJob, ws: str = Depends(workspace_dir)):
     lock_path = safe_join(ws, DIR_JOBS, ".jobs.lock")
     os.makedirs(safe_join(ws, DIR_JOBS), exist_ok=True)
 
-    with file_lock(lock_path):
+    with locked(lock_path):
         if os.path.exists(job_dir):  # 双检：并发下同名
             raise ApiError(409, "job.exists", "岗位已存在: %s" % name, name=name)
         os.makedirs(job_dir)
@@ -396,7 +396,7 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
 
     lock_path = safe_join(ws, DIR_JOBS, ".jobs.lock")
     os.makedirs(safe_join(ws, DIR_JOBS), exist_ok=True)
-    with file_lock(lock_path):
+    with locked(lock_path):
         if not os.path.isdir(job_dir):
             os.makedirs(job_dir)
         content = ("# %s %s\n\n来源：%s\n抓取时间：%s\n\n%s\n"

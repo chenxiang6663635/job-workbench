@@ -23,7 +23,7 @@ import tls_http
 from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 from redact import mask_secret
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def _config_path(ws):
 
 
 def _lock_path(ws):
-    """Provider 锁文件。与配置内容分离，避免 file_lock 锁内容文件本身在 Windows 上的问题。"""
+    """Provider 锁文件。与配置内容分离，避免 locked 锁内容文件本身在 Windows 上的问题。"""
     return safe_join(ws, "config", "provider.lock")
 
 
@@ -106,7 +106,7 @@ def save_provider(body: SaveProvider, ws: str = Depends(workspace_dir)):
 
     # 用独立锁文件（provider.lock），避免锁内容文件本身
     lock_path = _lock_path(ws)
-    with file_lock(lock_path):
+    with locked(lock_path):
         cfg = _read_config(path)
         base_url = body.base_url.strip()
         # 去掉末尾 /v1 之前的部分不做规范化，由前端/用户决定；仅校验协议头

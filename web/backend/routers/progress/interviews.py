@@ -13,7 +13,7 @@ from jobws_core import tracker
 import icsutil
 from apierror import ApiError
 from deps import workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 
 router = APIRouter()
 
@@ -101,7 +101,7 @@ def create_interview(item: NewInterview, ws: str = Depends(workspace_dir)):
     company = (item.公司 or "").strip()
     role = (item.岗位 or "").strip()
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         main_rows = tracker.read_rows(ws)
         if link:
             src = next(
@@ -161,7 +161,7 @@ def update_interview(
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         rows = tracker.read_interviews(ws)
         row = tracker.find_interview(rows, interview_id)
         if row is None:

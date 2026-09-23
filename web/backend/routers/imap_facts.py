@@ -199,7 +199,10 @@ def suggest_facts_ai(item: SuggestFactsAi, ws: str = Depends(workspace_dir)):
     except urllib.error.URLError as exc:
         raise ApiError(502, "resume.modelUnreachable",
                        "连不上模型端点：%s" % exc.reason, reason=str(exc.reason))
-    except (ValueError, KeyError, OSError) as exc:
+    except (ValueError, KeyError, IndexError, OSError) as exc:
+        # IndexError 必留下：`choices` 为空数组时（合规拦截 / 空回复很常见）
+        # `data["choices"][0]` 抛它，而它是 LookupError 不是 ValueError——
+        # 漏了它，空回复就变成 500 而不是「模型调用失败」。
         raise ApiError(502, "resume.modelCallFailed",
                        "模型调用失败：%s" % exc, error=str(exc))
 

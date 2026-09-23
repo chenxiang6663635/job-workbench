@@ -14,7 +14,6 @@ CSV 版、prefs.py 的 mkstemp 版），还有 1 处裸写（report.py 的看板
 - path 应当是数据文件（如 tracker.csv），锁文件请用 lock_path() 拿专用路径；
 - 临时文件与目标同目录（os.replace 同分区才原子）；
 - 指纹只看 (size, mtime_ns)，不做全内容哈希——它是"变了没有"的判据，不是校验和。
-
 （2026-09-17 由 `tools/workspace_io.py` 原样迁入本包；旧路径保留为转发 shim。）
 """
 
@@ -25,6 +24,8 @@ import hashlib
 import io
 import os
 import time
+
+from .csv_cells import csv_cell
 
 # 统一前缀：同步工具（Syncthing / 网盘客户端）可据此排除半成品，
 # 导出与快照也用它排除（web/backend/routers/system.py 的 EXCLUDE_PREFIX 同源）。
@@ -151,8 +152,8 @@ def atomic_write_csv(
 ) -> None:
     """原子写 CSV。默认 utf-8-sig（BOM），Excel 直接打开中文不乱码。
 
-    restval="" + None→"" 双保险：旧文件缺新增列时补空列，None 不会落盘成 "None"。
-    追加场景（如 history.csv）不要用本函数——追加无法原子化，按调用方双模式处理。
+    None 经 `csv_cell` 落盘为空串；restval="" 为旧文件缺新增列兜底。追加场景
+    （如 history.csv）不要用本函数——追加无法原子化，按调用方双模式处理。
     """
 
     def _write(tmp: str) -> None:
@@ -162,7 +163,7 @@ def atomic_write_csv(
             )
             writer.writeheader()
             for row in rows:
-                writer.writerow({k: ("" if v is None else v) for k, v in row.items()})
+                writer.writerow({k: csv_cell(v) for k, v in row.items()})
             handle.flush()
             os.fsync(handle.fileno())
 

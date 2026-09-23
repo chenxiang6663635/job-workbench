@@ -31,6 +31,7 @@ pathres.set_app_root(os.path.dirname(os.path.dirname(_BACKEND_DIR)))
 
 from apierror import ApiError  # noqa: E402
 from deps import WORKSPACE_HEADER  # noqa: E402
+from errdetail import public_detail  # noqa: E402
 
 # 路径经 pathres 解析：打包（onedir）指向 exe 同级，解包指向仓库根
 ROOT = pathres.resolve_root()
@@ -115,12 +116,14 @@ async def _unhandled_handler(request: Request, exc: Exception):
     """
     detail = "%s: %s" % (type(exc).__name__, exc)
     logger.exception("未捕获异常（%s %s）：%s", request.method, request.url.path, detail)
+    # 响应体用去路径版本：同样的信息、不含本机绝对路径
+    safe = public_detail(exc)
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "服务器内部错误（%s）——完整信息见后端日志" % detail,
+            "detail": "服务器内部错误（%s）——完整信息见后端日志" % safe,
             "error_code": "server.error",
-            "error_params": {"error": detail},
+            "error_params": {"error": safe},
         },
     )
 

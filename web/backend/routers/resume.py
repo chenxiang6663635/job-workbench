@@ -30,7 +30,7 @@ import tls_http
 from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 from routers import provider
 
 router = APIRouter(prefix="/api/resume")
@@ -310,7 +310,7 @@ def build_template(version: str, ws: str = Depends(workspace_dir)):
         raise ApiError(404, "resume.templateNotFound",
                        "找不到手写模板: resume_%s.html" % version, version=version)
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         pdf_path = os.path.join(pdf_dir, "简历_%s.pdf" % version)
         ok = resume_build.build_pdf(browser, html_path, pdf_path)
         if not ok:
@@ -351,7 +351,7 @@ def save_resume(version: str, body: ResumeData, ws: str = Depends(workspace_dir)
     _check_version(version)
     path = _data_path(ws, version)
     source_dir = os.path.dirname(path)
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         if not os.path.isdir(source_dir):
             os.makedirs(source_dir)
         # 原子写：简历 JSON 是用户唯一的数据源，写到一半被中断会留下半截文件。
@@ -457,7 +457,7 @@ def build_resume(version: str, template: str = "", accent: str = "",
         raise ApiError(404, "resume.dataNotFound",
                        "找不到简历数据: resume_%s.json" % version, version=version)
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         try:
             with io.open(path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)

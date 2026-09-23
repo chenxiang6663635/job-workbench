@@ -13,7 +13,7 @@ from jobws_core import tracker
 import mail_link
 from apierror import ApiError
 from deps import workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 
 router = APIRouter()
 
@@ -92,7 +92,7 @@ def create_mail(item: NewMail, ws: str = Depends(workspace_dir)):
     if not subject:
         raise ApiError(422, "progress.mailSubjectRequired", "邮件主题必填")
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         if link:
             main_rows = tracker.read_rows(ws)
             if not any((r.get("id") or "").strip() == link for r in main_rows):
@@ -147,7 +147,7 @@ def update_mail(mail_id: str, item: PatchMail, ws: str = Depends(workspace_dir))
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         rows = tracker.read_mails(ws)
         row = tracker.find_mail(rows, mail_id)
         if row is None:

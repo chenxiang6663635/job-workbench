@@ -13,7 +13,7 @@ from jobws_core import tracker
 import icsutil
 from apierror import ApiError
 from deps import workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 
 router = APIRouter()
 
@@ -89,7 +89,7 @@ def create_talk(item: NewTalk, ws: str = Depends(workspace_dir)):
     link = (item.关联记录 or "").strip()
     company = (item.公司 or "").strip()
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         if link:
             main_rows = tracker.read_rows(ws)
             src = next(
@@ -131,7 +131,7 @@ def update_talk(talk_id: str, item: PatchTalk, ws: str = Depends(workspace_dir))
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         rows = tracker.read_talks(ws)
         row = tracker.find_talk(rows, talk_id)
         if row is None:

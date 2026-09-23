@@ -827,6 +827,7 @@ export default {
 
   "err.app.dateFormat": "`{{label}}: {{value}}` is not a valid date — expected YYYY-MM-DD",
   "err.app.scoreRange": "The score must be between 0 and 100",
+  "err.app.dueWithinRange": "due_within must be a number of days between 0 and 3650 (got {{days}})",
   "err.app.needDirOrCompanyRole": "Provide either a job directory, or both company and role",
   "err.app.stageInvalid": "The stage must be one of {{stages}}",
   "err.app.reasonRequired": "A status reason is required when entering the terminal stage “{{stage}}”",
@@ -850,6 +851,7 @@ export default {
   "err.status.stageInvalid": "The stage must be one of {{stages}}",
   "err.status.dateFormat": "`{{label}}: {{value}}` is not a valid date — expected YYYY-MM-DD",
   "err.status.stale": "This record’s stage has changed to `{{current}}` (you confirmed `{{seen}}`) — parse the text again",
+  "err.status.staleField": "This record’s {{field}} changed to `{{current}}` (you confirmed `{{seen}}`) — parse the text again",
   "err.status.notAllowed": "Cannot change “{{current}}” to “{{next}}” (terminal stages never roll back, and a rejection never demotes an offer)",
   "err.status.reasonRequired": "A status reason is required when entering the terminal stage “{{stage}}”",
 
@@ -924,6 +926,7 @@ export default {
   "err.imap.testFailed": "IMAP connection test failed: {{error}}",
   "err.imap.fetchFailed": "IMAP fetch failed: {{error}}",
   "err.server.error": "Internal server error ({{error}}) — see the backend log for details",
+  "err.server.lockTimeout": "Another write is in progress (a second tab, the CLI or a bulk import); retry in a moment",
 
   "err.progress.roundInvalid": "The round must be one of {{values}}",
   "err.progress.formInvalid": "The format must be one of {{values}}",

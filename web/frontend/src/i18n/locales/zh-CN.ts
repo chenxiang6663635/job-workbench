@@ -891,6 +891,7 @@ const zhCN = {
 
   "err.app.dateFormat": "`{{label}}: {{value}}` 日期格式错误，应为 YYYY-MM-DD",
   "err.app.scoreRange": "评分必须在 0–100 之间",
+  "err.app.dueWithinRange": "due_within 必须是 0 到 3650 之间的天数（当前：{{days}}）",
   "err.app.needDirOrCompanyRole": "要么给「岗位目录」，要么同时给公司与岗位（前者由后端按目录名拆分）",
   "err.app.stageInvalid": "当前阶段必须是 {{stages}} 之一",
   "err.app.reasonRequired": "进入终态「{{stage}}」时必须填写状态原因",
@@ -915,6 +916,7 @@ const zhCN = {
   "err.status.stageInvalid": "阶段必须是 {{stages}} 之一",
   "err.status.dateFormat": "`{{label}}: {{value}}` 日期格式错误，应为 YYYY-MM-DD",
   "err.status.stale": "这条记录的当前阶段已变为 `{{current}}`（你确认时是 `{{seen}}`）——请重新解析原文",
+  "err.status.staleField": "这条记录的{{field}}已变为 `{{current}}`（你确认时是 `{{seen}}`）——请重新解析原文",
   "err.status.notAllowed": "不能从「{{current}}」改为「{{next}}」（终态不回退，拒信也不会把 offer 打回）",
   "err.status.reasonRequired": "进入终态「{{stage}}」时必须填写状态原因",
 
@@ -993,6 +995,7 @@ const zhCN = {
   "err.imap.testFailed": "IMAP 连接测试失败：{{error}}",
   "err.imap.fetchFailed": "IMAP 拉取失败：{{error}}",
   "err.server.error": "服务器内部错误（{{error}}）——完整信息见后端日志",
+  "err.server.lockTimeout": "另一处正在写同一份数据（另一个标签页、命令行或批量导入）；请稍后重试",
 
   "err.progress.roundInvalid": "轮次必须是 {{values}} 之一",
   "err.progress.formInvalid": "形式必须是 {{values}} 之一",

@@ -9,6 +9,8 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "tools"))
 
@@ -196,6 +198,21 @@ def test_block_scalar_description_is_rejected(tmp_path):
     """`description: |` 会被单行解析器读成 "|"，从而绕过长度上限。"""
     _make(tmp_path, "jwb-x", body=(
         "---\nname: jwb-x\ndescription: |\n  这里可以写八百字\ncompatibility: ok\n---\n"))
+    item = inspect_skills(str(tmp_path))[0]
+    assert any("块标量" in p for p in item["problems"])
+
+
+@pytest.mark.parametrize("marker", ["|-", "|+", ">", ">-", ">+", "|2", "|2-"])
+def test_block_scalar_with_modifiers_is_also_rejected(tmp_path, marker):
+    """带修饰符 / 缩进指示符的块标量同样是块标量。
+
+    此前只认裸 `|` 与 `>`：写成 `|-`（去掉末尾换行）、`|+`（保留）、`|2`（缩进两
+    格）时，单行解析器读到的值是那一串符号本身，长度校验照样被绕过——而严格 YAML
+    宿主会老老实实把整段文字读出来。这类绕过**本地全绿、宿主侧悄悄生效**。
+    """
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: %s\n  这里可以写八百字\n"
+        "compatibility: ok\n---\n" % marker))
     item = inspect_skills(str(tmp_path))[0]
     assert any("块标量" in p for p in item["problems"])
 

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from jobws_core import tracker
 from apierror import ApiError
 from deps import workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 
 router = APIRouter()
 
@@ -63,7 +63,7 @@ def create_contact(item: NewContact, ws: str = Depends(workspace_dir)):
     if not item.姓名.strip():
         raise ApiError(422, "progress.nameRequired", "姓名必填")
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         if link:
             main_rows = tracker.read_rows(ws)
             if not any((r.get("id") or "").strip() == link for r in main_rows):
@@ -96,7 +96,7 @@ def update_contact(contact_id: str, item: PatchContact,
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
 
-    with file_lock(_lock_path(ws)):
+    with locked(_lock_path(ws)):
         rows = tracker.read_contacts(ws)
         row = tracker.find_contact(rows, contact_id)
         if row is None:

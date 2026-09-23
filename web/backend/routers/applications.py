@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 import os
-from datetime import date, timedelta
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends
@@ -25,8 +25,9 @@ from jobws_core import status_parse
 from jobws_core import tracker
 from jobws_core import url_infer
 from apierror import ApiError
+from applist import SORTS, due_within_rows, sort_items, with_stage_days
 from deps import DIR_TRACKING, workspace_dir
-from jobws_core.filelock import file_lock
+from lockctx import locked
 # 目录名拆分只有一处实现（job_dirs.split_dir_name）；前端「一键投递」传目录名过来，由这里拆。
 from routers import jobs as jobs_router
 
@@ -41,11 +42,9 @@ UPDATABLE = tracker.UPDATABLE
 STAGES = tracker.STAGES
 TERMINAL = tracker.TERMINAL_STAGES
 
-# 排序键。default 与 CLI 的 list 一致（终态沉底、按下次动作日期升序）
-SORTS = ["default", "next", "score", "stale", "health"]
-
-# 健康度排序优先级：越靠前越该先处理；None（终态）与 ok 沉底
-HEALTH_ORDER = {"urgent": 0, "overdue": 1, "stale": 2, "ok": 3}
+# due_within 的上限（天）：十年内的日程够用了；给上限不是为了省性能，而是让
+# 「手滑多打几个零」落在范围校验里，而不是变成一个 overflow 异常。
+DUE_WITHIN_MAX = 3650
 
 
 class NewApplication(BaseModel):
@@ -74,15 +73,18 @@ class NewApplication(BaseModel):
 
 
 class PatchApplication(BaseModel):
-    当前阶段: str = None
-    状态原因: str = None
-    下次动作: str = None
-    下次动作日期: str = None
-    备注: str = None
-    评分: int = None
-    投递日期: str = None
-    截止日期: str = None
-    链接: str = None
+    # 全部字段 Optional：PATCH 的语义是「改给定项」，未给的不动。
+    # `评分` 用 float 而非 int——与新增路径同口径（解析卡的维度分可能带小数），
+    # 此前两边类型不一致，同一个 88.6 在新增时合法、在修改时被拒。
+    当前阶段: Optional[str] = None
+    状态原因: Optional[str] = None
+    下次动作: Optional[str] = None
+    下次动作日期: Optional[str] = None
+    备注: Optional[str] = None
+    评分: Optional[float] = None
+    投递日期: Optional[str] = None
+    截止日期: Optional[str] = None
+    链接: Optional[str] = None
 
 
 def _find(rows, app_id):
@@ -90,14 +92,6 @@ def _find(rows, app_id):
         if (row.get("id") or "").strip() == app_id:
             return row
     return None
-
-
-def _score(row):
-    """评分在 CSV 里是字符串，转 int 失败按 0 处理（比让排序崩溃好）。"""
-    try:
-        return int(str(row.get("评分") or "").strip())
-    except (TypeError, ValueError):
-        return 0
 
 
 def _match_keyword(row, keyword):
@@ -112,48 +106,6 @@ def _match_keyword(row, keyword):
     return False
 
 
-def _with_stage_days(rows, ws):
-    """给每行附加 stageDays（当前阶段停留天数）与 health（健康度）。
-
-    构造新 dict 返回，不写到行对象上——rows 会原样传回 write_rows，
-    附加字段混进去虽会被 extrasaction 忽略，但让它根本不出现更安全。
-    """
-    entries = tracker.read_history(ws)
-    # 索引一次：stale_days / health_score 都以「该 id 的条目」为输入，逐行传子集
-    # 把 O(行数 × 条目数) 的全量扫描降为 O(条目数)（P 批治理，2026-09-21）
-    by_id = tracker.history_by_id(entries)
-    out = []
-    for row in rows:
-        item = dict(row)
-        own = by_id.get((row.get("id") or "").strip(), [])
-        days = tracker.stale_days(row, own)
-        item["stageDays"] = days if days is not None else ""
-        # 健康度与健康度理由：给理由不给黑箱分数，前端逐条照抄展示
-        item["health"] = tracker.health_score(row, own)
-        out.append(item)
-    return out
-
-
-def _sort_items(items, sort):
-    if sort == "health":
-        # 严重度优先，同级里停留久的在前（越拖越该处理）
-        items.sort(key=lambda r: (
-            HEALTH_ORDER.get((r.get("health") or {}).get("level"), 3),
-            -(r["stageDays"] if isinstance(r.get("stageDays"), int) else -1),
-            r.get("id", "")))
-        return items
-    if sort == "score":
-        items.sort(key=lambda r: (-_score(r), r.get("id", "")))
-    elif sort == "stale":
-        # 无基准日（空串）排在最后
-        items.sort(key=lambda r: (-(r["stageDays"] if isinstance(r["stageDays"], int) else -1),
-                                  r.get("id", "")))
-    elif sort == "next":
-        items.sort(key=lambda r: (0 if (r.get("下次动作日期") or "").strip() else 1,
-                                  (r.get("下次动作日期") or ""), r.get("id", "")))
-    else:
-        items.sort(key=tracker.sort_key)
-    return items
 
 
 def _validate_dates(app: NewApplication):
@@ -216,21 +168,21 @@ def list_applications(
                 if r.get("当前阶段") == "待投"
                 and tracker.parse_iso_date(r.get("截止日期"))
                 and tracker.parse_iso_date(r.get("截止日期")) < today]
-    if due_within is not None and due_within >= 0:
-        today = date.today()
-        limit = today + timedelta(days=due_within)
-        kept = []
-        for r in rows:
-            for field in ("下次动作日期", "截止日期"):
-                when = tracker.parse_iso_date(r.get(field))
-                if when and today <= when <= limit:
-                    kept.append(r)
-                    break
-        rows = kept
+    if due_within is not None:
+        # 取值范围必须显式拒绝两种值：负数是「语义相反且无声」（此前 `>= 0` 的判定
+        # 让 -3 退化成「不过滤」，调用方要「最近到期」却拿到全量）；过大的天数会让
+        # timedelta 抛 OverflowError、冒泡成 500——两类都要在契约层说人话。
+        if due_within < 0 or due_within > DUE_WITHIN_MAX:
+            raise ApiError(
+                422, "app.dueWithinRange",
+                "due_within 必须是 0 到 %d 之间的天数（当前：%d）"
+                % (DUE_WITHIN_MAX, due_within),
+                days=str(due_within))
+        rows = due_within_rows(rows, due_within)
 
-    items = _with_stage_days(rows, ws)
+    items = with_stage_days(rows, ws)
     # 未知排序键回退默认，不报错——前端传参可能来自 URL，容错比严格更好
-    items = _sort_items(items, sort if sort in SORTS else "default")
+    items = sort_items(items, sort if sort in SORTS else "default")
     return {"items": items, "total": len(items)}
 
 
@@ -297,7 +249,7 @@ def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
     os.makedirs(lock_path, exist_ok=True)
     lock_path = os.path.join(lock_path, "tracker.lock")
 
-    with file_lock(lock_path):
+    with locked(lock_path):
         written = tracker.commit_import(preview, workspace=ws)
     if written < 0:
         # 预览后主表又变了（比如用户在别的标签页加过记录）：整批拒绝，重新预览
@@ -333,7 +285,7 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
     else:
         company, role = app.公司.strip(), app.岗位.strip()
 
-    with file_lock(lock_path):
+    with locked(lock_path):
         rows = tracker.read_rows(ws)
 
         # canonical 去重：同公司+岗位且既有记录非终态则拒绝（409 并回传既有 id）
@@ -384,6 +336,8 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
 @router.patch("/{app_id}")
 def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(workspace_dir)):
     if patch.评分 is not None and not (0 <= patch.评分 <= 100):
+        # 注意：同一句校验在新增路径（`_validate_dates`）里也有一份，code 同为
+        # `app.scoreRange`——两条写入层共用一份文案，避免"改一边忘另一边"。
         raise ApiError(422, "app.scoreRange", "评分必须在 0–100 之间")
     if patch.当前阶段 and patch.当前阶段 not in STAGES + TERMINAL:
         raise ApiError(422, "app.stageInvalid",
@@ -396,9 +350,16 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
             if errs:
                 raise ApiError(422, "app.dateFormat", errs[0], label=label, value=field)
 
-    updates = {k: v for k, v in patch.model_dump().items() if v is not None and k in UPDATABLE}
+    # exclude_unset：**显式传 null 与「没传」是两种意图**——前者要清空该字段，
+    # 后者不该被碰。此前用 `v is not None` 过滤，把「清空评分」静默变成
+    # 「没有提供任何字段」（422），用户点了清空、刷新又是旧值。
+    updates = {k: v for k, v in patch.model_dump(exclude_unset=True).items()
+               if k in UPDATABLE}
+    # 评分取整与新增路径同一处口径（floor(x+0.5)：round() 是银行家舍入）
+    if updates.get("评分") is not None:
+        updates["评分"] = math.floor(updates["评分"] + 0.5)
     # 「链接」与新增路径同一口径：落盘前 strip——否则「 https://… 」带空格原样进 CSV
-    if "链接" in updates:
+    if "链接" in updates and updates["链接"] is not None:
         updates["链接"] = str(updates["链接"]).strip()
     if not updates:
         raise ApiError(422, "app.noFieldsToUpdate", "没有提供任何要更新的字段")
@@ -406,7 +367,7 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
     lock_path = os.path.join(ws, DIR_TRACKING, "tracker.lock")
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
 
-    with file_lock(lock_path):
+    with locked(lock_path):
         rows = tracker.read_rows(ws)
         target = _find(rows, app_id)
         if target is None:
@@ -432,7 +393,9 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
 
         before = dict(target)
         for k, v in updates.items():
-            target[k] = str(v)
+            # None = 清空，落盘写空串——直接用 str(v) 会把 Python 的 None 写成
+            # 字符串 "None"，那是这条记录里永远不会再被清掉的一个脏值
+            target[k] = "" if v is None else str(v)
         tracker.write_rows(rows, ws)
         tracker.append_history(tracker.diff_entries(app_id, before, target), ws)
 
@@ -487,6 +450,12 @@ class ApplySuggestionRequest(BaseModel):
     下次动作: Optional[str] = None
     下次动作日期: Optional[str] = None
     依据: str = ""                 # 命中的原文句子，写进时间线
+    # 其余将写字段的旧值快照：**给了就比、没给就跳过**（向后兼容——旧调用方只传
+    # 原阶段也能跑）。只比 `原阶段` 是不够的：本端点会同时覆盖状态原因 / 下次动作 /
+    # 下次动作日期，而另一处的改动碰巧落在这些字段上时，阶段比对照样通过。
+    原状态原因: Optional[str] = None
+    原下次动作: Optional[str] = None
+    原下次动作日期: Optional[str] = None
 
 
 @router.post("/suggest-status")
@@ -528,7 +497,7 @@ def apply_status_suggestion(item: ApplySuggestionRequest,
     lock_path = os.path.join(ws, DIR_TRACKING, "tracker.lock")
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
 
-    with file_lock(lock_path):
+    with locked(lock_path):
         rows = tracker.read_rows(ws)
         target = _find(rows, item.id)
         if target is None:
@@ -543,6 +512,21 @@ def apply_status_suggestion(item: ApplySuggestionRequest,
                 "这条记录的当前阶段已变为 `%s`（你确认时是 `%s`）——请重新解析原文"
                 % (current, seen),
                 current=current, seen=seen)
+
+        # 其余将写字段的并发核验：给快照的字段逐个比对（只比阶段会让「别人改的是
+        # 原因 / 下次动作」这种情况静默通过——保护了字段 A，写入却覆盖了 B/C/D）
+        for field, seen_value in (("状态原因", item.原状态原因),
+                                  ("下次动作", item.原下次动作),
+                                  ("下次动作日期", item.原下次动作日期)):
+            if seen_value is None:
+                continue
+            current_value = (target.get(field) or "").strip()
+            if current_value != (seen_value or "").strip():
+                raise ApiError(
+                    409, "status.staleField",
+                    "这条记录的%s已变为 `%s`（你确认时是 `%s`）——请重新解析原文"
+                    % (field, current_value, seen_value),
+                    field=field, current=current_value, seen=seen_value)
 
         ok, why = status_parse.can_override(current, stage)
         if not ok:

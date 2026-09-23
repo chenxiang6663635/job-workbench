@@ -59,6 +59,33 @@ def test_atomic_write_csv_bom_and_restval(tmp_path):
     assert "None" not in text
 
 
+@pytest.mark.parametrize("danger", ["=1+1", "+HYPERLINK(\"http://x\")", "-2+3",
+                                    "@SUM(A1:A9)"])
+def test_atomic_write_csv_neutralizes_formula_prefixes(tmp_path, danger):
+    """`= + - @` 开头的单元格会被 Excel / WPS 当公式算——导出文件被人打开即中招。
+
+    追踪表里的「备注」「公司」等字段是用户手填的，也可能来自粘贴进来的邮件原文；
+    把它们原样写进 CSV，等于给表格软件递一段可执行的公式。缓解办法是在危险前缀
+    前加一个单引号——表格软件会按文本显示它，代价只有一个字符。
+    """
+    target = tmp_path / "tracker.csv"
+    workspace_io.atomic_write_csv(str(target), [{"备注": danger}], ["备注"])
+    with io.open(str(target), "r", encoding="utf-8-sig", newline="") as handle:
+        cell = list(csv.reader(handle))[1][0]
+    assert cell.startswith("'"), "危险前缀必须以单引号中和：%r" % cell
+    assert danger in cell
+
+
+def test_atomic_write_csv_leaves_plain_values_untouched(tmp_path):
+    """否定验证：中和不能变成对所有单元格动刀——普通中文一个字都不许改。"""
+    target = tmp_path / "tracker.csv"
+    rows = [{"公司": "云帆科技", "备注": "2026-09-25 内推"}]
+    workspace_io.atomic_write_csv(str(target), rows, ["公司", "备注"])
+    with io.open(str(target), "r", encoding="utf-8-sig", newline="") as handle:
+        row = list(csv.reader(handle))[1]
+    assert row == ["云帆科技", "2026-09-25 内推"]
+
+
 def test_atomic_write_replaces_old_content(tmp_path):
     target = tmp_path / "data.csv"
     workspace_io.atomic_write_csv(str(target), [{"a": "1"}], ["a"])

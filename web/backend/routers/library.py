@@ -15,7 +15,7 @@ import os
 from fastapi import APIRouter, Depends
 from apierror import ApiError
 from deps import safe_join, workspace_dir
-from iocaps import read_bytes_capped
+from iocaps import MAX_BINARY_BYTES, read_bytes_capped
 from ro_files import TextDecodeError, inside, read_text_limited, walk_files
 
 router = APIRouter(prefix="/api/library")
@@ -112,8 +112,11 @@ def library_file(section: str, rel: str, ws: str = Depends(workspace_dir)):
     else:
         media_type = "application/octet-stream"
 
-    # 带上限：素材库里可能有几十 MB 的扫描件，无上限的 read() 会把整个文件
-    # 读进内存（PDF 预览器自己会分页取，不需要我们一次性交出全部字节）
+    # 超限**拒绝**（413）而不是截断：这个端点不支持 Range，浏览器要的是整份文件——
+    # 截断后以 200 返回，用户拿到的是一个坏掉的 PDF，且界面上看不出原因。
+    if os.path.getsize(full) > MAX_BINARY_BYTES:
+        raise ApiError(413, "file.tooLarge", "文件过大，无法在此预览",
+                       rel=rel, mb=MAX_BINARY_BYTES // (1024 * 1024))
     data, _truncated = read_bytes_capped(full)
 
     from fastapi import Response

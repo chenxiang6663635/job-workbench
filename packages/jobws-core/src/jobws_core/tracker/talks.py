@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 from ._core import (ConflictError, _atomic_write_csv, _lock_path, resolve_ws)
 from ._schema import (TALK_ATTEND, TALK_FIELDS, TALK_FILE, TALK_FORMS)
 from .applications import (read_rows)
+from ..csv_cells import restore_row
 
 
 
@@ -36,7 +37,7 @@ def read_talks(workspace=None, app_id=None):
     if not os.path.isfile(path):
         return []
     with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        rows = [dict(row) for row in csv.DictReader(f)]
+        rows = [restore_row(dict(row)) for row in csv.DictReader(f)]
     if app_id:
         rows = [r for r in rows if (r.get("关联记录") or "").strip() == app_id]
     return rows

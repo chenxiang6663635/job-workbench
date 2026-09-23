@@ -16,6 +16,7 @@ from datetime import date, datetime
 
 
 from jobws_core import pathres  # noqa: E402  （ROOT 由入口注入，见 pathres._APP_ROOT）
+from jobws_core.csv_cells import restore_row  # noqa: E402
 from jobws_core import workspace_io  # noqa: E402  （批 8：原子写与锁名收敛到共享原语）
 
 # 库代码一律走 logging 而不是 print：tracker 被后端常驻进程与 MCP
@@ -114,9 +115,13 @@ def _quarantine(path, workspace=None):
 
 
 def _read_csv_checked(path):
-    """读 CSV；解析失败抛 ValueError（由调用方决定是否隔离）。"""
+    """读 CSV；解析失败抛 ValueError（由调用方决定是否隔离）。
+
+    `restore_row`：把写入侧为 Excel 中和掉的单引号还原，保证"写进去什么、读出来
+    什么"（否则备注里会永远多一个引号，并被下一次写回继续带走）。
+    """
     with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        return [dict(row) for row in csv.DictReader(f)]
+        return [restore_row(dict(row)) for row in csv.DictReader(f)]
 
 
 

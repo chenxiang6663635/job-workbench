@@ -36,13 +36,30 @@ export function parseLocalDate(value: string): Date | null {
     ss ? Number(ss) : 0,
     0,
   );
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(date.getTime())) return null;
+  // `Date` 会把日历上不存在的日子**进位**（`2026-02-31` → 3 月 3 日），而它并不等于
+  // 输入——那是「解析成功」的假象。回比一次，不等就按"解析不出来"处理（与后端
+  // `check_date` 的判定同一条线：正则形状过了不代表这个日子真实存在）。
+  if (
+    date.getFullYear() !== Number(y) ||
+    date.getMonth() !== Number(m) - 1 ||
+    date.getDate() !== Number(d)
+  ) {
+    return null;
+  }
+  return date;
 }
 
-/** 相隔整天数（正 = `target` 在未来）。任一侧解析不出来返回 null。 */
+/**
+ * 相隔整天数（正 = `target` 在未来）。任一侧解析不出来返回 null。
+ *
+ * 只看**日历日**：`target` 带时刻也归零到当天（`daysUntil("2026-09-30 23:00")`
+ * 在 9 月 30 日当天应当回答 0，而不是"还差 1 天"）。
+ */
 export function daysUntil(target: string, from: Date = new Date()): number | null {
   const date = parseLocalDate(target);
   if (!date) return null;
   const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  return Math.round((date.getTime() - start.getTime()) / 86400_000);
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((end.getTime() - start.getTime()) / 86400_000);
 }

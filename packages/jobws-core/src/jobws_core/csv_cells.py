@@ -21,3 +21,22 @@ def csv_cell(value):
     if text[:1] in _FORMULA_PREFIXES:
         return "'" + text
     return text
+
+
+def csv_read_cell(value):
+    """单元格入口：还原写入时中和掉的单引号（`'- 待定` → `- 待定`）。
+
+    为什么必须成对：中和是**为了 Excel**，不是为了改用户数据——读回来若少了这一步，
+    备注会永远多一个引号（界面、CLI、导出、下一次写回都带着它），而"写进去什么、
+    读出来什么"才是这份数据的基本承诺。判定与写侧对称：只有 `'` 后面紧跟公式前缀
+    才还原，避免吃掉用户真正想留的引号。
+    """
+    text = "" if value is None else str(value)
+    if text[:1] == "'" and text[1:2] in _FORMULA_PREFIXES:
+        return text[1:]
+    return text
+
+
+def restore_row(row):
+    """整行还原（读取侧统一入口）。"""
+    return dict((key, csv_read_cell(value)) for key, value in row.items())

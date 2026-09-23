@@ -82,3 +82,85 @@ def test_ci_mode_returns_zero_on_clean_diff(monkeypatch, capsys):
     monkeypatch.setattr(hook, "check_privacy_ci", lambda _base: None)
     assert hook.main(["--privacy-ci"]) == 0
     assert "OK" in capsys.readouterr().out
+
+
+# ---- CI 入口的真身（上面那两条把它 monkeypatch 掉了）----------------------------
+#
+# 只测"分发与退出码"是不够的：CI 闸唯一真正会出错的地方是**那两个 git 调用**
+# （浅克隆里 base 取不到、base 为空串导致 diff 恒空）——正是批末独立审查揪出来的
+# 两处。所以这里造一个真仓库，走真 `git diff`。
+
+import subprocess  # noqa: E402
+
+
+def _git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                          capture_output=True, text=True)
+
+
+def _seed_repo(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    (repo / "notes.md").write_text("首页\n", encoding="utf-8")
+    _git(repo, "add", "notes.md")
+    _git(repo, "-c", "user.email=t@example.com", "-c", "user.name=t",
+         "commit", "-qm", "first")
+    base = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    return repo, base
+
+
+def test_ci_mode_finds_a_number_in_the_real_diff(tmp_path, monkeypatch):
+    hook = _load_hook()
+    repo, base = _seed_repo(tmp_path)
+    (repo / "notes.md").write_text(
+        "首页\n联系：%s\n" % REAL_LOOKING_PHONE, encoding="utf-8")
+    _git(repo, "add", "notes.md")
+    _git(repo, "-c", "user.email=t@example.com", "-c", "user.name=t",
+         "commit", "-qm", "second")
+
+    monkeypatch.chdir(repo)  # 钩子里的 git 调用不带 cwd，跟着进程走
+
+    assert hook.check_privacy_ci(base) is not None
+
+
+def test_ci_mode_is_clean_when_the_diff_is_clean(tmp_path, monkeypatch):
+    """否定验证：真 diff 也认「干净」——否则 CI 会永久红，闸门等于废掉。"""
+    hook = _load_hook()
+    repo, base = _seed_repo(tmp_path)
+    (repo / "notes.md").write_text("首页\n示例号：%s\n" % PLACEHOLDER_PHONE,
+                                  encoding="utf-8")
+    _git(repo, "add", "notes.md")
+    _git(repo, "-c", "user.email=t@example.com", "-c", "user.name=t",
+         "commit", "-qm", "second")
+
+    monkeypatch.chdir(repo)
+
+    assert hook.check_privacy_ci(base) is None
+
+
+def test_ci_mode_fails_loud_when_base_is_missing(tmp_path, monkeypatch):
+    """浅克隆场景：base 取不到必须**明确失败**，不许静默放行。
+
+    旧写法没有接住 `git diff` 的退出码 128，于是这道闸在 PR 上的表现是
+    "traceback 轰掉 job"——同样是红，但没人能一眼看出原因。
+    """
+    hook = _load_hook()
+    repo, _base = _seed_repo(tmp_path)
+    monkeypatch.chdir(repo)
+
+    problem = hook.check_privacy_ci("0000000000000000000000000000000000000000")
+
+    assert problem is not None
+    assert "基线" in problem
+
+
+def test_ci_mode_treats_empty_base_as_missing(tmp_path, monkeypatch, capsys):
+    """空串 base 曾等价于「diff 自己跟自己」→ 恒过；现在必须落到实处（走默认值）。"""
+    hook = _load_hook()
+    repo, _base = _seed_repo(tmp_path)
+    monkeypatch.chdir(repo)
+    monkeypatch.delenv("JOBWS_PRIVACY_BASE", raising=False)
+
+    assert hook.main(["--privacy-ci", ""]) == 1
+    assert "origin/main" in capsys.readouterr().out

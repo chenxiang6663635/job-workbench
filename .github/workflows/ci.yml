@@ -19,7 +19,13 @@ jobs:
     # 都会表现为无限等待）。上限给得比实测宽松，是为了让它只在真的卡死时才动手。
     timeout-minutes: 30
     steps:
+      # fetch-depth: 0 —— 隐私护栏的 CI 闸要拿 `git diff <base>...HEAD`，而 checkout
+      # 默认是浅克隆（depth=1）：base 对象不在本地，diff 直接退出 128（2026-09-23
+      # 批末独立审查发现"这道闸在 PR 上必然红"）。只有这一个 job 需要完整历史，
+      # 其余 job 保持默认浅克隆。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: 安装 Python 3.12
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -171,10 +177,14 @@ jobs:
       # 就靠这两条兜住：① 缩放上下限与按键映射（zoom.js）零依赖单测；
       # ② 打包白名单守卫——新增模块忘了加进 build.files 时，源码形态照跑、
       # 安装版启动即崩，只有这条检查能在合并前发现。
-      - name: Electron 主进程自检（缩放逻辑 + 打包白名单）
+      - name: Electron 主进程自检（缩放逻辑 + 打包白名单 + URL 守卫）
+        # url_guard.test.js 是 P0-2（导航 origin 严格比对 / 外链 scheme 白名单）的
+        # 回归网——批末审查发现它当时只在有人手工 `node` 时才跑（测试文件里却写着
+        # "CI 也跑这一步"）。护栏没进 CI 等于没有护栏。
         run: |
           node web/electron/zoom.test.js
           node web/electron/check_packaging.js
+          node web/electron/url_guard.test.js
 
       - name: 构建
         working-directory: web/frontend

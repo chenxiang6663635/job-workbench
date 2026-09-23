@@ -16,6 +16,8 @@ import io
 MAX_TEXT_CHARS = 2_000_000
 # 二进制：25MB 覆盖 PDF 与常见图片；再大就该走别的通道
 MAX_BINARY_BYTES = 25 * 1024 * 1024
+# 出网响应体：模型 / Provider 的 JSON 回复，4MB 已经是两个数量级的余量
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 
 def read_text_capped(path, limit: int = MAX_TEXT_CHARS):
@@ -30,3 +32,12 @@ def read_bytes_capped(path, limit: int = MAX_BINARY_BYTES):
     with open(path, "rb") as handle:
         data = handle.read(limit + 1)
     return data[:limit], len(data) > limit
+
+
+def read_response(response, limit: int = MAX_RESPONSE_BYTES) -> bytes:
+    """读 HTTP 响应体（带上限）。
+
+    磁盘那一侧是用户自己的文件（大小可预期），网络那一侧的大小**由对方决定**——
+    一次「忘了传 limit 的 read()」就够把内存交给远端。所以出网读取也走这里。
+    """
+    return response.read(limit)

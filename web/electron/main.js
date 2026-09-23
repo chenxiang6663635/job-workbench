@@ -410,6 +410,14 @@ function createWindow() {
       log(`Blocked navigation to ${url}`);
     }
   });
+  // 服务端 302 不走 will-navigate，走的是独立的可取消事件（批末审查发现漏挂）。
+  // 本机后端是唯一可能发重定向的一方，但守卫的语义就是"所有导航出口都要判"。
+  win.webContents.on("will-redirect", (event, url) => {
+    if (!isAllowedNavigation(url, allowedOrigin)) {
+      event.preventDefault();
+      log(`Blocked redirect to ${url}`);
+    }
+  });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (!isSafeExternalUrl(url)) {
       log(`Blocked external open of ${url}`);

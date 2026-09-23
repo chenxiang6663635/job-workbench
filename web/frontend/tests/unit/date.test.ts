@@ -47,6 +47,16 @@ describe("parseLocalDate", () => {
     expect(parseLocalDate("   ")).toBeNull();
     expect(parseLocalDate("不是日期")).toBeNull();
   });
+
+  // 批末独立审查：这条是与后端同口径的**判据性**用例——`Date` 会把日历上不存在
+  // 的日子默默进位（`2026-02-31` → 3 月 3 日），那是"解析成功"的假象；后端
+  // `check_date` 早就在拒它，前端若接受，offer 的"3 天内到期"提醒就会基于一个
+  // 不存在的日子亮起。
+  it("rejects days that do not exist on the calendar", () => {
+    expect(parseLocalDate("2026-02-31")).toBeNull();
+    expect(parseLocalDate("2026-13-01")).toBeNull();
+    expect(parseLocalDate("2026-04-31 10:00")).toBeNull();
+  });
 });
 
 describe("daysUntil", () => {
@@ -64,7 +74,15 @@ describe("daysUntil", () => {
     )}`)).toBe(1);
   });
 
+  it("counts calendar days even when the target carries a clock", () => {
+    // 只看日历日：当天 23:00 应当回答 0，而不是"还差 1 天"
+    const from = new Date(2026, 8, 30, 10, 0, 0);
+    expect(daysUntil("2026-09-30 23:00", from)).toBe(0);
+    expect(daysUntil("2026-10-03 23:00", from)).toBe(3);
+  });
+
   it("returns null when the target cannot be parsed", () => {
     expect(daysUntil("")).toBeNull();
+    expect(daysUntil("2026-02-31", new Date(2026, 8, 30, 10))).toBeNull();
   });
 });

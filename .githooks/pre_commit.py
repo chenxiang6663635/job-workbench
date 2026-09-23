@@ -116,15 +116,32 @@ def check_privacy_ci(base: str) -> str | None:
 
     为什么还要在 CI 跑一遍：`--no-verify` 的存在是**有意保留**的逃生口，但它同时
     会跳过隐私护栏；无论本地怎么走，PR 里的那份 diff 都必须被同一个实现过一遍。
+
+    两种必须显式失败而不能静默放行的情况（批末独立审查发现）：
+    1. **base 取不到**（浅克隆里常见）——`git diff` 退出 128。以前没接住异常，
+       结果不是"闸门拦下"而是"traceback 轰掉 CI job"；现在给出可执行的提示。
+    2. **base 为空串**——`"%s...HEAD" % ""` 退化成一个点，diff 恒为空、判定恒过。
+       空值一律当"没给"，回落到 origin/main。
     """
-    diff_run = subprocess.run(
-        ["git", "diff", "-U0", "%s...HEAD" % base],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
-    ).stdout
-    paths_run = subprocess.run(
-        ["git", "diff", "--name-only", "-z", "%s...HEAD" % base],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
-    ).stdout
+    base = (base or "").strip() or "origin/main"
+    try:
+        probe = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", "%s^{commit}" % base],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        if probe.returncode != 0:
+            return ("取不到比对基线 `%s`——CI 里给 backend job 的 checkout 加 "
+                    "fetch-depth: 0，或显式传 base" % base)
+        diff_run = subprocess.run(
+            ["git", "diff", "-U0", "%s...HEAD" % base],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+        ).stdout
+        paths_run = subprocess.run(
+            ["git", "diff", "--name-only", "-z", "%s...HEAD" % base],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+        ).stdout
+    except subprocess.CalledProcessError as exc:
+        return "git diff 失败（base=%s，exit=%s）：%s" % (base, exc.returncode, exc.stderr)
     return privacy_problem([p for p in paths_run.split("\0") if p], diff_run)
 
 
@@ -264,7 +281,8 @@ def main(argv: list | None = None) -> int:
     # CI 形态（`python .githooks/pre_commit.py --privacy-ci [base]`）：只跑隐私一项，
     # 且没有"已暂存"的概念，diff 取自基点到 HEAD
     if argv and argv[0] == "--privacy-ci":
-        base = argv[1] if len(argv) > 1 else os.environ.get("JOBWS_PRIVACY_BASE", "origin/main")
+        # 空串 == 没给（环境变量存在但为空时 `or` 才会兜住，这里统一成同一语义）
+        base = (argv[1] if len(argv) > 1 else "") or os.environ.get("JOBWS_PRIVACY_BASE", "")
         problem = check_privacy_ci(base)
         if problem:
             print("[pre-commit][FAIL] privacy: %s" % problem)

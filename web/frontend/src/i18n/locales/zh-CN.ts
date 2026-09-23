@@ -890,6 +890,9 @@ const zhCN = {
   "err.path.escape": "路径越出工作区",
 
   "err.app.dateFormat": "`{{label}}: {{value}}` 日期格式错误，应为 YYYY-MM-DD",
+  "err.date.format": "`{{label}}: {{value}}` 不是合法日期（应为 YYYY-MM-DD，且日历上真实存在）",
+  "err.date.when": "`{{label}}: {{value}}` 不是合法日期或时间（可填 YYYY-MM-DD 或 YYYY-MM-DD HH:MM）",
+  "err.file.tooLarge": "`{{rel}}` 超过单文件上限（{{mb}} MB），无法在此预览；请直接打开文件所在目录",
   "err.app.scoreRange": "评分必须在 0–100 之间",
   "err.app.dueWithinRange": "due_within 必须是 0 到 3650 之间的天数（当前：{{days}}）",
   "err.app.needDirOrCompanyRole": "要么给「岗位目录」，要么同时给公司与岗位（前者由后端按目录名拆分）",

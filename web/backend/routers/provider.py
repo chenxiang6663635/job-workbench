@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 import tls_http
 from apierror import ApiError
+from iocaps import read_response
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
 from lockctx import locked
@@ -154,7 +155,7 @@ def test_provider(ws: str = Depends(workspace_dir)):
         with tls_http.open_url(req, timeout=TEST_TIMEOUT,
                                purpose="Provider 连通性测试") as resp:
             status = resp.status
-            raw = resp.read().decode("utf-8", errors="replace")
+            raw = read_response(resp).decode("utf-8", errors="replace")
             data = json.loads(raw) if raw.strip() else {}
     except urllib.error.HTTPError as e:
         raise ApiError(502, "provider.connectHttpError",

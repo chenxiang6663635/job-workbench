@@ -232,6 +232,10 @@ export default function Resume() {
 
   const save = () => {
     if (!version || !data) return;
+    // 版本闸门（审计 P1 补网）：`data` 属于**已加载完的那个版本**——切换版本到新数据
+    // 返回之间它还是旧版本的内容，此时点保存会把 A 的内容 PUT 进 B 的文件。自动保存
+    // 那条路径已有同样的判断，手工保存这条以前漏了。
+    if (loadedVersion.current !== version) return;
     setSaving(true);
     api
       .saveResume(version, data)

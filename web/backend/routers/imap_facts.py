@@ -27,6 +27,7 @@ from pydantic import BaseModel
 import tls_http
 from apierror import ApiError
 from deps import workspace_dir
+from iocaps import read_response
 from jobws_core import mail_facts, status_parse, tracker
 from jobws_core.mail_text import MAX_BODY_CHARS
 
@@ -126,7 +127,7 @@ def _call_model(cfg, prompt, model):
         "Authorization": "Bearer " + cfg["api_key"],
     })
     with tls_http.open_url(req, timeout=AI_TIMEOUT, purpose="邮件事实 AI 增强") as resp:
-        raw = resp.read().decode("utf-8", errors="replace")
+        raw = read_response(resp).decode("utf-8", errors="replace")
     data = json.loads(raw)
     return data["choices"][0]["message"]["content"]
 

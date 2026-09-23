@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from jobws_core import tracker
 import mail_link
 from apierror import ApiError
+from datecheck import check_when_fields
 from deps import workspace_dir
 from lockctx import locked
 
@@ -98,6 +99,7 @@ def create_mail(item: NewMail, ws: str = Depends(workspace_dir)):
             if not any((r.get("id") or "").strip() == link for r in main_rows):
                 raise ApiError(404, "progress.mailLinkNotFound",
                                "找不到关联记录 %s" % link, id=link)
+        check_when_fields([(item.日期, "日期")])
         rows = tracker.read_mails(ws)
         # 同一封邮件不许导两遍：列表会长出一模一样的行，且深链指向同一封
         if message_id and any(tracker.normalize_message_id(r.get("消息id")) == message_id
@@ -146,6 +148,9 @@ def update_mail(mail_id: str, item: PatchMail, ws: str = Depends(workspace_dir))
         raise ApiError(422, "progress.mailSubjectRequired", "邮件主题必填")
     if not updates:
         raise ApiError(422, "progress.noFieldsToUpdate", "没有提供任何要更新的字段")
+    # 邮件日期**带时刻**（`2026-09-16 10:00` 是它最常见的形态，也来自抓取结果的原文），
+    # 所以走"日期或时间"这条校验，而不是投递表那种纯日期
+    check_when_fields([(updates.get("日期"), "日期")])
 
     with locked(_lock_path(ws)):
         rows = tracker.read_mails(ws)

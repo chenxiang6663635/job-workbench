@@ -76,6 +76,41 @@ def test_atomic_write_csv_neutralizes_formula_prefixes(tmp_path, danger):
     assert danger in cell
 
 
+def test_csv_cells_round_trip_restores_the_quote(tmp_path):
+    """读回时要还原写侧为主和公式而加的单引号（批末独立审查抓出的漏项）。
+
+    只做写侧中和、读侧不还原，用户数据里就会永久多一个引号：备注 `- 二面待定`
+    落盘成 `'- 二面待定`，界面、CLI、导出、下一次写回都带着它——"写进去什么、
+    读出来什么"是这份数据最基本的承诺。
+    """
+    from jobws_core.csv_cells import csv_cell, csv_read_cell
+
+    for danger in ("=1+1", "+HYPERLINK(\"http://x\")", "- 二面待定", "@SUM(A1)"):
+        assert csv_read_cell(csv_cell(danger)) == danger
+
+
+def test_csv_read_cell_keeps_a_real_apostrophe(tmp_path):
+    """否定验证：用户真正想留的引号不能被吃掉（只有紧跟公式前缀才还原）。"""
+    from jobws_core.csv_cells import csv_read_cell
+
+    assert csv_read_cell("'这是引用'") == "'这是引用'"
+    assert csv_read_cell("'") == "'"
+
+
+def test_tracker_round_trip_keeps_remark_unchanged(tmp_path):
+    """落盘再读回，备注逐字符相同（追踪表是最容易踩这个坑的那张表）。"""
+    from jobws_core import tracker
+
+    ws = str(tmp_path)
+    os.makedirs(os.path.join(ws, "05_投递追踪"))
+    row = {field: "" for field in tracker.FIELDS}
+    row.update({"id": "A001", "公司": "示例公司", "岗位": "示例岗位",
+                "备注": "- 二面待定；详情见邮件"})
+    tracker.write_rows([row], ws)
+
+    assert tracker.read_rows(ws)[0]["备注"] == "- 二面待定；详情见邮件"
+
+
 def test_atomic_write_csv_leaves_plain_values_untouched(tmp_path):
     """否定验证：中和不能变成对所有单元格动刀——普通中文一个字都不许改。"""
     target = tmp_path / "tracker.csv"

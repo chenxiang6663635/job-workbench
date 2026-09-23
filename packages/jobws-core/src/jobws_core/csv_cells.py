@@ -15,10 +15,23 @@
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
+def _needs_escape(text):
+    """写侧要加引号、读侧要去引号，用的是**同一个**判据。
+
+    传进来的都是「相对原值去掉/加上一个前导引号后的那段」：写侧传原值，读侧传
+    「读到的值去掉一个前导引号」。递归那一支处理「本来就是引号 + 公式前缀」的形态
+    （`'- 待定`、`''=x`…）——只能补一层的话，两个引号那种形态会读侧多剥一层，
+    写读不再对合（2026-09-23 二轮审查抓的反例）。
+    """
+    if text[:1] in _FORMULA_PREFIXES:
+        return True
+    return text[:1] == "'" and _needs_escape(text[1:])
+
+
 def csv_cell(value):
     """单元格出口：None → 空串；危险开头 → 前置单引号。"""
     text = "" if value is None else str(value)
-    if text[:1] in _FORMULA_PREFIXES:
+    if _needs_escape(text):
         return "'" + text
     return text
 
@@ -28,11 +41,10 @@ def csv_read_cell(value):
 
     为什么必须成对：中和是**为了 Excel**，不是为了改用户数据——读回来若少了这一步，
     备注会永远多一个引号（界面、CLI、导出、下一次写回都带着它），而"写进去什么、
-    读出来什么"才是这份数据的基本承诺。判定与写侧对称：只有 `'` 后面紧跟公式前缀
-    才还原，避免吃掉用户真正想留的引号。
+    读出来什么"才是这份数据的基本承诺。
     """
     text = "" if value is None else str(value)
-    if text[:1] == "'" and text[1:2] in _FORMULA_PREFIXES:
+    if text[:1] == "'" and _needs_escape(text[1:]):
         return text[1:]
     return text
 

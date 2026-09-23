@@ -249,6 +249,13 @@ def main(argv=None):
         # argparse 的 --help(0) 与用法错误(2) 都走这里：必须原样透出，
         # 否则 `jobws track --help` 会被误报成失败
         return _exit_code(exc)
+    except TimeoutError:
+        # 写类操作拿不到 tracker.lock（另一处正在写：桌面端常驻后端 / 另一个命令）。
+        # 这不是缺陷、也不是"数据坏了"，用户要的是"再试一次就行"——此前它会直接
+        # 抛裸栈（2026-09-23 二轮审查）。Web 侧同一情形已译成 429 server.lockTimeout。
+        print("错误：工作区正被另一处写入（等待文件锁超时）——稍后重试；"
+              "本次没有写入任何内容。")
+        return 1
     return 0 if code is None else code
 
 

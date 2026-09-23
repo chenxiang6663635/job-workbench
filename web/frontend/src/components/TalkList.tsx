@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Download, Megaphone, Plus } from "lucide-react";
 import DeleteRecordButton from "./DeleteRecordButton";
 import { previewDeleteRecord } from "../lib/records";
+import { useSeq } from "../hooks/useSeq";
 import { api, TALK_ATTEND, type Talk } from "../api";
 import { domainLabel } from "../lib/domainLabels";
 import { Button } from "./ui/button";
@@ -29,14 +30,20 @@ export default function TalkList() {
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  // 序号守卫：连续改两行时两次重拉可能乱序返回，旧快照会盖掉刚写成功的值
+  const seq = useSeq();
   const reload = () => {
+    const n = seq.next();
     api
       .listTalks()
       .then((r) => {
+        if (!seq.isCurrent(n)) return;
         setRows(r.rows);
         setLoaded(true);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        if (seq.isCurrent(n)) setError(e.message);
+      });
   };
 
   useEffect(reload, []);

@@ -21,6 +21,7 @@ import re
 from datetime import date, timedelta
 
 from . import paths
+from .limits import limit_rows
 from .paths import DIR_JOBS, DIR_TRACKING
 
 # 全部走领域包（2026-09-19 PR-B）：原先这里靠 `paths.py` 把 tools/ 加进 sys.path，
@@ -104,6 +105,9 @@ def _slim(row, verbose=False):
     return dict((k, (row.get(k) or "").strip()) for k in keys)
 
 
+
+
+
 def list_applications(workspace, stage=None, keyword=None, limit=20, verbose=False):
     """投递记录列表（只读）。
 
@@ -121,8 +125,7 @@ def list_applications(workspace, stage=None, keyword=None, limit=20, verbose=Fal
                 if kw in ((r.get("公司") or "") + (r.get("岗位") or "")).lower()]
     rows = sorted(rows, key=tracker.sort_key)
     total = len(rows)
-    if limit and limit > 0:
-        rows = rows[:limit]
+    rows = limit_rows(rows, limit)
     return {
         "workspace": workspace,
         "total": total,
@@ -195,8 +198,7 @@ def list_jobs(workspace, keyword=None, limit=20):
         items = [i for i in items
                  if kw in ((i["公司"] or "") + (i["岗位"] or "")).lower()]
     total = len(items)
-    if limit and limit > 0:
-        items = items[:limit]
+    items = limit_rows(items, limit)
     return {"workspace": workspace, "total": total, "returned": len(items), "items": items}
 
 
@@ -335,8 +337,7 @@ def list_interviews(workspace, app_id=None, result=None, limit=20, verbose=False
         rows = [r for r in rows if (r.get("结果") or "").strip() == wanted]
     rows.sort(key=lambda r: (r.get("面试时间") or ""), reverse=True)
     total = len(rows)
-    if limit and limit > 0:
-        rows = rows[:limit]
+    rows = limit_rows(rows, limit)
     fields = tracker.INTERVIEW_FIELDS if verbose else INTERVIEW_CORE
     return {
         "workspace": workspace,
@@ -357,8 +358,7 @@ def list_questions(workspace, domain=None, subject=None, status=None,
         workspace, domain=domain or None, subject=subject or None,
         status=status or None, keyword=keyword or None)
     total = len(rows)
-    if limit and limit > 0:
-        rows = rows[:limit]
+    rows = limit_rows(rows, limit)
     fields = question_bank.QUESTION_FIELDS if verbose else QUESTION_CORE
     return {
         "workspace": workspace,

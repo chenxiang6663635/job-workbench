@@ -12,6 +12,7 @@ import {
   PREPARE_TAB_KEY,
   PROGRESS_TAB_KEY,
 } from "../lib/pageDrill";
+import { commitInline, type PatchOutcome } from "../lib/inlineCommit";
 import { previewDeleteApplication } from "../lib/records";
 import DeleteRecordButton from "./DeleteRecordButton";
 import HistoryTimeline from "./HistoryTimeline";
@@ -31,7 +32,8 @@ type Props = {
   isExpanded: boolean;
   timeline: HistoryEntry[];
   onToggleTimeline: () => void;
-  onPatch: (body: Partial<Application>) => void;
+  /** 返回 false 表示写入失败（调用方据此把行内输入回滚，见 `commitInline`） */
+  onPatch: (body: Partial<Application>) => PatchOutcome;
   onReload: () => void;
   /** UX-3：岗位池里与该条投递对应的目录名（没有就不显示解析卡入口） */
   jobDir?: string;
@@ -157,11 +159,7 @@ export default function ApplicationRow({
         <td className="px-4 py-3">
           <input
             defaultValue={it.状态原因}
-            onBlur={(e) => {
-              if (e.target.value !== it.状态原因) {
-                onPatch({ 状态原因: e.target.value });
-              }
-            }}
+            onBlur={(e) => commitInline(e.target, it.状态原因, (v) => onPatch({ 状态原因: v }))}
             placeholder={
               TERMINAL.includes(it.当前阶段) ? t("app.reasonRequired") : t("app.reasonOptional")
             }
@@ -171,11 +169,7 @@ export default function ApplicationRow({
         <td className="px-4 py-3">
           <input
             defaultValue={it.下次动作日期}
-            onBlur={(e) => {
-              if (e.target.value !== it.下次动作日期) {
-                onPatch({ 下次动作日期: e.target.value });
-              }
-            }}
+            onBlur={(e) => commitInline(e.target, it.下次动作日期, (v) => onPatch({ 下次动作日期: v }))}
             type="date"
             title={t("app.sortNext")}
             className="w-36 rounded border border-transparent bg-transparent px-2 py-1 font-mono text-xs text-foreground outline-none transition-colors hover:border-border-strong focus:border-primary/50"

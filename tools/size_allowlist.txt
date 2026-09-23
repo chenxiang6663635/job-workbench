@@ -46,3 +46,10 @@ web/frontend/src/components/ResumeImportDialog.tsx = 301  # 导入核对页（�
 # 为 ThemePresetList.tsx（307→233，跌破 300 阈值）→ 按自洁规则删掉这一行。
 
 web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导入导出；2026-09-17 加 renameCustomTheme / exportThemeVarsAsCss 后越过 300（字体 / 字号已拆出到 fonts.ts；拆分列入后续重构）
+
+# --- MCP 包与 scripts/：2026-09-23 二轮审计把这两处纳入扫描范围后暴露的存量 ---
+# （此前 `SCAN_DIRS` 不含它们，MCP 包能无限膨胀而闸门一直报 OK——同一条理由当初
+#  也适用于 packages/，那边早就纳入了。这几行是"现状存档"，只许变小。）
+mcp/jobws_mcp/server.py = 358  # 工具注册表 + 参数模型；build_server() 301 行（按能力分组的注册块，拆分列入后续重构）
+mcp/jobws_mcp/tools_readonly.py = 429  # 六个只读工具；dashboard_summary() 109 行（编排 + 组装，拆分列入后续重构）
+scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；main() 97 行（步骤线性，拆分列入后续重构）

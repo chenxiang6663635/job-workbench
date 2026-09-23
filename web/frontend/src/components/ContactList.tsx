@@ -4,6 +4,7 @@ import { ChevronDown, PhoneCall, Plus, UserRound } from "lucide-react";
 import DeleteRecordButton from "./DeleteRecordButton";
 import { previewDeleteRecord } from "../lib/records";
 import { todayISO } from "../lib/date";
+import { useSeq } from "../hooks/useSeq";
 import { api, type Contact } from "../api";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -40,14 +41,20 @@ export default function ContactList() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // 序号守卫：连点两次「标记已联系」时两次重拉可能乱序返回，旧快照会盖掉新数据
+  const seq = useSeq();
   const reload = () => {
+    const n = seq.next();
     api
       .listContacts()
       .then((r) => {
+        if (!seq.isCurrent(n)) return;
         setRows(r.rows);
         setLoaded(true);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        if (seq.isCurrent(n)) setError(e.message);
+      });
   };
 
   useEffect(reload, []);

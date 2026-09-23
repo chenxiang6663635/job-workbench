@@ -99,7 +99,14 @@ export default function Applications() {
           setItems(r.items);
           // 若下钻带 focusId，自动展开并滚动到该行
           if (drill.focusId) {
-            setExpanded((prev) => ({ ...prev, [drill.focusId!]: true }));
+            const focusId = drill.focusId;
+            setExpanded((prev) => ({ ...prev, [focusId]: true }));
+            // 承诺了"滚动到该行"就得真的滚：表格是内部滚动容器（max-h + overflow-auto），
+            // 目标行常在可视区之外；只展开不滚动时用户看不出下钻落到了哪一条，而
+            // `row-{id}` 锚点此前全仓没有任何消费者（2026-09-23 二轮审计）
+            requestAnimationFrame(() => {
+              document.getElementById(`row-${focusId}`)?.scrollIntoView({ block: "center" });
+            });
           }
           setError(null);
         },
@@ -124,12 +131,19 @@ export default function Applications() {
   // UX-3（体检）：岗位池目录名反查表，供行内「查看解析卡」入口使用
   const jobDirs = useJobDirs();
 
-  const patch = (id: string, body: Partial<Application>) => {
+  // 返回是否写入成功：行内输入（状态原因 / 下次动作日期）是 uncontrolled，失败时
+  // 要能据此把 DOM 值回滚成服务端真值（见 ApplicationRow 的 commitInline）
+  const patch = (id: string, body: Partial<Application>) =>
     api
       .updateApplication(id, body)
-      .then(() => load())
-      .catch((e: Error) => setError(e.message));
-  };
+      .then(() => {
+        load();
+        return true;
+      })
+      .catch((e: Error) => {
+        setError(e.message);
+        return false;
+      });
 
   const submit = () => {
     api
@@ -404,13 +418,17 @@ export default function Applications() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5">
-          <EmptyState
-            icon={<Inbox size={20} />}
-            title={t("app.emptyTitle")}
-            description={t("app.emptyHint", { action: t("app.newApplication") })}
-          />
-        </div>
+        // 加载失败时**不显示空态**：把「接口挂了 / 参数被拒」渲染成「没有记录」，
+        // 用户会以为数据丢了（其余六处列表都有 `!error &&` 守卫，这两页此前漏了）
+        error ? null : (
+          <div className="rounded-lg border border-dashed border-border bg-card-gradient shadow-card ring-1 ring-highlight/5">
+            <EmptyState
+              icon={<Inbox size={20} />}
+              title={t("app.emptyTitle")}
+              description={t("app.emptyHint", { action: t("app.newApplication") })}
+            />
+          </div>
+        )
       ) : (
         <ApplicationsTable
           items={visibleItems}

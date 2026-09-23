@@ -4,7 +4,7 @@
 // 前端静态产物由 FastAPI 同源托管（web/frontend/dist），无需 vite dev server，
 // 也无需放宽 CORS —— 页面与 API 同源。
 
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, session, shell } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
@@ -283,6 +283,10 @@ function startBackend() {
     const python = detectPython();
     if (!python) {
       log("No packaged backend and no usable Python found (needs FastAPI/uvicorn). Set the JOBWS_PYTHON environment variable to point at one.");
+      // 必须出声（2026-09-23 二轮审计）：此前只写日志就 app.quit()——进程结束时
+      // 连 30 秒那条"启动超时"提示都来不及出现，用户看到的就是"双击了没反应"
+      const t = tFor(resolvedLang());
+      notifyUser(t("backendMissingPythonTitle"), t("backendMissingPythonMessage"));
       app.quit();
       return;
     }
@@ -540,9 +544,42 @@ function setupAutoUpdate() {
   }, 5000);
 }
 
+// 内容安全策略（2026-09-23 二轮审计的纵深防御项）：界面会内联预览**工作区里手写的
+// 简历模板 HTML**，没有 CSP 时它一旦被 popup / 重定向绕过窗口守卫，就能以同源身份
+// 调本机 API 读写整个工作区（本地 API 无鉴权）。这里只给本机后端这一个源加，
+// 且保留 `'unsafe-inline'`：index.html 有一段防闪白用的内联主题引导脚本，
+// 去掉它首帧会闪一次默认色（取舍写在 CONTRIBUTING 的「刻意不做」里）。
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "frame-src 'self' blob: data:",
+  "object-src 'none'",
+  "base-uri 'none'",
+].join("; ");
+
+function installContentSecurityPolicy() {
+  try {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      const headers = Object.assign({}, details.responseHeaders);
+      if (details.url.startsWith(`http://127.0.0.1:${BACKEND_PORT}`)) {
+        headers["Content-Security-Policy"] = [CONTENT_SECURITY_POLICY];
+      }
+      callback({ responseHeaders: headers });
+    });
+  } catch (e) {
+    // 加固失败不该挡住启动：日志里留一条，界面照常
+    log(`CSP install failed: ${e.message}`);
+  }
+}
+
 app.whenReady().then(() => {
   // 缩放偏好在 ready 后加载：loadZoomLevel 走 app.getPath("userData")
   zoomLevel = loadZoomLevel();
+  installContentSecurityPolicy();
 
   // 若后端端口已被占用（用户可能已用 start.ps1 起了服务），直接复用
   checkHealth((ok) => {

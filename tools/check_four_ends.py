@@ -114,7 +114,6 @@ def _check_registration(actual, caps, exceptions):
     """反向：MCP 工具与插件命令都必须有归属，且声明文件要登记全部命令。"""
     issues = []
     used_mcp = {cap["mcp"] for cap in caps if cap.get("mcp")}
-    used_plugin = {cap["plugin"] for cap in caps if cap.get("plugin")}
     exc_mcp = {i.get("item") for i in exceptions if i.get("end") == "mcp"}
     exc_plugin = {i.get("item") for i in exceptions if i.get("end") == "plugin"}
 
@@ -123,8 +122,14 @@ def _check_registration(actual, caps, exceptions):
             issues.append("MCP 工具 `%s` 未在矩阵里登记（也不在例外清单）—— "
                           "新增能力要同步 tools/four_ends_matrix.json" % name)
     plugin = actual["plugin"]
+    # 命令与子代理**各建一个集合**：共用一个时，同名的一对会互相"顶掉"——新增
+    # 同名的子代理即使忘了登记，命令那条登记也会让它静默通过（2026-09-23 二轮审查）。
+    # 当前两组名字无交集，但闸门不该靠这个巧合成立：按名字归属到各自集合里。
+    declared_plugin = {cap["plugin"] for cap in caps if cap.get("plugin")}
+    used_commands = declared_plugin & set(plugin["commands"])
+    used_agents = declared_plugin & set(plugin["agents"])
     for name in plugin["commands"]:
-        if name not in used_plugin and name not in exc_plugin:
+        if name not in used_commands and name not in exc_plugin:
             issues.append("插件命令 `%s` 未在矩阵里登记（也不在例外清单）" % name)
     for name in plugin["declared_commands"]:
         if name not in ["%s.md" % item for item in plugin["commands"]]:
@@ -132,6 +137,18 @@ def _check_registration(actual, caps, exceptions):
     for name in plugin["commands"]:
         if "%s.md" % name not in plugin["declared_commands"]:
             issues.append("commands/%s.md 未在 plugin.json 的 commands 里登记" % name)
+    # 子代理走与命令完全相同的两道（2026-09-23 二轮审计）：探针早就把 agents 读出来了，
+    # 却只用于正向判断——于是 `agents/` 里放个子代理、或不登记进矩阵，检查照样全绿
+    # （现成实例：维护者自用的 cross-end-audit 一直零登记）。
+    for name in plugin["agents"]:
+        if name not in used_agents and name not in exc_plugin:
+            issues.append("插件子代理 `%s` 未在矩阵里登记（也不在例外清单）" % name)
+    for name in plugin["declared_agents"]:
+        if name not in ["%s.md" % item for item in plugin["agents"]]:
+            issues.append("plugin.json 声明的子代理 %s 不存在于 agents/ 目录" % name)
+    for name in plugin["agents"]:
+        if "%s.md" % name not in plugin["declared_agents"]:
+            issues.append("agents/%s.md 未在 plugin.json 的 agents 里登记" % name)
     return issues
 
 

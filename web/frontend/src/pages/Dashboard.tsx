@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSeq } from "../hooks/useSeq";
 import { DRILL_KEY, PREPARE_TAB_KEY, drillToJob } from "../lib/pageDrill";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import {
@@ -15,14 +16,12 @@ import {
   Briefcase,
   CalendarClock,
   ChevronRight,
-  Flame,
   Hourglass,
   TrendingUp,
 } from "lucide-react";
 import {
   api,
   type DashboardData,
-  type PendingItem,
   type StaleItem,
 } from "../api";
 import ActivityFeed from "../components/ActivityFeed";
@@ -31,8 +30,7 @@ import RetrospectivePanel from "../components/RetrospectivePanel";
 import { UpcomingTalks } from "../components/UpcomingTalks";
 import { EmptyOnboarding } from "../components/OnboardingWizard";
 import { domainLabel } from "../lib/domainLabels";
-import { reasonLines } from "../lib/healthReasons";
-import { Badge } from "../components/ui/badge";
+import { DashboardPendingList } from "../components/DashboardPendingList";
 import { BarList } from "../components/ui/bar-list";
 import { Button } from "../components/ui/button";
 import { Num, StatValue } from "../components/ui/number";
@@ -231,65 +229,7 @@ function StaleList({
   );
 }
 
-// 健康度四态与追踪表同色同文案：颜色即严重度，理由整条列出（可核对优先）
-const LEVEL_META: Record<
-  string,
-  { labelKey: TranslationKey; variant: "destructive" | "warning" | "default" }
-> = {
-  urgent: { labelKey: "app.healthUrgent", variant: "destructive" },
-  overdue: { labelKey: "app.healthOverdue", variant: "warning" },
-  stale: { labelKey: "app.healthStale", variant: "default" },
-};
 
-function PendingList({ pending }: { pending: PendingItem[] }) {
-  const { t } = useTranslation();
-  return (
-    // min-w-0：truncate 行（nowrap）会把 grid 轨道顶宽 → 窄屏整页横向溢出（2026-09-23）
-    <div className="min-w-0 rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <Flame size={15} className="text-destructive" />
-        <h2 className="text-sm font-semibold text-foreground">{t("dash.pendingTitle")}</h2>
-        <span className="ml-auto text-[10px] text-muted-foreground">
-          {t("dash.pendingSubtitle")}
-        </span>
-      </div>
-      {pending.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {t("dash.pendingEmpty")}
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {pending.map((p) => {
-            const meta = LEVEL_META[p.level] || LEVEL_META.stale;
-            const lines = reasonLines(p.reasons, p.hints, t);
-            return (
-              <li key={p.id}>
-                <button
-                  onClick={() => drillTo({ sort: "health", focusId: p.id })}
-                  title={t("dash.pendingDrillHint")}
-                  className="group w-full cursor-pointer rounded-lg bg-secondary/60 px-3 py-2 text-left transition-colors hover:bg-secondary"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm text-foreground transition-colors group-hover:text-primary">
-                      {p.公司} · {p.岗位}
-                    </span>
-                    <Badge variant={meta.variant} className="shrink-0">
-                      {t(meta.labelKey)}
-                    </Badge>
-                  </div>
-                  {/* 理由整条亮出来：为什么该推进它，一目了然 */}
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {lines.join(t("app.reasonJoiner"))}
-                  </p>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -299,12 +239,21 @@ export default function Dashboard() {
   // 「按方向 / 按批次」合并后的当前维度（批 4.6）；纯会话态，刷新回默认
   const [dim, setDim] = useState<"direction" | "batch">("direction");
 
+  // 序号守卫：连点两条「顺延 7 天」会触发两次重拉，旧快照可能后到并把刚写成功的
+  // 日期回退（2026-09-23 二轮审计）
+  const seq = useSeq();
   useEffect(() => {
+    const n = seq.next();
     setError(null);
     api
       .dashboard()
-      .then(setData)
-      .catch((e: Error) => setError(e.message));
+      .then((d) => {
+        if (seq.isCurrent(n)) setData(d);
+      })
+      .catch((e: Error) => {
+        if (seq.isCurrent(n)) setError(e.message);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey]);
 
   // 把某条记录的下次动作日期顺延 n 天（仅对"下次动作"类待办开放）
@@ -668,7 +617,10 @@ export default function Dashboard() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <PendingList pending={data.pending} />
+            <DashboardPendingList
+          pending={data.pending}
+          onDrill={(id) => drillTo({ sort: "health", focusId: id })}
+        />
             <StaleList stale={data.stale} staleDays={data.staleDays} />
           </div>
 

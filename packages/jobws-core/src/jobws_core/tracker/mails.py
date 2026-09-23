@@ -19,7 +19,7 @@ from jobws_core.filelock import file_lock  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
-from ._core import (ConflictError, _atomic_write_csv, _lock_path, resolve_ws)
+from ._core import (ConflictError, _atomic_write_csv, _lock_path, check_when, resolve_ws)
 from ._schema import (MAIL_DIRECTIONS, MAIL_FIELDS, MAIL_FILE, MAIL_TAGS)
 from .applications import (read_rows)
 from ..csv_cells import restore_row
@@ -110,6 +110,11 @@ def _validate_mail_fields(fields, workspace=None):
         rows = read_mails(workspace)
         if any(normalize_message_id(r.get("消息id")) == msg_id for r in rows):
             errors.append("这封邮件（消息id `%s`）已记录过，不要重复导入" % msg_id)
+    # 日期闸门（2026-09-23 二轮审计）：邮件日期带时刻是常态，所以走 check_when；
+    # 假日期落库后 .ics / 看板时间线会静默跳过（CLI 与 MCP 都经过本函数）
+    when_error = check_when(fields.get("日期"), "日期")
+    if when_error:
+        errors.extend(when_error)
     return errors
 
 

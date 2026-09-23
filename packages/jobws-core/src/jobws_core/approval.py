@@ -225,6 +225,14 @@ def apply(token, workspace=None):
     try:
         result = handler(payload, workspace)
     except Exception as exc:
+        # 锁等待超时：另一处（界面 / CLI / 后端）正持有 tracker.lock。它**不是**缺陷、
+        # 也不是"数据变了"——用户要的信息是"再试一次就行"。此前它会一路冒泡成
+        # 界面 500 / CLI 裸栈（2026-09-23 二轮审计），与"两段式落盘也要走同一套
+        # 锁语义"的承诺相反。放在冲突判定之前：TimeoutError 不属于任何冲突类型。
+        if isinstance(exc, TimeoutError):
+            raise ApprovalError(
+                "工作区正被另一处写入（等待文件锁超时）——稍后重试；本次没有写入任何内容。",
+                code="lock_timeout")
         # 领域层发现"预览时的判断已不成立"——转译成协议层的冲突语义，
         # 调用方只需认 ApprovalError / ApprovalConflict 两种（不必认识领域异常）。
         if conflict_type is not None and isinstance(exc, conflict_type):

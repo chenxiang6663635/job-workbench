@@ -16,9 +16,12 @@ from datetime import datetime, timedelta
 
 CRLF = "\r\n"
 
-# 面试时间的常见写法：2026-09-05 14:00 / 2026-09-05T14:00 / 2026-09-05
+# 面试时间的常见写法：2026-09-05 14:00 / 2026-09-05T14:00 / 2026-09-05 14:00:30 /
+# 2026-09-05。**必须与领域层 `tracker/_when.py` 的 `WHEN_RE` 同形**（含可选的秒）：
+# 否则「CLI 收得进、Web 判 422」——同一份数据两个入口两套判定，而 .ics 导出会对
+# 判不出的那一行静默跳过（用户看不到面试从日历里消失）。2026-09-23 二轮审查发现。
 DATETIME_RE = re.compile(
-    r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$"
+    r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$"
 )
 
 
@@ -28,11 +31,12 @@ def parse_when(value):
     m = DATETIME_RE.match(raw)
     if not m:
         return None
-    year, month, day, hour, minute = m.groups()
+    year, month, day, hour, minute, second = m.groups()
     try:
         if hour is None:
             return datetime(int(year), int(month), int(day)), False
-        return (datetime(int(year), int(month), int(day), int(hour), int(minute)), True)
+        return (datetime(int(year), int(month), int(day), int(hour), int(minute),
+                         int(second or 0)), True)
     except ValueError:
         return None
 

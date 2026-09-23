@@ -17,12 +17,17 @@
 // 行为：
 // - 每 10s 拉一次工作区指纹（cache: no-store）；窗口隐藏时暂停、可见时补一次；
 // - 窗口聚焦 / 可见性变化时也查一次（"从 CLI / MCP 切回 GUI"的主场景）；
-// - **仅在"指纹变化 且 近 10s 无输入活动"时回调**；
+// - **仅在"指纹变化 且 近 3s 无指针/键盘活动"时回调**；
 // - 网络错误不吞：首次失败给一条 console.warn（禁静默吞错是本仓纪律），之后静默重试。
 import { useEffect, useRef } from "react";
 
 const POLL_MS = 10_000;
-const ACTIVITY_GRACE_MS = 10_000;
+// 宽限期**必须明显小于轮询间隔**（2026-09-23 二轮审查）：两者相等时，用户只要在
+// 上一轮窗口里点过任意一下（指针事件现在也算活动），这一轮检测到的外部改动就会被
+// 判成"正在输入"而吃掉——而基线照样推进，于是**那一次外部改动永远不会浮出来**，
+// 界面停在旧值直到下一次外部改动。取 3s：足够覆盖本端的防抖保存（百毫秒级），
+// 又不会吃掉整整一个轮询周期的外部变化。
+const ACTIVITY_GRACE_MS = 3_000;
 const WS_STORAGE_KEY = "jobws_selected_workspace";
 
 function currentWorkspaceQuery(): string {
@@ -56,7 +61,11 @@ export function useWorkspaceSync(
     let stopped = false;
     let timer: number | undefined;
     let warned = false;
-    // 最近一次用户输入活动（keydown / input）：本端可能正在防抖保存
+    // 最近一次用户活动：本端可能正在防抖保存，早于阈值的刷新要先让路。
+    // `input`/`keydown` 之外**必须**也认指针事件（2026-09-23 二轮审计）：界面上
+    // 大量写入是纯鼠标完成的（Radix 下拉选项、"标记已联系"这类按钮）——它们不产生
+    // input 事件，于是"刚在界面里改完一行、页面自己 reload 一次"，未提交的草稿
+    // （新增投递表单、填了一半的联系人）随之清空。
     let lastActivityAt = 0;
     const markActivity = () => {
       lastActivityAt = Date.now();
@@ -98,6 +107,8 @@ export function useWorkspaceSync(
     schedule();
     window.addEventListener("keydown", markActivity, true);
     window.addEventListener("input", markActivity, true);
+    window.addEventListener("pointerdown", markActivity, true);
+    window.addEventListener("click", markActivity, true);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     return () => {
@@ -105,6 +116,8 @@ export function useWorkspaceSync(
       if (timer !== undefined) window.clearTimeout(timer);
       window.removeEventListener("keydown", markActivity, true);
       window.removeEventListener("input", markActivity, true);
+      window.removeEventListener("pointerdown", markActivity, true);
+      window.removeEventListener("click", markActivity, true);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };

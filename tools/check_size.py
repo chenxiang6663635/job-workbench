@@ -43,14 +43,20 @@ LIMIT_DATA_FILE = 1500
 # **必须**把它列进来：否则新包里的文件既不受「≤300 行 / 函数 ≤80」约束，
 # 也不会出现在 `--print-allowlist` 的草稿里——删掉旧条目 = 检查变绿，正是
 # 「规模闸门静默放行」的形态。
-SCAN_DIRS = ("tools", "web/backend", "web/frontend/src", "tests", "packages")
+SCAN_DIRS = ("tools", "web/backend", "web/frontend/src", "tests", "packages",
+             "mcp", "scripts")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", "release", ".venv"}
 SOURCE_SUFFIX = (".py", ".ts", ".tsx")
 
 # 数据/声明型：行数多但复杂度低，与业务代码同阈值没有意义。
 # `domainTypes`：纯类型 / 枚举声明区（H-2a 批自 api.ts 外移，80+ 个声明平铺）——
 # 行数与复杂度同样不成正比；按 300 行拆碎只会把 import 路径打散。
-DATA_MARKERS = ("locales/", "conftest", "fixture", "allowlist", "domainTypes")
+DATA_MARKERS = ("locales/", "domainTypes")
+# `fixture` / `allowlist` 这类词此前是**子串**匹配，于是 `routers/fixture_api.py`
+# 这种路径里凑巧含词的文件会被当成"数据型"，预算从 300 直接放大到 1500
+# （2026-09-23 二轮审计）。改成按路径段与文件名精确匹配。
+DATA_DIR_SEGMENTS = ("fixtures", "fixture")
+DATA_FILE_NAMES = ("conftest.py",)
 
 
 def classify(rel_path):
@@ -62,7 +68,15 @@ def classify(rel_path):
     测试整体按 data 计：它由大量平铺用例构成，行数与复杂度不成正比。
     """
     rel = rel_path.replace("\\", "/")
-    if rel.startswith("tests/") or any(m in rel for m in DATA_MARKERS):
+    # 任何位置的 tests/ 目录都按数据型计（`mcp/tests/…` 此前落在扫描外，
+    # 现在纳入时不该按业务代码的阈值量它们——2026-09-23 二轮审计）
+    if rel.startswith("tests/") or "/tests/" in rel:
+        return "data"
+    if any(m in rel for m in DATA_MARKERS):
+        return "data"
+    if any(seg in DATA_DIR_SEGMENTS for seg in rel.split("/")[:-1]):
+        return "data"
+    if rel.rsplit("/", 1)[-1] in DATA_FILE_NAMES:
         return "data"
     return "logic"
 

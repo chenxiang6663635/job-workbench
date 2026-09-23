@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarClock, Download, Plus } from "lucide-react";
 import DeleteRecordButton from "./DeleteRecordButton";
 import { previewDeleteRecord } from "../lib/records";
+import { useSeq } from "../hooks/useSeq";
 import {
   api,
   INTERVIEW_RESULTS,
@@ -62,14 +63,20 @@ export default function InterviewList() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
+  // 序号守卫：连续改两行（阶段 / 时间）时两次重拉可能乱序返回，旧快照会盖掉新数据
+  const seq = useSeq();
   const reload = () => {
+    const n = seq.next();
     api
       .listInterviews()
       .then((r) => {
+        if (!seq.isCurrent(n)) return;
         setRows(r.rows);
         setLoaded(true);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        if (seq.isCurrent(n)) setError(e.message);
+      });
   };
 
   useEffect(reload, []);

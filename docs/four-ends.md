@@ -7,13 +7,14 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **43** 条、各端不提供的例外 **64** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
+**基数（随本文件自动生成）**：登记能力 **44** 条、各端不提供的例外 **67** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
 
 ## 能力矩阵
 
 | 阶段 | 能力 | 命令行 | AI 宿主（MCP） | 插件 | 桌面端 |
 |---|---|---|---|---|---|
 | JD 解析 | `jd.score` | `jd` | `score_jd` | `jd` | — |
+| 仓库治理 | `audit.crossEnd` | — | — | `cross-end-audit` | — |
 | JD 解析 | `jd.fetch` | — | — | — | `POST /api/jobs/fetch-jd` |
 | 岗位池 | `job.list` | — | `list_jobs` | `resume-jd-gap` | `GET /api/jobs` |
 | 岗位池 | `job.create` | — | — | — | `POST /api/jobs` |
@@ -62,6 +63,9 @@
 - **cli** · `prep.toggle`：打勾是界面里的学习打卡动作；命令行侧直接编辑 Markdown 即可，不代劳。
 - **mcp** · `prep.toggle`：学习进度由本人维护——勾选不由模型代劳。
 - **plugin** · `prep.toggle`：同上：勾选项是本人的学习打卡动作。
+- **cli** · `audit.crossEnd`：维护者自用的只读审查子代理，命令行没有对应命令。
+- **mcp** · `audit.crossEnd`：同上：它不是给宿主模型调用的能力，不暴露为 MCP 工具。
+- **gui** · `audit.crossEnd`：同上：界面无对应入口（审计在开发期由子代理执行）。
 - **mcp** · `export.obsidian`：导出是本地文件动作（往用户指定的目录写一批 md），不由模型代劳。
 - **plugin** · `export.obsidian`：同上：导出到本地笔记库是本人发起的动作。
 - **gui** · `export.obsidian`：界面的导出是「整包 zip」（设置页，保留 CSV 原格式）；Obsidian 笔记形态只在命令行提供——形态不同，不是漏做。

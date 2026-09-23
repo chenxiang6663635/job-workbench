@@ -1,15 +1,40 @@
-import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useId,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Label } from "./ui/label";
+import { Select, SelectTrigger } from "./ui/select";
 
 /**
  * 表单字段容器：Label + 控件。此前在四处各写一遍完全相同的三行结构
  * （ResumeForm 的 Row / InterviewForm / OfferForm / Settings 的内联 div），
  * 按 rule of three 收敛为一处，顺带统一 label 的排版（mb-1 + text-[11px]）。
  *
- * 把 id 注入控件并配 htmlFor：ResumeForm 原先用 `<label>` 包住 `<Textarea>`
- * 拿到的是隐式关联，改成分离结构后若不显式关联，点标签不再聚焦输入框、
- * 读屏也读不出标签——这类回归 build 与 CI 都抓不到（独立审查抓出的 MAJOR）。
+ * `id` 必须真的落在**能聚焦的那个元素**上，配 `htmlFor` 才是有效关联：
+ * - 原生控件：直接把 id 传给控件本身；
+ * - Radix `Select`：`Select.Root` **不渲染 DOM**（只是 context 容器），把 id 给它等于
+ *   丢掉——必须落到它内部的 `SelectTrigger` 上，否则点标签没反应、读屏读不出字段名
+ *   （2026-09-23 二轮审计的发现：这条修复对 7 处下拉静默失效）；
+ * - `ApplicationSelect` 这类自定义组件：由它自己接收并透传 id。
  */
+function isSelectRoot(el: ReactElement<{ children?: ReactNode }>): boolean {
+  return el.type === Select;
+}
+
+/** 把 id 注入到 Radix Select 的触发器上（根节点不渲染 DOM，注给它是无效的）。 */
+function injectIntoTrigger(el: ReactElement<{ children?: ReactNode }>, id: string): ReactElement {
+  const children = Children.map(el.props.children, (child) =>
+    isValidElement(child) && child.type === SelectTrigger
+      ? cloneElement(child as ReactElement<{ id?: string }>, { id })
+      : child,
+  );
+  return cloneElement(el, { children });
+}
+
 export function FormField({
   label,
   hint,
@@ -24,7 +49,9 @@ export function FormField({
 }) {
   const id = useId();
   const control = isValidElement(children)
-    ? cloneElement(children as ReactElement<{ id?: string }>, { id })
+    ? isSelectRoot(children as ReactElement<{ children?: ReactNode }>)
+      ? injectIntoTrigger(children as ReactElement<{ children?: ReactNode }>, id)
+      : cloneElement(children as ReactElement<{ id?: string }>, { id })
     : children;
 
   return (

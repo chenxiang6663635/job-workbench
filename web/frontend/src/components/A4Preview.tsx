@@ -92,6 +92,13 @@ export function A4Preview({
             title={title ?? t("a4.previewTitle")}
             srcDoc={html}
             src={html ? undefined : src}
+            // `sandbox` 只加在**工作区模板**那条路（`src`，2026-09-23 二轮审计）：
+            // 模板是用户手写 / 从别处拷来的 HTML，不加限制时它以应用同源身份执行脚本，
+            // 可直接调本机 API 读写整个工作区。`srcDoc` 那条路是服务端逐字段转义后
+            // 渲染的标准版式（不可注入），且它带一个报高度的内联脚本——沙箱会把该
+            // 脚本拦下（e2e 的 console 断言当场抓到）。保留 allow-same-origin 是为了
+            // 还能读 contentDocument 量高度。
+            sandbox={html ? undefined : "allow-same-origin"}
             className="w-full border-0"
             style={{ height: contentH }}
             onLoad={(e) => {

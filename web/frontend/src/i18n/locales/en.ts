@@ -829,6 +829,7 @@ export default {
   "err.date.format": "`{{label}}: {{value}}` is not a real calendar date (use YYYY-MM-DD)",
   "err.date.when": "`{{label}}: {{value}}` is not a valid date or time (use YYYY-MM-DD or YYYY-MM-DD HH:MM)",
   "err.file.tooLarge": "`{{rel}}` exceeds the per-file limit ({{mb}} MB) and cannot be previewed here; open its folder instead",
+  "err.imap.rangeInvalid": "`{{field}}` is out of range (max {{max}}) — please use a smaller value",
   "err.app.scoreRange": "The score must be between 0 and 100",
   "err.app.dueWithinRange": "due_within must be a number of days between 0 and 3650 (got {{days}})",
   "err.app.needDirOrCompanyRole": "Provide either a job directory, or both company and role",

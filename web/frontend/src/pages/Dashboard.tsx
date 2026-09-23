@@ -199,7 +199,7 @@ function StaleList({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-warning/25 bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
+    <div className="min-w-0 rounded-lg border border-warning/25 bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Hourglass size={15} className="text-warning" />
         <h2 className="text-sm font-semibold text-foreground">{t("dash.staleTitle")}</h2>
@@ -249,7 +249,11 @@ const LEVEL_META: Record<
 function PendingList({ pending }: { pending: PendingItem[] }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
+    // min-w-0：待办行里的理由用 truncate（nowrap）——不给 grid 项显式的 min-width 时，
+    // 它的自动最小尺寸就等于那条长文本的 min-content，会把整个轨道顶宽（窄屏整页横向
+    // 溢出，且随日期/文案长度变化）。这条也是 2026-09-23 CI 上 390px 看板溢出从 306
+    // 涨到 472 的原因。
+    <div className="min-w-0 rounded-lg bg-card-gradient shadow-card ring-1 ring-highlight/5 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Flame size={15} className="text-destructive" />
         <h2 className="text-sm font-semibold text-foreground">{t("dash.pendingTitle")}</h2>

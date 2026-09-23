@@ -228,6 +228,69 @@ def test_quoted_colon_in_description_is_still_rejected(tmp_path):
     assert any("半角冒号" in p for p in item["problems"])
 
 
+def test_unknown_frontmatter_field_is_reported(tmp_path):
+    """字段白名单（批 10，对齐 Open Agent Skills 规范）：拼错的字段名必须拦住。
+
+    `licence` / `allowed_tools` 这类手滑不会让宿主报错——它只是**静默失效**
+    （元数据没生效，而本地全绿）。规范字段集之外的键一律报出来。
+    """
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\nlicence: MIT\n---\n"))
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("未登记" in p and "licence" in p for p in problems), problems
+
+
+def test_standard_optional_fields_are_accepted(tmp_path):
+    """规范允许的可选字段（license / metadata / allowed-tools）要放行。"""
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "license: MIT\nmetadata:\n  version: 1.2.3\nallowed-tools: Bash(jobws:*)\n"
+        "---\n\n正文。\n"))
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_nested_metadata_keys_are_not_treated_as_unknown(tmp_path):
+    """`metadata:` 的下级键（缩进行）属于父字段，不算未登记字段。"""
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "metadata:\n  version: 0.1.0\n  author: someone\n---\n\n正文。\n"))
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_missing_reference_file_is_reported(tmp_path):
+    """正文引用的 `references/xxx.md` 必须真的存在。
+
+    渐进披露靠引用分流；路径写错时宿主不会报错，只会读到一个空引用——
+    技能看起来还在，实际少了一半内容。
+    """
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n细节见 `references/details.md`。")
+    _make(tmp_path, "jwb-demo", body=body)
+
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("references/details.md" in p for p in problems), problems
+
+
+def test_existing_reference_file_passes(tmp_path):
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n细节见 `references/details.md`。")
+    d = _make(tmp_path, "jwb-demo", body=body)
+    (d / "references").mkdir()
+    (d / "references" / "details.md").write_text("# 细节\n", encoding="utf-8")
+
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_overlong_skill_body_is_reported(tmp_path):
+    """主文件超过行数上限 → 提示拆到 references/（渐进披露第二级）。"""
+    body = GOOD.format(name="jwb-demo") + "\n".join(
+        "第 %d 行" % i for i in range(600))
+    _make(tmp_path, "jwb-demo", body=body)
+
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("行" in p and "references/" in p for p in problems), problems
+
+
 def test_repo_skills_are_compliant():
     """真实 skills/ 必须合规。
 

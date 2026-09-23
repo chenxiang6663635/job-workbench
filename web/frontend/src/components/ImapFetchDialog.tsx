@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
-import { Check, ChevronRight, Inbox, Loader2, MailPlus, RefreshCw, Search, X } from "lucide-react";
+import { Check, ChevronRight, Inbox, Loader2, MailPlus, RefreshCw, Search, Sparkles, X } from "lucide-react";
+import MailSuggestions from "./MailSuggestions";
 import { api, type ImapMessage } from "../api";
 import {
   Dialog,
@@ -60,6 +61,8 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
   const [loading, setLoading] = useState(false);
   const [sinceDays, setSinceDays] = useState(30);
   const [query, setQuery] = useState("");
+  // 展开「解析建议」的那一行（同一时刻只开一行，避免弹窗被卡片撑爆）
+  const [suggestUid, setSuggestUid] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -178,56 +181,84 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
           {filtered.map((m) => (
             <div
               key={m.uid}
-              className="group flex items-start gap-3 rounded-lg border border-border bg-card/60 p-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-card"
+              className="rounded-lg border border-border bg-card/60 shadow-sm transition-colors hover:border-primary/40"
             >
-              {/* 行主体：走「解析 → 建议 → 确认」链路（原行为不变） */}
-              <button
-                type="button"
-                onClick={() => onUse(m.body)}
-                title={t("imap.useThis")}
-                className="min-w-0 flex-1 cursor-pointer text-left"
-              >
-                <p className="truncate text-sm font-medium text-foreground">
-                  {m.subject || t("imap.noSubject")}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {m.from} · {m.date}
-                </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  {m.body.slice(0, 140)}
-                  {m.body.length > 140 ? "…" : ""}
-                </p>
-              </button>
-              <div className="flex shrink-0 flex-col items-center gap-1.5">
-                {/* 记入邮件台账（批 4.5）：元数据直接落 mails.csv，不用再手打一遍 */}
-                {onRecord && (
+              <div className="group flex items-start gap-3 p-3">
+                {/* 行主体：走「解析 → 建议 → 确认」链路（原行为不变） */}
+                <button
+                  type="button"
+                  onClick={() => onUse(m.body)}
+                  title={t("imap.useThis")}
+                  className="min-w-0 flex-1 cursor-pointer text-left"
+                >
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {m.subject || t("imap.noSubject")}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {m.from} · {m.date}
+                  </p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                    {m.body.slice(0, 140)}
+                    {m.body.length > 140 ? "…" : ""}
+                  </p>
+                </button>
+                <div className="flex shrink-0 flex-col items-center gap-1.5">
+                  {/* 解析建议（批 9）：正文 / ICS → 候选事实，卡片逐条确认才写入 */}
                   <button
                     type="button"
-                    disabled={!!recorded[m.uid] || recordingUid === m.uid}
-                    aria-label={t("imap.recordTitle")}
-                    title={t("imap.recordTitle")}
-                    onClick={() => {
-                      if (recordingUid) return;
-                      setRecordingUid(m.uid);
-                      onRecord(m)
-                        .then(() =>
-                          setRecorded((prev) => ({ ...prev, [m.uid]: true }))
-                        )
-                        .catch((e: Error) => setError(e.message))
-                        .finally(() =>
-                          setRecordingUid((cur) => (cur === m.uid ? null : cur))
-                        );
-                    }}
-                    className="cursor-pointer text-muted-foreground transition-colors hover:text-primary disabled:cursor-default disabled:text-success"
+                    aria-label={t("suggest.title")}
+                    aria-expanded={suggestUid === m.uid}
+                    title={t("suggest.title")}
+                    onClick={() => setSuggestUid((cur) => (cur === m.uid ? null : m.uid))}
+                    className={
+                      suggestUid === m.uid
+                        ? "cursor-pointer text-primary"
+                        : "cursor-pointer text-muted-foreground transition-colors hover:text-primary"
+                    }
                   >
-                    {recorded[m.uid] ? <Check size={16} /> : <MailPlus size={16} />}
+                    <Sparkles size={16} />
                   </button>
-                )}
-                <ChevronRight
-                  size={16}
-                  className="text-muted-foreground transition-colors group-hover:text-primary"
-                />
+                  {/* 记入邮件台账（批 4.5）：元数据直接落 mails.csv，不用再手打一遍 */}
+                  {onRecord && (
+                    <button
+                      type="button"
+                      disabled={!!recorded[m.uid] || recordingUid === m.uid}
+                      aria-label={t("imap.recordTitle")}
+                      title={t("imap.recordTitle")}
+                      onClick={() => {
+                        if (recordingUid) return;
+                        setRecordingUid(m.uid);
+                        onRecord(m)
+                          .then(() =>
+                            setRecorded((prev) => ({ ...prev, [m.uid]: true }))
+                          )
+                          .catch((e: Error) => setError(e.message))
+                          .finally(() =>
+                            setRecordingUid((cur) => (cur === m.uid ? null : cur))
+                          );
+                      }}
+                      className="cursor-pointer text-muted-foreground transition-colors hover:text-primary disabled:cursor-default disabled:text-success"
+                    >
+                      {recorded[m.uid] ? <Check size={16} /> : <MailPlus size={16} />}
+                    </button>
+                  )}
+                  <ChevronRight
+                    size={16}
+                    className="text-muted-foreground transition-colors group-hover:text-primary"
+                  />
+                </div>
               </div>
+              {suggestUid === m.uid && (
+                <div className="px-3 pb-3">
+                  <MailSuggestions
+                    message={m}
+                    onOpenStatus={onUse}
+                    onWritten={() =>
+                      setRecorded((prev) => ({ ...prev, [m.uid]: true }))
+                    }
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

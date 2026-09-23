@@ -70,6 +70,7 @@ class NewMail(BaseModel):
     日期: str = ""
     webmail链接: str = ""
     标签: str = "其他"
+    会议链接: str = ""
 
 
 
@@ -114,6 +115,7 @@ def create_mail(item: NewMail, ws: str = Depends(workspace_dir)):
         row["日期"] = (item.日期 or "").strip()
         row["webmail链接"] = (item.webmail链接 or "").strip()
         row["标签"] = item.标签
+        row["会议链接"] = (item.会议链接 or "").strip()
         rows.append(row)
         tracker.write_mails(rows, ws)
     return _with_open_link(row)
@@ -128,6 +130,7 @@ class PatchMail(BaseModel):
     日期: str = None
     webmail链接: str = None
     标签: str = None
+    会议链接: str = None
 
 
 
@@ -136,7 +139,7 @@ def update_mail(mail_id: str, item: PatchMail, ws: str = Depends(workspace_dir))
     _validate_mail(item.方向, item.标签)
 
     updates = {k: v for k, v in item.model_dump().items() if v is not None}
-    for field in ("主题", "发件人", "日期", "webmail链接"):
+    for field in ("主题", "发件人", "日期", "webmail链接", "会议链接"):
         if field in updates:
             updates[field] = (updates[field] or "").strip()
     if "主题" in updates and not updates["主题"]:

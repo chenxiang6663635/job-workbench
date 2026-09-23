@@ -32,7 +32,10 @@ import ssl
 from jobws_core import tls_policy
 from email import message_from_bytes
 from email.header import decode_header
-from html.parser import HTMLParser
+# 正文 / ICS 的抽取与截断已下沉到领域包（批 9，见 packages/jobws-core 的
+# mail_text.py）：按原名字再导出，既有调用方（后端 / MCP / 测试）不受影响。
+from jobws_core.mail_text import (MAX_BODY_CHARS, extract_body, extract_calendar,
+                                  smart_truncate)
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +50,6 @@ DEFAULT_SINCE_DAYS = 30
 # IMAP 日期字面量用的英文月份（不用 strftime，理由见 _imap_since）
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-# 单封邮件正文截断上限：列表预览用，防止把超大邮件整个打进响应
-MAX_BODY_CHARS = 4000
 SOCKET_TIMEOUT = 15
 
 # 常见邮箱 IMAP 服务器推断表（用户可在配置里覆盖；未知域名返回空串让用户手填）
@@ -105,99 +106,6 @@ def _clean_message_id(raw):
     text = (raw or "").strip()
     if text.startswith("<") and text.endswith(">"):
         text = text[1:-1].strip()
-    return text
-
-
-class _HtmlTextExtractor(HTMLParser):
-    """尽力而为的 HTML → 纯文本：跳过 script/style，块级标签折算换行。"""
-
-    _BLOCK_TAGS = {"br", "p", "div", "tr", "li", "h1", "h2", "h3", "h4", "table"}
-
-    def __init__(self):
-        HTMLParser.__init__(self)
-        self._skip_depth = 0
-        self._parts = []
-
-    def handle_starttag(self, tag, attrs):
-        if tag in ("script", "style"):
-            self._skip_depth += 1
-        elif tag in self._BLOCK_TAGS:
-            self._parts.append("\n")
-
-    def handle_endtag(self, tag):
-        if tag in ("script", "style") and self._skip_depth:
-            self._skip_depth -= 1
-        elif tag in self._BLOCK_TAGS:
-            self._parts.append("\n")
-
-    def handle_data(self, data):
-        if not self._skip_depth:
-            self._parts.append(data)
-
-    def text(self):
-        joined = "".join(self._parts)
-        joined = re.sub(r"[ \t\r\f\v]+", " ", joined)
-        joined = re.sub(r"\n{3,}", "\n\n", joined)
-        return joined.strip()
-
-
-def _html_to_text(html_text):
-    parser = _HtmlTextExtractor()
-    try:
-        parser.feed(html_text)
-    except Exception:
-        # 畸形 HTML 上解析器已尽力；真出错时退回粗剥标签
-        return re.sub(r"<[^>]+>", " ", html_text)
-    return parser.text()
-
-
-def _part_text(part):
-    """取单个 MIME part 的解码文本；无法解码时返回空串而非抛错。"""
-    try:
-        payload = part.get_payload(decode=True)
-    except Exception:
-        payload = None
-    if payload is None:
-        raw = part.get_payload()
-        return raw if isinstance(raw, str) else ""
-    charset = part.get_content_charset() or "utf-8"
-    try:
-        return payload.decode(charset, errors="replace")
-    except (LookupError, UnicodeError):
-        return payload.decode("utf-8", errors="replace")
-
-
-def extract_body(msg):
-    """从 email.message.Message 提取正文纯文本。
-
-    优先 text/plain；只有 HTML 时剥标签；两者都无则返回空串。
-    超过 MAX_BODY_CHARS 截断并标注——列表预览不需要全文。
-    """
-    plain_parts = []
-    html_parts = []
-    for part in msg.walk():
-        if part.get_content_maintype() == "multipart":
-            continue
-        # 跳过附件（如 .txt 附件）：它的内容不是邮件正文，混进来会污染解析素材
-        disposition = (part.get("Content-Disposition") or "").lower()
-        if disposition.startswith("attachment"):
-            continue
-        ctype = part.get_content_type()
-        if ctype == "text/plain":
-            plain_parts.append(_part_text(part))
-        elif ctype == "text/html":
-            html_parts.append(_part_text(part))
-
-    if plain_parts:
-        text = "\n".join(p.strip() for p in plain_parts if p.strip())
-    elif html_parts:
-        text = "\n".join(_html_to_text(h) for h in html_parts if h.strip())
-    else:
-        text = ""
-
-    text = text.strip()
-    if len(text) > MAX_BODY_CHARS:
-        text = text[:MAX_BODY_CHARS] + "\n…（正文过长，已截断）"
     return text
 
 
@@ -398,6 +306,8 @@ def _fetch_recent(conn, folder, since_days, limit):
             "from": _decode_mime_header(msg.get("From")),
             "date": (msg.get("Date") or "").strip(),
             "body": extract_body(msg),
+            # 会议邀请的 ICS 原文（无则为空串）：解析优先级高于正文正则
+            "calendar": extract_calendar(msg),
         })
     return messages
 
@@ -407,7 +317,8 @@ def fetch_messages(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDE
     """只读拉取最近 `since_days` 天内的邮件（最新在前，最多 `limit` 封）。
 
     `since_days=0` 表示不限时间（取最近 limit 封）。
-    返回 [{"uid", "subject", "from", "date", "body"}]。
+    返回 [{"uid", "messageId", "subject", "from", "date", "body", "calendar"}]——
+    `calendar` 是会议邀请的 ICS 原文（无则空串），解析优先级高于正文正则。
     只读保证：`select(readonly=True)` + `BODY.PEEK[]`，且不执行任何
     STORE / COPY / EXPUNGE 类命令；每次调用独立连接、结束即 logout。
     """

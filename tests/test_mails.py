@@ -161,6 +161,18 @@ def test_cli_mail_add_and_list(tmp_path, monkeypatch, capsys):
     assert "面试通知（一面）" in out
 
 
+def test_cli_mail_add_with_meeting_link(tmp_path, monkeypatch, capsys):
+    """批 9：会议链接列可从命令行写入（与界面同一条数据链路，四端一致）。"""
+    ws = _ws(tmp_path)
+    _seed_main(ws)
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "track", "--workspace", ws, "mail", "add",
+        "--subject", "面试邀请", "--meeting-link",
+        "https://meeting.tencent.com/dm/abc123"])
+    assert code == 0, out
+    assert tracker.read_mails(ws)[0]["会议链接"] == "https://meeting.tencent.com/dm/abc123"
+
+
 def test_cli_mail_add_requires_subject(tmp_path, monkeypatch, capsys):
     ws = _ws(tmp_path)
     code, out = _invoke_jobws(monkeypatch, capsys,
@@ -351,3 +363,26 @@ def test_api_mail_preview_delete_not_found(client):
     assert res.status_code == 400
     assert res.json()["error_code"] == "progress.mailDeleteFailed"
     assert "找不到" in res.json()["error_params"]["reason"]
+
+
+def test_api_mail_meeting_link_roundtrip(tmp_path, client):
+    """批 9：新增「会议链接」列的 HTTP 读写往返（缺省为空，可写可清）。"""
+    _seed_main(os.path.join(str(tmp_path), WS))
+    res = client.post("/api/progress/mails", params={"ws": WS},
+                      json={"主题": "面试邀请",
+                            "会议链接": "https://meeting.tencent.com/dm/abc123"})
+    assert res.status_code == 201, res.text
+    assert res.json()["会议链接"] == "https://meeting.tencent.com/dm/abc123"
+
+    res = client.patch("/api/progress/mails/M001", params={"ws": WS},
+                       json={"会议链接": ""})
+    assert res.status_code == 200, res.text
+    assert res.json()["会议链接"] == ""
+    assert res.json()["_changed"] == ["会议链接"]
+
+
+def test_api_mail_meeting_link_defaults_empty(tmp_path, client):
+    _seed_main(os.path.join(str(tmp_path), WS))
+    res = client.post("/api/progress/mails", params={"ws": WS}, json={"主题": "笔试通知"})
+    assert res.status_code == 201, res.text
+    assert res.json()["会议链接"] == ""

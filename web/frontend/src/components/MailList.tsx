@@ -17,6 +17,8 @@ import {
   type Mail,
 } from "../api";
 import { previewDeleteRecord } from "../lib/records";
+import { drillToApplication } from "../lib/pageDrill";
+import MailMeetingLink from "./MailMeetingLink";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -62,6 +64,7 @@ type Draft = {
   when: string;
   url: string;
   tag: string;
+  meeting: string;
 };
 
 const EMPTY: Draft = {
@@ -73,6 +76,7 @@ const EMPTY: Draft = {
   when: "",
   url: "",
   tag: "其他",
+  meeting: "",
 };
 
 /** Mail → Draft 映射（编辑模式预填）：日期在 CSV 里是空格分隔，input 要 T 分隔。 */
@@ -86,6 +90,7 @@ function draftFromMail(m: Mail): Draft {
     when: (m.日期 ?? "").replace(" ", "T"),
     url: m.webmail链接 ?? "",
     tag: m.标签 || "其他",
+    meeting: m.会议链接 ?? "",
   };
 }
 
@@ -127,6 +132,7 @@ function MailForm({
       日期: d.when.replace("T", " "),
       webmail链接: d.url,
       标签: d.tag,
+      会议链接: d.meeting,
     };
     // 消息id 是去重键：仅新建时可写（后端 PATCH 亦不收该字段）
     if (!initial) body.消息id = d.messageId;
@@ -230,6 +236,13 @@ function MailForm({
               placeholder={t("mail.webmailUrlPlaceholder")}
             />
           </FormField>
+          <FormField label={t("mail.meetingLink")} className="col-span-2">
+            <Input
+              value={d.meeting}
+              onChange={(e) => set("meeting", e.target.value)}
+              placeholder={t("mail.meetingLinkPlaceholder")}
+            />
+          </FormField>
         </div>
 
         {error && <p className="mt-4 text-xs text-destructive">{error}</p>}
@@ -278,15 +291,10 @@ export default function MailList() {
       .catch((e: Error) => setError(e.message));
   };
 
-  // 跳到追踪表并展开该记录（2026-09-17 收尾批）：复用看板的 focusId 下钻——
+  // 跳到追踪表并展开该记录（2026-09-17 收尾批）：写方统一在 lib/pageDrill——
   // sessionStorage 传参 + hash 切页；App 是条件渲染，切过去会重挂载并消费。
   const jumpToRecord = (id: string) => {
-    try {
-      sessionStorage.setItem("jobws_drill", JSON.stringify({ focusId: id }));
-    } catch {
-      // 存储不可用：退化为不带聚焦的跳转
-    }
-    window.location.hash = "applications";
+    drillToApplication(id);
   };
 
   // 删除已改为两段式（DeleteRecordButton：预览 → 确认弹窗 → 凭令牌落盘），
@@ -364,6 +372,8 @@ export default function MailList() {
                   {t("interview.related", { value: r.关联记录 })}
                 </button>
               )}
+              {/* 会议链接（批 9）：解析建议卡写进来的入会地址——台账里也能打开 / 复制 */}
+              {r.会议链接 && <MailMeetingLink link={r.会议链接} />}
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Select value={r.标签} onValueChange={(v) => setTag(r.邮件id, v)}>

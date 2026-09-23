@@ -15,6 +15,7 @@ import {
 // 模块级常量表存 key 而不是文案，渲染处再翻（拼错的 key 编译期就报错）
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { domainLabel } from "../lib/domainLabels";
+import { DRILL_KEY, drillToApplication } from "../lib/pageDrill";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -62,8 +63,7 @@ const STATUS_ITEMS: { value: JobStatus; labelKey: TranslationKey }[] = [
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达（与 Applications 同）
 const ALL = "__all__";
 
-// 下钻约定：追踪表在 mount 时读它并展开 focusId 对应行（看板已在用同一把钥匙）
-const DRILL_KEY = "jobws_drill";
+// 下钻约定：键与写方统一走 lib/pageDrill（此前本地重写常量，改键时会静默漂掉）
 
 function today(): string {
   const d = new Date();
@@ -240,13 +240,8 @@ export default function Jobs() {
       .then((r) => {
         setApplying(null);
         setApplyTarget(null);
-        // 跳追踪表并展开新行：复用看板下钻的既有约定（sessionStorage + hash 路由）
-        try {
-          sessionStorage.setItem(DRILL_KEY, JSON.stringify({ focusId: r.id }));
-        } catch {
-          // sessionStorage 不可用时退化为只跳页面，不展开该行
-        }
-        window.location.hash = "applications";
+        // 跳追踪表并展开新行：写方统一在 lib/pageDrill（与看板同一套约定）
+        drillToApplication(r.id);
       })
       .catch((e: Error) => {
         // 失败一律把后端文案直出（409 重复录入也是人话），确认卡保持打开方便改了重试

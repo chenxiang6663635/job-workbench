@@ -69,6 +69,16 @@ def test_workspace_follows_set_workspace():
     assert followed, "tracker.WORKSPACE 未跟随 set_workspace——门面写成了值快照？"
 
 
+def test_check_date_rejects_calendar_invalid_dates():
+    """假日期（2026-02-31）必须在入口被拒——正则只查形状时它会一路入库，
+    到看板 parse_date 才炸（审计 P0-3 的根因）。空值语义不变。"""
+    assert tracker.check_date("2026-02-31", "投递日期") is not None
+    assert tracker.check_date("2026-13-01", "投递日期") is not None
+    assert tracker.check_date("2026-09-23", "投递日期") is None
+    assert tracker.check_date("", "投递日期") is None
+    assert tracker.check_date("", "投递日期", allow_empty=False) is not None
+
+
 def test_submodules_directly_reachable():
     """tracker.<子模块> 直接可达（monkeypatch 与调试的入口）。
 

@@ -167,6 +167,10 @@ def check_date(value, label, allow_empty=True):
         return ["`%s` 不能为空" % label]
     if not DATE_RE.match(value):
         return ["`%s: %s` 日期格式错误，应为 YYYY-MM-DD" % (label, value)]
+    # 形状对了还要是**真日期**：`2026-02-31` 能过正则，入库后看板 parse_date
+    # 直接抛 ValueError（整页 500），健康度静默失效——审计 P0-3 的根因。
+    if parse_iso_date(value) is None:
+        return ["`%s: %s` 不是有效日期（如 2 月没有 31 日）" % (label, value)]
     return None
 
 

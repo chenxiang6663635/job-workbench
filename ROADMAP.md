@@ -62,7 +62,8 @@ every batch below lands before it, none of them ships on its own, and the whole 
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
 is stable for daily use and the workspace format promises **backward compatibility** — new columns
 and tables are read as empty when missing and written with unified headers, so no user-side
-conversion is ever required.
+conversion is ever required. **判据已成文（2026-09-22）**：四条可核的条件、支持策略与数据兼容条款见
+[`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)。
 
 ## Later
 
@@ -72,3 +73,22 @@ conversion is ever required.
 - Accessibility and localization beyond zh-CN / en
 - [x] Desktop auto-update (electron-updater) — **shipped in v0.2.1** (asks twice: download, then restart; the first updater-enabled version still needed one manual install)
 - [x] **Real-time application status** — **shipped in v0.3.0**: the research (2026-09-11) found that no recruiting platform exposes a candidate-facing status API, so the answer is local — *paste the email* → parse (which record, what to change, and the sentence it came from) → confirm row by row → write, with a read-only IMAP pull as the optional sync on top (verified against a real mailbox, 2026-09-14). Extending the extraction to times, meeting links and talks is registered below
+
+## 候选池（暂缓，逐条写明触发条件）
+
+**这一节是什么**：暂缓事项的集中登记处。与上面 `Later` 的区别是——这些**没有承诺**，只是「想过、决定现在不做」。每条都写明**什么条件下才值得做**，将来不必重新论证一遍；已经定了「怎么做」的决策在 [`docs/README.md`](docs/README.md) 的「决策记录」一节（ADR），这里只回答「要不要做」。
+
+**纪律**：往这里加条目只需一行「一句话 + 触发条件」；真正要开工时，先从 `Now` 走一遍四道门（`CONTRIBUTING.md`），再把它从这里移出去。
+
+| 候选 | 一句话 | 触发条件 |
+|---|---|---|
+| 考公赛道（原批 7，2026-09-22 暂缓） | 阶段名做成赛道配置（默认值与今天一致，现有工作区零改动）、题库加考公主科预设 | 确定要考公，且日常使用已稳定（先看 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md) 的毕业条件） |
+| 整站 390px 适配 | 顶栏与看板网格在窄屏本就横向溢出；e2e 基线钉的只是「不再变坏」 | 手机成为主要使用场景，或基线再次被真实回归触发 |
+| 宿主内渲染工作台界面 | 在 AI 宿主里开面板，而不是切到浏览器或桌面壳 | 宿主开放稳定的渲染 API，且界面成为主要使用方式 |
+| 长任务扩展（面试周 / 备考周） | 一次性把一段时间的任务排开、按周复盘 | 出现连续两周以上的高强度面试或备考 |
+| 系统级提醒 | 截止日与面试前推一条本地通知 | 桌面壳长期常驻，且「错过截止日」真实发生过 |
+| 浏览器表单预填 | 只预填、不提交（自动投递永不考虑，见 ADR） | 平台页面结构稳定，且用户明确要求 |
+| ICS 重复会议（RRULE） | 现在只取首个实例并在卡片注明；需要时评估 `icalendar`（BSD-2） | 真实收到重复会议邀请，且因此误判过一次时间 |
+| 用户级 / 插件缓存副本的一致性 | 检查器只看仓库内的项目级副本，用户级 `~/.agents/skills/` 与插件缓存在视野之外 | 出现「装到用户级却长期用旧版」的真实事件 |
+| 依赖主版本升级（Electron 等） | 调研已做（[`docs/research/report_electron_33_to_44.md`](docs/research/report_electron_33_to_44.md)）；升级要人工批次、单独冒烟 | 安全修复需要，或宿主 / 打包链要求 |
+| 域名与文案的英文润色（非 i18n 范围） | README 与文档英文版由人过一遍 | 有英文母语使用者开始用时 |

@@ -52,7 +52,45 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- 首帧启动屏（2026-09-23 白屏审计）：样式全在 JS 包里，而 #root 原本是空的——
+           从 HTML 首字节到 React 挂载之间（prod 是 ~424KB bundle 的下载与解析；dev 是
+           Vite 模块瀑布）页面只有浏览器默认的纯白。这个启动屏只用内联样式、随 HTML
+           首字节立即绘制；createRoot().render() 挂载时会整体替换 #root 的子节点。
+           背景色只内置默认暗与亮两套（其余主题的变量在包里，挂载后即接管）。
+           品牌名用英文与上方 <title> 同一条理由。 -->
+      <div
+        id="boot-splash"
+        style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: hsl(222 47% 5%); color: hsl(210 40% 96%); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;"
+      >
+        <style>
+          html[data-theme="light"] #boot-splash {
+            background: hsl(220 23% 97%);
+            color: hsl(222 47% 11%);
+          }
+          #boot-splash .boot-ring {
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            border: 2px solid rgba(148, 163, 184, 0.35);
+            border-top-color: rgba(148, 163, 184, 0.9);
+            animation: boot-spin 0.9s linear infinite;
+          }
+          @keyframes boot-spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            #boot-splash .boot-ring {
+              animation: none;
+            }
+          }
+        </style>
+        <div class="boot-ring" aria-hidden="true"></div>
+        <div style="font-size: 13px; letter-spacing: 0.08em; opacity: 0.75;">Job Workbench</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

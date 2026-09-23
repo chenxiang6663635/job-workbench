@@ -157,6 +157,8 @@ def _add_mail_parser(sub):
     p_mail.add_argument("--from", dest="sender", help="发件人")
     p_mail.add_argument("--when", help="日期，如 2026-09-10 10:30")
     p_mail.add_argument("--url", help="原邮件链接（Outlook 等无深链的邮箱可粘贴）")
+    p_mail.add_argument("--meeting-link", dest="meeting_link",
+                        help="会议链接（腾讯会议 / Zoom 等；由用户确认后写入）")
     p_mail.add_argument("--tag", choices=MAIL_TAGS, help="标签，默认其他")
     p_mail.add_argument("--preview", action="store_true",
                         help="只预览、并把这次写入登记为一次性令牌（不落盘）；"

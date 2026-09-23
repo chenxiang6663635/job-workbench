@@ -31,3 +31,14 @@ export function drillToJob(dir: string): void {
   }
   window.location.hash = "jobs";
 }
+
+// 跳到追踪表并展开某条投递（新建成功后 / 邮件台账「展开该记录」共用）。
+// 与 drillToJob 同一把钥匙、同一套约定：目标页 mount 时读 focusId 并展开对应行。
+export function drillToApplication(focusId: string): void {
+  try {
+    sessionStorage.setItem(DRILL_KEY, JSON.stringify({ focusId }));
+  } catch {
+    // 存储不可用：退化为只跳页面，不展开该行
+  }
+  window.location.hash = "applications";
+}

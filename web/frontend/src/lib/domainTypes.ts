@@ -660,6 +660,32 @@ export interface ImapMessage {
   body: string;
   /** RFC822 Message-ID 规范值（批 4.5，去 `<>`）——记入邮件台账与 Gmail 深链用 */
   messageId?: string;
+  /** text/calendar 部件原文（批 9）：会议邀请的结构化真相源；无则为空串 */
+  calendar?: string;
+}
+
+/** 一条候选事实（批 9）：领域层 `mail_facts.extract_facts` 的输出，前端只消费不改写。 */
+export interface MailFact {
+  /** 时间 / 会议链接 / 阶段 / 公司岗位 */
+  kind: "时间" | "会议链接" | "阶段" | "公司岗位";
+  /** 规范化取值（ISO 日期时间 / 规范化链接 / 阶段名 / 记录 id） */
+  value: string;
+  /** 面向用户的短标题（界面按 kind 出本地化标题，label 作兜底） */
+  label: string;
+  /** 命中的原文片段（可追溯） */
+  evidence: string;
+  /** 把握程度：low 的值需用户核对后才可写入 */
+  confidence: "high" | "low";
+  source: "ics" | "body" | "ai";
+  /** 命中的投递记录 id；未命中为空串 */
+  targetId: string;
+  /** 补充说明（重复会议、缺年份等；可为空） */
+  note: string;
+}
+
+export interface MailFactsResult {
+  facts: MailFact[];
+  total: number;
 }
 
 export interface ImapFetchResult {
@@ -711,6 +737,8 @@ export interface Mail {
   日期: string;
   webmail链接: string;
   标签: string;
+  /** 解析出的入会地址（批 9）：腾讯会议 / Zoom / Teams / Meet…；缺省为空 */
+  会议链接?: string;
   _openLink?: MailOpenLink;
 }
 

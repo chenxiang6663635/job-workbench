@@ -29,6 +29,9 @@ from jobws_core import tracker  # noqa: E402
 # 免得以后再加列时这份「旧格式」跟着一起长（那就测不出缺列兼容了）。
 OLD_FIELDS = [f for f in tracker.FIELDS if f != "链接"]
 
+# 批 9 起 mails.csv 多一列「会议链接」：同一套「旧工作区缺列」兼容口径也要钉住
+OLD_MAIL_FIELDS = [f for f in tracker.MAIL_FIELDS if f != "会议链接"]
+
 
 def _ws(tmp_path):
     ws = os.path.join(str(tmp_path), "ws")
@@ -89,6 +92,59 @@ def test_run_check_passes_on_old_csv_without_link_column(tmp_path):
     ws = _ws(tmp_path)
     _write_old_style(_tracker_path(ws), _old_row())
     result = tracker.run_check(ws)
+    bad = [(f["file"], f["issues"]) for f in result["files"] if not f["ok"]]
+    assert bad == []
+
+
+# --- 1b. 邮件表缺列兼容（批 9：「会议链接」列） ---------------------------------
+
+def _mails_path(ws):
+    return os.path.join(ws, "05_投递追踪", tracker.MAIL_FILE)
+
+
+def _write_old_mails(ws, row):
+    with io.open(_mails_path(ws), "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=OLD_MAIL_FIELDS, extrasaction="ignore",
+                                restval="")
+        writer.writeheader()
+        writer.writerow(row)
+
+
+def test_old_mails_csv_without_meeting_link_column_still_reads(tmp_path):
+    ws = _ws(tmp_path)
+    _write_old_mails(ws, {"邮件id": "M001", "主题": "面试邀请", "标签": "邀约"})
+
+    rows = tracker.read_mails(ws)
+
+    assert len(rows) == 1
+    assert (rows[0].get("会议链接") or "") == ""
+    assert rows[0]["主题"] == "面试邀请"
+
+
+def test_write_mails_backfills_meeting_link_column(tmp_path):
+    ws = _ws(tmp_path)
+    path = _mails_path(ws)
+    _write_old_mails(ws, {"邮件id": "M001", "主题": "面试邀请", "标签": "邀约"})
+
+    rows = tracker.read_mails(ws)
+    rows[0]["会议链接"] = "https://meeting.tencent.com/dm/abc123"
+    tracker.write_mails(rows, ws)
+
+    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        again = [dict(r) for r in reader]
+    assert "会议链接" in fieldnames
+    assert again[0]["会议链接"] == "https://meeting.tencent.com/dm/abc123"
+    assert again[0]["主题"] == "面试邀请"
+
+
+def test_run_check_passes_on_old_mails_without_meeting_link_column(tmp_path):
+    ws = _ws(tmp_path)
+    _write_old_mails(ws, {"邮件id": "M001", "主题": "面试邀请", "标签": "邀约"})
+
+    result = tracker.run_check(ws)
+
     bad = [(f["file"], f["issues"]) for f in result["files"] if not f["ok"]]
     assert bad == []
 

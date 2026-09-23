@@ -38,7 +38,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import application_delete, applications, approvals, dashboard, imap, jobs, library, prep, progress, provider, resume, sync, system, workspace  # noqa: E402
+from routers import application_delete, applications, approvals, dashboard, imap, imap_facts, jobs, library, prep, progress, provider, resume, sync, system, workspace  # noqa: E402
 
 # ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
 #
@@ -173,6 +173,7 @@ app.include_router(library.router)
 app.include_router(workspace.router)
 app.include_router(provider.router)
 app.include_router(imap.router)
+app.include_router(imap_facts.router)  # 邮件解析（批 9；imap.py 水位只许降故单开）
 app.include_router(resume.router)
 app.include_router(system.router)
 app.include_router(sync.router)  # 批 8：工作区版本指纹（GUI 端同步用）

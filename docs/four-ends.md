@@ -7,7 +7,7 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **42** 条、各端不提供的例外 **61** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
+**基数（随本文件自动生成）**：登记能力 **43** 条、各端不提供的例外 **64** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
 
 ## 能力矩阵
 
@@ -25,6 +25,7 @@
 | 投递 | `application.check` | `track check` | — | — | — |
 | 跟进 | `mail.record` | `track mail` | — | — | `POST /api/progress/mails` |
 | 跟进 | `imap.fetch` | — | — | — | `POST /api/imap/fetch` |
+| 跟进 | `imap.suggest` | — | — | — | `POST /api/imap/suggest-facts` |
 | 跟进 | `mail.update` | `track mail update` | — | — | `PATCH /api/progress/mails/{mail_id}` |
 | 跟进 | `contact.record` | `track contact` | — | — | `POST /api/progress/contacts` |
 | 跟进 | `contact.update` | `track contact update` | — | — | `PATCH /api/progress/contacts/{contact_id}` |
@@ -93,12 +94,14 @@
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
 - **cli** · `imap.fetch`：邮箱凭证配在 GUI 设置里，命令行侧不重复实现。
+- **cli** · `imap.suggest`：解析素材来自界面拉取 / 粘贴；命令行侧由既有 track 链路承担，不重复实现。
 - **mcp** · `jd.fetch`：抓取涉及出网与页面解析，不由模型代劳；模型应让用户提供 JD 文本。
 - **mcp** · `job.create`：岗位新建属界面动作（需粘贴 JD 或链接），不由模型代劳。
 - **mcp** · `application.history`：时间线可由 list 结果推断；工具数需收敛，暂不单开。
 - **mcp** · `application.check`：schema 自检属运维动作，由 CLI 执行。
 - **mcp** · `mail.record`：写入面暂收敛到投递与面试；邮件台账由 GUI 或 CLI 记录。
 - **mcp** · `imap.fetch`：出网拉取邮箱不由模型代劳（凭证与网络都属用户环境）。
+- **mcp** · `imap.suggest`：邮件正文属用户私密内容：解析只在界面内本地完成，不把它喂给模型。
 - **mcp** · `contact.record`：写入面暂收敛；联系人由 GUI 或 CLI 记录。
 - **mcp** · `talk.record`：写入面暂收敛；宣讲会由 GUI 或 CLI 记录。
 - **mcp** · `offer.record`：写入面暂收敛；Offer 由 GUI 或 CLI 记录。
@@ -106,6 +109,7 @@
 - **plugin** · `job.create`：需要界面粘贴 JD，命令不代劳。
 - **plugin** · `jd.fetch`：同上。
 - **plugin** · `imap.fetch`：邮箱凭证与出网动作不放进命令。
+- **plugin** · `imap.suggest`：同上：邮件正文与拉取产物不进命令面。
 - **plugin** · `application.update`：命令侧暂不提供单条更新（走 apply-pack 的完整流程或用 CLI）。
 - **plugin** · `application.import`：CSV 批量导入是界面动作。
 - **plugin** · `application.history`：时间线可由 track list 与 report 覆盖。

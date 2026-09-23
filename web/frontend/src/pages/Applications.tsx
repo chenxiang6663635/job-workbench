@@ -11,6 +11,7 @@ import {
   type HistoryEntry,
 } from "../api";
 import { ALL, NONE, readDrill, type SortKey } from "../lib/applicationMeta";
+import { DRILL_KEY } from "../lib/pageDrill";
 import { useJobDirs } from "../hooks/useJobDirs";
 import { useMissingNext } from "../hooks/useMissingNext";
 import { domainLabel } from "../lib/domainLabels";
@@ -90,7 +91,7 @@ export default function Applications() {
   useEffect(load, [filter, sort, drill]);
   // 下钻筛选只生效一次：首次加载后清掉，避免重复返回看板时的旧筛选残留
   useEffect(() => {
-    sessionStorage.removeItem("jobws_drill");
+    sessionStorage.removeItem(DRILL_KEY);
   }, []);
 
   // UX-3（体检）：岗位池目录名反查表，供行内「查看解析卡」入口使用

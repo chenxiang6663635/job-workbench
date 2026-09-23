@@ -116,7 +116,7 @@ def _validate_mail_fields(fields, workspace=None):
 def preview_mail_fields(fields, workspace=None):
     """按中文字段预览一次邮件新增（**不落盘**）：返回 (errors, plan)。"""
     fields = {field: (fields.get(field) or "") for field in MAIL_FIELDS}
-    for field in ("关联记录", "主题", "发件人", "日期", "webmail链接"):
+    for field in ("关联记录", "主题", "发件人", "日期", "webmail链接", "会议链接"):
         fields[field] = fields[field].strip()
     fields["消息id"] = normalize_message_id(fields.get("消息id"))
     errors = _validate_mail_fields(fields, workspace)

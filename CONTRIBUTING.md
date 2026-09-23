@@ -212,6 +212,7 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
   界面靠弹窗确认）；插件命令必须在 `.codebuddy-plugin/plugin.json` 的 `commands` 里登记。
 - **对齐以加法为主**：既有命令名与参数是契约（见 `skills/jwb-cli-contract`），
   重命名是破坏性变更——缺的补上、新的按规则起名，既有的只在矩阵里登记。
+- 资产分发到各宿主：`python tools/jobws.py skills install`——批 10 起一次分发**三类资产**（技能 / 命令 / 子代理，落点见脚本头部注释；`--link` 是实验选项，Windows 需开发者模式）。**零克隆通道**（插件市场安装、`npx skills add`）见 README「快速开始」；无论走哪条通道，副本过期 / 多出 / 内容不一致都由上面的检查器按资产类型逐项报出。
 - 资产分发到各宿主：`python tools/jobws.py skills install`——批 10 起一次分发**三类资产**（技能 / 命令 / 子代理，落点见脚本头部注释；`--link` 是实验选项，Windows 需开发者模式）。**零克隆通道**（插件市场安装、`npx skills add`）见 README「快速开始」；**仓库内的项目级副本**由上面的检查器按资产类型逐项比对（用户级 `~/.agents/skills/` 与插件市场缓存不在视野内——它们不随仓库走，见 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)）。
 
 ## 文案与 i18n（界面文字一律走 t()）

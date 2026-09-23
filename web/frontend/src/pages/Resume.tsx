@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  FileCheck,
-  FileDown,
   FilePlus2,
   FileText,
   FileUp,
   LayoutTemplate,
   Loader2,
   PenLine,
-  Save,
   ShieldAlert,
 } from "lucide-react";
 import {
@@ -38,6 +35,7 @@ import { A4Preview, A4_HEIGHT } from "../components/A4Preview";
 import ResumeForm from "../components/ResumeForm";
 import ResumeTemplates from "../components/ResumeTemplates";
 import ResumeImportDialog from "../components/ResumeImportDialog";
+import ResumeToolbar from "../components/ResumeToolbar";
 import RewritePanel from "../components/RewritePanel";
 import VersionLineage from "../components/VersionLineage";
 import { cn } from "../lib/utils";
@@ -145,21 +143,40 @@ export default function Resume() {
       .catch((e: Error) => setError(e.message));
   }, []);
 
+  // 版本切换的序号守卫：A→B 快切时 `getResume(A)` 可能后到，把 A 的数据写进
+  // `data`，而此刻 `version` 已是 B——紧随其后的自动保存会把 A 的简历存进 B 的
+  // 文件里（用户看不到任何报错，等发现时原文件已被覆盖）。
+  const versionSeq = useRef(0);
+  // 当前 `data` 属于哪个版本：**只有它等于 version 才允许自动保存**——
+  // 单靠序号守卫挡不住「切换瞬间 dirty 仍为 true、data 还是旧版本」这一帧
+  const loadedVersion = useRef<string>("");
+
   // 载入选中版本的数据
   useEffect(() => {
     if (!version) return;
+    const seq = ++versionSeq.current;
     setResult(null);
     setDirty(false); // 加载不算编辑，避免打开页面就写回
+    loadedVersion.current = "";
     api
       .getResume(version)
-      .then((r) => setData((r.data ?? emptyData()) as ResumeData))
-      .catch((e: Error) => setError(e.message));
+      .then((r) => {
+        if (seq !== versionSeq.current) return;
+        loadedVersion.current = version;
+        setData((r.data ?? emptyData()) as ResumeData);
+      })
+      .catch((e: Error) => {
+        if (seq === versionSeq.current) setError(e.message);
+      });
   }, [version]);
 
   // 预览 HTML：编辑后防抖保存再重取预览；仅加载时只取预览不写回。
   // 版式与风格是渲染参数（批 4.5）：切换即重取——预览与生成/Word 同源。
+  const htmlSeq = useRef(0);
   useEffect(() => {
     if (!version || !data) return;
+    if (loadedVersion.current !== version) return; // 旧版本的数据不许存进新版本
+    const seq = ++htmlSeq.current;
     const timer = setTimeout(
       () => {
         const saved = dirty
@@ -167,8 +184,12 @@ export default function Resume() {
           : Promise.resolve<unknown>(null);
         saved
           .then(() => api.resumeHtml(version, { template: layout, accent }))
-          .then((r) => setHtml(r.html))
-          .catch((e: Error) => setError(e.message));
+          .then((r) => {
+            if (seq === htmlSeq.current) setHtml(r.html);
+          })
+          .catch((e: Error) => {
+            if (seq === htmlSeq.current) setError(e.message);
+          });
       },
       dirty ? 400 : 0
     );
@@ -335,56 +356,19 @@ export default function Resume() {
       {errorBanner}
       {modeBar}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={version} onValueChange={setVersion}>
-          <SelectTrigger className="w-40" aria-label={t("resume.selectVersion")}>
-            <SelectValue placeholder={t("resume.selectVersion")} />
-          </SelectTrigger>
-          <SelectContent>
-            {versions.map((v) => (
-              <SelectItem key={v.version} value={v.version}>
-                {v.version}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Button variant="outline" onClick={save} disabled={saving}>
-          <Save size={15} /> {saving ? t("common.saving") : t("common.save")}
-        </Button>
-
-        <Button
-          onClick={build}
-          disabled={building || overflowLines > 0}
-          title={t(overflowLines > 0 ? "resume.buildBlocked" : "resume.buildTitle")}
-        >
-          {building ? <Loader2 size={15} className="animate-spin" /> : <FileCheck size={15} />}
-          {building ? t("resume.building") : t("resume.buildPdf")}
-        </Button>
-
-        <Button
-          variant="outline"
-          onClick={() => setShowRewrite(true)}
-          title={t("resume.rewriteTitle")}
-        >
-          <PenLine size={15} /> {t("resume.aiRewrite")}
-        </Button>
-
-        {/* Word 版定位是「文本搬运」：方便网申系统粘贴。零依赖 .doc，
-            排版还原度有限——这一句必须在按钮旁说清，不让用户误当正式交付物 */}
-        <Button variant="outline" asChild>
-          <a
-            href={api.resumeDocUrl(version, { template: layout, accent })}
-            download
-            title={t("resume.wordTitle")}
-          >
-            <FileDown size={15} /> {t("resume.exportWord")}
-          </a>
-        </Button>
-        <span className="text-[11px] text-muted-foreground">
-          {t("resume.wordTitle")}
-        </span>
-      </div>
+      <ResumeToolbar
+        version={version}
+        versions={versions}
+        onVersionChange={setVersion}
+        layout={layout}
+        accent={accent}
+        saving={saving}
+        onSave={save}
+        building={building}
+        buildBlocked={overflowLines > 0}
+        onBuild={build}
+        onRewrite={() => setShowRewrite(true)}
+      />
 
       {/* 版式与风格（批 4.5）：与预览 / 生成 / Word 同一组渲染参数——
           切换即刷新预览；生成的 PDF 与预览不允许是两套参数 */}

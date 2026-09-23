@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, MessageSquareQuote, Search, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -81,18 +81,29 @@ export function AskedBefore() {
 
   // 输入防抖：题库检索是纯前端过滤不划算（数据在后端 CSV 里），
   // 但也不能每敲一个字就打一次接口
+  const loadSeq = useRef(0);
   useEffect(() => {
+    const seq = ++loadSeq.current;
     const timer = setTimeout(() => {
       setLoading(true);
       setError(null);
       api
         .questionBank(keyword.trim() || undefined)
-        .then((r) => {
-          setGroups(r.groups);
-          setTotal(r.total);
-        })
-        .catch((e: Error) => setError(e.message))
-        .finally(() => setLoading(false));
+        .then(
+          (r) => {
+            // 迟到响应不得覆盖新结果：挂 loadSeq 而不是用 closed 标志，
+            // 是为了让「debounce 取消」与「响应乱序」两种过期用同一道闸门
+            if (seq !== loadSeq.current) return;
+            setGroups(r.groups);
+            setTotal(r.total);
+          },
+          (e: Error) => {
+            if (seq === loadSeq.current) setError(e.message);
+          }
+        )
+        .then(() => {
+          if (seq === loadSeq.current) setLoading(false);
+        });
     }, 250);
     return () => clearTimeout(timer);
   }, [keyword]);

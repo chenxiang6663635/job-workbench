@@ -31,6 +31,7 @@ import { PageHeader } from "../components/ui/page-header";
 import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { announce } from "../lib/announce";
+import { todayISO } from "../lib/date";
 import JobCard from "../components/JobCard";
 import JobDetailView from "../components/JobDetailView";
 import JobCreateForm from "../components/JobCreateForm";
@@ -65,11 +66,7 @@ const ALL = "__all__";
 
 // 下钻约定：键与写方统一走 lib/pageDrill（此前本地重写常量，改键时会静默漂掉）
 
-function today(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+
 
 /**
  * 目录名 → (公司, 岗位)。取首个下划线、两端 trim。
@@ -121,7 +118,7 @@ export default function Jobs() {
     方向: "other",
     批次: "正式批",
     当前阶段: "已投",
-    投递日期: today(),
+    投递日期: todayISO(),
   });
 
   // 只看最后一次请求的结果：300ms 防抖之外仍可能乱序返回（改关键词后旧响应后到，
@@ -153,13 +150,24 @@ export default function Jobs() {
   useEffect(load, [sort, order, status, q]);
 
   // 详情拉取期间补 loading 态：此前点击到返回前无任何骨架，像卡住
+  const detailSeq = useRef(0);
   const open = (dir: string) => {
+    const seq = ++detailSeq.current;
     setDetailLoading(true);
     api
       .jobDetail(dir)
-      .then((d) => setDetail(d))
-      .catch((e: Error) => setError(e.message))
-      .then(() => setDetailLoading(false));
+      .then(
+        (d) => {
+          // 连点两张卡片时先发的旧详情后到会盖掉新详情（连骨嘟也一样会被提前撤）
+          if (seq === detailSeq.current) setDetail(d);
+        },
+        (e: Error) => {
+          if (seq === detailSeq.current) setError(e.message);
+        }
+      )
+      .then(() => {
+        if (seq === detailSeq.current) setDetailLoading(false);
+      });
   };
 
   const closeDetail = () => {

@@ -30,7 +30,7 @@
 - **新增能力要三处一起改**：实现（领域层）→ 矩阵登记（`tools/four_ends_matrix.json`）
   → 重新生成说明页（`python tools/jobws.py lint four-ends --write`）。
   漏了会被 `python tools/jobws.py lint four-ends` 拦下（CI 同一实现）。
-- 技能资产分发到各宿主（`.claude` / `.agents` / `.codex` / `.codebuddy`）用
+- 三类资产分发（技能 / 命令 / 子代理）到各宿主（`.claude` / `.agents` / `.codex` / `.codebuddy`）用
   `python tools/jobws.py skills install`；镜像与真源不一致同样会被上面那个检查器报出来。
 - MCP 怎么接进宿主见 `docs/mcp-integration.md`——**配置键名按宿主不同，别照抄**。
 

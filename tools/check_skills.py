@@ -28,6 +28,13 @@
      自己的解析器用 partition 切分、对冒号宽容，所以只有这条校验能拦住。
      **引号包裹亦不豁免**：单行解析器没有引号语义，支持一半比不支持更危险——
      描述文案统一不用半角冒号+空格（跨宿主审查第四轮把这条边界固定为测试）。
+  8. **frontmatter 字段白名单**（批 10，对齐 Open Agent Skills 规范）——`licence`、
+     `allowed_tools` 这类手滑不会让宿主报错，只会**静默失效**：元数据没生效而本地
+     全绿。缩进行属于上一个字段的嵌套映射（`metadata:` 下的 `version`），不算顶层键。
+  9. **`references/` 引用可达**（批 10）——渐进披露靠引用分流；路径写错时宿主不会
+     报错，技能看起来还在、实际少了一半内容。
+  10. **主文件行数上限**（批 10）——超过 `BODY_MAX_LINES` 就该把重参考资料拆到
+      `references/`（第二级按需读取）。
 
 用法（入口已统一，见 tools/jobws.py）：
     python tools/jobws.py skills check                 # 校验仓库 skills/
@@ -39,23 +46,16 @@ from __future__ import print_function
 
 import argparse
 import os
-import re
 import sys
 
-DESC_MAX = 300
-REQUIRED = ["name", "description", "compatibility"]
-
-# 本仓库技能的命名空间。用户级 ~/.agents/skills/ 是与别人共用的同一个目录，
-# 通用名（apply / resume / track …）撞车概率高，而撞车的结果是**静默覆盖**。
-# 注意：下面的「name 唯一」只能保证仓库内不重名，兑现不了「不撞车」——
-# 真正兑现它的是这条前缀规则。独立审查指出原实现漏了它，故补上。
-NAME_RE = re.compile(r"^jwb-[a-z0-9]+(-[a-z0-9]+)*$")
-
-# 正文里禁止出现的仓库顶层目录（校验项第 6 条）。技能分发到宿主后，工作目录是
-# 用户自己的工作区，这些前缀在那里都不存在。新增顶层目录时记得加进来——漏了
-# 不会报错，只会让技能把宿主引到死路径上（独立审查 MINOR-2/3/4 的由来：
-# 最初只禁了 `tools/`，漏掉 web/、template/、skills/ 这些同类）。
-REPO_PATH_PREFIXES = ("tools/", "web/", "template/", "skills/", "tests/")
+# 规则层（批 10）自本模块拆出：常量与两条纯函数都在 tools/skill_rules.py
+# （`check_skills.py` 是登记过水位的存量文件，只许变小）。这里**原样再导出**，
+# 外部读到的名字与行为都不变；规则仍只此一处（本模块是唯一入口）。
+from skill_rules import (  # noqa: E402
+    ALLOWED_FIELDS, BODY_MAX_LINES, DESC_MAX, NAME_RE, REFERENCE_RE,
+    REPO_PATH_PREFIXES, REQUIRED, body_problems, frontmatter_problems,
+    reference_file_problems, version_problems,
+)
 
 # 改名前的旧目录名。分发脚本清理残留时**只认这五个**，而不是
 # 「凡不在源码里的目录都删」——后者会把用户自己装的第三方技能一并删掉。
@@ -117,55 +117,13 @@ def _inspect_one(entry, path):
         item["problems"].append(error)
         return item
 
-    # 正文里的仓库相对路径（校验项第 6 条）：技能分发到宿主后，工作目录是
-    # 用户自己的工作区，这些路径在那里都不存在。只报第一处——修完再跑一次
-    # 就知道后面还有没有；一次列一串反而没人看。
-    body_lines = text.splitlines()[frontmatter_end + 1:]
-    for offset, line in enumerate(body_lines):
-        hit = next((prefix for prefix in REPO_PATH_PREFIXES if prefix in line), None)
-        if hit:
-            item["problems"].append(
-                "第 %d 行（文件行号，含 frontmatter）引用了仓库相对路径 `%s…`："
-                "%s——技能会被分发到宿主，那时的工作目录是用户自己的工作区，"
-                "仓库路径在那里不存在；命令名写 `jobws`，路径说明放 frontmatter "
-                "的 compatibility"
-                % (frontmatter_end + 2 + offset, hit, line.strip()))
-            break
-
-    name = fields.get("name")
-    item["name"] = name
-    if not name:
-        item["problems"].append("frontmatter 缺 name")
-    else:
-        if name != entry:
-            item["problems"].append(
-                "name 与目录名不一致：name=%s，目录=%s（技能身份要求两者相同）"
-                % (name, entry))
-        if not NAME_RE.match(name):
-            item["problems"].append(
-                "name 必须带 jwb- 前缀（当前：%s）——通用名装到用户级目录时会"
-                "与别人已装的同名技能冲突，宿主**静默覆盖**" % name)
-
-    for key in REQUIRED:
-        if key != "name" and not fields.get(key):
-            item["problems"].append("frontmatter 缺 %s" % key)
-
-    desc = fields.get("description")
-    if desc in ("|", ">"):
-        # 本解析器只认单行值；块标量会被读成 "|" 从而绕过长度校验
-        item["problems"].append(
-            "frontmatter 不支持块标量写法（description: %s），请改成单行" % desc)
-    elif desc and len(desc) > DESC_MAX:
-        item["problems"].append(
-            "description 过长（%d 字符，上限 %d）" % (len(desc), DESC_MAX))
-    elif desc and ": " in desc:
-        # 半角冒号+空格在严格 YAML 宿主下是语法错误：Codex 实测会拒绝整个技能
-        # （2026-09-14：全部 5 个技能在 .codex/ 与 ~/.agents/ 下加载失败，报
-        # 「mapping values are not allowed in this context」——只因为 description
-        # 里写了 `English triggers: …`）。本解析器对冒号宽容，所以只能在这里拦。
-        item["problems"].append(
-            "description 含 `: `（半角冒号+空格）：严格 YAML 宿主（如 Codex）"
-            "会因此拒绝加载整个技能；改用全角冒号 `：` 或改写表述")
+    # 规则层在 tools/skill_rules.py（批 10 拆出）：这里只做「读文件 → 交给规则 →
+    # 组装结果」。规则分两组——frontmatter 字段级、正文级，各自返回问题清单。
+    item["name"] = fields.get("name")
+    item["problems"].extend(frontmatter_problems(text, frontmatter_end, fields, entry))
+    item["problems"].extend(body_problems(text, frontmatter_end, path))
+    # references/ 下的文件随技能一起分发，规则同样适用（独立审查 MAJOR-4）
+    item["problems"].extend(reference_file_problems(path))
     return item
 
 
@@ -251,7 +209,18 @@ def main():
             print("  [%s]" % label)
             for problem in problems:
                 print("    - %s" % problem)
-    if asset_findings or any(item["problems"] for item in results):
+    # 版本号一致性：技能 metadata.version 与插件壳 version 都随应用版本走
+    # （真值源 web/electron/package.json）。不查的话，发布时只 bump 应用版本就
+    # 会留下静默失真的旧值（独立审查 MAJOR-1）。
+    version_issues = version_problems(os.path.dirname(os.path.abspath(root)), root)
+    if version_issues:
+        print("")
+        print("版本号不一致（%d 处）：" % len(version_issues))
+        for problem in version_issues:
+            print("  - %s" % problem)
+        print("")
+        print("真值源只有一个：web/electron/package.json；技能与插件壳的 version 一起改。")
+    if asset_findings or version_issues or any(item["problems"] for item in results):
         print("")
         print("修复后再分发：不合规的技能会被宿主跳过，重名的会被静默覆盖。")
         return 1

@@ -60,6 +60,11 @@ graphify-out/
 .claude/
 .codex/
 .codebuddy/skills/
+# 批 10 起分发扩到命令与子代理：`.claude/` 整目录已忽略，`.codebuddy/` 只忽略过
+# skills/，漏了这两行的话跑一次分发就造 untracked，`git add -A` 会把「第二份真源」
+# 收进仓库（与 skills/ 同一条理由）。
+.codebuddy/commands/
+.codebuddy/agents/
 .codebuddy/plans/
 .codebuddy/artifacts/
 # AI 工作记忆：跨会话笔记，个人向、频繁变更，不入库

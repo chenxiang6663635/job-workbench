@@ -31,7 +31,7 @@ import os
 import re
 import sys
 
-from four_ends_extras import glob_field_present, render_doc, skill_mirrors
+from four_ends_extras import asset_mirrors, glob_field_present, render_doc
 from four_ends_probe import (api_codes, cli_capabilities, gui_routes,
                              i18n_keys, mcp_tools, plugin_assets, read)
 
@@ -216,7 +216,7 @@ def check(root):
     issues.extend(_check_error_map(matrix.get("error_map", []),
                                    api_codes(root), i18n_keys(root)))
     issues.extend(_check_host_fields(matrix.get("host_fields", []), root))
-    mirror_issues, _checked = skill_mirrors(root)
+    mirror_issues, _checked = asset_mirrors(root)
     issues.extend(mirror_issues)
 
     doc_text = render_doc(matrix)

@@ -11,75 +11,109 @@ import re
 
 from four_ends_probe import read
 
-# 技能镜像目标：**从 install_skills.TARGETS 派生**而不是手抄——两份清单迟早漂移
+# 资产清单：**从 install_skills.ASSETS 派生**而不是手抄——两份清单迟早漂移
 # （2026-09-17 独立审查指认）。只取项目级目标；用户级 `~/.agents/skills` 在仓库根
 # 之外，检查器不跨出仓库根去读，属已知边界。
-# 扩镜像（批 10 计划扩到 commands/agents）时复用本文件的比对核心，
-# 但"目标缺失＝未分发、跳过"这条宽容语义要**单独决策**——整目录被删不报错
-# 对 skills（按需挂载）合理，对 commands/agents 未必。
+# 批 10 起比对范围从「只有 skills」扩到 skills / commands / agents 三类：
+# 镜像的成熟做法是「单一真值源 + 生成 + CI 一致性校验」，我们保留拷贝（Windows 软链
+# 需开发者模式，不可依赖），靠这条校验兜住副本过期。
 try:
     import install_skills as _install_skills
-    SKILL_TARGETS = [(rel, label) for (_tid, label, kind, rel)
-                     in _install_skills.TARGETS if kind == "project"]
-except ImportError:  # 独立调用本模块（不在仓库内）时的兜底
-    SKILL_TARGETS = [
-        (".codebuddy/skills", "项目级 .codebuddy"),
-        (".claude/skills", "项目级 .claude"),
-        (".agents/skills", "项目级 .agents"),
-        (".codex/skills", "项目级 .codex"),
+    ASSET_TARGETS = _install_skills.ASSETS
+except ImportError:  # 独立调用本模块（不在仓库内）时的兜底：只含技能
+    ASSET_TARGETS = [
+        ("skills", "skills", [
+            ("codebuddy", "项目级 .codebuddy/skills/", "project", ".codebuddy/skills"),
+            ("claude", "项目级 .claude/skills/", "project", ".claude/skills"),
+            ("agents", "项目级 .agents/skills/", "project", ".agents/skills"),
+            ("codex", "项目级 .codex/skills/", "project", ".codex/skills"),
+        ]),
     ]
 
 
-def _skill_files(skill_dir):
-    """技能目录下所有文件的 (相对路径, 内容 sha256 前 16 位)。"""
-    out = []
-    for dirpath, _dirnames, filenames in os.walk(skill_dir):
-        for name in sorted(filenames):
-            full = os.path.join(dirpath, name)
-            rel = os.path.relpath(full, skill_dir).replace(os.sep, "/")
-            with open(full, "rb") as handle:
-                digest = hashlib.sha256(handle.read()).hexdigest()[:16]
-            out.append((rel, digest))
+def _digest(path):
+    with open(path, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()[:16]
+
+
+def _asset_files(path):
+    """目录下所有文件的 (相对路径, 内容 sha256 前 16 位)。
+
+    跟随符号链接：`--link` 分发出来的目标项是指向真源的符号链接，不跟随的话整棵子树
+    在比对里「凭空消失」，会把正确的分发报成缺件。但**不能无条件跟随**——指向祖先的
+    目录链接会让遍历无限递归挂死，故按 realpath 去重（每个真实目录只走一次）。
+    """
+    out, seen = [], set()
+    stack = [path]
+    while stack:
+        current = stack.pop()
+        real = os.path.realpath(current)
+        if real in seen:
+            continue
+        seen.add(real)
+        for name in sorted(os.listdir(current)):
+            full = os.path.join(current, name)
+            if os.path.isdir(full):
+                stack.append(full)
+            elif os.path.isfile(full):
+                rel = os.path.relpath(full, path).replace(os.sep, "/")
+                out.append((rel, _digest(full)))
     return out
 
 
-def skill_mirrors(root):
-    """技能镜像比对：真源 skills/ ↔ 各目标；目标不存在＝未分发，跳过。
+def _source_files(source):
+    """真源目录的指纹表：目录项递归（技能目录 / 子代理目录），单文件项逐个。"""
+    out = {}
+    for name in sorted(os.listdir(source)):
+        entry = os.path.join(source, name)
+        if os.path.isdir(entry):
+            for rel, digest in _asset_files(entry):
+                out["%s/%s" % (name, rel)] = digest
+        elif os.path.isfile(entry):
+            out[name] = _digest(entry)
+    return out
 
-    返回 (issues, checked)：checked 是**实际比对过**的目标名，便于输出说明。
+
+def asset_mirrors(root):
+    """三类资产的镜像比对：真源 ↔ 项目级落点；目标不存在＝未分发，跳过。
+
+    返回 (issues, checked)：checked 是**实际比对过**的「资产 → 目标」标签，便于输出说明。
     """
     issues, checked = [], []
-    source = os.path.join(root, "skills")
-    if not os.path.isdir(source):
-        return ["找不到 skills/ 真源目录"], checked
-
-    source_files = {}
-    for name in sorted(os.listdir(source)):
-        skill_dir = os.path.join(source, name)
-        if os.path.isdir(skill_dir):
-            for rel, digest in _skill_files(skill_dir):
-                source_files["%s/%s" % (name, rel)] = digest
-
-    for rel_target, label in SKILL_TARGETS:
-        target = os.path.join(root, rel_target)
-        if not os.path.isdir(target):
+    for asset, source_rel, targets in ASSET_TARGETS:
+        source = os.path.join(root, source_rel)
+        if not os.path.isdir(source):
+            # 真源缺失只有在「已有镜像落点」时才算问题：镜像还在而真源没了，
+            # 那份副本必然过期。没有任何落点（局部目录、还没分发的宿主）不算。
+            if any(os.path.isdir(os.path.join(root, rel))
+                   for _k, _l, kind, rel in targets if kind == "project"):
+                issues.append("找不到 %s/ 真源目录（镜像还在，副本必然过期）" % source_rel)
             continue
-        checked.append(label)
-        mirror_files = {}
-        for name in sorted(os.listdir(target)):
-            skill_dir = os.path.join(target, name)
-            if os.path.isdir(skill_dir):
-                for rel, digest in _skill_files(skill_dir):
-                    mirror_files["%s/%s" % (name, rel)] = digest
-        for key in sorted(set(source_files) - set(mirror_files)):
-            issues.append("%s 缺少 %s（真源有、镜像没有）—— 重新分发：jobws skills install"
-                          % (label, key))
-        for key in sorted(set(mirror_files) - set(source_files)):
-            issues.append("%s 多出 %s（真源没有）—— 镜像过期或手工加的副本" % (label, key))
-        for key in sorted(set(source_files) & set(mirror_files)):
-            if source_files[key] != mirror_files[key]:
-                issues.append("%s 的 %s 与真源内容不一致 —— 重新分发：jobws skills install"
+
+        source_files = _source_files(source)
+        for _key, label, kind, rel in targets:
+            if kind != "project":
+                continue
+            target = os.path.join(root, rel)
+            if not os.path.isdir(target):
+                continue
+            checked.append("%s → %s" % (asset, label))
+            mirror_files = _source_files(target)
+            for key in sorted(set(source_files) - set(mirror_files)):
+                issues.append("%s 缺少 %s（真源有、镜像没有）—— 重新分发：jobws skills install"
                               % (label, key))
+            # 「多出」只在技能上判：skills/ 下每个目录都是我们的资产（名字带 jwb- 前缀），
+            # 多出来的必然是残留或手工副本。而 `.claude/commands`、`.claude/agents`
+            # 也是用户放自己文件的地方——那里的额外文件未必与我们有关，报出来就是
+            # 误报（本机为主、CI 看不到 .claude/，最容易让开发者对这张网失去信任）。
+            if asset == "skills":
+                for key in sorted(set(mirror_files) - set(source_files)):
+                    issues.append("%s 多出 %s（真源没有）—— 镜像过期或手工加的副本"
+                                  % (label, key))
+            for key in sorted(set(source_files) & set(mirror_files)):
+                if source_files[key] != mirror_files[key]:
+                    issues.append("%s 的 %s 与真源内容不一致 —— 重新分发：jobws skills install"
+                                  % (label, key))
     return issues, checked
 
 

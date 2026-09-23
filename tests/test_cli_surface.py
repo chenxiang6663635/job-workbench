@@ -299,6 +299,24 @@ def test_install_skills_dry_run_validates_but_writes_nothing(monkeypatch, capsys
     assert after == before
 
 
+def test_install_skills_link_is_dry_run_safe(monkeypatch, capsys):
+    """`--link`（批 10 实验选项）在演练下只报告建链，同样不写任何东西。
+
+    Windows 上建符号链接需要权限，所以这条只钉「意图被表达出来」——真建链由
+    开发者按需执行；镜像校验侧另有 followlinks 用例保证链不会把比对骗成缺件。
+    """
+    target = os.path.join(ROOT, ".codebuddy", "commands")
+    before = sorted(os.listdir(target)) if os.path.isdir(target) else None
+
+    code, out = _invoke_jobws(monkeypatch, capsys, [
+        "skills", "install", "--target", "codebuddy", "--link", "--dry-run"])
+    assert code == 0, out
+    assert "将建符号链接（演练）" in out, out
+
+    after = sorted(os.listdir(target)) if os.path.isdir(target) else None
+    assert after == before
+
+
 def test_tracker_update_changes_stage_and_records_history(tmp_path, monkeypatch, capsys):
     """update 是仅次于 add 的高频子命令，且它同时写主表与时间线。"""
     ws = _make_ws(tmp_path)

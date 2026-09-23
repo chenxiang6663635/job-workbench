@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "tools"))
 
-from check_skills import describe, inspect_skills  # noqa: E402
+from check_skills import describe, inspect_skills, version_problems  # noqa: E402
 
 GOOD = """---
 name: {name}
@@ -226,6 +226,126 @@ def test_quoted_colon_in_description_is_still_rejected(tmp_path):
         "compatibility: ok\n---\n"))
     item = inspect_skills(str(tmp_path))[0]
     assert any("半角冒号" in p for p in item["problems"])
+
+
+def test_unknown_frontmatter_field_is_reported(tmp_path):
+    """字段白名单（批 10，对齐 Open Agent Skills 规范）：拼错的字段名必须拦住。
+
+    `licence` / `allowed_tools` 这类手滑不会让宿主报错——它只是**静默失效**
+    （元数据没生效，而本地全绿）。规范字段集之外的键一律报出来。
+    """
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\nlicence: MIT\n---\n"))
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("未登记" in p and "licence" in p for p in problems), problems
+
+
+def test_standard_optional_fields_are_accepted(tmp_path):
+    """规范允许的可选字段（license / metadata / allowed-tools）要放行。"""
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "license: MIT\nmetadata:\n  version: 1.2.3\nallowed-tools: Bash(jobws:*)\n"
+        "---\n\n正文。\n"))
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_nested_metadata_keys_are_not_treated_as_unknown(tmp_path):
+    """`metadata:` 的下级键（缩进行）属于父字段，不算未登记字段。"""
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "metadata:\n  version: 0.1.0\n  author: someone\n---\n\n正文。\n"))
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_missing_reference_file_is_reported(tmp_path):
+    """正文引用的 `references/xxx.md` 必须真的存在。
+
+    渐进披露靠引用分流；路径写错时宿主不会报错，只会读到一个空引用——
+    技能看起来还在，实际少了一半内容。
+    """
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n细节见 `references/details.md`。")
+    _make(tmp_path, "jwb-demo", body=body)
+
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("references/details.md" in p for p in problems), problems
+
+
+def test_existing_reference_file_passes(tmp_path):
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n细节见 `references/details.md`。")
+    d = _make(tmp_path, "jwb-demo", body=body)
+    (d / "references").mkdir()
+    (d / "references" / "details.md").write_text("# 细节\n", encoding="utf-8")
+
+    assert inspect_skills(str(tmp_path))[0]["problems"] == []
+
+
+def test_overlong_skill_body_is_reported(tmp_path):
+    """主文件超过行数上限 → 提示拆到 references/（渐进披露第二级）。"""
+    body = GOOD.format(name="jwb-demo") + "\n".join(
+        "第 %d 行" % i for i in range(600))
+    _make(tmp_path, "jwb-demo", body=body)
+
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("行" in p and "references/" in p for p in problems), problems
+
+
+def test_reference_file_with_repo_path_is_reported(tmp_path):
+    """`references/` 下的文件随技能一起分发，仓库相对路径禁令同样适用（批 10 审查 MAJOR-4）。
+
+    只查 SKILL.md 的话，「把长内容搬进 references/」恰好绕过了规则——而它的死路径
+    后果与主文件里写死路径完全一样。
+    """
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n见 `references/details.md`。")
+    d = _make(tmp_path, "jwb-demo", body=body)
+    (d / "references").mkdir()
+    (d / "references" / "details.md").write_text(
+        "# 细节\n\n跑 `python tools/jobws.py track list`。\n", encoding="utf-8")
+
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("references/details.md" in p and "仓库相对路径" in p for p in problems), problems
+
+
+def test_indented_field_outside_metadata_is_reported(tmp_path):
+    """缩进只允许出现在 `metadata:` 之下（批 10 审查 MINOR-4）。
+
+    误缩进的 `licence:` 若被当成「嵌套键」放过，白名单就形同虚设；而误缩进的
+    `license:` 在严格 YAML 宿主里会变成上一个字段的子键，两边判定不一致。
+    """
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "  licence: MIT\n---\n\n正文。\n"))
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("缩进" in p for p in problems), problems
+
+
+def test_version_must_match_app_version(tmp_path):
+    """技能 metadata.version 与插件壳 version 必须等于应用版本（批 10 审查 MAJOR-1）。"""
+    skills_root = tmp_path / "skills"
+    d = skills_root / "jwb-x"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "metadata:\n  version: 1.0.0\n---\n\n正文。\n", encoding="utf-8")
+    electron = tmp_path / "web" / "electron"
+    electron.mkdir(parents=True)
+    (electron / "package.json").write_text('{"version": "26.9.15"}\n', encoding="utf-8")
+    plugin_dir = tmp_path / ".codebuddy-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text('{"version": "26.9.15"}\n', encoding="utf-8")
+
+    problems = version_problems(str(tmp_path), str(skills_root))
+
+    assert any("metadata.version=1.0.0" in p for p in problems), problems
+
+
+def test_version_check_skips_without_app_package(tmp_path):
+    """没有 `web/electron/package.json`（独立使用校验器的场景）→ 跳过，不误报。"""
+    skills_root = tmp_path / "skills"
+    (skills_root / "jwb-x").mkdir(parents=True)
+    assert version_problems(str(tmp_path), str(skills_root)) == []
 
 
 def test_repo_skills_are_compliant():

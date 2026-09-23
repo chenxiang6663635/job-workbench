@@ -70,7 +70,8 @@ python tools/jobws.py init --target demo --demo
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
 python tools/jobws.py init --target my_job_hunt --domain software-backend
 
-# 2. Distribute skills to your AI CLI (CodeBuddy / Claude Code / cross-runtime ~/.agents/skills/)
+# 2. Distribute skills / commands / subagents to your AI CLI
+#    (CodeBuddy / Claude Code / cross-runtime ~/.agents/skills/)
 python tools/jobws.py skills install --target user
 
 # 3. Fill in my_job_hunt/AGENTS.md
@@ -79,12 +80,18 @@ python tools/jobws.py skills install --target user
 #    every resume verb must survive questioning; never fabricate experience.
 ```
 
-**Using CodeBuddy?** The same skills ship as a CodeBuddy plugin — add this repo as a plugin marketplace and install it (the plugin reads `skills/` directly; there is no second copy):
+**Rather not clone the repo?** Two channels:
+
+- **Plugin marketplace (recommended — skills, commands and subagents together)** — with CodeBuddy or Claude Code, add this repo as a marketplace and install it (the plugin reads `skills/`, `commands/` and `agents/` straight from the repo; there is no second copy):
 
 ```
 /plugin marketplace add https://github.com/chenxiang6663635/job-workbench
 /plugin install job-workbench
 ```
+
+- **Skills only**: `npx skills add chenxiang6663635/job-workbench` (installs into the current directory; `-g` for the user level — `.agents/skills/` is the cross-host convention, Claude Code reads `.claude/skills/`).
+
+The local script covers custom layouts and acts as the fallback: `python tools/jobws.py skills install` distributes all three asset types by each host's directory convention (skills → skills dirs; commands and subagents → `.codebuddy/`, `.claude/`), copying by default. `--link` is experimental and symlinks the host copies to the single source instead (no stale copies; on Windows it needs developer mode or admin). **In-repo project-level copies** are kept honest by `python tools/jobws.py lint four-ends` — stale or diverged copies are named, and skills additionally report extra directories (your own files under `.claude/` are not counted). User-level `~/.agents/skills/` and plugin-marketplace caches are outside the checker's view: they do not travel with the repo.
 
 Then just talk to your AI CLI: "parse this JD", "apply to this role", "what needs attention this week".
 

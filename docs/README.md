@@ -56,6 +56,14 @@
 | [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md) | 第三方依赖与许可清单 |
 | [`../.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Issue 模板：bug 报告与功能请求两份（功能请求含 fit check；新需求仍按 CONTRIBUTING 四道门评估） |
 
+## 决策记录（ADR）
+
+单项决策留痕：一条一文件，文件名 = 祈使动词 + kebab-case。「为什么这样定」写这里；路线图与 CHANGELOG 只记「做了什么」。
+
+| 文件 | 说明 |
+|---|---|
+| [`decisions/keep-hooks-local-and-off.md`](decisions/keep-hooks-local-and-off.md) | 宿主 hooks 保持本地、默认关闭，本批不实现（含替代方案与复评条件） |
+
 ## 约定文件
 
 | 文件 | 说明 |

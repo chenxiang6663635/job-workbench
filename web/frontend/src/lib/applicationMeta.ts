@@ -1,6 +1,7 @@
 // 投递追踪表的元数据（H-2b 批自 pages/Applications.tsx 外移）：排序键、健康度
 // 四态、阶段徽章样式、下钻状态与哨兵值——页面与表格组件共用，避免两处各写一份。
 import type { TranslationKey } from "../i18n/locales/zh-CN";
+import { DRILL_KEY } from "./pageDrill";
 
 // Radix Select 不接受空字符串作为 value，「全部」用哨兵值表达
 export const ALL = "__all__";
@@ -31,12 +32,14 @@ export type Drill = {
   dueWithin?: number;
   sort?: "health";
   focusId?: string;
+  // 岗位池下钻（Jobs 页消费）：与 focusId 同一把钥匙的另一种意图
+  focusDir?: string;
 };
 
 // 页面初始状态：若来自看板下钻则读 sessionStorage，否则全空
 export function readDrill(): Drill {
   try {
-    const raw = sessionStorage.getItem("jobws_drill");
+    const raw = sessionStorage.getItem(DRILL_KEY);
     if (!raw) return {};
     return JSON.parse(raw) as Drill;
   } catch {

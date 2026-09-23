@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PREPARE_TAB_KEY } from "../lib/pageDrill";
+import { DRILL_KEY, PREPARE_TAB_KEY, drillToJob } from "../lib/pageDrill";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import {
   Bar,
@@ -89,7 +89,7 @@ type Drill = {
 // 跳转都不执行，用户看到的是「点了没反应」。兜住后至少还能跳到目标页。
 function writeDrill(filter: Drill) {
   try {
-    sessionStorage.setItem("jobws_drill", JSON.stringify(filter));
+    sessionStorage.setItem(DRILL_KEY, JSON.stringify(filter));
   } catch {
     // 存储不可用：退化为不带下钻信息的跳转
   }
@@ -98,11 +98,6 @@ function writeDrill(filter: Drill) {
 function drillTo(filter: Drill) {
   writeDrill(filter);
   window.location.hash = "applications";
-}
-
-function drillToJob(dir: string) {
-  writeDrill({ focusDir: dir });
-  window.location.hash = "jobs";
 }
 
 // 宣讲会在「准备」板块的页签里：目标页 mount 时读这个键（读过即清）。

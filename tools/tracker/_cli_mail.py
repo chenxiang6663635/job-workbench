@@ -39,6 +39,7 @@ def _mail_add(args):
         "日期": args.when or "",
         "webmail链接": args.url or "",
         "标签": args.tag or "其他",
+        "会议链接": getattr(args, "meeting_link", None) or "",
     }
     errors, plan = preview_mail_fields(fields, _core.WORKSPACE)
     if errors:
@@ -80,6 +81,7 @@ def _mail_update(args):
     for arg_name, field in (
         ("subject", "主题"), ("direction", "方向"), ("sender", "发件人"),
         ("when", "日期"), ("url", "webmail链接"), ("tag", "标签"),
+        ("meeting_link", "会议链接"),
     ):
         value = getattr(args, arg_name, None)
         if value is not None:

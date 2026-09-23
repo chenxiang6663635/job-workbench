@@ -123,6 +123,15 @@
       "note": "只读（dry-run）：从邮箱拉取邮件正文，不改动任何数据；仅 GUI 提供（凭证配在界面）。"
     },
     {
+      "id": "imap.suggest",
+      "stage": "跟进",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/imap/suggest-facts",
+      "note": "只读：邮件正文 / ICS → 候选事实（时间 / 会议链接 / 阶段 / 对应记录）。不落盘、不持锁——写回走 mail.record 与 application.* 的既有确认链路（批 9）。"
+    },
+    {
       "id": "mail.update",
       "stage": "跟进",
       "cli": "track mail update",
@@ -635,6 +644,11 @@
       "reason": "邮箱凭证配在 GUI 设置里，命令行侧不重复实现。"
     },
     {
+      "end": "cli",
+      "item": "imap.suggest",
+      "reason": "解析素材来自界面拉取 / 粘贴；命令行侧由既有 track 链路承担，不重复实现。"
+    },
+    {
       "end": "mcp",
       "item": "jd.fetch",
       "reason": "抓取涉及出网与页面解析，不由模型代劳；模型应让用户提供 JD 文本。"
@@ -663,6 +677,11 @@
       "end": "mcp",
       "item": "imap.fetch",
       "reason": "出网拉取邮箱不由模型代劳（凭证与网络都属用户环境）。"
+    },
+    {
+      "end": "mcp",
+      "item": "imap.suggest",
+      "reason": "邮件正文属用户私密内容：解析只在界面内本地完成，不把它喂给模型。"
     },
     {
       "end": "mcp",
@@ -698,6 +717,11 @@
       "end": "plugin",
       "item": "imap.fetch",
       "reason": "邮箱凭证与出网动作不放进命令。"
+    },
+    {
+      "end": "plugin",
+      "item": "imap.suggest",
+      "reason": "同上：邮件正文与拉取产物不进命令面。"
     },
     {
       "end": "plugin",

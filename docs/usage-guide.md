@@ -190,7 +190,7 @@ Everything **before you apply** lives in one place — talks, your question bank
 The main arena after you apply. Four sub-tabs:
 
 - **Interviews**: three-part record (question → answer points → retro); anything still pending within 48 hours is highlighted amber; one-click export to `.ics`
-- **Emails**: a ledger of messages (interview invites, test notices, rejections…), linkable to an application record with inline tag editing; emails with a Message-ID get "Open original" (a Gmail search deep link) while mailboxes without a usable deep link (Outlook / QQ / 163 …) get a "copy the subject and search in your mailbox" fallback; **emails never change stages automatically**
+- **Emails**: a ledger of messages (interview invites, test notices, rejections…), linkable to an application record with inline tag editing; emails with a Message-ID get "Open original" (a Gmail search deep link) while mailboxes without a usable deep link (Outlook / QQ / 163 …) get a "copy the subject and search in your mailbox" fallback; a **Meeting link** column carries the parsed join URL (Tencent Meeting / Zoom / Teams / Meet…); **emails never change stages automatically**
 - **Contacts**: follow-up cadence for recruiter contacts, amber when overdue, one-click "contacted"
 - **Offer comparison**: known facts of several offers side by side. **Side by side only — no recommendation**
 
@@ -225,7 +225,9 @@ How it works, and what it will not do:
 
 Typical flow: **Tracker** → **Fetch from mailbox** → pick a time window (last 7 / 30 / 90 days) → filter by keyword locally → click an email → review the parsed suggestion → confirm what to write back. If the email belongs to an application you have not recorded yet, the empty state offers a create-record form (the stage defaults to what the email implies).
 
-Each fetched email has **two destinations**: clicking the message body goes through parse → suggestion → confirm to update an application's stage; clicking the small "＋" icon on the right **records the email's metadata into the email ledger** (subject / sender / date / Message-ID) — later, add a tag and a link under Progress → Emails instead of typing it all again.
+Each fetched email has **three destinations**: clicking the message body goes through parse → suggestion → confirm to update an application's stage; clicking ✨ expands **parse suggestions** in place (time / meeting link / suggested stage / matched record — each with its source snippet and confidence, written only after you confirm; invitations are read from the **calendar attachment first**, which beats regex on the body); clicking the small "＋" icon on the right **records the email's metadata into the email ledger** (subject / sender / date / Message-ID) — later, add a tag and a link under Progress → Emails instead of typing it all again.
+
+Values marked "Needs check" (no year in the text, relative dates like "tomorrow") require ticking "I've checked the value" before writing; meeting-link cards can be copied or opened directly, and once recorded the link stays openable/copyable under Progress → Emails. Parse suggestions live inside **Fetch from mailbox** — a manually pasted body has no calendar attachment and keeps using the original Paste email dialog. With a BYOK provider configured (Settings → Provider), an optional **AI boost** row appears at the bottom: enter a model name and run it manually — same suggestion flow, always labelled "AI", still confirmed by you. **AI only suggests; it never writes.**
 
 ---
 

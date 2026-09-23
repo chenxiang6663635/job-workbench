@@ -3,9 +3,11 @@ import {
   DRILL_KEY,
   PREPARE_TAB_KEY,
   PROGRESS_TAB_KEY,
+  drillToApplication,
   drillToJob,
   drillToTab,
 } from "../../src/lib/pageDrill";
+import { readDrill } from "../../src/lib/applicationMeta";
 
 /**
  * 键名是「写方与读方各写一遍」的契约（写方 = pageDrill / Dashboard / ApplicationRow，
@@ -64,5 +66,22 @@ describe("pageDrill 键名契约", () => {
 
     expect(() => drillToTab("progress", PROGRESS_TAB_KEY, "offers")).not.toThrow();
     expect(location.hash).toBe("progress");
+  });
+
+  it("drillToApplication 用 DRILL_KEY 写 focusId 并跳追踪表", () => {
+    const { store, location } = stubEnv();
+
+    drillToApplication("A007");
+
+    expect(JSON.parse(store.get(DRILL_KEY) ?? "{}")).toEqual({ focusId: "A007" });
+    expect(location.hash).toBe("applications");
+  });
+
+  it("写方与读方同一把钥匙：drillToJob 写的下钻，readDrill 能读到", () => {
+    stubEnv();
+
+    drillToJob("云帆智算_后端");
+
+    expect(readDrill()).toEqual({ focusDir: "云帆智算_后端" });
   });
 });

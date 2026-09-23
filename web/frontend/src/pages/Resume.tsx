@@ -521,6 +521,10 @@ export default function Resume() {
           onClose={() => setShowRewrite(false)}
           onApply={(suggestion) => {
             setData(suggestion as ResumeData);
+            // 必须同时置 dirty（2026-09-23 二轮审计）：预览 HTML 由**服务端已存的
+            // JSON** 渲染，不置 dirty 时既不会保存、也不会重取 HTML——左栏换了内容、
+            // 右栏立刻退回改写前的样子，用户以为"采用失败"，刷新后改写内容静默丢失。
+            setDirty(true);
             setShowRewrite(false);
           }}
         />

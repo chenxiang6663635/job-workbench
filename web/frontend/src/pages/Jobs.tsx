@@ -479,15 +479,19 @@ export default function Jobs() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <Card>
-          {/* 三种空态分开说：搜索无匹配 ≠ 筛选筛空了 ≠ 岗位池本来就空。
-              原先搜索无命中会落到「岗位池还是空的」，是误导性提示（2026-09-22 审查 MINOR） */}
-          <EmptyState
-            icon={<Inbox size={20} />}
-            title={emptyCopy.title}
-            description={emptyCopy.hint}
-          />
-        </Card>
+        // 加载失败时**不显示空态**：把「接口挂了」说成「岗位池还是空的」等于告诉
+        // 用户数据没了（其余六处列表都有 `!error &&` 守卫，这两页此前漏了）
+        error ? null : (
+          <Card>
+            {/* 三种空态分开说：搜索无匹配 ≠ 筛选筛空了 ≠ 岗位池本来就空。
+                原先搜索无命中会落到「岗位池还是空的」，是误导性提示（2026-09-22 审查 MINOR） */}
+            <EmptyState
+              icon={<Inbox size={20} />}
+              title={emptyCopy.title}
+              description={emptyCopy.hint}
+            />
+          </Card>
+        )
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((job) => (

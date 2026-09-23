@@ -40,6 +40,9 @@ const TABLES = {
     backendDiedDetail: "Please restart the app; if it keeps happening, send the [backend-err] lines from the app log.",
     backendTimeoutTitle: "Backend startup timed out",
     backendTimeoutMessage: "The backend was not ready after {seconds} seconds:",
+    backendMissingPythonTitle: "Backend not found",
+    backendMissingPythonMessage:
+      "Neither the bundled backend nor a usable Python was found. Install Python 3.12+ with FastAPI and uvicorn, or set JOBWS_PYTHON to an interpreter that has them.",
   },
   "zh-CN": {
     windowTitle: "求职工作台",
@@ -65,6 +68,9 @@ const TABLES = {
     backendDiedDetail: "请重启应用；若反复出现，请把应用日志里的 [backend-err] 段落一起反馈。",
     backendTimeoutTitle: "后端启动超时",
     backendTimeoutMessage: "等了 {seconds} 秒后端仍未就绪：",
+    backendMissingPythonTitle: "找不到后端",
+    backendMissingPythonMessage:
+      "既没有随包的后端程序，也没找到可用的 Python。请安装 Python 3.12+ 与 FastAPI / uvicorn，或用 JOBWS_PYTHON 指向具备这些依赖的解释器。",
   },
 };
 

@@ -133,7 +133,7 @@ components/VersionLineage.tsx = 已挂|已放弃|投递日期|签约|（未填�
 # H-2b 批拆分搬迁（2026-09-21）：表格与元数据自 Applications.tsx 拆出，中文命中随行走——
 # 三条均按 `lint i18n --print-allowlist` 草稿重取（与 H-2a 同一手法）
 pages/Applications.tsx = 主题|公司|发件人|岗位|当前阶段|待投|截止日期|批次|方向|日期|来源|正式批|消息|评分|链接
-components/ApplicationRow.tsx =  下次动作日期|公司|岗位|当前阶段|状态原因
+components/ApplicationRow.tsx = 公司|岗位|当前阶段
 
 # 新建岗位表单（2026-09-22 从 pages/Jobs.tsx 拆出）：`公司` / `岗位` 是提交给后端
 # 的字段键（与 CLI 的 jd 工作流入参同源），不是界面文案——按 print-allowlist 草稿重取

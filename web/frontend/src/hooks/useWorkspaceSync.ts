@@ -56,7 +56,11 @@ export function useWorkspaceSync(
     let stopped = false;
     let timer: number | undefined;
     let warned = false;
-    // 最近一次用户输入活动（keydown / input）：本端可能正在防抖保存
+    // 最近一次用户活动：本端可能正在防抖保存，早于阈值的刷新要先让路。
+    // `input`/`keydown` 之外**必须**也认指针事件（2026-09-23 二轮审计）：界面上
+    // 大量写入是纯鼠标完成的（Radix 下拉选项、"标记已联系"这类按钮）——它们不产生
+    // input 事件，于是"刚在界面里改完一行、页面自己 reload 一次"，未提交的草稿
+    // （新增投递表单、填了一半的联系人）随之清空。
     let lastActivityAt = 0;
     const markActivity = () => {
       lastActivityAt = Date.now();
@@ -98,6 +102,8 @@ export function useWorkspaceSync(
     schedule();
     window.addEventListener("keydown", markActivity, true);
     window.addEventListener("input", markActivity, true);
+    window.addEventListener("pointerdown", markActivity, true);
+    window.addEventListener("click", markActivity, true);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     return () => {
@@ -105,6 +111,8 @@ export function useWorkspaceSync(
       if (timer !== undefined) window.clearTimeout(timer);
       window.removeEventListener("keydown", markActivity, true);
       window.removeEventListener("input", markActivity, true);
+      window.removeEventListener("pointerdown", markActivity, true);
+      window.removeEventListener("click", markActivity, true);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };

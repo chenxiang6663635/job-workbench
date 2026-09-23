@@ -17,6 +17,7 @@ import {
   type Mail,
 } from "../api";
 import { previewDeleteRecord } from "../lib/records";
+import { useSeq } from "../hooks/useSeq";
 import { drillToApplication } from "../lib/pageDrill";
 import MailMeetingLink from "./MailMeetingLink";
 import { Button } from "./ui/button";
@@ -271,14 +272,20 @@ export default function MailList() {
   // 复制主题的短暂反馈（无深链邮箱的降级路径）
   const [copied, setCopied] = useState<string | null>(null);
 
+  // 序号守卫：连续改两行的标签时两次重拉可能乱序返回，旧快照会把刚写成功的值盖回去
+  const seq = useSeq();
   const reload = () => {
+    const n = seq.next();
     api
       .listMails()
       .then((r) => {
+        if (!seq.isCurrent(n)) return;
         setRows(r.rows);
         setLoaded(true);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        if (seq.isCurrent(n)) setError(e.message);
+      });
   };
 
   useEffect(reload, []);

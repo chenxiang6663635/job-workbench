@@ -21,11 +21,14 @@ export function ApplicationSelect({
   value,
   onPick,
   emptyLabel,
+  id,
 }: {
   /** 当前关联的投递 id，空串表示不关联 */
   value: string;
   onPick: (app: Application | null) => void;
   emptyLabel?: string;
+  /** 由 `FormField` 注入：id 必须落在触发器上（见那里关于 Select.Root 的说明） */
+  id?: string;
 }) {
   const { t } = useTranslation();
   const [apps, setApps] = useState<Application[]>([]);
@@ -55,7 +58,7 @@ export function ApplicationSelect({
         if (open) load();
       }}
     >
-      <SelectTrigger>
+      <SelectTrigger id={id}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

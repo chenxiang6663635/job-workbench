@@ -4,6 +4,7 @@ import { Plus, Scale } from "lucide-react";
 import DeleteRecordButton from "./DeleteRecordButton";
 import { previewDeleteRecord } from "../lib/records";
 import { daysUntil } from "../lib/date";
+import { useSeq } from "../hooks/useSeq";
 import { api, type Offer } from "../api";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { Badge } from "./ui/badge";
@@ -46,14 +47,20 @@ export default function OfferCompare() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
+  // 序号守卫：连续改两条 offer 时两次重拉可能乱序返回，旧快照会盖掉刚写成功的值
+  const seq = useSeq();
   const reload = () => {
+    const n = seq.next();
     api
       .listOffers()
       .then((r) => {
+        if (!seq.isCurrent(n)) return;
         setRows(r.rows);
         setLoaded(true);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        if (seq.isCurrent(n)) setError(e.message);
+      });
   };
 
   useEffect(reload, []);

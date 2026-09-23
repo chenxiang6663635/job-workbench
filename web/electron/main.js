@@ -10,6 +10,7 @@ const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const { tFor } = require("./i18n");
+const { isAllowedNavigation, isSafeExternalUrl } = require("./url_guard");
 
 const BACKEND_PORT = 8765;
 const HEALTH_URL = `http://127.0.0.1:${BACKEND_PORT}/api/health`;
@@ -364,14 +365,20 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   // 只允许留在本机界面：页面一旦被导航到外部站点，preload 注入的偏好通道也会跟着
   // 暴露给那个文档（contextBridge 是按文档注入的）。窗口内的外链交给系统浏览器。
+  // 判断收敛到 url_guard.js（审计 P0-2）：前缀匹配会被 `127.0.0.1:8765.evil.com`
+  // 绕过，外链必须有 scheme 白名单（只放行 https）。
   const allowedOrigin = `http://127.0.0.1:${BACKEND_PORT}`;
   win.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith(allowedOrigin)) {
+    if (!isAllowedNavigation(url, allowedOrigin)) {
       event.preventDefault();
       log(`Blocked navigation to ${url}`);
     }
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (!isSafeExternalUrl(url)) {
+      log(`Blocked external open of ${url}`);
+      return { action: "deny" };
+    }
     shell.openExternal(url).catch((e) => log(`Failed to open external URL: ${e.message}`));
     return { action: "deny" };
   });

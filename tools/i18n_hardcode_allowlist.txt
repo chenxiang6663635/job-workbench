@@ -108,7 +108,7 @@ components/TalkForm.tsx = 线下|待定|公司|时间|形式|地点或链接|关
 components/HistoryTimeline.tsx = 当前阶段|创建|字段|时间|原值
 
 # 邮件表字段名与枚举默认值 + 展示串拼接（列名/枚举/接口键与 mails.csv 同源）
-components/MailList.tsx = · ${r.发件人}|· ${r.方向}|其他|关联记录|发件人|日期|方向|标签|消息|收|邮件|主题|链接
+components/MailList.tsx = · ${r.发件人}|· ${r.方向}|其他|关联记录|会议链接|发件人|日期|方向|标签|消息|收|邮件|主题|链接
 
 # 邮件表字段名（追踪表展开区的关联邮件只读块：取数 m.主题，非界面文案）
 components/RecordMails.tsx = 主题
@@ -177,7 +177,7 @@ lib/drillKeys.ts = grade:未看|grade:看过|grade:会了
 components/MailSuggestions.tsx = 会议链接|公司岗位|时间|阶段
 # 状态与写路径拆出后的 hook（2026-09-22 同批）：`原文 / 依据 / 原因 / 原阶段 /
 # 可覆盖 / 当前阶段` 是解析与状态建议接口的字段名（与 StatusUpdateDialog 同源）
-hooks/useMailFacts.ts = 依据|原文|原因|原阶段|可覆盖|当前阶段|阶段
+hooks/useMailFacts.ts = 会议链接|依据|公司岗位|原文|原因|原阶段|可覆盖|当前阶段|阶段
 lib/factWrites.ts = 主题|关联记录|公司岗位|发件人|日期|时间|消息|会议链接|阶段
 lib/mailFacts.ts = 原文
 

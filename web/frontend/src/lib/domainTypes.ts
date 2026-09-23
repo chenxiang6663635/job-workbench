@@ -737,6 +737,8 @@ export interface Mail {
   日期: string;
   webmail链接: string;
   标签: string;
+  /** 解析出的入会地址（批 9）：腾讯会议 / Zoom / Teams / Meet…；缺省为空 */
+  会议链接?: string;
   _openLink?: MailOpenLink;
 }
 

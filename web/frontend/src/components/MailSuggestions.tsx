@@ -28,7 +28,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
   const { t } = useTranslation();
   const s = useMailFacts(message);
 
-  const visible = (s.facts ?? []).filter((f, i) => !s.ignored[s.keyOf(f, i)]);
+  const visible = (s.facts ?? []).filter((f) => !s.ignored[s.keyOf(f)]);
 
   return (
     <div
@@ -54,8 +54,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
       )}
 
       {visible.map((fact) => {
-        const index = (s.facts ?? []).indexOf(fact);
-        const key = s.keyOf(fact, index);
+        const key = s.keyOf(fact);
         const low = fact.confidence === "low";
         const settled = s.done[key];
         return (
@@ -102,7 +101,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                     </a>
                     <button
                       type="button"
-                      onClick={() => s.copy(fact, index)}
+                      onClick={() => s.copy(fact)}
                       className="inline-flex cursor-pointer items-center gap-1 text-muted-foreground hover:text-primary"
                     >
                       <Copy size={12} />
@@ -137,7 +136,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                       className="h-7 px-2 text-[11px]"
                       disabled={s.busy === key || (low && !s.acked[key])}
                       onClick={() =>
-                        s.write(fact, index).then((ok) => {
+                        s.write(fact).then((ok) => {
                           if (ok) onWritten?.();
                         })
                       }

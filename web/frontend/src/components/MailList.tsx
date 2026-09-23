@@ -18,6 +18,7 @@ import {
 } from "../api";
 import { previewDeleteRecord } from "../lib/records";
 import { drillToApplication } from "../lib/pageDrill";
+import MailMeetingLink from "./MailMeetingLink";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -63,6 +64,7 @@ type Draft = {
   when: string;
   url: string;
   tag: string;
+  meeting: string;
 };
 
 const EMPTY: Draft = {
@@ -74,6 +76,7 @@ const EMPTY: Draft = {
   when: "",
   url: "",
   tag: "其他",
+  meeting: "",
 };
 
 /** Mail → Draft 映射（编辑模式预填）：日期在 CSV 里是空格分隔，input 要 T 分隔。 */
@@ -87,6 +90,7 @@ function draftFromMail(m: Mail): Draft {
     when: (m.日期 ?? "").replace(" ", "T"),
     url: m.webmail链接 ?? "",
     tag: m.标签 || "其他",
+    meeting: m.会议链接 ?? "",
   };
 }
 
@@ -128,6 +132,7 @@ function MailForm({
       日期: d.when.replace("T", " "),
       webmail链接: d.url,
       标签: d.tag,
+      会议链接: d.meeting,
     };
     // 消息id 是去重键：仅新建时可写（后端 PATCH 亦不收该字段）
     if (!initial) body.消息id = d.messageId;
@@ -229,6 +234,13 @@ function MailForm({
               value={d.url}
               onChange={(e) => set("url", e.target.value)}
               placeholder={t("mail.webmailUrlPlaceholder")}
+            />
+          </FormField>
+          <FormField label={t("mail.meetingLink")} className="col-span-2">
+            <Input
+              value={d.meeting}
+              onChange={(e) => set("meeting", e.target.value)}
+              placeholder={t("mail.meetingLinkPlaceholder")}
             />
           </FormField>
         </div>
@@ -360,6 +372,8 @@ export default function MailList() {
                   {t("interview.related", { value: r.关联记录 })}
                 </button>
               )}
+              {/* 会议链接（批 9）：解析建议卡写进来的入会地址——台账里也能打开 / 复制 */}
+              {r.会议链接 && <MailMeetingLink link={r.会议链接} />}
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Select value={r.标签} onValueChange={(v) => setTag(r.邮件id, v)}>

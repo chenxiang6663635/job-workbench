@@ -199,6 +199,20 @@ def test_no_match_means_no_record_fact():
     assert _facts_by_kind(facts, "公司岗位") == []
 
 
+def test_next_weekday_uses_monday_based_weeks():
+    """「下周X」按自然周（周一为起点）算：周日的「下周一」= 第二天。"""
+    sunday = datetime.date(2026, 9, 27)
+    facts = mail_facts.extract_facts("下周一 14:00 面试", today=sunday)
+    assert [f["value"] for f in _facts_by_kind(facts, "时间")] == ["2026-09-28 14:00"]
+
+
+def test_quote_separator_must_be_dashes_only():
+    """整行连字符才算引用分隔线：Markdown 分隔线后的正文不能被截掉。"""
+    kept = mail_facts.strip_quoted("正文\n----- 以下是补充\n链接：https://zoom.us/j/123")
+    assert "以下是补充" in kept
+    assert mail_facts.strip_quoted("正文\n-------\n引用内容").strip() == "正文"
+
+
 def test_fully_quoted_body_yields_nothing():
     """整段都是引用的邮件不该产出任何事实（避免把上一封的线索当本次）。"""
     body = "> 面试时间：2026-09-23 09:00\n> 链接：https://zoom.us/j/1111111111\n"

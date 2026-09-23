@@ -28,6 +28,7 @@ import tls_http
 from apierror import ApiError
 from deps import workspace_dir
 from jobws_core import mail_facts, status_parse, tracker
+from jobws_core.mail_text import MAX_BODY_CHARS
 
 router = APIRouter(prefix="/api/imap")
 
@@ -149,6 +150,9 @@ def _parse_ai_facts(content):
             continue
         if kind == "阶段" and value not in stages:
             continue
+        if kind == "会议链接" and not mail_facts.is_meeting_url(value):
+            # 模型可能给出任意 URL（甚至 javascript:）——只放行白名单内的会议入口
+            continue
         facts.append(mail_facts.make_fact(kind, value, _AI_LABELS[kind],
                                           evidence[:120], "low", "ai"))
         if len(facts) >= AI_MAX_FACTS:
@@ -165,8 +169,9 @@ def suggest_facts_ai(item: SuggestFactsAi, ws: str = Depends(workspace_dir)):
     """
     from routers import provider  # 延迟导入：与简历侧同一手法，避免路由层互相牵连
 
-    text = (item.原文 or "").strip()
-    ics = (item.ics or "").strip()
+    # 上限与拉取侧同一条口径：这里是可独立调用的公开接口，不能收任意长文本
+    text = (item.原文 or "").strip()[:MAX_BODY_CHARS]
+    ics = (item.ics or "").strip()[:MAX_BODY_CHARS]
     if not text and not ics:
         raise ApiError(422, "status.textRequired", "请先选择一封邮件或粘贴要解析的原文")
 
@@ -184,6 +189,9 @@ def suggest_facts_ai(item: SuggestFactsAi, ws: str = Depends(workspace_dir)):
         content = _call_model(cfg, prompt, model)
         facts = _parse_ai_facts(content)
     except urllib.error.HTTPError as exc:
+        # 同码同参：`resume.modelHttpError` 在简历侧已有两处调用点（都带截断后的 body），
+        # 少传一个参数会被 `test_error_code_params` 判为同码分叉——这里保持同款、截断 200。
+        # （批末独立审查提过「4xx 响应体可能回显请求片段」：属全局取舍，留待统一决策。）
         body = exc.read().decode("utf-8", errors="replace")[:200]
         raise ApiError(502, "resume.modelHttpError",
                        "模型端点返回 %s：%s" % (exc.code, body),
@@ -195,8 +203,10 @@ def suggest_facts_ai(item: SuggestFactsAi, ws: str = Depends(workspace_dir)):
         raise ApiError(502, "resume.modelCallFailed",
                        "模型调用失败：%s" % exc, error=str(exc))
 
+    # 记录匹配用**剥离引用后的正文**（与规则路径同一口径）：回复邮件引用的上一封
+    # 里的公司名不该把建议指到另一家。恰好命中一条才带 targetId，多命中留空交用户选。
     rows = tracker.read_rows(ws)
-    hits = status_parse.match_rows(text, rows)
+    hits = status_parse.match_rows(mail_facts.strip_quoted(text), rows)
     target_id = (hits[0][0].get("id") or "") if len(hits) == 1 else ""
     for fact in facts:
         fact["targetId"] = target_id

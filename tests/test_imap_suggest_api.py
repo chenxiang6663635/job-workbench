@@ -206,6 +206,44 @@ def test_ai_suggest_returns_low_confidence_ai_facts_only(tmp_path, client, provi
     assert _snapshot(tmp_path) == before, "AI 增强同样只读：不得改动工作区"
 
 
+def test_ai_suggest_matches_after_stripping_quotes(tmp_path, client, provider_ready):
+    """记录匹配用剥离引用后的正文：被引用的**另一家公司**不该把建议指过去。"""
+    _seed(tmp_path, [ROW, {"id": "A007", "公司": "星河数据", "岗位": "热管理",
+                           "当前阶段": "测评"}])
+    res = _suggest_ai(client, 原文="面试改到 2026-09-25 14:00\n"
+                                   "在 2026-09-20 写道：\n> 星河数据 对接")
+
+    assert res.status_code == 200, res.text
+    assert all(f["targetId"] == "" for f in res.json()["facts"]), "引用块里的公司不该被匹配"
+
+
+def test_ai_suggest_drops_non_whitelisted_meeting_link(tmp_path, client, provider_ready,
+                                                      monkeypatch):
+    content = ('{"facts": [{"kind": "会议链接", "value": "javascript:alert(1)",'
+               ' "evidence": "x"}]}')
+    monkeypatch.setattr(provider_ready, "_call_model", lambda *a: content)
+
+    res = _suggest_ai(client, 原文="随便一段")
+
+    assert res.status_code == 200
+    assert res.json()["facts"] == [], "非白名单链接（含危险 scheme）一律丢弃"
+
+
+def test_ai_suggest_caps_input_length(tmp_path, client, provider_ready, monkeypatch):
+    seen = {}
+
+    def _capture(cfg_, prompt, model):
+        seen["prompt"] = prompt
+        return '{"facts": []}'
+
+    monkeypatch.setattr(provider_ready, "_call_model", _capture)
+
+    res = _suggest_ai(client, 原文="A" * 4500 + "TAIL_MARK")
+
+    assert res.status_code == 200
+    assert "TAIL_MARK" not in seen["prompt"], "超长正文必须先截断再进 prompt"
+
+
 def test_ai_suggest_wraps_model_failure(tmp_path, client, provider_ready, monkeypatch):
     def _boom(cfg_, prompt, model):
         raise ValueError("bad json")

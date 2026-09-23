@@ -59,19 +59,18 @@ export function useMailFacts(message: ImapMessage) {
       .catch(() => setProviderReady(false));
   }, []);
 
-  const keyOf = useCallback(
-    (fact: MailFact, index: number) => `${fact.kind}:${fact.value}:${index}`,
-    []
-  );
+  // 键**不含下标**：AI 追加事实会让下标漂移，已忽略 / 已核对的卡片会跟着迁移
+  // （键 = kind + value，而列表本身已按这两项去重，足够唯一）
+  const keyOf = useCallback((fact: MailFact) => `${fact.kind}:${fact.value}`, []);
 
   const write = useCallback(
-    async (fact: MailFact, index: number): Promise<boolean> => {
+    async (fact: MailFact): Promise<boolean> => {
       const plan = planFactWrite(fact, message);
       if (plan.kind === "blocked") {
         setError(t(plan.reasonKey));
         return false;
       }
-      const key = keyOf(fact, index);
+      const key = keyOf(fact);
       setBusy(key);
       setError(null);
       try {
@@ -93,7 +92,20 @@ export function useMailFacts(message: ImapMessage) {
             依据: plan.evidence || undefined,
           });
         }
-        setDone((prev) => ({ ...prev, [key]: t("suggest.done") }));
+        if (plan.kind === "mail") {
+          // 同一封邮件只需落一行台账：其余「记台账」类卡片一并标记为已在台账——
+          // 否则第二条会撞上后端按消息id 去重（无消息id 时会静默落两行）
+          const siblings: Record<string, string> = {};
+          (facts ?? []).forEach((f) => {
+            if (f.kind === "会议链接" || f.kind === "公司岗位") {
+              const k = keyOf(f);
+              if (k !== key) siblings[k] = t("suggest.inLedger");
+            }
+          });
+          setDone((prev) => ({ ...prev, [key]: t("suggest.done"), ...siblings }));
+        } else {
+          setDone((prev) => ({ ...prev, [key]: t("suggest.done") }));
+        }
         return true;
       } catch (e) {
         setError((e as Error).message);
@@ -102,7 +114,7 @@ export function useMailFacts(message: ImapMessage) {
         setBusy(null);
       }
     },
-    [keyOf, message, t]
+    [facts, keyOf, message, t]
   );
 
   const runAi = useCallback(async () => {
@@ -138,9 +150,9 @@ export function useMailFacts(message: ImapMessage) {
   }, [message, model, t]);
 
   const copy = useCallback(
-    (fact: MailFact, index: number) => {
+    (fact: MailFact) => {
       if (!navigator.clipboard?.writeText) return;
-      const key = keyOf(fact, index);
+      const key = keyOf(fact);
       navigator.clipboard
         .writeText(fact.value)
         .then(() => {

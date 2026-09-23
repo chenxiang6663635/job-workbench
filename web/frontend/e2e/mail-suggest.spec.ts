@@ -127,7 +127,17 @@ async function openSuggestions(page: Page): Promise<void> {
 }
 
 test("建议区：卡片含取值与原文出处，浮层 a11y 干净", async ({ page }) => {
+  // 顺带钉住前端确实把日历附件传下去了（route mock 不看请求体，只有这里看）
+  let posted: { ics?: string } | null = null;
+  page.on("request", (req) => {
+    if (req.url().includes("/api/imap/suggest-facts") && req.method() === "POST") {
+      posted = req.postDataJSON();
+    }
+  });
+
   await openSuggestions(page);
+
+  expect(posted!.ics).toContain("BEGIN:VCALENDAR");
 
   const card = page.getByRole("group", { name: "Meeting link" });
   await expect(card.getByText("https://meeting.tencent.com/dm/abc123", { exact: true }))

@@ -51,6 +51,7 @@
 | [`four-ends.md`](four-ends.md) | 四端能力对照与例外清单（`jobws lint four-ends` 的说明页，由 `tools/four_ends_matrix.json` 生成，勿手改） |
 | [`glossary.md`](glossary.md) | 术语表：文档与 CHANGELOG 里出现的内部术语集中定义一次 |
 | [`maintenance.md`](maintenance.md) | 仓库维护说明（英文）：发布节奏、版本号纪律与项目健康度的对外交代 |
+| [`support-and-compatibility.md`](support-and-compatibility.md) | **毕业条件、支持策略与数据兼容承诺**：什么时候算正式版（四条判据）、支持哪些环境、升级为什么不需要转换数据 |
 | [`../SECURITY.md`](../SECURITY.md) | 安全策略：威胁模型、local-first 取舍记录（如 unsigned 自动更新链）与报告方式 |
 | [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Later 与已完成批次日志（细节进 CHANGELOG） |
 | [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md) | 第三方依赖与许可清单 |
@@ -63,6 +64,9 @@
 | 文件 | 说明 |
 |---|---|
 | [`decisions/keep-hooks-local-and-off.md`](decisions/keep-hooks-local-and-off.md) | 宿主 hooks 保持本地、默认关闭，本批不实现（含替代方案与复评条件） |
+| [`decisions/keep-writes-human-confirmed.md`](decisions/keep-writes-human-confirmed.md) | 写入一律人工确认：不做自动投递、不代登录、AI 产出永不直接落盘 |
+| [`decisions/ship-once-per-release.md`](decisions/ship-once-per-release.md) | 单一发布节点 + 时间戳版本号（含 CalVer 四段的已知取舍） |
+| [`decisions/read-missing-columns-as-empty.md`](decisions/read-missing-columns-as-empty.md) | 工作区数据向后兼容：读时缺列按空、写时统一表头、不要求迁移 |
 
 ## 约定文件
 

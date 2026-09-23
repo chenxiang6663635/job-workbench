@@ -137,6 +137,7 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 - [Roadmap](ROADMAP.md) — Now / Later plus a shipped-batch log; items link to a tracking issue when one exists
 - [Doc index](docs/README.md) — status of every document (current / deprecated)
 - [Usage guide](docs/usage-guide.md) — startup, the eight pages, AI workflows, CLI reference, FAQ
+- [Support & compatibility](docs/support-and-compatibility.md) — when this counts as a stable release, what is supported, and why upgrades never require converting your data
 - [Design documents](docs/specs/) — architecture, Web contract, productization, open-source release
 - [Changelog](CHANGELOG.md)
 - [Glossary](docs/glossary.md) — the internal terms used across these docs and the changelog, defined once

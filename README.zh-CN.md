@@ -119,6 +119,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 - [Roadmap](ROADMAP.md)——Now / Later 与已完成批次日志；有跟踪 issue 的项会挂链接
 - [文档索引](docs/README.md)——每份文档的状态（现行 / 已废弃）
 - [使用手册](docs/usage-guide.zh-CN.md)——启动、八页面详解、AI 工作流、CLI 命令速查、常见问题（英文主版：[usage-guide.md](docs/usage-guide.md)）
+- [毕业条件与兼容承诺](docs/support-and-compatibility.md)——什么时候算正式版（四条判据）、支持哪些环境、升级为什么不需要转换数据
 - [设计文档](docs/specs/)——架构、Web 契约、产品化路线、开源发布
 - [变更记录](CHANGELOG.md)
 - [术语表](docs/glossary.md)——文档与 CHANGELOG 里的内部术语集中定义一次

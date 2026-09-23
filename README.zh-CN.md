@@ -66,7 +66,7 @@
 # 1. 初始化工作区（生成六个模块 + 档案模板 + 领域插件）
 python tools/jobws.py init --target my_job_hunt --domain software-backend
 
-# 2. 分发 skills 到你的 AI CLI（CodeBuddy / Claude Code / 跨运行时 ~/.agents/skills/）
+# 2. 分发技能 / 命令 / 子代理到你的 AI CLI（CodeBuddy / Claude Code / 跨运行时 ~/.agents/skills/）
 python tools/jobws.py skills install --target user
 
 # 3. 填写 my_job_hunt/AGENTS.md
@@ -74,12 +74,18 @@ python tools/jobws.py skills install --target user
 #    文件里还有两条通用诚实红线：简历动词经得起追问、永不编造经历
 ```
 
-**用 CodeBuddy？** 同一套技能也打包为 CodeBuddy 插件——把本仓库加为插件市场并安装即可（插件直接读 `skills/`，没有第二份副本）：
+**不想克隆仓库也能用？** 两条通道任选：
+
+- **插件市场（推荐：技能 + 命令 + 子代理一起装）**——有 CodeBuddy / Claude Code 的话，把本仓库加为市场并安装（插件直接读仓库里的 `skills/`、`commands/`、`agents/`，没有第二份副本）：
 
 ```
 /plugin marketplace add https://github.com/chenxiang6663635/job-workbench
 /plugin install job-workbench
 ```
+
+- **只装技能**：`npx skills add chenxiang6663635/job-workbench`（默认装到当前目录，`-g` 装用户级；`.agents/skills/` 是跨宿主约定，Claude Code 读 `.claude/skills/`）。
+
+本地脚本是兜底与自定义落点用：`python tools/jobws.py skills install` 按宿主目录约定分发三类资产（技能 → skills 目录；命令与子代理 → `.codebuddy/`、`.claude/`），默认拷贝；`--link` 是实验选项，改用符号链接指向真源（不再有副本过期问题，Windows 需开发者模式或管理员权限）。**副本与真源的一致性由 `python tools/jobws.py lint four-ends` 兜住**：副本过期、多出、内容不一致都会被指名。
 
 然后直接用自然语言跟你的 AI CLI 说："解析这份 JD"、"投递这个岗位"、"看最近七天要处理什么"。
 

@@ -178,6 +178,45 @@ test("确认写入：卡片显示已写入，且只走既有台账链路", async
   expect(created!.会议链接).toBe("https://meeting.tencent.com/dm/abc123");
 });
 
+test("AI 增强：Provider 就绪才出现，产出为需核对的建议", async ({ page }) => {
+  await page.route(/\/api\/provider/, (route) =>
+    route.fulfill({
+      json: { base_url: "https://api.example.com/v1", api_key: "sk-***", hasKey: true },
+    })
+  );
+  await page.route(/\/api\/imap\/suggest-facts-ai/, (route) =>
+    route.fulfill({
+      json: {
+        facts: [
+          {
+            kind: "会议链接",
+            value: "https://zoom.us/j/999",
+            label: "会议链接",
+            evidence: "Zoom 见",
+            confidence: "low",
+            source: "ai",
+            targetId: "",
+            note: "",
+          },
+        ],
+        total: 1,
+        model: "deepseek-chat",
+      },
+    })
+  );
+
+  await openSuggestions(page);
+  await page.getByLabel("Model").fill("deepseek-chat");
+  await page.getByRole("button", { name: "Run AI" }).click();
+
+  // 新卡片出现、带 AI 角标，且仍是「需核对」档（写按钮默认不可用）
+  const aiCard = page.getByRole("group", { name: "Meeting link: https://zoom.us/j/999" });
+  await expect(aiCard).toBeVisible();
+  await expect(aiCard.getByText("Needs check · AI")).toBeVisible();
+  await expect(aiCard.getByRole("button", { name: "Write" })).toBeDisabled();
+  await expect(page.getByText("AI suggestions from deepseek-chat")).toBeVisible();
+});
+
 test("忽略一条后该卡片消失，其余卡片不受影响", async ({ page }) => {
   await openSuggestions(page);
 

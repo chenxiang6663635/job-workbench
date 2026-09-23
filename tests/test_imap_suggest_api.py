@@ -139,3 +139,78 @@ def test_suggest_facts_requires_text(client):
     res = _suggest(client)
     assert res.status_code == 422
     assert res.json()["error_code"] == "status.textRequired"
+
+
+# --- 可选 AI 增强（BYOK）：只产建议、绝不写入 ------------------------------------
+
+AI_CONTENT = (
+    "```json\n"
+    '{"facts": ['
+    '{"kind": "时间", "value": "2026-09-25 14:00", "evidence": "9月25日下午2点"},'
+    '{"kind": "会议链接", "value": "https://meeting.tencent.com/dm/ai001", "evidence": "腾讯会议"},'
+    '{"kind": "公司岗位", "value": "A001", "evidence": "编造的"},'
+    '{"kind": "时间", "value": "", "evidence": "空的"}'
+    "]}"
+    "\n```"
+)
+
+
+@pytest.fixture()
+def provider_ready(tmp_path, monkeypatch):
+    """把 provider 配置成「已就绪」，并拦掉真实出网。"""
+    import json as _json
+
+    from routers import imap_facts
+
+    cfg = tmp_path / WS / "config"
+    cfg.mkdir(parents=True, exist_ok=True)
+    (cfg / "provider.json").write_text(
+        _json.dumps({"base_url": "https://api.example.com/v1", "api_key": "sk-test"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(imap_facts, "_call_model", lambda cfg_, prompt, model: AI_CONTENT)
+    return imap_facts
+
+
+def _suggest_ai(client, **body):
+    payload = {"原文": "", "ics": "", "model": "deepseek-chat"}
+    payload.update(body)
+    return client.post("/api/imap/suggest-facts-ai", params={"ws": WS}, json=payload)
+
+
+def test_ai_suggest_requires_provider(client):
+    res = _suggest_ai(client, 原文="面试改到 2026-09-25 14:00")
+    assert res.status_code == 400
+    assert res.json()["error_code"] == "resume.providerMissing"
+
+
+def test_ai_suggest_requires_model(tmp_path, client, provider_ready):
+    res = _suggest_ai(client, 原文="面试改到 2026-09-25 14:00", model="")
+    assert res.status_code == 422
+    assert res.json()["error_code"] == "resume.modelRequired"
+
+
+def test_ai_suggest_returns_low_confidence_ai_facts_only(tmp_path, client, provider_ready):
+    _seed(tmp_path, [ROW])
+    before = _snapshot(tmp_path)
+
+    res = _suggest_ai(client, 原文="面试改到 9月25日下午2点，腾讯会议见")
+
+    assert res.status_code == 200, res.text
+    body = res.json()
+    # 只保留白名单内的三类，且空值与「公司岗位」被丢弃（AI 不碰记录匹配）
+    assert [f["kind"] for f in body["facts"]] == ["时间", "会议链接"]
+    assert all(f["source"] == "ai" for f in body["facts"])
+    assert all(f["confidence"] == "low" for f in body["facts"]), "AI 建议必须经用户核对"
+    assert body["model"] == "deepseek-chat"
+    assert _snapshot(tmp_path) == before, "AI 增强同样只读：不得改动工作区"
+
+
+def test_ai_suggest_wraps_model_failure(tmp_path, client, provider_ready, monkeypatch):
+    def _boom(cfg_, prompt, model):
+        raise ValueError("bad json")
+
+    monkeypatch.setattr(provider_ready, "_call_model", _boom)
+    res = _suggest_ai(client, 原文="随便一段")
+    assert res.status_code == 502
+    assert res.json()["error_code"] == "resume.modelCallFailed"

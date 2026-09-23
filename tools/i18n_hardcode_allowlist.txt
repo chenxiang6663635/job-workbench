@@ -174,7 +174,10 @@ lib/drillKeys.ts = grade:未看|grade:看过|grade:会了
 # 是后端 `mail_facts.extract_facts` 的 `kind` 取值（契约值，翻了就与后端对不上）；
 # `主题 / 发件人 / 日期 / 消息id / 关联记录` 是 mails.csv 的列名（写台账时按列名传）；
 # `可覆盖 / 原因 / 原阶段 / 当前阶段 / 依据` 是状态建议接口的字段名（与 StatusUpdateDialog 同源）
-components/MailSuggestions.tsx = 会议链接|依据|公司岗位|原因|原阶段|可覆盖|当前阶段|时间|阶段
+components/MailSuggestions.tsx = 会议链接|公司岗位|时间|阶段
+# 状态与写路径拆出后的 hook（2026-09-22 同批）：`原文 / 依据 / 原因 / 原阶段 /
+# 可覆盖 / 当前阶段` 是解析与状态建议接口的字段名（与 StatusUpdateDialog 同源）
+hooks/useMailFacts.ts = 依据|原文|原因|原阶段|可覆盖|当前阶段|阶段
 lib/factWrites.ts = 主题|关联记录|公司岗位|发件人|日期|时间|消息|会议链接|阶段
 lib/mailFacts.ts = 原文
 

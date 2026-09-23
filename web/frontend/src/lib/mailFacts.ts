@@ -18,3 +18,20 @@ export function suggestFacts(body: {
     body,
   });
 }
+
+/**
+ * 可选 AI 增强（BYOK）：同样只产建议、绝不写入。
+ *
+ * 模型名由用户填（与简历导入同一范式）——不替用户猜默认模型；
+ * 返回的事实一律 confidence="low"，界面会强制核对后才允许写入。
+ */
+export function suggestFactsAi(body: {
+  原文: string;
+  ics?: string;
+  model: string;
+}): Promise<MailFactsResult & { model: string }> {
+  return requestJson<MailFactsResult & { model: string }>("/imap/suggest-facts-ai", {
+    method: "POST",
+    body,
+  });
+}

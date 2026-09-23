@@ -38,6 +38,12 @@ def _fact(kind, value, label, evidence, confidence, source, target_id="", note="
     }
 
 
+def make_fact(kind, value, label, evidence, confidence, source,
+              target_id="", note=""):
+    """公开的事实构造器：调用方（如 Web 层的 AI 增强）据此产出同一形状的卡片。"""
+    return _fact(kind, value, label, evidence, confidence, source, target_id, note)
+
+
 def _ics_facts(events):
     """ICS 事件 → 时间 / 会议链接事实（source=ics，把握程度高）。"""
     facts = []

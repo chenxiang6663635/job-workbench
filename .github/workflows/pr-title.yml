@@ -14,6 +14,11 @@ on:
 permissions:
   contents: read
 
+# 改标题会触发一次新的运行；上一次的通常还在装依赖，没必要让它跑完
+concurrency:
+  group: pr-title-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pr-title:
     # 注意：这个 name 会被分支保护当作 required check 的标识。改名的瞬间
@@ -21,13 +26,14 @@ jobs:
     # 要改就同一天把分支保护里的必需检查一起改。
     name: PR 标题（Conventional + 中文）
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       # 与后端 job 一致地钉住解释器版本。runner 上确实有 python（这个 job 跑通过），
       # 但「恰好有」不等于「保证有」——闸门不该依赖镜像的隐式行为。
       - name: 安装 Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
 

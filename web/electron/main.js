@@ -244,6 +244,11 @@ function waitBackendReady(cb) {
       }
       if (Date.now() - start > HEARTBEAT_TIMEOUT) {
         log("Backend startup timed out. Packaged builds: see the [backend-err] exit reason above in this log; source runs: check your Python/FastAPI environment");
+        // 同 P2：超时后静默自退，用户看到的是"双击了没反应"
+        const t = tFor(resolvedLang());
+        notifyUser(
+          t("backendTimeoutTitle"),
+          `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}\n\n${HEALTH_URL}`);
         app.quit();
         return;
       }
@@ -298,11 +303,42 @@ function startBackend() {
     log(`Backend process error: ${err.message}`);
   });
   backendProcess.on("exit", (code) => {
+    // 2026-09-23 审计 P2：此前只写日志就静默自退（或窗口停在空白）——用户看到的
+    // 是"双击了没反应"，而根因（后端起不来 / 中途崩了）只有打开日志才看得到。
+    // 写日志与告诉用户是两件事，都要做。
+    const t = tFor(resolvedLang());
     if (!backendReady && code !== 0) {
       log(`Backend exited unexpectedly, code=${code}`);
+      notifyUser(t("backendStartFailedTitle"),
+                 `${t("backendStartFailedMessage", { code })}\n\n${t("backendStartFailedDetail")}`);
+    } else if (backendReady && code) {
+      log(`Backend died while running, code=${code}`);
+      notifyUser(t("backendDiedTitle"),
+                 `${t("backendDiedMessage", { code })}\n\n${t("backendDiedDetail")}`);
     }
     backendProcess = null;
   });
+}
+
+/**
+ * 给用户一条**看得见**的说明。
+ *
+ * 为什么单独成函数：窗口可能还没创建（后端没起来正是窗口创建不了的原因），
+ * 那时 `dialog.showMessageBox` 没有父窗口可用；而 `showErrorBox` 不依赖窗口。
+ * 顺序上"有窗口就挂窗口、没有就直接弹"，两条路都要能出声。
+ */
+function notifyUser(title, message) {
+  try {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      dialog.showMessageBox(win, { type: "error", title, message, buttons: ["OK"] });
+    } else {
+      dialog.showErrorBox(title, message);
+    }
+  } catch (e) {
+    // 通知失败不该变成第二次崩溃：日志里留一句即可
+    log(`notifyUser failed: ${e.message}`);
+  }
 }
 
 function stopBackend() {
@@ -435,7 +471,14 @@ function setupAutoUpdate() {
   // 用主进程日志接手 updater 的输出：GUI 下看不到控制台，出问题只能靠这个文件
   autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
 
-  autoUpdater.on("error", (err) => log(`Auto-update error: ${(err && err.message) || err}`));
+  // P2：更新失败此前只进日志——用户既不知道有新版，也不知道检查失败。
+  // 不弹窗打断（更新是增强，不是必需），但要在控制台之外给一句可读的结论。
+  autoUpdater.on("error", (err) => {
+    const reason = (err && err.message) || String(err);
+    log(`Auto-update error: ${reason}`);
+    const t = tFor(resolvedLang());
+    notifyUser(t("updateFailedTitle"), `${t("updateFailedMessage")}\n\n${reason}`);
+  });
   autoUpdater.on("update-not-available", () => log("Already up to date"));
 
   autoUpdater.on("update-available", (info) => {

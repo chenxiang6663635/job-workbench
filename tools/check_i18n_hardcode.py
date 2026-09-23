@@ -64,6 +64,11 @@ import os
 import re
 import sys
 
+# 行扫描原语（字符串 / 裸文本 / 注释 / JSX 表达式）拆在同目录的 i18n_source_scan：
+# 本文件在 size_allowlist 里是存量豁免，水位只许变小，加判定只能先把"怎么读一行"
+# 挪出去（2026-09-23 审计 P2）。
+from i18n_source_scan import CJK_RUN, in_jsx_expression, looks_like_field, scan_line
+
 SRC_REL = os.path.join("web", "frontend", "src")
 # Electron 主进程也归这个检查管：窗口标题 / 更新对话框 / 日志同样是界面文案。
 # 键以 `electron\` 前缀进同一份清单，与前端两棵树不串味。
@@ -124,7 +129,7 @@ def _strip_trailing_tag(text):
 def _without_comments(line):
     """去掉行内注释，**保留字符串字面量**——属性值就在字符串里。
 
-    为什么不复用 `_scan_line` 的 plain：它把字符串一并剥掉了，而文案属性要的正是
+    为什么不复用 `scan_line` 的 plain：它把字符串一并剥掉了，而文案属性要的正是
     字符串里的值。这里只去注释，并且认引号——`"https://x"` 里的 `//` 不是注释
     （与中文检查同一条教训）。单行块注释 `/* title="X" */` 也在这里被去掉：
     只看"行首是否在块注释中"是拦不住它的（进函数即闭合，标记又变回 False）。
@@ -180,7 +185,7 @@ def find_hardcoded_english(text):
     prev_plain = ""
     for lineno, line in enumerate(lines, 1):
         was_in_block = in_block
-        _strings, plain, in_block = _scan_line(line, in_block)
+        _strings, plain, in_block = scan_line(line, in_block)
         # 1) 同行裸文本：`>Text<`。要求这个 `>` 属于标签（前面出现过 `<Tag` /
         #    `</` / `<>`）——否则 `len > min && len < max` 这类比较会被成片误报
         #    （独立审查 m2：`pages/**` 现在还只有 .tsx，但 Electron 树是 .js）。
@@ -294,75 +299,6 @@ def check_english(root):
             errors.append("英文清单里的片段已不再出现（可能已翻译，请删掉）：%s  →  %s"
                           % (rel.replace(os.sep, "/"), frag))
     return unallowed, ok_hits, errors
-# JSX 裸文本按「连续中文块」报，而不是逐字符——一条文案报出十几个字，
-# 输出会淹没真正有用的那一行。
-CJK_RUN = re.compile(u"[\u4e00-\u9fff]+")
-
-
-def _scan_line(line, in_block):
-    """把一行拆成 (字符串字面量列表, 非字符串文本, in_block)。
-
-    逐字符扫而不是正则去注释：`"https://x"` 里的 `//` 不是注释，
-    `"/*"` 同理——用正则去注释会把这些行改成另一行代码，检查随即失真。
-    """
-    strings = []
-    plain = []
-    i = 0
-    n = len(line)
-    while i < n:
-        if in_block:
-            end = line.find("*/", i)
-            if end < 0:
-                return strings, "".join(plain), True
-            in_block = False
-            i = end + 2
-            continue
-        ch = line[i]
-        if ch in ("'", '"', "`"):
-            j = i + 1
-            while j < n:
-                if line[j] == "\\":
-                    j += 2
-                    continue
-                if line[j] == ch:
-                    break
-                j += 1
-            strings.append(line[i + 1:j])
-            i = j + 1
-            continue
-        if line.startswith("//", i):
-            break
-        if line.startswith("/*", i):
-            in_block = True
-            i += 2
-            continue
-        plain.append(ch)
-        i += 1
-    return strings, "".join(plain), in_block
-
-
-def _in_jsx_expression(line, pos):
-    """中文是否落在同一行的 `{...}` 里（JSX 表达式 = 取数，不是文案）。"""
-    left = line.rfind("{", 0, pos)
-    if left < 0:
-        return False
-    right = line.find("}", pos)
-    return right > left
-
-
-def _looks_like_field(text, start, end):
-    """中文块是否属于「取数 / 类型声明」而不是「写给人看的字」。
-
-    判定看紧邻字符：`it.公司`、`draft.JD文本`、`公司: string`、`面试id` 这类
-    中文是标识符的一部分；JSX 文本（`<span>已挂</span>`）两边是标签符号。
-    """
-    before = text[start - 1] if start else ""
-    after = text[end] if end < len(text) else ""
-    ident = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$")
-    # after 也要认 `?`：可选属性写成 `原阶段?: string`
-    return (before in ident or before in "._?" or after in ident or after in "?:")
-
-
 def find_hardcoded(text):
     """返回 [(行号, 片段, 种类)]，种类三种：
 
@@ -376,15 +312,15 @@ def find_hardcoded(text):
     hits = []
     in_block = False
     for lineno, line in enumerate(text.splitlines(), 1):
-        strings, plain, in_block = _scan_line(line, in_block)
+        strings, plain, in_block = scan_line(line, in_block)
         for s in strings:
             if CJK.search(s):
                 hits.append((lineno, s.strip(), "string"))
         for m in CJK_RUN.finditer(plain):
-            if _in_jsx_expression(line, m.start()):
+            if in_jsx_expression(line, m.start()):
                 continue
             # 偏移要相对 plain（字符串与注释已被摘掉），不是原始行
-            kind = "field" if _looks_like_field(plain, m.start(), m.end()) else "jsx-text"
+            kind = "field" if looks_like_field(plain, m.start(), m.end()) else "jsx-text"
             hits.append((lineno, m.group(0), kind))
     return hits
 

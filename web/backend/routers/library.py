@@ -15,6 +15,7 @@ import os
 from fastapi import APIRouter, Depends
 from apierror import ApiError
 from deps import safe_join, workspace_dir
+from iocaps import read_bytes_capped
 from ro_files import TextDecodeError, inside, read_text_limited, walk_files
 
 router = APIRouter(prefix="/api/library")
@@ -111,8 +112,9 @@ def library_file(section: str, rel: str, ws: str = Depends(workspace_dir)):
     else:
         media_type = "application/octet-stream"
 
-    with open(full, "rb") as f:
-        data = f.read()
+    # 带上限：素材库里可能有几十 MB 的扫描件，无上限的 read() 会把整个文件
+    # 读进内存（PDF 预览器自己会分页取，不需要我们一次性交出全部字节）
+    data, _truncated = read_bytes_capped(full)
 
     from fastapi import Response
 

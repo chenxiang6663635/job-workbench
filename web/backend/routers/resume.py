@@ -30,6 +30,7 @@ import tls_http
 from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
+from iocaps import read_bytes_capped, read_text_capped
 from lockctx import locked
 from routers import provider
 
@@ -265,8 +266,9 @@ def template_content(rel: str, ws: str = Depends(workspace_dir)):
                            "文件不存在: %s" % rel, rel=rel)
     if os.path.splitext(rel)[1].lower() not in TEMPLATE_TEXT_EXT:
         return {"rel": rel, "type": "binary"}
-    with io.open(full, "r", encoding="utf-8") as f:
-        return {"rel": rel, "type": "text", "content": f.read()}
+    # 带上限：模板目录里可能有被误放进来的大文件，无上限 read() 会整个读进内存
+    content, _truncated = read_text_capped(full)
+    return {"rel": rel, "type": "text", "content": content}
 
 
 @router.get("/templates/file/{rel:path}")
@@ -289,10 +291,8 @@ def template_file(rel: str, ws: str = Depends(workspace_dir)):
     else:
         media_type = "application/octet-stream"
 
-    with open(full, "rb") as f:
-        data = f.read()
-    # 不设 Content-Disposition：中文文件名放 header 会触发 latin-1 编码异常，
-    # 这里是内联预览（iframe / img），浏览器用 URL 定位即可
+    data, _truncated = read_bytes_capped(full)
+    # 不设 Content-Disposition：中文名放 header 会触发 latin-1 异常，内联预览不需要
     return Response(content=data, media_type=media_type)
 
 

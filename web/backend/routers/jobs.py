@@ -30,6 +30,7 @@ import tls_http
 from jobws_core import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, safe_join, workspace_dir
+from iocaps import read_text_capped
 from lockctx import locked
 from routers.progress._shared import delete_preview_response
 
@@ -68,8 +69,10 @@ def _dir_name(company: str, role: str) -> str:
 def _read(path):
     if not os.path.isfile(path):
         return None
-    with io.open(path, "r", encoding="utf-8") as f:
-        return f.read()
+    # 带上限：解析卡是文本，但目录里也可能躺着一个被误放进去的大文件——
+    # 列表接口对每条记录都要读一次，无上限的 read() 会把一次列表变成一次全盘读
+    text, _truncated = read_text_capped(path)
+    return text
 
 
 def _parse_card(workspace: str, job_dir: str):

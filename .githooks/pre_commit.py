@@ -48,6 +48,9 @@ PY_BASELINE = (3, 12)
 # 当前基线 ≈25s（2026-09-20 实测 934 条用例）；阈值 60s 与 CONTRIBUTING
 # 「测试规模与阈值」同源——只提示、不阻断：让数字每次提交自己说话。
 TEST_SLOW_WARN_SECONDS = 60
+# pytest 的硬超时：没有上限时，一次挂起的测试会让提交永远卡在命令行里，
+# 看起来像"还在跑"而不是"失败了"（2026-09-23 审计 P2）。到点即阻断并说清原因。
+TEST_TIMEOUT_SECONDS = 900
 PHONE_PATTERN = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
 # 占位号白名单：文档/模板里规范推荐的示例号（13800000000 是本项目 CONTRIBUTING 的占位示例）
 PLACEHOLDER_NUMBERS = {"13800000000", "13800138000", "12345678901"}
@@ -75,24 +78,12 @@ def staged_files() -> list[str]:
     return [p for p in out.split("\0") if p]
 
 
-def check_privacy(files: list[str]) -> str | None:
-    """personal/ 路径与真实联系方式模式一律不得进提交。
-
-    只扫新增行（+）：删除/修正真实号码的「清理类提交」不应被自己的护栏拦死
-    （独立审查抓出的自缚场景）。
-    """
-    for path in files:
+def privacy_problem(paths: list[str], diff_text: str) -> str | None:
+    """给定文件清单与 diff 文本做隐私判定（纯函数，本地钩子与 CI 共用同一份）。"""
+    for path in paths:
         if PERSONAL_PATH_PATTERN.search(path):
             return f"staged file lives under personal/: {path}"
-    diff = subprocess.run(
-        ["git", "diff", "--cached", "-U0"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=True,
-    ).stdout
-    added = "\n".join(line for line in diff.splitlines() if line.startswith("+"))
+    added = "\n".join(line for line in diff_text.splitlines() if line.startswith("+"))
     for m in PHONE_PATTERN.finditer(added):
         number = m.group(0)
         if number in PLACEHOLDER_NUMBERS or len(set(number[3:])) == 1:
@@ -101,6 +92,40 @@ def check_privacy(files: list[str]) -> str | None:
     for m in EMAIL_PATTERN.finditer(added):
         return f"possible real email in staged diff: {m.group(0)} (use sample@example.com)"
     return None
+
+
+def check_privacy(files: list[str]) -> str | None:
+    """本地入口：判定针对**暂存但未提交**的内容。
+
+    只扫新增行（+）：删除/修正真实号码的「清理类提交」不应被自己的护栏拦死
+    （独立审查抓出的自缚场景）。
+    """
+    diff = subprocess.run(
+        ["git", "diff", "--cached", "-U0"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=True,
+    ).stdout
+    return privacy_problem(files, diff)
+
+
+def check_privacy_ci(base: str) -> str | None:
+    """CI 入口（第二道闸）：用 PR 的完整 diff 复跑同一份判定。
+
+    为什么还要在 CI 跑一遍：`--no-verify` 的存在是**有意保留**的逃生口，但它同时
+    会跳过隐私护栏；无论本地怎么走，PR 里的那份 diff 都必须被同一个实现过一遍。
+    """
+    diff_run = subprocess.run(
+        ["git", "diff", "-U0", "%s...HEAD" % base],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+    ).stdout
+    paths_run = subprocess.run(
+        ["git", "diff", "--name-only", "-z", "%s...HEAD" % base],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+    ).stdout
+    return privacy_problem([p for p in paths_run.split("\0") if p], diff_run)
 
 
 def check_size(files: list[str]) -> str | None:
@@ -185,14 +210,21 @@ def check_tests() -> str | None:
               "（维护者环境见 CONTRIBUTING「解释器基线」）；CI 会兜底。")
         return None
     started = time.monotonic()
-    result = subprocess.run(
-        [python, "-m", "pytest", "tests", "-q", "--no-header"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [python, "-m", "pytest", "tests", "-q", "--no-header"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=TEST_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        # 卡住 ≠ 通过：这里的结论要么是"红"、要么是"不知道"，绝不能当作绿
+        return ("pytest 超过 %ds 未完成（%s）——多半有用例挂在 IO / 网络上；"
+                "修它，或临时用 --no-verify（后续必须回来重跑）"
+                % (TEST_TIMEOUT_SECONDS, python))
     elapsed = time.monotonic() - started
     if result.returncode == 0:
         print("pytest: PASS (%s, %.1fs)" % (python, elapsed))
@@ -225,8 +257,21 @@ def _force_utf8(stream) -> None:
         sys.stderr.write("note: stdout utf-8 switch failed (%s)\n" % exc)
 
 
-def main() -> int:
+def main(argv: list | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
     _force_utf8(sys.stdout)
+
+    # CI 形态（`python .githooks/pre_commit.py --privacy-ci [base]`）：只跑隐私一项，
+    # 且没有"已暂存"的概念，diff 取自基点到 HEAD
+    if argv and argv[0] == "--privacy-ci":
+        base = argv[1] if len(argv) > 1 else os.environ.get("JOBWS_PRIVACY_BASE", "origin/main")
+        problem = check_privacy_ci(base)
+        if problem:
+            print("[pre-commit][FAIL] privacy: %s" % problem)
+            return 1
+        print("privacy: OK（diff base=%s）" % base)
+        return 0
+
     files = staged_files()
     print(f"--- pre-commit ({len(files)} staged files) ---")
 

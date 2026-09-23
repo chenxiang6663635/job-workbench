@@ -45,7 +45,7 @@ def _first_line(text: str) -> str:
 
 
 def read_message(path: str):
-    """读取提交信息文件，返回 (首行, 错误说明)。
+    """读取提交信息文件，返回 (首行, 错误说明, 实际使用的编码)。
 
     编码这里必须较真：中文 Windows 的编辑器/终端可能把 COMMIT_EDITMSG 写成 GBK。
     原来直接 `errors="replace"` 会静默把中文换成 U+FFFD，于是校验器给出
@@ -60,17 +60,21 @@ def read_message(path: str):
     # 固定把 gb18030 放进回退链，而不是只依赖「系统首选编码」：钩子跑在哪个平台
     # 不该改变判定结果（Linux CI 上首选就是 UTF-8，那样 GBK 文件会被误判为坏文件）。
     # gb18030 是 GBK/CP936 的超集，覆盖中文 Windows 的真实场景。
+    #
+    # 但回退**必须出声**：gb18030 几乎能解出任何字节序列（解不出错），若它悄悄
+    # 生效，作者看到的可能是"乱码被当成中文"的判定——比直接报编码错误更误导。
+    # 所以命中回退时把编码名交给调用方提示出来。
     for encoding in ("utf-8", locale.getpreferredencoding(False), "gb18030"):
         if encoding.lower() in tried:  # 首选就是 UTF-8 时不必试两遍
             continue
         tried.append(encoding.lower())
         try:
-            return _first_line(raw_bytes.decode(encoding)), None
+            return _first_line(raw_bytes.decode(encoding)), None, encoding
         except UnicodeDecodeError:
             continue
     return "", ("提交信息不是 UTF-8 / %s / gb18030 能解析的编码，无法读取首行\n"
                 "  请把编辑器或终端改成 UTF-8 后重试"
-                % locale.getpreferredencoding(False))
+                % locale.getpreferredencoding(False)), None
 
 
 def main(argv: list) -> int:
@@ -78,10 +82,14 @@ def main(argv: list) -> int:
         print("[commit-msg][FAIL] missing message file argument")
         return 1
 
-    message, encoding_error = read_message(argv[0])
+    message, encoding_error, used_encoding = read_message(argv[0])
     if encoding_error:
         print("[commit-msg][FAIL] %s" % encoding_error)
         return 1
+    if used_encoding and used_encoding.lower() != "utf-8":
+        # 回退必须出声：否则「乱码被当成中文」会给出误导性的判定
+        print("[commit-msg] 注意：提交信息不是 UTF-8，已按 %s 解析——"
+              "建议把编辑器 / 终端改成 UTF-8 后重写一次" % used_encoding)
     if not message:
         print("[commit-msg][FAIL] commit message is empty")
         return 1

@@ -29,6 +29,17 @@ const TABLES = {
       "Restarting quits the backend process first, then installs the new version.",
     updateReadyRestart: "Restart and install",
     updateReadyInstallOnQuit: "Install on quit",
+    updateFailedTitle: "Update check failed",
+    updateFailedMessage: "Could not check for updates. The app keeps working; try again later.",
+    backendStartFailedTitle: "Backend did not start",
+    backendStartFailedMessage: "The backend exited right after launch (code {code}).",
+    backendStartFailedDetail:
+      "Usual causes: missing Python dependencies, the port already in use, or a data folder that cannot be written. See the app log for the backend output.",
+    backendDiedTitle: "Backend stopped",
+    backendDiedMessage: "The backend exited while running (code {code}); the UI no longer works.",
+    backendDiedDetail: "Please restart the app; if it keeps happening, send the [backend-err] lines from the app log.",
+    backendTimeoutTitle: "Backend startup timed out",
+    backendTimeoutMessage: "The backend was not ready after {seconds} seconds:",
   },
   "zh-CN": {
     windowTitle: "求职工作台",
@@ -43,6 +54,17 @@ const TABLES = {
     updateReadyDetail: "重启会先结束后端进程，再安装新版本。",
     updateReadyRestart: "重启并安装",
     updateReadyInstallOnQuit: "退出时安装",
+    updateFailedTitle: "更新检查失败",
+    updateFailedMessage: "没能检查到更新。应用可继续使用，可稍后再试。",
+    backendStartFailedTitle: "后端未能启动",
+    backendStartFailedMessage: "后端进程启动后立即退出（退出码 {code}）。",
+    backendStartFailedDetail:
+      "常见原因：Python 依赖缺失、端口已被占用、数据目录不可写。后端完整输出见应用日志。",
+    backendDiedTitle: "后端已停止",
+    backendDiedMessage: "后端在运行中退出（退出码 {code}），界面上的操作将不再生效。",
+    backendDiedDetail: "请重启应用；若反复出现，请把应用日志里的 [backend-err] 段落一起反馈。",
+    backendTimeoutTitle: "后端启动超时",
+    backendTimeoutMessage: "等了 {seconds} 秒后端仍未就绪：",
   },
 };
 

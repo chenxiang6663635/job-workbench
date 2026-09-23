@@ -17,7 +17,7 @@
 1. **版本号用时间戳**：发布号 `YY.MM.DD.N`（当日第 N 次发布），机器可读版本（`package.json` / `latest.yml` / 产物文件名）是当日 `YY.M.D`，tag 为 `v<发布号>`。校验在 `tools/release_assist.py`（`jobws release check`），只比日期三段、`N` 不参与。
 2. **单一发布节点**：所有批次先在 `main` 落地（各自一个 PR、各自 CI 绿），**中间不 tag、不 Release、不出包**；攒到发布日一次性发，并整体归入当日的版本段。
 3. **发布可演练**：`release.yml` 支持 `workflow_dispatch` + `dry_run=true`，先跑一遍完整构建与资产核验，再决定是否真发。
-4. **已知取舍要写明**：CalVer 官方不鼓励四段数字，`YY` 也有歧义（建议 `YYYY`）——我们用四段是为了同日重发，保留现状并在 CHANGELOG 与 CONTRIBUTING 写明理由；CalVer **不表达破坏性变更**，所以破坏性变更必须在 CHANGELOG 显式列出（见 Keep a Changelog 的过渡约定）。
+4. **已知取舍写在这里**：CalVer 官方不鼓励四段数字，`YY` 也有歧义（建议 `YYYY`）——我们用四段是为了同日重发，保留现状，取舍与理由即本文（规则本身见 `CONTRIBUTING.md` 的「版本号体系」一节）；CalVer **不表达破坏性变更**，所以破坏性变更必须在 CHANGELOG 显式列出（见 Keep a Changelog 的过渡约定）。
 
 ## 已评估的替代方案
 

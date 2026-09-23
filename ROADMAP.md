@@ -32,7 +32,7 @@ machine-readable `package.json` version is that day's `YY.M.D`, and the tag is `
 (see [CONTRIBUTING.md](CONTRIBUTING.md), section 版本号体系). There is a **single release node**:
 every batch below lands before it, none of them ships on its own, and the whole plan goes out as
 **one timestamped release**. Each batch still lands as its own PR; items below carry a
-**2026-09-20 verified status note** (已实现 / 部分完成 / 未开始).
+**2026-09-20 verified status note** (已实现 / 部分完成 / 未开始 / **暂缓**——暂缓的条目移至下方「候选池」并写明触发条件).
 
 - [x] **Versioning switch** (first) — timestamp release numbers end to end: the generator and the
   derived tag check in `tools/release_assist.py` (`jobws release version`), the release-workflow
@@ -52,7 +52,7 @@ every batch below lands before it, none of them ships on its own, and the whole 
 - [ ] **Exams track** — **暂缓（2026-09-22 拍板）**：不实现，整条降级为候选池条目（见下方「候选池」表首行，含触发条件）。原描述：stage names become per-track configuration (defaults identical to today,
   so an existing workspace changes in no way) so 考公 flows through the same workbench instead of
   a parallel one; the question bank grows exam subject presets.
-- [x] **Mail structuring** — **已实现（2026-09-22，PR #176）**：日历附件优先（`.ics` 最小解析）+ 正文正则兜底抽事实——时间、会议链接、阶段、公司与岗位；建议卡**逐条确认**才写入（不确认不落盘），会议链接进邮件台账新列（缺列按空、零迁移）；引用块与签名先剥离、截断按行边界保留含链接/日期行；可选 AI 增强 BYOK、只产建议、强制低把握；**无后台路径**（无定时器 / 轮询 / 保活）。原描述：extract candidate facts from message bodies (times, meeting links,
+- [x] **Mail structuring** — **已实现（PR #176，2026-09-22 待合并；合并后生效）**：日历附件优先（`.ics` 最小解析）+ 正文正则兜底抽事实——时间、会议链接、阶段、公司与岗位；建议卡**逐条确认**才写入（不确认不落盘），会议链接进邮件台账新列（缺列按空、零迁移）；引用块与签名先剥离、截断按行边界保留含链接/日期行；可选 AI 增强 BYOK、只产建议、强制低把握；**无后台路径**（无定时器 / 轮询 / 保活）。原描述：extract candidate facts from message bodies (times, meeting links,
   stages, companies) into suggestion cards that only write after row-by-row confirmation; no
   background workers, ever.
 - [x] **Skills & plugin distribution** — **已实现（2026-09-22，PR #177）**：8 个技能补标准元数据（`license` / `metadata.version` / 按需 `allowed-tools`）并把最长三份的大段内容拆进 `references/`（渐进披露）；校验器加字段白名单、`references/` 可达、正文 ≤500 行与**版本号一致性**四条规则；分发从「只有技能」扩到**技能 + 命令 + 子代理**三类（`skill_assets.py` 的资产表 + `--link` 实验选项），镜像比对按资产类型泛化并进 CI；零克隆通道（插件市场 / `npx skills add`）写进 README。原描述：the eight skills move onto the cross-host standard
@@ -72,13 +72,13 @@ conversion is ever required. **判据已成文（2026-09-22）**：四条可核�
 - [x] Richer maintainer automation — **partly shipped in v0.3.0** (PR #103): `jobws release check --tag v26.09.15.1` validates the tag/version match (since 2026-09-15: the date-part rule of the timestamp scheme) and the changelog section, and prints the release notes CI will publish (the workflow assembles the Release body from the changelog). Anything beyond that still has to pay for itself
 - Accessibility and localization beyond zh-CN / en
 - [x] Desktop auto-update (electron-updater) — **shipped in v0.2.1** (asks twice: download, then restart; the first updater-enabled version still needed one manual install)
-- [x] **Real-time application status** — **shipped in v0.3.0**: the research (2026-09-11) found that no recruiting platform exposes a candidate-facing status API, so the answer is local — *paste the email* → parse (which record, what to change, and the sentence it came from) → confirm row by row → write, with a read-only IMAP pull as the optional sync on top (verified against a real mailbox, 2026-09-14). Extending the extraction to times, meeting links and talks is registered below
+- [x] **Real-time application status** — **shipped in v0.3.0**: the research (2026-09-11) found that no recruiting platform exposes a candidate-facing status API, so the answer is local — *paste the email* → parse (which record, what to change, and the sentence it came from) → confirm row by row → write, with a read-only IMAP pull as the optional sync on top (verified against a real mailbox, 2026-09-14). 时间与会议链接的抽取已在 `Now` 段的 **Mail structuring** 条目交付（PR #176）；宣讲会一侧的扩展登记在下方候选池
 
 ## 候选池（暂缓，逐条写明触发条件）
 
 **这一节是什么**：暂缓事项的集中登记处。与上面 `Later` 的区别是——这些**没有承诺**，只是「想过、决定现在不做」。每条都写明**什么条件下才值得做**，将来不必重新论证一遍；已经定了「怎么做」的决策在 [`docs/README.md`](docs/README.md) 的「决策记录」一节（ADR），这里只回答「要不要做」。
 
-**纪律**：往这里加条目只需一行「一句话 + 触发条件」；真正要开工时，先从 `Now` 走一遍四道门（`CONTRIBUTING.md`），再把它从这里移出去。
+**纪律**：往这里加条目只需一行「一句话 + 触发条件」；真正要开工时，先从 `Now` 走一遍四道门（`CONTRIBUTING.md` 的「新需求四道门」），再把它从这里移出去（`Now` 段只保留一行状态指针，不重复描述）。
 
 | 候选 | 一句话 | 触发条件 |
 |---|---|---|
@@ -89,6 +89,6 @@ conversion is ever required. **判据已成文（2026-09-22）**：四条可核�
 | 系统级提醒 | 截止日与面试前推一条本地通知 | 桌面壳长期常驻，且「错过截止日」真实发生过 |
 | 浏览器表单预填 | 只预填、不提交（自动投递永不考虑，见 ADR） | 平台页面结构稳定，且用户明确要求 |
 | ICS 重复会议（RRULE） | 现在只取首个实例并在卡片注明；需要时评估 `icalendar`（BSD-2） | 真实收到重复会议邀请，且因此误判过一次时间 |
-| 用户级 / 插件缓存副本的一致性 | 检查器只看仓库内的项目级副本，用户级 `~/.agents/skills/` 与插件缓存在视野之外 | 出现「装到用户级却长期用旧版」的真实事件 |
+| 用户级 / 插件缓存副本的一致性 | 检查器只看仓库内的项目级副本（范围说明见 [`CONTRIBUTING.md`](CONTRIBUTING.md) 的「资产分发到各宿主」），用户级 `~/.agents/skills/` 与插件缓存在视野之外 | 出现「装到用户级却长期用旧版」的真实事件 |
 | 依赖主版本升级（Electron 等） | 调研已做（[`docs/research/report_electron_33_to_44.md`](docs/research/report_electron_33_to_44.md)）；升级要人工批次、单独冒烟 | 安全修复需要，或宿主 / 打包链要求 |
-| 域名与文案的英文润色（非 i18n 范围） | README 与文档英文版由人过一遍 | 有英文母语使用者开始用时 |
+| 文档英文润色（超出 i18n 范围） | README 与文档的英文由人过一遍（术语一致但语感生硬） | 有英文母语使用者开始用时 |

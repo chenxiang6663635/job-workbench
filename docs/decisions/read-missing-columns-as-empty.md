@@ -1,11 +1,11 @@
 # 决策：工作区数据向后兼容——读时缺列按空，写时统一表头
 
 - 状态：已采纳（2026-09-22 留档；行为随各批次落地）
-- 相关：`packages/jobws-core/src/jobws_core/tracker/_core.py`（`_atomic_write_csv` 的 `restval`）、`_check.py`（只对必填列报缺列）、`tests/test_tracker_schema.py`、`ROADMAP.md`（Graduation 段）
+- 相关：`packages/jobws-core/src/jobws_core/workspace_io.py`（`restval` 补空与表头口径的唯一写入口）、`tracker/_check.py`（只对必填列报缺列）、`tests/test_tracker_schema.py`、`ROADMAP.md`（Graduation 段）、`docs/support-and-compatibility.md`（对外条款）
 
 ## 背景
 
-工作区里是**用户的真实数据**：投递表、邮件台账、面试记录、题库……它们以 CSV 形式存在用户自己手里（可被 Excel 打开、可手工修）。功能迭代会不断加列（如批 9 给邮件台账加「会议链接」）。
+工作区里是**用户的真实数据**：投递表、邮件台账、面试记录、题库……它们以 CSV 形式存在用户自己手里（可被 Excel 打开、可手工修）。功能迭代会不断加列（如给邮件台账加「会议链接」列，见 PR #176；该列在合并后生效）。
 
 如果加列要靠「迁移脚本 + 用户手动执行」，会立刻出三种事故：
 
@@ -17,11 +17,11 @@
 
 ## 决策
 
-1. **加列不改用户数据**：读时**缺列按空值**处理；写回时按当前表头统一写出（缺的列补空、多的列保留），用户永远不需要为升级做任何转换。
+1. **加列不改用户数据**：读时**缺列按空值**处理；写回时按工具的表头统一写出（缺的列补空）。**手工新增的列不予保留**——写回按 schema 表头重排，这正是「统一表头」的代价，也是对外条款里明确写出的已知边界（想承载额外信息请用既有的备注 / 标签字段）。用户永远不需要为升级做任何转换。
 2. **只对必填列报错**：自检（`jobws track check`）只对必填列缺失报警；可选列缺失是正常状态。
 3. **版本不写进 CSV**：结构版本记在 `.schema.json` sidecar 里，不往用户表里塞版本列（那会变成用户看得见却看不懂的噪音）。
 4. **删除/改名列走过渡**：真要废弃某列或改名，先登记为 `Deprecated`（读时兼容），至少一个发布节点后才 `Removed`，并在 CHANGELOG 的「破坏性变更」里显式列出与给出迁移办法。
-5. **承诺写进正式文档**：这条承诺的对外表述在 `docs/support-and-compatibility.md`（毕业条件与支持策略）里，README / ROADMAP / CONTRIBUTING 交叉引用——不写在散文里，写在可被引用与被检查的位置。
+5. **承诺写进正式文档**：这条承诺的对外表述在 [`../support-and-compatibility.md`](../support-and-compatibility.md)（毕业条件与支持策略）里，并由 README 中英的文档列表、`ROADMAP.md` 的 Graduation 段与 `CONTRIBUTING.md` 的发布流程交叉引用——不写在散文里，写在可被引用与被检查的位置。
 
 ## 已知边界
 

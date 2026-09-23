@@ -292,6 +292,25 @@ def test_extract_body_skips_attachments():
     assert "附件内容不该混进正文" not in body
 
 
+def test_extract_calendar_returns_ics_text_only():
+    """批 9：会议邀请的 ICS 部件单独回传，且不混进正文（正文会被截断，ICS 不会）。"""
+    msg = MIMEMultipart()
+    msg.attach(MIMEText("正文在这里", "plain", "utf-8"))
+    msg.attach(MIMEText("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\n"
+                        "DTSTART:20260925T060000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+                        "calendar", "utf-8"))
+
+    calendar = imap_fetch.extract_calendar(msg)
+
+    assert "BEGIN:VCALENDAR" in calendar and "DTSTART" in calendar
+    assert "BEGIN:VCALENDAR" not in imap_fetch.extract_body(msg), "ICS 不是正文"
+
+
+def test_extract_calendar_is_empty_without_ics():
+    msg = MIMEText("普通邮件", "plain", "utf-8")
+    assert imap_fetch.extract_calendar(msg) == ""
+
+
 # ---- TLS 上下文（issue #50 S2：默认严格校验，证书库损坏时拒绝连接） ----
 
 class _BrokenStore:

@@ -65,6 +65,52 @@ def _talk_add(args):
 
 
 
+def _talk_update(args):
+    """宣讲会逐字段更新：持锁执行（见 `_core.tracking_lock`）。"""
+    with _core.tracking_lock():
+        return _talk_update_locked(args)
+
+
+def _talk_update_locked(args):
+    rows = read_talks()
+    row = find_talk(rows, args.id)
+    if not row:
+        print("错误：找不到宣讲会 `%s`" % args.id)
+        return 1
+    changed = []
+    for arg_name, field in (
+        ("when", "时间"), ("form", "形式"), ("place", "地点或链接"),
+        ("attend", "是否参加"), ("gain", "收获"), ("note", "备注"),
+    ):
+        value = getattr(args, arg_name, None)
+        if value is not None:
+            changed.append(field)
+            row[field] = value
+    # 时间闸门（2026-09-23 二轮审计）：新增走领域层 `_validate_talk_fields`，
+    # 更新这条直写路径要自己接上同一判定（带时刻用 check_when）
+    if getattr(args, "when", None) is not None:
+        when_error = _core.check_when(args.when, "时间")
+        if when_error:
+            for error in when_error:
+                print("错误：%s" % error)
+            return 1
+    # 关联记录单独处理：给出时必须指向存在的投递记录
+    if getattr(args, "app", None) is not None:
+        link = args.app.strip()
+        if link and not any((r.get("id") or "").strip() == link for r in read_rows()):
+            print("错误：找不到记录 `%s`" % link)
+            return 1
+        changed.append("关联记录")
+        row["关联记录"] = link
+    if not changed:
+        print("没有字段变化，未写入")
+        return 0
+    write_talks(rows)
+    print("已更新宣讲会 %s：%s" % (args.id, "、".join(changed)))
+    return 0
+
+
+
 def _talk_delete(args):
     """宣讲会删除：预览（不落盘）→ 凭令牌落盘；删除类永远两段式。"""
     return run_delete_preview("talks", args.id, "talk.delete")
@@ -103,34 +149,7 @@ def cmd_talk(args):
         return 0
 
     if args.action == "update":
-        rows = read_talks()
-        row = find_talk(rows, args.id)
-        if not row:
-            print("错误：找不到宣讲会 `%s`" % args.id)
-            return 1
-        changed = []
-        for arg_name, field in (
-            ("when", "时间"), ("form", "形式"), ("place", "地点或链接"),
-            ("attend", "是否参加"), ("gain", "收获"), ("note", "备注"),
-        ):
-            value = getattr(args, arg_name, None)
-            if value is not None:
-                changed.append(field)
-                row[field] = value
-        # 关联记录单独处理：给出时必须指向存在的投递记录
-        if getattr(args, "app", None) is not None:
-            link = args.app.strip()
-            if link and not any((r.get("id") or "").strip() == link for r in read_rows()):
-                print("错误：找不到记录 `%s`" % link)
-                return 1
-            changed.append("关联记录")
-            row["关联记录"] = link
-        if not changed:
-            print("没有字段变化，未写入")
-            return 0
-        write_talks(rows)
-        print("已更新宣讲会 %s：%s" % (args.id, "、".join(changed)))
-        return 0
+        return _talk_update(args)
 
     if args.action == "delete":
         return _talk_delete(args)

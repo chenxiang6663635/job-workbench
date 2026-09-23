@@ -87,10 +87,18 @@ def _ensure_schema_sidecar(tracking):
 
 
 def _check_main_table(ws, files, quarantined):
-    """自检主表 tracker.csv，返回它的 id 集合（其他文件的外键基准）。"""
-    fk_ids = set()
+    """自检主表 tracker.csv，返回它的 id 集合（其他文件的外键基准）。
+
+    **主表读不出来时返回 `None`（不是空集合）**：`None` 表示"外键无从校验"，空集合
+    表示"主表里一条都没有"。两者混同的后果是成片假故障——主表缺失或被隔离时，
+    每一行带「关联记录」的记录都被报成"在 tracker.csv 中不存在"，用户按提示"修复"
+    时的自然动作是清空外键，反而造成真实数据损失（2026-09-23 二轮审计）。
+    """
+    fk_ids = None
     main_path = csv_path(ws)
     if not os.path.isfile(main_path):
+        files.append({"file": "tracker.csv", "ok": True, "issues": [],
+                      "note": "尚未创建（外键未校验）"})
         return fk_ids
     issues = []
     try:
@@ -102,7 +110,8 @@ def _check_main_table(ws, files, quarantined):
             "moved_to": dest or "隔离失败，请手动处理",
         })
         files.append({"file": "tracker.csv", "ok": False,
-                      "issues": ["文件无法解析，已隔离到 quarantine/"], "note": ""})
+                      "issues": ["文件无法解析，已隔离到 quarantine/"],
+                      "note": "主表不可读，本轮未校验各从表的外键"})
         return fk_ids
     _check_file_rows(
         "tracker.csv", main_rows, main_path,

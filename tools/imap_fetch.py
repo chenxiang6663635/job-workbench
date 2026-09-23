@@ -44,8 +44,10 @@ DEFAULT_PORT = 993
 DEFAULT_FOLDER = "INBOX"
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
-# 默认只搜最近 30 天：几千封的邮箱里「最近 20 封」常常全是广告，
-# 按时间窗在服务端搜索，才能把「翻列表找招聘邮件」变成「拉回来再看」
+# 时间窗天数上限：再大既没意义（邮箱里没有 10 年前的招聘邮件），又会溢出成 500
+MAX_SINCE_DAYS = 3650
+# 默认只搜最近 30 天：几千封的邮箱里「最近 20 封」常常全是广告，服务端按时间窗
+# 搜索才能把「翻列表找招聘邮件」变成「拉回来再看」
 DEFAULT_SINCE_DAYS = 30
 
 # IMAP 日期字面量用的英文月份（不用 strftime，理由见 _imap_since）
@@ -124,8 +126,7 @@ def _ssl_context():
     try:
         return tls_policy.outbound_ssl_context("IMAP 拉取", tls_policy.IMAP_ENV_VAR)
     except tls_policy.TlsPolicyError as exc:
-        # 调用方（routers/imap.py、CLI）统一按 ImapFetchError 处理，
-        # 所以这里把策略异常换成带邮件语境的错误类型。
+        # 调用方（routers/imap.py、CLI）统一按 ImapFetchError 处理，故此处做类型转译
         raise ImapFetchError(str(exc))
 
 
@@ -142,16 +143,15 @@ def _connect(host, port):
                                  ssl_context=_ssl_context())
     except ssl.SSLError as exc:
         if "CERTIFICATE_VERIFY_FAILED" in str(exc):
-            # 与「地址写错」是两回事：证书不被信任可能是自签名，也可能是劫持——
-            # 两条路的答案都不是关校验，所以消息里明确不给降级出口
+            # 与「地址写错」是两回事：证书不被信任可能是自签名也可能是劫持，两条路的答案
+            # 都不是关校验——所以消息里明确不给降级出口
             raise ImapFetchError(
                 "证书校验失败：系统证书库不信任 %s 的证书（可能自签名，也可能被"
                 "劫持）。不要为它关闭校验。" % host)
         raise ImapFetchError(
             "TLS 握手失败：%s（检查服务器地址与端口，SSL 端口通常为 993）" % exc)
     except socket.timeout:
-        # 坏地址 / 被丢包的服务器：必须落在「15 秒内给人话」这条承诺上，
-        # 而不是等到系统 TCP 超时（原先由探测连接保证，现在由 timeout= 保证）
+        # 坏地址 / 丢包的服务器：要落在「15 秒内给人话」上，而不是等系统 TCP 超时
         raise ImapFetchError("连接超时：%s:%s 在 %d 秒内无响应" % (host, port, SOCKET_TIMEOUT))
     except OSError as exc:
         raise ImapFetchError("无法连接 %s:%s：%s" % (host, port, exc))
@@ -192,6 +192,8 @@ def _imap_since(days):
         days = max(1, int(days))
     except (TypeError, ValueError):
         days = DEFAULT_SINCE_DAYS
+    # 上限兜底：`date - timedelta(10**8)` 的 OverflowError 会绕过 ImapFetchError 成 500
+    days = min(days, MAX_SINCE_DAYS)
     d = datetime.date.today() - datetime.timedelta(days=days)
     return "%02d-%s-%04d" % (d.day, _MONTHS[d.month - 1], d.year)
 
@@ -241,8 +243,7 @@ def test_connection(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLD
         try:
             conn.logout()
         except Exception as exc:
-            # 登出失败不影响调用方拿到的结果（连接已用完）；按「禁静默吞错」
-            # 留一条日志，IST/服务器端异常时会体现在后端日志里。
+            # 登出失败不影响结果（连接已用完），但按「禁静默吞错」留一条日志
             logger.warning("IMAP logout 失败：%s", exc)
 
 
@@ -258,8 +259,7 @@ def _fetch_recent(conn, folder, since_days, limit):
     # 时间窗在服务端过滤（SINCE 是 ASCII 安全的条件）——只取「最近 N 封」防广告淹没。
     criteria = ["SINCE", _imap_since(since_days)] if since_days else ["ALL"]
     try:
-        # UID SEARCH（不是 SEARCH）：拿到的是稳定 UID。
-        # 序号（sequence number）在会话期间会因邮箱变化重排，
+        # UID SEARCH（不是 SEARCH）：拿到的是稳定 UID——序号会在会话期间因邮箱变化重排，
         # 用序号去 FETCH 有取到另一封邮件的风险。
         typ, data = conn.uid("SEARCH", *criteria)
     except imaplib.IMAP4.error as exc:

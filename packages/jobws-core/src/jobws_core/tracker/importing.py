@@ -222,7 +222,11 @@ def cmd_import(args):
         print("\n要落盘请执行：python tools/jobws.py apply %s" % result["token"])
         print("令牌 %d 秒内有效、且只能用一次。" % approval.DEFAULT_TTL_SECONDS)
         return 0
-    written = commit_import(preview, workspace=_core.WORKSPACE)
+    # 持锁（2026-09-23 二轮审计）：`commit_import` 的契约就是"调用方必须持锁"
+    # （见本模块 docstring 与 `commit_import` 自己的说明），而这条 CLI 路径此前
+    # 没有——批量导入与桌面端并发时会整批覆盖掉对方刚写的行。
+    with _core.tracking_lock():
+        written = commit_import(preview, workspace=_core.WORKSPACE)
     if written < 0:
         print("\n提交时发现新的重复（预览后数据有变化），整批未写入。请重新预览。")
         return 1

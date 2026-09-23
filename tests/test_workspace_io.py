@@ -97,6 +97,22 @@ def test_csv_read_cell_keeps_a_real_apostrophe(tmp_path):
     assert csv_read_cell("'") == "'"
 
 
+def test_csv_cells_round_trip_keeps_a_leading_apostrophe(tmp_path):
+    """用户真想留的「引号 + 公式前缀」也要能原样往返（二轮审计）。
+
+    只做一层转义时这里会失守：写 `'- 待定` 不加层，读侧就把它当转义还原成 `- 待定`
+    ——用户看到自己写的内容被改掉。写侧对"已是转义形态"的文本再补一层，写读即可逆。
+    """
+    from jobws_core.csv_cells import csv_cell, csv_read_cell
+
+    for raw in ("'- 待定", "'=SUM(A1)", "'+86 13800000000"):
+        assert csv_read_cell(csv_cell(raw)) == raw, raw
+    # 幂等：往返后的值再走一轮，结果不变（不会每存一次多一个引号）
+    for raw in ("'- 待定", "=1+1", "'引用'"):
+        once = csv_read_cell(csv_cell(raw))
+        assert csv_read_cell(csv_cell(once)) == once, raw
+
+
 def test_tracker_round_trip_keeps_remark_unchanged(tmp_path):
     """落盘再读回，备注逐字符相同（追踪表是最容易踩这个坑的那张表）。"""
     from jobws_core import tracker

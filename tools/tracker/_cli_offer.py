@@ -18,6 +18,7 @@ if _TOOLS_DIR not in sys.path:
 logger = logging.getLogger(__name__)
 
 
+from . import _core
 from ._cli_delete import run_delete_preview
 from ._schema import (OFFER_FIELDS)
 from .applications import (append_history, read_rows)
@@ -25,8 +26,21 @@ from .offers import (find_offer, next_offer_id, read_offers, write_offers)
 
 
 
+def _offer_deadline_errors(value):
+    """答复截止日的校验错误（纯日期 `YYYY-MM-DD`；空值放行）。"""
+    if not value:
+        return []
+    return _core.check_date(value, "答复截止日") or []
+
+
 def _offer_add(args):
-    """Offer 新增：外键/公司兜底 → 组装行 → 落盘 + 时间线入账。"""
+    """Offer 新增：持锁执行（读最新 → 校验 → 写回同一临界区，见 `_core.tracking_lock`）。"""
+    with _core.tracking_lock():
+        return _offer_add_locked(args)
+
+
+def _offer_add_locked(args):
+    """外键/公司兜底 → 组装行 → 落盘 + 时间线入账。"""
     rows = read_offers()
 
     link = (args.app or "").strip()
@@ -41,6 +55,14 @@ def _offer_add(args):
         company = company or src.get("公司", "")
     elif not company:
         print("错误：未关联记录时必须给 --company")
+        return 1
+
+    # 日期闸门（2026-09-23 二轮审计）：与 Web 侧同一判定；假日期落库后
+    # 「3 天内要答复」的提醒与 .ics 导出都会静默跳过这一条
+    deadline_errors = _offer_deadline_errors(args.deadline)
+    if deadline_errors:
+        for error in deadline_errors:
+            print("错误：%s" % error)
         return 1
 
     row = {field: "" for field in OFFER_FIELDS}
@@ -70,6 +92,45 @@ def _offer_add(args):
         }])
 
     print("已记录 offer %s：%s" % (row["offer_id"], company))
+    return 0
+
+
+
+def _offer_update(args):
+    """Offer 逐字段更新：持锁执行（见 `_core.tracking_lock`）。"""
+    with _core.tracking_lock():
+        return _offer_update_locked(args)
+
+
+def _offer_update_locked(args):
+    rows = read_offers()
+    row = find_offer(rows, args.id)
+    if not row:
+        print("错误：找不到 offer `%s`" % args.id)
+        return 1
+    changed = []
+    given = {}
+    for arg_name, field in (
+        ("salary", "薪资构成"), ("monthly", "月薪"), ("bonus", "年终"),
+        ("signon", "签字费"), ("equity", "股票期权"), ("location", "工作地点"),
+        ("deadline", "答复截止日"), ("conditions", "其他条件"), ("note", "备注"),
+    ):
+        value = getattr(args, arg_name, None)
+        if value is not None:
+            changed.append(field)
+            given[field] = value
+            row[field] = value
+    # 只校验本次改动的字段（存量坏日期不该挡住一次无关的更新）
+    deadline_errors = _offer_deadline_errors(given.get("答复截止日"))
+    if deadline_errors:
+        for error in deadline_errors:
+            print("错误：%s" % error)
+        return 1
+    if not changed:
+        print("没有字段变化，未写入")
+        return 0
+    write_offers(rows)
+    print("已更新 offer %s：%s" % (args.id, "、".join(changed)))
     return 0
 
 
@@ -111,27 +172,7 @@ def cmd_offer(args):
         return 0
 
     if args.action == "update":
-        rows = read_offers()
-        row = find_offer(rows, args.id)
-        if not row:
-            print("错误：找不到 offer `%s`" % args.id)
-            return 1
-        changed = []
-        for arg_name, field in (
-            ("salary", "薪资构成"), ("monthly", "月薪"), ("bonus", "年终"),
-            ("signon", "签字费"), ("equity", "股票期权"), ("location", "工作地点"),
-            ("deadline", "答复截止日"), ("conditions", "其他条件"), ("note", "备注"),
-        ):
-            value = getattr(args, arg_name, None)
-            if value is not None:
-                changed.append(field)
-                row[field] = value
-        if not changed:
-            print("没有字段变化，未写入")
-            return 0
-        write_offers(rows)
-        print("已更新 offer %s：%s" % (args.id, "、".join(changed)))
-        return 0
+        return _offer_update(args)
 
     if args.action == "delete":
         return _offer_delete(args)

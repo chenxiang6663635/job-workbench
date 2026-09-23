@@ -17,6 +17,7 @@ from datetime import date, datetime
 
 from jobws_core import pathres  # noqa: E402  （ROOT 由入口注入，见 pathres._APP_ROOT）
 from jobws_core.csv_cells import restore_row  # noqa: E402
+from jobws_core.filelock import file_lock  # noqa: E402  （写类操作的互斥原语）
 from jobws_core import workspace_io  # noqa: E402  （批 8：原子写与锁名收敛到共享原语）
 
 # 库代码一律走 logging 而不是 print：tracker 被后端常驻进程与 MCP
@@ -180,6 +181,12 @@ def check_date(value, label, allow_empty=True):
 
 
 
+# 判定实现搬到 `_when`（本文件贴着 300 行上限）；这里 re-export，
+# `from ._core import check_when` 的既有引用与包门面都不受影响。
+from ._when import check_when  # noqa: E402
+
+
+
 def check_terminal_transition(old_stage, new_stage):
     """终态不回退：原阶段已是终态时禁止再改阶段。
 
@@ -248,6 +255,21 @@ def _tracking_targets(workspace=None):
 # 公开别名：MCP 包（另一棵树）要用它——跨包伸手拿下划线名是坏味道，
 # 一旦这里改签名那边会静默失配（独立审查 m9）。
 tracking_targets = _tracking_targets
+
+
+def tracking_lock(workspace=None):
+    """写从表时要用的互斥上下文：`with tracking_lock():`。
+
+    为什么要有这个别名（2026-09-23 二轮审计）：CLI 的从表写入口（mail / contact /
+    offer / talk 的 add·update 与 `track import`）此前是「锁外 read → 改 dict →
+    整表重写」。整表重写会把**锁外读到的快照**覆盖回去，而同一时刻桌面端可能正在
+    写同一个文件（后端常驻，用同一把 `tracker.lock`）——那一侧的改动静默消失，
+    用户只看到"我刚在界面改的又变回去了"。主表（track / add·update）一直持锁，
+    所以丢数据只发生在从表与导入，极难自证。
+
+    与 Web 层 `lockctx.locked()` 是同一把锁文件（`_lock_path`），因此两端天然互斥。
+    """
+    return file_lock(_lock_path(workspace))
 
 
 

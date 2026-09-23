@@ -11,6 +11,7 @@
 """
 
 import io
+import os
 
 # 文本：2MB 足以覆盖 Markdown / HTML / CSV 的合理体量
 MAX_TEXT_CHARS = 2_000_000
@@ -41,3 +42,19 @@ def read_response(response, limit: int = MAX_RESPONSE_BYTES) -> bytes:
     一次「忘了传 limit 的 read()」就够把内存交给远端。所以出网读取也走这里。
     """
     return response.read(limit)
+
+
+def ensure_within(path, rel, limit: int = MAX_BINARY_BYTES):
+    """超限就抛 413（不截断）——预览类端点不能把坏文件当成功返回。
+
+    为什么超限是**拒绝**而不是截断：这些端点不支持 Range，浏览器要的是整份文件。
+    截断后以 200 返回，用户拿到的是打不开的 PDF 或半页 HTML，而界面上看不出原因
+    ——比直接报错更糟。先看元信息，不必先把文件读进内存。
+    """
+    if os.path.getsize(path) <= limit:
+        return
+    # 延迟导入：iocaps 是写入原语，不该在导入期就依赖错误协议层
+    from apierror import ApiError
+
+    raise ApiError(413, "file.tooLarge", "文件过大，无法在此预览",
+                   rel=rel, mb=limit // (1024 * 1024))

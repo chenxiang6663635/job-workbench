@@ -30,8 +30,9 @@ import tls_http
 from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
-from iocaps import MAX_BINARY_BYTES, read_bytes_capped, read_response, read_text_capped
+from iocaps import ensure_within, read_bytes_capped, read_response, read_text_capped
 from lockctx import locked
+from ro_files import inside
 from routers import provider
 
 router = APIRouter(prefix="/api/resume")
@@ -256,13 +257,14 @@ def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
 @router.get("/templates/content")
 def template_content(rel: str, ws: str = Depends(workspace_dir)):
     full = safe_join(ws, DIR_RESUME, rel)
+    # realpath 二次确认：`safe_join` 不解析符号链接，junction 能读穿工作区
+    if not inside(ws, full):
+        raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
-        raise ApiError(404, "resume.fileNotFound",
-                           "文件不存在: %s" % rel, rel=rel)
+        raise ApiError(404, "resume.fileNotFound", "文件不存在: %s" % rel, rel=rel)
     if os.path.splitext(rel)[1].lower() not in TEMPLATE_TEXT_EXT:
         return {"rel": rel, "type": "binary"}
-    # 带上限；`truncated` 必须如实返回——静默把截断当全文正是这条护栏要防的事
-    # （与 /api/library 的只读入口同款字段，前端据此给提示）
+    # 带上限；`truncated` 如实返回（与 /api/library 只读入口同款字段，前端据此提示）
     content, truncated = read_text_capped(full)
     return {"rel": rel, "type": "text", "content": content,
             "truncated": truncated, "bytes": os.path.getsize(full)}
@@ -274,6 +276,9 @@ def template_file(rel: str, ws: str = Depends(workspace_dir)):
     （如 photo.jpg）由浏览器按同路径解析，路径式端点才能命中。
     """
     full = safe_join(ws, DIR_RESUME, rel)
+    # 同 template_content：读穿防护（渲染 iframe 的图片 / HTML 也走这条路）
+    if not inside(ws, full):
+        raise ApiError(400, "path.escape", "路径越出工作区")
     if not os.path.isfile(full):
         raise ApiError(404, "resume.fileNotFound",
                            "文件不存在: %s" % rel, rel=rel)
@@ -288,11 +293,7 @@ def template_file(rel: str, ws: str = Depends(workspace_dir)):
     else:
         media_type = "application/octet-stream"
 
-    # 超限**拒绝**（413）而不是截断：截断的 PDF / HTML 会以 200 返回，用户拿到坏文件
-    # 或半页渲染而没有任何提示——比报错更糟。先看元信息，不必先读进内存。
-    if os.path.getsize(full) > MAX_BINARY_BYTES:
-        raise ApiError(413, "file.tooLarge", "文件过大，无法在此预览",
-                       rel=rel, mb=MAX_BINARY_BYTES // (1024 * 1024))
+    ensure_within(full, rel)  # 超限 413（不截断，见 iocaps 说明）
     data, _truncated = read_bytes_capped(full)
     # 不设 Content-Disposition：中文名放 header 会触发 latin-1 异常，内联预览不需要
     return Response(content=data, media_type=media_type)
@@ -356,8 +357,7 @@ def save_resume(version: str, body: ResumeData, ws: str = Depends(workspace_dir)
     with locked(_lock_path(ws)):
         if not os.path.isdir(source_dir):
             os.makedirs(source_dir)
-        # 原子写：简历 JSON 是唯一数据源。必须先序列化再落盘——边序列化边写的话，
-        # 序列化中途异常会写出残缺 JSON
+        # 原子写，且先序列化再落盘：边序列化边写时中途异常会留下残缺 JSON
         content = json.dumps(body.data, ensure_ascii=False, indent=2)
         atomicio.atomic_write_text(path, content, encoding="utf-8")
     return {"version": version, "saved": True}
@@ -553,8 +553,7 @@ def _call_llm(cfg, prompt, model):
         "Content-Type": "application/json",
         "Authorization": "Bearer " + cfg["api_key"],
     })
-    # 出网统一走 tls_http（默认严格校验），响应体经 read_response 限流——
-    # 网络读的大小由对方决定，不能无界
+    # 出网统一走 tls_http（默认严格校验），响应体经 read_response 限流（大小由对方定）
     with tls_http.open_url(req, timeout=LLM_TIMEOUT,
                            purpose="简历改写（模型调用）") as resp:
         payload = json.loads(read_response(resp).decode("utf-8"))

@@ -46,5 +46,9 @@ def apply_approval(body: ApprovalApplyBody):
     except approval.ApprovalConflict as exc:
         raise ApiError(409, "approval.conflict", str(exc))
     except approval.ApprovalError as exc:
+        # 锁等待超时是"稍后再试"，不是"令牌有问题"：语义混在一个码里会让用户按
+        # 提示去重新预览（白费一次预览，而且下次点击大概率还是同一个 422）。
+        if getattr(exc, "code", "") == "lock_timeout":
+            raise ApiError(429, "server.lockTimeout", str(exc))
         raise ApiError(422, "approval.tokenInvalid", str(exc))
     return {"ok": True, **result}

@@ -32,6 +32,8 @@ from apierror import ApiError
 from deps import DIR_JOBS, safe_join, workspace_dir
 from iocaps import read_text_capped
 from lockctx import locked
+from ro_files import inside
+from ro_files import inside
 from routers.progress._shared import delete_preview_response
 
 router = APIRouter(prefix="/api/jobs")
@@ -39,18 +41,17 @@ router = APIRouter(prefix="/api/jobs")
 JD_FILE = "JD原文.md"
 CARD_FILE = "解析卡.md"
 
-# 四排序。未知键静默回退——前端传参可能来自 URL，容错比严格更好
-# （与 applications.py 的 SORTS 同一策略，避免两页同一类控件的容忍度不一致）
+# 四排序。未知键静默回退——前端传参可能来自 URL，容错比严格更好（与 applications.py
+# 的 SORTS 同一策略，避免两页同一类控件的容忍度不一致）
 JOB_SORTS = ["dir", "score", "state", "recent"]
-# 每个维度的自然方向：目录名 A→Z、状态「未投递在前」是 asc；评分高分在前、
-# 最近更新新在前是 desc。前端切换维度时回到该维度的默认，请求缺 order 时后端照它兜底。
+# 每个维度的自然方向：目录名 A→Z、状态「未投递在前」是 asc；评分与最近更新是 desc。
+# 前端切换维度时回到该维度的默认，请求缺 order 时后端照它兜底。
 JOB_DEFAULT_ORDER = {"dir": "asc", "score": "desc", "state": "asc", "recent": "desc"}
 JOB_ORDERS = ("asc", "desc")
 # 状态筛选白名单：未知值视为「全部」，同样静默容错
 JOB_STATUS = {"unapplied": "未投递", "active": "流程中", "terminal": "已终态"}
 
-# JD 抓取（第三批）：正文短于此字数视为没抓到（多为需登录或纯 JS 渲染），
-# 明确降级让用户手动粘贴——绝不假装成功把空壳存进 JD原文.md
+# 正文短于此字数视为没抓到（多为需登录或纯 JS 渲染），明确降级而不是存空壳
 JD_MIN_CHARS = 80
 FETCH_TIMEOUT = 15
 FETCH_MAX_BYTES = 3 * 1024 * 1024
@@ -69,10 +70,23 @@ def _dir_name(company: str, role: str) -> str:
 def _read(path):
     if not os.path.isfile(path):
         return None
-    # 带上限：解析卡是文本，但目录里也可能躺着一个被误放进去的大文件——
-    # 列表接口对每条记录都要读一次，无上限的 read() 会把一次列表变成一次全盘读
+    # 带上限：列表接口对每条记录都要读一次，无上限的 read() 会变成一次全盘读
     text, _truncated = read_text_capped(path)
     return text
+
+
+def _read_in_workspace(workspace, *parts):
+    """读工作区内的文本：realpath 二次确认（读穿防护）+ 上限，越界/读不到返回 None。
+
+    `safe_join` 只做字符串归一化、**不解析符号链接**：Windows 上 `01_岗位池/某岗位`
+    若是指向外部的 junction，`GET /api/jobs/<名>` 就能把工作区外的文件正文当 JD /
+    解析卡回传。素材库与笔记（先修）早就补了 `inside()` 这一道，岗位池这两条读路径
+    一直缺（2026-09-23 二轮审计）。
+    """
+    full = safe_join(workspace, *parts)
+    if not inside(workspace, full):
+        return None
+    return _read(full)
 
 
 def _parse_card(workspace: str, job_dir: str):
@@ -83,7 +97,7 @@ def _parse_card(workspace: str, job_dir: str):
     - hardGates：资格硬门槛（前置差异化），含 items/conclusion/reason/details
     - dimensionsDetail：每维的词典命中（含证据标签）与逐条说明 raw
     """
-    card = _read(safe_join(workspace, job_dir, CARD_FILE))
+    card = _read_in_workspace(workspace, job_dir, CARD_FILE)
     if card is None:
         return None
     fields = jd_score.parse_score_section(card)
@@ -129,7 +143,7 @@ def _card_basic_info(workspace: str, job_dir: str):
 
     解析卡是渐进填写的（可能只写到硬门槛就停了），所以「读不到」是常态而非异常。
     """
-    card = _read(safe_join(workspace, job_dir, CARD_FILE))
+    card = _read_in_workspace(workspace, job_dir, CARD_FILE)
     if not card:
         return None
     seg = re.search(r"^##\s*基本信息\s*$(.*?)(?=^##\s|\Z)", card, re.M | re.S)
@@ -227,9 +241,8 @@ def _sort_jobs(items, sort: str, order: str = None):
             -(i["score"] or 0) if desc else (i["score"] or 0),
             i["dir"]))
     if sort == "state":
-        # 未投递 → 流程中 → 已终态；同状态内按评分降序、未评分沉底。
-        # 注意组内评分的默认就是**降序**（与 score / recent 的整体降序同一语义），
-        # 所以逆序时它反而是升序——「逆序」翻的是整个排序，不是每个键各自取反。
+        # 未投递 → 流程中 → 已终态；同状态内按评分降序、未评分沉底。注意组内评分的默认
+        # 就是**降序**，所以逆序时它反而升序——「逆序」翻的是整个排序，不是每个键取反。
         state_order = {"未投递": 0, "流程中": 1, "已终态": 2}
         return sorted(items, key=lambda i: (
             state_order[i["applyState"]] if not desc else -state_order[i["applyState"]],
@@ -263,8 +276,7 @@ def list_jobs(sort: str = "dir", order: str = None, status: str = None,
     if status in JOB_STATUS:
         want = JOB_STATUS[status]
         items = [i for i in items if i["applyState"] == want]
-    # 关键词在 _summary 之后过滤：公司 / 岗位来自目录名拆分与解析卡，只有条目里有。
-    # 匹配口径在领域层（job_dirs.match_keyword），与追踪表的搜索同源。
+    # 关键词在 _summary 之后过滤（公司 / 岗位只有条目里有）；口径在 job_dirs.match_keyword
     if q and q.strip():
         items = [i for i in items if job_dirs.match_keyword(i, q)]
     items = _sort_jobs(items, sort if sort in JOB_SORTS else "dir", order)
@@ -298,11 +310,9 @@ def create_job(job: NewJob, ws: str = Depends(workspace_dir)):
 
 
 # ---------------------------------------------------------------------------
-# JD 链接抓取（第三批）：粘贴网页链接 → 抓正文存 JD原文.md
-#
-# 抓取是「尽力而为」的能力：招聘网站形态各异，大量页面需登录或由 JS 渲染。
-# 所以失败与「正文过短」都要**明确降级**提示手动粘贴，绝不把半截内容或
-# 空壳当成抓取成功——假装成功比直接说抓不到更浪费用户时间。
+# JD 链接抓取（第三批）：粘贴网页链接 → 抓正文存 JD原文.md。抓取是「尽力而为」的
+# 能力：招聘网站形态各异，大量页面需登录或由 JS 渲染，所以失败与「正文过短」都要
+# **明确降级**提示手动粘贴——假装成功比直接说抓不到更浪费用户时间。
 # ---------------------------------------------------------------------------
 
 class FetchJdRequest(BaseModel):
@@ -369,9 +379,8 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
             content_type = resp.headers.get("Content-Type", "")
             raw = resp.read(FETCH_MAX_BYTES)
     except ApiError:
-        # tls_http 已翻译过的证书类错误（sys.certStoreUnavailable /
-        # sys.certUntrusted）必须原样上抛：下面的 `except Exception` 会把它兜成
-        # 「抓取失败：…」，用户就又看不到"修证书库"这一步了。
+        # tls_http 已翻译过的证书类错误（sys.certStoreUnavailable / sys.certUntrusted）
+        # 必须原样上抛：下面的 `except Exception` 会把它兜成「抓取失败：…」
         raise
     except urllib.error.HTTPError as exc:
         raise ApiError(502, "job.fetchHttpError",
@@ -445,8 +454,8 @@ def job_detail(job_id: str, ws: str = Depends(workspace_dir)):
     if not os.path.isdir(job_dir):
         raise ApiError(404, "job.notFound", "岗位不存在: %s" % job_id, id=job_id)
 
-    jd = _read(os.path.join(job_dir, JD_FILE))
-    card_raw = _read(os.path.join(job_dir, CARD_FILE))
+    jd = _read_in_workspace(ws, DIR_JOBS, job_id, JD_FILE)
+    card_raw = _read_in_workspace(ws, DIR_JOBS, job_id, CARD_FILE)
     card = _parse_card(ws, os.path.join(DIR_JOBS, job_id))
     # 详情也带上列表同款字段（含投递状态）：详情与列表不说两套话
     return dict({
@@ -468,8 +477,7 @@ def job_gap(job_id: str, ws: str = Depends(workspace_dir), resume: str = None):
     if not os.path.isdir(job_dir):
         raise ApiError(404, "job.notFound", "岗位不存在: %s" % job_id, id=job_id)
 
-    # 差距分析只依赖 JD 原文（gap_analysis 用其目录定位），解析卡不必须——
-    # 新建岗位尚无解析卡时也应能看差距
+    # 差距分析只依赖 JD 原文（解析卡不必须）：新建岗位尚无解析卡也该能看差距
     card = os.path.join(job_dir, CARD_FILE)
 
     version = (resume or "").strip()

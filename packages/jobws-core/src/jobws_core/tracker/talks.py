@@ -19,7 +19,7 @@ from jobws_core.filelock import file_lock  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
-from ._core import (ConflictError, _atomic_write_csv, _lock_path, resolve_ws)
+from ._core import (ConflictError, _atomic_write_csv, _lock_path, check_when, resolve_ws)
 from ._schema import (TALK_ATTEND, TALK_FIELDS, TALK_FILE, TALK_FORMS)
 from .applications import (read_rows)
 from ..csv_cells import restore_row
@@ -90,6 +90,11 @@ def _validate_talk_fields(fields, workspace=None):
     attend = fields.get("是否参加") or ""
     if attend and attend not in TALK_ATTEND:
         errors.append("`--attend` 必须是 %s 之一，实际为 `%s`" % ("/".join(TALK_ATTEND), attend))
+    # 时间闸门（2026-09-23 二轮审计）：宣讲会时间带时刻是常态，走 check_when；
+    # 假日期落库后 .ics 导出会静默跳过这一行
+    when_error = check_when(fields.get("时间"), "时间")
+    if when_error:
+        errors.extend(when_error)
     return errors
 
 

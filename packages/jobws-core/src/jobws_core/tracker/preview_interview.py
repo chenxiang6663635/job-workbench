@@ -22,7 +22,7 @@ from jobws_core.filelock import file_lock  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
-from ._core import (ConflictError, _lock_path, _tracking_targets, resolve_ws)
+from ._core import (ConflictError, _lock_path, _tracking_targets, check_when, resolve_ws)
 from ._schema import (INTERVIEW_FIELDS, INTERVIEW_FORMS, INTERVIEW_RESULTS,
                       INTERVIEW_ROUNDS)
 from .applications import (append_history, read_rows)
@@ -60,6 +60,12 @@ def _validate_add_fields(fields, workspace=None):
     if result not in INTERVIEW_RESULTS:
         errors.append("结果必须是 %s 之一，实际为 `%s`"
                       % ("/".join(INTERVIEW_RESULTS), result))
+
+    # 时间闸门（2026-09-23 二轮审计）：`2026-02-31` 能过正则、落库后 .ics 导出与
+    # 看板时间线会**静默跳过这一行**——用户看不到自己的面试从日历里消失。
+    when_error = check_when(fields.get("面试时间"), "面试时间")
+    if when_error:
+        errors.extend(when_error)
     return errors
 
 
@@ -75,6 +81,10 @@ def _validate_update_fields(changes):
     if "结果" in changes and changes["结果"] not in INTERVIEW_RESULTS:
         errors.append("结果必须是 %s 之一，实际为 `%s`"
                       % ("/".join(INTERVIEW_RESULTS), changes["结果"]))
+    if "面试时间" in changes:
+        when_error = check_when(changes["面试时间"], "面试时间")
+        if when_error:
+            errors.extend(when_error)
     return errors
 
 

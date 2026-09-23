@@ -71,7 +71,17 @@ def _mail_add(args):
 
 
 def _mail_update(args):
-    """邮件更新：逐字段改 + 关联记录与外键校验 + 枚举复核（与新增同口径）。"""
+    """邮件更新：持锁执行（「读最新 → 校验 → 写回」必须在同一个临界区）。
+
+    整表重写会把锁外读到的快照覆盖回去：桌面端后端常驻并用同一把 tracker.lock，
+    没有这一步时界面里的改动能被一次 CLI 更新静默抹掉（2026-09-23 二轮审计）。
+    """
+    with _core.tracking_lock():
+        return _mail_update_locked(args)
+
+
+def _mail_update_locked(args):
+    """逐字段改 + 关联记录与外键校验 + 枚举复核（与新增同口径）。"""
     rows = read_mails()
     row = find_mail(rows, args.id)
     if not row:
@@ -87,6 +97,14 @@ def _mail_update(args):
         if value is not None:
             changed.append(field)
             row[field] = value
+    # 日期闸门（2026-09-23 二轮审计）：新增走领域层 `_validate_mail_fields`，
+    # 更新这条直写路径也要接同一判定（邮件日期带时刻是常态 → check_when）
+    if getattr(args, "when", None) is not None:
+        when_error = _core.check_when(args.when, "日期")
+        if when_error:
+            for error in when_error:
+                print("错误：%s" % error)
+            return 1
     # 关联记录单独处理：给出时必须指向存在的投递记录
     if getattr(args, "app", None) is not None:
         link = args.app.strip()

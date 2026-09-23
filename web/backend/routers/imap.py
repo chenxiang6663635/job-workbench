@@ -31,6 +31,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 import imap_fetch
+import imapguard
 from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
@@ -241,11 +242,9 @@ def test_imap(ws: str = Depends(workspace_dir)):
 
     note = "只读连接成功；本次测试没有读取、修改或删除任何邮件。"
     if tls_policy.is_insecure(tls_policy.IMAP_ENV_VAR):
-        # 降级是用户显式选的，但界面上必须再说一次——连处于未校验状态这件事
-        # 不该只留在日志里（日志没人看，界面天天看）。语义不变，只加提示。
-        # 措辞必须留余地：降级只在**本机证书库加载失败**时才真的生效——证书库
-        # 正常时上下文仍是严格校验（tls_policy 口径第 1 条）。写成「已跳过校验」
-        # 会在大多数机器上说假话（独立审查 m1）。
+        # 降级是用户显式选的，但界面上必须再说一次（日志没人看，界面天天看）。措辞要留余地：
+        # 降级只在**本机证书库加载失败**时才真的生效，证书库正常时上下文仍严格校验
+        # （tls_policy 口径第 1 条）——写成「已跳过校验」会在大多数机器上说假话（审查 m1）。
         note += ("注意：已设置 %s=insecure——本机证书库可用时仍严格校验，"
                  "仅在其加载失败时才跳过证书与主机名校验；"
                  "用完请取消该环境变量。" % tls_policy.IMAP_ENV_VAR)
@@ -264,8 +263,7 @@ def test_imap(ws: str = Depends(workspace_dir)):
 class FetchRequest(BaseModel):
     limit: int = imap_fetch.DEFAULT_LIMIT
     folder: str = ""  # 可选覆盖配置里的文件夹
-    # 只拉最近 N 天；0 = 不限（取最近 limit 封）。
-    # 用 Optional：前端显式传 null 时不该 422（pydantic v2 的坑，同阶段 2 注释）
+    # 只拉最近 N 天，0 = 不限；Optional 是给前端显式传 null 用（不该 422）
     since_days: Optional[int] = imap_fetch.DEFAULT_SINCE_DAYS
 
 
@@ -285,6 +283,7 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
     host = _resolve_host(cfg)
     folder = (body.folder or cfg["folder"] or imap_fetch.DEFAULT_FOLDER).strip()
     since_days = body.since_days or 0
+    imapguard.check_fetch_range(since_days, body.limit)  # 越界 422（见模块说明）
 
     try:
         messages = imap_fetch.fetch_messages(

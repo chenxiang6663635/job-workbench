@@ -15,10 +15,20 @@
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
+def _escaped_form(text):
+    """文本是否已经是「转义形态」（`'` + 公式前缀）。"""
+    return text[:1] == "'" and text[1:2] in _FORMULA_PREFIXES
+
+
 def csv_cell(value):
-    """单元格出口：None → 空串；危险开头 → 前置单引号。"""
+    """单元格出口：None → 空串；危险开头 → 前置单引号。
+
+    `_escaped_form` 那一支是为了让**写读构成真正的对合**（2026-09-23 二轮审计）：
+    用户本来就想留的 `'- 待定` 若不再补一层引号，读侧会把它当成转义还原成 `- 待定`
+    ——用户看到自己写的内容被改掉。补一层后写读两侧可逆。
+    """
     text = "" if value is None else str(value)
-    if text[:1] in _FORMULA_PREFIXES:
+    if text[:1] in _FORMULA_PREFIXES or _escaped_form(text):
         return "'" + text
     return text
 
@@ -28,11 +38,11 @@ def csv_read_cell(value):
 
     为什么必须成对：中和是**为了 Excel**，不是为了改用户数据——读回来若少了这一步，
     备注会永远多一个引号（界面、CLI、导出、下一次写回都带着它），而"写进去什么、
-    读出来什么"才是这份数据的基本承诺。判定与写侧对称：只有 `'` 后面紧跟公式前缀
-    才还原，避免吃掉用户真正想留的引号。
+    读出来什么"才是这份数据的基本承诺。判定与写侧对称：剥一层后仍是"`'` + 公式
+    前缀"（即写侧补的第二层）也继续剥，两层剥完就是原值。
     """
     text = "" if value is None else str(value)
-    if text[:1] == "'" and text[1:2] in _FORMULA_PREFIXES:
+    if text[:1] == "'" and (text[1:2] in _FORMULA_PREFIXES or _escaped_form(text[1:])):
         return text[1:]
     return text
 

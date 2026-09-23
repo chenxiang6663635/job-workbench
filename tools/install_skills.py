@@ -102,6 +102,20 @@ def _validate(root):
         ok = False
     else:
         print("插件资产校验通过（命令与子代理的 frontmatter 齐全）")
+
+    # 版本号一致性（2026-09-23 二轮审计）：模块 docstring 一直写着"含技能 / 插件壳的
+    # 版本号一致性"，但这里此前只调了技能与插件资产两项——按文档信任它的人会把版本
+    # 漂移的插件壳装到宿主侧（宿主只看到旧版本号，永远收不到"新版本"提示），
+    # 而 CI 只跑 `skills check`、不跑 install，漂移在合入前也没人拦。
+    from skill_rules import version_problems
+    version_issues = version_problems(root, os.path.join(root, "skills"))
+    if version_issues:
+        print("版本号一致性未通过，拒绝分发：")
+        for problem in version_issues:
+            print("    - %s" % problem)
+        ok = False
+    else:
+        print("版本号一致（技能 / 插件壳 / 应用版本三向对齐）")
     return ok
 
 

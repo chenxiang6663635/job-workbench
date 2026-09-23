@@ -24,6 +24,15 @@
       "note": "只读：读解析卡并给出评分/差距。解析卡本身由 AI 或用户写入 Markdown，程序不生成。投递流程里由 apply-pack 命令顺带调用。桌面端列刻意留空（FC-2 修正）：界面**不评分**，它只把 `GET /api/jobs/{job_id}/gap` 的差距面板呈现出来——把那条路由登记成 `jd.score` 的桌面端实现，与下方「gui 不提供 jd.score」的例外自相矛盾；评分校验的入口只有命令行 `jd` 与 MCP `score_jd`。"
     },
     {
+      "id": "audit.crossEnd",
+      "stage": "仓库治理",
+      "cli": null,
+      "mcp": null,
+      "plugin": "cross-end-audit",
+      "gui": null,
+      "note": "维护者自用的只读一致性审查子代理（核对四端对同一数据的读写是否同源）。它不是一个面向用户的能力：三个端显式登记为例外。**为什么它必须在这里有一行**（2026-09-23 二轮审计）：四端检查的反向那一半此前只覆盖 MCP 工具与插件命令，`agents/` 完全不参与——于是「新增子代理忘了登记」这类漂移在检查里是绿的。补上那道闸之后，这个子代理由例外清单显式兜住。"
+    },
+    {
       "id": "jd.fetch",
       "stage": "JD 解析",
       "cli": null,
@@ -482,6 +491,21 @@
       "end": "plugin",
       "item": "prep.toggle",
       "reason": "同上：勾选项是本人的学习打卡动作。"
+    },
+    {
+      "end": "cli",
+      "item": "audit.crossEnd",
+      "reason": "维护者自用的只读审查子代理，命令行没有对应命令。"
+    },
+    {
+      "end": "mcp",
+      "item": "audit.crossEnd",
+      "reason": "同上：它不是给宿主模型调用的能力，不暴露为 MCP 工具。"
+    },
+    {
+      "end": "gui",
+      "item": "audit.crossEnd",
+      "reason": "同上：界面无对应入口（审计在开发期由子代理执行）。"
     },
     {
       "end": "mcp",

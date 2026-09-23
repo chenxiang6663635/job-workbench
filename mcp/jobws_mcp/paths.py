@@ -127,6 +127,41 @@ def resolve_workspace(name=None, must_exist=False):
     return real
 
 
+def resolve_within_workspace(workspace, value, label="目录"):
+    """校验「必须是工作区内相对路径」的工具入参，返回 (规范化绝对路径, 相对路径, 错误)。
+
+    为什么单独一层：MCP 工具的路径参数可能由**模型代传**（如 tools_writable 的
+    `module_dir`），四类越界写法都得在工具层先拒——
+      ① 绝对路径（os.path.join 会当成新根）；
+      ② `..` 段（翻出工作区）；
+      ③ 盘符相对路径（`C:foo`：`isabs()==False`、不含分隔符，join 时却重置根——
+         2026-09-23 实测，`join(ws, "C:foo")` 直接得到 `C:foo`，工具会去扫盘根）；
+      ④ 空值。
+    最后 realpath 二次校验：工作区内的符号链接 / junction 读穿到外面同样算越界
+    （与 `resolve_workspace` 的口径一致）。第二个返回值是规范化后的相对路径
+    （统一正斜杠、去掉空段与 `.`），供领域层按相对语义继续使用。
+    """
+    raw = (value or "").strip()
+    if not raw:
+        return None, None, "%s 不能为空" % label
+    normalized = raw.replace("\\", "/")
+    if os.path.isabs(raw) or os.path.isabs(normalized):
+        return None, None, "%s 必须是工作区内的相对路径（不能是绝对路径）：%s" % (label, raw)
+    segments = [seg for seg in normalized.split("/") if seg not in ("", ".")]
+    if not segments:
+        return None, None, "%s 不能为空" % label
+    if any(seg == ".." for seg in segments):
+        return None, None, "%s 不能包含 .. 段：%s" % (label, raw)
+    if any(":" in seg for seg in segments):
+        return None, None, ("%s 不能包含盘符（`C:foo` 这类盘符相对路径会让 join 重置到"
+                             "盘根）：%s") % (label, raw)
+    real = os.path.realpath(os.path.join(os.path.realpath(workspace), *segments))
+    ws_real = os.path.realpath(workspace)
+    if real != ws_real and not real.startswith(ws_real + os.sep):
+        return None, None, "%s 越出工作区：%s" % (label, raw)
+    return real, "/".join(segments), None
+
+
 def workspace_profile(workspace):
     """工作区是否已初始化：判定标准是含 `config/profile.md`（与后端
     `routers/workspace.py:44` 同一口径）。缺它时工具返回空集而不是报错——

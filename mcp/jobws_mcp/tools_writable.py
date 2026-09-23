@@ -169,13 +169,15 @@ def preview_add_question(workspace, **fields):
 def preview_import_questions(workspace, module_dir=None):
     """预览从 `03_面试准备` 导入题目（**不写入**），返回令牌与逐条差异。
 
-    module_dir 必须是**工作区内的相对目录**：绝对路径会被 os.path.join 当成新根，
-    `..` 能翻出工作区——两者都先拒（与 CLI 的 `bank import` 同一道门）。
+    module_dir 必须是**工作区内的相对目录**：绝对路径、`..`、盘符相对路径
+    （`C:foo`——isabs 不触发却会在 join 时重置到盘根，2026-09-23 审计实证）
+    都在工具层先拒；防护与只读侧同源（`paths.resolve_within_workspace`，
+    其 docstring 列全了四类写法）。
     """
-    target = module_dir or question_bank.MODULE_DIR
-    if os.path.isabs(target) or ".." in target.replace("\\", "/").split("/"):
-        return {"ok": False,
-                "errors": ["module_dir 必须是工作区内的相对目录（不能是绝对路径或含 ..）"]}
+    _real, target, error = paths.resolve_within_workspace(
+        workspace, module_dir or question_bank.MODULE_DIR, "module_dir")
+    if error:
+        return {"ok": False, "errors": [error]}
     errors, plan = question_bank.preview_import(workspace, target)
     if errors:
         return {"ok": False, "errors": errors}

@@ -397,7 +397,7 @@ Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Proce
 |---|---|
 | 整体架构（三层分离、领域插件） | `docs/specs/2026-08-30-general-workbench-design.md` |
 | Web 层设计（API 契约、并发与安全） | `docs/specs/2026-08-30-web-prototype-design.md` |
-| AI 工作流定义 | 根 `skills/` 下八个 SKILL.md（五个求职向 + 三个开发向；`tools/jobws.py skills install` 分发到各 AI CLI） |
+| AI 工作流定义 | 根 `skills/` 下八个 SKILL.md（五个求职向 + 三个开发向；主文件精简、细节在各自的 `references/`。`tools/jobws.py skills install` 一并分发技能 / 命令 / 子代理三类资产到各 AI CLI） |
 | 文档总索引 | `docs/README.md` |
 
 ---

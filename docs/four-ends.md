@@ -7,7 +7,7 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **42** 条、各端不提供的例外 **61** 条、错误标识 **9** 条、宿主专属字段 **7** 条。
+**基数（随本文件自动生成）**：登记能力 **42** 条、各端不提供的例外 **61** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
 
 ## 能力矩阵
 
@@ -144,4 +144,5 @@
 | `agents/*.md` | `tools` | any | 工具白名单，跨宿主通用（Claude Code 同名同义）；只给只读工具。 |
 | `commands/*.md` | `description` | any | 命令列表展示文案，跨宿主通用。 |
 | `commands/*.md` | `allowed-tools` | codebuddy | 权限白名单。Claude Code 的命令 frontmatter 亦用同名键，但取值语法可能不同（未实证）——新增命令时以本机宿主实测为准。 |
+| `skills/*/SKILL.md` | `allowed-tools` | codebuddy | 实验性字段（Open Agent Skills 规范标注 experimental）：声明技能会用到的工具族。只给「通篇 jobws 工作流」的技能声明 `Bash(jobws:*)`，纯指引类技能不声明；宿主不支持时忽略，不影响正文纪律。 |
 | `skills/*/SKILL.md` | `compatibility` | any | 环境声明（Python 版本、是否需仓库在侧、是否上传数据）；宿主据此判断能否挂载。 |

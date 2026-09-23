@@ -169,6 +169,25 @@ def test_mirror_covers_commands_and_agents(tmp_path):
     assert not any("resume-jd-gap" in item for item in issues), issues
 
 
+def test_extra_files_are_only_reported_for_skills(tmp_path):
+    """「多出」只在技能上判（批 10 审查 MINOR-5）。
+
+    `.claude/commands` 这类目录也是用户放自己文件的地方——把他们的文件报成
+    「手工加的副本」会让这张网失去信任（而它主要在本机跑，CI 看不到）。
+    """
+    _write(str(tmp_path / "commands" / "today.md"), "真源命令")
+    _write(str(tmp_path / ".claude" / "commands" / "today.md"), "真源命令")
+    _write(str(tmp_path / ".claude" / "commands" / "my-own.md"), "用户自己的命令")
+    _write(str(tmp_path / "skills" / "jwb-x" / "SKILL.md"), "真源")
+    _write(str(tmp_path / ".claude" / "skills" / "jwb-x" / "SKILL.md"), "真源")
+    _write(str(tmp_path / ".claude" / "skills" / "jwb-leftover" / "SKILL.md"), "残留")
+
+    issues, _checked = four_ends_extras.asset_mirrors(str(tmp_path))
+
+    assert not any("my-own.md" in item for item in issues), issues
+    assert any("jwb-leftover" in item for item in issues), issues
+
+
 def test_mirror_follows_symlinked_entries(tmp_path):
     """`--link` 分发出来的目标项是符号链接：不跟随的话会把正确分发报成缺件。"""
     _write(str(tmp_path / "commands" / "today.md"), "真源命令")

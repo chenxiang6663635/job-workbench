@@ -85,7 +85,7 @@ python tools/jobws.py skills install --target user
 
 - **只装技能**：`npx skills add chenxiang6663635/job-workbench`（默认装到当前目录，`-g` 装用户级；`.agents/skills/` 是跨宿主约定，Claude Code 读 `.claude/skills/`）。
 
-本地脚本是兜底与自定义落点用：`python tools/jobws.py skills install` 按宿主目录约定分发三类资产（技能 → skills 目录；命令与子代理 → `.codebuddy/`、`.claude/`），默认拷贝；`--link` 是实验选项，改用符号链接指向真源（不再有副本过期问题，Windows 需开发者模式或管理员权限）。**副本与真源的一致性由 `python tools/jobws.py lint four-ends` 兜住**：副本过期、多出、内容不一致都会被指名。
+本地脚本是兜底与自定义落点用：`python tools/jobws.py skills install` 按宿主目录约定分发三类资产（技能 → skills 目录；命令与子代理 → `.codebuddy/`、`.claude/`），默认拷贝；`--link` 是实验选项，改用符号链接指向真源（不再有副本过期问题，Windows 需开发者模式或管理员权限）。**仓库内项目级副本**的一致性由 `python tools/jobws.py lint four-ends` 兜住：副本过期、内容不一致都会被指名，技能目录还额外报「多出」（`.claude/` 等目录里你自己的文件不算）——**用户级 `~/.agents/skills/` 与插件市场装的缓存在检查器视野之外**（它们不随仓库走）。
 
 然后直接用自然语言跟你的 AI CLI 说："解析这份 JD"、"投递这个岗位"、"看最近七天要处理什么"。
 

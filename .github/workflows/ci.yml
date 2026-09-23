@@ -39,6 +39,13 @@ jobs:
       - name: 校验 skills（合规 + 无重名）
         run: python tools/jobws.py skills check
 
+      # 四端一致性：矩阵、实现、说明页、错误码对照与宿主专属字段。此前只在本地跑，
+      # 于是「矩阵登记了但没实现 / 实现了但没登记 / docs/four-ends.md 忘记再生」
+      # 这类漂移要等到有人本地跑才被发现。干净检出里镜像目录不存在，镜像那一项
+      # 自动跳过（属已知边界，兜底靠开发者本机）。
+      - name: 校验四端一致性
+        run: python tools/jobws.py lint four-ends
+
       # 界面文案的硬编码检查：i18n 抽完之后，这一条没有别的机制能拦——新增页面
       # 一个字没翻译，lint 与 tsc 都是绿的，只有英文用户点进去才会发现。
       # 与 pytest 共用同一实现（tools/check_i18n_hardcode.py），口径只有一处。

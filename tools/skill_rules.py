@@ -47,13 +47,25 @@ def frontmatter_problems(text, frontmatter_end, fields, entry):
     problems = []
 
     # 字段白名单：缩进行属于上一个字段的嵌套映射（如 `metadata:` 下的 `version`），
-    # 不算顶层键，故按行首空白跳过。
-    for line in text.splitlines()[1:frontmatter_end]:
-        if not line.strip() or line.lstrip().startswith("#") or line[:1].isspace():
+    # 不算顶层键。但**只有 `metadata` 允许带嵌套**——否则「误缩进的 `licence:`」会
+    # 被当成嵌套键静默放过（正是白名单要拦的那种手滑），而「误缩进的 `license:`」在
+    # 严格 YAML 宿主里会变成上一个字段的子键、与本地解析结果不一致。
+    last_top = None
+    for index, line in enumerate(text.splitlines()[1:frontmatter_end], start=2):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line[:1].isspace():
+            if last_top != "metadata" and ":" in line:
+                problems.append(
+                    "frontmatter 第 %d 行缩进在 `%s` 之下：只有 `metadata:` 允许带嵌套"
+                    "（缩进行在严格 YAML 宿主里是上一字段的子键，本地单行解析却会把它"
+                    "当独立键——两边判定不一致）"
+                    % (index, last_top or ""))
             continue
         if ":" not in line:
             continue
         key = line.partition(":")[0].strip()
+        last_top = key
         if key not in ALLOWED_FIELDS:
             problems.append(
                 "frontmatter 字段 `%s` 未登记（规范字段集：%s）——拼错的键不会让宿主"
@@ -126,4 +138,98 @@ def body_problems(text, frontmatter_end, skill_dir):
         problems.append(
             "正文 %d 行，超过 %d 行上限——把重参考资料拆到 `references/`（按需读取）"
             % (len(body_lines), BODY_MAX_LINES))
+    return problems
+
+
+def reference_file_problems(skill_dir):
+    """`references/` 下文件的问题清单（批 10 独立审查 MAJOR-4）。
+
+    为什么这些文件也要查：它们随技能目录一起被分发到宿主，**仓库相对路径在那里
+    同样不存在**——只查 SKILL.md 的话，「把长内容搬进 references/」这个动作恰好
+    绕过了规则。行数上限不适用（把重资料搬出去正是为了让主文件精简）。
+    """
+    problems = []
+    refs_dir = os.path.join(skill_dir, "references")
+    if not os.path.isdir(refs_dir):
+        return problems
+
+    for dirpath, _dirnames, filenames in os.walk(refs_dir):
+        for name in sorted(filenames):
+            if not name.endswith(".md"):
+                continue
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, skill_dir).replace(os.sep, "/")
+            try:
+                with open(full, encoding="utf-8-sig", errors="replace") as handle:
+                    text = handle.read()
+            except OSError as exc:
+                problems.append("%s 读取失败：%s" % (rel, exc))
+                continue
+
+            for offset, line in enumerate(text.splitlines(), start=1):
+                hit = next((p for p in REPO_PATH_PREFIXES if p in line), None)
+                if hit:
+                    problems.append(
+                        "%s 第 %d 行引用了仓库相对路径 `%s…`——它随技能一起分发到宿主，"
+                        "那条路径在用户的工作区里不存在"
+                        % (rel, offset, hit))
+                    break
+            for offset, line in enumerate(text.splitlines(), start=1):
+                for ref in REFERENCE_RE.findall(line):
+                    if not os.path.isfile(os.path.join(skill_dir, ref)):
+                        problems.append(
+                            "%s 第 %d 行引用了不存在的 `%s`（相对技能根）"
+                            % (rel, offset, ref))
+                        break
+    return problems
+
+
+def version_problems(root, skills_root):
+    """版本号一致性（批 10 独立审查 MAJOR-1）。
+
+    技能与插件壳的 `version` 若各写各的，发布时只 bump 应用版本（`web/electron/
+    package.json`）就会留下静默失真的旧值——用户装了插件却永远收不到「新版本」。
+    真值源只有一个：`web/electron/package.json`；这里要求 8 个技能的
+    `metadata.version` 与插件壳的 `version` 都等于它。
+
+    应用版本文件不存在（独立使用本校验器的场景）→ 跳过，不误报。
+    """
+    problems = []
+    app_pkg = os.path.join(root, "web", "electron", "package.json")
+    if not os.path.isfile(app_pkg):
+        return problems
+    try:
+        with open(app_pkg, encoding="utf-8-sig", errors="replace") as handle:
+            want = re.search(r'"version"\s*:\s*"([^"]+)"', handle.read())
+    except OSError as exc:
+        return ["读不到 %s：%s" % (app_pkg, exc)]
+    if not want:
+        return ["%s 里没有 version 字段" % app_pkg]
+    want = want.group(1)
+
+    plugin = os.path.join(root, ".codebuddy-plugin", "plugin.json")
+    if os.path.isfile(plugin):
+        with open(plugin, encoding="utf-8-sig", errors="replace") as handle:
+            found = re.search(r'"version"\s*:\s*"([^"]+)"', handle.read())
+        if not found:
+            problems.append(
+                ".codebuddy-plugin/plugin.json 缺 version（发布时要 bump 的 pin 锚点）")
+        elif found.group(1) != want:
+            problems.append(
+                ".codebuddy-plugin/plugin.json 的 version=%s 与应用版本 %s 不一致——"
+                "发布时一起改（真值源是 web/electron/package.json）"
+                % (found.group(1), want))
+
+    for entry in sorted(os.listdir(skills_root)):
+        skill_md = os.path.join(skills_root, entry, "SKILL.md")
+        if not os.path.isfile(skill_md):
+            continue
+        with open(skill_md, encoding="utf-8-sig", errors="replace") as handle:
+            match = re.search(r"^\s+version\s*:\s*(\S+)\s*$", handle.read(), re.M)
+        if not match:
+            problems.append("skills/%s/SKILL.md 的 metadata 缺 version" % entry)
+        elif match.group(1).strip('"') != want:
+            problems.append(
+                "skills/%s/SKILL.md 的 metadata.version=%s 与应用版本 %s 不一致"
+                % (entry, match.group(1), want))
     return problems

@@ -396,7 +396,7 @@ A `.ps1` containing Chinese must be saved as **UTF-8 with BOM**. Save it without
 |---|---|
 | Overall architecture (three-layer split, domain profiles) | `docs/specs/2026-08-30-general-workbench-design.md` |
 | Web layer design (API contracts, concurrency, security) | `docs/specs/2026-08-30-web-prototype-design.md` |
-| AI workflow definitions | The eight SKILL.md files under `skills/` (five job-hunting + three maintainer-facing; distributed to your AI CLIs by `tools/jobws.py skills install`) |
+| AI workflow definitions | The eight SKILL.md files under `skills/` (five job-hunting + three maintainer-facing; each keeps the main file lean and puts details in its own `references/`. `tools/jobws.py skills install` distributes all three asset types — skills, commands, subagents) |
 | Documentation index | `docs/README.md` |
 
 ---

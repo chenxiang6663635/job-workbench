@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "tools"))
 
-from check_skills import describe, inspect_skills  # noqa: E402
+from check_skills import describe, inspect_skills, version_problems  # noqa: E402
 
 GOOD = """---
 name: {name}
@@ -289,6 +289,63 @@ def test_overlong_skill_body_is_reported(tmp_path):
 
     problems = inspect_skills(str(tmp_path))[0]["problems"]
     assert any("行" in p and "references/" in p for p in problems), problems
+
+
+def test_reference_file_with_repo_path_is_reported(tmp_path):
+    """`references/` 下的文件随技能一起分发，仓库相对路径禁令同样适用（批 10 审查 MAJOR-4）。
+
+    只查 SKILL.md 的话，「把长内容搬进 references/」恰好绕过了规则——而它的死路径
+    后果与主文件里写死路径完全一样。
+    """
+    body = GOOD.format(name="jwb-demo").replace(
+        "# 标题", "# 标题\n\n见 `references/details.md`。")
+    d = _make(tmp_path, "jwb-demo", body=body)
+    (d / "references").mkdir()
+    (d / "references" / "details.md").write_text(
+        "# 细节\n\n跑 `python tools/jobws.py track list`。\n", encoding="utf-8")
+
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("references/details.md" in p and "仓库相对路径" in p for p in problems), problems
+
+
+def test_indented_field_outside_metadata_is_reported(tmp_path):
+    """缩进只允许出现在 `metadata:` 之下（批 10 审查 MINOR-4）。
+
+    误缩进的 `licence:` 若被当成「嵌套键」放过，白名单就形同虚设；而误缩进的
+    `license:` 在严格 YAML 宿主里会变成上一个字段的子键，两边判定不一致。
+    """
+    _make(tmp_path, "jwb-x", body=(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "  licence: MIT\n---\n\n正文。\n"))
+    problems = inspect_skills(str(tmp_path))[0]["problems"]
+    assert any("缩进" in p for p in problems), problems
+
+
+def test_version_must_match_app_version(tmp_path):
+    """技能 metadata.version 与插件壳 version 必须等于应用版本（批 10 审查 MAJOR-1）。"""
+    skills_root = tmp_path / "skills"
+    d = skills_root / "jwb-x"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text(
+        "---\nname: jwb-x\ndescription: x\ncompatibility: ok\n"
+        "metadata:\n  version: 1.0.0\n---\n\n正文。\n", encoding="utf-8")
+    electron = tmp_path / "web" / "electron"
+    electron.mkdir(parents=True)
+    (electron / "package.json").write_text('{"version": "26.9.15"}\n', encoding="utf-8")
+    plugin_dir = tmp_path / ".codebuddy-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text('{"version": "26.9.15"}\n', encoding="utf-8")
+
+    problems = version_problems(str(tmp_path), str(skills_root))
+
+    assert any("metadata.version=1.0.0" in p for p in problems), problems
+
+
+def test_version_check_skips_without_app_package(tmp_path):
+    """没有 `web/electron/package.json`（独立使用校验器的场景）→ 跳过，不误报。"""
+    skills_root = tmp_path / "skills"
+    (skills_root / "jwb-x").mkdir(parents=True)
+    assert version_problems(str(tmp_path), str(skills_root)) == []
 
 
 def test_repo_skills_are_compliant():

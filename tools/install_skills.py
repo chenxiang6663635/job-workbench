@@ -11,7 +11,7 @@
     python tools/install_skills.py --prune         # 删除目标里源码已不存在的旧技能目录
     python tools/install_skills.py --link          # 实验：改用符号链接（默认拷贝）
 
-落点（批 10 从「只有 skills」扩到三类资产）：
+落点（批 10 从「只有 skills」扩到三类资产，表在 tools/skill_assets.py）：
 
     skills    用户级 ~/.agents/skills/（跨运行时，推荐）
               项目级 .codebuddy/skills/  .claude/skills/  .agents/skills/  .codex/skills/
@@ -20,12 +20,15 @@
 
 为什么 commands / agents 也要分发：它们是「仓库即插件」的另一半——`.codebuddy-plugin/`
 清单里登记了 5 个命令与 2 个子代理，只装技能等于插件壳只生效一半。
-**只落这两处**：`.agents/` 与 `.codex/` 目前只约定 skills 目录，命令与子代理的目录
-约定未实证（往宿主目录里放它不认的东西，比少装一处更糟）。
+**只落 `.codebuddy/` 与 `.claude/`**：前者的目录约定来自本仓库自身的宿主与插件清单，
+后者是 Claude Code 有文档的 `.claude/commands`、`.claude/agents`；`.agents/` 与
+`.codex/` 目前只约定 **skills** 目录——命令与子代理的目录约定没有依据，往宿主目录里
+放它不认的东西，比少装一处更糟。
 
 **分发前会先校验**（调 tools/check_skills.py 与 tools/check_plugin_assets.py —— 校验的
-唯一实现）：不合规或重名**直接拒绝分发**。把坏资产装到宿主侧只有两种下场：被跳过，或
-重名/格式错被静默忽略——**两种都不报错**，所以只能在这一头拦住。
+唯一实现，含技能 / 插件壳的版本号一致性）：不合规或重名**直接拒绝分发**。把坏资产装到
+宿主侧只有两种下场：被跳过，或重名/格式错被静默忽略——**两种都不报错**，所以只能在这一
+头拦住。
 
 `--link`（实验）用符号链接代替拷贝：真源改一次，五个落点同时生效，不再有「副本过期」。
 Windows 上建符号链接需要开发者模式或管理员权限，失败会明确报错并提示改回默认拷贝；
@@ -49,97 +52,12 @@ import sys
 # 同目录的 check_skills 是校验的唯一实现：这里不重写一套规则
 # （两份实现迟早分叉，而分叉掉的那一半正好就是没拦住的那一半）
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from check_skills import LEGACY_NAMES, describe, inspect_skills  # noqa: E402
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# 资产清单：真源目录相对仓库根 → 各落点 (目标标识, 说明, 路径类型, 相对路径)。
-# 目标标识在多个资产间重复（codebuddy / claude 各有三类资产）——`--target codebuddy`
-# 就是「装这个宿主的全部资产」，与用户直觉一致。
-ASSETS = [
-    ("skills", "skills", [
-        ("user", "用户级 ~/.agents/skills/（跨运行时，推荐）", "user", None),
-        ("codebuddy", "项目级 .codebuddy/skills/", "project", ".codebuddy/skills"),
-        ("claude", "项目级 .claude/skills/", "project", ".claude/skills"),
-        ("agents", "项目级 .agents/skills/", "project", ".agents/skills"),
-        ("codex", "项目级 .codex/skills/", "project", ".codex/skills"),
-    ]),
-    ("commands", "commands", [
-        ("codebuddy", "项目级 .codebuddy/commands/", "project", ".codebuddy/commands"),
-        ("claude", "项目级 .claude/commands/", "project", ".claude/commands"),
-    ]),
-    ("agents", "agents", [
-        ("codebuddy", "项目级 .codebuddy/agents/", "project", ".codebuddy/agents"),
-        ("claude", "项目级 .claude/agents/", "project", ".claude/agents"),
-    ]),
-]
-
-
-def resolve_path(kind, rel):
-    if kind == "user":
-        home = os.path.expanduser("~")
-        return os.path.join(home, ".agents", "skills")
-    return os.path.join(ROOT, rel)
-
-
-def copy_tree(src, dst):
-    if not os.path.isdir(dst):
-        os.makedirs(dst)
-    for item in os.listdir(src):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            copy_tree(s, d)
-        else:
-            shutil.copy2(s, d)
-
-
-def link_tree(src, dst):
-    """逐项建符号链接（--link）。返回 (已建链, 跳过)。
-
-    已存在的**真实副本**不替换：用户可能在那里放了自己改过的版本，静默覆盖不可接受。
-    已存在的链接则重建成指向当前真源（幂等：重跑不会累积）。
-    """
-    if not os.path.isdir(dst):
-        os.makedirs(dst)
-    linked, skipped = [], []
-    for item in sorted(os.listdir(src)):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.islink(d):
-            os.unlink(d)
-        elif os.path.exists(d):
-            skipped.append(item)
-            continue
-        os.symlink(s, d, target_is_directory=os.path.isdir(s))
-        linked.append(item)
-    return linked, skipped
-
-
-def is_inside_repo(path):
-    """目标是否真的落在本仓库内。
-
-    --prune 承诺只对**项目级**目标生效，而「项目级」是按 ASSETS 表里的 kind
-    静态判断的。若 .claude / .agents 是指向用户目录的符号链接或 junction（很常见
-    的配置共享做法），kind 仍然是 project，那道保护就失效了。删之前用 realpath
-    确认它确实在仓库里。
-    """
-    repo = os.path.realpath(ROOT)
-    target = os.path.realpath(path)
-    return target == repo or target.startswith(repo + os.sep)
-
-
-def find_legacy(target_dir):
-    """目标目录里**改名前的旧名**目录（apply / jd / resume / track / recruit-coach）。
-
-    只认这五个已知旧名。早先的实现是「凡不在源码名单里的目录都算陈旧」，
-    那会把用户自己装的第三方技能（比如从教程里装的 pdf-fill）一起删掉，
-    没有确认、没有备份。要清理的是这五个名字，不是「一切陌生目录」。
-    """
-    if not os.path.isdir(target_dir):
-        return []
-    return sorted(d for d in os.listdir(target_dir)
-                  if d in LEGACY_NAMES and os.path.isdir(os.path.join(target_dir, d)))
+from check_skills import describe, inspect_skills  # noqa: E402
+# 机制层（表与原语）另置一处：本文件只做「校验 → 遍历 → 输出」的编排。
+# ASSETS 在这里**原样再导出**，四端检查器仍可从本模块取到镜像目标表。
+from skill_assets import (  # noqa: E402
+    ASSETS, ROOT, copy_tree, find_legacy, is_inside_repo, link_tree, resolve_path,
+)
 
 
 def _build_parser():
@@ -226,11 +144,14 @@ def _install_one(asset, src, key, desc, kind, rel, args):
     else:
         try:
             if args.link:
-                linked, skipped = link_tree(src, target)
+                linked, skipped, failed = link_tree(src, target)
                 print("        已建链 %d 项" % len(linked))
                 if skipped:
                     print("        以下项已是真实副本，未替换（先手动删除再用 --link）：%s"
                           % "、".join(skipped))
+                if failed:
+                    print("        以下项建链失败：%s" % "、".join(failed))
+                    return False
             else:
                 copy_tree(src, target)
                 print("        已复制")
@@ -251,6 +172,16 @@ def _install_one(asset, src, key, desc, kind, rel, args):
 
 def main():
     args = _build_parser().parse_args()
+
+    # 真源缺失＝显式失败：静默「分发到 0 个位置」会让调用方以为装好了
+    # （独立审查 MAJOR-2：旧实现在这里 return 1，泛化时不该丢）。
+    skills_dir = os.path.join(ROOT, "skills")
+    if not os.path.isdir(skills_dir):
+        print("错误：找不到 skills 源目录 %s" % skills_dir)
+        return 1
+    if not [n for n in os.listdir(skills_dir) if os.path.isdir(os.path.join(skills_dir, n))]:
+        print("错误：%s 下没有任何技能目录——多半是路径不对，拒绝分发" % skills_dir)
+        return 1
 
     if not _validate(ROOT):
         print("")
@@ -284,7 +215,7 @@ def main():
     if args.dry_run:
         print("演练模式，未写入。去掉 --dry-run 实际执行。")
     else:
-        print("完成：已分发到 %d 个位置（技能 / 命令 / 子代理）。" % done)
+        print("完成：已处理 %d 个落点（技能 / 命令 / 子代理；拷贝是幂等的）。" % done)
         print("")
         print("若之后新增或修改了 skills/、commands/、agents/，重跑本脚本即可同步。")
     return 0

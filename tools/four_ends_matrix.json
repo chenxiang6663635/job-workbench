@@ -804,6 +804,12 @@
     },
     {
       "file_glob": "skills/*/SKILL.md",
+      "field": "allowed-tools",
+      "host": "codebuddy",
+      "note": "实验性字段（Open Agent Skills 规范标注 experimental）：声明技能会用到的工具族。只给「通篇 jobws 工作流」的技能声明 `Bash(jobws:*)`，纯指引类技能不声明；宿主不支持时忽略，不影响正文纪律。"
+    },
+    {
+      "file_glob": "skills/*/SKILL.md",
       "field": "compatibility",
       "host": "any",
       "note": "环境声明（Python 版本、是否需仓库在侧、是否上传数据）；宿主据此判断能否挂载。"

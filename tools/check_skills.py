@@ -54,6 +54,7 @@ import sys
 from skill_rules import (  # noqa: E402
     ALLOWED_FIELDS, BODY_MAX_LINES, DESC_MAX, NAME_RE, REFERENCE_RE,
     REPO_PATH_PREFIXES, REQUIRED, body_problems, frontmatter_problems,
+    reference_file_problems, version_problems,
 )
 
 # 改名前的旧目录名。分发脚本清理残留时**只认这五个**，而不是
@@ -121,6 +122,8 @@ def _inspect_one(entry, path):
     item["name"] = fields.get("name")
     item["problems"].extend(frontmatter_problems(text, frontmatter_end, fields, entry))
     item["problems"].extend(body_problems(text, frontmatter_end, path))
+    # references/ 下的文件随技能一起分发，规则同样适用（独立审查 MAJOR-4）
+    item["problems"].extend(reference_file_problems(path))
     return item
 
 
@@ -206,7 +209,18 @@ def main():
             print("  [%s]" % label)
             for problem in problems:
                 print("    - %s" % problem)
-    if asset_findings or any(item["problems"] for item in results):
+    # 版本号一致性：技能 metadata.version 与插件壳 version 都随应用版本走
+    # （真值源 web/electron/package.json）。不查的话，发布时只 bump 应用版本就
+    # 会留下静默失真的旧值（独立审查 MAJOR-1）。
+    version_issues = version_problems(os.path.dirname(os.path.abspath(root)), root)
+    if version_issues:
+        print("")
+        print("版本号不一致（%d 处）：" % len(version_issues))
+        for problem in version_issues:
+            print("  - %s" % problem)
+        print("")
+        print("真值源只有一个：web/electron/package.json；技能与插件壳的 version 一起改。")
+    if asset_findings or version_issues or any(item["problems"] for item in results):
         print("")
         print("修复后再分发：不合规的技能会被宿主跳过，重名的会被静默覆盖。")
         return 1

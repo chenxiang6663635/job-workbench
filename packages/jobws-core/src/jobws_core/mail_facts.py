@@ -17,9 +17,12 @@
 
 ## 已知边界（刻意不做）
 
-- 相对日期只认「今天 / 明天 / 后天 / 大后天 / 下周X」：**「本周X」「周五」不解析**
-  （「本周」的起算点随人而异，宁可漏也不猜）；「下周X」按**自然周**（周一为起点）
-  计算——今天是周日时「下周一」= 1 天后，测试里固化了这条语义；
+- 相对日期认「今天 / 明天 / 后天 / 大后天 / 本周X / 下周X」，后两者按**自然周**
+  （周一为起点）计算——今天是周日时「下周一」= 1 天后，测试里固化了这条语义；
+  **「本周X」可能算出已经过去的日期**，那正是「已过期」的信号，照给（把握程度
+  low，值供人核对）；无前缀的「周五」仍不解析（起算点随人而异，宁可漏也不猜）；
+- 「截止」只认**带日期**的句子（截止 / 请于…前 / 前完成 / 有效期至 / deadline）：
+  光有「截止另行通知」而没有日期时不产出——没有落点价值；
 - 引用分隔线只认**整行都是连字符**（`-----`）：正文里的 Markdown 分隔线后若还带
   文字，不会被误当成引用起点而截掉后文。
 """
@@ -35,7 +38,7 @@ from .status_parse import DATE_CN_RE, DATE_ISO_RE, match_rows, parse as parse_si
 def _fact(kind, value, label, evidence, confidence, source, target_id="", note=""):
     """候选事实的统一形状（前端只消费这个结构，不自己解析正文）。"""
     return {
-        "kind": kind,              # 时间 / 会议链接 / 阶段 / 公司岗位
+        "kind": kind,              # 时间 / 截止 / 会议链接 / 阶段 / 公司岗位
         "value": value,            # 规范化取值（ISO 时间 / 规范化链接 / 阶段名 / 记录id）
         "label": label,            # 面向用户的短标题
         "evidence": evidence,      # 命中的原文片段（可追溯）
@@ -84,7 +87,21 @@ DATE_CN_FULL_RE = re.compile(r"(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*�
 TIME_RE = re.compile(r"(?<!\d)([01]?\d|2[0-3])\s*[:：]\s*([0-5]\d)(?!\d)")
 _REL_DAYS = (("大后天", 3), ("后天", 2), ("明天", 1), ("今天", 0))
 _WEEKDAYS = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
+THIS_WEEKDAY_RE = re.compile(r"本\s*周\s*([一二三四五六日天])")
 NEXT_WEEKDAY_RE = re.compile(r"下\s*周\s*([一二三四五六日天])")
+
+# 截止语气：这类日期是**任务倒计时**（要交东西），与「到场」的面试时间语义不同，
+# 所以单独成 kind=截止。写入时同时落「下次动作日期」与「下次动作」文案——
+# 到点提醒读的就是这两个字段，识别到即自动覆盖（不再另建提醒链路）。
+DEADLINE_RE = re.compile(
+    r"(截止|请于|前完成|前提交|前上传|前答复|有效期至|有效至|deadline)",
+    re.IGNORECASE)
+
+# 任务名（长词优先）：拼成「完成在线测评」这样的动作短语写进「下次动作」。
+# 不含「面试」——面试有专属链路（面试表 / .ics / 面试列表倒计时），
+# 把它并进来会让「请于 X 前确认面试时间」被写成「完成面试」。
+_TASK_WORDS = ("在线测评", "在线笔试", "在线编程", "性格测试", "视频面试",
+               "AI 面试", "AI面试", "AI面", "测评", "笔试", "测验", "机考")
 
 
 def strip_quoted(text):
@@ -107,11 +124,22 @@ def strip_quoted(text):
     return "\n".join(out).strip("\n")
 
 
+def _deadline_label(line):
+    """截止行的动作短语：命中任务名就写「完成在线测评」，否则用通用的「截止事项」。"""
+    for word in _TASK_WORDS:
+        if word in line:
+            return "完成%s" % word
+    return "截止事项"
+
+
 def _time_fact_from_line(line, today):
-    """单行 → 时间事实（没有日期就返回 None：只有钟点没有日期没有落点价值）。
+    """单行 → 时间 / 截止事实（没有日期就返回 None：只有钟点没有日期没有落点价值）。
 
     把握程度：写出年份的（ISO / 中文全量）为 high；缺年份、相对日（今天/明天/
-    下周X）为 low——那种值必须人工复核后才可写入。
+    本周X/下周X）为 low——那种值必须人工复核后才可写入。
+
+    含截止语气（截止 / 请于…前 / deadline）的行产出 `kind="截止"`，label 带任务名
+    （供「下次动作」文案直接落库）；其余仍是 `kind="时间"`。
     """
     ref = today or datetime.date.today()
     value, confidence, note = "", "high", ""
@@ -137,19 +165,32 @@ def _time_fact_from_line(line, today):
                     value, confidence = day.isoformat(), "low"
                     note = "相对日期，按 %s 计算，请确认" % ref.isoformat()
                 else:
-                    m = NEXT_WEEKDAY_RE.search(line)
+                    m = THIS_WEEKDAY_RE.search(line)
                     if m:
-                        # 下周一 = 下一个自然周的周一（今天所在周为「本周」）
-                        day = ref + datetime.timedelta(
-                            days=7 - ref.weekday() + _WEEKDAYS[m.group(1)])
+                        # 本周X = 本周（周一为起点）的第 X 天；可能算出已过去的日期，
+                        # 那正是「已过期」的信号，照给，由人核对
+                        day = ref - datetime.timedelta(days=ref.weekday()) \
+                            + datetime.timedelta(days=_WEEKDAYS[m.group(1)])
                         value, confidence = day.isoformat(), "low"
-                        note = "相对日期，按 %s 计算，请确认" % ref.isoformat()
+                        note = ("相对日期（本周，周一为起点），按 %s 计算，请确认"
+                                % ref.isoformat())
+                    else:
+                        m = NEXT_WEEKDAY_RE.search(line)
+                        if m:
+                            # 下周一 = 下一个自然周的周一（今天所在周为「本周」）
+                            day = ref + datetime.timedelta(
+                                days=7 - ref.weekday() + _WEEKDAYS[m.group(1)])
+                            value, confidence = day.isoformat(), "low"
+                            note = "相对日期，按 %s 计算，请确认" % ref.isoformat()
 
     if not value:
         return None
     t = TIME_RE.search(line)
     if t:
         value += " %02d:%02d" % (int(t.group(1)), int(t.group(2)))
+    if DEADLINE_RE.search(line):
+        return _fact("截止", value, _deadline_label(line),
+                     line.strip()[:120], confidence, "body", note=note)
     return _fact("时间", value, "时间", line.strip()[:120], confidence, "body", note=note)
 
 

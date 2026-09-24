@@ -217,3 +217,67 @@ def test_fully_quoted_body_yields_nothing():
     """整段都是引用的邮件不该产出任何事实（避免把上一封的线索当本次）。"""
     body = "> 面试时间：2026-09-23 09:00\n> 链接：https://zoom.us/j/1111111111\n"
     assert mail_facts.extract_facts(body, today=TODAY) == []
+
+
+# --- 截止事项（倒计时）：识别 + 任务名 + 「本周X」 --------------------------------
+# 这类日期写进追踪表时会同时落「下次动作日期」与「下次动作」文案，
+# 到点提醒（读这两个字段）便自动覆盖——所以 kind 必须与「时间」分开。
+
+
+def test_deadline_line_becomes_deadline_fact():
+    facts = mail_facts.extract_facts(
+        "请在 2026-09-25 前完成在线测评，逾期视为放弃。", today=TODAY)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-25"
+    assert "测评" in deadline["label"], "label 要带任务名，供「下次动作」文案直接落库"
+    assert deadline["confidence"] == "high"
+    assert "逾期" in deadline["evidence"]
+
+
+def test_deadline_before_marker_without_the_word_deadline():
+    """「请于…前完成」不等于「截止」二字：这类句子同样要能识别。"""
+    facts = mail_facts.extract_facts("请于 9月28日 前提交笔试作品", today=TODAY)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-28"
+    assert deadline["confidence"] == "low"
+
+
+def test_deadline_keeps_clock_time():
+    facts = mail_facts.extract_facts("在线测评截止时间：2026-09-25 18:00", today=TODAY)
+    assert [f["value"] for f in _facts_by_kind(facts, "截止")] == ["2026-09-25 18:00"]
+
+
+def test_this_weekday_is_resolved_monday_based():
+    """「本周X」按自然周（周一为起点）：周三的「本周五」= 两天后。"""
+    wednesday = datetime.date(2026, 9, 23)
+    facts = mail_facts.extract_facts("请于本周五前完成笔试", today=wednesday)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-25"
+    assert deadline["confidence"] == "low"
+    assert "本周" in deadline["note"]
+
+
+def test_deadline_english_keyword():
+    facts = mail_facts.extract_facts(
+        "Deadline: 2026-09-30 for the online assessment", today=TODAY)
+    assert [f["value"] for f in _facts_by_kind(facts, "截止")] == ["2026-09-30"]
+
+
+def test_deadline_without_task_word_uses_generic_label():
+    facts = mail_facts.extract_facts("简历投递截止：9月30日", today=TODAY)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-30"
+    assert "截止" in deadline["label"]
+
+
+def test_plain_date_line_is_still_time():
+    """回归：不含截止语气的日期行仍是「时间」（面试 / 会议）。"""
+    facts = mail_facts.extract_facts("面试时间：9月25日 14:00", today=TODAY)
+    assert _facts_by_kind(facts, "截止") == []
+    assert [f["value"] for f in _facts_by_kind(facts, "时间")] == ["2026-09-25 14:00"]
+
+
+def test_deadline_word_without_date_yields_nothing():
+    """只有「截止」字样没有日期 → 不产出（没有落点价值，不猜）。"""
+    facts = mail_facts.extract_facts("请尽快完成测评，截止时间另行通知。", today=TODAY)
+    assert _facts_by_kind(facts, "截止") == []

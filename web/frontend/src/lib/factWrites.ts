@@ -56,5 +56,19 @@ export function planFactWrite(fact: MailFact, meta: MailMeta): FactWrite {
       body: { 下次动作日期: fact.value.slice(0, 10) },
     };
   }
+  if (fact.kind === "截止") {
+    if (!fact.targetId) return { kind: "blocked", reasonKey: "suggest.needRecord" };
+    // 截止 = 任务倒计时：日期进「下次动作日期」，任务名（label，如「完成在线测评」）
+    // 进「下次动作」——到点提醒读的就是这两个字段（dashboard 的待办桶），
+    // 写进去即自动获得提醒，不再另建提醒链路。
+    return {
+      kind: "application",
+      id: fact.targetId,
+      body: {
+        下次动作日期: fact.value.slice(0, 10),
+        下次动作: fact.label,
+      },
+    };
+  }
   return { kind: "blocked", reasonKey: "suggest.unsupported" };
 }

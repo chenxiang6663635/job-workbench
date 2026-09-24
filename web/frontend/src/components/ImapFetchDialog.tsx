@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import MailBody from "./MailBody";
 import { RANGE_OPTIONS, rangeLabelKey } from "../lib/imapRange";
 import { Check, ChevronRight, Inbox, Loader2, MailPlus, RefreshCw, Search, Sparkles, X } from "lucide-react";
 import MailSuggestions from "./MailSuggestions";
@@ -201,10 +203,11 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {m.from} · {m.date}
                   </p>
-                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                    {m.body.slice(0, 140)}
-                    {m.body.length > 140 ? "…" : ""}
-                  </p>
+                  {/* 预览是原文（保留引用与签名）、硬截 140 字——用统一视图标注，
+                      免得与建议卡的"已剥离引用"摘录被读成两份不一致的数据 */}
+                  <div className="mt-1.5">
+                    <MailBody text={m.body} truncated={m.truncated} limit={140} />
+                  </div>
                 </button>
                 <div className="flex shrink-0 flex-col items-center gap-1.5">
                   {/* 解析建议（批 9）：正文 / ICS → 候选事实，卡片逐条确认才写入 */}

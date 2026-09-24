@@ -707,12 +707,14 @@ export interface ImapMessage {
   messageId?: string;
   /** text/calendar 部件原文（批 9）：会议邀请的结构化真相源；无则为空串 */
   calendar?: string;
+  /** 顶到单封字节上限被截断（分段拉取的标注）：大附件邮件只拉回前段，界面要如实标 */
+  truncated?: boolean;
 }
 
 /** 一条候选事实（批 9）：领域层 `mail_facts.extract_facts` 的输出，前端只消费不改写。 */
 export interface MailFact {
-  /** 时间 / 会议链接 / 阶段 / 公司岗位 */
-  kind: "时间" | "会议链接" | "阶段" | "公司岗位";
+  /** 时间 / 截止 / 会议链接 / 阶段 / 公司岗位（「截止」= 任务倒计时，写入时另带动作文案） */
+  kind: "时间" | "截止" | "会议链接" | "阶段" | "公司岗位";
   /** 规范化取值（ISO 日期时间 / 规范化链接 / 阶段名 / 记录 id） */
   value: string;
   /** 面向用户的短标题（界面按 kind 出本地化标题，label 作兜底） */

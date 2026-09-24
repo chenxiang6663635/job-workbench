@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useModelChoice } from "../hooks/useModelChoice";
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { FileUp, Loader2, ShieldCheck, X } from "lucide-react";
 import {
@@ -19,7 +20,6 @@ import { api, type ImportResult } from "../api";
 
 const ALLOWED = [".pdf", ".docx", ".md", ".markdown", ".txt"];
 const MAX_MB = 10;
-
 interface Props {
   currentVersion: string;
   onClose: () => void;
@@ -48,7 +48,7 @@ function toBase64(file: File, readFailedMsg: string): Promise<string> {
 
 export default function ResumeImportDialog({ currentVersion, onClose, onImported }: Props) {
   const { t } = useTranslation();
-  const [model, setModel] = useState("");
+  const { model, setModel } = useModelChoice("jobws_import_model");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);

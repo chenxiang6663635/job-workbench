@@ -107,3 +107,67 @@ def test_due_on_empty_workspace_is_all_zeros(tmp_path, client):
     data = res.json()
     assert data["counts"] == {"todos": 0, "talks": 0, "overdue": 0}
     assert data["todos"] == [] and data["talks"] == [] and data["overdue"] == []
+
+
+# --- 提前 N 天 / daysLeft / 已过期扩展（2026-09-24） -------------------------------
+
+
+def test_due_window_narrows_todos(tmp_path, client):
+    """`days` = 提前几天：A002 落在 +2 天，提前 1 天时不该报、提前 2 天时报。"""
+    _seed(tmp_path)
+
+    assert client.get("/api/reminders/due?days=1").json()["counts"]["todos"] == 0
+    data = client.get("/api/reminders/due?days=2").json()
+    assert data["counts"]["todos"] == 1
+    assert data["window"] == 2
+
+
+def test_due_items_carry_days_left(tmp_path, client):
+    """每条都带 daysLeft（负数 = 已过期）：主进程据此分档，不再自己算日期。"""
+    _seed(tmp_path)
+
+    data = client.get("/api/reminders/due").json()
+
+    assert data["todos"][0]["daysLeft"] == 2
+    assert data["overdue"][0]["daysLeft"] == -1, "已过截止一天"
+    assert data["overdue"][0]["date"], "过期条目也要有统一的 date 字段（来源字段可能不同）"
+
+
+def test_overdue_includes_past_next_action(tmp_path, client):
+    """「下次动作日期」已过也算过期（"该做没做"）——通知侧比看板多的一类。"""
+    ws = _seed(tmp_path)
+    rows = tracker.read_rows(ws)
+    rows.append(_row(id="A009", 公司="漏做公司", 当前阶段="测评",
+                     下次动作="完成在线测评",
+                     下次动作日期=(TODAY - datetime.timedelta(days=3)).isoformat()))
+    tracker.write_rows(rows, ws)
+
+    data = client.get("/api/reminders/due").json()
+
+    assert data["counts"]["overdue"] == 2
+    # 按 daysLeft 升序：过期越久排在越前（通知正文"先说过期的"就是靠这个顺序）
+    assert data["overdue"][0]["公司"] == "漏做公司"
+    assert data["overdue"][0]["daysLeft"] == -3
+    assert data["overdue"][0]["reason"] == "下次动作"
+    assert data["overdue"][1]["公司"] == "过期公司"
+
+
+def test_overdue_skips_terminal_rows(tmp_path, client):
+    """终态记录的过期不是"你还能做的事"，不进提醒。"""
+    ws = _seed(tmp_path)
+    rows = tracker.read_rows(ws)
+    rows.append(_row(id="A010", 公司="已挂公司", 当前阶段="已挂",
+                     下次动作日期=(TODAY - datetime.timedelta(days=9)).isoformat()))
+    tracker.write_rows(rows, ws)
+
+    data = client.get("/api/reminders/due").json()
+
+    assert [x["id"] for x in data["overdue"]] == ["A001"]
+
+
+def test_due_days_is_clamped(tmp_path, client):
+    """越界的 days 一律夹回来：公开接口不能被一个查询参数把窗口撑爆。"""
+    _seed(tmp_path)
+
+    assert client.get("/api/reminders/due?days=999").json()["window"] == 30
+    assert client.get("/api/reminders/due?days=0").json()["window"] == 1

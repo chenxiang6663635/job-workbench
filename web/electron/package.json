@@ -35,6 +35,7 @@
       "main.js",
       "preload.js",
       "url_guard.js",
+      "window_state.js",
       "zoom.js",
       "i18n.js",
       "package.json",

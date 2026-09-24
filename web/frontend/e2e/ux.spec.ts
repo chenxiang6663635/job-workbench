@@ -98,6 +98,46 @@ test("岗位池搜索：输入关键词只剩匹配岗位（FC-8）", async ({ p
   await expect(yunfan).toBeVisible();
 });
 
+test("字号还原默认：即时生效，5 秒内可撤销（首发前收口批）", async ({ page }) => {
+  await openPage(page, "settings");
+  const slider = page.getByLabel("Interface size");
+  // 先弄成非默认值（默认 100）
+  await slider.fill("120");
+  await expect(slider).toHaveValue("120");
+
+  // 滑块的父 div 就是「A —— 滑块 —— A —— 重置」那一行，按它收窄按钮
+  const row = slider.locator("xpath=..");
+  await row.getByRole("button", { name: "Reset" }).click();
+
+  // 撤销条出现、字号已即时变回默认
+  const bar = page.getByRole("group", { name: "Undo" });
+  await expect(bar).toContainText("Font size reset to default");
+  await expect(slider).toHaveValue("100");
+
+  // 撤销：回到 120（撤销条同时消失）
+  await bar.getByRole("button", { name: "Undo" }).click();
+  await expect(slider).toHaveValue("120");
+  await expect(bar).not.toBeVisible();
+});
+
+test("危险确认对话框：输入不符时主按钮禁用（首发前收口批）", async ({ page }) => {
+  await openPage(page, "settings");
+  await page.getByRole("button", { name: "Custom theme" }).click();
+  await page.getByLabel("Theme name").fill("e2e-gate");
+  await page.getByRole("button", { name: "Save as theme" }).click();
+
+  const row = page
+    .getByText("e2e-gate", { exact: true })
+    .locator("..")
+    .filter({ has: page.getByRole("button", { name: "Delete" }) });
+  const dialog = page.getByRole("dialog");
+  await row.getByRole("button", { name: "Delete" }).click();
+
+  // confirm 档：不要求输入确认词，主按钮立即可点（对照下面 phrase 档的行为）
+  await expect(dialog.getByRole("button", { name: "Delete" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+});
+
 test("删除自定义主题：先确认，点一次不落盘（UX-5）", async ({ page }) => {
   await openPage(page, "settings");
   // 编辑器默认折叠，先点开

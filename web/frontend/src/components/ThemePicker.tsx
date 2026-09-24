@@ -34,6 +34,8 @@ import {
   setThemeChoice,
 } from "../lib/theme";
 import ThemeEditor from "./ThemeEditor";
+import UndoBar from "./UndoBar";
+import { useUndoableAction } from "../hooks/useUndoableAction";
 
 // 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口。
 // - 色块预览取各自色板；主题真名不翻译（社区惯例），system 项走 i18n。
@@ -47,6 +49,8 @@ export default function ThemePicker() {
   const [mono, setMono] = useState(getMonoChoice());
   const [numeric, setNumeric] = useState(getNumericChoice());
   const [fontSize, setFontSize] = useState(getFontSizeChoice());
+  // 字号"还原默认"走撤销条（本批新增的统一机制）：即时生效 + 5 秒内可撤销
+  const { pending, run, undo } = useUndoableAction();
 
   const onPick = (id: string) => {
     setChoice(id);
@@ -254,14 +258,26 @@ export default function ThemePicker() {
             className="h-7 shrink-0 px-2 text-xs"
             disabled={fontSize === FONT_SIZE_DEFAULT}
             onClick={() => {
+              // 「还原默认」是典型的后悔药场景：即时生效（视觉立刻变，用户马上看得到），
+              // 配 5 秒撤销条。四项判据（单项 / 可见 / 可辨 / 可延迟）全成立 → 给撤销、
+              // 不给确认框（两者同时给会让确认框沦为形式）。
+              const previous = fontSize;
               setFontSize(FONT_SIZE_DEFAULT);
               setFontSizeChoice(FONT_SIZE_DEFAULT);
+              run({
+                message: t("settings.fontSizeResetDone", { size: String(FONT_SIZE_DEFAULT) }),
+                revert: () => {
+                  setFontSize(previous);
+                  setFontSizeChoice(previous);
+                },
+              });
             }}
           >
             {t("settings.fontSizeReset")}
           </Button>
         </div>
       </div>
+      {pending ? <UndoBar message={pending.message} onUndo={undo} /> : null}
     </Card>
   );
 }

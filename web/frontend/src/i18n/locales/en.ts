@@ -39,6 +39,7 @@ export default {
   "common.clear": "Clear",
   "common.cancel": "Cancel",
   "common.save": "Save",
+  "common.undo": "Undo",
   "common.edit": "Edit",
   "common.delete": "Delete",
   "common.saving": "Saving…",
@@ -1278,6 +1279,9 @@ export default {
   // Size values are literal percentages (e.g. "112%"), not translation keys.
   "settings.fontSizeTitle": "Interface size",
   "settings.fontSizeReset": "Reset",
+  "settings.fontSizeResetDone": "Font size reset to default ({{size}}%) — undo within 5 seconds",
+
+  "danger.challengeMismatch": "Does not match — type the text shown above exactly (case-sensitive)",
   "settings.zoomDesktopOnly":
     "Adjustable in the desktop app only; in a browser, use the browser's own zoom (Ctrl +/-).",
 } satisfies Record<TranslationKey, string>;

@@ -36,6 +36,7 @@ const zhCN = {
   "common.clear": "清空",
   "common.cancel": "取消",
   "common.save": "保存",
+  "common.undo": "撤销",
   "common.edit": "编辑",
   "common.delete": "删除",
   "common.saving": "保存中…",
@@ -1356,6 +1357,9 @@ const zhCN = {
   // （rem 全链），与桌面全局缩放解耦；数值字面量（如 112%）不翻译
   "settings.fontSizeTitle": "界面字号",
   "settings.fontSizeReset": "重置",
+  "settings.fontSizeResetDone": "已还原默认字号（{{size}}%）——5 秒内可撤销",
+
+  "danger.challengeMismatch": "输入不一致——请照上方提示原样输入（区分大小写）",
 } as const;
 
 /** 所有合法 key；en 语言包用它做完整性约束 */

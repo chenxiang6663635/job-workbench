@@ -81,6 +81,7 @@ export default {
   "job.hardGates": "Eligibility gates",
   "job.gatePending": "Pending",
   "job.gateReason": "Reason: {{reason}}",
+  "job.gateMissingHint": "Missing profile facts: {{fields}} — fill them in AGENTS.md (Hard-gate facts) and re-run the check",
   "job.jdSource": "JD source",
   "job.jdMissing": "(JD not saved yet)",
   "job.parsedCard": "Parsed card",
@@ -490,8 +491,7 @@ export default {
   "dash.scoreByState": "Score tier × application status",
   "dash.scoreByStateHint": "Tier boundaries follow the score card’s THRESHOLDS; unscored jobs are excluded.",
   "dash.scoreByStateHintFull": "Tier boundaries come from the score card’s THRESHOLDS (change them in that one place); unscored jobs are excluded — “not scored” is not the lowest tier.",
-  "dash.emptyTitle": "No applications yet",
-  "dash.emptyHint": "Add your first company from “{{tracker}}” — the dashboard will then tally the funnel, to-dos and deadline alerts.",
+
 
   // First-run guide (shown on the dashboard while there is no workspace)
   "onboard.emptyTitle": "No workspace yet",
@@ -696,6 +696,7 @@ export default {
   "settings.aboutPlatform": "Platform",
   "settings.aboutUnknown": "Unknown",
   "settings.aboutNote": "Local-first, no telemetry — your version info and your data stay on this machine.",
+  "settings.aboutDocs": "Open the usage guide (GitHub · docs/usage-guide)",
 
   "resume.modeAria": "Editing mode",
   "resume.modeStd": "Standard",

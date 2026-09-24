@@ -32,9 +32,12 @@ export function evidenceBadgeVariant(ev: string | null) {
   return "outline" as const;
 }
 
-/** 硬门槛三态 → Badge 语义色 */
+/** 硬门槛结论四态 → Badge 语义色（评分放宽批）：
+ *  「待补档案」（档案缺事实，要去补）= warning 琥珀；
+ *  「待确认」（规则读不懂）= outline 中性描边，两者必须可区分。 */
 export function gateBadgeVariant(conclusion: string | null) {
   if (conclusion === "通过") return "success" as const;
   if (conclusion === "不通过") return "destructive" as const;
-  return "warning" as const;
+  if (conclusion === "待补档案") return "warning" as const;
+  return "outline" as const;
 }

@@ -83,6 +83,7 @@ const zhCN = {
   "job.hardGates": "资格硬门槛",
   "job.gatePending": "待确认",
   "job.gateReason": "原因：{{reason}}",
+  "job.gateMissingHint": "缺失档案字段：{{fields}} —— 到工作区 AGENTS.md 的「硬门槛事实」补齐后重新评分",
   "job.jdSource": "JD 原文",
   "job.jdMissing": "（尚未保存 JD）",
   "job.parsedCard": "解析卡",
@@ -524,9 +525,6 @@ const zhCN = {
   "dash.scoreByState": "评分档位 × 投递状态",
   "dash.scoreByStateHint": "档位边界沿用评分卡的 THRESHOLDS；未评分的岗位不参与。",
   "dash.scoreByStateHintFull": "档位边界沿用评分卡的 THRESHOLDS（改阈值只改那一处）；未评分的岗位不参与——「还没评」不等于最低档。",
-  "dash.emptyTitle": "还没有任何投递记录",
-  // {{tracker}} = 导航里的「追踪表」，两边同一个 key，改文案时不会只改一处
-  "dash.emptyHint": "去「{{tracker}}」添加第一家公司的投递记录，看板就会自动统计漏斗、待办与到期提醒。",
 
   // 首启引导（没有工作区时出现在首页；新建走两段式：预览 → 确认 → 落盘）
   "onboard.emptyTitle": "还没有工作区",
@@ -739,6 +737,7 @@ const zhCN = {
   "settings.aboutPlatform": "运行平台",
   "settings.aboutUnknown": "未知",
   "settings.aboutNote": "本地优先、无遥测——版本信息与数据都只在这台机器上。",
+  "settings.aboutDocs": "打开使用手册（GitHub · docs/usage-guide）",
 
   // 简历工坊页
   "resume.modeAria": "编辑模式",

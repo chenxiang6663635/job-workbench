@@ -630,6 +630,8 @@ const zhCN = {
   "settings.backupNow": "立即备份",
   "settings.backingup": "备份中...",
   "settings.openDataDir": "打开数据目录",
+  "settings.diagnostics": "导出诊断包",
+  "settings.diagnosticsDesc": "版本、平台、自检摘要与主进程日志尾部——不含工作区内容与访问凭证，可安全贴进问题反馈。",
   "settings.backupDone": "已备份 {{files}} 个文件（{{size}} KB），保留 {{kept}} 份、淘汰 {{removed}} 份",
   "settings.pathsFailed": "路径信息读取失败：{{error}}",
   "settings.lastBackup": "上次备份：{{time}}（共 {{count}} 份快照）",
@@ -1009,6 +1011,7 @@ const zhCN = {
   "err.sys.snapshotTooLarge": "快照解压总量过大（{{size}} 字节，上限 {{limit}} 字节）——已拒绝，工作区未做任何改动",
   "err.sys.snapshotTooManyEntries": "快照条目过多（{{count}} 条，上限 {{limit}} 条）——已拒绝，工作区未做任何改动",
   "err.sys.snapshotFailed": "还原前的留痕写不出来——已中止，工作区未做任何改动",
+  "err.sys.diagnosticsTooLarge": "诊断包超过体积上限（{{limit}} 字节）——请先清理主进程日志后重试",
 
   "err.provider.baseUrlInvalid": "服务地址（Base URL）必须以 http:// 或 https:// 开头",
   "err.provider.needBaseUrl": "请先保存模型服务（Provider）的服务地址（Base URL）",

@@ -587,6 +587,8 @@ export default {
   "settings.backupNow": "Back up now",
   "settings.backingup": "Backing up...",
   "settings.openDataDir": "Open data folder",
+  "settings.diagnostics": "Export diagnostics",
+  "settings.diagnosticsDesc": "Version, platform, the self-check summary and the main process log tail — no workspace content or credentials, safe to attach to a bug report.",
   "settings.backupDone": "Backed up {{files}} files ({{size}} KB), kept {{kept}}, dropped {{removed}}",
   "settings.pathsFailed": "Could not read path info: {{error}}",
   "settings.lastBackup": "Last backup: {{time}} ({{count}} snapshots)",
@@ -945,6 +947,7 @@ export default {
   "err.sys.snapshotTooLarge": "The snapshot unpacks to more than the limit ({{size}} bytes, limit {{limit}}) — refused, nothing in the workspace was touched",
   "err.sys.snapshotTooManyEntries": "The snapshot has too many entries ({{count}}, limit {{limit}}) — refused, nothing in the workspace was touched",
   "err.sys.snapshotFailed": "The rollback copy could not be written — aborted, nothing in the workspace was touched",
+  "err.sys.diagnosticsTooLarge": "The diagnostics package exceeds the size limit ({{limit}} bytes) — trim the main process log and retry",
 
   "err.provider.baseUrlInvalid": "The base URL must start with http:// or https://",
   "err.provider.needBaseUrl": "Save the provider base URL first",

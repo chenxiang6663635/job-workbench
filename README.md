@@ -11,7 +11,7 @@
 
 > Version numbers are month-granularity CalVer `YY.MM.N` (`26.9.0` = first release of the month; a hotfix bumps `N`). The installer is **not code-signed** — see [Download](#download) for what Windows may show on first run.
 
-A **local-first, auditable AI-assisted job-search workbench**: run the whole pipeline — from JD analysis to offer decision — in plain Markdown & CSV on your own disk, driven by your own AI CLI.
+A **local-first, auditable AI-assisted job-search workbench**: run the whole pipeline — from JD analysis to offer decision — in plain Markdown & CSV on your own disk. Drive it from the desktop app, the browser, or your own AI CLI.
 
 English | [简体中文](README.zh-CN.md)
 
@@ -21,9 +21,10 @@ English | [简体中文](README.zh-CN.md)
 
 Job hunting means sensitive personal data (resumes, phone numbers, employer history) — and AI outputs that can quietly fabricate facts. This project is built around three answers:
 
-- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, no server. Real personal data stays in `personal/`, which is fully git-ignored: a fresh clone gives you an empty workspace, and you can fork this repo without leaking a thing.
+- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, and **no cloud server** (the desktop app starts a local backend that listens on 127.0.0.1 only). Real personal data stays in `personal/`, which is fully git-ignored: a fresh clone gives you an empty workspace, and you can fork this repo without leaking a thing.
 - **Auditable AI, not black-box automation.** Your own AI CLI (BYOK models) does the semantic judgment — reading the JD, scoring fit. Python scripts do everything deterministic: eligibility gates, score validation, PDF generation, tracker I/O — and every automated verdict (application health, CSV import diffs, failure clustering) comes with explicit, human-checkable **reasons**, never a bare score.
 - **Anti-fabrication safeguards.** Resume import is *extraction, not generation*: every persisted value must trace back to source text, and unextracted fields are flagged. AI rewrite suggestions must pass five local anti-fabrication checks before they can be accepted.
+- **One engine, any field.** The scoring rules are field-agnostic — the domain knowledge lives in **data-only profiles** (two ship in the box: HVAC & cooling, software backend), so any specialty works by authoring one per [`docs/domain-contract.md`](docs/domain-contract.md).
 
 ## What it solves
 
@@ -32,6 +33,7 @@ The real difficulty of job hunting is not "not knowing what to do" — it is **s
 - Is this company worth applying to? What did I conclude about a similar one last week?
 - Which resume version did I send them three months ago, and what did the JD ask for?
 - How many applications are in flight, and which deadline is tomorrow?
+- The email said "finish the assessment before the 25th" — will that deadline quietly slip?
 
 The workbench turns all of that into queryable, traceable files.
 

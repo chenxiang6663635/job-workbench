@@ -18,7 +18,6 @@ tools/resume_build.py = 558  # 模板渲染 + ATS 校验（领域函数；后端
 tools/check_i18n_hardcode.py = 663  # i18n 检查器（含 EN_SCOPE_RELS 与豁免解析）
 packages/jobws-core/src/jobws_core/question_bank.py = 595  # 题库领域层 + 导入解析 + CSV 导入导出；2026-09-18 命令层拆到 _cli_bank.py（588→468）+ 更新预览显式列出自动写入的「最近复习」+ 合并改动提成 _merge_changes（468→475）；2026-09-19 PR-B 搬进领域包并去掉 sys.path 段（475→472）；2026-09-19 CSV 批加 _read_import_csv / preview_import_csv / export_csv（472→595，拆分列入后续）
 packages/jobws-core/src/jobws_core/report.py = 535  # 复盘统计与聚类；2026-09-16 拆 build_report 为六节 helper（532→538）；2026-09-19 PR-B 搬进领域包并去掉 sys.path 段（538→535）
-tools/imap_fetch.py = 350  # IMAP 只读会话；2026-09-16 清静默吞错 + 拆 fetch_messages 为 _fetch_recent（429→439）；2026-09-22 批 9 把正文/ICS 抽取与截断下沉到领域包 jobws_core/mail_text.py（439→350，只剩会话与凭据/搜索逻辑）
 tools/init_workspace.py = 425  # 骨架复制 + demo 数据铺设
 packages/jobws-core/src/jobws_core/status_parse.py = 329  # 阶段同义词映射与解析（2026-09-19 PR-B 从 tools/ 搬进领域包，水位随行）
 # （2026-09-16 重构批：check_skills / install_skills 的长函数已拆，两行按自洁删除）
@@ -34,7 +33,7 @@ web/backend/routers/system.py = 328  # 备份/导出/快照淘汰（本次为加
 # --- 前端：刻意集中的单一真源 / 页面级容器 ---
 web/frontend/src/api.ts = 460  # 前端唯一 API 客户端（端点清单 + 工作区状态再导出）；2026-09-17~09-19 多批加端点与类型（1174→1265）；2026-09-21 B-2 迁 previewQuestionUpdate 到 lib/bank.ts（1265→1258）；2026-09-21 H-1 批 requestJson / humanizeError / 工作区状态迁 lib/http.ts，四处副本合一（1258→1183）；2026-09-21 H-2a 批类型 / 枚举区（73 类型 + 13 常量）整体外移 lib/domainTypes.ts（1183→460）
 web/frontend/src/pages/Applications.tsx = 461  # 页面容器（筛选 + 工具栏 + 新建表单 + 弹窗编排）；2026-09-17 关联邮件块 + 页头 + 空态原语 + 偏移同步（811→818）；2026-09-21 H-2b 表格拆 ApplicationsTable / ApplicationRow，元数据迁 lib/applicationMeta.ts（818→461）
-web/frontend/src/pages/Settings.tsx = 693  # 设置页八张卡（Provider / 邮箱 / 数据 / 关于…）；2026-09-17 页头原语替换后回落
+web/frontend/src/pages/Settings.tsx = 352  # 设置页各卡编排（Provider / 邮箱 / 数据 / 关于…）；2026-09-17 页头原语替换后回落；2026-09-24 邮箱卡拆到 settings/ImapCard.tsx、模型服务卡拆到 settings/ProviderCard.tsx（693→515→352，登记值归零到实测）
 web/frontend/src/pages/Dashboard.tsx = 694  # 看板（统计卡 + 漏斗 + 待推进 + 复盘）；2026-09-17 页头 + 两处空态原语（698→700）；2026-09-21 登记值归零到实测（700→694，H-2 分叉②；只下调水位登记，未改代码）
 web/frontend/src/pages/Resume.tsx = 544  # 简历工坊（模式切换 + 表单 + 预览 + 谱系）；2026-09-17 页头（两处 return）+ 空态原语（539→544）
 web/frontend/src/pages/Jobs.tsx = 524  # 岗位池（列表 + 详情双栏）；2026-09-17 页头 + 空态原语（520→524）

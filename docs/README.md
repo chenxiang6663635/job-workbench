@@ -52,6 +52,7 @@
 | [`glossary.md`](glossary.md) | 术语表：文档与 CHANGELOG 里出现的内部术语集中定义一次 |
 | [`maintenance.md`](maintenance.md) | 仓库维护说明（英文）：发布节奏、版本号纪律与项目健康度的对外交代 |
 | [`support-and-compatibility.md`](support-and-compatibility.md) | **毕业条件、支持策略与数据兼容承诺**：什么时候算正式版（四条判据）、支持哪些环境、升级为什么不需要转换数据 |
+| [`release-checklist.md`](release-checklist.md) | **发布检查清单**：CI 自动项（三道闸 / 安装卸载冒烟 / SHA256 / SmartScreen 公告）与人工必做项（真机通知实测 / 人眼验收 / 落章与演练）、发布后 72 小时与回滚 RUNBOOK |
 | [`../SECURITY.md`](../SECURITY.md) | 安全策略：威胁模型、local-first 取舍记录（如 unsigned 自动更新链）与报告方式 |
 | [`../ROADMAP.md`](../ROADMAP.md) | 路线图：Now / Later 与已完成批次日志（细节进 CHANGELOG） |
 | [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md) | 第三方依赖与许可清单 |

@@ -43,7 +43,8 @@ The workbench turns all of that into queryable, traceable files.
 - **Email ledger & honest deep links** (`mails.csv` + `jobws track mail`): interview invites, test notices and rejections become first-class records that link back to an application — pulled emails carry their Message-ID and can be filed with one click. "Open original" is graded honestly: your own pasted link wins; Gmail gets a real `rfc822msgid` search deep link; other providers (Outlook / QQ / 163 / …) get a "copy the subject and search" fallback instead of a fake link. **Emails never change stages by themselves** — you always confirm.
 - **Resume layouts & accent colors**: three built-in layouts (Classic / Compact / Accent) share a single placeholder skeleton, all single-column and ATS-checked; four accent colors combine freely with any layout, and the generated PDF matches the preview. Drop your own compliant HTML into the templates directory and it appears in the picker.
 - **Interface typography**: a continuous size slider (80%–150%, 5% steps — root-font scaling, decoupled from desktop zoom and available in a plain browser); **12 UI typefaces** (Inter by default, plus Geist, IBM Plex Sans, Manrope, Plus Jakarta Sans, DM Sans, Figtree, Outfit, Public Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible Next, and system/serif) and an independent **6-family monospace slot** (Maple Mono by default; JetBrains Mono, Fira Code, Geist Mono, IBM Plex Mono, Source Code Pro) plus a dedicated **numerals slot** (Geist Mono by default, or JetBrains Mono / IBM Plex Mono / follow the UI typeface) — all bundled locally under OFL-1.1, Latin subsets only (CJK falls back to the system stack).
-- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; any fail means no scoring), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; unfilled profile facts yield "awaiting profile facts" instead of a fail — fill them and re-run; city *preferences* only deduct from growth, hard infeasibility still vetoes), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **Domain profiles are data, not code**: two ship in the box (HVAC & cooling — 6 directions; software backend — the minimal reference example). Your own field works by authoring a profile per [`docs/domain-contract.md`](docs/domain-contract.md) — pure data, two full examples to copy, validated by `jobws lint domains`.
 
 ## UI Preview
 
@@ -64,7 +65,7 @@ All pages below run on generated demo data (`jobws init --demo`); companies, rol
 ```bash
 # 0. Just want to look around first? One command gives you a filled demo workspace
 #    (8 applications / 3 interviews / 2 contacts / 1 offer / 3 talks & job fairs
-#     / 6 question-bank items, all placeholder data)
+#     / 6 question-bank items / 6 emails, all placeholder data)
 python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
@@ -76,8 +77,9 @@ python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
 python tools/jobws.py skills install --target user
 
 # 3. Fill in my_job_hunt/AGENTS.md
-#    Section 3 (hard eligibility facts) is required — the JD gate deliberately
-#    refuses to guess. The file also carries two honesty red lines:
+#    Section 3 (hard eligibility facts) is required — unfilled fields put a job
+#    into "awaiting profile facts" (not scored, not killed) until you fill them;
+#    the gate never guesses. The file also carries two honesty red lines:
 #    every resume verb must survive questioning; never fabricate experience.
 ```
 

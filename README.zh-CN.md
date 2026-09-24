@@ -41,7 +41,8 @@
 - **邮件台账与诚实深链**（`mails.csv` + `jobws track mail`）：面试邀约、笔试通知、拒信都是一等记录，可指回投递记录；拉取的邮件带 Message-ID 且**一键记入台账**。「打开原邮件」分级诚实：自己粘的链接优先；Gmail 由 Message-ID 生成真实可用的 `rfc822msgid` 搜索深链；Outlook / QQ / 163 等没有可用深链——给「复制主题去邮箱搜索」，**不造假链接**。**邮件永不自动改阶段**，一律由你确认。
 - **简历版式与强调色**：内置经典 / 紧凑 / 强调三套版式共享同一套占位符骨架，全部单栏、全部过 ATS 校验；强调色四档与版式自由组合，生成的 PDF 与预览同源；把自己的合规 HTML 放进模板目录即出现在选择器里。
 - **界面字体与字号**：字号为连续滑块（80%–150%，步进 5%，即根字号缩放），与桌面端全局缩放解耦、浏览器里同样生效；界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible Next 与系统栈 / 衬线），等宽字体**独立**可选 **6 款**（Maple Mono 默认、JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro），**数字字体**另设一槽（Geist Mono 默认、JetBrains Mono、IBM Plex Mono 或跟随界面字体）——全部本地打包（OFL-1.1、离线可用）、只发拉丁子集（中文走系统栈）。
-- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市，任一不过不打分），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市；档案没填的岗位判「待补档案」——不打分也不终止，补齐即可评；城市偏好类只在「培养与稳定性」轻度扣分，硬性不可行才拦下），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **领域插件是数据不是代码**：内置两个示例插件（暖通制冷——6 个方向；软件后端——最小参考实现）。你自己的专业按 [`docs/domain-contract.md`](docs/domain-contract.md) 写一份插件即可——纯数据、零代码改动，有两个完整范例可抄，`jobws lint domains` 自动校验结构。
 
 ## 界面预览
 
@@ -63,6 +64,10 @@
 不想配环境的话，[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里有桌面版 `job-workbench-setup-*.exe`（免 Python / Node）：安装包是**向导式**——可自选安装位置，并选择「为所有用户 / 仅为我」（升级旧版时沿默认选项即可）。数据在 `%APPDATA%\job-workbench\`，不离开本机。
 
 ```bash
+# 0. 只想先看看界面？一条命令得到一份填满数据的 demo 工作区
+#    （8 条投递 / 3 场面试 / 2 位联系人 / 1 个 Offer / 3 场宣讲会 / 6 道题 / 6 封邮件，全占位数据）
+python tools/jobws.py init --target demo --demo
+
 # 1. 初始化工作区（生成六个模块 + 档案模板 + 领域插件）
 #    --domain 换成你专业的插件，可选值见 docs/README.md 的「领域插件」表
 python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
@@ -71,8 +76,9 @@ python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
 python tools/jobws.py skills install --target user
 
 # 3. 填写 my_job_hunt/AGENTS.md
-#    第三节的硬门槛事实必填——不填则 JD 硬门槛判定会卡住（设计如此，不允许猜测）
-#    文件里还有两条通用诚实红线：简历动词经得起追问、永不编造经历
+#    第三节的硬门槛事实必填——不填的岗位会被判「待补档案」（不打分也不终止），
+#    补齐即可评分；判定永不猜测。文件里还有两条通用诚实红线：
+#    简历动词经得起追问、永不编造经历
 ```
 
 **不想克隆仓库也能用？** 两条通道任选：

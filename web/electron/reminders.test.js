@@ -125,4 +125,15 @@ assert.deepStrictEqual(
   "stale keys from previous days are dropped"
 );
 
+// --- nextState 保留持久化字段 days：否则第一条通知当天「提前几天」就被重置回默认 --
+assert.deepStrictEqual(
+  nextState({ enabled: true, days: 5 }, "2026-09-23", payload),
+  { notified: { "todos:A001": "2026-09-23" }, enabled: true, days: 5 },
+  "days survives the state transition"
+);
+assert.strictEqual(
+  nextState({ enabled: true, days: 7 }, "2026-09-24", payload).days, 7,
+  "days keeps its value across days too"
+);
+
 console.log("reminders.test.js: all assertions passed");

@@ -106,7 +106,12 @@ function nextState(state, today, payload) {
   for (const { key } of dueItems(payload || {})) {
     notified[key] = today;
   }
-  return { notified, enabled: !state || state.enabled !== false };
+  // days / enabled 都是持久化字段，状态迁移时原样保留——此前整体替换只回传
+  // notified + enabled，用户设的「提前几天」在收到第一条通知当天就被静默重置
+  // 回默认 3（发布前审计 发现 2）。days 缺失时不产出该键：状态文件里不写 undefined。
+  const next = { notified, enabled: !state || state.enabled !== false };
+  if (state && Number.isFinite(state.days)) next.days = state.days;
+  return next;
 }
 
 module.exports = {

@@ -109,9 +109,12 @@ def verdict(total):
 # 能力分层之上，二者正交：能力分层控制得分，证据标签说明这条匹配是怎么判出来的。
 EVIDENCE_TAGS = {"精确": "精确", "模糊": "模糊", "语义": "语义"}
 
-# 硬门槛三态结论映射：含"通过"→通过；含"不通过/未通过"→不通过；其余→待确认
+# 硬门槛结论映射：含"不通过/未通过"→不通过；含"通过"→通过；
+# 含"待补档案/待填"→待补档案（档案缺事实 ≠ 岗位不合格，评分放宽批新增）；
+# 其余→待确认。词序即优先级：fail 先判（"不通过"含"通过"）。
 GATE_PASS_WORDS = ("通过",)
 GATE_FAIL_WORDS = ("不通过", "未通过")
+GATE_PENDING_WORDS = ("待补档案", "待填")
 
 
 def parse_hard_gates(text):
@@ -121,7 +124,7 @@ def parse_hard_gates(text):
     返回：
         {
           "items": [{"key", "value"}],   # 硬门槛字段（学历/专业/届数/英语/城市）
-          "conclusion": "通过"|"不通过"|"待确认"|None,
+          "conclusion": "通过"|"不通过"|"待补档案"|"待确认"|None,
           "reason": str|None,            # 不通过原因
           "details": [str],              # ### 逐条依据 下的列表项
         }
@@ -180,15 +183,13 @@ def parse_hard_gates(text):
 
 
 def _classify_gate(value):
-    """把门槛结论文本映射为三态：通过 / 不通过 / 待确认。"""
+    """门槛结论 → 四态：通过 / 不通过 / 待补档案 / 待确认（词序即优先级）。"""
     if not value:
         return None
-    for w in GATE_FAIL_WORDS:
-        if w in value:
-            return "不通过"
-    for w in GATE_PASS_WORDS:
-        if w in value:
-            return "通过"
+    for words, label in ((GATE_FAIL_WORDS, "不通过"), (GATE_PASS_WORDS, "通过"),
+                         (GATE_PENDING_WORDS, "待补档案")):
+        if any(w in value for w in words):
+            return label
     return "待确认"
 
 

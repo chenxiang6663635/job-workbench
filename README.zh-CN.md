@@ -64,7 +64,8 @@
 
 ```bash
 # 1. 初始化工作区（生成六个模块 + 档案模板 + 领域插件）
-python tools/jobws.py init --target my_job_hunt --domain software-backend
+#    --domain 换成你专业的插件，可选值见 docs/README.md 的「领域插件」表
+python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
 
 # 2. 分发技能 / 命令 / 子代理到你的 AI CLI（CodeBuddy / Claude Code / 跨运行时 ~/.agents/skills/）
 python tools/jobws.py skills install --target user

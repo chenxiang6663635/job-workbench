@@ -87,7 +87,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| [`../template/profiles/hvac-cooling/profile.md`](../template/profiles/hvac-cooling/profile.md) | 暖通制冷与数据中心冷却插件（内置方向：`datacenter`、`hvac`） |
+| [`../template/profiles/hvac-cooling/profile.md`](../template/profiles/hvac-cooling/profile.md) | 暖通制冷与数据中心冷却插件（内置方向：`datacenter`、`hvac`、`thermal-management`、`thermal-fluid-cfd`、`thermal-design-cae`、`energy-storage-thermal`） |
 | [`../template/profiles/software-backend/profile.md`](../template/profiles/software-backend/profile.md) | 软件后端与数据工程插件（内置方向：`backend`、`data`；用于验证跨领域可扩展性） |
 
 新增领域只需新增一个插件目录，无需改代码——**契约全文见 [`domain-contract.md`](domain-contract.md)**（结构、格式、边界与校验方式）；提交前跑 `python tools/jobws.py lint domains`（CI 同一实现）。

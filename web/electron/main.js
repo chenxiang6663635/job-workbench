@@ -416,7 +416,10 @@ function saveWindowState(bounds) {
 function trackWindowState(win) {
   const persist = () => {
     if (win.isDestroyed()) return;
-    saveWindowState(win.getNormalBounds ? win.getNormalBounds() : win.getBounds());
+    // getNormalBounds() 自 Electron 6 起就有（本项目锁 ^44）：最大化/全屏时它给的是"还原后"
+    // 的矩形，getBounds() 给的是铺满的——存后者会让下次开窗直接铺满。不做能力探测：
+    // 那条回落分支永不可达，留着会让读者以为还有第二道保险（批末审查）。
+    saveWindowState(win.getNormalBounds());
   };
   const schedule = () => {
     if (windowStateTimer) clearTimeout(windowStateTimer);
@@ -436,9 +439,18 @@ function trackWindowState(win) {
   });
 }
 
-/** 建窗用的位置尺寸：上次状态按**当前**显示器夹取（拔掉副屏后不会跑到屏幕外）。 */
+/**
+ * 建窗用的位置尺寸：上次状态按**当前**显示器夹取（拔掉副屏后不会跑到屏幕外）。
+ *
+ * 主屏必须排在数组首位：`clampToWorkArea` 的"回落到主屏居中"用的是 `areas[0]`，而
+ * `screen.getAllDisplays()` 不保证主屏在前（批末审查）。
+ */
 function restoredWindowBounds() {
-  return clampToWorkArea(loadWindowState(), screen.getAllDisplays().map((d) => d.workArea));
+  const primary = screen.getPrimaryDisplay().workArea;
+  const others = screen.getAllDisplays()
+    .map((display) => display.workArea)
+    .filter((area) => area.x !== primary.x || area.y !== primary.y);
+  return clampToWorkArea(loadWindowState(), [primary, ...others]);
 }
 
 // ---- 到点提醒（笔 5）------------------------------------------------------------
@@ -578,11 +590,14 @@ function createWindow() {
     return;
   }
 
+  // 位置尺寸：上次关窗时的状态，按当前显示器工作区夹取（见 restoredWindowBounds）。
+  // 下限取 min(常量, 实际宽高)：屏比下限还窄时（小屏 VM / 高缩放）以屏为准，
+  // 否则 BrowserWindow 的 minWidth 会把窗口撑得比屏幕还宽（批末审查）。
+  const bounds = restoredWindowBounds();
   const win = new BrowserWindow({
-    // 位置尺寸：上次关窗时的状态，按当前显示器工作区夹取（见 restoredWindowBounds）
-    ...restoredWindowBounds(),
-    minWidth: MIN_WIDTH,
-    minHeight: MIN_HEIGHT,
+    ...bounds,
+    minWidth: Math.min(MIN_WIDTH, bounds.width),
+    minHeight: Math.min(MIN_HEIGHT, bounds.height),
     // 初始标题：优先用渲染进程上报过的界面语言，没有则按系统语言。首帧（以及后端
     // 没起来、页面加载失败的路径）也得是对的语言；页面加载完成后由渲染进程的
     // document.title 接管（见前端 i18n 的 applyDocumentTitle）。
@@ -655,6 +670,9 @@ function createWindow() {
 
   win.on("closed", () => {
     stopBackend();
+    // 「关窗即停」要字面成立：macOS 上 window-all-closed 不退出进程，只靠 before-quit
+    // 会让提醒定时器继续跑（批末审查）
+    stopReminders();
   });
 }
 

@@ -588,7 +588,7 @@ export default {
   "settings.backingup": "Backing up...",
   "settings.openDataDir": "Open data folder",
   "settings.diagnostics": "Export diagnostics",
-  "settings.diagnosticsDesc": "Version, platform, the self-check summary and the main process log tail — no workspace content or credentials, safe to attach to a bug report.",
+  "settings.diagnosticsDesc": "Version, platform, the self-check summary and the main process log tail — no workspace data files and no credentials (the summary may quote a few cell values and column names, the minimum needed to tell which table is broken), safe to attach to a bug report. The self-check moves unparsable files into the workspace quarantine/ folder.",
   // Finding a setting / getting back / knowing when it applies (batch 4)
   "settings.groupAppearance": "Appearance & preferences",
   "settings.groupInterface": "Language & interface",
@@ -978,6 +978,7 @@ export default {
   "err.sys.snapshotTooManyEntries": "The snapshot has too many entries ({{count}}, limit {{limit}}) — refused, nothing in the workspace was touched",
   "err.sys.snapshotFailed": "The rollback copy could not be written — aborted, nothing in the workspace was touched",
   "err.sys.diagnosticsTooLarge": "The diagnostics package exceeds the size limit ({{limit}} bytes) — trim the main process log and retry",
+  "err.sys.snapshotRestoreFailed": "The restore failed halfway ({{written}} files written) — the workspace is now partially restored; the rollback point {{rollback}} in the system snapshot folder holds the pre-restore content",
 
   "err.provider.baseUrlInvalid": "The base URL must start with http:// or https://",
   "err.provider.needBaseUrl": "Save the provider base URL first",

@@ -68,12 +68,23 @@ export function usePreferenceEntries(): {
   // 外观类偏好的**信号就是根元素属性**：主题 / 字体 / 字号 / `<html lang>` 都写在那里。
   // 观察它比给每张卡串一个 onChange 更可靠——将来多一处写属性的入口也不会漏（e2e 首跑
   // 就是红的：点主题只改了 localStorage，状态卡不知道，于是"已改"标记永远不出现）。
+  //
+  // 两条纪律（批末审查）：① **不观察 `style`**——否则主题编辑器每敲一个色值都换来一次
+  // IPC + 全页重渲染（字号改成写 `data-fontsize`，见 lib/fonts.applyFontSize）；
+  // ② 值没变就不刷新——同一属性被写回同一个值是常见路径，白白刷一轮没有任何收益。
+  // 另：这个 effect 只**读**根属性；谁要是往 version 的副作用里写根属性，就会自激成环。
   useEffect(() => {
-    const observer = new MutationObserver(() => refresh());
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme", "data-font", "data-mono", "data-numeric", "data-fontsize", "lang", "style"],
+    const attrs = ["data-theme", "data-font", "data-mono", "data-numeric", "data-fontsize", "lang"];
+    const snapshot = () =>
+      attrs.map((name) => `${name}=${document.documentElement.getAttribute(name) ?? ""}`).join("|");
+    let last = snapshot();
+    const observer = new MutationObserver(() => {
+      const next = snapshot();
+      if (next === last) return;
+      last = next;
+      refresh();
     });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: attrs });
     return () => observer.disconnect();
   }, [refresh]);
 

@@ -112,12 +112,15 @@ def test_diagnostics_carries_no_credentials_or_workspace_content(tmp_path, clien
     assert not [name for name in zf.namelist() if name.endswith("imap.json")], zf.namelist()
 
 
-def test_home_path_is_redacted_in_the_log_tail(tmp_path, client):
+@pytest.mark.parametrize("spelling", [HOME, HOME.upper(), HOME.replace("\\", "/")])
+def test_home_path_is_redacted_in_the_log_tail(tmp_path, client, spelling):
+    """大小写与分隔符变体都要脱敏：Windows 路径大小写不敏感，日志里的写法不受我们控制
+    （PATH、第三方库、Chromium 都可能给出 `c:\\users\\bob` 或 `C:/Users/Bob`）。"""
     _make_workspace(tmp_path)
-    _write_log(tmp_path, "[job-workbench] log at %s\\AppData\\Roaming\\job-workbench\\main.log\n" % HOME)
+    _write_log(tmp_path, "[job-workbench] log at %s\\AppData\\Roaming\\job-workbench\\main.log\n" % spelling)
 
     text = _unzip(client.get("/api/system/diagnostics")).read("main-log.txt").decode("utf-8")
-    assert HOME not in text, "家目录前缀必须脱敏：%s" % text
+    assert spelling not in text, "家目录前缀必须脱敏（%s）：%s" % (spelling, text)
     assert "~" in text, text
 
 

@@ -39,7 +39,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import application_delete, applications, approvals, dashboard, diagnostics, imap, imap_facts, jobs, library, prep, progress, provider, reminders, resume, snapshot, sync, system, workspace  # noqa: E402
+from routers import registry as route_registry  # 路由登记表：见 routers/registry.py（顺序有约束）
 
 # ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
 #
@@ -164,24 +164,7 @@ async def _workspace_guard(request: Request, call_next):
     return response
 
 
-app.include_router(dashboard.router)
-app.include_router(applications.router)
-app.include_router(application_delete.router)  # 投递删除预览（批 D；applications.py 水位只许降故拆出）
-app.include_router(approvals.router)
-app.include_router(jobs.router)
-app.include_router(progress.router)
-app.include_router(library.router)
-app.include_router(workspace.router)
-app.include_router(provider.router)
-app.include_router(imap.router)
-app.include_router(imap_facts.router)  # 邮件解析（批 9；imap.py 水位只许降故单开）
-app.include_router(resume.router)
-app.include_router(system.router)
-app.include_router(snapshot.router)  # 快照还原与演练（笔 2；system.py 水位只许降故单开）
-app.include_router(diagnostics.router)  # 诊断包导出（笔 3；同上）
-app.include_router(reminders.router)  # 到点提醒的轻端点（笔 5；同上）
-app.include_router(sync.router)  # 批 8：工作区版本指纹（GUI 端同步用）
-app.include_router(prep.router)  # 笔记：03_面试准备 / 04_知识库 只读浏览
+route_registry.register(app)
 
 
 @app.get("/api/health")

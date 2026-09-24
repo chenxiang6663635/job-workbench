@@ -236,6 +236,10 @@ export function getFontSizeChoice(): number {
 
 export function applyFontSize(pct: number): void {
   const root = document.documentElement;
+  // 同时写一个 data 属性：设置页的「外观与偏好」状态卡靠**根属性变化**感知偏好被改过
+  // （hooks/usePreferenceEntries.ts 的 MutationObserver）。只写 style 的话，观察器要么
+  // 漏掉字号、要么得盯整个 style 属性（主题编辑器每敲一个色值都会触发一轮刷新）。
+  root.setAttribute("data-fontsize", String(clampFontSize(pct)));
   if (pct === FONT_SIZE_DEFAULT) {
     // 100% 清掉内联值（与"未设置"等价）：根元素保持干净，排查样式时少一层噪声
     root.style.removeProperty("font-size");

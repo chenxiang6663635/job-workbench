@@ -62,6 +62,13 @@ assert.deepStrictEqual(
   "a tiny window is raised to the minimum size"
 );
 
+// --- 屏比下限还小：以屏为准（窗口不能比屏幕还宽）-------------------------------
+assert.deepStrictEqual(
+  clampToWorkArea({ x: 0, y: 0, width: 1600, height: 1000 }, [{ x: 0, y: 0, width: 800, height: 600 }]),
+  { x: 0, y: 0, width: 800, height: 600 },
+  "when the screen is smaller than the minimum, the screen wins (the window must fit)"
+);
+
 // --- 坏数据 / 缺字段：不抛，回落到主屏居中 ------------------------------------
 const centered = { x: 320, y: 80, width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
 assert.deepStrictEqual(clampToWorkArea(null, [MAIN]), centered, "no saved state centres the default size");

@@ -47,11 +47,11 @@ def client(tmp_path, monkeypatch):
     return TestClient(main.app)
 
 
-def _snapshot_io():
+def _snapshot_entries():
     """惰性取模块：实现尚未落地时让测试**失败**（而不是整文件收集期报错）。"""
-    import snapshot_io
+    import snapshot_entries
 
-    return snapshot_io
+    return snapshot_entries
 
 
 def _ws(tmp_path):
@@ -179,15 +179,18 @@ def test_restore_skips_credentials_and_runtime_products(tmp_path, client):
     _make_snapshot(tmp_path, {
         "01_岗位池/a.md": "新",
         "config/imap.json": '{"password": "leaked"}',
-        "config/imap.lock": "",
+        "config/imap.lock": "POISON",  # 非空：这样"空壳锁文件"与"还原了内容"能区分开
         "01_岗位池/note.pyc": "x",
     })
 
     res = client.post("/api/system/snapshots/restore", json={"name": "ws-ok-20260923-220000-000000.zip"})
     assert res.status_code == 200, res.text
     assert not (_ws(tmp_path) / "config" / "imap.json").exists(), "授权码不得被还原进工作区"
-    assert not (_ws(tmp_path) / "config" / "imap.lock").exists()
     assert not (_ws(tmp_path) / "01_岗位池" / "note.pyc").exists()
+    # 锁文件**可能**存在——那是"取全仓六把锁"的副产物（见 test_restore_waits_on_every_workspace_lock），
+    # 不是还原了 zip 里的条目：所以断言它必须是空的，而不是不存在（zip 里那份内容非空）
+    lock = _ws(tmp_path) / "config" / "imap.lock"
+    assert not lock.exists() or lock.read_bytes() == b"", "运行时产物不该被还原（锁文件只应是空壳）"
 
 
 # ---- 安全面 ---------------------------------------------------------------
@@ -221,7 +224,7 @@ def test_preview_also_rejects_traversal_entries(tmp_path, client):
 
 def test_restore_rejects_bomb_by_entry_count(tmp_path, client):
     """条目数上限：坏包不许把后端拖死（炸弹的另一半是解压总量上限）。"""
-    module = _snapshot_io()
+    module = _snapshot_entries()
     snap_dir = _snap_dir(tmp_path)
     snap_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(snap_dir / "ws-ok-bomb.zip", "w") as zf:
@@ -259,11 +262,13 @@ def test_unknown_snapshot_is_404(tmp_path, client):
     assert res.json()["error_code"] == "sys.snapshotNotFound", res.text
 
 
-@pytest.mark.parametrize("kind", ["tracking", "jobs"])
-def test_restore_waits_on_workspace_locks(tmp_path, client, monkeypatch, kind):
-    """还原会写整仓，必须在两把锁内跑：占住任一把 → 429 可重试（不是 500）。
+@pytest.mark.parametrize("kind", ["tracking", "jobs", "resume", "prep", "provider", "imap"])
+def test_restore_waits_on_every_workspace_lock(tmp_path, client, monkeypatch, kind):
+    """还原会写整仓，必须在**全部六把**工作区锁内跑：占住任一把 → 429 可重试（不是 500）。
 
-    两把锁都要验：只护住从表而放过岗位池，等于"我还原到一半时别人在删岗位目录"。
+    批末独立审查指出的缺口：只护 tracking + jobs 等于"我存简历 / 写笔记时别人在还原"——
+    快照里本来就含 `02_简历工坊/**`、`03_面试准备/**` 与 `config/preferences.json`，
+    两侧都做原子写，结果是静默丢更新。所以逐个 kind 都要验一遍。
     """
     import lockctx
     from jobws_core import workspace_io
@@ -291,6 +296,88 @@ def test_restore_waits_on_workspace_locks(tmp_path, client, monkeypatch, kind):
 
     assert res.status_code == 429, res.text
     assert res.json()["error_code"] == "server.lockTimeout", res.text
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["ws-ok/config/./imap.json", "ws-ok//config/imap.json", "ws-ok/config/../config/imap.json"],
+)
+def test_restore_cannot_be_tricked_into_writing_credentials(tmp_path, client, entry):
+    """归一化绕过（批末审查 CRITICAL）：`config/./imap.json` 这类写法原先同时躲过"含 .."
+    与"凭证名单精确匹配"，而落盘时由 OS 归一化成 `config/imap.json` —— 明文授权码被还原。"""
+    _write(tmp_path, "01_岗位池/a.md", "旧")
+    snap_dir = _snap_dir(tmp_path)
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(snap_dir / "ws-ok-creds.zip", "w") as zf:
+        zf.writestr(entry, '{"password": "leaked"}')
+        zf.writestr("%s/01_岗位池/a.md" % WS, "新")
+
+    res = client.post("/api/system/snapshots/restore", json={"name": "ws-ok-creds.zip"})
+    assert res.status_code in (200, 400), res.text
+    assert not (_ws(tmp_path) / "config" / "imap.json").exists(), "凭证不得被还原进工作区"
+
+
+@pytest.mark.parametrize("tail", ["imap.json ", "imap.json.", "imap.json  "])
+def test_restore_rejects_windows_trailing_tail_aliases(tmp_path, client, tail):
+    """Windows 把 `imap.json ` / `imap.json.` 解析成 `imap.json`——同一套绕过，直接拒绝。"""
+    _write(tmp_path, "01_岗位池/a.md", "旧")
+    snap_dir = _snap_dir(tmp_path)
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(snap_dir / "ws-ok-tail.zip", "w") as zf:
+        zf.writestr("%s/config/%s" % (WS, tail), '{"password": "leaked"}')
+
+    res = client.post("/api/system/snapshots/restore", json={"name": "ws-ok-tail.zip"})
+    assert res.status_code == 400, res.text
+    assert res.json()["error_code"] == "sys.snapshotEntry", res.text
+    assert not (_ws(tmp_path) / "config" / "imap.json").exists()
+
+
+def test_preview_normalizes_entry_paths_before_diffing(tmp_path, client):
+    """演练的「保留不动」集合要按归一化形状比：否则 `./a.md` 会被报成"快照外"，
+    而这个数字正是用户按下"还原"前的唯一凭据（批末审查 MAJOR）。"""
+    _write(tmp_path, "01_岗位池/a.md", "一致")
+    _make_snapshot(tmp_path, {"01_岗位池/./a.md": "一致"})
+
+    res = client.post("/api/system/snapshots/preview",
+                      json={"name": "ws-ok-20260923-220000-000000.zip"})
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["same"] == 1, data
+    assert data["notInSnapshot"] == 0, data
+    assert data["keptExamples"] == [], data
+
+
+def test_restore_reports_the_rollback_point_when_it_fails_midway(tmp_path, client, monkeypatch):
+    """中途失败（杀软/Excel 占着目标文件、磁盘满）必须把**回滚点名**报出来——它是这条路
+    唯一的退路；只给一句"服务器内部错误"等于让用户去系统目录里按时间猜（批末审查 MAJOR）。"""
+    from jobws_core import workspace_io
+
+    _write(tmp_path, "01_岗位池/a.md", "旧")
+    _write(tmp_path, "02_简历工坊/b.md", "旧")
+    _make_snapshot(tmp_path, {"01_岗位池/a.md": "新", "02_简历工坊/b.md": "新"})
+
+    real = workspace_io.atomic_write_bytes
+    calls = {"n": 0}
+
+    def flaky(path, data, *args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise OSError("目标文件被占用")
+        return real(path, data, *args, **kwargs)
+
+    monkeypatch.setattr(workspace_io, "atomic_write_bytes", flaky)
+
+    res = client.post("/api/system/snapshots/restore",
+                      json={"name": "ws-ok-20260923-220000-000000.zip"})
+
+    assert res.status_code == 500, res.text
+    body = res.json()
+    assert body["error_code"] == "sys.snapshotRestoreFailed", body
+    rollback = body["error_params"]["rollback"]
+    assert body["error_params"]["written"] == 1, body
+    assert (_snap_dir(tmp_path) / rollback).is_file(), "回滚快照必须真的存在：%s" % rollback
+    with zipfile.ZipFile(_snap_dir(tmp_path) / rollback) as zf:
+        assert zf.read("%s/01_岗位池/a.md" % WS).decode("utf-8") == "旧"
 
 
 # ---- 清单与淘汰 -----------------------------------------------------------

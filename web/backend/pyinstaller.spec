@@ -171,6 +171,12 @@ project_hidden = [
     "py_runtime",
     "ro_files",
     "routers",
+    "routers.registry",  # 收口批笔 6 后：路由登记表（main.py 只 import 它，再由它 import 全部路由）
+    "routers.diagnostics",
+    "routers.reminders",
+    "routers.snapshot",
+    "snapshot_entries",
+    "snapshot_io",
     "routers.applications",
     "routers.approvals",
     "routers.dashboard",

@@ -43,6 +43,7 @@ import SettingsTools from "../components/settings/SettingsTools";
 import PreferenceStatusCard from "../components/settings/PreferenceStatusCard";
 import { usePreferenceEntries } from "../hooks/usePreferenceEntries";
 import {
+  filterEntries,
   modifiedCardIds,
   modifiedCount,
   visibleCardIds,
@@ -248,6 +249,15 @@ export default function Settings() {
         </p>
       )}
 
+      {/* 路径读取失败平时显示在「数据位置 / 关于 / 数据与隐私」三张卡里；这三张都被筛掉时
+          提到页面级——否则用户切到别的分组后看到的是"一片空白"（批末审查指出的静默吞错） */}
+      {pathsError && !cards.has("dataLoc") && !cards.has("about") && !cards.has("privacy") && (
+        <ErrorBanner
+          message={t("settings.pathsFailed", { error: pathsError })}
+          onClose={() => setPathsError(null)}
+        />
+      )}
+
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
       {info && <ErrorBanner tone="success" message={info} onClose={() => setInfo(null)} />}
 
@@ -260,7 +270,7 @@ export default function Settings() {
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
         {/* 外观与偏好状态卡（笔 4）：排在最前——先回答"我改过什么、退得回去吗、什么时候生效" */}
         <PreferenceStatusCard
-          entries={entries}
+          entries={filterEntries(entries, query)}
           hidden={!cards.has("prefs")}
           onReset={(entry) => entry.reset?.()}
           onResetAll={() =>

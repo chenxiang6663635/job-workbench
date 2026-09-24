@@ -631,7 +631,7 @@ const zhCN = {
   "settings.backingup": "备份中...",
   "settings.openDataDir": "打开数据目录",
   "settings.diagnostics": "导出诊断包",
-  "settings.diagnosticsDesc": "版本、平台、自检摘要与主进程日志尾部——不含工作区内容与访问凭证，可安全贴进问题反馈。",
+  "settings.diagnosticsDesc": "版本、平台、自检摘要与主进程日志尾部——不含工作区数据文件与访问凭证（自检摘要里可能带少量单元格取值与列名，那是判断哪张表坏了所需的最小信息），可安全贴进问题反馈。自检会把无法解析的表文件移入工作区的 quarantine/。",
   // 设置页的「找得到 / 退得回 / 知道何时生效」（收口批 笔 4）
   "settings.groupAppearance": "外观与偏好",
   "settings.groupInterface": "语言与界面",
@@ -1042,6 +1042,7 @@ const zhCN = {
   "err.sys.snapshotTooManyEntries": "快照条目过多（{{count}} 条，上限 {{limit}} 条）——已拒绝，工作区未做任何改动",
   "err.sys.snapshotFailed": "还原前的留痕写不出来——已中止，工作区未做任何改动",
   "err.sys.diagnosticsTooLarge": "诊断包超过体积上限（{{limit}} 字节）——请先清理主进程日志后重试",
+  "err.sys.snapshotRestoreFailed": "还原中途失败（已写 {{written}} 个文件）——工作区现在是半还原状态；回滚点 {{rollback}} 留在系统快照目录里，拷回来即可回到还原前",
 
   "err.provider.baseUrlInvalid": "服务地址（Base URL）必须以 http:// 或 https:// 开头",
   "err.provider.needBaseUrl": "请先保存模型服务（Provider）的服务地址（Base URL）",

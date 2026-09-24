@@ -23,6 +23,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import sys
 import zipfile
 from datetime import datetime
@@ -38,7 +39,9 @@ router = APIRouter(prefix="/api/system/diagnostics")
 LOG_NAME = "main.log"
 # 日志尾部上限：够覆盖几轮启动/报错，又不至于让 zip 变成"另一个数据包"
 LOG_LIMIT = 128 * 1024
-# 打包体积硬上限（日志已被限，这里是"如果以后往里加了什么大件"的闸）
+# 打包体积硬上限：**纵深防御**——包里唯一的变长内容是日志，已被 tail_text 截到 128KB，
+# 所以正常路径不可达（批末审查指出不能把它当"运行时兜底"来读；真要防的是将来有人往包里
+# 加了大件却忘了限）。
 MAX_PACKAGE_BYTES = 4 * 1024 * 1024
 
 
@@ -48,18 +51,25 @@ def home_dir():
 
 
 def redact(text, home=None):
-    """家目录前缀 → `~`（反斜杠 / 正斜杠两种写法都换）。
+    """家目录前缀 → `~`（反斜杠 / 正斜杠两种写法都换，**不区分大小写**）。
 
     诊断包会被贴进 issue、聊天窗口或工单：路径里的用户名不该跟着走。只做前缀替换，
     不去猜"哪个词是用户名"——那种模糊匹配会把无关内容改坏。
+
+    大小写与分隔符都要覆盖：Windows 路径大小写不敏感，而日志里 `c:\\users\\bob` /
+    `C:/Users/Bob` 这类写法来自 PATH、第三方库或 Chromium，精确串替换会漏（批末审查）。
     """
     target = home if home is not None else home_dir()
     if not target:
         return text
     out = text
+    seen = set()
     for variant in (target, target.replace("\\", "/"), target.replace("/", "\\")):
-        if variant:
-            out = out.replace(variant, "~")
+        key = variant.lower()
+        if not variant or key in seen:
+            continue
+        seen.add(key)
+        out = re.sub(re.escape(variant), "~", out, flags=re.IGNORECASE)
     return out
 
 
@@ -111,8 +121,11 @@ def _check_summary(ws):
         "version": result.get("version"),
         "filesOk": len([item for item in files if item.get("ok")]),
         "filesBad": len(bad),
+        # 只给文件名与极短的问题描述（行号 + 列名 + 取值）——用户要靠它决定"哪张表坏了"；
+        # 但这也意味着包里可能带上少量单元格取值，notes / README 的措辞如实写了这一点
         "issues": issues,
-        "quarantined": len(result.get("quarantined") or []),
+        # 被隔离的文件名要列出来：只说"隔离了 1 个"会让用户不知道什么东西被移走了
+        "quarantined": [redact(str(item)) for item in (result.get("quarantined") or [])],
     }
 
 
@@ -148,8 +161,11 @@ def _manifest(ws, log_info, home):
             "README_诊断包说明.txt",
         ],
         "notes": (
-            "不含工作区内容与访问凭证（config/imap.json、config/provider.json 从不进包）；"
-            "路径里的家目录已脱敏为 ~；日志只保留尾部。"
+            "不含工作区数据文件与访问凭证（config/imap.json、config/provider.json 从不进包）；"
+            "自检摘要里可能带少量单元格取值（行号 + 列名 + 极短原文），那是用户据以判断"
+            "哪张表坏了所需的最小信息；路径里的家目录已脱敏为 ~；日志只保留尾部。"
+            "自检若发现无法解析的表文件，会把它移进工作区的 quarantine/（与界面上的「自检」"
+            "同一个行为），被移动的文件名见 check.quarantined。"
         ),
     }
 

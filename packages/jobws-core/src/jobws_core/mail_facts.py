@@ -17,12 +17,14 @@
 
 ## 已知边界（刻意不做）
 
-- 相对日期认「今天 / 明天 / 后天 / 大后天 / 本周X / 下周X」，后两者按**自然周**
-  （周一为起点）计算——今天是周日时「下周一」= 1 天后，测试里固化了这条语义；
-  **「本周X」可能算出已经过去的日期**，那正是「已过期」的信号，照给（把握程度
-  low，值供人核对）；无前缀的「周五」仍不解析（起算点随人而异，宁可漏也不猜）；
-- 「截止」只认**带日期**的句子（截止 / 请于…前 / 前完成 / 有效期至 / deadline）：
-  光有「截止另行通知」而没有日期时不产出——没有落点价值；
+- **日期与时长怎么算**（相对日、时长基准、工作日，以及各自的已知边界）下沉在
+  `mail_dates`；这一层只保留**语义边界**：
+- **时长表达**（N 天内 / N 小时内 / N 个工作日内）要**带指令语气或任务词**才算
+  待办——「我们会在 N 个工作日内联系你」是对方的承诺，不产出；
+- **链接有效期**与「任务截止」分开成两类 kind：前者是链接会失效（要你复制保存），
+  后者是要你完成；「链接」与「有效」须同时出现（只写「链接：https://…」不算）；
+- 「截止」只认**能落成具体日期**的句子（截止 / 请于…前 / 前完成 / 有效期至 /
+  deadline / 时长表达）：光有「截止另行通知」而没有日期时不产出——没有落点价值；
 - 引用分隔线只认**整行都是连字符**（`-----`）：正文里的 Markdown 分隔线后若还带
   文字，不会被误当成引用起点而截掉后文。
 """
@@ -30,9 +32,10 @@
 import datetime
 import re
 
+from . import mail_dates
 from .mail_ics import parse_ics
 from .mail_links import find_urls, is_meeting_url
-from .status_parse import DATE_CN_RE, DATE_ISO_RE, match_rows, parse as parse_signals
+from .status_parse import match_rows, parse as parse_signals
 
 
 def _fact(kind, value, label, evidence, confidence, source, target_id="", note=""):
@@ -82,13 +85,8 @@ _QUOTE_START_RE = re.compile(
     r"-{3,}\s*(?:原始邮件|original message)|-{5,}\s*$)",
     re.IGNORECASE)
 
-# 「2026年9月25日」这种全量中文日期（与 status_parse 的短式「9月25日」区分）
-DATE_CN_FULL_RE = re.compile(r"(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日")
-TIME_RE = re.compile(r"(?<!\d)([01]?\d|2[0-3])\s*[:：]\s*([0-5]\d)(?!\d)")
-_REL_DAYS = (("大后天", 3), ("后天", 2), ("明天", 1), ("今天", 0))
-_WEEKDAYS = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
-THIS_WEEKDAY_RE = re.compile(r"本\s*周\s*([一二三四五六日天])")
-NEXT_WEEKDAY_RE = re.compile(r"下\s*周\s*([一二三四五六日天])")
+# 日期与时长解析已下沉到 `mail_dates`（2026-09-24 拆出：本文件随「截止 / 链接
+# 有效期」一度涨到 380 行、超了逻辑型 300 行的规模预算）——这边只判"哪一类事实"。
 
 # 截止语气：这类日期是**任务倒计时**（要交东西），与「到场」的面试时间语义不同，
 # 所以单独成 kind=截止。写入时同时落「下次动作日期」与「下次动作」文案——
@@ -102,6 +100,16 @@ DEADLINE_RE = re.compile(
 # 把它并进来会让「请于 X 前确认面试时间」被写成「完成面试」。
 _TASK_WORDS = ("在线测评", "在线笔试", "在线编程", "性格测试", "视频面试",
                "AI 面试", "AI面试", "AI面", "测评", "笔试", "测验", "机考")
+
+# 时长表达：N 天内 / N 小时内 / N 个工作日内。前一条负向断言把小写「9月25日」里的
+# 「25日」排除掉（那不是时长）；基准是**邮件发出的那天**（见 `_duration_value`）。
+_DURATION_RE = re.compile(
+    r"(?<!月)(\d{1,3})\s*(?:个)?\s*(工作日|自然日|天|日|小时)\s*(?:内|以内|之内)")
+
+# 指令语气：时长只在「要你做点什么」的句子里才算你的待办——
+# 「我们会在 3 个工作日内联系你」是对方的承诺，这类句子在招聘邮件里非常常见，
+# 不加这道门就会变成噪音（虽然写入前有逐条确认兜底，噪音本身就是缺陷）。
+_ASK_RE = re.compile(r"(请|需|务必|尽快|完成|提交|上传|答复|截止)")
 
 
 def strip_quoted(text):
@@ -124,71 +132,66 @@ def strip_quoted(text):
     return "\n".join(out).strip("\n")
 
 
-def _deadline_label(line):
-    """截止行的动作短语：命中任务名就写「完成在线测评」，否则用通用的「截止事项」。"""
+def _deadline_label(line, link=False):
+    """截止行的动作短语：命中任务名就写「完成在线测评」，否则用通用词。
+
+    `link=True` 是「链接有效期」：它与「你要交东西」是两件事——一个要你复制保存
+    链接，一个要你完成，所以同一个任务名也要在文案里区分（到点提醒直接读这句）。
+    """
+    task = ""
     for word in _TASK_WORDS:
         if word in line:
-            return "完成%s" % word
-    return "截止事项"
+            task = "完成%s" % word
+            break
+    if link:
+        return ("%s（链接即将失效）" % task) if task else "链接即将失效"
+    return task or "截止事项"
 
 
-def _time_fact_from_line(line, today):
-    """单行 → 时间 / 截止事实（没有日期就返回 None：只有钟点没有日期没有落点价值）。
+def _is_link_validity(line):
+    """「链接…有效」= 链接会失效（要你复制保存），与「你要交东西」分开成两类。"""
+    return "链接" in line and "有效" in line
 
-    把握程度：写出年份的（ISO / 中文全量）为 high；缺年份、相对日（今天/明天/
-    本周X/下周X）为 low——那种值必须人工复核后才可写入。
 
-    含截止语气（截止 / 请于…前 / deadline）的行产出 `kind="截止"`，label 带任务名
-    （供「下次动作」文案直接落库）；其余仍是 `kind="时间"`。
+def _is_deadline_line(line):
+    """这行说的是「你的待办截止」吗？
+
+    两条来源：① 截止语气（截止 / 请于…前 / deadline）；② **带指令语气或任务词的
+    时长表达**（「请在 3 天内完成」）——时长本身不构成截止语义，所以第二条同时
+    把对方承诺（「我们会在 3 个工作日内联系你」）挡在外面：那种句子没有"请 /
+    完成 / 提交"这类词，不该变成你的待办。
+    """
+    if DEADLINE_RE.search(line):
+        return True
+    return bool(_DURATION_RE.search(line)) and bool(
+        _ASK_RE.search(line) or any(w in line for w in _TASK_WORDS))
+
+
+def _time_fact_from_line(line, today, mail_date=None):
+    """单行 → 时间 / 截止 / 链接有效期事实（没有日期就返回 None：没有落点价值）。
+
+    日期部分（含基准口径：相对日按今天、**时长按邮件日期**、工作日算法）在
+    `mail_dates`；这里只判"属于哪一类事实"：
+
+    - 含「链接…有效」→ `kind="链接有效期"`（链接会失效，与「要交东西」分开）；
+    - 含截止语气、或**带指令语气的时长表达** → `kind="截止"`，label 带任务名；
+    - 其余 → `kind="时间"`。
+
+    把握程度由 `mail_dates` 给（绝对日期 high、其余 low——low 必须人工核对）。
     """
     ref = today or datetime.date.today()
-    value, confidence, note = "", "high", ""
-
-    m = DATE_ISO_RE.search(line)
-    if m:
-        value = "%04d-%02d-%02d" % tuple(int(x) for x in m.groups())
-    else:
-        m = DATE_CN_FULL_RE.search(line)
-        if m:
-            value = "%04d-%02d-%02d" % tuple(int(x) for x in m.groups())
-        else:
-            m = DATE_CN_RE.search(line)
-            if m:
-                mo, d = (int(x) for x in m.groups())
-                value = "%04d-%02d-%02d" % (ref.year, mo, d)
-                confidence = "low"
-                note = "原文没有年份，按 %d 年记，请确认" % ref.year
-            else:
-                rel = next(((n, delta) for n, delta in _REL_DAYS if n in line), None)
-                if rel:
-                    day = ref + datetime.timedelta(days=rel[1])
-                    value, confidence = day.isoformat(), "low"
-                    note = "相对日期，按 %s 计算，请确认" % ref.isoformat()
-                else:
-                    m = THIS_WEEKDAY_RE.search(line)
-                    if m:
-                        # 本周X = 本周（周一为起点）的第 X 天；可能算出已过去的日期，
-                        # 那正是「已过期」的信号，照给，由人核对
-                        day = ref - datetime.timedelta(days=ref.weekday()) \
-                            + datetime.timedelta(days=_WEEKDAYS[m.group(1)])
-                        value, confidence = day.isoformat(), "low"
-                        note = ("相对日期（本周，周一为起点），按 %s 计算，请确认"
-                                % ref.isoformat())
-                    else:
-                        m = NEXT_WEEKDAY_RE.search(line)
-                        if m:
-                            # 下周一 = 下一个自然周的周一（今天所在周为「本周」）
-                            day = ref + datetime.timedelta(
-                                days=7 - ref.weekday() + _WEEKDAYS[m.group(1)])
-                            value, confidence = day.isoformat(), "low"
-                            note = "相对日期，按 %s 计算，请确认" % ref.isoformat()
-
+    value, confidence, note = mail_dates.find_absolute(line, ref)
+    if not value and _is_deadline_line(line):
+        token = _DURATION_RE.search(line)
+        if token:
+            value, confidence, note = mail_dates.duration_date(token, ref, mail_date)
     if not value:
         return None
-    t = TIME_RE.search(line)
-    if t:
-        value += " %02d:%02d" % (int(t.group(1)), int(t.group(2)))
-    if DEADLINE_RE.search(line):
+    value = mail_dates.with_clock(value, line)
+    if _is_link_validity(line):
+        return _fact("链接有效期", value, _deadline_label(line, link=True),
+                     line.strip()[:120], confidence, "body", note=note)
+    if _is_deadline_line(line):
         return _fact("截止", value, _deadline_label(line),
                      line.strip()[:120], confidence, "body", note=note)
     return _fact("时间", value, "时间", line.strip()[:120], confidence, "body", note=note)
@@ -205,11 +208,11 @@ def _body_link_facts(text):
     return facts
 
 
-def _body_facts(text, today):
+def _body_facts(text, today, mail_date=None):
     """正文事实（调用方已剥引用；此处只做抽取）。"""
     facts = []
     for line in text.split("\n"):
-        fact = _time_fact_from_line(line, today)
+        fact = _time_fact_from_line(line, today, mail_date)
         if fact:
             facts.append(fact)
     facts.extend(_body_link_facts(text))
@@ -245,18 +248,21 @@ def _stage_or_record_facts(text, rows, focus_id):
 
 # --- 入口 ---------------------------------------------------------------------
 
-def extract_facts(body, ics_text="", today=None, rows=None, focus_id=""):
+def extract_facts(body, ics_text="", today=None, rows=None, focus_id="",
+                  mail_date=None):
     """把一封邮件（正文 + ICS）变成候选事实列表。**纯函数：不写任何东西。**
 
     - `ics_text` 非空时先走结构化路径（source="ics"、confidence="high"）；
     - 正文兜底：先剥离引用 / 签名，再抽时间与白名单内的会议链接，最后接
       阶段信号与记录匹配（`rows` / `focus_id` 由调用方从追踪表取）；
     - ICS 与正文的**同一取值只保留先出现的**（ICS 在前），避免卡片重复；
-    - `today` 只为可测（相对日期的年份来源显式化），默认取系统当天。
+    - `today` 只为可测（相对日期的年份来源显式化），默认取系统当天；
+    - `mail_date` 是这封邮件的发出日期（date 或字符串）：**时长表达**（「3 天内」）
+      以它为基准，取不到时退回今天并在 note 里写明——基准不该是"你什么时候看的"。
     """
     text = strip_quoted(body)
     facts = _ics_facts(parse_ics(ics_text))
-    facts.extend(_body_facts(text, today))
+    facts.extend(_body_facts(text, today, mail_dates.coerce_date(mail_date)))
     facts.extend(_stage_or_record_facts(text, rows, focus_id))
 
     seen, deduped = set(), []

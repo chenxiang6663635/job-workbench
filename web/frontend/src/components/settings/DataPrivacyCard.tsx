@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, Download, FolderOpen, ShieldCheck } from "lucide-react";
+import { Archive, Download, FolderOpen, ShieldCheck, Stethoscope } from "lucide-react";
 
 import { api, type SystemPaths } from "../../api";
+import { diagnosticsUrl } from "../../lib/diagnostics";
+import { currentWorkspace } from "../../lib/http";
 import type { SnapshotInfo } from "../../lib/domainTypes";
 import { listSnapshots } from "../../lib/snapshotApi";
 import { Button } from "../ui/button";
@@ -107,7 +109,17 @@ export default function DataPrivacyCard({
         >
           <FolderOpen size={15} /> {t("settings.openDataDir")}
         </Button>
+        {/* 诊断包是给"出问题要报障"用的：链接直下，不经 requestJson（浏览器下载） */}
+        <Button asChild variant="outline">
+          <a href={diagnosticsUrl(currentWorkspace)} title={t("settings.diagnosticsDesc")}>
+            <Stethoscope size={15} /> {t("settings.diagnostics")}
+          </a>
+        </Button>
       </div>
+
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        {t("settings.diagnosticsDesc")}
+      </p>
 
       {info && (
         <p className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">

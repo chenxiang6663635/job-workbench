@@ -5,6 +5,13 @@
 [![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)
+![Electron](https://img.shields.io/badge/Electron-44-blue.svg)
+![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)
+![平台](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
+![无遥测](https://img.shields.io/badge/telemetry-none-brightgreen)
+![最后提交](https://img.shields.io/github/last-commit/chenxiang6663635/job-workbench)
+
+> 版本号是月粒度 CalVer `YY.MM.N`（`26.9.0` = 当月第一次发布，hotfix 只递增第三位）。安装包**未经代码签名**——首次运行 Windows 可能显示「Windows 已保护你的电脑」，见「下载」一节的处理方式。
 
 一个**本地优先、AI 可审计**的求职工作台：从 JD 解析到 offer 决策的完整链路，用纯 Markdown 与 CSV 管理在你自己的磁盘上，由你自己的 AI CLI 驱动。
 

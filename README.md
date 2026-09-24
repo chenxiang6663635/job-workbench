@@ -3,6 +3,13 @@
 [![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)
+![Electron](https://img.shields.io/badge/Electron-44-blue.svg)
+![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)
+![Platform](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
+![No telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)
+![Last commit](https://img.shields.io/github/last-commit/chenxiang6663635/job-workbench)
+
+> Version numbers are month-granularity CalVer `YY.MM.N` (`26.9.0` = first release of the month; a hotfix bumps `N`). The installer is **not code-signed** — see [Download](#download) for what Windows may show on first run.
 
 A **local-first, auditable AI-assisted job-search workbench**: run the whole pipeline — from JD analysis to offer decision — in plain Markdown & CSV on your own disk, driven by your own AI CLI.
 

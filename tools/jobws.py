@@ -156,7 +156,9 @@ def build_parser():
     parser = argparse.ArgumentParser(
         prog="jobws",
         description="求职工作台命令行（唯一入口）",
-        epilog="每个命令后面接 --help 看它自己的子命令，例如：jobws track --help")
+        epilog=("每个命令后面接 --help 看它自己的子命令，例如：jobws track --help\n"
+                "使用手册：docs/usage-guide.zh-CN.md（English: docs/usage-guide.md）｜"
+                "领域插件契约：docs/domain-contract.md"))
     subs = parser.add_subparsers(dest="group", metavar="<命令>")
 
     for name, module, help_text in TARGETS:

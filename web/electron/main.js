@@ -486,9 +486,14 @@ function remindersPath() {
 function loadReminders() {
   try {
     const data = JSON.parse(fs.readFileSync(remindersPath(), "utf-8"));
+    const parsedDays = Number(data.days);
     reminderState = {
       enabled: data.enabled !== false,
-      days: Number(data.days) || REMINDER_DAYS_DEFAULT,
+      // 与后端 /api/reminders/due 的 days 同口径（1–30 夹取）：越界/坏值回落默认，
+      // 而不是把 undefined 一路传进查询串再靠后端兜底
+      days: Number.isFinite(parsedDays)
+        ? Math.min(Math.max(parsedDays, 1), REMINDER_DAYS_MAX)
+        : REMINDER_DAYS_DEFAULT,
       // 旧状态文件里只有 lastNotified（"哪天提醒过"）：按"每事项每天一次"的新口径
       // 它没有意义，直接丢弃——最坏情况是升级当天再报一次，比漏报轻。
       notified: data.notified && typeof data.notified === "object" ? data.notified : {},
@@ -722,12 +727,16 @@ function setupAutoUpdate() {
   autoUpdater.autoDownload = false;
   // 用主进程日志接手 updater 的输出：GUI 下看不到控制台，出问题只能靠这个文件
   autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
+  // 错误分级（发布前审计 发现 3）：检查阶段的失败（离线 / GitHub API 限流——
+  // 未认证请求 60 次/小时/IP）只进日志；此时用户还没介入，弹模态既吓人又可能
+  // 每次启动都弹一次。用户点了「下载更新」之后才切换到弹窗——他正在等结果，
+  // 那时静默才是不可接受的。
+  let updateDownloadRequested = false;
 
-  // P2：更新失败此前只进日志——用户既不知道有新版，也不知道检查失败。
-  // 不弹窗打断（更新是增强，不是必需），但要在控制台之外给一句可读的结论。
   autoUpdater.on("error", (err) => {
     const reason = (err && err.message) || String(err);
     log(`Auto-update error: ${reason}`);
+    if (!updateDownloadRequested) return;
     const t = tFor(resolvedLang());
     notifyUser(t("updateFailedTitle"), `${t("updateFailedMessage")}\n\n${reason}`);
   });
@@ -749,6 +758,7 @@ function setupAutoUpdate() {
       .then(({ response }) => {
         if (response !== 0) return;
         log("User chose to download the update");
+        updateDownloadRequested = true; // 从这里起，更新流程的失败要告知用户
         autoUpdater.downloadUpdate().catch((e) => log(`Update download failed: ${e.message}`));
       });
   });
@@ -816,7 +826,32 @@ function installContentSecurityPolicy() {
   }
 }
 
+// ---- AUMID 与单实例锁（发布前审计 发现 1 / 发现 4）--------------------------
+// AUMID：Windows 通知要求进程的 AppUserModelID 与开始菜单快捷方式一致；只有
+// Squirrel 打包会自动调 setAppUserModelId，electron-builder（NSIS）不会——不设的
+// 话安装版上「到点提醒」的 toast 会被系统静默丢弃：不报错、不崩溃，就是收不到
+// （CI 冒烟测不出通知）。取值必须与 package.json 的 build.appId 一致。
+app.setAppUserModelId("com.jobworkbench.app");
+
+// 单实例锁：双开是首发期最常见的操作（「双击没反应就再双击一下」）。没有锁时
+// 第二实例直接复用第一实例的后端，而「关窗即停」挂在每个窗口上——关掉先启动的
+// 那个窗口，共享的后端被杀，另一窗口界面还在而全部请求失效。加锁后第二实例直接
+// 退出，已有窗口被拉到前面（second-instance）。
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+app.on("second-instance", () => {
+  const win = BrowserWindow.getAllWindows()[0];
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  }
+});
+
 app.whenReady().then(() => {
+  if (!gotSingleInstanceLock) return; // 已请求退出的第二实例：不再拉起后端与窗口
   // 缩放偏好在 ready 后加载：loadZoomLevel 走 app.getPath("userData")
   zoomLevel = loadZoomLevel();
   installContentSecurityPolicy();

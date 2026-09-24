@@ -70,10 +70,9 @@ jobs:
       # tag 与它不一致时直接停下：资产名 job-workbench-setup-<ver>-win64.exe 里的 ver
       # 取自 package.json，若两者不同，用户下载到的东西名字与实际版本就对不上。
       #
-      # 时间戳体系（2026-09-15）：tag 是【发布号】（v26.09.15.1），package.json 是
-      # 【机器版本】（26.9.15，三段）——两者**不是逐字相等**，判定走唯一实现
-      # tools/release_assist.py 的 version_matches_tag（日期三段一致），本地预检
-      # 与 CI 同源，不再在这里内联拼串比较。
+      # 月粒度 CalVer 体系（2026-09-24）：tag（v26.9.0）与 package.json（26.9.0）
+      # 是**同一个号**，判定走唯一实现 tools/release_assist.py 的
+      # version_matches_tag（逐字相等），本地预检与 CI 同源，不内联拼串比较。
       - name: 读取版本号并校验 tag 一致
         id: version
         shell: pwsh
@@ -106,7 +105,7 @@ jobs:
             # 审计 P0-6：不带 tag 的手动演练走不下去——CHANGELOG 段名是发布号，
             # 没有演练 tag 就没有可校验的段，继续跑只会在下面的抽段步骤 exit 1。
             # 快速失败并把填法说清楚，别让人对着半截日志猜。
-            Write-Error "workflow_dispatch 演练必须填写 tag 输入（如 v26.9.23.1，需与 CHANGELOG 的发布号段一致）；不填只会在后面的 CHANGELOG 抽段步骤失败"
+            Write-Error "workflow_dispatch 演练必须填写 tag 输入（如 v26.9.0，需与 CHANGELOG 的版本段一致）；不填只会在后面的 CHANGELOG 抽段步骤失败"
             exit 1
           }
 
@@ -122,7 +121,7 @@ jobs:
           TAG_INPUT: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = "Stop"
-          # CHANGELOG 段名是【发布号】（如 26.09.15.1），不是机器版本（26.9.15）——
+          # CHANGELOG 段名 = 版本号（如 26.9.0）——
           # 有 tag（真实 push 或演练输入）时带 --tag 让 release check 用 tag 的号查段。
           $tagValue = ""
           if ($env:GITHUB_REF -like "refs/tags/*") {
@@ -251,6 +250,81 @@ jobs:
           Write-Host "资产名: $asset"
           "asset=$asset" >> $env:GITHUB_OUTPUT
 
+      # 发布公告的两件套（2026-09-24 发布调研结论）：无签名软件的**预期管理**
+      # （SmartScreen 处理说明，微软官方口径：未签名拦截页更严重、每版本信誉归零，
+      # 公告里写明处理方法是最便宜的补偿）与 **SHA256 校验清单**（没有代码签名的
+      # 情况下，用户核对哈希是"可信发布"的最低成本替代）。
+      - name: 生成 SHA256 清单并附加安装说明
+        shell: pwsh
+        env:
+          ASSET: ${{ steps.artifact.outputs.asset }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not (Test-Path "latest.yml")) { throw "latest.yml 不存在——自动更新元数据缺失，不要按绿发布" }
+          $hashLines = Get-FileHash -Algorithm SHA256 @($env:ASSET, "latest.yml") |
+            ForEach-Object { "{0}  {1}" -f ($_.Hash.ToLower()), (Split-Path $_.Path -Leaf) }
+          $hashLines | Set-Content SHA256SUMS.txt -Encoding utf8
+          $hashBlock = $hashLines -join [Environment]::NewLine
+          # 单引号 here-string：不插值（PowerShell 的 ` 在双引号里是转义符，markdown
+          # 代码栅栏 ``` 会被吃掉）；占位符后置替换。
+          $notice = @'
+
+---
+
+## 安装说明（未签名软件 / unsigned build）
+
+本安装包**未经代码签名**。首次运行时 Windows 可能显示「Windows 已保护你的电脑」——
+这是未签名软件的正常提示：点「更多信息」→「仍要运行」。SmartScreen 信誉按版本重新
+积累，后续版本可能再次提示。
+
+This installer is **not code-signed**. On first run Windows may show "Windows protected
+your PC" — that is expected for unsigned software: click **More info** → **Run anyway**.
+SmartScreen reputation resets per release, so the notice may reappear on later versions.
+
+## 校验和 / Checksums (SHA256)
+
+```
+__HASHES__
+```
+'@
+          $notice = $notice.Replace("__HASHES__", $hashBlock)
+          Add-Content -Path release-notes.md -Value $notice -Encoding utf8
+          Write-Host "SHA256SUMS.txt 与安装说明已追加到 release-notes.md"
+
+      # 安装/卸载冒烟（NSIS 静默模式）：GitHub runner 就是一台干净的 Windows——
+      # 「装得上、卸得掉」这条最朴素的发布门禁在这里零成本覆盖。静默安装（/S）不需要
+      # 交互桌面会话；「通知能弹出」这类需要真机桌面会话的项仍归人工清单
+      # （docs/release-checklist.md）。
+      - name: 安装与卸载冒烟（NSIS /S）
+        shell: pwsh
+        env:
+          ASSET: ${{ steps.artifact.outputs.asset }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = Join-Path (Get-Location) $env:ASSET
+          $proc = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "静默安装失败（exit $($proc.ExitCode)）" }
+
+          # per-user 安装（perMachine: false）落在 %LOCALAPPDATA%\Programs 下；
+          # 目录名跟着 productName（"Job Workbench"）走，探两个候选而不是写死。
+          $candidates = @(
+            (Join-Path $env:LOCALAPPDATA "Programs\job-workbench"),
+            (Join-Path $env:LOCALAPPDATA "Programs\Job Workbench")
+          )
+          $installDir = $candidates | Where-Object { Test-Path (Join-Path $_ "Uninstall job-workbench.exe") } |
+            Select-Object -First 1
+          if (-not $installDir) {
+            $listing = (Get-ChildItem (Join-Path $env:LOCALAPPDATA "Programs") -Directory -ErrorAction SilentlyContinue).Name -join ", "
+            throw "装不上：%LOCALAPPDATA%\Programs 下找不到卸载器（现有目录：$listing）"
+          }
+          Write-Host "已安装到：$installDir"
+
+          $uninstaller = Get-ChildItem $installDir -Filter "Uninstall*.exe" | Select-Object -First 1
+          if (-not $uninstaller) { throw "安装目录里没有卸载器" }
+          $uninst = Start-Process -FilePath $uninstaller.FullName -ArgumentList "/S" -Wait -PassThru
+          if ($uninst.ExitCode -ne 0) { throw "静默卸载失败（exit $($uninst.ExitCode)）" }
+          Write-Host "已卸载（安装 → 验证 → 卸载 全链路通过）"
+
       # 演练模式：只构建 + 校验 + 存成 workflow artifact，不碰 Release
       # 这是**唯一能在不打 tag 时验证"自动更新元数据有没有被正确产出"的入口**
       - name: 演练产物留存
@@ -263,6 +337,7 @@ jobs:
             ${{ steps.artifact.outputs.asset }}.blockmap
             latest.yml
             release-notes.md
+            SHA256SUMS.txt
           retention-days: 7
           if-no-files-found: error
 
@@ -277,6 +352,7 @@ jobs:
             ${{ steps.artifact.outputs.asset }}.blockmap
             latest.yml
             release-notes.md
+            SHA256SUMS.txt
           retention-days: 3
           if-no-files-found: error
 
@@ -332,9 +408,9 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "更新 Release 说明失败（exit $LASTEXITCODE）" }
           }
 
-          # 安装包 + 自动更新元数据一起传。latest.yml 缺了的话老用户永远收不到更新，
-          # 而这件事在只检查 exe 的时候是**看不出来**的——所以下面两件都要核。
-          $files = @($asset, "latest.yml")
+          # 安装包 + 自动更新元数据 + SHA256 清单一起传。latest.yml 缺了的话老用户
+          # 永远收不到更新，而这件事在只检查 exe 的时候是**看不出来**的——都要核。
+          $files = @($asset, "latest.yml", "SHA256SUMS.txt")
           if (Test-Path "$asset.blockmap") { $files += "$asset.blockmap" }
           gh release upload $env:TAG @files --clobber
           if ($LASTEXITCODE -ne 0) { throw "上传发布资产失败（exit $LASTEXITCODE）——发布未完成，不要当成成功" }

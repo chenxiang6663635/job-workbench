@@ -141,6 +141,27 @@ def test_suggest_facts_requires_text(client):
     assert res.json()["error_code"] == "status.textRequired"
 
 
+def test_suggest_facts_uses_mail_date_for_durations(tmp_path, client):
+    """「3 天内」以**邮件日期**为基准（不是今天）。
+
+    这是链路验证：前端把邮件的 `date` 传成 `日期`，后端必须真的用它——
+    漏传 / 后端忽略都会让结论变成"还有 3 天"而不是正确的落点。
+    """
+    _seed(tmp_path, [ROW])
+    facts = _suggest(client, 原文="请在 3 天内完成在线测评",
+                     日期="2026-09-20").json()["facts"]
+    deadline = next(f for f in facts if f["kind"] == "截止")
+    assert deadline["value"] == "2026-09-23"
+
+
+def test_suggest_facts_duration_without_mail_date_notes_the_basis(tmp_path, client):
+    """不带 `日期` 时退回今天，但 note 必须写明基准（否则用户不知道按哪天算的）。"""
+    _seed(tmp_path, [ROW])
+    facts = _suggest(client, 原文="48 小时内完成笔试").json()["facts"]
+    deadline = next(f for f in facts if f["kind"] == "截止")
+    assert "未取到邮件日期" in deadline["note"]
+
+
 # --- 可选 AI 增强（BYOK）：只产建议、绝不写入 ------------------------------------
 
 AI_CONTENT = (

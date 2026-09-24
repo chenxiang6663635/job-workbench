@@ -217,3 +217,132 @@ def test_fully_quoted_body_yields_nothing():
     """整段都是引用的邮件不该产出任何事实（避免把上一封的线索当本次）。"""
     body = "> 面试时间：2026-09-23 09:00\n> 链接：https://zoom.us/j/1111111111\n"
     assert mail_facts.extract_facts(body, today=TODAY) == []
+
+
+# --- 截止事项（倒计时）：识别 + 任务名 + 「本周X」 --------------------------------
+# 这类日期写进追踪表时会同时落「下次动作日期」与「下次动作」文案，
+# 到点提醒（读这两个字段）便自动覆盖——所以 kind 必须与「时间」分开。
+
+
+def test_deadline_line_becomes_deadline_fact():
+    facts = mail_facts.extract_facts(
+        "请在 2026-09-25 前完成在线测评，逾期视为放弃。", today=TODAY)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-25"
+    assert "测评" in deadline["label"], "label 要带任务名，供「下次动作」文案直接落库"
+    assert deadline["confidence"] == "high"
+    assert "逾期" in deadline["evidence"]
+
+
+def test_deadline_before_marker_without_the_word_deadline():
+    """「请于…前完成」不等于「截止」二字：这类句子同样要能识别。"""
+    facts = mail_facts.extract_facts("请于 9月28日 前提交笔试作品", today=TODAY)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-28"
+    assert deadline["confidence"] == "low"
+
+
+def test_deadline_keeps_clock_time():
+    facts = mail_facts.extract_facts("在线测评截止时间：2026-09-25 18:00", today=TODAY)
+    assert [f["value"] for f in _facts_by_kind(facts, "截止")] == ["2026-09-25 18:00"]
+
+
+def test_this_weekday_is_resolved_monday_based():
+    """「本周X」按自然周（周一为起点）：周三的「本周五」= 两天后。"""
+    wednesday = datetime.date(2026, 9, 23)
+    facts = mail_facts.extract_facts("请于本周五前完成笔试", today=wednesday)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-25"
+    assert deadline["confidence"] == "low"
+    assert "本周" in deadline["note"]
+
+
+def test_deadline_english_keyword():
+    facts = mail_facts.extract_facts(
+        "Deadline: 2026-09-30 for the online assessment", today=TODAY)
+    assert [f["value"] for f in _facts_by_kind(facts, "截止")] == ["2026-09-30"]
+
+
+def test_deadline_without_task_word_uses_generic_label():
+    facts = mail_facts.extract_facts("简历投递截止：9月30日", today=TODAY)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-30"
+    assert "截止" in deadline["label"]
+
+
+def test_plain_date_line_is_still_time():
+    """回归：不含截止语气的日期行仍是「时间」（面试 / 会议）。"""
+    facts = mail_facts.extract_facts("面试时间：9月25日 14:00", today=TODAY)
+    assert _facts_by_kind(facts, "截止") == []
+    assert [f["value"] for f in _facts_by_kind(facts, "时间")] == ["2026-09-25 14:00"]
+
+
+def test_deadline_word_without_date_yields_nothing():
+    """只有「截止」字样没有日期 → 不产出（没有落点价值，不猜）。"""
+    facts = mail_facts.extract_facts("请尽快完成测评，截止时间另行通知。", today=TODAY)
+    assert _facts_by_kind(facts, "截止") == []
+
+
+# --- 时长表达（基准 = 邮件日期）与链接有效期 --------------------------------------
+# 「3 天内」的基准是**邮件发出的那天**，不是今天：三天前收到的邮件里写「3 天内」，
+# 今天再看应当已经过期——按今天算会得出"还有 3 天"的反向结论。
+
+MAIL_DATE = datetime.date(2026, 9, 20)   # 邮件发出日（比 TODAY 早两天）
+
+
+def test_duration_from_mail_date_not_today():
+    facts = mail_facts.extract_facts(
+        "请在 3 天内完成在线测评", today=TODAY, mail_date=MAIL_DATE)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-23"
+    assert deadline["confidence"] == "low"
+    assert "邮件日期" in deadline["note"]
+
+
+def test_duration_marks_overdue_when_base_is_old():
+    """基准是四天前的邮件 → 「3 天内」已经过期：值照给，note 里必须明说。"""
+    facts = mail_facts.extract_facts(
+        "请在 3 天内完成在线测评", today=TODAY,
+        mail_date=datetime.date(2026, 9, 18))
+    assert "已过期" in _facts_by_kind(facts, "截止")[0]["note"]
+
+
+def test_duration_without_mail_date_falls_back_to_today():
+    """取不到邮件日期时退回今天——但 note 要写明基准，让人核对。"""
+    facts = mail_facts.extract_facts("48 小时内完成笔试", today=TODAY)
+    deadline = _facts_by_kind(facts, "截止")[0]
+    assert deadline["value"] == "2026-09-24"      # 2026-09-22 + 2 天
+    assert "未取到邮件日期" in deadline["note"]
+
+
+def test_workdays_skip_weekend():
+    """「3 个工作日内」从周五起算 → 跳过周六周日，落到下周三。"""
+    friday = datetime.date(2026, 9, 25)
+    facts = mail_facts.extract_facts("3 个工作日内提交", today=friday, mail_date=friday)
+    assert _facts_by_kind(facts, "截止")[0]["value"] == "2026-09-30"
+
+
+def test_link_validity_is_its_own_kind():
+    """「链接…有效」与「要交东西」分开：前者是链接会失效（要你复制保存）。"""
+    facts = mail_facts.extract_facts(
+        "测评链接 48 小时内有效，请尽快完成", today=TODAY, mail_date=TODAY)
+    fact = _facts_by_kind(facts, "链接有效期")[0]
+    assert fact["value"] == "2026-09-24"
+    assert "链接" in fact["label"]
+
+
+def test_deadline_cn_day_not_mistaken_for_duration():
+    """回归：「9月25日」里的「25日」不是「25 日内」。"""
+    facts = mail_facts.extract_facts("截止：9月25日", today=TODAY)
+    assert [f["value"] for f in _facts_by_kind(facts, "截止")] == ["2026-09-25"]
+
+
+def test_promise_sentence_is_not_a_deadline():
+    """「我们会在 3 个工作日内联系你」是对方的承诺，不是你的待办。
+
+    这类句子在招聘邮件里非常常见（自动回复 / 感谢信）；不排除就会变成噪音。
+    """
+    facts = mail_facts.extract_facts(
+        "感谢投递，我们会在 3 个工作日内与您联系。", today=TODAY, mail_date=MAIL_DATE)
+    assert _facts_by_kind(facts, "截止") == []
+    assert _facts_by_kind(facts, "时间") == []

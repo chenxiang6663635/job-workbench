@@ -29,7 +29,12 @@ import logging
 import re
 import socket
 import ssl
-from jobws_core import tls_policy
+
+import imap_session
+# mail_providers：服务器推断的预设表已下沉到领域包；tls_policy 仅在既有测试的
+# 打桩路径上还需要存在（`tests/test_imap_fetch.py` 会 monkeypatch
+# `imap_fetch.tls_policy._builtin_ca_file`），实现本身已搬到 imap_session。
+from jobws_core import mail_providers, tls_policy  # noqa: F401
 from email import message_from_bytes
 from email.header import decode_header
 # 正文 / ICS 的抽取与截断已下沉到领域包（批 9）：按原名再导出，调用方不受影响。
@@ -40,8 +45,9 @@ logger = logging.getLogger(__name__)
 
 BODY_CHUNK_BYTES = 512 * 1024  # 单封拉取上限（审计 P0-4）：分段 BODY.PEEK[]<0.N>；内存上界 = limit × 此值
 
-DEFAULT_PORT = 993
-DEFAULT_FOLDER = "INBOX"
+# 端口 / 文件夹 / 超时的默认值与会话层同源（那边是唯一真源）
+DEFAULT_PORT = imap_session.DEFAULT_PORT
+DEFAULT_FOLDER = imap_session.DEFAULT_FOLDER
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
 # 时间窗天数上限：再大既没意义（邮箱里没有 10 年前的招聘邮件），又会溢出成 500
@@ -53,35 +59,17 @@ DEFAULT_SINCE_DAYS = 30
 # IMAP 日期字面量用的英文月份（不用 strftime，理由见 _imap_since）
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-SOCKET_TIMEOUT = 15
+SOCKET_TIMEOUT = imap_session.SOCKET_TIMEOUT
 
-# 常见邮箱 IMAP 服务器推断表（用户可在配置里覆盖；未知域名返回空串让用户手填）
-SERVER_GUESSES = {
-    "qq.com": "imap.qq.com",
-    "foxmail.com": "imap.qq.com",
-    "163.com": "imap.163.com",
-    "126.com": "imap.126.com",
-    "yeah.net": "imap.yeah.net",
-    "gmail.com": "imap.gmail.com",
-    "outlook.com": "outlook.office365.com",
-    "hotmail.com": "outlook.office365.com",
-    "live.com": "outlook.office365.com",
-    "aliyun.com": "imap.aliyun.com",
-    "sina.com": "imap.sina.com",
-    "sohu.com": "imap.sohu.com",
-}
+# 服务商预设表与服务器推断已下沉到 `jobws_core/mail_providers.py`（本批）：
+# 那边多了「要不要授权码 / 要不要先发 IMAP ID / 官方指引」几列。
+# 这里保留同名入口，只为不让既有调用方（routers/imap.py、CLI）与既有测试断链。
+guess_server = mail_providers.guess_server
 
-
-class ImapFetchError(Exception):
-    """拉取失败的用户可读原因。消息里不包含凭证。"""
-
-
-def guess_server(email_addr):
-    """按邮箱域名推断 IMAP 服务器；未知域名返回空串（由用户手填）。"""
-    if not email_addr or "@" not in email_addr:
-        return ""
-    domain = email_addr.rsplit("@", 1)[1].strip().lower()
-    return SERVER_GUESSES.get(domain, "")
+# 会话层入口：错误类型与动作再从会话模块导出一次，调用方按原名使用。
+# `probe_folders` 也在其中——设置页的文件夹候选下拉按需调它（用户点开才连一次）。
+ImapFetchError = imap_session.ImapFetchError
+probe_folders = imap_session.probe_folders
 
 
 def _decode_mime_header(raw):
@@ -112,50 +100,10 @@ def _clean_message_id(raw):
     return text
 
 
-def _ssl_context():
-    """显式 TLS 上下文：默认严格校验（系统证书库 + 主机名）。
-
-    策略本体在 `tools/tls_policy.py`——与三处 HTTP 出网（provider / resume /
-    jobs）共用同一份判定（issue #59），本函数只做「领域错误类型」的适配：
-    默认严格 → 证书库不可用时**默认拒绝连接** → 仅当 `JOBWS_IMAP_TLS=insecure`
-    时显式降级（降级必须由用户主动配置，风险写在错误消息里）。
-
-    为什么不走解释器默认：Python ≤3.11 的 imaplib 默认上下文**不校验服务器
-    证书**，授权码在传输层可被中间人截获（issue #50 S2）。
-    """
-    try:
-        return tls_policy.outbound_ssl_context("IMAP 拉取", tls_policy.IMAP_ENV_VAR)
-    except tls_policy.TlsPolicyError as exc:
-        # 调用方（routers/imap.py、CLI）统一按 ImapFetchError 处理，故此处做类型转译
-        raise ImapFetchError(str(exc))
-
-
-def _connect(host, port):
-    """建立会话：connect 与后续命令共用一个超时。
-
-    `timeout=` 由 imaplib 交给 `socket.create_connection`，落在 socket 上——
-    因此 login / select / fetch 全程沿用，不再需要连接后单独 `settimeout()`，
-    也不需要 3.8 时代的探测连接（见模块 docstring 的超时口径）。
-    TLS 校验策略见 `_ssl_context`。
-    """
-    try:
-        conn = imaplib.IMAP4_SSL(host, port, timeout=SOCKET_TIMEOUT,
-                                 ssl_context=_ssl_context())
-    except ssl.SSLError as exc:
-        if "CERTIFICATE_VERIFY_FAILED" in str(exc):
-            # 与「地址写错」是两回事：证书不被信任可能是自签名也可能是劫持，两条路的答案
-            # 都不是关校验——所以消息里明确不给降级出口
-            raise ImapFetchError(
-                "证书校验失败：系统证书库不信任 %s 的证书（可能自签名，也可能被"
-                "劫持）。不要为它关闭校验。" % host)
-        raise ImapFetchError(
-            "TLS 握手失败：%s（检查服务器地址与端口，SSL 端口通常为 993）" % exc)
-    except socket.timeout:
-        # 坏地址 / 丢包的服务器：要落在「15 秒内给人话」上，而不是等系统 TCP 超时
-        raise ImapFetchError("连接超时：%s:%s 在 %d 秒内无响应" % (host, port, SOCKET_TIMEOUT))
-    except OSError as exc:
-        raise ImapFetchError("无法连接 %s:%s：%s" % (host, port, exc))
-    return conn
+# TLS 上下文与会话建立下沉到 imap_session；保留别名是因为既有测试直接打桩这两处
+# （`tests/test_imap_fetch.py` 替换 `imap_fetch._connect`，并直接调 `_ssl_context`）。
+_ssl_context = imap_session.ssl_context
+_connect = imap_session.connect
 
 
 def _check_credentials(host, user, password):
@@ -198,14 +146,7 @@ def _imap_since(days):
     return "%02d-%s-%04d" % (d.day, _MONTHS[d.month - 1], d.year)
 
 
-def _login(conn, user, password):
-    """登录并统一错误口径（消息不含密码）。"""
-    try:
-        conn.login(user, password)
-    except imaplib.IMAP4.error as exc:
-        raise ImapFetchError(
-            "登录失败：%s（多数邮箱的 IMAP 需要单独开启并使用授权码，"
-            "不是网页登录密码）" % exc)
+_login = imap_session.login
 
 
 def test_connection(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLDER):
@@ -220,12 +161,7 @@ def test_connection(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLD
     conn = _connect(host, port)
     try:
         _login(conn, user, password)
-        try:
-            typ, data = conn.select(folder or DEFAULT_FOLDER, readonly=True)
-        except imaplib.IMAP4.error as exc:
-            raise ImapFetchError("打开文件夹失败：%s" % exc)
-        if typ != "OK":
-            raise ImapFetchError("打开文件夹失败：%s" % (data,))
+        data = imap_session.select_readonly(conn, folder)
         count = 0
         if data and data[0]:
             try:
@@ -249,12 +185,7 @@ def test_connection(host, user, password, port=DEFAULT_PORT, folder=DEFAULT_FOLD
 
 def _fetch_recent(conn, folder, since_days, limit):
     """在已登录连接上取最近 limit 封（最新在前）——只读命令，保证同 fetch_messages。"""
-    try:
-        typ, data = conn.select(folder or DEFAULT_FOLDER, readonly=True)
-    except imaplib.IMAP4.error as exc:
-        raise ImapFetchError("打开文件夹失败：%s" % exc)
-    if typ != "OK":
-        raise ImapFetchError("打开文件夹失败：%s" % (data,))
+    imap_session.select_readonly(conn, folder)
 
     # 时间窗在服务端过滤（SINCE 是 ASCII 安全的条件）——只取「最近 N 封」防广告淹没。
     criteria = ["SINCE", _imap_since(since_days)] if since_days else ["ALL"]

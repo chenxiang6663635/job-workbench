@@ -183,6 +183,8 @@ jobs:
         # "CI 也跑这一步"）。护栏没进 CI 等于没有护栏。
         run: |
           node web/electron/zoom.test.js
+          node web/electron/window_state.test.js
+          node web/electron/reminders.test.js
           node web/electron/check_packaging.js
           node web/electron/url_guard.test.js
 

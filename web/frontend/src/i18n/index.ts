@@ -32,6 +32,11 @@ function detectLang(): Lang {
   } catch {
     // localStorage 不可用（隐私模式等）时退化为系统语言
   }
+  return systemLang();
+}
+
+/** 系统语言。导出给设置页「还原默认」用——"默认"必须是同一个判定，不能两处各写一份。 */
+export function systemLang(): Lang {
   return navigator.language?.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
 }
 

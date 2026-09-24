@@ -58,6 +58,7 @@ every batch below lands before it, none of them ships on its own, and the whole 
 - [x] **Skills & plugin distribution** — **已实现（PR #177，2026-09-23 已合并）**：8 个技能补标准元数据（`license` / `metadata.version` / 按需 `allowed-tools`）并把最长三份的大段内容拆进 `references/`（渐进披露）；校验器加字段白名单、`references/` 可达、正文 ≤500 行与**版本号一致性**四条规则；分发从「只有技能」扩到**技能 + 命令 + 子代理**三类（`skill_assets.py` 的资产表 + `--link` 实验选项），镜像比对按资产类型泛化并进 CI；零克隆通道（插件市场 / `npx skills add`）写进 README。原描述：the eight skills move onto the cross-host standard
   distribution channel with progressive disclosure; the plugin shell grows from skills-only to
   commands + subagents; hooks stay local, auditable and off by default. **hooks 仍保持本地、默认关闭**（决策见 [`docs/decisions/keep-hooks-local-and-off.md`](docs/decisions/keep-hooks-local-and-off.md)）。
+- [x] **System reminders, complete** — **已实现（2026-09-24 补全，候选池条目移出）**：提前 N 天（3/5/7 可配）+ 两类已过期（截止日期已过仍待投 / **下次动作日期已过**——后者此前哪个桶都不进）+ **按事项**去重（今天新出现的也报）+ 点通知展开该条。移出理由：候选池写的触发条件「错过截止日真实发生过」已被用户需求满足，且最小形态提醒已在收口批落地。
 
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
 is stable for daily use and the workspace format promises **backward compatibility** — new columns
@@ -86,7 +87,6 @@ conversion is ever required. **判据已成文（2026-09-22）**：四条可核�
 | 整站 390px 适配 | 顶栏与看板网格在窄屏本就横向溢出；e2e 基线钉的只是「不再变坏」 | 手机成为主要使用场景，或基线再次被真实回归触发 |
 | 宿主内渲染工作台界面 | 在 AI 宿主里开面板，而不是切到浏览器或桌面壳 | 宿主开放稳定的渲染 API，且界面成为主要使用方式 |
 | 长任务扩展（面试周 / 备考周） | 一次性把一段时间的任务排开、按周复盘 | 出现连续两周以上的高强度面试或备考 |
-| 系统级提醒 | 截止日与面试前推一条本地通知 | 桌面壳长期常驻，且「错过截止日」真实发生过 |
 | 浏览器表单预填 | 只预填、不提交（自动投递永不考虑，见 ADR） | 平台页面结构稳定，且用户明确要求 |
 | ICS 重复会议（RRULE） | 现在只取首个实例并在卡片注明；需要时评估 `icalendar`（BSD-2） | 真实收到重复会议邀请，且因此误判过一次时间 |
 | 用户级 / 插件缓存副本的一致性 | 检查器只看仓库内的项目级副本（范围说明见 [`CONTRIBUTING.md`](CONTRIBUTING.md) 的「资产分发到各宿主」），用户级 `~/.agents/skills/` 与插件缓存在视野之外 | 出现「装到用户级却长期用旧版」的真实事件 |

@@ -115,4 +115,57 @@ describe("planFactWrite", () => {
 
     expect(plan.kind).toBe("application");
   });
+
+  it("截止 → 同时写「下次动作日期」与「下次动作」文案（到点提醒读这两个字段）", () => {
+    const plan = planFactWrite(
+      fact({ kind: "截止", value: "2026-09-25", label: "完成在线测评", targetId: "A001" }),
+      MESSAGE
+    );
+
+    expect(plan).toEqual({
+      kind: "application",
+      id: "A001",
+      body: { 下次动作日期: "2026-09-25", 下次动作: "完成在线测评" },
+    });
+  });
+
+  it("截止带钟点 → 「下次动作日期」只取日期部分", () => {
+    const plan = planFactWrite(
+      fact({ kind: "截止", value: "2026-09-25 18:00", label: "完成笔试", targetId: "A007" }),
+      MESSAGE
+    );
+
+    expect(plan).toEqual({
+      kind: "application",
+      id: "A007",
+      body: { 下次动作日期: "2026-09-25", 下次动作: "完成笔试" },
+    });
+  });
+
+  it("截止但没匹配到记录 → blocked（不猜记录）", () => {
+    const plan = planFactWrite(
+      fact({ kind: "截止", value: "2026-09-25", label: "完成在线测评" }),
+      MESSAGE
+    );
+
+    expect(plan).toEqual({ kind: "blocked", reasonKey: "suggest.needRecord" });
+  });
+
+  it("链接有效期 → 与截止同一条写路径（区别只在动作文案里）", () => {
+    const plan = planFactWrite(
+      fact({
+        kind: "链接有效期",
+        value: "2026-09-24",
+        label: "完成测评（链接即将失效）",
+        targetId: "A001",
+      }),
+      MESSAGE
+    );
+
+    expect(plan).toEqual({
+      kind: "application",
+      id: "A001",
+      body: { 下次动作日期: "2026-09-24", 下次动作: "完成测评（链接即将失效）" },
+    });
+  });
 });

@@ -63,6 +63,16 @@ const FACTS = [
     targetId: "A001",
     note: "",
   },
+  {
+    kind: "截止",
+    value: "2026-09-25",
+    label: "完成在线测评",
+    evidence: "请在 2026-09-25 前完成在线测评。",
+    confidence: "high",
+    source: "body",
+    targetId: "A001",
+    note: "",
+  },
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -227,6 +237,36 @@ test("AI 增强：Provider 就绪才出现，产出为需核对的建议", async
   await expect(page.getByText("AI suggestions from deepseek-chat")).toBeVisible();
 });
 
+test("截止事项：显示任务名与日期，写入同时落「下次动作日期」与「下次动作」", async ({ page }) => {
+  // 写回拦截：真实 PATCH 会改 demo 工作区（冒烟必须零改动）
+  await page.route(/\/api\/applications\/A001/, (route) => {
+    if (route.request().method() !== "PATCH") return route.continue();
+    return route.fulfill({ json: { item: { id: "A001" } } });
+  });
+
+  let patched: { 下次动作日期?: string; 下次动作?: string } | null = null;
+  page.on("request", (req) => {
+    if (req.url().includes("/api/applications/A001") && req.method() === "PATCH") {
+      patched = req.postDataJSON();
+    }
+  });
+
+  await openSuggestions(page);
+
+  // 卡片把「要做什么」也显出来（label 是正文识别的任务名，不走 i18n）
+  const card = page.getByRole("group", { name: "Deadline: 2026-09-25" });
+  await expect(card).toBeVisible();
+  await expect(card.getByText("完成在线测评", { exact: true })).toBeVisible();
+
+  await card.getByRole("button", { name: "Write" }).click();
+  await expect(card.getByText("Written")).toBeVisible();
+
+  // 这两个字段正是到点提醒（看板待办桶）读的：写进去即自动获得提醒
+  expect(patched).not.toBeNull();
+  expect(patched!.下次动作日期).toBe("2026-09-25");
+  expect(patched!.下次动作).toBe("完成在线测评");
+});
+
 test("忽略一条后该卡片消失，其余卡片不受影响", async ({ page }) => {
   await openSuggestions(page);
 
@@ -235,4 +275,20 @@ test("忽略一条后该卡片消失，其余卡片不受影响", async ({ page 
 
   await expect(page.getByRole("group", { name: "Meeting link" })).toBeHidden();
   await expect(page.getByRole("group", { name: "Suggested stage" })).toBeVisible();
+});
+
+test("正文口径：拉取列表标「原文」、建议卡出处标「摘录」", async ({ page }) => {
+  await openPage(page, "applications");
+  await page.getByRole("button", { name: "Fetch from mailbox" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+
+  // 列表预览是**原文**（保留引用与签名）——同一封邮件在建议卡里是另一种口径
+  await expect(page.getByText("Quotes and signature kept").first()).toBeVisible();
+
+  const toggle = page.getByRole("button", { name: "Suggestions" });
+  await toggle.focus();
+  await page.keyboard.press("Enter");
+
+  // 出处是**剥掉引用与签名**的摘录：界面上必须说清，否则会被读成"两处正文不一致"
+  await expect(page.getByText("Excerpt", { exact: true }).first()).toBeVisible();
 });

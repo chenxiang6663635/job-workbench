@@ -3,14 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
+import ConfirmDangerDialog from "./ConfirmDangerDialog";
 
 // 已存自定义主题列表（2026-09-22 从 ThemeEditor 拆出，配合规模闸门：
 // ThemeEditor 主体留给「调色 → 保存 / 导入导出」，列表与删除确认迁到此处）。
@@ -92,36 +85,20 @@ export default function ThemePresetList({
         </div>
       ))}
 
-      <Dialog
+      {/* 三级确认原语的第一处真实用例（`confirm` 档）：删除不可逆，且后果无法用
+          "撤销窗口"表达——按 Marigold 的判据，这种给确认框、不给撤销条 */}
+      <ConfirmDangerDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+        level="confirm"
+        title={t("settings.themeDeleteConfirmTitle")}
+        description={t("settings.themeDeleteConfirmDesc", { name: deleteTarget?.label ?? "" })}
+        confirmLabel={t("settings.themeDelete")}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) onDelete(deleteTarget.id);
+          setDeleteTarget(null);
         }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("settings.themeDeleteConfirmTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("settings.themeDeleteConfirmDesc", { name: deleteTarget?.label ?? "" })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (deleteTarget) onDelete(deleteTarget.id);
-                setDeleteTarget(null);
-              }}
-            >
-              {t("settings.themeDelete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      />
     </div>
   );
 }

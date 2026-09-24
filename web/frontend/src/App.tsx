@@ -11,6 +11,8 @@ import Progress from "./pages/Progress";
 import Resume from "./pages/Resume";
 import Settings from "./pages/Settings";
 import { useBackendBoot } from "./hooks/useBackendBoot";
+import { drillToApplication } from "./lib/pageDrill";
+import { onReminderFocus } from "./lib/prefs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Button } from "./components/ui/button";
 import LiveRegion from "./components/LiveRegion";
@@ -60,6 +62,10 @@ export default function App() {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  // 通知被点击（主进程送来要定位的记录 id）→ 跳到追踪表并展开那条：
+  // drill 机制已就位，这里只做"把两者接上"；无桌面通道时是空订阅
+  useEffect(() => onReminderFocus(drillToApplication), []);
 
   // 外部改动同步（批 8）：CLI / MCP / 插件写过数据后，桌面端要能看到。
   // 整页 reload 与「切换工作区」同款（各页面在 mount 时拉数据）——外部改动是

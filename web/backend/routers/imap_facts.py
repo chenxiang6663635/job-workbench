@@ -43,14 +43,19 @@ class SuggestFacts(BaseModel):
     原文: str = ""
     ics: str = ""
     id: Optional[str] = None
+    日期: str = ""
 
 
 @router.post("/suggest-facts")
 def suggest_facts(item: SuggestFacts, ws: str = Depends(workspace_dir)):
-    """正文 / ICS → 候选事实（时间 / 会议链接 / 阶段 / 对应记录）。**只读。**
+    """正文 / ICS → 候选事实（时间 / 截止 / 链接有效期 / 会议链接 / 阶段 / 记录）。**只读。**
 
     追踪表只读一次用于记录匹配（`focus_id` 非空时按用户点选的那条，比子串匹配
     权威）；返回事实列表，写入与否由用户在界面逐条确认。
+
+    `日期` 是这封邮件的发出日期：**时长表达**（「3 天内」）以它为基准——三天前
+    收到的邮件今天再看应当已经过期，按今天算会得出反向结论（缺失时退回今天，
+    并在事实的 note 里写明基准）。
     """
     text = (item.原文 or "").strip()
     ics = (item.ics or "").strip()
@@ -60,7 +65,8 @@ def suggest_facts(item: SuggestFacts, ws: str = Depends(workspace_dir)):
 
     rows = tracker.read_rows(ws)
     facts = mail_facts.extract_facts(text, ics_text=ics, rows=rows,
-                                     focus_id=(item.id or "").strip())
+                                     focus_id=(item.id or "").strip(),
+                                     mail_date=(item.日期 or "").strip() or None)
     return {"facts": facts, "total": len(facts)}
 
 

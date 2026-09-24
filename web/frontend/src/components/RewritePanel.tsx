@@ -15,6 +15,8 @@ import { Label } from "./ui/label";
 import { ErrorBanner } from "./ErrorBanner";
 import { useTranslation } from "react-i18next";
 
+import { useModelChoice } from "../hooks/useModelChoice";
+
 interface DiffItem {
   path: string;
   oldText: string;
@@ -62,9 +64,8 @@ export default function RewritePanel({
 }) {
   const { t } = useTranslation();
   const [instruction, setInstruction] = useState("");
-  const [model, setModel] = useState(
-    () => localStorage.getItem("jobws_rewrite_model") ?? ""
-  );
+  // 默认模型来自设置页（三处 AI 功能共用），本地仍可临时改：见 hooks/useModelChoice
+  const { model, setModel } = useModelChoice("jobws_rewrite_model");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SuggestResult | null>(null);
@@ -86,13 +87,7 @@ export default function RewritePanel({
     setError(null);
     setResult(null);
     setForceAck(false);
-    if (model.trim()) {
-      try {
-        localStorage.setItem("jobws_rewrite_model", model.trim());
-      } catch {
-        // localStorage 不可用不阻塞
-      }
-    }
+    // 模型名的持久化归 useModelChoice（输入时即写本地覆盖），这里只管发请求
     api
       .suggestRewrite(version, { instruction, model: model.trim() })
       .then((r) => {

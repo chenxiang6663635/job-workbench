@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { useModelChoice } from "./useModelChoice";
 import { api, type Application, type ImapMessage, type Mail } from "../api";
 import type { MailFact } from "../lib/domainTypes";
 import { planFactWrite } from "../lib/factWrites";
@@ -24,13 +26,8 @@ export function useMailFacts(message: ImapMessage) {
   const [copied, setCopied] = useState<string | null>(null);
   // 可选 AI 增强：只在 Provider 已配置（BYOK）时出现；模型名由用户填并记住
   const [providerReady, setProviderReady] = useState(false);
-  const [model, setModel] = useState(() => {
-    try {
-      return localStorage.getItem("jobws_ai_model") || "";
-    } catch {
-      return "";
-    }
-  });
+  // 默认模型来自设置页（与简历导入 / 改写共用同一个真值），本地仍可临时改
+  const { model, setModel } = useModelChoice("jobws_ai_model");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiModel, setAiModel] = useState("");
 
@@ -40,7 +37,13 @@ export function useMailFacts(message: ImapMessage) {
     setDone({});
     setIgnored({});
     setAcked({});
-    suggestFacts({ 原文: message.body || "", ics: message.calendar || "" })
+    suggestFacts({
+      原文: message.body || "",
+      ics: message.calendar || "",
+      // 邮件发出日：时长表达（「3 天内」）的推算基准——必须带上，否则会按
+      // "你什么时候看的"算（三天前的邮件会被算成"还有 3 天"）
+      日期: message.date || "",
+    })
       .then((r) => {
         if (alive) setFacts(r.facts);
       })
@@ -50,7 +53,7 @@ export function useMailFacts(message: ImapMessage) {
     return () => {
       alive = false;
     };
-  }, [message.uid, message.body, message.calendar]);
+  }, [message.uid, message.body, message.calendar, message.date]);
 
   useEffect(() => {
     api
@@ -131,11 +134,7 @@ export function useMailFacts(message: ImapMessage) {
         ics: message.calendar || "",
         model: name,
       });
-      try {
-        localStorage.setItem("jobws_ai_model", name);
-      } catch {
-        /* 存储不可用：本次照常，下次重填 */
-      }
+      setModel(name); // 用过就记住（写本地覆盖，见 useModelChoice）
       setFacts((prev) => {
         const existing = prev ?? [];
         const seen = new Set(existing.map((f) => `${f.kind}:${f.value}`));
@@ -147,7 +146,7 @@ export function useMailFacts(message: ImapMessage) {
     } finally {
       setAiBusy(false);
     }
-  }, [message, model, t]);
+  }, [message, model, setModel, t]);
 
   const copy = useCallback(
     (fact: MailFact) => {

@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+
+import MailBody from "./MailBody";
 import { Check, Copy, ExternalLink, Loader2, Sparkles, X } from "lucide-react";
 import type { ImapMessage } from "../api";
 import type { MailFact } from "../lib/domainTypes";
@@ -18,6 +20,8 @@ interface Props {
 
 const KIND_LABEL_KEYS: Record<MailFact["kind"], TranslationKey> = {
   时间: "suggest.kindTime",
+  截止: "suggest.kindDeadline",
+  链接有效期: "suggest.kindLinkExpiry",
   会议链接: "suggest.kindLink",
   阶段: "suggest.kindStage",
   公司岗位: "suggest.kindRecord",
@@ -70,6 +74,11 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                   <span className="font-medium text-foreground">
                     {t(KIND_LABEL_KEYS[fact.kind])}
                   </span>
+                  {/* 「截止」/「链接有效期」的 label 是动作短语（完成在线测评…）：它不进
+                      i18n（取值来自正文识别），但正是用户要看的「要做什么」，单独显示 */}
+                  {(fact.kind === "截止" || fact.kind === "链接有效期") && (
+                    <span className="truncate text-foreground">{fact.label}</span>
+                  )}
                   <span className="min-w-0 truncate text-foreground" title={fact.value}>
                     {fact.value}
                   </span>
@@ -84,9 +93,11 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                     {fact.source === "ai" ? ` · ${t("suggest.aiBadge")}` : ""}
                   </span>
                 </p>
-                <p className="mt-1 truncate text-[11px] text-muted-foreground" title={fact.evidence}>
-                  {fact.evidence}
-                </p>
+                {/* 出处是**剥离引用与签名之后**的摘录：标注出来，别让它看起来
+                    像"和原文对不上" */}
+                <div className="mt-1">
+                  <MailBody text={fact.evidence} variant="excerpt" compact />
+                </div>
                 {fact.note && <p className="mt-1 text-[11px] text-warning">{fact.note}</p>}
 
                 {fact.kind === "会议链接" && !settled && (

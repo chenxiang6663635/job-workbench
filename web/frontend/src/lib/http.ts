@@ -4,11 +4,15 @@
 // 守卫一旦漂移，「静默展示别的工作区数据」类问题（issue #22 的原病）就会从某一份里漏过。
 // 窄模块此后直接 import 本文件，不再自带副本。
 import i18n from "../i18n";
+import { reportWorkspace } from "./prefs";
 
 /** 全局当前工作区（相对仓库根，如 personal）。空 = 用后端默认。 */
 export let currentWorkspace = "";
 export function setWorkspace(ws: string) {
   currentWorkspace = ws;
+  // 桌面端顺带上报给主进程：到点提醒要在**用户实际在用的工作区**里查（笔 5）。
+  // 无桌面通道时 reportWorkspace 是空操作，浏览器形态零影响。
+  reportWorkspace(ws);
 }
 
 // 统一在工作区激活时给路径附加 ?ws=。库中 API 在 Web 场景必须显式传 workspace

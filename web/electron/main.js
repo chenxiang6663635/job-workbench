@@ -4,7 +4,7 @@
 // 前端静态产物由 FastAPI 同源托管（web/frontend/dist），无需 vite dev server，
 // 也无需放宽 CORS —— 页面与 API 同源。
 
-const { app, BrowserWindow, dialog, ipcMain, session, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Notification, screen, session, shell } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
@@ -125,6 +125,11 @@ ipcMain.handle("prefs:get", () => ({
   step: ZOOM_STEP,
   percent: levelToPercent(zoomLevel),
   lang: resolvedLang(),
+  // 笔 5：到点提醒开关的真值也在这里（它是主进程在发通知）
+  reminders: reminderState.enabled,
+  // 「提前几天开始提醒」：设置页给 3/5/7，默认 3
+  reminderDays: reminderState.days,
+  workspace: reportedWorkspace,
 }));
 
 // 缩放变更的唯一写入口：快捷键与设置页滑块都走这里（夹取 → 应用 → 可选落盘/广播）。
@@ -367,6 +372,227 @@ function stopBackend() {
   backendProcess = null;
 }
 
+// ---- 窗口位置与尺寸记忆 ---------------------------------------------------------
+// 此前建窗尺寸硬编码 1280×880，也没记位置：每次开窗都要重摆。落点与缩放偏好同款
+// （userData/window-state.json，两处都在 %APPDATA%\job-workbench）。
+//
+// 落盘用 getNormalBounds()：最大化/全屏时 getBounds() 给的是"铺满后"的矩形，存下去
+// 会让下次开窗直接铺满——那不是用户的意思。判定（夹取到某块屏、拔屏后回落居中、
+// 坏文件容错）全在 window_state.js，纯函数、有单测、CI 一起跑。
+const {
+  clampToWorkArea,
+  parseState,
+  serializeState,
+  MIN_WIDTH,
+  MIN_HEIGHT,
+} = require("./window_state");
+
+const WINDOW_STATE_SAVE_DELAY = 400; // ms：拖动/缩放过程中只在停手后落盘
+let windowStateTimer = null;
+
+function windowStatePath() {
+  return path.join(app.getPath("userData"), "window-state.json");
+}
+
+function loadWindowState() {
+  try {
+    return parseState(fs.readFileSync(windowStatePath(), "utf-8"));
+  } catch (e) {
+    // 首次运行没有这个文件；文件损坏也按"没有记录"处理——窗口位置不值得打断启动
+  }
+  return null;
+}
+
+function saveWindowState(bounds) {
+  const text = serializeState(bounds);
+  if (!text) return;
+  try {
+    fs.mkdirSync(path.dirname(windowStatePath()), { recursive: true });
+    fs.writeFileSync(windowStatePath(), text);
+  } catch (e) {
+    log(`Failed to persist window state: ${e.message}`);
+  }
+}
+
+/** 拖动/缩放去抖落盘；关窗时立即落盘（否则最后一次移动会丢）。 */
+function trackWindowState(win) {
+  const persist = () => {
+    if (win.isDestroyed()) return;
+    // getNormalBounds() 自 Electron 6 起就有（本项目锁 ^44）：最大化/全屏时它给的是"还原后"
+    // 的矩形，getBounds() 给的是铺满的——存后者会让下次开窗直接铺满。不做能力探测：
+    // 那条回落分支永不可达，留着会让读者以为还有第二道保险（批末审查）。
+    saveWindowState(win.getNormalBounds());
+  };
+  const schedule = () => {
+    if (windowStateTimer) clearTimeout(windowStateTimer);
+    windowStateTimer = setTimeout(() => {
+      windowStateTimer = null;
+      persist();
+    }, WINDOW_STATE_SAVE_DELAY);
+  };
+  win.on("resize", schedule);
+  win.on("move", schedule);
+  win.on("close", () => {
+    if (windowStateTimer) {
+      clearTimeout(windowStateTimer);
+      windowStateTimer = null;
+    }
+    persist();
+  });
+}
+
+/**
+ * 建窗用的位置尺寸：上次状态按**当前**显示器夹取（拔掉副屏后不会跑到屏幕外）。
+ *
+ * 主屏必须排在数组首位：`clampToWorkArea` 的"回落到主屏居中"用的是 `areas[0]`，而
+ * `screen.getAllDisplays()` 不保证主屏在前（批末审查）。
+ */
+function restoredWindowBounds() {
+  const primary = screen.getPrimaryDisplay().workArea;
+  const others = screen.getAllDisplays()
+    .map((display) => display.workArea)
+    .filter((area) => area.x !== primary.x || area.y !== primary.y);
+  return clampToWorkArea(loadWindowState(), [primary, ...others]);
+}
+
+// ---- 到点提醒（笔 5）------------------------------------------------------------
+// 「面试 / 下次动作到期」的最小形态：窗口就绪后与运行期内每 6 小时问一次后端
+// `/api/reminders/due`，够条件就发一条系统通知（同一天只提醒一次）。
+//
+// **不做常驻、不建托盘**：关窗即停，与「无后台路径」这条红线一致——本地优先的工具不该在
+// 用户以为已经退出之后还留着东西跑。判定（该不该提醒 / 正文怎么排）全在 reminders.js，
+// 纯函数、有单测、CI 跑。
+const {
+  buildNotification,
+  dueItems,
+  nextState,
+  shouldNotify,
+  todayKey,
+} = require("./reminders");
+
+const REMINDER_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 小时
+// 「提前几天开始提醒」的默认值与上限：设置页给 3/5/7，主进程按 state.days 带查询参数
+const REMINDER_DAYS_DEFAULT = 3;
+const REMINDER_DAYS_MAX = 30;
+let reminderState = { enabled: true, days: REMINDER_DAYS_DEFAULT, notified: {} };
+let reminderTimer = null;
+// 渲染进程上报的当前工作区（真值在它的 localStorage 里）：不报就按后端默认工作区查
+let reportedWorkspace = "";
+
+function remindersPath() {
+  return path.join(app.getPath("userData"), "reminders.json");
+}
+
+function loadReminders() {
+  try {
+    const data = JSON.parse(fs.readFileSync(remindersPath(), "utf-8"));
+    reminderState = {
+      enabled: data.enabled !== false,
+      days: Number(data.days) || REMINDER_DAYS_DEFAULT,
+      // 旧状态文件里只有 lastNotified（"哪天提醒过"）：按"每事项每天一次"的新口径
+      // 它没有意义，直接丢弃——最坏情况是升级当天再报一次，比漏报轻。
+      notified: data.notified && typeof data.notified === "object" ? data.notified : {},
+    };
+  } catch (e) {
+    // 首次运行没有这个文件；文件损坏也按默认（开着、今天没提醒过）处理
+    reminderState = { enabled: true, days: REMINDER_DAYS_DEFAULT, notified: {} };
+  }
+}
+
+function saveReminders() {
+  try {
+    fs.mkdirSync(path.dirname(remindersPath()), { recursive: true });
+    fs.writeFileSync(remindersPath(), JSON.stringify(reminderState, null, 2));
+  } catch (e) {
+    log(`Failed to persist reminder state: ${e.message}`);
+  }
+}
+
+function showDueNotification(payload) {
+  const t = tFor(resolvedLang());
+  const { title, body } = buildNotification(t, payload);
+  const notification = new Notification({ title, body });
+  // 点通知就把窗口拉到前面，并把"最该看的那条"交给界面
+  // （前端据此跳到追踪表并展开它——落地在 `drillToApplication` 那条既有链路）
+  notification.on("click", () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      win.show();
+      win.focus();
+      const first = dueItems(payload)[0];
+      const id = first && first.item ? first.item.id : "";
+      if (id) win.webContents.send("reminder:focus", { id });
+    }
+  });
+  notification.show();
+  reminderState = nextState(reminderState, todayKey(), payload);
+  saveReminders();
+  log(`Reminder shown: ${body.split("\n").length} line(s)`);
+}
+
+function checkReminders() {
+  if (!reminderState.enabled) return;
+  const params = new URLSearchParams();
+  if (reportedWorkspace) params.set("ws", reportedWorkspace);
+  // 「提前几天」由设置项决定（后端默认 3）：它只影响"待办"这一类
+  params.set("days", String(reminderState.days || REMINDER_DAYS_DEFAULT));
+  const req = http.get(
+    `http://127.0.0.1:${BACKEND_PORT}/api/reminders/due?${params.toString()}`,
+    { timeout: 4000 },
+    (res) => {
+      let body = "";
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => {
+        if (res.statusCode !== 200) return;
+        let payload;
+        try {
+          payload = JSON.parse(body);
+        } catch (e) {
+          return; // 坏响应既不发通知也不抛：提醒是增强，不是启动必需
+        }
+        if (shouldNotify(reminderState, todayKey(), payload)) showDueNotification(payload);
+      });
+    }
+  );
+  // 后端还没起来（窗口正等健康检查）是常态：静默跳过，等下一个周期
+  req.on("error", () => {});
+  req.on("timeout", () => req.destroy());
+}
+
+/** 幂等：窗口加载完成时调用；重复调用只保留一个定时器。 */
+function startReminders() {
+  if (reminderTimer) return;
+  loadReminders();
+  checkReminders();
+  reminderTimer = setInterval(checkReminders, REMINDER_CHECK_INTERVAL);
+}
+
+function stopReminders() {
+  if (!reminderTimer) return;
+  clearInterval(reminderTimer);
+  reminderTimer = null;
+}
+
+ipcMain.handle("prefs:set-workspace", (_event, ws) => {
+  reportedWorkspace = String(ws || "").trim();
+  log(`Workspace reported by renderer: ${reportedWorkspace || "(default)"}`);
+  return { workspace: reportedWorkspace };
+});
+
+ipcMain.handle("prefs:set-reminders", (_event, value) => {
+  // 兼容两种调用：布尔（旧调用点）与 `{ enabled?, days? }`（设置页的开关 + 提前天数）
+  const patch = value && typeof value === "object" ? value : { enabled: value };
+  if (typeof patch.enabled === "boolean") reminderState.enabled = patch.enabled;
+  const days = Number(patch.days);
+  if (Number.isFinite(days)) {
+    reminderState.days = Math.max(1, Math.min(Math.round(days), REMINDER_DAYS_MAX));
+  }
+  saveReminders();
+  // 打开或改天数后立刻看一眼，而不是等到下一个周期——按下开关/改完天数时想看到的是"现在就生效"
+  if (reminderState.enabled) checkReminders();
+  return { reminders: reminderState.enabled, reminderDays: reminderState.days };
+});
+
 // ---- 创建窗口 ----
 // 前端 dist 探测：打包形态下 extraResources 把前端 dist 放进了 resources/backend/dist
 // （后端同源托管），仓库形态才是 web/frontend/dist。冒烟实测：只认仓库路径会让打包
@@ -386,9 +612,14 @@ function createWindow() {
     return;
   }
 
+  // 位置尺寸：上次关窗时的状态，按当前显示器工作区夹取（见 restoredWindowBounds）。
+  // 下限取 min(常量, 实际宽高)：屏比下限还窄时（小屏 VM / 高缩放）以屏为准，
+  // 否则 BrowserWindow 的 minWidth 会把窗口撑得比屏幕还宽（批末审查）。
+  const bounds = restoredWindowBounds();
   const win = new BrowserWindow({
-    width: 1280,
-    height: 880,
+    ...bounds,
+    minWidth: Math.min(MIN_WIDTH, bounds.width),
+    minHeight: Math.min(MIN_HEIGHT, bounds.height),
     // 初始标题：优先用渲染进程上报过的界面语言，没有则按系统语言。首帧（以及后端
     // 没起来、页面加载失败的路径）也得是对的语言；页面加载完成后由渲染进程的
     // document.title 接管（见前端 i18n 的 applyDocumentTitle）。
@@ -403,6 +634,8 @@ function createWindow() {
     },
   });
   win.setMenuBarVisibility(false);
+  // 记住位置尺寸：拖动/缩放去抖落盘，关窗时立即落盘（与 zoom.json 同款"偏好留痕"）
+  trackWindowState(win);
   // 只允许留在本机界面：页面一旦被导航到外部站点，preload 注入的偏好通道也会跟着
   // 暴露给那个文档（contextBridge 是按文档注入的）。窗口内的外链交给系统浏览器。
   // 判断收敛到 url_guard.js（审计 P0-2）：前缀匹配会被 `127.0.0.1:8765.evil.com`
@@ -434,7 +667,11 @@ function createWindow() {
 
   // 缩放级别在 app ready 时已加载（见 whenReady）；这里把当前值应用到新窗口
   const applyZoom = () => win.webContents.setZoomLevel(zoomLevel);
-  win.webContents.on("did-finish-load", applyZoom);
+  win.webContents.on("did-finish-load", () => {
+    applyZoom();
+    // 到点提醒：界面出来后问一次（此时后端已就绪），之后每 6 小时一次
+    startReminders();
+  });
   // 该 API 返回 Promise（未就绪/已销毁时会 reject），与文件里其它异步面一样显式兜住
   win.webContents.setVisualZoomLevelLimits(1, 1)
     .catch((e) => log(`Failed to disable visual zoom: ${e.message}`));
@@ -455,6 +692,9 @@ function createWindow() {
 
   win.on("closed", () => {
     stopBackend();
+    // 「关窗即停」要字面成立：macOS 上 window-all-closed 不退出进程，只靠 before-quit
+    // 会让提醒定时器继续跑（批末审查）
+    stopReminders();
   });
 }
 
@@ -600,9 +840,10 @@ app.whenReady().then(() => {
   });
 });
 
-// 退出时结束后端
+// 退出时结束后端与提醒定时器（不留常驻的东西）
 app.on("before-quit", () => {
   stopBackend();
+  stopReminders();
 });
 
 app.on("window-all-closed", () => {

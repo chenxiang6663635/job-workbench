@@ -238,7 +238,7 @@ def test_imap(ws: str = Depends(workspace_dir)):
         count = imap_fetch.test_connection(
             host, cfg["user"], cfg["password"], cfg["port"], folder)
     except imap_fetch.ImapFetchError as exc:
-        raise ApiError(502, "imap.testFailed", str(exc), error=str(exc))
+        raise ApiError(502, exc.code or "imap.testFailed", str(exc), error=str(exc))
 
     note = "只读连接成功；本次测试没有读取、修改或删除任何邮件。"
     if tls_policy.is_insecure(tls_policy.IMAP_ENV_VAR):
@@ -290,7 +290,7 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
             host, cfg["user"], cfg["password"], cfg["port"], folder,
             body.limit, since_days)
     except imap_fetch.ImapFetchError as exc:
-        raise ApiError(502, "imap.fetchFailed", str(exc), error=str(exc))
+        raise ApiError(502, exc.code or "imap.fetchFailed", str(exc), error=str(exc))
 
     return {
         "messages": messages,

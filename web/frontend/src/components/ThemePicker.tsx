@@ -1,56 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Palette, SlidersHorizontal } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { cn } from "../lib/utils";
-import { Num } from "./ui/number";
-import {
-  FONTS,
-  FONT_SIZE_DEFAULT,
-  FONT_SIZE_MAX,
-  FONT_SIZE_MIN,
-  FONT_SIZE_STEP,
-  MONOS,
-  NUMERICS,
-  SYSTEM_ID,
-  getFontChoice,
-  getFontSizeChoice,
-  getMonoChoice,
-  getNumericChoice,
-  getThemeChoice,
-  listThemes,
-  setFontChoice,
-  setFontSizeChoice,
-  setMonoChoice,
-  setNumericChoice,
-  setThemeChoice,
-} from "../lib/theme";
-import ThemeEditor from "./ThemeEditor";
-import UndoBar from "./UndoBar";
-import { useUndoableAction } from "../hooks/useUndoableAction";
 
-// 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口。
+import { cn } from "../lib/utils";
+import { SYSTEM_ID, getThemeChoice, listThemes, setThemeChoice } from "../lib/theme";
+import { Button } from "./ui/button";
+import { Card, CardHeader, CardTitle } from "./ui/card";
+import FontControls from "./FontControls";
+import ThemeEditor from "./ThemeEditor";
+
+// 设置页「外观」卡（批 4）：主题选择 + 自定义主题入口 + 字体与字号（后两块在 FontControls）。
 // - 色块预览取各自色板；主题真名不翻译（社区惯例），system 项走 i18n。
 // - 选择即生效（applyTheme 只改根属性）+ localStorage 持久化（设备级偏好）。
-export default function ThemePicker() {
+export default function ThemePicker({
+  hidden = false,
+  version = 0,
+}: {
+  hidden?: boolean;
+  /**
+   * 外部（设置页的「外观与偏好」状态卡）改了偏好之后递增的版本号。
+   *
+   * 这里**刻意只同步状态、不靠 key 重挂载**：本卡里有未决的撤销窗口（字号还原的 5 秒）
+   * 与主题编辑器草稿，重挂载会把它们一并清掉——2026-09-23 首跑 e2e 就是这么红的
+   * （三条 ux 用例：撤消条消失、确认框与编辑器状态被重置）。
+   */
+  version?: number;
+}) {
   const { t } = useTranslation();
   const [choice, setChoice] = useState(getThemeChoice());
   const [themes, setThemes] = useState(listThemes());
   const [editing, setEditing] = useState(false);
-  const [font, setFont] = useState(getFontChoice());
-  const [mono, setMono] = useState(getMonoChoice());
-  const [numeric, setNumeric] = useState(getNumericChoice());
-  const [fontSize, setFontSize] = useState(getFontSizeChoice());
-  // 字号"还原默认"走撤销条（本批新增的统一机制）：即时生效 + 5 秒内可撤销
-  const { pending, run, undo } = useUndoableAction();
+
+  useEffect(() => {
+    setThemes(listThemes());
+    setChoice(getThemeChoice());
+  }, [version]);
 
   const onPick = (id: string) => {
     setChoice(id);
@@ -63,7 +47,7 @@ export default function ThemePicker() {
   };
 
   return (
-    <Card className="space-y-4 p-5">
+    <Card className={cn("space-y-4 p-5", hidden && "hidden")}>
       <CardHeader className="p-0">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Palette size={16} className="text-primary" /> {t("settings.themeTitle")}
@@ -129,155 +113,7 @@ export default function ThemePicker() {
 
       {editing && <ThemeEditor onSaved={refresh} />}
 
-      {/* 字体方案（4g → 2026-09-17 扩到 14 项）：只改 html[data-font]，
-          栈本体在 index.css 的变量里；14 项用下拉（按钮排不下两行）。
-          字体真名不翻译（社区惯例），system / serif 两项走 i18n */}
-      <div className="border-t border-border pt-3">
-        <p className="mb-2 text-xs font-medium text-foreground">
-          {t("settings.fontTitle")}
-        </p>
-        <Select
-          value={font}
-          onValueChange={(next) => {
-            setFont(next);
-            setFontChoice(next);
-          }}
-        >
-          <SelectTrigger
-            className="h-8 w-full text-xs"
-            aria-label={t("settings.fontTitle")}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FONTS.map((item) => (
-              <SelectItem key={item.id} value={item.id} className="text-xs">
-                {item.id === "system"
-                  ? t("settings.fontSystem")
-                  : item.id === "serif"
-                    ? t("settings.fontSerif")
-                    : item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* 等宽字体（独立槽）：只影响 --font-mono-*（代码、编号、日期） */}
-        <p className="mb-2 mt-4 text-xs font-medium text-foreground">
-          {t("settings.fontMonoTitle")}
-        </p>
-        <Select
-          value={mono}
-          onValueChange={(next) => {
-            setMono(next);
-            setMonoChoice(next);
-          }}
-        >
-          <SelectTrigger
-            className="h-8 w-full text-xs"
-            aria-label={t("settings.fontMonoTitle")}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MONOS.map((item) => (
-              <SelectItem key={item.id} value={item.id} className="text-xs">
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* 数字字体（第三槽，批 4.6）：只影响 --font-numeric-*——数值（KPI /
-            计数 / 天数 / 百分比）；"follow" 项走 i18n，字体真名不翻译 */}
-        <p className="mb-2 mt-4 text-xs font-medium text-foreground">
-          {t("settings.fontNumericTitle")}
-        </p>
-        <Select
-          value={numeric}
-          onValueChange={(next) => {
-            setNumeric(next);
-            setNumericChoice(next);
-          }}
-        >
-          <SelectTrigger
-            className="h-8 w-full text-xs"
-            aria-label={t("settings.fontNumericTitle")}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {NUMERICS.map((item) => (
-              <SelectItem key={item.id} value={item.id} className="text-xs">
-                {item.id === "follow" ? t("settings.fontFollow") : item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* 界面字号（#4 → 2026-09-17 改连续滑块）：根字号 80–150%（步进 5），
-          rem 全链等比缩放、与桌面全局缩放解耦。用原生 range（跨浏览器最稳、
-          键盘/方向键天然可用），accent-color 跟随主题主色 */}
-      <div className="border-t border-border pt-3">
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-medium text-foreground">
-            {t("settings.fontSizeTitle")}
-          </p>
-          <Num muted className="text-xs">
-            {fontSize}%
-          </Num>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] text-muted-foreground" aria-hidden="true">
-            A
-          </span>
-          <input
-            type="range"
-            min={FONT_SIZE_MIN}
-            max={FONT_SIZE_MAX}
-            step={FONT_SIZE_STEP}
-            value={fontSize}
-            aria-label={t("settings.fontSizeTitle")}
-            onChange={(event) => {
-              const next = Number(event.target.value);
-              setFontSize(next);
-              setFontSizeChoice(next);
-            }}
-            className="w-full cursor-pointer accent-primary"
-          />
-          <span
-            className="text-base font-semibold text-muted-foreground"
-            aria-hidden="true"
-          >
-            A
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 shrink-0 px-2 text-xs"
-            disabled={fontSize === FONT_SIZE_DEFAULT}
-            onClick={() => {
-              // 「还原默认」是典型的后悔药场景：即时生效（视觉立刻变，用户马上看得到），
-              // 配 5 秒撤销条。四项判据（单项 / 可见 / 可辨 / 可延迟）全成立 → 给撤销、
-              // 不给确认框（两者同时给会让确认框沦为形式）。
-              const previous = fontSize;
-              setFontSize(FONT_SIZE_DEFAULT);
-              setFontSizeChoice(FONT_SIZE_DEFAULT);
-              run({
-                message: t("settings.fontSizeResetDone", { size: String(FONT_SIZE_DEFAULT) }),
-                revert: () => {
-                  setFontSize(previous);
-                  setFontSizeChoice(previous);
-                },
-              });
-            }}
-          >
-            {t("settings.fontSizeReset")}
-          </Button>
-        </div>
-      </div>
-      {pending ? <UndoBar message={pending.message} onUndo={undo} /> : null}
+      <FontControls version={version} />
     </Card>
   );
 }

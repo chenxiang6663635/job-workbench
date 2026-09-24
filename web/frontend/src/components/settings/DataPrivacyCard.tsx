@@ -7,6 +7,7 @@ import { diagnosticsUrl } from "../../lib/diagnostics";
 import { currentWorkspace } from "../../lib/http";
 import type { SnapshotInfo } from "../../lib/domainTypes";
 import { listSnapshots } from "../../lib/snapshotApi";
+import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
@@ -30,6 +31,8 @@ interface DataPrivacyCardProps {
   /** 重取 /api/system/paths（备份或还原之后「上次备份」会变） */
   onReload: () => void;
   onError: (message: string) => void;
+  /** 设置页的搜索/分组过滤：隐藏时保留挂载（与"没这张卡"不同，状态不丢） */
+  hidden?: boolean;
 }
 
 export default function DataPrivacyCard({
@@ -37,6 +40,7 @@ export default function DataPrivacyCard({
   pathsError,
   onReload,
   onError,
+  hidden = false,
 }: DataPrivacyCardProps) {
   const { t } = useTranslation();
   const [backing, setBacking] = useState(false);
@@ -83,7 +87,7 @@ export default function DataPrivacyCard({
   };
 
   return (
-    <Card className="space-y-4 p-5">
+    <Card className={cn("space-y-4 p-5", hidden && "hidden")}>
       <CardHeader className="p-0">
         <CardTitle className="flex items-center gap-2 text-sm">
           <ShieldCheck size={16} className="text-success" /> {t("settings.privacy")}

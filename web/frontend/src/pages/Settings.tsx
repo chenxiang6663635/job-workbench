@@ -39,6 +39,16 @@ import { ErrorBanner } from "../components/ErrorBanner";
 import { FormField } from "../components/FormField";
 import ThemePicker from "../components/ThemePicker";
 import DataPrivacyCard from "../components/settings/DataPrivacyCard";
+import SettingsTools from "../components/settings/SettingsTools";
+import PreferenceStatusCard from "../components/settings/PreferenceStatusCard";
+import { usePreferenceEntries } from "../hooks/usePreferenceEntries";
+import {
+  modifiedCardIds,
+  modifiedCount,
+  visibleCardIds,
+  type SettingsGroupId,
+} from "../lib/settingsRegistry";
+import { cn } from "../lib/utils";
 
 export default function Settings() {
   const { t, i18n } = useTranslation();
@@ -52,6 +62,15 @@ export default function Settings() {
   const [testResult, setTestResult] = useState<ProviderTestResult | null>(null);
   const [paths, setPaths] = useState<SystemPaths | null>(null);
   const [pathsError, setPathsError] = useState<string | null>(null);
+
+  // ---- 「找得到」层（笔 4）----
+  // 哪些卡可见、哪些项被改过，全由 lib/settingsRegistry 的登记表与纯函数决定；这里只持有
+  // 两个 UI 状态（搜索词、分组）。hidden 而不是不渲染：隐藏的卡保留挂载，切回来时不丢状态。
+  const { entries, version } = usePreferenceEntries();
+  const [query, setQuery] = useState("");
+  const [group, setGroup] = useState<SettingsGroupId | "all">("all");
+  const cards = visibleCardIds(query, group, modifiedCardIds(entries));
+  const hide = (id: string) => cn(!cards.has(id) && "hidden");
 
   // 推广入口先摊平成三个非空值：TS 在回调闭包里不做窄化，逐个判空只会更吵
   const refName = PROVIDER_REFERRAL?.name ?? "";
@@ -215,6 +234,20 @@ export default function Settings() {
     <div className="space-y-6">
       <PageHeader title={t("settings.title")} description={t("settings.providerDesc")} />
 
+      <SettingsTools
+        query={query}
+        onQueryChange={setQuery}
+        group={group}
+        onGroupChange={setGroup}
+        modified={modifiedCount(entries)}
+      />
+
+      {cards.size === 0 && (
+        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+          {t("settings.toolsNoMatch")}
+        </p>
+      )}
+
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
       {info && <ErrorBanner tone="success" message={info} onClose={() => setInfo(null)} />}
 
@@ -225,10 +258,22 @@ export default function Settings() {
           让各卡按内容自由生长，八张卡高矮不一显得参差；等高后矮卡的留白收进卡内，
           边界整齐。 */}
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
+        {/* 外观与偏好状态卡（笔 4）：排在最前——先回答"我改过什么、退得回去吗、什么时候生效" */}
+        <PreferenceStatusCard
+          entries={entries}
+          hidden={!cards.has("prefs")}
+          onReset={(entry) => entry.reset?.()}
+          onResetAll={() =>
+            entries.forEach((entry) => {
+              if (entry.modified) entry.reset?.();
+            })
+          }
+        />
+
         {/* 界面语言：设备级偏好，与下面三张卡（工作区级、随工作区走）不是一类东西，
             所以文案里必须写明"不随工作区导出/同步"——否则用户会以为换台机器会跟着变。
             与顶栏那个分段按钮共用同一个 i18n 实例：两处入口、一份状态，不会打架。 */}
-        <Card className="space-y-4 p-5">
+        <Card className={cn("space-y-4 p-5", hide("lang"))}>
           <CardHeader className="p-0">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Languages size={16} className="text-primary" /> {t("settings.langTitle")}
@@ -257,12 +302,12 @@ export default function Settings() {
 
         {/* 外观（批 4）：主题切换——与语言/大小同为「设备级」偏好（localStorage）。
             选择即生效（只改根属性）；「跟随系统」由 lib/theme 监听系统亮暗自动切换 */}
-        <ThemePicker />
+        <ThemePicker hidden={!cards.has("theme")} version={version} />
 
         {/* 界面大小：与语言同为「设备级」偏好，紧挨着放。桌面端才有偏好通道——
             浏览器直连时降级成一句说明，而不是把整张卡藏起来：藏起来会让人以为
             功能不存在（那正是这次要修的那类「按了没反应」的老问题）。 */}
-        <Card className="space-y-4 p-5">
+        <Card className={cn("space-y-4 p-5", hide("zoom"))}>
           <CardHeader className="p-0">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Monitor size={16} className="text-primary" /> {t("settings.zoomTitle")}
@@ -314,7 +359,7 @@ export default function Settings() {
           )}
         </Card>
 
-        <Card className="space-y-4 p-5">
+        <Card className={cn("space-y-4 p-5", hide("provider"))}>
           <CardHeader className="p-0">
             <CardTitle className="flex items-center gap-2 text-sm">
               <KeyRound size={16} className="text-primary" /> {t("settings.providerTitle")}
@@ -394,7 +439,7 @@ export default function Settings() {
           </div>
         </Card>
 
-        <Card className="space-y-4 p-5">
+        <Card className={cn("space-y-4 p-5", hide("imap"))}>
           <CardHeader className="p-0">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Inbox size={16} className="text-primary" /> {t("settings.imapTitle")}
@@ -482,7 +527,7 @@ export default function Settings() {
         {/* 数据位置：数据根 + 模式（便携 = 应用目录旁；用户目录 = 安装到不可写
             位置时的回退）。与「数据与隐私」相邻：一张回答「数据在哪」，一张
             回答「怎么带走 / 怎么备份」。 */}
-        <Card className="space-y-4 p-5">
+        <Card className={cn("space-y-4 p-5", hide("dataLoc"))}>
           <CardHeader className="p-0">
             <CardTitle className="flex items-center gap-2 text-sm">
               <HardDrive size={16} className="text-primary" /> {t("settings.dataLocTitle")}
@@ -533,7 +578,7 @@ export default function Settings() {
             的 appVersion / platform——打包版由 Electron 注入版本、开发模式后端回退读
             package.json；缺失显示「未知」，不编造。显示的是**机器版本**（YY.M.D）：
             N 只在打 tag 那一刻存在，运行时无从派生，发布号请查 tag / CHANGELOG 段名。 */}
-        <Card className="space-y-4 p-5">
+        <Card className={cn("space-y-4 p-5", hide("about"))}>
           <CardHeader className="p-0">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Info size={16} className="text-primary" /> {t("settings.aboutTitle")}
@@ -581,6 +626,7 @@ export default function Settings() {
           pathsError={pathsError}
           onReload={loadPaths}
           onError={setError}
+          hidden={!cards.has("privacy")}
         />
 
       </div>

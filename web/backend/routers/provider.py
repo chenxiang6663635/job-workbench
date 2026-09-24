@@ -34,11 +34,15 @@ router = APIRouter(prefix="/api/provider")
 CONFIG_FILE = "provider.json"
 # 连通性测试超时（秒），避免 key 无效或网络异常时卡死
 TEST_TIMEOUT = 10
+# /models 结果给界面的条数上限：OpenRouter 之类会返回几千个模型，整包塞过去
+# 会同时拖慢响应与渲染。前端只渲染前 N 个，总数照报（见返回里的 modelCount/truncated）。
+MODEL_LIST_LIMIT = 50
 
 
 class ProviderConfig(BaseModel):
     base_url: str = ""
     api_key: str = ""
+    model: str = ""
 
 
 def _config_path(ws):
@@ -51,21 +55,33 @@ def _lock_path(ws):
     return safe_join(ws, "config", "provider.lock")
 
 
+def _empty_config():
+    return {"base_url": "", "api_key": "", "model": ""}
+
+
 def _read_config(path):
+    """读配置；坏文件按「未配置」继续，但留一条 warning。
+
+    逐字段容错（类型不对的回落默认值）：**缺 `model` 的旧配置按空串读**，
+    所以本批不需要任何数据迁移。
+    """
+    cfg = _empty_config()
     if not os.path.isfile(path):
-        return {"base_url": "", "api_key": ""}
+        return cfg
     try:
         with io.open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return {
-            "base_url": data.get("base_url", ""),
-            "api_key": data.get("api_key", ""),
-        }
     except (ValueError, OSError) as exc:
-        # 坏配置（截断 / 手改出错）按「未配置」继续，但留日志——静默返回空会
-        # 让「key 怎么消失了」无从排查。
+        # 静默返回空会让「key 怎么消失了」无从排查
         logger.warning("读取 Provider 配置失败，按未配置处理：%s", exc)
-        return {"base_url": "", "api_key": ""}
+        return cfg
+    if not isinstance(data, dict):
+        return cfg
+    for key in ("base_url", "api_key", "model"):
+        value = data.get(key)
+        if isinstance(value, str):
+            cfg[key] = value
+    return cfg
 
 
 def _mask_key(key):
@@ -82,21 +98,51 @@ def read_config(ws):
     return _read_config(_config_path(ws))
 
 
-@router.get("")
-def get_provider(ws: str = Depends(workspace_dir)):
-    """读当前工作区的 Provider 配置，key 脱敏。"""
-    path = _config_path(ws)
-    cfg = _read_config(path)
+def base_url_hint(base_url):
+    """base_url 的**非阻断**提示：返回前端语言包的 key，或 None。
+
+    只报两种确证过的写法，其余一律不提示——Open WebUI 的经验是「验证失败 ≠ 不兼容」：
+    很多网关的路径本就是自定义的，误报会让人白改一趟。
+    """
+    url = (base_url or "").strip().lower()
+    if not url:
+        return None
+    if not url.startswith(("http://", "https://")):
+        # 与前端 lib/providerPresets.validateBaseUrl 保持**同一 key 集合**：正常路径下
+        # 缺协议头会被保存时的 422（`provider.baseUrlInvalid`）拦下，这条只防御手改
+        # config/provider.json 的存量值——两处 key 不一致时，前端"本地提示优先"的
+        # 合并会静默吞掉一边
+        return "provider.hintNeedScheme"
+    if "dashscope.aliyuncs.com" in url and "compatible-mode" not in url:
+        # 通义千问：必须用兼容模式地址，原生 dashscope 路径会一直连不上
+        return "provider.hintDashscope"
+    if "/chat/completions" in url:
+        # 把完整端点当成 base_url 填了：base_url 只到版本段（如 .../v1）
+        return "provider.hintEndpointNotBase"
+    return None
+
+
+def _public(cfg):
+    """对外响应：key 脱敏 + base_url 的可操作提示（GET 与 POST 共用一份）。"""
     return {
         "base_url": cfg["base_url"],
         "api_key": _mask_key(cfg["api_key"]),
         "hasKey": bool(cfg["api_key"]),
+        "model": cfg["model"],
+        "baseUrlHint": base_url_hint(cfg["base_url"]),
     }
+
+
+@router.get("")
+def get_provider(ws: str = Depends(workspace_dir)):
+    """读当前工作区的 Provider 配置，key 脱敏。"""
+    return _public(_read_config(_config_path(ws)))
 
 
 class SaveProvider(BaseModel):
     base_url: str = ""
     api_key: str = ""  # 传完整新 key 则覆盖；传空则保留原 key
+    model: str = ""    # 空串 = 清空默认模型（与 api_key「空则保留」的语义刻意不同）
 
 
 @router.post("")
@@ -116,6 +162,7 @@ def save_provider(body: SaveProvider, ws: str = Depends(workspace_dir)):
                            "base_url 必须以 http:// 或 https:// 开头")
         new_key = (body.api_key or "").strip()
         cfg["base_url"] = base_url
+        cfg["model"] = (body.model or "").strip()
         if new_key:
             cfg["api_key"] = new_key
 
@@ -123,11 +170,7 @@ def save_provider(body: SaveProvider, ws: str = Depends(workspace_dir)):
         # 写仍持锁，两次并发保存不会互相覆盖（与 routers/imap.py 同口径）。
         atomic_write_text(path, json.dumps(cfg, ensure_ascii=False, indent=2))
 
-    return {
-        "base_url": cfg["base_url"],
-        "api_key": _mask_key(cfg["api_key"]),
-        "hasKey": bool(cfg["api_key"]),
-    }
+    return _public(cfg)
 
 
 @router.post("/test")
@@ -171,11 +214,18 @@ def test_provider(ws: str = Depends(workspace_dir)):
 
     models = data.get("data", []) if isinstance(data, dict) else []
     model_names = [m.get("id") for m in models if isinstance(m, dict) and m.get("id")] if isinstance(models, list) else []
+    shown = model_names[:MODEL_LIST_LIMIT]
+    truncated = len(model_names) > MODEL_LIST_LIMIT
     return {
         "ok": True,
         "status": status,
         "modelCount": len(model_names),
-        "models": model_names[:20],
+        "models": shown,
+        "truncated": truncated,
+        # 拉不到列表**不代表不能用**（很多网关没实现 /models）：那时这里是空串，
+        # 界面据此告诉用户「可以直接手填模型名」。
+        "hint": ("仅显示前 %d 个模型（共 %d 个）"
+                 % (MODEL_LIST_LIMIT, len(model_names)) if truncated else ""),
     }
 
 

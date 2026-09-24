@@ -25,6 +25,7 @@ from routers import (
     imap_facts,
     jobs,
     library,
+    mail_setup,
     prep,
     progress,
     provider,
@@ -49,6 +50,7 @@ MODULES = (
     provider,
     imap,
     imap_facts,  # 邮件解析（批 9；imap.py 水位只许降故单开）
+    mail_setup,  # 服务商预设与文件夹候选（邮箱配置批；同上理由单开）
     resume,
     system,
     snapshot,  # 快照还原与演练（收口批 笔 2；system.py 水位只许降故单开）

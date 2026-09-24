@@ -183,6 +183,22 @@ export function usePreferenceEntries(): {
             },
           }
         : null,
+    // 「提前几天开始提醒」（3/5/7）：与开关同一通道（真值都在主进程）
+    reminderDays:
+      hasDesktopPrefs() && prefs
+        ? {
+            value: String(prefs.reminderDays ?? 3),
+            def: "3",
+            display: i18n.t("settings.reminderDaysValue", { days: prefs.reminderDays ?? 3 }),
+            reset: () => {
+              void (setReminders({ days: 3 }) ?? Promise.resolve()).then(refresh);
+            },
+            options: ["3", "5", "7"],
+            set: (next: string) => {
+              void (setReminders({ days: Number(next) }) ?? Promise.resolve()).then(refresh);
+            },
+          }
+        : null,
   };
 
   return { entries: buildPreferenceEntries(sources), refresh, version };

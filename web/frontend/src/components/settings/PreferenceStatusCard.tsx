@@ -87,6 +87,21 @@ export default function PreferenceStatusCard({
                     : t("settings.toggleOff")}
                 </Button>
               )}
+              {/* 枚举项渲染成下拉（"提前几天"）：与开关一样是即时生效项 */}
+              {entry.choice && (
+                <select
+                  className="h-7 cursor-pointer rounded-md border border-border bg-background px-2 text-[11px] text-foreground"
+                  aria-label={t(entry.labelKey)}
+                  value={entry.choice.value}
+                  onChange={(e) => entry.choice?.set(e.target.value)}
+                >
+                  {entry.choice.options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {t(opt.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              )}
               {entry.modified && entry.reset && (
                 <Button
                   variant="outline"

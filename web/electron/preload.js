@@ -24,13 +24,21 @@ contextBridge.exposeInMainWorld("jobwsPrefs", {
       收到的是默认工作区的提醒）。真值仍在渲染进程（localStorage），这里只做转达。 */
   setWorkspace: (ws) => ipcRenderer.invoke("prefs:set-workspace", ws),
 
-  /** 到点提醒开关（真值在主进程：它才是发通知的那一方） */
-  setReminders: (enabled) => ipcRenderer.invoke("prefs:set-reminders", enabled),
+  /** 到点提醒：开关 + 提前天数（真值在主进程：它才是发通知的那一方）。
+      旧调用点只传布尔，设置页传 `{ enabled?, days? }`——主进程两端都收。 */
+  setReminders: (value) => ipcRenderer.invoke("prefs:set-reminders", value),
 
   /** 订阅缩放变化（来自快捷键或其它窗口），返回取消订阅函数 */
   onZoomChanged: (cb) => {
     const listener = (_event, payload) => cb(payload);
     ipcRenderer.on("prefs:zoom-changed", listener);
     return () => ipcRenderer.removeListener("prefs:zoom-changed", listener);
+  },
+
+  /** 订阅"通知被点击"：主进程送来要定位的记录 id，界面据此跳到追踪表并展开该行 */
+  onReminderFocus: (cb) => {
+    const listener = (_event, payload) => cb(payload);
+    ipcRenderer.on("reminder:focus", listener);
+    return () => ipcRenderer.removeListener("reminder:focus", listener);
   },
 });

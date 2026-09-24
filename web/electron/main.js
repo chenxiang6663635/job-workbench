@@ -127,6 +127,8 @@ ipcMain.handle("prefs:get", () => ({
   lang: resolvedLang(),
   // 笔 5：到点提醒开关的真值也在这里（它是主进程在发通知）
   reminders: reminderState.enabled,
+  // 「提前几天开始提醒」：设置页给 3/5/7，默认 3
+  reminderDays: reminderState.days,
   workspace: reportedWorkspace,
 }));
 
@@ -462,13 +464,17 @@ function restoredWindowBounds() {
 // 纯函数、有单测、CI 跑。
 const {
   buildNotification,
+  dueItems,
   nextState,
   shouldNotify,
   todayKey,
 } = require("./reminders");
 
 const REMINDER_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 小时
-let reminderState = { enabled: true, lastNotified: "" };
+// 「提前几天开始提醒」的默认值与上限：设置页给 3/5/7，主进程按 state.days 带查询参数
+const REMINDER_DAYS_DEFAULT = 3;
+const REMINDER_DAYS_MAX = 30;
+let reminderState = { enabled: true, days: REMINDER_DAYS_DEFAULT, notified: {} };
 let reminderTimer = null;
 // 渲染进程上报的当前工作区（真值在它的 localStorage 里）：不报就按后端默认工作区查
 let reportedWorkspace = "";
@@ -482,11 +488,14 @@ function loadReminders() {
     const data = JSON.parse(fs.readFileSync(remindersPath(), "utf-8"));
     reminderState = {
       enabled: data.enabled !== false,
-      lastNotified: String(data.lastNotified || ""),
+      days: Number(data.days) || REMINDER_DAYS_DEFAULT,
+      // 旧状态文件里只有 lastNotified（"哪天提醒过"）：按"每事项每天一次"的新口径
+      // 它没有意义，直接丢弃——最坏情况是升级当天再报一次，比漏报轻。
+      notified: data.notified && typeof data.notified === "object" ? data.notified : {},
     };
   } catch (e) {
     // 首次运行没有这个文件；文件损坏也按默认（开着、今天没提醒过）处理
-    reminderState = { enabled: true, lastNotified: "" };
+    reminderState = { enabled: true, days: REMINDER_DAYS_DEFAULT, notified: {} };
   }
 }
 
@@ -503,25 +512,32 @@ function showDueNotification(payload) {
   const t = tFor(resolvedLang());
   const { title, body } = buildNotification(t, payload);
   const notification = new Notification({ title, body });
-  // 点通知就把窗口拉到前面——提醒的意义是"让人去看那一屏"
+  // 点通知就把窗口拉到前面，并把"最该看的那条"交给界面
+  // （前端据此跳到追踪表并展开它——落地在 `drillToApplication` 那条既有链路）
   notification.on("click", () => {
     const win = BrowserWindow.getAllWindows()[0];
     if (win) {
       win.show();
       win.focus();
+      const first = dueItems(payload)[0];
+      const id = first && first.item ? first.item.id : "";
+      if (id) win.webContents.send("reminder:focus", { id });
     }
   });
   notification.show();
-  reminderState = nextState(reminderState, todayKey());
+  reminderState = nextState(reminderState, todayKey(), payload);
   saveReminders();
   log(`Reminder shown: ${body.split("\n").length} line(s)`);
 }
 
 function checkReminders() {
   if (!reminderState.enabled) return;
-  const qs = reportedWorkspace ? `?ws=${encodeURIComponent(reportedWorkspace)}` : "";
+  const params = new URLSearchParams();
+  if (reportedWorkspace) params.set("ws", reportedWorkspace);
+  // 「提前几天」由设置项决定（后端默认 3）：它只影响"待办"这一类
+  params.set("days", String(reminderState.days || REMINDER_DAYS_DEFAULT));
   const req = http.get(
-    `http://127.0.0.1:${BACKEND_PORT}/api/reminders/due${qs}`,
+    `http://127.0.0.1:${BACKEND_PORT}/api/reminders/due?${params.toString()}`,
     { timeout: 4000 },
     (res) => {
       let body = "";
@@ -563,12 +579,18 @@ ipcMain.handle("prefs:set-workspace", (_event, ws) => {
   return { workspace: reportedWorkspace };
 });
 
-ipcMain.handle("prefs:set-reminders", (_event, enabled) => {
-  reminderState = { ...reminderState, enabled: enabled !== false };
+ipcMain.handle("prefs:set-reminders", (_event, value) => {
+  // 兼容两种调用：布尔（旧调用点）与 `{ enabled?, days? }`（设置页的开关 + 提前天数）
+  const patch = value && typeof value === "object" ? value : { enabled: value };
+  if (typeof patch.enabled === "boolean") reminderState.enabled = patch.enabled;
+  const days = Number(patch.days);
+  if (Number.isFinite(days)) {
+    reminderState.days = Math.max(1, Math.min(Math.round(days), REMINDER_DAYS_MAX));
+  }
   saveReminders();
-  // 打开就立刻看一眼，而不是等到下一个周期——用户按下开关时想看到的是"现在就生效"
+  // 打开或改天数后立刻看一眼，而不是等到下一个周期——按下开关/改完天数时想看到的是"现在就生效"
   if (reminderState.enabled) checkReminders();
-  return { reminders: reminderState.enabled };
+  return { reminders: reminderState.enabled, reminderDays: reminderState.days };
 });
 
 // ---- 创建窗口 ----

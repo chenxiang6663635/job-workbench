@@ -60,6 +60,12 @@ export interface SettingsEntry {
   reset: (() => void) | null;
   /** 布尔项的开关（目前只有"到点提醒"）：给了就在卡片上渲染成开关而不是只读值 */
   toggle?: { on: boolean; set: (next: boolean) => void } | null;
+  /** 枚举项（目前只有"提前几天"）：给了就渲染成 <select>；与 toggle 互斥 */
+  choice?: {
+    value: string;
+    options: { value: string; labelKey: string }[];
+    set: (next: string) => void;
+  } | null;
 }
 
 /** 偏好的真值源（由调用方注入——这一层刻意不碰 localStorage / IPC，才谈得上单测）。 */
@@ -81,6 +87,17 @@ export interface PreferenceSources {
         set: (next: boolean) => void;
       }
     | null;
+  /** 「提前几天开始提醒」（3/5/7）：与提醒开关同属桌面端，浏览器里为 null */
+  reminderDays:
+    | {
+        value: string;
+        def: string;
+        display: string;
+        reset: () => void;
+        options: string[];
+        set: (next: string) => void;
+      }
+    | null;
 }
 
 /** 登记表 → 渲染用的条目（顺序即展示顺序：外观 → 界面 → 提醒）。 */
@@ -91,7 +108,12 @@ export function buildPreferenceEntries(sources: PreferenceSources): SettingsEntr
     labelKey: string,
     effect: SettingsEffect,
     source: { value: unknown; def: unknown; display: string; reset: () => void },
-    toggle?: { on: boolean; set: (next: boolean) => void }
+    toggle?: { on: boolean; set: (next: boolean) => void },
+    choice?: {
+      value: string;
+      options: { value: string; labelKey: string }[];
+      set: (next: string) => void;
+    }
   ): SettingsEntry => ({
     id,
     cardId,
@@ -101,6 +123,7 @@ export function buildPreferenceEntries(sources: PreferenceSources): SettingsEntr
     value: source.display,
     reset: source.reset,
     toggle: toggle ?? null,
+    choice: choice ?? null,
   });
 
   const entries: SettingsEntry[] = [
@@ -118,6 +141,19 @@ export function buildPreferenceEntries(sources: PreferenceSources): SettingsEntr
         on: sources.reminders.value,
         set: sources.reminders.set,
       })
+    );
+  }
+  if (sources.reminderDays) {
+    entries.push(
+      make("reminderDays", "zoom", "settings.entryReminderDays", "instant",
+        sources.reminderDays, undefined, {
+          value: sources.reminderDays.value,
+          options: sources.reminderDays.options.map((v) => ({
+            value: v,
+            labelKey: `settings.reminderDays_${v}`,
+          })),
+          set: sources.reminderDays.set,
+        })
     );
   }
   return entries;

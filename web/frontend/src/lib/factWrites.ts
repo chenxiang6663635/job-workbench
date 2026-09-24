@@ -56,11 +56,12 @@ export function planFactWrite(fact: MailFact, meta: MailMeta): FactWrite {
       body: { 下次动作日期: fact.value.slice(0, 10) },
     };
   }
-  if (fact.kind === "截止") {
+  if (fact.kind === "截止" || fact.kind === "链接有效期") {
     if (!fact.targetId) return { kind: "blocked", reasonKey: "suggest.needRecord" };
-    // 截止 = 任务倒计时：日期进「下次动作日期」，任务名（label，如「完成在线测评」）
-    // 进「下次动作」——到点提醒读的就是这两个字段（dashboard 的待办桶），
-    // 写进去即自动获得提醒，不再另建提醒链路。
+    // 截止（要交东西）与链接有效期（链接会失效、要复制保存）走同一条既有写路径：
+    // 日期进「下次动作日期」、动作短语（label）进「下次动作」——到点提醒读的就是
+    // 这两个字段（看板的待办桶），写进去即自动获得提醒，不再另建提醒链路。
+    // 两者的区别体现在 label 上（如「完成测评（链接即将失效）」）。
     return {
       kind: "application",
       id: fact.targetId,

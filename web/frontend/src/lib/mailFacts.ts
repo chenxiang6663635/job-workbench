@@ -7,11 +7,16 @@
 import type { MailFactsResult } from "./domainTypes";
 import { requestJson } from "./http";
 
-/** 正文与 ICS 至少给一个；`id` = 用户手动指定的投递记录（站内信常不写公司名）。 */
+/**
+ * 正文与 ICS 至少给一个；`id` = 用户手动指定的投递记录（站内信常不写公司名）。
+ * `日期` = 这封邮件的发出日期：**时长表达**（「3 天内」）以它为基准——三天前
+ * 收到的邮件今天再看应当已经过期，漏传就会按今天算、得出反向结论。
+ */
 export function suggestFacts(body: {
   原文: string;
   ics?: string;
   id?: string;
+  日期?: string;
 }): Promise<MailFactsResult> {
   return requestJson<MailFactsResult>("/imap/suggest-facts", {
     method: "POST",

@@ -150,4 +150,22 @@ describe("planFactWrite", () => {
 
     expect(plan).toEqual({ kind: "blocked", reasonKey: "suggest.needRecord" });
   });
+
+  it("链接有效期 → 与截止同一条写路径（区别只在动作文案里）", () => {
+    const plan = planFactWrite(
+      fact({
+        kind: "链接有效期",
+        value: "2026-09-24",
+        label: "完成测评（链接即将失效）",
+        targetId: "A001",
+      }),
+      MESSAGE
+    );
+
+    expect(plan).toEqual({
+      kind: "application",
+      id: "A001",
+      body: { 下次动作日期: "2026-09-24", 下次动作: "完成测评（链接即将失效）" },
+    });
+  });
 });

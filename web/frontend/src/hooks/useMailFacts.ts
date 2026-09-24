@@ -37,7 +37,13 @@ export function useMailFacts(message: ImapMessage) {
     setDone({});
     setIgnored({});
     setAcked({});
-    suggestFacts({ 原文: message.body || "", ics: message.calendar || "" })
+    suggestFacts({
+      原文: message.body || "",
+      ics: message.calendar || "",
+      // 邮件发出日：时长表达（「3 天内」）的推算基准——必须带上，否则会按
+      // "你什么时候看的"算（三天前的邮件会被算成"还有 3 天"）
+      日期: message.date || "",
+    })
       .then((r) => {
         if (alive) setFacts(r.facts);
       })
@@ -47,7 +53,7 @@ export function useMailFacts(message: ImapMessage) {
     return () => {
       alive = false;
     };
-  }, [message.uid, message.body, message.calendar]);
+  }, [message.uid, message.body, message.calendar, message.date]);
 
   useEffect(() => {
     api

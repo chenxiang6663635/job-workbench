@@ -14,17 +14,23 @@ export interface PrefsSnapshot {
   lang: string;
   /** 到点提醒开关（笔 5）：真值在主进程——它才是发通知的那一方 */
   reminders: boolean;
+  /** 「提前几天开始提醒」（3/5/7，默认 3）：与开关一样，真值在主进程 */
+  reminderDays: number;
   /** 渲染进程上报过的工作区（空串 = 未上报，后端按默认工作区查） */
   workspace: string;
 }
+
+/** 到点提醒的改动：旧调用点只传布尔，设置页传 `{ enabled?, days? }` */
+export type ReminderPatch = boolean | { enabled?: boolean; days?: number };
 
 interface JobwsPrefs {
   get(): Promise<PrefsSnapshot>;
   setZoomLevel(level: number, persist?: boolean): Promise<{ level: number; percent: number }>;
   setLang(lang: string): Promise<{ lang: string }>;
   setWorkspace(ws: string): Promise<{ workspace: string }>;
-  setReminders(enabled: boolean): Promise<{ reminders: boolean }>;
+  setReminders(value: ReminderPatch): Promise<{ reminders: boolean; reminderDays: number }>;
   onZoomChanged(cb: (payload: { level: number; percent: number }) => void): () => void;
+  onReminderFocus(cb: (payload: { id?: string }) => void): () => void;
 }
 
 declare global {
@@ -69,9 +75,24 @@ export function reportWorkspace(ws: string) {
   return prefsBridge()?.setWorkspace(ws);
 }
 
-/** 到点提醒开关：真值在主进程（它发通知），这里只表达意图。 */
-export function setReminders(enabled: boolean) {
-  return prefsBridge()?.setReminders(enabled);
+/** 到点提醒（开关 / 提前天数）：真值在主进程（它发通知），这里只表达意图。 */
+export function setReminders(value: ReminderPatch) {
+  return prefsBridge()?.setReminders(value);
+}
+
+/**
+ * 订阅"通知被点击"：主进程把要定位的记录 id 送过来（无 id 时不回调）。
+ *
+ * 没有这一层的话，点通知只能把窗口拉到前面——用户还要自己在追踪表里找那一条，
+ * 而通知的全部意义就是"让你立刻看到它"。
+ */
+export function onReminderFocus(cb: (id: string) => void): () => void {
+  const bridge = prefsBridge();
+  if (!bridge?.onReminderFocus) return () => {};
+  return bridge.onReminderFocus((payload) => {
+    const id = payload && typeof payload.id === "string" ? payload.id : "";
+    if (id) cb(id);
+  });
 }
 
 /** 订阅缩放变化（来自快捷键或其它窗口）；无通道时是空订阅。

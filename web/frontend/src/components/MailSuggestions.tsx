@@ -21,6 +21,7 @@ interface Props {
 const KIND_LABEL_KEYS: Record<MailFact["kind"], TranslationKey> = {
   时间: "suggest.kindTime",
   截止: "suggest.kindDeadline",
+  链接有效期: "suggest.kindLinkExpiry",
   会议链接: "suggest.kindLink",
   阶段: "suggest.kindStage",
   公司岗位: "suggest.kindRecord",
@@ -73,9 +74,9 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                   <span className="font-medium text-foreground">
                     {t(KIND_LABEL_KEYS[fact.kind])}
                   </span>
-                  {/* 「截止」的 label 是任务名（完成在线测评…）：它不进 i18n（取值来自
-                      正文识别），但正是用户要看的「要做什么」，所以单独显示 */}
-                  {fact.kind === "截止" && (
+                  {/* 「截止」/「链接有效期」的 label 是动作短语（完成在线测评…）：它不进
+                      i18n（取值来自正文识别），但正是用户要看的「要做什么」，单独显示 */}
+                  {(fact.kind === "截止" || fact.kind === "链接有效期") && (
                     <span className="truncate text-foreground">{fact.label}</span>
                   )}
                   <span className="min-w-0 truncate text-foreground" title={fact.value}>

@@ -472,6 +472,51 @@ export interface BackupResult {
   snapshotDir: string;
 }
 
+// ---- 快照还原与演练（首发前收口批 笔 2）----
+// 时间一律是**毫秒**（后端给的是 os.stat().st_mtime 的秒，换算在 lib/snapshotApi.ts
+// 一处做；界面代码不该各自 `* 1000`——漏一处就是 1970 年）。
+export interface SnapshotInfo {
+  name: string;
+  size: number;
+  /** 快照落盘时间（毫秒） */
+  mtime: number;
+  /** 快照内条目数；null = 这份 zip 读不出来（清单照列，演练/还原时才被拒） */
+  files: number | null;
+}
+
+export interface SnapshotList {
+  snapshotDir: string;
+  count: number;
+  snapshots: SnapshotInfo[];
+}
+
+/** 演练结果：把「还原会发生什么」在动手之前说清楚 */
+export interface SnapshotPreview {
+  name: string;
+  size: number;
+  mtime: number;
+  /** 快照内纳入还原的条目数（凭证与运行时产物已在后端被排除） */
+  total: number;
+  overwrite: number;
+  add: number;
+  same: number;
+  bytes: number;
+  /** 当前工作区有、快照里没有的文件数——**保留不动**，但必须如实告知 */
+  notInSnapshot: number;
+  keptExamples: string[];
+}
+
+export interface SnapshotRestoreResult {
+  ok: boolean;
+  restored: number;
+  added: number;
+  same: number;
+  /** 还原前自动落下的回滚快照名（"还原错了"的唯一退路） */
+  preRestoreSnapshot: string;
+  preRestoreFiles: number;
+  snapshotDir: string;
+}
+
 export interface ResumeTemplateItem {
   rel: string;
   name: string;

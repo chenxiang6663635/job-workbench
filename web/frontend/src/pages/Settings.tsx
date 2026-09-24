@@ -1,8 +1,6 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Archive,
-  Download,
   ExternalLink,
   FolderOpen,
   HardDrive,
@@ -13,7 +11,6 @@ import {
   Monitor,
   PlugZap,
   Save,
-  ShieldCheck,
 } from "lucide-react";
 import { LANGS } from "../i18n";
 import {
@@ -41,6 +38,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { FormField } from "../components/FormField";
 import ThemePicker from "../components/ThemePicker";
+import DataPrivacyCard from "../components/settings/DataPrivacyCard";
 
 export default function Settings() {
   const { t, i18n } = useTranslation();
@@ -54,8 +52,6 @@ export default function Settings() {
   const [testResult, setTestResult] = useState<ProviderTestResult | null>(null);
   const [paths, setPaths] = useState<SystemPaths | null>(null);
   const [pathsError, setPathsError] = useState<string | null>(null);
-  const [backing, setBacking] = useState(false);
-  const [backupInfo, setBackupInfo] = useState<string | null>(null);
 
   // 推广入口先摊平成三个非空值：TS 在回调闭包里不做窄化，逐个判空只会更吵
   const refName = PROVIDER_REFERRAL?.name ?? "";
@@ -187,27 +183,6 @@ export default function Settings() {
     // 之前是空 catch：失败后页面永远停在骨架上，且错误被静默吞掉（违反「禁静默吞错」）
     loadPaths();
   }, []);
-
-  const backup = () => {
-    setError(null);
-    setBackupInfo(null);
-    setBacking(true);
-    api
-      .backupWorkspace()
-      .then((r) => {
-        setBackupInfo(
-          t("settings.backupDone", {
-            files: r.files,
-            size: (r.size / 1024).toFixed(0),
-            kept: r.kept,
-            removed: r.removed,
-          })
-        );
-        return loadPaths();
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setBacking(false));
-  };
 
   const save = () => {
     setError(null);
@@ -598,74 +573,15 @@ export default function Settings() {
           )}
         </Card>
 
-        <Card className="space-y-4 p-5">
-          <CardHeader className="p-0">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <ShieldCheck size={16} className="text-success" /> {t("settings.privacy")}
-            </CardTitle>
-          </CardHeader>
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t("settings.privacyDesc")}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild>
-              <a
-                href={api.exportUrl()}
-                onClick={() =>
-                  setBackupInfo(t("settings.exportNotice"))
-                }
-              >
-                <Download size={15} /> {t("settings.exportZip")}
-              </a>
-            </Button>
-            <Button variant="outline" onClick={backup} disabled={backing}>
-              <Archive size={15} /> {backing ? t("settings.backingup") : t("settings.backupNow")}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => api.openFolder("workspace").catch((e: Error) => setError(e.message))}
-            >
-              <FolderOpen size={15} /> {t("settings.openDataDir")}
-            </Button>
-          </div>
-
-          {backupInfo && (
-            <p className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-              {backupInfo}
-            </p>
-          )}
-
-          <div className="space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
-            {/* 三态齐全：加载中骨架 / 读取失败可定位 / 就绪显示真实路径 */}
-            {pathsError ? (
-              <p className="text-destructive">{t("settings.pathsFailed", { error: pathsError })}</p>
-            ) : !paths ? (
-              <Skeleton className="h-14 w-full" />
-            ) : (
-              <>
-                <p>
-                    {t("settings.lastBackup", {
-                      time: paths.lastBackup ?? t("settings.neverBackup"),
-                      count: paths.snapshotCount,
-                    })}
-                </p>
-                <p className="break-all">
-                  {t("settings.snapshotDir")}
-                  {paths.snapshotDir}
-                </p>
-                <p className="break-all">
-                  {t("settings.workspace")}
-                  {paths.workspace}
-                </p>
-              </>
-            )}
-            <p className="pt-1 text-muted-foreground">
-              {t("settings.snapshotNote")}
-            </p>
-          </div>
-        </Card>
+        {/* 数据与隐私卡已拆到 components/settings/DataPrivacyCard.tsx（收口批 笔 2）：
+            导出 / 备份 / 打开目录 + 快照列表与还原。拆出去的直接原因是这张卡要长——
+            而 Settings.tsx 是登记过水位（693，只许变小）的存量文件。 */}
+        <DataPrivacyCard
+          paths={paths}
+          pathsError={pathsError}
+          onReload={loadPaths}
+          onError={setError}
+        />
 
       </div>
 

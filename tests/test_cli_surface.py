@@ -265,19 +265,19 @@ def test_domain_and_release_checks_pass_on_repo(monkeypatch, capsys):
         assert "读取" not in out, out
 
 
-def test_release_version_prints_next_timestamp_number(monkeypatch, capsys):
-    """`jobws release version`：打印「今日若发布」的号（YY.MM.DD.N）与当前机器版本。"""
+def test_release_version_prints_next_month_number(monkeypatch, capsys):
+    """`jobws release version`：打印「本月若发布」的号（YY.MM.N）与当前版本。"""
     code, out = _invoke_jobws(monkeypatch, capsys, ["release", "version"])
     assert code == 0, out
     lines = [line for line in out.splitlines() if "今日版本号：" in line]
     assert lines, out
     number = lines[0].split("：", 1)[1].strip()
-    assert len(number.split(".")) == 4, number          # YY.MM.DD.N
-    # 只数段数钉不住任何东西——走同一套判定函数，把月/日的取值范围也验上；
-    # 且不依赖"测试跑在当天"，避免跨日 flaky（第二轨 MINOR-14）。
+    assert len(number.split(".")) == 3, number          # YY.MM.N
+    # 只数段数钉不住任何东西——走同一套判定函数（含前导零/月份范围拒绝）；
+    # 且不依赖"测试跑在当天"，避免跨月 flaky（第二轨 MINOR-14 的月粒度版）。
     parsed = release_assist.version_tuple(number)
     assert parsed is not None, number
-    assert parsed[3] >= 1, number                       # N 从 1 起
+    assert parsed[2] >= 0, number                       # N 从 0 起
     assert "当前 package.json 版本：" in out, out
 
 

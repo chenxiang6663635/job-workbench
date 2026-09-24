@@ -4,7 +4,7 @@ description: Use when 解析 JD、给岗位打分、改写简历或生成投递�
 compatibility: Python 3.12+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，不上传工作区数据。
 license: MIT
 metadata:
-  version: 26.9.15
+  version: 26.9.0
 ---
 
 # 岗位评估与材料纪律

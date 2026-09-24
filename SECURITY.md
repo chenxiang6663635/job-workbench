@@ -13,7 +13,7 @@ build before reporting.
 
 | Version | Supported |
 |---|---|
-| latest release (currently `v0.3.2`; version numbers switch to the timestamp scheme `YY.MM.DD.N` at the first timestamped release) | Yes |
+| latest release (version numbers follow month-granularity CalVer `YY.MM.N` — first release will be `26.9.0`) | Yes |
 | older tags | No |
 
 ## Reporting a vulnerability

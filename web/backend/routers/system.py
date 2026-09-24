@@ -57,7 +57,7 @@ WEEKLY_INTERVAL = 86400 * 7  # 更老：每周至多一份
 
 
 def _app_version():
-    """应用版本（机器形态 YY.M.D，如 26.9.15）。
+    """应用版本（月粒度 CalVer YY.MM.N，如 26.9.0）。
 
     打包版：主进程拉起后端时注入 JOBWS_APP_VERSION（= Electron app.getVersion()）；
     开发模式：回退读仓库 web/electron/package.json 的 version。

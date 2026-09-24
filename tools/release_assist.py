@@ -7,17 +7,17 @@
 与 package.json 版本不一致）留到「tag 已经推上去了」才发现。本模块把这两件
 事收敛成一条命令，本地与 CI 同源：
 
-- 本地（打 tag **前**）：`jobws release check --tag v26.09.15.1` —— 红着就别打 tag。
+- 本地（打 tag **前**）：`jobws release check --tag v26.9.0` —— 红着就别打 tag。
 - CI（release.yml 的抽段步骤）：`jobws release check --version <ver>
   --notes-out release-notes.md` —— 与本地同一实现，不再维护第二份 pwsh。
 
 抽取规则（与 release.yml 旧实现逐字对齐）：取 `## [<ver>]` 段头到下一个
 `## [` 之前的全部行（含段头），去掉尾部空行；没有该段则失败并提示先落章。
-只认精确段名：`[26.09.15.1]` 与 `[26.09.15.2]` 是两回事。
+只认精确段名：`[26.9.0]` 与 `[26.9.1]` 是两回事。
 
 用法（入口已统一，见 tools/jobws.py）：
-    python tools/jobws.py release version                    # 打印"今日若发布"的时间戳号
-    python tools/jobws.py release check --tag v26.09.15.1    # 校验 tag 与版本一致 + 段存在
+    python tools/jobws.py release version                    # 打印"今日若发布"的月粒度号
+    python tools/jobws.py release check --tag v26.9.0        # 校验 tag 与版本一致 + 段存在
     python tools/jobws.py release check --notes-out out.md   # 抽段落盘（CI 用）
 退出码：0 通过；1 检查未过（版本不一致 / CHANGELOG 段缺失）；2 文件缺失或读取失败。
 """
@@ -37,17 +37,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PACKAGE_JSON = os.path.join(ROOT, "web", "electron", "package.json")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 
-# 时间戳版本号（2026-09-15 体系切换）：
-# - 发布号（tag / CHANGELOG 段名 / 界面显示）= YY.MM.DD.N（如 26.09.15.1）；
-# - 机器版本（package.json / latest.yml / 产物文件名）= YY.M.D（如 26.9.15）。
-# 机器版本为什么不带 N：实测 electron-builder 会把 build metadata（`+N`）在
-# 产物文件名与 latest.yml 两处剥离（26.9.15+1 → 26.9.15），且 electron-updater
-# 对非 semver 直接抛 ERR_UPDATER_INVALID_VERSION（AppUpdater.js:212-217）。
-# 发布号 YY.MM.DD.N（月日两位、补零）与机器版本 YY.M.D（月日不补零）。月/日都做
-# 取值范围校验：`26.99.99` 不是日期，放它进 next_version / version_matches_tag
-# 的日期三段比对等于把一段非法输入当时间戳用（第二轨审查 MINOR-4）。
-_TS_FULL = re.compile(r"^(\d{2})\.(0[1-9]|1[0-2])\.(0[1-9]|[12]\d|3[01])\.(\d+)$")
-_TS_MACHINE = re.compile(r"^(\d{2})\.(0?[1-9]|1[0-2])\.(0?[1-9]|[12]\d|3[01])$")
+# 月粒度 CalVer（2026-09-24 体系切换，Bitwarden 式）：
+# - 版本号（tag / CHANGELOG 段名 / package.json / latest.yml / 产物名 / 界面显示）
+#   = YY.MM.N，**单一形态**：N = 当月第几发（从 0 起），hotfix 锁前两位只动 N，
+#   换月清零（26.9.0 → 26.9.1 → 26.10.0）。
+# - 为什么从「发布号 YY.MM.DD.N / 机器版本 YY.M.D」双形态改过来：electron-updater
+#   的比较直接走 Node semver——实测四段（26.9.15.1）与月份补零（26.09）都非法
+#   （semver.valid → null；比较抛 TypeError / 直接 skip tag），且 N 表达不了
+#   （build metadata `+N` 会被 electron-builder 在产物名与 latest.yml 两处剥离）。
+# - 仍拒绝 prerelease（`26.9.0-rc.1`：semver 里比正式版小，会被判「无需更新」）
+#   与 build metadata（`26.9.0+1`：参与判等，同样不触发更新）。
+# - 月份与 N 都禁前导零（semver 数字标识符规则）：正则写成 `1[0-2]|[1-9]` /
+#   `0|[1-9]\d*`，而不是 `0?[1-9]` / `\d+`——`26.09.0`、`26.9.01` 都不是合法号。
+# - 月份范围照旧校验：`26.99.0` 不是日期，放它进比对等于把一段非法输入当号用
+#   （旧体系第二轨审查 MINOR-4 的同款理由）。
+_CALVER = re.compile(r"^(\d{2})\.(1[0-2]|[1-9])\.(0|[1-9]\d*)$")
 
 
 def read_version():
@@ -67,46 +71,49 @@ def read_version():
 
 
 def version_tuple(raw):
-    """解析时间戳版本号为 (yy, mm, dd, n)；机器形态的 n 为 None。非本体系返回 None。
+    """解析月粒度版本号为 (yy, mm, n)。非本体系（含 prerelease / build metadata /
+    四段 / 前导零）返回 None。
 
-    拒绝 prerelease（`26.9.15-1`）与 build metadata（`26.9.15+1`）：前者会让
-    electron-builder 生成非 latest 通道文件，后者会被工具链剥离（见常量区注释）。
+    拒绝 prerelease（`26.9.0-rc.1`：semver 里比正式版小，electron-updater 会判
+    「无需更新」）与 build metadata（`26.9.0+1`：参与判等，且会被 electron-builder
+    在产物名与 latest.yml 两处剥离——见常量区注释）。
     """
     if not isinstance(raw, str):
         return None
     text = raw.strip()
-    match = _TS_FULL.match(text)
+    match = _CALVER.match(text)
     if match:
         return tuple(int(part) for part in match.groups())
-    match = _TS_MACHINE.match(text)
-    if match:
-        yy, mm, dd = match.groups()
-        return (int(yy), int(mm), int(dd), None)
     return None
 
 
 def next_version(today, existing_tags):
-    """按发布当日生成 `YY.MM.DD.N`；同日已有 tag 时 N 递增（读既有 tag 序列，不落状态文件）。"""
-    ymd = (today.year % 100, today.month, today.day)
+    """按发布当月生成 `YY.MM.N`；当月已有 tag 时 N 递增（读既有 tag 序列，不落状态文件）。
+
+    N 从 0 起：当月第一个发布是 `26.9.0`，hotfix / 同月第二发递增到 `26.9.1`、
+    `26.9.2`；换月重新从 0 起（`26.10.0`）。
+    """
+    ym = (today.year % 100, today.month)
     used = []
     for tag in existing_tags or []:
         parsed = version_tuple(tag[1:] if tag.startswith("v") else tag)
-        if parsed and parsed[:3] == ymd and parsed[3] is not None:
-            used.append(parsed[3])
-    number = max(used) + 1 if used else 1
-    return "%02d.%02d.%02d.%d" % (ymd[0], ymd[1], ymd[2], number)
+        if parsed and parsed[:2] == ym:
+            used.append(parsed[2])
+    number = max(used) + 1 if used else 0
+    return "%d.%d.%d" % (ym[0], ym[1], number)
 
 
 def version_matches_tag(tag, package_version):
-    """闸1 判定：**日期三段一致**。N 不参与——机器版本（YY.M.D）表达不了 N
-    （build metadata 会被 electron-builder 剥离）；同日多版在机器层不可区分是
-    已知取舍，N 只用于 tag / CHANGELOG / 界面命名。"""
-    tag_parsed = version_tuple(tag[1:] if tag.startswith("v") else tag)
-    pkg_parsed = version_tuple(package_version)
+    """闸1 判定：**逐字相等**（tag 去掉 v 前缀后 == package.json 的 version）。
+
+    双形态合一后没有「日期三段一致」的宽松比对——N 已在版本号第三位里，
+    表达得了；hotfix（26.9.1）对已发 26.9.0 就是不同的号，必须 bump 后再打 tag。
+    """
+    tag_version = tag[1:] if tag.startswith("v") else tag
     return (
-        tag_parsed is not None
-        and pkg_parsed is not None
-        and tag_parsed[:3] == pkg_parsed[:3]
+        version_tuple(tag_version) is not None
+        and version_tuple(package_version) is not None
+        and tag_version == package_version
     )
 
 
@@ -139,9 +146,9 @@ def check(version, tag=None, changelog_path=None):
     CHANGELOG 不存在或读取失败（权限 / 占用 / 坏编码）时抛 OSError——由入口层
     映射为退出码 2（契约：文件缺失或读取失败 → 2）。
 
-    时间戳体系（2026-09-15）：tag 与机器版本的比对走 version_matches_tag
-    （日期三段，N 不参与）；CHANGELOG 段名是**发布号**（如 26.09.15.1），
-    有 tag 时用 tag 的号作段名，无 tag（纯本地按机器版本预检）才退回机器形态。
+    月粒度体系（2026-09-24）：tag 与版本号的比对走 version_matches_tag
+    （**逐字相等**）；CHANGELOG 段名 = 版本号（tag 去掉 v 前缀，同一形态），
+    有 tag 时用 tag 的号作段名，无 tag（纯本地按 package.json 预检）才退回版本号。
     """
     lines = []
     ok = True
@@ -176,14 +183,14 @@ def check(version, tag=None, changelog_path=None):
 
 
 def print_next_version():
-    """打印「若今天发布」的时间戳号（只读；写入 package.json 由人工 bump + check 把关）。
+    """打印「若今天发布」的月粒度号（只读；写入 package.json 由人工 bump + check 把关）。
 
     N 的递增来源 = 仓库既有 tag 序列（`git tag --list v*`），不落状态文件；
-    读 tag 失败（不在仓库 / git 不可用）时按「无同日 tag」处理并给出警告。
+    读 tag 失败（不在仓库 / git 不可用）时按「当月无 tag」处理并给出警告。
     """
     parser = argparse.ArgumentParser(
         prog="jobws release version",
-        description="打印「若今天发布」的时间戳号（YY.MM.DD.N）与当前 package.json 版本。")
+        description="打印「若今天发布」的月粒度号（YY.MM.N）与当前 package.json 版本。")
     parser.parse_args()  # 只认 -h/--help；多余参数按用法错误退出（2）
 
     tags = []
@@ -210,7 +217,7 @@ def main():
     parser.add_argument("--version", default=None,
                         help="版本号（默认读 web/electron/package.json）")
     parser.add_argument("--tag", default=None,
-                        help="tag 名（给了就校验与版本一致），如 v26.09.15.1")
+                        help="tag 名（给了就校验与版本一致），如 v26.9.0")
     parser.add_argument("--notes-out", default=None,
                         help="把 Release 说明写到该文件（CI 用）")
     args = parser.parse_args()

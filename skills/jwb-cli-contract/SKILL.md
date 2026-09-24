@@ -4,7 +4,7 @@ description: Use when 设计、新增或审查 jobws 命令行命令时，需要
 compatibility: jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；面向「开发 / 扩展本仓库」的场景；Python 3.12+。
 license: MIT
 metadata:
-  version: 26.9.15
+  version: 26.9.0
 ---
 
 # jobws CLI 契约（新增命令时照此办）

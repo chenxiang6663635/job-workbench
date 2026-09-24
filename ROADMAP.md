@@ -26,9 +26,9 @@ when one exists. Historical implementation records stay in
 
 ## Now — single-release plan (registered 2026-09-15)
 
-**Release practice changed on 2026-09-15**: version numbers are timestamps — the release number is
-`YY.MM.DD.N` (generated on release day, `N` increments for repeat releases on the same day), the
-machine-readable `package.json` version is that day's `YY.M.D`, and the tag is `v<release number>`
+**Release practice changed on 2026-09-24**: version numbers are month-granularity CalVer —
+`YY.MM.N` (`26.9.0` = first release of the month; hotfix locks the first two segments and
+bumps `N`), the same number for the tag, `package.json` and the UI, and the tag is `v<version>`
 (see [CONTRIBUTING.md](CONTRIBUTING.md), section 版本号体系). There is a **single release node**:
 every batch below lands before it, none of them ships on its own, and the whole plan goes out as
 **one timestamped release**. Each batch still lands as its own PR; items below carry a
@@ -70,7 +70,7 @@ conversion is ever required. **判据已成文（2026-09-22）**：四条可核�
 
 - [x] Third-party domain profiles — **shipped in v0.3.0** (PR #103): [`docs/domain-contract.md`](docs/domain-contract.md) is the contribution contract and `jobws lint domains` validates a third-party profile (structure + dictionaries parse), so a new industry plugs in without touching core code
 - [x] **English UI (i18n)** — **shipped 2026-09-13** (details in the [changelog](CHANGELOG.md)): bilingual 简体中文 / English with a header switch, first run follows the system language, choice remembered; the domain enum *values* stay Chinese on purpose (shared contract with the CLI and your data). Closed [#19](https://github.com/chenxiang6663635/job-workbench/issues/19)
-- [x] Richer maintainer automation — **partly shipped in v0.3.0** (PR #103): `jobws release check --tag v26.09.15.1` validates the tag/version match (since 2026-09-15: the date-part rule of the timestamp scheme) and the changelog section, and prints the release notes CI will publish (the workflow assembles the Release body from the changelog). Anything beyond that still has to pay for itself
+- [x] Richer maintainer automation — **partly shipped in v0.3.0** (PR #103): `jobws release check --tag v26.9.0` validates the tag/version match (since 2026-09-24: exact equality under the month-granularity CalVer scheme) and the changelog section, and prints the release notes CI will publish (the workflow assembles the Release body from the changelog). Anything beyond that still has to pay for itself
 - Accessibility and localization beyond zh-CN / en
 - [x] Desktop auto-update (electron-updater) — **shipped in v0.2.1** (asks twice: download, then restart; the first updater-enabled version still needed one manual install)
 - [x] **Real-time application status** — **shipped in v0.3.0**: the research (2026-09-11) found that no recruiting platform exposes a candidate-facing status API, so the answer is local — *paste the email* → parse (which record, what to change, and the sentence it came from) → confirm row by row → write, with a read-only IMAP pull as the optional sync on top (verified against a real mailbox, 2026-09-14). 时间与会议链接的抽取已在 `Now` 段的 **Mail structuring** 条目交付（PR #176）；宣讲会一侧的扩展登记在下方候选池

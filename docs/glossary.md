@@ -17,7 +17,7 @@ CHANGELOG 与各文档里出现的**内部术语**集中在这里定义一次；
 | **规模水位线** | 超规模文件登记的行数上限：只许变小；降到阈值以内时要求删条目（自洁） | `tools/size_allowlist.txt`、CONTRIBUTING |
 | **自洁强制** | 水位降到阈值以内时，检查器报错要求删掉登记条目——防止清单腐化 | CONTRIBUTING「规模预算」 |
 | **单一发布节点** | 中间批次不 bump / 不 tag / 不 Release；全部批次做完后只发布一次 | CONTRIBUTING「版本号体系」 |
-| **发布号 / 机器版本** | 发布号 `YY.MM.DD.N`（tag 与 CHANGELOG 段名）；机器版本 `YY.M.D`（`package.json` 与界面「关于」显示） | CONTRIBUTING「版本号体系」 |
+| **版本号** | 月粒度 CalVer `YY.MM.N`（如 `26.9.0`）：tag、CHANGELOG 段名、`package.json` 与界面「关于」显示同一个号；第三位 N = 当月第几发（hotfix 锁前两位只动 N） | CONTRIBUTING「版本号体系」 |
 | **指纹** | 三类：载荷指纹（令牌绑定载荷）、行指纹（删除落盘前复核那一行）、工作区指纹（界面 10 秒感知外部改动） | 使用手册、CHANGELOG |
 | **应用根 / 数据根 / 允许根** | 路径解析的三个位置概念：模板所在（应用根）、可写数据所在（数据根）、允许访问的根集合（允许根） | CHANGELOG、`jobws_core.pathres` |
 | **静默吞错** | `except: pass` / 空 `catch {}` 一类「出错无声」的写法——仓库禁用它，至少记日志 | CONTRIBUTING「代码卫生」 |

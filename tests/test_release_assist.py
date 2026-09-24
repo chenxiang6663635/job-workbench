@@ -89,16 +89,6 @@ def test_check_reports_missing_section(tmp_path):
     assert any("没有 [9.9.9] 段" in line for line in lines)
 
 
-def test_check_passes_with_released_version(tmp_path):
-    """时间戳体系：机器版本 26.9.15 + tag v26.09.15.1 + CHANGELOG 段 [26.09.15.1]。"""
-    changelog = tmp_path / "CHANGELOG.md"
-    changelog.write_text(SAMPLE.replace("[0.2.2]", "[26.09.15.1]"), encoding="utf-8")
-    ok, lines, notes = release_assist.check(
-        "26.9.15", tag="v26.09.15.1", changelog_path=str(changelog))
-    assert ok
-    assert notes.startswith("## [26.09.15.1]")
-
-
 def test_repo_changelog_smoke():
     """真仓库冒烟：已发布过的 0.2.2 段必须抽得出（防抽取规则漂移）。"""
     with open(release_assist.CHANGELOG, "r", encoding="utf-8-sig") as handle:
@@ -109,10 +99,10 @@ def test_repo_changelog_smoke():
 
 
 def test_read_version_matches_package_json():
-    """版本号唯一来源可达：read_version() 能读到可解析的**时间戳机器形态**（YY.M.D）。"""
+    """版本号唯一来源可达：read_version() 能读到可解析的**月粒度 CalVer**（YY.MM.N）。"""
     version = release_assist.read_version()
     parsed = release_assist.version_tuple(version)
-    assert parsed is not None and parsed[3] is None
+    assert parsed is not None and len(parsed) == 3
 
 
 def test_main_rejects_version_argument_mismatch(tmp_path, monkeypatch, capsys):
@@ -169,53 +159,61 @@ def test_check_raises_when_changelog_missing(tmp_path):
         release_assist.check("0.2.2", changelog_path=str(tmp_path / "nope.md"))
 
 
-# ---- 时间戳版本号（2026-09-15 体系切换：机器版本 YY.M.D / 发布号 YY.MM.DD.N）----
+# ---- 月粒度 CalVer（2026-09-24 体系切换：YY.MM.N，Bitwarden 式）----------------
+# 为什么改：electron-updater 的版本比较直接走 Node semver——实测四段（26.9.15.1）
+# 与月份补零（26.09）都非法（valid → null，比较抛 TypeError / skip tag），旧双形态
+# 「发布号 YY.MM.DD.N / 机器版本 YY.M.D」随之一并作废。
 
 
-def test_version_tuple_accepts_tag_and_machine_forms():
-    assert release_assist.version_tuple("26.09.15.1") == (26, 9, 15, 1)   # tag/CHANGELOG 形态
-    assert release_assist.version_tuple("26.09.15.3") == (26, 9, 15, 3)
-    assert release_assist.version_tuple("26.9.15") == (26, 9, 15, None)   # package.json 形态
-    assert release_assist.version_tuple("0.3.2") is None                  # 旧语义化号不认
-    assert release_assist.version_tuple("26.9.15-1") is None              # prerelease 明确拒绝
-    assert release_assist.version_tuple("26.9.15+1") is None              # build metadata 明确拒绝（实测会被剥离）
+def test_version_tuple_accepts_month_form():
+    assert release_assist.version_tuple("26.9.0") == (26, 9, 0)       # 当月首发（N 从 0 起）
+    assert release_assist.version_tuple("26.9.15") == (26, 9, 15)     # 同月第 16 发（格式合法）
+    assert release_assist.version_tuple("26.10.2") == (26, 10, 2)     # 换月
+    assert release_assist.version_tuple("26.09.0") is None            # 月份前导零：semver 禁止
+    assert release_assist.version_tuple("26.9.01") is None            # N 前导零：semver 禁止
+    assert release_assist.version_tuple("26.99.0") is None            # 月份范围校验照旧
+    assert release_assist.version_tuple("26.9.15.1") is None          # 四段：非法 semver（electron-updater 实测）
+    assert release_assist.version_tuple("26.9.0-rc.1") is None        # prerelease 明确拒绝（semver 里比正式版小）
+    assert release_assist.version_tuple("26.9.0+1") is None           # build metadata 明确拒绝（参与判等且会被剥离）
+    assert release_assist.version_tuple("0.3.2") is None              # 旧语义化号不认
 
 
-def test_next_version_first_of_day():
-    assert release_assist.next_version(date(2026, 9, 15), []) == "26.09.15.1"
+def test_next_version_first_of_month():
+    assert release_assist.next_version(date(2026, 9, 15), []) == "26.9.0"
 
 
-def test_next_version_increments_within_same_day():
-    tags = ["v26.09.15.1", "v26.09.15.2", "v26.09.14.7"]
-    assert release_assist.next_version(date(2026, 9, 15), tags) == "26.09.15.3"
+def test_next_version_increments_within_same_month():
+    tags = ["v26.9.0", "v26.9.1", "v26.8.2"]
+    assert release_assist.next_version(date(2026, 9, 20), tags) == "26.9.2"
 
 
-def test_next_version_ignores_other_days_and_foreign_tags():
-    tags = ["v26.09.14.9", "v0.3.2", "not-a-tag"]
-    assert release_assist.next_version(date(2026, 10, 5), tags) == "26.10.05.1"
+def test_next_version_resets_across_months():
+    tags = ["v26.9.0", "v26.9.1", "v26.9.2", "v0.3.2", "not-a-tag"]
+    assert release_assist.next_version(date(2026, 10, 5), tags) == "26.10.0"
 
 
-def test_version_matches_tag_compares_date_only():
-    """比对日期三段；N 不参与（机器版本表达不了 N——build metadata 会被 electron-builder 剥离）。"""
-    assert release_assist.version_matches_tag("v26.09.15.1", "26.9.15")
-    assert release_assist.version_matches_tag("v26.09.15.2", "26.9.15")   # 同日多版：机器层不可区分（已知取舍）
-    assert not release_assist.version_matches_tag("v26.09.16.1", "26.9.15")
-    assert not release_assist.version_matches_tag("v0.3.2", "26.9.15")
+def test_version_matches_tag_is_exact():
+    """tag 去掉 v 前缀后与 package.json version **逐字相等**——双形态合一后不再有
+    「日期三段一致」的宽松比对（N 已在版本号第三位里，表达得了）。"""
+    assert release_assist.version_matches_tag("v26.9.0", "26.9.0")
+    assert release_assist.version_matches_tag("26.9.1", "26.9.1")     # 不带 v 前缀的 tag 也按 tag 处理
+    assert not release_assist.version_matches_tag("v26.9.1", "26.9.0")
+    assert not release_assist.version_matches_tag("v0.3.2", "26.9.0")
 
 
-def test_check_accepts_machine_version_against_timestamp_tag(tmp_path):
-    """package.json 是 26.9.15（机器形态），tag 是 v26.09.15.1 —— 判为一致；段名用发布号。"""
+def test_check_passes_with_month_form(tmp_path):
+    """月粒度：机器版本 26.9.0 + tag v26.9.0 + CHANGELOG 段 [26.9.0] 三者同名。"""
     changelog = tmp_path / "CHANGELOG.md"
-    changelog.write_text(SAMPLE.replace("[0.2.2]", "[26.09.15.1]"), encoding="utf-8")
+    changelog.write_text(SAMPLE.replace("[0.2.2]", "[26.9.0]"), encoding="utf-8")
     ok, lines, notes = release_assist.check(
-        "26.9.15", tag="v26.09.15.1", changelog_path=str(changelog))
-    assert ok and notes.startswith("## [26.09.15.1]")
+        "26.9.0", tag="v26.9.0", changelog_path=str(changelog))
+    assert ok and notes.startswith("## [26.9.0]")
 
 
-def test_check_rejects_wrong_date(tmp_path):
-    """日期不同（26.9.15 vs v26.09.16.1）→ 不一致（段 [26.09.16.1] 不存在，两处都报）。"""
+def test_check_rejects_wrong_month_patch(tmp_path):
+    """26.9.0 vs tag v26.9.1 → 逐字不等 → 不一致（第三位是 hotfix 序号，不是可忽略段）。"""
     changelog = tmp_path / "CHANGELOG.md"
     changelog.write_text(SAMPLE, encoding="utf-8")
     ok, lines, notes = release_assist.check(
-        "26.9.15", tag="v26.09.16.1", changelog_path=str(changelog))
+        "26.9.0", tag="v26.9.1", changelog_path=str(changelog))
     assert not ok and any("不一致" in line for line in lines)

@@ -39,7 +39,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import application_delete, applications, approvals, dashboard, imap, imap_facts, jobs, library, prep, progress, provider, resume, sync, system, workspace  # noqa: E402
+from routers import application_delete, applications, approvals, dashboard, imap, imap_facts, jobs, library, prep, progress, provider, resume, snapshot, sync, system, workspace  # noqa: E402
 
 # ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
 #
@@ -179,6 +179,7 @@ app.include_router(imap.router)
 app.include_router(imap_facts.router)  # 邮件解析（批 9；imap.py 水位只许降故单开）
 app.include_router(resume.router)
 app.include_router(system.router)
+app.include_router(snapshot.router)  # 快照还原与演练（笔 2；system.py 水位只许降故单开）
 app.include_router(sync.router)  # 批 8：工作区版本指纹（GUI 端同步用）
 app.include_router(prep.router)  # 笔记：03_面试准备 / 04_知识库 只读浏览
 
@@ -190,8 +191,8 @@ def health():
 
 # ---- 前端静态产物同源托管（Electron 桌面壳）----
 # 若 web/frontend/dist 存在，则挂载为静态站点：`/` 返回 index.html，
-# API 仍在 /api。这样 Electron 页面与 API 同源，无 CORS 问题，
-# 前端 api.ts 的相对路径 /api/... 在 dev（走 vite proxy）与生产（同源）都无需改动。
+# API 仍在 /api（Electron 页面与 API 同源，无 CORS）：前端 api.ts 的相对路径
+# /api/... 在 dev（vite proxy）与生产都无需改动。
 # 必须放在所有 API 路由注册之后，保证 /api 优先匹配。
 DIST_DIR = pathres.resolve_dist_dir(ROOT)
 if os.path.isfile(os.path.join(DIST_DIR, "index.html")):

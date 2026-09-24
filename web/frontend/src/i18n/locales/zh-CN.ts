@@ -637,6 +637,28 @@ const zhCN = {
   "settings.workspace": "工作区：",
   "settings.neverBackup": "从未备份",
   "settings.snapshotNote": "快照刻意存放在工作区之外——与源数据同盘同目录的备份会被误删、被 git、被同步工具一并波及。导出包含简历与个人信息，不含应用外的快照。",
+  // 快照还原与演练（收口批 笔 2）：演练只读、还原不删东西、先落回滚点——文案按这三条写
+  "settings.snapshotListTitle": "可还原的快照",
+  "settings.snapshotEmpty": "还没有快照——先点上方「立即备份」，之后就能在这里演练与还原。",
+  "settings.snapshotFileCount": "{{n}} 个文件",
+  "settings.snapshotDrill": "演练",
+  "settings.snapshotDrilling": "演练中…",
+  "settings.snapshotPreparing": "准备中…",
+  "settings.snapshotDrillFor": "演练结果：{{name}}",
+  "settings.snapshotOverwrite": "覆盖 {{n}} 个",
+  "settings.snapshotAdd": "补齐 {{n}} 个",
+  "settings.snapshotSame": "已经是这个版本 {{n}} 个",
+  "settings.snapshotKept": "当前有 {{n}} 个文件不在这份快照里——还原不会删除它们。",
+  "settings.snapshotKeptExamples": "例如：{{list}}",
+  "settings.snapshotNothingToDo": "这份快照与当前内容一致，无需还原。",
+  "settings.snapshotDrillHint": "演练是只读的：不改动任何文件，也不产生新的快照。",
+  "settings.snapshotRestore": "还原",
+  "settings.snapshotRestoreTitle": "还原到这份快照？",
+  "settings.snapshotRestoreDesc": "将覆盖 {{overwrite}} 个文件、补齐 {{add}} 个文件；不在快照里的 {{kept}} 个文件保留不动。开始前会自动先给当前状态做一份快照（可回滚）。",
+  "settings.snapshotRestoreConfirm": "还原到此刻",
+  "settings.snapshotRestoreWord": "还原",
+  "settings.snapshotChallengeLabel": "输入「{{word}}」以确认",
+  "settings.snapshotRestoreDone": "已还原：覆盖 {{restored}} 个、补齐 {{added}} 个、未变 {{same}} 个；回滚点：{{rollback}}（在系统快照目录里）",
 
   // 数据位置卡片：数据根 + 模式（便携 = 应用旁；用户目录 = 安装到不可写位置时的回退）
   "settings.dataLocTitle": "数据位置",
@@ -979,6 +1001,14 @@ const zhCN = {
   // 后者明确不给（自签名或被劫持，两条路的答案都不是关校验）。
   "err.sys.certStoreUnavailable": "本机证书库加载失败，无法校验证书，已拒绝连接（凭证不能在未校验的连接上发送）。排查：用 certmgr.msc 查看损坏的证书条目；确需临时跳过校验时，按功能设置 JOBWS_HTTP_TLS 或 JOBWS_IMAP_TLS=insecure（不推荐，风险自负）",
   "err.sys.certUntrusted": "证书校验失败：系统证书库不信任 {{host}} 的证书（可能自签名，也可能被中间人劫持）。不要为它关闭校验，请改用可信端点或检查网络环境",
+  // 快照还原与演练（笔 2）：演练只读、还原不删东西、先落回滚点——文案按这三条写
+  "err.sys.snapshotName": "快照名不合法：{{name}}（只接受快照目录里的 .zip 文件名）",
+  "err.sys.snapshotNotFound": "快照不存在：{{name}}",
+  "err.sys.snapshotCorrupt": "快照已损坏或被截断，无法还原（请在「打开数据目录」里查看系统快照目录，或换一份快照）",
+  "err.sys.snapshotEntry": "快照里有越出工作区的条目：{{entry}}——已拒绝，工作区未做任何改动",
+  "err.sys.snapshotTooLarge": "快照解压总量过大（{{size}} 字节，上限 {{limit}} 字节）——已拒绝，工作区未做任何改动",
+  "err.sys.snapshotTooManyEntries": "快照条目过多（{{count}} 条，上限 {{limit}} 条）——已拒绝，工作区未做任何改动",
+  "err.sys.snapshotFailed": "还原前的留痕写不出来——已中止，工作区未做任何改动",
 
   "err.provider.baseUrlInvalid": "服务地址（Base URL）必须以 http:// 或 https:// 开头",
   "err.provider.needBaseUrl": "请先保存模型服务（Provider）的服务地址（Base URL）",

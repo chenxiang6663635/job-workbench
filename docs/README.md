@@ -78,10 +78,17 @@
 
 ## 领域插件
 
+**`init --domain` 该选哪个**——按专业对号入座（详情点进各插件的 `profile.md`）：
+
+| 插件 ID | 适用人群 | 覆盖岗位 |
+|---|---|---|
+| `hvac-cooling` | 建环、暖通、能动、制冷及相关专业 | 数据中心冷却/热管理、IDC 基础设施、空调制冷研发、暖通设计、建筑节能、液冷产品、储能热管理 |
+| `software-backend` | 计算机、软件工程、数据科学及相关专业 | 后端开发、服务端开发、数据工程、大数据开发、平台工程 |
+
 | 文件 | 说明 |
 |---|---|
-| [`../template/profiles/hvac-cooling/profile.md`](../template/profiles/hvac-cooling/profile.md) | 暖通制冷与数据中心冷却插件 |
-| [`../template/profiles/software-backend/profile.md`](../template/profiles/software-backend/profile.md) | 软件后端与数据工程插件（用于验证跨领域可扩展性） |
+| [`../template/profiles/hvac-cooling/profile.md`](../template/profiles/hvac-cooling/profile.md) | 暖通制冷与数据中心冷却插件（内置方向：`datacenter`、`hvac`、`thermal-management`、`thermal-fluid-cfd`、`thermal-design-cae`、`energy-storage-thermal`） |
+| [`../template/profiles/software-backend/profile.md`](../template/profiles/software-backend/profile.md) | 软件后端与数据工程插件（内置方向：`backend`、`data`；用于验证跨领域可扩展性） |
 
 新增领域只需新增一个插件目录，无需改代码——**契约全文见 [`domain-contract.md`](domain-contract.md)**（结构、格式、边界与校验方式）；提交前跑 `python tools/jobws.py lint domains`（CI 同一实现）。
 

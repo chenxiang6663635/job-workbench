@@ -29,6 +29,10 @@ export default function JobDetailView({
 }) {
   const { t } = useTranslation();
   const gates = detail.card?.hardGates;
+  // 「待补档案」时点名缺的档案字段（值仍是 [待填] 的硬门槛字段），指向 AGENTS.md
+  const missingFacts = (gates?.items ?? [])
+    .filter((it) => (it.value || "").includes("待填"))
+    .map((it) => it.key);
 
   return (
     <div className="space-y-4">
@@ -62,6 +66,12 @@ export default function JobDetailView({
               <span className="text-xs text-destructive">
                 {t("job.gateReason", { reason: gates.reason })}
               </span>
+            )}
+            {/* 待补档案 ≠ 待确认：这里要给出"缺什么、去哪补"的可操作提示 */}
+            {gates.conclusion === "待补档案" && missingFacts.length > 0 && (
+              <p className="w-full text-xs text-warning">
+                {t("job.gateMissingHint", { fields: missingFacts.join("、") })}
+              </p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">

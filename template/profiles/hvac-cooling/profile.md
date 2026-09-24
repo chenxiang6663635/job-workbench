@@ -6,7 +6,7 @@
 | 名称 | 暖通制冷与数据中心冷却 |
 | 适用人群 | 建环、暖通、能动、制冷及相关专业的应届生与社招候选人 |
 | 覆盖岗位 | 数据中心冷却/热管理、IDC 基础设施、空调制冷研发、暖通设计、建筑节能、液冷产品、储能热管理 |
-| 内置方向 | `datacenter`（数据中心冷却/热管理）、`hvac`（空调制冷/HVAC 优化） |
+| 内置方向 | `datacenter`（数据中心冷却/热管理）、`hvac`（空调制冷/HVAC 优化）、`thermal-management`（电子/服务器热管理）、`thermal-fluid-cfd`（热流体仿真/CFD）、`thermal-design-cae`（热设计/CAE）、`energy-storage-thermal`（储能/电池热管理） |
 | 建立日期 | 2026-08-30 |
 
 ## 结构

@@ -1,6 +1,6 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { FolderOpen, HardDrive, Info, Languages, Monitor } from "lucide-react";
+import { FolderOpen, HardDrive, Languages, Monitor } from "lucide-react";
 import { LANGS } from "../i18n";
 import {
   getPrefs,
@@ -18,6 +18,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import ThemePicker from "../components/ThemePicker";
 import DataPrivacyCard from "../components/settings/DataPrivacyCard";
+import AboutCard from "../components/settings/AboutCard";
 import ImapCard from "../components/settings/ImapCard";
 import ProviderCard from "../components/settings/ProviderCard";
 import SettingsTools from "../components/settings/SettingsTools";
@@ -291,49 +292,9 @@ export default function Settings() {
           </div>
         </Card>
 
-        {/* 关于：应用版本 / 运行平台（时间戳体系 2026-09-15）。数据来自 /api/system/paths
-            的 appVersion / platform——打包版由 Electron 注入版本、开发模式后端回退读
-            package.json；缺失显示「未知」，不编造。显示的是**机器版本**（YY.M.D）：
-            N 只在打 tag 那一刻存在，运行时无从派生，发布号请查 tag / CHANGELOG 段名。 */}
-        <Card className={cn("space-y-4 p-5", hide("about"))}>
-          <CardHeader className="p-0">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Info size={16} className="text-primary" /> {t("settings.aboutTitle")}
-            </CardTitle>
-          </CardHeader>
-
-          {pathsError ? (
-            <p className="text-[11px] text-destructive">
-              {t("settings.pathsFailed", { error: pathsError })}
-            </p>
-          ) : !paths ? (
-            <Skeleton className="h-10 w-full" />
-          ) : (
-            <div className="space-y-1.5">
-              <p className="flex flex-wrap items-baseline gap-2">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("settings.aboutVersion")}
-                </span>
-                <span className="font-mono text-lg font-semibold text-foreground">
-                  {paths.appVersion || t("settings.aboutUnknown")}
-                </span>
-              </p>
-              <dl className="space-y-1 text-[11px] text-muted-foreground">
-                <div className="flex flex-wrap gap-1.5">
-                  <dt className="text-muted-foreground">{t("settings.aboutPlatform")}</dt>
-                  <dd className="text-muted-foreground">
-                    {({ win32: "Windows", darwin: "macOS", linux: "Linux" } as Record<string, string>)[
-                      paths.platform
-                    ] || paths.platform || t("settings.aboutUnknown")}
-                  </dd>
-                </div>
-              </dl>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {t("settings.aboutNote")}
-              </p>
-            </div>
-          )}
-        </Card>
+        {/* 关于卡已拆到 components/settings/AboutCard.tsx（评分放宽批：加使用手册
+            入口时顺带抽取——桌面端与 Web 共用这套前端，文档入口两端同时获得） */}
+        <AboutCard paths={paths} pathsError={pathsError} hidden={!cards.has("about")} />
 
         {/* 数据与隐私卡已拆到 components/settings/DataPrivacyCard.tsx（收口批 笔 2）：
             导出 / 备份 / 打开目录 + 快照列表与还原。拆出去的直接原因是这张卡要长——

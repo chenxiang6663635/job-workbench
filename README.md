@@ -68,7 +68,8 @@ All pages below run on generated demo data (`jobws init --demo`); companies, rol
 python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
-python tools/jobws.py init --target my_job_hunt --domain software-backend
+#    Swap --domain for your own field — see the "Domain profiles" table in docs/README.md
+python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
 
 # 2. Distribute skills / commands / subagents to your AI CLI
 #    (CodeBuddy / Claude Code / cross-runtime ~/.agents/skills/)

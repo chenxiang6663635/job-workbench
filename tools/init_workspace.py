@@ -66,6 +66,25 @@ def list_domains():
                   if os.path.isdir(os.path.join(PROFILES, d)))
 
 
+def list_domain_audience():
+    """domain id → 一句话适用人群（读插件 profile.md 的「适用人群」表格行）。
+
+    init 未指定 --domain 时打印这张表：选插件需要的依据（适用人群）此前
+    只在 init 之后的 profile.md 里，新人选型时还没拿到（鸡生蛋）。
+    """
+    out = {}
+    for d in list_domains():
+        path = os.path.join(PROFILES, d, "profile.md")
+        if not os.path.isfile(path):
+            continue
+        with io.open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip().startswith("| 适用人群"):
+                    out[d] = line.split("|")[2].strip()
+                    break
+    return out
+
+
 def demo_counts():
     """按 demo 骨架里的实际数据统计，而不是把数字写死在提示里。
 
@@ -364,8 +383,9 @@ def main():
         if demo and not args.domain:
             print("--demo 未指定 --domain，默认装入 %s" % domain)
     else:
-        print("未指定 --domain，稍后手动复制插件到 config/ 即可")
-        print("可用插件：%s" % "、".join(list_domains()))
+        print("未指定 --domain，稍后手动复制插件到 config/ 即可；选型参考：")
+        for did, audience in list_domain_audience().items():
+            print("  %s — %s" % (did, audience))
 
     if demo:
         if domain and domain != DEMO_DEFAULT_DOMAIN:

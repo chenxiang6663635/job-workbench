@@ -38,6 +38,14 @@ npm install
 python tools/jobws.py init --target personal --domain hvac-cooling
 ```
 
+> Swap in your own domain: see the "Domain profiles" table in [`docs/README.md`](README.md) (with target audiences) for valid `--domain` values.
+
+**Distribute the AI workflows to your AI CLI (desktop-installer users need this once too)** — the scoring / application / tracking skills are delivered by this step; without it the web UI works but the AI side has no workflows:
+
+```bash
+python tools/jobws.py skills install --target user
+```
+
 If you just want to see what it looks like without filling in any real information, use `--demo`:
 
 ```bash
@@ -45,6 +53,16 @@ python tools/jobws.py init --target demo --demo
 ```
 
 That also lays down a full set of placeholder data (8 applications / 3 interviews / 2 contacts / 1 offer / 3 talks & job fairs / 6 question-bank items / 2 parsed JD cards / 1 resume). Every company and person name is fake, so you can click around or take screenshots safely; the `software-backend` domain profile is installed by default because the demo data's "direction" field depends on it. Once it is running, pick `demo` from the workspace dropdown in the top-right corner.
+
+### Fill in your profile: AGENTS.md (the prerequisite for scoring)
+
+After init, `AGENTS.md` appears at the workspace root (template and per-item notes in `template/AGENTS.example.md`). **Section 3, "Hard-gate facts", must be filled** — degree / major / graduation year / English / city; it is the **single source of facts** for the eligibility gate:
+
+- **If left unfilled**: jobs whose fields stay `[待填]` are classified "awaiting profile facts" — not scored, not terminated, but with no verdict either;
+- **Once filled**: the gate judges on facts, and only a definite mismatch terminates;
+- **City requirements come in two tiers**: hard infeasibility (local hukou required, long-term field posting) terminates; preferences like "local candidates preferred" only deduct a few points from "Growth & stability" (-3 / -5, capped at 5 in total) instead of vetoing.
+
+Section 5 carries your custom honesty red lines (two by default: every resume verb must survive questioning; never fabricate experience) — append as needed.
 
 ---
 

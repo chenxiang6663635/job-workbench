@@ -306,7 +306,7 @@ export interface JobSummary {
   applicationId: string | null;
 }
 
-export type GateConclusion = "通过" | "不通过" | "待确认" | null;
+export type GateConclusion = "通过" | "不通过" | "待补档案" | "待确认" | null;
 export type EvidenceLevel = "精确" | "模糊" | "语义" | null;
 export type DictLevel = "Primary" | "Secondary" | "Weak" | null;
 

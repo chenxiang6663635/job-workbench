@@ -19,6 +19,7 @@ import io
 import os
 import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -41,8 +42,13 @@ WORKSPACE_MARKER = "工作区里的真实内容不该进诊断包"
 def client(tmp_path, monkeypatch):
     monkeypatch.delenv("JOBWS_DATA_DIR", raising=False)
     monkeypatch.setenv("JOBWS_WORKSPACE", WS)
+    # 用户数据目录：Windows 看 APPDATA、POSIX 看 XDG_DATA_HOME——**两个都要设**，
+    # 否则一上 CI（Ubuntu）就指到真实用户目录（首跑就是这么红的）。
     monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "appdata"))
+    # 家目录同理：Windows 看 USERPROFILE、POSIX 看 HOME
     monkeypatch.setenv("USERPROFILE", HOME)
+    monkeypatch.setenv("HOME", HOME)
     monkeypatch.setattr(deps, "ROOT", str(tmp_path))
     (tmp_path / WS).mkdir()
 
@@ -59,8 +65,11 @@ def _make_workspace(tmp_path):
     (ws / "01_岗位池" / "note.md").write_text(WORKSPACE_MARKER, encoding="utf-8")
 
 
-def _write_log(tmp_path, text):
-    user_data = tmp_path / "appdata" / "job-workbench"
+def _write_log(_tmp_path, text):
+    """日志写在**应用自己认的那个**用户目录里（问它要，而不是按平台猜路径）。"""
+    from jobws_core import pathres
+
+    user_data = Path(pathres.user_data_dir())
     user_data.mkdir(parents=True, exist_ok=True)
     (user_data / "main.log").write_text(text, encoding="utf-8")
 

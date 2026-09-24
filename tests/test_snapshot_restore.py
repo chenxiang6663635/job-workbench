@@ -20,6 +20,7 @@ import os
 import sys
 import time
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -39,7 +40,10 @@ def client(tmp_path, monkeypatch):
     # 默认工作区指向本用例的工作区：否则不带 ?ws= 的请求会静默落到 personal/
     # （第一版就是这么红的——所有用例都报"快照不存在"，而快照明明写下去了）
     monkeypatch.setenv("JOBWS_WORKSPACE", WS)
+    # 用户数据目录：Windows 看 APPDATA、POSIX 看 XDG_DATA_HOME——**两个都要设**，
+    # 否则 CI（Ubuntu）上快照会写进真实用户目录，而用例去临时目录里找（首跑就这么红）
     monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "appdata"))
     monkeypatch.setattr(deps, "ROOT", str(tmp_path))
     (tmp_path / WS).mkdir()
 
@@ -65,8 +69,15 @@ def _write(tmp_path, rel, text):
     return path
 
 
-def _snap_dir(tmp_path):
-    return tmp_path / "appdata" / "job-workbench" / "snapshots" / WS
+def _snap_dir(_tmp_path=None):
+    """快照目录：**问应用要**（`pathres.snapshot_root()`），不按平台猜。
+
+    Windows 落在 `%APPDATA%\\job-workbench\\snapshots`、POSIX 落在 `$XDG_DATA_HOME/job-workbench/snapshots`；
+    按平台猜路径会让用例在 CI（Ubuntu）上去临时目录里找一份写在别处的快照。
+    """
+    from jobws_core import pathres
+
+    return Path(pathres.snapshot_root()) / WS
 
 
 def _make_snapshot(tmp_path, files, name="ws-ok-20260923-220000-000000.zip"):

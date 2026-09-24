@@ -616,6 +616,9 @@ export default {
   "settings.entryZoom": "Zoom",
   "settings.entryLang": "Interface language",
   "settings.entryReminders": "Due reminders",
+  // The label describes what the switch IS; the state lives in aria-pressed
+  "settings.toggleOn": "On",
+  "settings.toggleOff": "Off",
   "settings.backupDone": "Backed up {{files}} files ({{size}} KB), kept {{kept}}, dropped {{removed}}",
   "settings.pathsFailed": "Could not read path info: {{error}}",
   "settings.lastBackup": "Last backup: {{time}} ({{count}} snapshots)",

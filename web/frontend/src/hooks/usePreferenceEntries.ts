@@ -26,6 +26,7 @@ import {
   getPrefs,
   hasDesktopPrefs,
   onZoomChanged,
+  setReminders,
   setZoomLevel,
   type PrefsSnapshot,
 } from "../lib/prefs";
@@ -156,7 +157,21 @@ export function usePreferenceEntries(): {
             },
           }
         : null,
-    reminders: null, // 提醒通道在笔 5 接上（届时 prefs 会带回 reminders 字段）
+    // 笔 5：到点提醒（默认开；真值在主进程，它才是发通知的那一方）
+    reminders:
+      hasDesktopPrefs() && prefs
+        ? {
+            value: prefs.reminders,
+            def: true,
+            display: prefs.reminders ? i18n.t("settings.toggleOn") : i18n.t("settings.toggleOff"),
+            reset: () => {
+              void (setReminders(true) ?? Promise.resolve()).then(refresh);
+            },
+            set: (next: boolean) => {
+              void (setReminders(next) ?? Promise.resolve()).then(refresh);
+            },
+          }
+        : null,
   };
 
   return { entries: buildPreferenceEntries(sources), refresh, version };

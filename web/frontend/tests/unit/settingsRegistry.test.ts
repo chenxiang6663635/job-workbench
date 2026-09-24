@@ -59,13 +59,15 @@ describe("buildPreferenceEntries", () => {
     const entries = buildPreferenceEntries(
       sources({
         zoom: { value: 1, def: 0, display: "120%", reset: vi.fn() },
-        reminders: { value: false, def: false, display: "off", reset: vi.fn() },
+        reminders: { value: false, def: false, display: "off", reset: vi.fn(), set: vi.fn() },
       })
     );
     const byId = Object.fromEntries(entries.map((entry) => [entry.id, entry]));
     expect(byId.zoom.modified).toBe(true);
     expect(byId.zoom.cardId).toBe("zoom");
     expect(byId.reminders.modified).toBe(false);
+    // 布尔项带开关：卡片据此渲染成开关而不是只读值
+    expect(byId.reminders.toggle).toEqual({ on: false, set: expect.any(Function) });
   });
 
   it("还原回调原样带出（登记表不替调用方做决定）", () => {

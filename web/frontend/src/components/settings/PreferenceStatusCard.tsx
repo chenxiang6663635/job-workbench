@@ -72,15 +72,31 @@ export default function PreferenceStatusCard({
                 {entry.value} · {t(EFFECT_KEYS[entry.effect])}
               </p>
             </div>
-            {entry.modified && entry.reset && (
-              <Button
-                variant="outline"
-                className="h-7 shrink-0 px-2.5 text-[11px]"
-                onClick={() => onReset(entry)}
-              >
-                <RotateCcw size={12} /> {t("settings.statusResetOne")}
-              </Button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {/* 布尔项渲染成开关（aria-pressed + 文案不随状态改：无障碍纪律） */}
+              {entry.toggle && (
+                <Button
+                  variant={entry.toggle.on ? "default" : "outline"}
+                  className="h-7 px-2.5 text-[11px]"
+                  aria-pressed={entry.toggle.on}
+                  aria-label={t("settings.entryReminders")}
+                  onClick={() => entry.toggle?.set(!entry.toggle.on)}
+                >
+                  {entry.toggle.on
+                    ? t("settings.toggleOn")
+                    : t("settings.toggleOff")}
+                </Button>
+              )}
+              {entry.modified && entry.reset && (
+                <Button
+                  variant="outline"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => onReset(entry)}
+                >
+                  <RotateCcw size={12} /> {t("settings.statusResetOne")}
+                </Button>
+              )}
+            </div>
           </div>
         ))}
       </div>

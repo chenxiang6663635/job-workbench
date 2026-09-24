@@ -43,6 +43,12 @@ const TABLES = {
     backendMissingPythonTitle: "Backend not found",
     backendMissingPythonMessage:
       "Neither the bundled backend nor a usable Python was found. Install Python 3.12+ with FastAPI and uvicorn, or set JOBWS_PYTHON to an interpreter that has them.",
+    reminderTitle: "Job Workbench · due today",
+    reminderOverdue: "{company} {position} — deadline passed ({date})",
+    reminderTodo: "{company} {position} · {date}",
+    reminderTodoNote: "{company} {position} · {date} · {note}",
+    reminderTalk: "{company} · talk at {time}",
+    reminderMore: "{count} more",
   },
   "zh-CN": {
     windowTitle: "求职工作台",
@@ -71,6 +77,12 @@ const TABLES = {
     backendMissingPythonTitle: "找不到后端",
     backendMissingPythonMessage:
       "既没有随包的后端程序，也没找到可用的 Python。请安装 Python 3.12+ 与 FastAPI / uvicorn，或用 JOBWS_PYTHON 指向具备这些依赖的解释器。",
+    reminderTitle: "求职工作台 · 今日提醒",
+    reminderOverdue: "{company} {position}：已过截止（{date}）",
+    reminderTodo: "{company} {position} · {date}",
+    reminderTodoNote: "{company} {position} · {date} · {note}",
+    reminderTalk: "{company} · 宣讲会 {time}",
+    reminderMore: "等 {count} 项",
   },
 };
 

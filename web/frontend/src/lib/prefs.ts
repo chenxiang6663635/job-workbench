@@ -12,12 +12,18 @@ export interface PrefsSnapshot {
   step: number;
   percent: number;
   lang: string;
+  /** 到点提醒开关（笔 5）：真值在主进程——它才是发通知的那一方 */
+  reminders: boolean;
+  /** 渲染进程上报过的工作区（空串 = 未上报，后端按默认工作区查） */
+  workspace: string;
 }
 
 interface JobwsPrefs {
   get(): Promise<PrefsSnapshot>;
   setZoomLevel(level: number, persist?: boolean): Promise<{ level: number; percent: number }>;
   setLang(lang: string): Promise<{ lang: string }>;
+  setWorkspace(ws: string): Promise<{ workspace: string }>;
+  setReminders(enabled: boolean): Promise<{ reminders: boolean }>;
   onZoomChanged(cb: (payload: { level: number; percent: number }) => void): () => void;
 }
 
@@ -45,6 +51,27 @@ export function setZoomLevel(level: number, persist = true) {
 /** 上报界面语言：主进程据此渲染窗口标题与更新对话框（见 web/electron/i18n.js 顶部）。 */
 export function reportLang(lang: string) {
   return window.jobwsPrefs?.setLang(lang);
+}
+
+/**
+ * 通道句柄：无 `window` 的环境（vitest 单测——本仓刻意不装 jsdom）与浏览器形态都返回 undefined。
+ *
+ * 为什么这一条要显式判 `typeof window`：`setWorkspace` 是 lib/http 里**每个请求都会走**的
+ * 函数，它现在顺带上报工作区；少了这层判断，单测里第一次 setWorkspace 就 ReferenceError
+ * （http.test.ts 13 条全红就是这么来的）。
+ */
+function prefsBridge() {
+  return typeof window === "undefined" ? undefined : window.jobwsPrefs;
+}
+
+/** 上报当前工作区：主进程的到点提醒按它查询（多工作区用户才不会收到默认工作区的提醒）。 */
+export function reportWorkspace(ws: string) {
+  return prefsBridge()?.setWorkspace(ws);
+}
+
+/** 到点提醒开关：真值在主进程（它发通知），这里只表达意图。 */
+export function setReminders(enabled: boolean) {
+  return prefsBridge()?.setReminders(enabled);
 }
 
 /** 订阅缩放变化（来自快捷键或其它窗口）；无通道时是空订阅。

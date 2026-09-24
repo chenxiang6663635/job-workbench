@@ -4,7 +4,7 @@
 // 前端静态产物由 FastAPI 同源托管（web/frontend/dist），无需 vite dev server，
 // 也无需放宽 CORS —— 页面与 API 同源。
 
-const { app, BrowserWindow, dialog, ipcMain, screen, session, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Notification, screen, session, shell } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
 const path = require("path");
@@ -125,6 +125,9 @@ ipcMain.handle("prefs:get", () => ({
   step: ZOOM_STEP,
   percent: levelToPercent(zoomLevel),
   lang: resolvedLang(),
+  // 笔 5：到点提醒开关的真值也在这里（它是主进程在发通知）
+  reminders: reminderState.enabled,
+  workspace: reportedWorkspace,
 }));
 
 // 缩放变更的唯一写入口：快捷键与设置页滑块都走这里（夹取 → 应用 → 可选落盘/广播）。
@@ -438,6 +441,124 @@ function restoredWindowBounds() {
   return clampToWorkArea(loadWindowState(), screen.getAllDisplays().map((d) => d.workArea));
 }
 
+// ---- 到点提醒（笔 5）------------------------------------------------------------
+// 「面试 / 下次动作到期」的最小形态：窗口就绪后与运行期内每 6 小时问一次后端
+// `/api/reminders/due`，够条件就发一条系统通知（同一天只提醒一次）。
+//
+// **不做常驻、不建托盘**：关窗即停，与「无后台路径」这条红线一致——本地优先的工具不该在
+// 用户以为已经退出之后还留着东西跑。判定（该不该提醒 / 正文怎么排）全在 reminders.js，
+// 纯函数、有单测、CI 跑。
+const {
+  buildNotification,
+  nextState,
+  shouldNotify,
+  todayKey,
+} = require("./reminders");
+
+const REMINDER_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 小时
+let reminderState = { enabled: true, lastNotified: "" };
+let reminderTimer = null;
+// 渲染进程上报的当前工作区（真值在它的 localStorage 里）：不报就按后端默认工作区查
+let reportedWorkspace = "";
+
+function remindersPath() {
+  return path.join(app.getPath("userData"), "reminders.json");
+}
+
+function loadReminders() {
+  try {
+    const data = JSON.parse(fs.readFileSync(remindersPath(), "utf-8"));
+    reminderState = {
+      enabled: data.enabled !== false,
+      lastNotified: String(data.lastNotified || ""),
+    };
+  } catch (e) {
+    // 首次运行没有这个文件；文件损坏也按默认（开着、今天没提醒过）处理
+    reminderState = { enabled: true, lastNotified: "" };
+  }
+}
+
+function saveReminders() {
+  try {
+    fs.mkdirSync(path.dirname(remindersPath()), { recursive: true });
+    fs.writeFileSync(remindersPath(), JSON.stringify(reminderState, null, 2));
+  } catch (e) {
+    log(`Failed to persist reminder state: ${e.message}`);
+  }
+}
+
+function showDueNotification(payload) {
+  const t = tFor(resolvedLang());
+  const { title, body } = buildNotification(t, payload);
+  const notification = new Notification({ title, body });
+  // 点通知就把窗口拉到前面——提醒的意义是"让人去看那一屏"
+  notification.on("click", () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      win.show();
+      win.focus();
+    }
+  });
+  notification.show();
+  reminderState = nextState(reminderState, todayKey());
+  saveReminders();
+  log(`Reminder shown: ${body.split("\n").length} line(s)`);
+}
+
+function checkReminders() {
+  if (!reminderState.enabled) return;
+  const qs = reportedWorkspace ? `?ws=${encodeURIComponent(reportedWorkspace)}` : "";
+  const req = http.get(
+    `http://127.0.0.1:${BACKEND_PORT}/api/reminders/due${qs}`,
+    { timeout: 4000 },
+    (res) => {
+      let body = "";
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => {
+        if (res.statusCode !== 200) return;
+        let payload;
+        try {
+          payload = JSON.parse(body);
+        } catch (e) {
+          return; // 坏响应既不发通知也不抛：提醒是增强，不是启动必需
+        }
+        if (shouldNotify(reminderState, todayKey(), payload)) showDueNotification(payload);
+      });
+    }
+  );
+  // 后端还没起来（窗口正等健康检查）是常态：静默跳过，等下一个周期
+  req.on("error", () => {});
+  req.on("timeout", () => req.destroy());
+}
+
+/** 幂等：窗口加载完成时调用；重复调用只保留一个定时器。 */
+function startReminders() {
+  if (reminderTimer) return;
+  loadReminders();
+  checkReminders();
+  reminderTimer = setInterval(checkReminders, REMINDER_CHECK_INTERVAL);
+}
+
+function stopReminders() {
+  if (!reminderTimer) return;
+  clearInterval(reminderTimer);
+  reminderTimer = null;
+}
+
+ipcMain.handle("prefs:set-workspace", (_event, ws) => {
+  reportedWorkspace = String(ws || "").trim();
+  log(`Workspace reported by renderer: ${reportedWorkspace || "(default)"}`);
+  return { workspace: reportedWorkspace };
+});
+
+ipcMain.handle("prefs:set-reminders", (_event, enabled) => {
+  reminderState = { ...reminderState, enabled: enabled !== false };
+  saveReminders();
+  // 打开就立刻看一眼，而不是等到下一个周期——用户按下开关时想看到的是"现在就生效"
+  if (reminderState.enabled) checkReminders();
+  return { reminders: reminderState.enabled };
+});
+
 // ---- 创建窗口 ----
 // 前端 dist 探测：打包形态下 extraResources 把前端 dist 放进了 resources/backend/dist
 // （后端同源托管），仓库形态才是 web/frontend/dist。冒烟实测：只认仓库路径会让打包
@@ -509,7 +630,11 @@ function createWindow() {
 
   // 缩放级别在 app ready 时已加载（见 whenReady）；这里把当前值应用到新窗口
   const applyZoom = () => win.webContents.setZoomLevel(zoomLevel);
-  win.webContents.on("did-finish-load", applyZoom);
+  win.webContents.on("did-finish-load", () => {
+    applyZoom();
+    // 到点提醒：界面出来后问一次（此时后端已就绪），之后每 6 小时一次
+    startReminders();
+  });
   // 该 API 返回 Promise（未就绪/已销毁时会 reject），与文件里其它异步面一样显式兜住
   win.webContents.setVisualZoomLevelLimits(1, 1)
     .catch((e) => log(`Failed to disable visual zoom: ${e.message}`));
@@ -675,9 +800,10 @@ app.whenReady().then(() => {
   });
 });
 
-// 退出时结束后端
+// 退出时结束后端与提醒定时器（不留常驻的东西）
 app.on("before-quit", () => {
   stopBackend();
+  stopReminders();
 });
 
 app.on("window-all-closed", () => {

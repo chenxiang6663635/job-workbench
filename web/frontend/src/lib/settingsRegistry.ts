@@ -58,6 +58,8 @@ export interface SettingsEntry {
   value: string;
   /** 缺少回退路径的项不给按钮（例如只在桌面端存在的通道） */
   reset: (() => void) | null;
+  /** 布尔项的开关（目前只有"到点提醒"）：给了就在卡片上渲染成开关而不是只读值 */
+  toggle?: { on: boolean; set: (next: boolean) => void } | null;
 }
 
 /** 偏好的真值源（由调用方注入——这一层刻意不碰 localStorage / IPC，才谈得上单测）。 */
@@ -70,7 +72,15 @@ export interface PreferenceSources {
   lang: { value: string; def: string; display: string; reset: () => void };
   /** 桌面端才有通道；浏览器里给 null（那一项直接不出现在列表里，而不是显示成"改了没用"） */
   zoom: { value: number; def: number; display: string; reset: () => void } | null;
-  reminders: { value: boolean; def: boolean; display: string; reset: () => void } | null;
+  reminders:
+    | {
+        value: boolean;
+        def: boolean;
+        display: string;
+        reset: () => void;
+        set: (next: boolean) => void;
+      }
+    | null;
 }
 
 /** 登记表 → 渲染用的条目（顺序即展示顺序：外观 → 界面 → 提醒）。 */
@@ -80,7 +90,8 @@ export function buildPreferenceEntries(sources: PreferenceSources): SettingsEntr
     cardId: string,
     labelKey: string,
     effect: SettingsEffect,
-    source: { value: unknown; def: unknown; display: string; reset: () => void }
+    source: { value: unknown; def: unknown; display: string; reset: () => void },
+    toggle?: { on: boolean; set: (next: boolean) => void }
   ): SettingsEntry => ({
     id,
     cardId,
@@ -89,6 +100,7 @@ export function buildPreferenceEntries(sources: PreferenceSources): SettingsEntr
     modified: source.value !== source.def,
     value: source.display,
     reset: source.reset,
+    toggle: toggle ?? null,
   });
 
   const entries: SettingsEntry[] = [
@@ -101,7 +113,12 @@ export function buildPreferenceEntries(sources: PreferenceSources): SettingsEntr
   ];
   if (sources.zoom) entries.push(make("zoom", "zoom", "settings.entryZoom", "instant", sources.zoom));
   if (sources.reminders) {
-    entries.push(make("reminders", "zoom", "settings.entryReminders", "instant", sources.reminders));
+    entries.push(
+      make("reminders", "zoom", "settings.entryReminders", "instant", sources.reminders, {
+        on: sources.reminders.value,
+        set: sources.reminders.set,
+      })
+    );
   }
   return entries;
 }

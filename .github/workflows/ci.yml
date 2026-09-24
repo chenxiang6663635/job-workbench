@@ -184,6 +184,7 @@ jobs:
         run: |
           node web/electron/zoom.test.js
           node web/electron/window_state.test.js
+          node web/electron/reminders.test.js
           node web/electron/check_packaging.js
           node web/electron/url_guard.test.js
 

@@ -20,6 +20,13 @@ contextBridge.exposeInMainWorld("jobwsPrefs", {
   /** 上报界面语言：主进程据此渲染窗口标题与更新对话框（见 i18n.js 顶部的取舍说明） */
   setLang: (lang) => ipcRenderer.invoke("prefs:set-lang", lang),
 
+  /** 上报当前工作区：主进程的到点提醒要按**用户实际在用的工作区**查（否则多工作区用户
+      收到的是默认工作区的提醒）。真值仍在渲染进程（localStorage），这里只做转达。 */
+  setWorkspace: (ws) => ipcRenderer.invoke("prefs:set-workspace", ws),
+
+  /** 到点提醒开关（真值在主进程：它才是发通知的那一方） */
+  setReminders: (enabled) => ipcRenderer.invoke("prefs:set-reminders", enabled),
+
   /** 订阅缩放变化（来自快捷键或其它窗口），返回取消订阅函数 */
   onZoomChanged: (cb) => {
     const listener = (_event, payload) => cb(payload);

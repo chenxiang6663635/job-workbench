@@ -659,6 +659,9 @@ const zhCN = {
   "settings.entryZoom": "界面大小",
   "settings.entryLang": "界面语言",
   "settings.entryReminders": "到点提醒",
+  // 开关文案不随状态改（无障碍纪律：开关的标签描述"它是什么"，状态由 aria-pressed 表达）
+  "settings.toggleOn": "已开启",
+  "settings.toggleOff": "已关闭",
   "settings.backupDone": "已备份 {{files}} 个文件（{{size}} KB），保留 {{kept}} 份、淘汰 {{removed}} 份",
   "settings.pathsFailed": "路径信息读取失败：{{error}}",
   "settings.lastBackup": "上次备份：{{time}}（共 {{count}} 份快照）",

@@ -39,7 +39,7 @@ TOOLS = pathres.resolve_tools_dir(ROOT)
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-from routers import application_delete, applications, approvals, dashboard, diagnostics, imap, imap_facts, jobs, library, prep, progress, provider, resume, snapshot, sync, system, workspace  # noqa: E402
+from routers import application_delete, applications, approvals, dashboard, diagnostics, imap, imap_facts, jobs, library, prep, progress, provider, reminders, resume, snapshot, sync, system, workspace  # noqa: E402
 
 # ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
 #
@@ -153,8 +153,7 @@ app.add_middleware(
 # 近名错拼的**拒绝**不在这里，而在 deps.workspace_dir —— 中间件是后注册的在最外层，
 # 在这里直接 return 会绕过 CORSMiddleware：浏览器读不到那个 400 的正文，只会看到
 # 网络错误（tests/test_ws_param_guard.py::test_rejection_carries_cors_header 盯着这点）。
-# 注意本中间件注册在 `if index.html 存在` 的静态托管块**之外**——那个块里的缓存中间件
-# 在没有前端 dist 时（CI、纯 API 场景）根本不会注册。
+# 注意本中间件注册在 `if index.html 存在` 的静态托管块**之外**——那个块里的缓存中间件在没有前端 dist 时（CI、纯 API 场景）根本不会注册。
 @app.middleware("http")
 async def _workspace_guard(request: Request, call_next):
     response = await call_next(request)
@@ -180,6 +179,7 @@ app.include_router(resume.router)
 app.include_router(system.router)
 app.include_router(snapshot.router)  # 快照还原与演练（笔 2；system.py 水位只许降故单开）
 app.include_router(diagnostics.router)  # 诊断包导出（笔 3；同上）
+app.include_router(reminders.router)  # 到点提醒的轻端点（笔 5；同上）
 app.include_router(sync.router)  # 批 8：工作区版本指纹（GUI 端同步用）
 app.include_router(prep.router)  # 笔记：03_面试准备 / 04_知识库 只读浏览
 

@@ -40,6 +40,9 @@ if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
 from routers import registry as route_registry  # 路由登记表：见 routers/registry.py（顺序有约束）
+# 产品版本（壳注入 JOBWS_APP_VERSION；开发/直跑形态回退仓库 package.json）——
+# 与「关于」区块同一来源（routers/system.app_version），不再是写死的 0.1.0。
+from routers.system import app_version  # noqa: E402
 
 # ---- 启动前检查（解释器基线与监听边界）----
 # 2026-09-25 收口批：两段检查整体移到 web/backend/preflight.py（main.py 因新增
@@ -53,7 +56,10 @@ logger = logging.getLogger("jobworkbench")
 enforce_interpreter()
 
 
-app = FastAPI(title="求职工作台", version="0.1.0")
+# version 用产品版本：OpenAPI 的 info.version 在此项目即产品版本（单机应用，
+# 没有独立的 API schema 版本概念）；来源为空时标 0.0.0-dev——不编造版本
+# （与 routers/system 的「未知」口径同源）。
+app = FastAPI(title="求职工作台", version=app_version() or "0.0.0-dev")
 
 
 @app.exception_handler(ApiError)

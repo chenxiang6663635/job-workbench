@@ -27,7 +27,7 @@ web/backend/routers/applications.py = 572  # 时间线索引化（P 批 2026-09-
 web/backend/routers/resume.py = 614  # 版式/风格清单 + 预览/Word/生成三处渲染
 web/backend/routers/jobs.py = 502  # 2026-09-25 收口批：create_job 改原子写（+3，四端复核跟进；原水位 499）
 web/backend/routers/imap.py = 304  # IMAP 配置 / 测试连接 / 只读拉取集中一处；本次加降级提示后越过 300 行
-web/backend/routers/system.py = 328  # 备份/导出/快照淘汰（本次为加微秒级暂存名 +2 行）
+web/backend/routers/system.py = 332  # 2026-09-25 收口批：app_version() 去私有化 + docstring（+4；原水位 328——备份/导出/快照淘汰加微秒级暂存名 +2）
 # （2026-09-16 重构批：dashboard() 已拆为五个 section helper，本行按自洁删除）
 #
 # --- 前端：刻意集中的单一真源 / 页面级容器 ---

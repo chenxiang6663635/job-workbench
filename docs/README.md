@@ -9,6 +9,7 @@
 | [`usage-guide.md`](usage-guide.md) | **使用手册（英文主版）**：环境准备、一键启动、八个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
 | [`usage-guide.zh-CN.md`](usage-guide.zh-CN.md) | 上述手册的**简体中文同步版**（内容与主版一致，互链在各自开头） |
 | [`../README.md`](../README.md) | 项目主入口：定位、三层架构、快速开始、目录说明 |
+| [`data-flow-matrix.md`](data-flow-matrix.md) | **数据流矩阵**：什么数据、什么时候、去哪里——隐私承诺的权威底稿（界面文案与它冲突时以它为准） |
 
 ## 设计文档
 

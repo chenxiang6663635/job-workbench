@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""「关于」区块：版本 / 平台字段与 `_app_version()` 的三个来源分支。
+"""「关于」区块：版本 / 平台字段与 `app_version()` 的三个来源分支。
 
 为什么单独钉这一块：它是使用者唯一能「自我核对装的是哪一版」的入口，取值有三
-条路径（打包注入 → package.json → 空串）。**把 `_app_version` 改成恒返回 ""、把
+条路径（打包注入 → package.json → 空串）。**把 `app_version` 改成恒返回 ""、把
 platform 写死，全仓其它测试照样全绿**——第二轨审查 MAJOR-12 指出的正是这种
 「单人仓库唯一防线失效」的情形。
 """
@@ -42,7 +42,7 @@ def _system():
 def test_version_prefers_injected_env(client, monkeypatch):
     """打包版：主进程注入 JOBWS_APP_VERSION 时优先用它（不再回退读 package.json）。"""
     monkeypatch.setenv("JOBWS_APP_VERSION", "26.9.15")
-    assert _system()._app_version() == "26.9.15"
+    assert _system().app_version() == "26.9.15"
 
 
 def test_version_falls_back_to_package_json(tmp_path, client):
@@ -50,12 +50,12 @@ def test_version_falls_back_to_package_json(tmp_path, client):
     pkg_dir = tmp_path / "web" / "electron"
     pkg_dir.mkdir(parents=True)
     (pkg_dir / "package.json").write_text('{"version": "26.9.15"}', encoding="utf-8")
-    assert _system()._app_version() == "26.9.15"
+    assert _system().app_version() == "26.9.15"
 
 
 def test_version_is_empty_when_nothing_available(client):
     """两条路都不可用 → 空串（界面显示「未知」），不编造版本。"""
-    assert _system()._app_version() == ""
+    assert _system().app_version() == ""
 
 
 def test_paths_reports_version_and_platform(client, monkeypatch):

@@ -45,7 +45,7 @@ The workbench turns all of that into queryable, traceable files.
 
 ## Features at a glance
 
-- **Four CLI workflows**: `jwb-jd` (JD parsing & scoring), `jwb-apply` (application package), `jwb-track` (tracker & funnel), `jwb-resume` (PDF rebuild & validation) — full command reference in the [usage guide](docs/usage-guide.md)
+- **Four AI-assisted workflows**: `jwb-jd` (JD parsing & scoring), `jwb-apply` (application package), `jwb-track` (tracker & funnel), `jwb-resume` (PDF rebuild & validation) — driven by the in-repo `jobws` CLI; full command reference in the [usage guide](docs/usage-guide.md)
 - **Web UI** (`web/`): eight pages sharing the very same data files — dashboard, tracker, job pool, resume workshop (one-click import that *extracts rather than generates* + guarded AI rewrite + Word export), prepare (talks & your question bank), progress (interviews, emails, contacts), library (notes & material), settings; see [`web/README.md`](web/README.md)
 - **Post-application loop**: interview records (one-click `.ics` export), recruiter contact follow-ups, offer comparison (**side-by-side facts, never a recommendation**), resume version lineage, stage-conversion retros, failure clustering, application health in four states — each with concrete reasons instead of a black-box score
 - **Read-only email fetch (optional)**: with your own IMAP authorization code, pull recent recruiting emails and turn them into per-record status suggestions; read-only, connected only when you click, credentials kept local, dry-run until you confirm — details in the [usage guide](docs/usage-guide.md)
@@ -123,7 +123,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | Path | Purpose |
 |---|---|
 | `template/` | Generic skeleton: profile templates, empty workspace, domain plugins |
-| `skills/` | The four job-hunting workflows + the coach scoring standard, and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
+| `skills/` | Nine skills — five job-hunting workflows (JD / apply / track / resume / coach), one setup/extension skill (domain profiles), and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
 | `tools/` | Python domain layer — one CLI entry point plus domain modules and gate scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (eight pages), same data files as the CLI |
 | `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |
@@ -148,8 +148,9 @@ your machine. Prefer source? Skip to [Quick start](#quick-start).
 **The installer is not code-signed yet.** On first run Windows may show
 "Windows protected your PC" (SmartScreen) — that is expected for unsigned
 software: click **More info** → **Run anyway**. SmartScreen reputation builds
-per release, so the notice may reappear on later versions. Each release also
-attaches `SHA256SUMS.txt` (hashes for the installer and `latest.yml`) — you can
+per release, so the notice may reappear on later versions. Starting with
+v26.9.0, each release attaches `SHA256SUMS.txt` (hashes for the installer and
+`latest.yml`) — you can
 verify your download against it. Auto-update works normally despite the missing
 signature (integrity is checked against the hash in `latest.yml`).
 

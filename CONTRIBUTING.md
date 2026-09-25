@@ -55,10 +55,7 @@
 > - 与 §提交规范 的关系：豁免的是**审查轮次**，不是标题语言规则——两条不要混。
 > - 换机器人（如 Renovate）或作者名不匹配时，本例外**不适用**（回到两轮要求）——失效方向偏保守。
 
-**可直推 main**（不影响运行时的纯文本与资料类）：
-
-- 文档（README / `docs/` / CHANGELOG / CONTRIBUTING / 注释）、截图与 demo 产物、typo 与链接修复
-- 前提：不破坏构建与数据安全；**拿不准 → 一律按 PR 处理**（宁走 PR，不冒险）
+**所有改动都走 PR**（含纯文本与资料类）：`main` 启用了分支保护且 `enforce_admins` 开启——直推在物理上会被拒绝；CI 的必需检查（后端测试 / 前端构建 / PR 标题 / UI 冒烟）全绿才可合入。历史注记：保护启用（2026-09-08）前曾允许纯文本直推；该口径已作废（2026-09-25 订正——`enforce_admins=true` 下直推从来不是可执行的选项）。
 
 - **先开分支，再动手**：分支要在敲第一行代码前建好（`git switch -c feat/xxx`），不要先在 `main` 写完再 checkout——那样虽然未提交改动会被带到新分支、`main` 仍干净，但流程易混淆，一旦中途忘记开分支，提交就直接落进 `main`。
 - **本地提交护栏（githooks）**：克隆后执行 `git config core.hooksPath .githooks` 启用。pre-commit：隐私护栏（`personal/` 路径与真实手机/邮箱模式在提交入口直接拦截）+ >1MB 文件检查 + **规模预算（与 `jobws lint size` 同源实现，只扫暂存文件；存量见 `tools/size_allowlist.txt`）** + pytest 快检（全量 **≈25s**（2026-09-20 实测 934 条）；超 60s 会在输出里点名阈值，见下「测试规模与阈值」；解释器缺 pytest 时降级为提示，CI 兜底）；commit-msg：Conventional 格式 `type(scope): subject`（type 限定枚举、**subject 必须含中文**、≤100 字符），豁免 Merge/Revert。判定逻辑在 `tools/commit_header.py`，与 CI 的 PR 标题校验同源。紧急跳过 `--no-verify`（用了要在 PR 里说明原因）。
@@ -132,6 +129,31 @@
 
 **自动更新**：Windows 打包版**已启用**（electron-updater，v0.2.1 起；unsigned 更新链的取舍已记于 SECURITY.md），首次分发仍走手动安装包；**macOS 自动更新不做**（剩余阻碍是代码签名，系统必需）。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
 
+## 发布治理（阻断清单 / 窗口纪律 / 分层验证）
+
+**发布阻断清单**——满足**任一**即不得正式发布（与普通 P1/P2 分开对待，这八类没有"下个批次再修"的选项）：
+
+1. 数据损坏或静默覆盖；
+2. secret / 凭据泄漏；
+3. 路径越界类安全问题；
+4. installer 无法安装或启动；
+5. 更新链失效（`latest.yml` / 自动更新路径断）；
+6. 主流程阻断（打开即崩、核心页不可用）；
+7. privacy 文案与真实行为不一致（`docs/data-flow-matrix.md` 是权威底稿）；
+8. backup / restore 不可靠——"能生成 zip"不算，restore 验证过才算。
+
+其中**四类不等待功能批次**，可直接走 `26.9.N` hotfix（ADR `ship-once-per-release` 的 2026-09-25 补充）：**安全漏洞 / 数据损坏·静默覆盖 / 安装·启动阻断 / 更新链失效**。
+
+**发布窗口纪律（RC 阶段）**：从发布意向确定（取号 / 落章）到 tag 之间为**功能冻结期**——`main` 只接发布阻断类修复，其余改动排队到下一个 `N`。窗口标准动作：dry_run 演练（release.yml 全链，含强制全量 E2E）→ 真机冒烟（`docs/release-checklist.md` 第二节）→ tag。**不实际发布 rc tag**，但窗口纪律照此执行。
+
+**分层验证（Tier 1/2/3）**——验证责任随层级加深：
+
+- **Tier 1（每个 PR）**：pytest 全量 + 七扫描器 + 前端 lint / tsc / 单测 + UI 冒烟（smoke / viewports / a11y / nav）；
+- **Tier 2（合入 main 后）**：全量 115 条 E2E（`e2e-full` job 自动跑）+ 领域包独立安装冒烟 + exe 冒烟；
+- **Tier 3（发布时）**：release.yml 全链——强制全量 E2E、安装 / 卸载冒烟、SHA256、真机人工冒烟。
+
+**出网能力更新纪律**：新增任何联网功能，**先**更新 `docs/data-flow-matrix.md`（并同步界面隐私文案），**再**改代码——评审时未更新矩阵的出网 PR 应被拒绝（见矩阵的「治理规则」节）。
+
 ## 可持续性约定
 
 - **时间盒公开化**：在 README 写明**投入形态**（分批——可能集中几天推进一批、也可能整周无动作；停工窗口见下）与**响应目标**（issue 首复 48 小时、滑期公示，见 `docs/maintenance.md`）；**不写吞吐量数字**——PR 数量随工具与批次波动，不是稳定承诺（2026-09-20 修正）。
@@ -144,7 +166,7 @@
 - 本文件与 [AGENTS.md](AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
-- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（**≈40s / 1352 条**（2026-09-24 复核：1352 通过 + 10 跳过）；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（**≈42s / 1455 条**（2026-09-25 复核：1455 通过 + 14 跳过；另有 mcp 侧 60 条在 `mcp/tests/` 单独跑）；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
 - **测试规模与阈值（2026-09-20 起）**：三套测试**分别**计阈值，别只盯 pytest 总量（增速最快的其实是 e2e）。
   - 基线（2026-09-24 实测）：pytest **97 文件 / 1352 条（+10 跳过）/ 本机全量 ≈40s**（CI 里 pytest job 约 40s，**不在关键路径**）；vitest **22 文件 / 172 用例**（`web/frontend/tests/unit/`）；Playwright **17 spec / 115 用例**（**2026-09-25 拆级**：PR 上的 `ui-smoke` 只跑最小集 smoke + viewports + a11y + nav（`npm run test:ui:smoke`），全量 115 条在 push main 后的 `e2e-full` job 跑——不阻塞 PR、合并后即回归）；MCP **7 文件 / 61 条**（`mcp/tests/`，与 pytest 分开跑）。CI 各 job 的**耗时**数量级（会随用例数浮动，看 Actions 上的当次数字）：UI 冒烟（PR 最小集）~100s / **e2e-full（main push）~170s** / 后端 exe 冒烟 ~90s / 前端构建 ~30s / MCP ~24s / 领域包 ~14s。
   - **这些数字随批次变动**：上面几个是**实测快照**不是契约，改完代码以本地实跑为准；发现与文档差得远就顺手改这里（别把"应该跑多少条"写进去）。
@@ -237,6 +259,8 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 2. **提取时机（rule of three）**：同一逻辑第 2 次出现时考虑提取，第 3 次必须提取到公共模块；新增第 3 个 `if/elif` 分支且每分支 >10 行时提取 dispatch。
 3. **禁静默吞错**：`except Exception: pass` 与空 `catch {}` 一律不许——至少记日志（`logger.warning` / `console.error`）。
 4. **单一真值源**：同一枚举/映射/常量只允许在一个模块定义，其他位置引用它——发现第 2 处内联副本即收敛回注册处。
+5. **所有运行时产品代码必须被至少一套结构检查覆盖**（2026-09-25 收口批原则化）：`.py / .ts / .tsx / .js / .mjs` × `tools/ packages/ web/backend/ web/frontend/ web/electron/ mcp/ scripts/`——规模闸门此前漏了 `web/electron` 与 `.js`（最接近用户机器的 967 行 `main.js` 恰好零治理），现已补齐；**新增运行时代码目录 / 后缀时必须同步 `tools/check_size.py` 的 `SCAN_DIRS` / `SOURCE_SUFFIX`**。
+6. **失败路径双通道**（2026-09-25 收口批）：启动失败 / 后端崩溃 / 更新失败 / 还原失败 / 写冲突这类问题，必须**同时**有"用户可见消息 + 本地结构化日志"，缺一不可；诊断包字段固定（版本 / 平台 / 日志尾部），**永远排除**简历、邮件、API key、密码与工作区内容（`web/electron/diagnostics.js` + 测试锁死）。
 
 > 来源：借鉴 thermal_comfort_code 的 anti-shit-mountain 清单，按本仓库规模精简（不搬其双阈值过渡制与 L1/L2/L3 分级）。
 

@@ -28,7 +28,7 @@ export default {
   // 顶栏只有一格宽：短标签 + 完整语义放 title（见 status.localDataHint）
   "status.online": "Connected",
   "status.offline": "Backend offline",
-  "status.localDataHint": "Local data connected — nothing is sent anywhere",
+  "status.localDataHint": "Local workspace connected — data stays on this machine; no telemetry. Online features only reach the services you enable",
   "error.backend": "Cannot connect to the backend (localhost:8765)",
   "error.backendHint": "Run from the repository root:",
   "error.renderFailed": "Something went wrong rendering this page",
@@ -607,7 +607,7 @@ export default {
   "settings.imapTestResult_other": "Read-only connection succeeded; this test did not read, modify or delete any message. ({{server}} · {{folder}}, {{count}} messages)",
 
   "settings.privacy": "Data & privacy",
-  "settings.privacyDesc": "Everything lives on this machine — no telemetry, no uploads. The files are the database: open them in any editor, or export the whole bundle and leave this app for good.",
+  "settings.privacyDesc": "Workspace data stays on this machine, with no telemetry. Online features (AI rewrite, mail fetch, job posting fetch, update check) only call the services you enable — and only the content you confirm is sent. The files are the database: open them in any editor, or export the whole bundle and leave this app for good.",
   "settings.exportNotice": "The export contains your real résumé and personal details — keep the zip safe.",
   "settings.exportZip": "Export everything (zip)",
   "settings.backupNow": "Back up now",
@@ -641,7 +641,7 @@ export default {
   "settings.entryFontSize": "Interface size",
   "settings.entryZoom": "Zoom",
   "settings.entryLang": "Interface language",
-  "settings.entryReminders": "Due reminders",
+  "settings.entryReminders": "Due reminders (app must be running)",
   "settings.entryReminderDays": "Remind ahead",
   "settings.reminderDaysValue": "{{days}} days ahead",
   "settings.reminderDays_3": "3 days ahead",
@@ -695,7 +695,7 @@ export default {
   "settings.aboutVersion": "Version",
   "settings.aboutPlatform": "Platform",
   "settings.aboutUnknown": "Unknown",
-  "settings.aboutNote": "Local-first, no telemetry — your version info and your data stay on this machine.",
+  "settings.aboutNote": "Local-first, no telemetry — your data and version info stay on this machine; online features only call the services you enable.",
   "settings.aboutDocs": "Open the usage guide (GitHub · docs/usage-guide)",
   "settings.openLogs": "Open log folder",
 

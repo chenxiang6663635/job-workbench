@@ -25,7 +25,7 @@ const zhCN = {
   "status.online": "已连接",
   "status.offline": "后端未启动",
   // 顶栏状态点只有一格宽：短标签 + 完整语义放 title（悬停可见，读屏也能读到）
-  "status.localDataHint": "已连接本地数据：不发请求、不上传任何内容",
+  "status.localDataHint": "已连接本地工作区：数据保存在本机、无遥测——联网功能仅访问你启用的服务",
   "error.backend": "无法连接到后端（localhost:8765）",
   "error.backendHint": "请在仓库根目录运行：",
   "error.renderFailed": "页面渲染出错",
@@ -648,7 +648,7 @@ const zhCN = {
   "settings.imapTestResult_other": "只读连接成功；本次测试没有读取、修改或删除任何邮件。（{{server}} · {{folder}}，共 {{count}} 封）",
 
   "settings.privacy": "数据与隐私",
-  "settings.privacyDesc": "全部数据只存在你这台机器，无遥测、无上传。文件就是数据库——你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。",
+  "settings.privacyDesc": "工作区数据保存在本机、无遥测。联网功能（AI 改写 / 邮箱拉取 / 岗位抓取 / 更新检查）只访问你启用的对应服务，且只发送你确认提交的那部分内容。文件就是数据库——你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。",
   "settings.exportNotice": "导出包含你的真实简历与个人信息，请妥善保管导出的 zip。",
   "settings.exportZip": "导出整包 zip",
   "settings.backupNow": "立即备份",
@@ -682,7 +682,7 @@ const zhCN = {
   "settings.entryFontSize": "界面字号",
   "settings.entryZoom": "界面大小",
   "settings.entryLang": "界面语言",
-  "settings.entryReminders": "到点提醒",
+  "settings.entryReminders": "到点提醒（仅应用运行时有效）",
   "settings.entryReminderDays": "提前几天提醒",
   "settings.reminderDaysValue": "提前 {{days}} 天",
   "settings.reminderDays_3": "提前 3 天",
@@ -736,7 +736,7 @@ const zhCN = {
   "settings.aboutVersion": "版本",
   "settings.aboutPlatform": "运行平台",
   "settings.aboutUnknown": "未知",
-  "settings.aboutNote": "本地优先、无遥测——版本信息与数据都只在这台机器上。",
+  "settings.aboutNote": "本地优先、无遥测——数据与版本信息都保存在本机；联网功能仅访问你启用的服务。",
   "settings.aboutDocs": "打开使用手册（GitHub · docs/usage-guide）",
   "settings.openLogs": "打开日志文件夹",
 

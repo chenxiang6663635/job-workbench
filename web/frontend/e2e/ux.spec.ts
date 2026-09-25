@@ -58,16 +58,20 @@ test("投递行内快捷记录：一键落到对应页签（UX-4）", async ({ p
 
 test("投递行「查看解析卡」下钻到该岗位详情（UX-3）", async ({ page }) => {
   await openPage(page, "applications");
-  // 入口只在岗位池里真有对应岗位时才出现（反向关联靠 公司+岗位），
-  // demo 数据里两家都建过解析卡
-  const card = page.getByRole("button", { name: "View parsed card" }).first();
+  // 入口只在岗位池里真有对应岗位时才出现（反向关联靠 公司+岗位）。
+  // 用行 id 定位 A001（示例科技），**不**取第一个按钮：2026-09-25 demo 岗位池
+  // 从 2 个扩到 7 个后「有卡的行」变多，.first() 落到哪行取决于列表排序——
+  // CI 实测点到星河物流，断言示例/云帆就红了。
+  const card = page
+    .locator("#row-A001")
+    .getByRole("button", { name: "View parsed card" });
   await expect(card).toBeVisible();
   await card.click();
 
   // 落到岗位池并直接打开对应详情（详情标题 = 岗位目录名）
   await expect(page).toHaveURL(/#jobs$/);
   await expect(page.getByRole("heading", { level: 2 })).toContainText(
-    /云帆智算|示例科技/
+    "示例科技_后端开发工程师"
   );
 });
 

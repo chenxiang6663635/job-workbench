@@ -38,6 +38,7 @@ PLACEHOLDER_EMAIL = "sample@example.com"
 PLACEHOLDER_ORGS = {
     "示例科技", "云帆智算", "星河物流", "蓝湖数科",
     "极光支付", "青梧文档", "白泽安全", "沧澜云",
+    "墨丘科技",             # 岗位池有卡、尚未投递（2026-09-25 扩 demo 岗位时新增）
     "校园双选会（秋季）",   # talks.csv 里未关联投递的活动记录（多公司场合）
 }
 PLACEHOLDER_PEOPLE = {"示例同学", "李工", "王老师", "张工", "陈工"}
@@ -120,12 +121,18 @@ def test_demo_data_tables_have_rows(demo_ws):
         assert count == expected, "%s 应有 %d 行数据，实际 %d" % (name, expected, count)
 
 
-def test_demo_creates_two_parsed_job_cards(demo_ws):
-    """岗位池里要有解析卡 + JD 原文，否则岗位页是空的，demo 就没意义。"""
+def test_demo_creates_parsed_job_cards(demo_ws):
+    """岗位池里要有解析卡 + JD 原文，否则岗位页是空的，demo 就没意义。
+
+    2026-09-25：从 2 个扩到 7 个——看板「Score tier × application status」
+    图此前只有 1 档有数据、显得很空；7 个岗位覆盖 4 个档位（强烈建议投 2 /
+    建议投 2 / 斟酌 2 / 大概率跳过 1），状态含未投递（高分未投清单也有内容）。
+    往 demo 加/减岗位时显式改这条。
+    """
     pool = os.path.join(demo_ws, "01_岗位池")
     cards = [d for d in os.listdir(pool)
              if os.path.isdir(os.path.join(pool, d))]
-    assert len(cards) == 2, "demo 应带 2 个岗位目录，实际 %s" % cards
+    assert len(cards) == 7, "demo 应带 7 个岗位目录，实际 %s" % cards
     for name in cards:
         assert os.path.isfile(os.path.join(pool, name, "解析卡.md"))
         assert os.path.isfile(os.path.join(pool, name, "JD原文.md"))

@@ -20,11 +20,7 @@
 
 - **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 CONTRIBUTING「CHANGELOG 写法」；内部术语见 [`docs/glossary.md`](docs/glossary.md)。
 
-## [Unreleased]
-
-> **本节是累积记录，不是「尚未实现」**：按单一发布节点纪律，下面这些功能**都已
-> 实现可用**（开发模式与本地构建里就能用），只是还没随某个发布号发出去——发版时
-> 会整体归入当月的 `YY.MM.N` 段。请勿以「未发布」推断功能不存在。
+## [26.9.0] - 2026-09-25
 
 ### Highlights (English)
 
@@ -495,7 +491,8 @@
 - 静态资源缓存策略缺失导致「改了功能界面没变化」（浏览器按启发式缓存旧 index.html/JS）：HTML 强制协商缓存（`no-cache`），带内容 hash 的 assets 长缓存 `immutable`。
 - 高级模板预览版式失真：改为按 A4 宽（794px）渲染再等比缩小（原先全宽渲染行宽达真实的 1.6 倍），高度按 iframe 内容真实高度展开（原先写死高度会截断内容）。
 
-[Unreleased]: https://github.com/chenxiang6663635/job-workbench/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/chenxiang6663635/job-workbench/compare/v26.9.0...HEAD
+[26.9.0]: https://github.com/chenxiang6663635/job-workbench/compare/v0.3.2...v26.9.0
 [0.3.2]: https://github.com/chenxiang6663635/job-workbench/compare/v0.3.0...v0.3.2
 [0.3.0]: https://github.com/chenxiang6663635/job-workbench/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/chenxiang6663635/job-workbench/compare/v0.2.1...v0.2.2

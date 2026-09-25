@@ -95,6 +95,18 @@ def test_weak_words_alone_do_not_count_as_an_interview_invite():
     assert status_parse.parse("分享一下上次技术面的复盘心得")["signals"] == []
 
 
+def test_weak_word_in_signature_not_ligatured_by_remote_invite():
+    """落款里的「人力」不该被正文远方的邀请词放行（2026-09-25 真机实测）。
+
+    TCL 实业的 AI 面试通知：正文有「详细安排如下」（邀请词「安排」），落款是
+    「TCL实业人力发展部校园招聘项目组」——全文级共现把落款判成了 high 置信的
+    「HR面」建议（确认后会写错追踪表阶段）。弱词的共现检查收紧为**同行**。
+    """
+    text = "恭喜您进入TCL实业线上AI视频面试环节，详细安排如下\nTCL实业人力发展部校园招聘项目组"
+    stages = [s["stage"] for s in status_parse.parse(text)["signals"]]
+    assert "HR面" not in stages, "落款里的「人力」被不远处的邀请词放行了：%s" % stages
+
+
 def test_written_test_and_assessment_are_distinguished():
     """「在线测评 / 测评链接」归「测评」（v0.4.0-A 起独立阶段），纯笔试措辞仍归「笔试」。
 

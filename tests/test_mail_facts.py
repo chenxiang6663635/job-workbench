@@ -331,6 +331,30 @@ def test_link_validity_is_its_own_kind():
     assert "链接" in fact["label"]
 
 
+def test_link_validity_compact_days_without_nei():
+    """「链接有效期：7天」——**没有「内」**的紧凑写法也是有效期（真机实测样本）。
+
+    2026-09-25 TCL 实业 AI 面试通知：「请复制以下链接至谷歌Chrome浏览器进入 /
+    <链接> / 链接有效期：7天」——此前两头都断：入口条件只认截止语气（链接有效性
+    没机会走时长解析），且时长正则「内」是必需的。用户实际拿不到这条倒计时。
+    """
+    facts = mail_facts.extract_facts(
+        "请复制以下链接进入\nhttps://example.com/su/abc\n链接有效期：7天",
+        today=TODAY, mail_date=MAIL_DATE)
+    fact = _facts_by_kind(facts, "链接有效期")[0]
+    assert fact["value"] == "2026-09-27", "基准应为邮件日期 09-20 + 7 天"
+    assert fact["confidence"] == "low"
+    assert "邮件日期" in fact["note"]
+
+
+def test_compact_days_alone_is_not_a_deadline():
+    """防回归：宽松时长只给「链接有效期」用——没有「链接+有效」的紧凑时长
+    不该变成截止（「3 个工作日内联系你」类承诺仍被严格版的「内」+ 语气门挡住）。"""
+    facts = mail_facts.extract_facts("我们会在 7 天内联系你", today=TODAY)
+    assert _facts_by_kind(facts, "截止") == []
+    assert _facts_by_kind(facts, "链接有效期") == []
+
+
 def test_deadline_cn_day_not_mistaken_for_duration():
     """回归：「9月25日」里的「25日」不是「25 日内」。"""
     facts = mail_facts.extract_facts("截止：9月25日", today=TODAY)

@@ -34,6 +34,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "diagnostics.js",
       "url_guard.js",
       "window_state.js",
       "reminders.js",

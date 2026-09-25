@@ -45,6 +45,33 @@ def test_placeholder_numbers_pass():
         ["docs/x.md"], "+ 示例号：13888888888\n") is None
 
 
+def test_hash_fragment_is_not_flagged():
+    """锁文件里的长 hash 段含 11 位数字形态 → 不是电话（2026-09-25 收口批）。
+
+    真实案例：`mcp/uv.lock` 的 cffi wheel URL 内嵌 sha256——其中连续的
+    数字段与手机号形态完全相同，同时拦住了本地 pre-commit 与 CI privacy
+    步骤（为免本说明自身触发护栏，此处不复述号码；实际片段见下方 fragment
+    字面量，它的完整走线就是被豁免的对象）。真号码两侧几乎不可能同时是
+    hex 字符，故规则：**匹配所在的连续 hex 段 ≥ 32 → 判为 hash**。
+
+    注意本片段的字面量必须写成**单行完整串**：拆行会切断 hex 段、让豁免失效
+    （豁免判定的"上下文"就是所在行文本）；本文件自身也过隐私护栏，这段字面量
+    正是豁免对象——它此前会让本文件无法提交、也无法通过 CI 的 privacy 步骤。
+    """
+    hook = _load_hook()
+    fragment = "ad28bd19f77047a03084424fbd4cbe997303267c14423737324be0385d"
+    diff = ('+    url = "https://files.pythonhosted.org/packages/%s'
+            '/cffi-2.1.1-cp312.whl"\n') % fragment
+    assert hook.privacy_problem(["mcp/uv.lock"], diff) is None
+
+
+def test_phone_next_to_short_hex_is_still_flagged():
+    """豁免只覆盖「长 hash 段」——短 hex 前缀旁的号码仍要拦（行为锁）。"""
+    hook = _load_hook()
+    diff = "+ id=abc%s 是同事手机号\n" % REAL_LOOKING_PHONE
+    assert hook.privacy_problem(["docs/x.md"], diff) is not None
+
+
 def test_personal_path_is_flagged():
     hook = _load_hook()
     assert hook.privacy_problem(["personal/简历.md"], "+ 无联系方式\n") is not None

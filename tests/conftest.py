@@ -39,6 +39,25 @@ from jobws_core import pathres  # noqa: E402
 
 pathres.set_app_root(_ROOT_DIR)
 
+
+@pytest.fixture(autouse=True)
+def _restore_app_root():
+    """每个测试前把应用根恢复为仓库根（2026-09-25 发布前收口批的测试兜底）。
+
+    为什么需要：`mcp/jobws_mcp/paths.py` 在**模块导入期**执行
+    `pathres.set_app_root(用户数据目录)`——那是给独立 MCP 进程设计的刻意副作用
+    （领域层在导入期求值 ROOT）。当 `tests/` 与 `mcp/tests/` **合并到一个
+    pytest 进程**跑时（本地验证常用；CI 是两个 job 分开、不受影响），该副作用
+    会污染本目录测试读取的全局应用根——`tests/test_domain_root.py` 的
+    「默认工作区父目录 == 应用根」随之变红（收集顺序相关，症状诡异）。
+
+    恢复点定在"每个测试之前"：不依赖收集顺序、对 mcp 侧测试零影响
+    （它们在另一个 conftest 层级，本 fixture 不生效）；代价仅是每测试一次
+    幂等的内存赋值。
+    """
+    pathres.set_app_root(_ROOT_DIR)
+
+
 BASELINE = (3, 12)
 
 

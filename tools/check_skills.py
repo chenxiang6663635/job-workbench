@@ -198,10 +198,11 @@ def main():
     # 写坏了没人拦，本校验是唯一防线。
     # 函数内 import：check_plugin_assets 反向引用本模块的 frontmatter 解析器，
     # 模块级互相 import 会成环。
-    from check_plugin_assets import inspect_plugin_assets
+    from check_plugin_assets import (inspect_plugin_assets,
+                                     manifest_consistency_problems)
 
-    asset_findings = inspect_plugin_assets(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    asset_findings = inspect_plugin_assets(repo_root)
     if asset_findings:
         print("")
         print("插件资产不合规（%d 处）：" % len(asset_findings))
@@ -209,6 +210,15 @@ def main():
             print("  [%s]" % label)
             for problem in problems:
                 print("    - %s" % problem)
+    # 清单一致性（2026-09-25 收口批）：plugin.json / marketplace.json / skills
+    # 磁盘目录三处技能集合必须一致，描述里的数量必须等于实际——jwb-domain-setup
+    # 加入时 marketplace.json 漂了 8/9，当时没有任何校验能发现（独立审计）。
+    manifest_issues = manifest_consistency_problems(repo_root)
+    if manifest_issues:
+        print("")
+        print("插件清单不一致（%d 处）：" % len(manifest_issues))
+        for problem in manifest_issues:
+            print("  - %s" % problem)
     # 版本号一致性：技能 metadata.version 与插件壳 version 都随应用版本走
     # （真值源 web/electron/package.json）。不查的话，发布时只 bump 应用版本就
     # 会留下静默失真的旧值（独立审查 MAJOR-1）。
@@ -220,7 +230,8 @@ def main():
             print("  - %s" % problem)
         print("")
         print("真值源只有一个：web/electron/package.json；技能与插件壳的 version 一起改。")
-    if asset_findings or version_issues or any(item["problems"] for item in results):
+    if (asset_findings or manifest_issues or version_issues
+            or any(item["problems"] for item in results)):
         print("")
         print("修复后再分发：不合规的技能会被宿主跳过，重名的会被静默覆盖。")
         return 1

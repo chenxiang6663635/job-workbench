@@ -43,10 +43,14 @@ LIMIT_DATA_FILE = 1500
 # **必须**把它列进来：否则新包里的文件既不受「≤300 行 / 函数 ≤80」约束，
 # 也不会出现在 `--print-allowlist` 的草稿里——删掉旧条目 = 检查变绿，正是
 # 「规模闸门静默放行」的形态。
+# 2026-09-25 发布前收口批：`web/electron` 与 `.js/.mjs` 此前都不在范围里——
+# 全仓最复杂、最接近用户机器的 main.js（967 行）恰好零治理（独立审计点名的
+# 「rule 很好，但 coverage 不完整」）。JS 与 TS 同口径：只守文件行数、不做
+# 函数长度静态判定（浏览器侧/主进程的箭头函数与嵌套难界定，见 python_functions）。
 SCAN_DIRS = ("tools", "web/backend", "web/frontend/src", "tests", "packages",
-             "mcp", "scripts")
+             "mcp", "scripts", "web/electron")
 SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", "release", ".venv"}
-SOURCE_SUFFIX = (".py", ".ts", ".tsx")
+SOURCE_SUFFIX = (".py", ".ts", ".tsx", ".js", ".mjs")
 
 # 数据/声明型：行数多但复杂度低，与业务代码同阈值没有意义。
 # `domainTypes`：纯类型 / 枚举声明区（H-2a 批自 api.ts 外移，80+ 个声明平铺）——

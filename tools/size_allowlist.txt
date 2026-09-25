@@ -25,7 +25,7 @@ packages/jobws-core/src/jobws_core/status_parse.py = 329  # 阶段同义词映�
 # --- 单域 router：端点 + 校验 + pydantic 模型 ---
 web/backend/routers/applications.py = 572  # 时间线索引化（P 批 2026-09-21，+4）：history_by_id 建索引一次、逐行传子集
 web/backend/routers/resume.py = 614  # 版式/风格清单 + 预览/Word/生成三处渲染
-web/backend/routers/jobs.py = 499
+web/backend/routers/jobs.py = 502  # 2026-09-25 收口批：create_job 改原子写（+3，四端复核跟进；原水位 499）
 web/backend/routers/imap.py = 304  # IMAP 配置 / 测试连接 / 只读拉取集中一处；本次加降级提示后越过 300 行
 web/backend/routers/system.py = 328  # 备份/导出/快照淘汰（本次为加微秒级暂存名 +2 行）
 # （2026-09-16 重构批：dashboard() 已拆为五个 section helper，本行按自洁删除）
@@ -52,3 +52,9 @@ web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导�
 mcp/jobws_mcp/server.py = 358  # 工具注册表 + 参数模型；build_server() 301 行（按能力分组的注册块，拆分列入后续重构）
 mcp/jobws_mcp/tools_readonly.py = 429  # 六个只读工具；dashboard_summary() 109 行（编排 + 组装，拆分列入后续重构）
 scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；main() 97 行（步骤线性，拆分列入后续重构）
+#
+# --- Electron 主进程：2026-09-25 发布前收口批把它与 .js/.mjs 纳入扫描 ---
+# （此前 web/electron 与 .js 都在范围外；这一行是现状存档，只许变小。拆分
+#  【composition root + backend_process / updater / window / navigation /
+#  notifications】列入发布后重构批——发布窗口内不动刚修过两次的生命周期代码。）
+web/electron/main.js = 967

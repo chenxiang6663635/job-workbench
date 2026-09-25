@@ -14,7 +14,7 @@ import sys
 from fastapi import Query, Request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from jobws_core import pathres  # noqa: E402
+from jobws_core import containment, pathres  # noqa: E402
 from apierror import ApiError  # noqa: E402
 
 # 应用根（只读资源）。打包后 exe 同级，解包为仓库根。
@@ -64,25 +64,23 @@ def allowed_roots():
 
 
 def _inside_allowed_roots(full):
-    """工作区绝对路径是否落在某个允许根的**内部**。
+    """工作区绝对路径是否落在某个允许根的**内部**（realpath 判定，见原语）。
 
     必须是子目录而非根本身（`?ws=personal/../` normpath 到根 → 越界，
-    test_ws_param_guard 记录了该行为）；比较前先 normcase，与
-    routers/workspace.py 同口径——Windows 文件系统大小写不敏感、而
-    字符串比较敏感（盘符大小写不同时正常名字会被误判越界）。
+    test_ws_param_guard 记录了该行为）；数据根恰好在应用根内时
+    （JOBWS_DATA_DIR 指向仓库内目录），数据根本身也满足「在应用根内部」——
+    原语的「排除根自身」同时覆盖这个独立审查 MINOR-1 的形态。大小写口径由
+    原语内部的 normcase 承接（Windows 文件系统大小写不敏感、字符串比较敏感，
+    盘符大小写不同时正常名字会被误判越界）。
+
+    2026-09-25 发布前收口批：判定的**唯一实现**是 `jobws_core.containment`
+    （realpath + commonpath）——此前这里是 `normcase + startswith`，不解析
+    符号链接，与 MCP 侧（早已 realpath）漂移。用 `strictly_within_any`
+    （排除「等于任何根」）而不是 `within_any`：数据根 ⊆ 应用根时必须继续
+    拒绝数据根本身（迁移时丢过这一条，`test_data_root_itself_is_not_a_workspace`
+    当场抓住）。
     """
-    target = os.path.normcase(full)
-    roots_norm = {os.path.normcase(r) for r in allowed_roots()}
-    if target in roots_norm:
-        # 等于任何允许根本身 → 越界。不只防「同根」：数据根恰好在应用根内时
-        # （JOBWS_DATA_DIR 指向仓库内目录），数据根本身也满足「在应用根内部」
-        # 的前缀判定——不显式排除就会 200 服务「所有工作区的父目录」
-        # （独立审查 MINOR-1；routers/workspace.py 用同款「排除根本身」）。
-        return False
-    for root in roots_norm:
-        if target.startswith(root + os.sep):
-            return True
-    return False
+    return containment.strictly_within_any(full, allowed_roots())
 
 
 def resolve_default_workspace(root=None):
@@ -91,11 +89,27 @@ def resolve_default_workspace(root=None):
     基于可写数据根目录（而非应用根），保证打包后数据落在可写位置。
     优先级：环境变量 JOBWS_WORKSPACE（相对路径）→ 数据根下的 personal/。
     返回绝对路径（可能指向不存在的目录，调用方负责判断）。
+
+    **越界必须拒绝**（2026-09-25 收口批，审计 P1-A）：环境变量
+    `JOBWS_WORKSPACE`（桌面壳 / CLI `--workspace` 写进去的取值）此前拼完
+    **不做归属校验**——`JOBWS_WORKSPACE=../x` 会让后端静默服务允许根之外的
+    目录，与「静默回退即危险」的立场自相矛盾。现在与显式 `?ws=` 走同一道闸：
+    越界写法（绝对路径 / `..` 段 / 盘符相对）与经链接读穿的界外路径都
+    fail-closed；配置错误的代价是 400，但文案直接指出去哪里改。
     """
     if root is None:
         root = data_root()
     name = os.environ.get(ENV_WORKSPACE, "").strip() or DEFAULT_WORKSPACE_NAME
-    return os.path.normpath(os.path.join(root, name))
+    reason = containment.escape_reason(name)
+    full = os.path.normpath(os.path.join(root, name))
+    if reason or not _inside_allowed_roots(full):
+        raise ApiError(
+            400, "ws.outOfRange",
+            "默认工作区越出允许范围（%s）：%s —— 请把 JOBWS_WORKSPACE / "
+            "--workspace 改成允许根内的相对目录名（如 personal），"
+            "或清掉该配置使用默认值。" % (reason or "经链接指向界外", name),
+        )
+    return full
 
 
 def _reject_bad_param_name(request: Request) -> None:
@@ -212,14 +226,20 @@ def safe_join(workspace: str, *parts: str) -> str:
     """拼接 workspace 下的相对路径，越界即拒绝。
 
     parts 中不允许绝对路径与 .. 逃逸；返回归一化后的绝对路径，
-    且保证以 workspace 为前缀。
+    且保证以 workspace 为前缀（或就是 workspace 自身——无片段调用）。
+
+    2026-09-25 收口批：归属判定统一到 `jobws_core.containment`（realpath +
+    commonpath）——此前是 normpath 字符串前缀，不解析链接；工作区内的
+    junction 指向外部时可读穿（`ro_files.inside` 与 MCP 侧早已 realpath，
+    这里是最后一个漂移点）。**返回值仍是 normpath 拼接**（不是 realpath）：
+    判定与返回分离，调用方看到的路径形态不变。
     """
     for p in parts:
         if os.path.isabs(p) or ".." in p.split(os.sep) + p.split("/"):
             raise ApiError(400, "path.illegalSegment", "非法路径片段: %r" % p, part=p)
 
     full = os.path.normpath(os.path.join(workspace, *parts))
-    if not (full == workspace or full.startswith(workspace + os.sep)):
+    if not containment.is_within_or_equal(full, workspace):
         raise ApiError(400, "path.escape", "路径越出工作区")
 
     return full

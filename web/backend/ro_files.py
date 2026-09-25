@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import os
 
+from jobws_core import containment
+
 # 内容读取上限：这两处都是来读全文的（对比 MCP 资源的 20KB）；超出**截断并
 # 显式告知**（truncated / bytes 字段），绝不静默把截断当全文。
 CONTENT_MAX_BYTES = 256 * 1024
@@ -90,11 +92,14 @@ def decode_text(raw, truncated):
 
 
 def inside(base, full):
-    """realpath 二次确认：`deps.safe_join` 只做字符串归一化、不解析符号链接。
+    """真实路径归属确认——判定统一在 `jobws_core.containment`（2026-09-25 收口批）。
+
+    此前本函数自持一份 realpath + startswith 实现（`deps.safe_join` 另有
+    一份 normpath 版——同一个「越界」概念三处实现）；现统一到共享原语，
+    语义不变（**允许等于 base**：浏览素材库根/笔记根都要它，对应原语的
+    `is_within_or_equal`）。
 
     注意锚点：本函数防的是 `base` **目录树内**的 junction 读穿；`base` 本身被
     替换成指向外部的链接，由调用方的 base 层检查兜住（锚点=工作区根，与 MCP 侧
     同款——见各 router 的 `_section_base`，独立审查 MINOR-2）。"""
-    base_real = os.path.normcase(os.path.realpath(base))
-    full_real = os.path.normcase(os.path.realpath(full))
-    return full_real == base_real or full_real.startswith(base_real + os.sep)
+    return containment.is_within_or_equal(full, base)

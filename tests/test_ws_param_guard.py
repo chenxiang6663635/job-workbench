@@ -159,6 +159,105 @@ def test_absolute_path_still_400(client):
     assert resp.status_code == 400
 
 
+def test_ws_drive_relative_is_not_silently_served(client):
+    """盘符相对写法（`C:foo`）不得被静默服务（2026-09-25 收口批的行为锁）。
+
+    平台差异有据：Windows 上 join 会重置到盘根、realpath 判定兜住 → 400；
+    Linux 上它是普通文件名 → 界内但不存在 → 404。两平台都不是 200——本用例
+    只锁「不静默服务」这一条（细粒度由 containment.escape_reason 用例锁定）。
+    """
+    resp = client.get("/api/system/paths", params={"ws": "C:foo"})
+    assert resp.status_code in (400, 404), resp.text
+
+
+# --- 默认工作区的边界闸（2026-09-25 发布前收口批，审计 P1-A） --------------------
+#
+# 此前只有显式 `?ws=` 走 `_inside_allowed_roots`；默认工作区来自环境变量
+# `JOBWS_WORKSPACE`（桌面壳 / CLI `--workspace` 写进去的），拼好后**不做归属
+# 校验**——越界配置会让后端静默服务允许根之外的目录，与「静默回退即危险」的
+# 立场自相矛盾。现在默认路径与显式路径走同一闸：越界一律 400 并指出去哪修。
+
+def _client_with_default_workspace(tmp_path, monkeypatch, value):
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setattr(deps, "ROOT", str(tmp_path))
+    (tmp_path / "personal").mkdir(exist_ok=True)
+    monkeypatch.setenv("JOBWS_WORKSPACE", value)
+    import main  # noqa: E402  （ROOT 改写后导入，同上方 fixture 的理由）
+    return TestClient(main.app)
+
+
+def test_default_workspace_escape_is_rejected(tmp_path, monkeypatch):
+    """`JOBWS_WORKSPACE=../x` → 400，而不是静默服务界外目录。"""
+    client = _client_with_default_workspace(
+        tmp_path, monkeypatch, os.path.join("..", "escape"))
+    resp = client.get("/api/system/paths")
+    assert resp.status_code == 400
+    assert resp.json()["error_code"] == "ws.outOfRange"
+
+
+def test_default_workspace_absolute_is_rejected(tmp_path, monkeypatch):
+    """默认工作区配成绝对路径 → 400（与显式 `?ws=` 的 mustBeRelative 同源）。"""
+    client = _client_with_default_workspace(
+        tmp_path, monkeypatch, str(tmp_path / "elsewhere"))
+    resp = client.get("/api/system/paths")
+    assert resp.status_code == 400
+    assert resp.json()["error_code"] == "ws.outOfRange"
+
+
+def test_default_workspace_drive_relative_is_rejected(tmp_path, monkeypatch):
+    """`C:foo` 盘符相对写法：`isabs()` 为 False、join 时却重置到盘根——
+    两种平台上都属越界写法，必须被同一闸拦住。"""
+    client = _client_with_default_workspace(tmp_path, monkeypatch, "C:foo")
+    resp = client.get("/api/system/paths")
+    assert resp.status_code == 400
+
+
+def test_startup_precheck_exits_on_escape(tmp_path, monkeypatch):
+    """启动期预检：配置越界应立刻退 2，而不是启动成功、每个请求才 400。
+
+    双击 exe 场景看不见任何请求级错误横幅之外的东西；配置错误应该在第一秒
+    被响亮指出（`_pause_if_frozen` 兜住窗口可见性）。
+    """
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setattr(deps, "ROOT", str(tmp_path))
+    (tmp_path / "personal").mkdir()
+    monkeypatch.setenv("JOBWS_WORKSPACE", os.path.join("..", "escape"))
+    import main  # noqa: E402
+
+    with pytest.raises(SystemExit) as excinfo:
+        main._apply_workspace_env()
+    assert excinfo.value.code == 2
+
+
+# --- safe_join 的链接判定（同一收口批，审计 P1-B） --------------------------------
+#
+# `ro_files.inside`（素材库/笔记）与 MCP 侧早已 realpath；只有 deps.safe_join
+# 仍是 normpath 字符串判定——同一个「越界」概念三种实现，工作区内的链接可读穿。
+
+def test_safe_join_rejects_symlink_escape(tmp_path):
+    ws = tmp_path / "ws"
+    outside = tmp_path / "outside"
+    ws.mkdir()
+    outside.mkdir()
+    link = ws / "link"
+    try:
+        os.symlink(str(outside), str(link), target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip("本机不能创建目录符号链接：%s" % exc)
+
+    with pytest.raises(deps.ApiError) as excinfo:
+        deps.safe_join(str(ws), "link", "f.txt")
+    assert excinfo.value.code == "path.escape"
+
+
+def test_safe_join_still_accepts_normal_paths(tmp_path):
+    """正常子路径不受影响：返回值仍是 normpath 拼接（最小行为变化）。"""
+    ws = tmp_path / "ws"
+    (ws / "sub").mkdir(parents=True)
+    result = deps.safe_join(str(ws), "sub", "a.txt")
+    assert result == os.path.join(str(ws), "sub", "a.txt")
+
+
 def test_ws_resolves_against_data_root(client_two_roots):
     """打包形态（数据根 ≠ 应用根）：`?ws=` 相对名先按数据根解析。
 

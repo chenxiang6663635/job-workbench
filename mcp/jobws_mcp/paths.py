@@ -24,9 +24,10 @@ MCP 是宿主里的可选组件、不需要 fastapi，主干也不需要 MCP SDK
 import os
 import sys
 
-# 硬闸已删（2026-09-19 PR-B）：本行是**唯一**的领域层依赖，且它只依赖 os/sys。
+# 硬闸已删（2026-09-19 PR-B）：下面一行是**唯一**的领域层依赖，且它只依赖 os/sys。
 # 缺了它就是装错了（`mcp/pyproject.toml` 已声明 jobws-core），导入期直接报错最清楚。
-from jobws_core import pathres  # noqa: E402
+# 2026-09-25 收口批：归属判定收口到同包的 `containment`（路径包含原语，Web 同源）。
+from jobws_core import containment, pathres  # noqa: E402
 
 # 给 pathres 一个「应用根」＝**数据根**，且**必须在此刻**——领域层（`tracker/_core`、
 # `jd_score`）在**导入期**就求值 `ROOT`，晚一步下面的 import 直接 RuntimeError。
@@ -97,11 +98,12 @@ def resolve_workspace(name=None, must_exist=False):
     （deps.py:126-132）。MCP 由宿主代用户调用，参数来自模型而非人手，
     少了这道检查等于给了任意目录读取能力——所以这里硬拒绝而不是警告。
 
-    两处比后端更严（MCP 的参数来源更不可控）：
-    - 比对前先 realpath：允许根内的符号链接 / junction 会读穿到链接目标；
-    - 不允许「恰好等于根」：把仓库根当工作区，等于允许枚举仓库结构。
+    仍比后端更严的一处（MCP 的参数来源更不可控）：不允许「恰好等于根」——
+    把仓库根当工作区，等于允许枚举仓库结构。归属判定本身 2026-09-25 起与
+    Web 同源（`jobws_core.containment`，realpath + commonpath；此前本条记的
+    「比对前先 realpath」是 MCP 独有的加严，漂移已收口）。
     """
-    roots = [os.path.realpath(r) for r in allowed_roots()]
+    roots = allowed_roots()
     name = (name or os.environ.get(ENV_WORKSPACE, "") or "").strip()
 
     if not name:
@@ -109,6 +111,15 @@ def resolve_workspace(name=None, must_exist=False):
     elif os.path.isabs(name):
         path = os.path.normpath(name)
     else:
+        # 越界写法与 Web 默认工作区同口径（2026-09-25 收口批）：`..` 段与盘符段
+        # （`C:foo`）此前 Windows / Linux 行为不同（realpath 兜住 vs 当普通名字
+        # 通过），现在两平台一致拒绝；绝对路径走上面单独分支（既有语义＝仅
+        # 数据根内通过）。
+        reason = containment.escape_reason(name)
+        if reason:
+            raise WorkspaceError(
+                "工作区名含越界写法（%s）：%s（只接受数据根内的相对目录名）"
+                % (reason, name))
         # 相对工作区名按**数据根**解析——本模块**有意比后端更严**：只认这一个
         # 根，不逐个根去试存在的目录（那会让同名工作区在不同形态下指向不同
         # 副本）。打包形态下数据根是系统用户目录——那里才是用户数据真正所在，
@@ -116,10 +127,11 @@ def resolve_workspace(name=None, must_exist=False):
         # 优先 + 应用根兜底」的两候选解析，可达集合比这里大。）
         path = os.path.normpath(os.path.join(data_root(), name))
 
-    real = os.path.realpath(path)
-    if not any(real.startswith(r + os.sep) for r in roots):
+    if not containment.within_any(path, roots):
         raise WorkspaceError(
-            "工作区越出允许范围：%s（允许的根：%s）" % (path, "、".join(roots)))
+            "工作区越出允许范围：%s（允许的根：%s）"
+            % (path, "、".join(containment.real(r) for r in roots)))
+    real = containment.real(path)
     if must_exist and not os.path.isdir(real):
         raise WorkspaceError(
             "工作区不存在：%s（请先在你打开的工作台里初始化，"
@@ -155,9 +167,9 @@ def resolve_within_workspace(workspace, value, label="目录"):
     if any(":" in seg for seg in segments):
         return None, None, ("%s 不能包含盘符（`C:foo` 这类盘符相对路径会让 join 重置到"
                              "盘根）：%s") % (label, raw)
-    real = os.path.realpath(os.path.join(os.path.realpath(workspace), *segments))
-    ws_real = os.path.realpath(workspace)
-    if real != ws_real and not real.startswith(ws_real + os.sep):
+    ws_real = containment.real(workspace)
+    real = containment.real(os.path.join(ws_real, *segments))
+    if not containment.is_within_or_equal(real, ws_real):
         return None, None, "%s 越出工作区：%s" % (label, raw)
     return real, "/".join(segments), None
 

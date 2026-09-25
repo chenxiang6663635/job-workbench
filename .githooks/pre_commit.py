@@ -52,6 +52,14 @@ TEST_SLOW_WARN_SECONDS = 60
 # 看起来像"还在跑"而不是"失败了"（2026-09-23 审计 P2）。到点即阻断并说清原因。
 TEST_TIMEOUT_SECONDS = 900
 PHONE_PATTERN = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
+# 长十六进制段（hash）里的"手机号形态"是误报：锁文件（uv.lock 的 wheel URL、
+# requirements.lock 的 --hash=…）内嵌 SHA256，中间的数字段会整段撞上手机号模式
+# （2026-09-25 真实案例：cffi wheel URL 的中间数字段同时拦住本地 pre-commit 与
+# CI privacy 步骤；为免本说明自身触发护栏，此处不复述该数字——写注释时同样要
+# 守这条规则）。真号码两侧几乎不可能同时是 hex 字符，故：
+# 匹配所在的**连续 hex 段 ≥ 32** → 判为 hash（覆盖 md5 / sha1 / sha256 长度）。
+_HEX_CHARS = "0123456789abcdefABCDEF"
+HASH_RUN_MIN = 32
 # 占位号白名单：文档/模板里规范推荐的示例号（13800000000 是本项目 CONTRIBUTING 的占位示例）
 PLACEHOLDER_NUMBERS = {"13800000000", "13800138000", "12345678901"}
 EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@(?:qq|163|126|gmail|outlook|hotmail)\.(?:com|net)", re.IGNORECASE)
@@ -78,6 +86,20 @@ def staged_files() -> list[str]:
     return [p for p in out.split("\0") if p]
 
 
+def _in_long_hex_run(text: str, start: int, end: int) -> bool:
+    """匹配两侧所在的「连续十六进制段」是否足够长 → 是则视为 hash 而非电话。
+
+    判定基于**所在行文本**（上下文就是行）：所以测试样本里的长 hash 必须写成
+    单行完整串，拆行会切断段、让豁免失效（见 tests/test_pre_commit_hook.py）。
+    """
+    i, j = start, end
+    while i > 0 and text[i - 1] in _HEX_CHARS:
+        i -= 1
+    while j < len(text) and text[j] in _HEX_CHARS:
+        j += 1
+    return (j - i) >= HASH_RUN_MIN
+
+
 def privacy_problem(paths: list[str], diff_text: str) -> str | None:
     """给定文件清单与 diff 文本做隐私判定（纯函数，本地钩子与 CI 共用同一份）。"""
     for path in paths:
@@ -88,6 +110,8 @@ def privacy_problem(paths: list[str], diff_text: str) -> str | None:
         number = m.group(0)
         if number in PLACEHOLDER_NUMBERS or len(set(number[3:])) == 1:
             continue  # 占位号（如 13800000000），非真实号码
+        if _in_long_hex_run(added, m.start(), m.end()):
+            continue  # 长 hash 段内的数字片段（锁文件 wheel URL 等），非真实号码
         return f"possible real phone number in staged diff: {number} (use 13800000000-style placeholders)"
     for m in EMAIL_PATTERN.finditer(added):
         return f"possible real email in staged diff: {m.group(0)} (use sample@example.com)"

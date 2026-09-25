@@ -137,18 +137,19 @@ jobs:
           python tools/jobws.py @checkArgs
           if ($LASTEXITCODE -ne 0) { throw "release check 失败（exit $LASTEXITCODE）——按上文提示修 CHANGELOG 后重跑" }
 
-      # PyInstaller 不在 requirements.txt 里（它只是构建期依赖，不该打给终端用户）。
-      # 上限按本仓库既有惯例（fastapi<0.142 那样）钉到主版本，不钉死小版本：
-      # 具体小版本与 Python 基线、runner 镜像的兼容性耦合，钉死了反而会在 runner
-      # 上装不上。
-      # 解析到的实际版本由下一步打印进日志——不可复现时至少有据可查。
+      # 2026-09-25 收口批：**按锁安装**（requirements.lock，uv pip compile 产物、
+      # 带 hash——pip 在所有条目都有 hash 时自动进入校验模式）——此前是范围解析
+      # （fastapi<0.142 这样），同一个 SHA 今天与两周后重建会得到不同的依赖树
+      # （独立审计 P1）。lock 的输入是 requirements.lock.in：requirements.txt +
+      # PyInstaller（打包器也是依赖树的一部分，一并锁定）。
+      # 「解析到的实际版本」仍由下一步打印进日志——锁 + 日志双重可查。
       # 注意不要在探测清单里加 filelock：它是仓内模块，不是 pip 依赖。
-      - name: 安装后端依赖与 PyInstaller
+      - name: 安装后端依赖与 PyInstaller（按 lock）
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           python -m pip install --upgrade pip
-          pip install -r web/backend/requirements.txt "pyinstaller<7"
+          pip install -r web/backend/requirements.lock
           if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（exit $LASTEXITCODE）" }
 
       # 领域包必须**非 editable** 安装：build_backend_exe.ps1 会拒绝 editable
@@ -209,6 +210,44 @@ jobs:
         run: |
           python scripts/smoke_backend_exe.py web/backend/dist/job-workbench-backend/job-workbench-backend.exe
           if ($LASTEXITCODE -ne 0) { throw "打包后端冒烟失败（exit $LASTEXITCODE）——产物可能缺模块/资源，不要按绿发布" }
+
+      # --- 全量 UI E2E（2026-09-25 发布前收口批：发布证明链）------------------------
+      # 为什么在这里（独立审计 P1）：PR 层只跑 smoke 子集（#197 的提速保留），
+      # 于是「PR 绿 → 合并 → 全量 E2E 还在跑 → tag 发版」存在一条缝——而 tag 触发
+      # 的 release 链此前不跑任何 UI 测试。现在：**任何一个 tag 都必须先过全量
+      # 115 条**，失败即 build 失败、publish 不会发生。dry_run 演练同链覆盖。
+      # 细节：demo 工作区要先建（playwright 的 webServer 以 --workspace demo 起
+      # 后端）；Windows runner 的 Playwright 浏览器缓存路径是
+      # %LOCALAPPDATA%\ms-playwright（Linux 的 ~/.cache 在 Windows 上是空目录、
+      # 缓存会永远 miss）；Windows 装浏览器不需要 --with-deps（那是 Linux 依赖）。
+      - name: 初始化 demo 工作区（E2E 前置）
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python tools/jobws.py init --target demo --demo
+          if ($LASTEXITCODE -ne 0) { throw "demo 工作区初始化失败（exit $LASTEXITCODE）" }
+
+      - name: 缓存 Playwright 浏览器（Windows 路径）
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/frontend/package-lock.json') }}
+
+      - name: 安装 Playwright 浏览器（Chromium）
+        shell: pwsh
+        working-directory: web/frontend
+        run: |
+          $ErrorActionPreference = "Stop"
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { throw "Playwright 浏览器安装失败（exit $LASTEXITCODE）" }
+
+      - name: 全量 UI E2E（发布证明链）
+        shell: pwsh
+        working-directory: web/frontend
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm run test:ui
+          if ($LASTEXITCODE -ne 0) { throw "全量 E2E 失败（exit $LASTEXITCODE）——UI 有回归，不要按绿发布" }
 
       - name: 定位产物与更新元数据
         id: artifact

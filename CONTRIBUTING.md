@@ -146,10 +146,10 @@
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
 - **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（**≈40s / 1352 条**（2026-09-24 复核：1352 通过 + 10 跳过）；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
 - **测试规模与阈值（2026-09-20 起）**：三套测试**分别**计阈值，别只盯 pytest 总量（增速最快的其实是 e2e）。
-  - 基线（2026-09-24 实测）：pytest **97 文件 / 1352 条（+10 跳过）/ 本机全量 ≈40s**（CI 里 pytest job 约 40s，**不在关键路径**）；vitest **22 文件 / 172 用例**（`web/frontend/tests/unit/`）；Playwright **17 spec / 115 用例**（CI 里 **≈2.5 分钟——关键路径**）；MCP **7 文件 / 61 条**（`mcp/tests/`，与 pytest 分开跑）。CI 各 job 的**耗时**数量级（会随用例数浮动，看 Actions 上的当次数字）：UI 冒烟 ~171s / 后端 exe 冒烟 ~90s / 前端构建 ~30s / MCP ~24s / 领域包 ~14s。
+  - 基线（2026-09-24 实测）：pytest **97 文件 / 1352 条（+10 跳过）/ 本机全量 ≈40s**（CI 里 pytest job 约 40s，**不在关键路径**）；vitest **22 文件 / 172 用例**（`web/frontend/tests/unit/`）；Playwright **17 spec / 115 用例**（**2026-09-25 拆级**：PR 上的 `ui-smoke` 只跑最小集 smoke + viewports + a11y + nav（`npm run test:ui:smoke`），全量 115 条在 push main 后的 `e2e-full` job 跑——不阻塞 PR、合并后即回归）；MCP **7 文件 / 61 条**（`mcp/tests/`，与 pytest 分开跑）。CI 各 job 的**耗时**数量级（会随用例数浮动，看 Actions 上的当次数字）：UI 冒烟（PR 最小集）~100s / **e2e-full（main push）~170s** / 后端 exe 冒烟 ~90s / 前端构建 ~30s / MCP ~24s / 领域包 ~14s。
   - **这些数字随批次变动**：上面几个是**实测快照**不是契约，改完代码以本地实跑为准；发现与文档差得远就顺手改这里（别把"应该跑多少条"写进去）。
-  - 动手阈值：**本机全量 > 60s 或钩子体感 > 30s → 先给钩子/本地加 pytest-xdist（`-n 4`，覆盖率不降；32 核机器别 `auto`）**；CI 的 pytest job > 3 分钟 → CI 侧再并行；**CI 总时长 > 5 分钟 → 先审 UI 冒烟与后端 exe 冒烟（当前 171s / 90s），不是 pytest**；> 10 分钟才谈分片/过滤。
-  - 明确不做：① 钩子改跑「与改动相关的子集」——本仓库跨层耦合（领域层 → CLI → 后端 → 前端）、没有 模块→测试 映射，漏跑就是假绿；② UI 冒烟按路径过滤——有后端改动打红 UI 的先例，要压走 `--shard` 或拆 job。
+  - 动手阈值：**本机全量 > 60s 或钩子体感 > 30s → 先给钩子/本地加 pytest-xdist（`-n 4`，覆盖率不降；32 核机器别 `auto`）**；CI 的 pytest job > 3 分钟 → CI 侧再并行；**CI 总时长 > 5 分钟 → 先审 e2e-full 与后端 exe 冒烟（当前 ~170s / ~90s；PR 上的 ui-smoke 拆级后约 100s），不是 pytest**；> 10 分钟才谈分片/过滤。
+  - 明确不做：① 钩子改跑「与改动相关的子集」——本仓库跨层耦合（领域层 → CLI → 后端 → 前端）、没有 模块→测试 映射，漏跑就是假绿；② UI 冒烟按路径过滤——有后端改动打红 UI 的先例；**2026-09-25 按「拆 job」落实**（PR 跑最小集、全量进 main push 的 `e2e-full`），不再压 `--shard`。
   - xdist 前置：`web/backend/requirements-dev.txt` 新增依赖（照常走 PR，CI 同步装）；先验并行安全（测试里的 `file_lock` 与 `pathres.snapshot_root()` 须落在 tmp）。
 - **开发前先装领域包（2026-09-17 起）**：`uv pip install --python <3.12 解释器> packages/jobws-core`（venv 由 uv 创建时通常不带 pip，用 `<解释器> -m pip install packages/jobws-core` 也行）。不装也能跑——旧路径 shim 会退化到源码形态（把 `packages/jobws-core/src` 加进 `sys.path`）——但那不是目标形态：目标是**装上就能用**，CI 另有非 editable 的安装冒烟守着这条。**打包必须用非 editable 安装**（`scripts/build_backend_exe.ps1` 会拦）。
   - **往包里搬新模块时**：非 editable 安装的静态模块映射对**新增文件**不可见，不重装就会 `ModuleNotFoundError`（2026-09-19 A-1 实测）。本机开发建议 `uv pip install -e packages/jobws-core --config-settings editable_mode=compat`——compat 模式把 `src` 整体入 path，之后新增模块自动可见。
@@ -196,8 +196,8 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 记进 `.gitnexus/`/`.codegraph/`（本机缓存）。这两个目录已 gitignore 不会进仓库，但**别把它们
 本体外发**；索引进展用 `gitnexus list`、`codegraph status` 查看。
 
-注意：产品侧 `CONTRIBUTING` 不做**全量** Playwright E2E（见下节：只留一个最小 UI 冒烟，
-钉布局与 serious/critical a11y）；开发时**用 Playwright 手动点一次页面做验证**不属此列，不受限。
+注意：产品侧 PR 上**不做全量** Playwright E2E（只跑最小 UI 冒烟，钉布局与 serious/critical a11y；
+**全量 115 条在 push main 后的 `e2e-full` job 跑**，2026-09-25 拆级）；开发时**用 Playwright 手动点一次页面做验证**不属此列，不受限。
 
 ## 四端一致性（新增能力时必须同步）
 
@@ -242,5 +242,5 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 
 ## 明确不做（过度工程）
 
-`develop`/`release`/`hotfix` 分支、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、**全量** Playwright E2E（2026-09-13 细化为「不做全量、只留最小冒烟」：`web/frontend/e2e/` 只钉「页面能开 / 无横向溢出 / 顶栏不折行 / 无控制台错误 / serious+critical a11y 为 0」，不写业务流。理由：这类布局崩实测已发生两次——英文标签挤爆顶栏、窗口标题被页面 title 覆盖——而 tsc、eslint、两条判定脚本全都测不到，只能靠真机跑）、代码签名。
+`develop`/`release`/`hotfix` 分支、semantic-release、GitHub Projects 看板、需求投票工具、复杂 label 体系、独立 roadmap 站点、**PR 上的全量** Playwright E2E（2026-09-13 细化为「PR 不做全量、只留最小冒烟」、2026-09-25 拆级为「PR 最小集 + main push 全量」：`web/frontend/e2e/` 的 PR 门禁只钉「页面能开 / 无横向溢出 / 顶栏不折行 / 无控制台错误 / serious+critical a11y 为 0」，全量 115 条在 push main 后的 `e2e-full` job 跑。理由：这类布局崩实测已发生两次——英文标签挤爆顶栏、窗口标题被页面 title 覆盖——而 tsc、eslint、两条判定脚本全都测不到，只能靠真机跑）、代码签名。
 （依据：`docs/research/report_dev_workflow.md` —— 单人维护项目的最小可行取舍。例外：最小 CI（2026-09-08 上线，pytest + 前端构建）、最小 UI 冒烟（2026-09-13 上线，布局 + a11y，见上条括注）；**分支保护（2026-09-08 起启用）**——线性历史 + 禁 force push（含 admin）。GitHub 分支保护无法按路径区分"代码 vs 文档"（required checks 会连带禁止一切直推），故分级靠"分支策略"节的规则自律执行，出错靠 revert 兜底。）

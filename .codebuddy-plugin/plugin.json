@@ -1,7 +1,7 @@
 {
   "name": "job-workbench",
   "version": "26.9.0",
-  "description": "本地优先的求职工作台：投递追踪 / 岗位评估 / 简历 / 投递执行 / 教练（技能 8 个、命令 5 个、子代理 2 个）",
+  "description": "本地优先的求职工作台：投递追踪 / 岗位评估 / 简历 / 投递执行 / 教练（技能 9 个、命令 5 个、子代理 2 个）",
   "author": {
     "name": "chenxiang6663635"
   },
@@ -12,6 +12,7 @@
     "./skills/jwb-api-review",
     "./skills/jwb-apply",
     "./skills/jwb-cli-contract",
+    "./skills/jwb-domain-setup",
     "./skills/jwb-jd",
     "./skills/jwb-mcp-server",
     "./skills/jwb-recruit-coach",

@@ -195,7 +195,7 @@ def version_problems(root, skills_root):
 
     技能与插件壳的 `version` 若各写各的，发布时只 bump 应用版本（`web/electron/
     package.json`）就会留下静默失真的旧值——用户装了插件却永远收不到「新版本」。
-    真值源只有一个：`web/electron/package.json`；这里要求 8 个技能的
+    真值源只有一个：`web/electron/package.json`；这里要求每个技能的
     `metadata.version` 与插件壳的 `version` 都等于它。
 
     应用版本文件不存在（独立使用本校验器的场景）→ 跳过，不误报。

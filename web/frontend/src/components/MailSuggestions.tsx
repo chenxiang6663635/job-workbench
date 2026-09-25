@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { ApplicationSelect } from "./ApplicationSelect";
 import MailBody from "./MailBody";
 import { Check, Copy, ExternalLink, Loader2, Sparkles, X } from "lucide-react";
 import type { ImapMessage } from "../api";
@@ -26,6 +27,17 @@ const KIND_LABEL_KEYS: Record<MailFact["kind"], TranslationKey> = {
   阶段: "suggest.kindStage",
   公司岗位: "suggest.kindRecord",
 };
+
+/** 这些 kind 的写入必须先有归属记录（见 lib/factWrites 的分支）。 */
+const NEEDS_TARGET_KINDS: ReadonlySet<MailFact["kind"]> = new Set([
+  "阶段",
+  "时间",
+  "截止",
+  "链接有效期",
+]);
+
+const needsTarget = (fact: MailFact): boolean =>
+  NEEDS_TARGET_KINDS.has(fact.kind) && !fact.targetId;
 
 /** 每条事实一张卡：确认写入 / 忽略。写入一律走既有链路（见 hooks/useMailFacts）。 */
 export default function MailSuggestions({ message, onWritten, onOpenStatus }: Props) {
@@ -100,6 +112,21 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                 </div>
                 {fact.note && <p className="mt-1 text-[11px] text-warning">{fact.note}</p>}
 
+                {/* 归属就地选定（2026-09-25 真机缺陷）：后端没匹配到记录时，
+                    与其让「确认写入」必然被拦，不如在卡片上直接给出口。
+                    下拉复用 ApplicationSelect（自取记录列表）；未选时的展示
+                    文案复用 status.pickRecord——zh-CN.ts 已卡 data 型 1500 行
+                    硬上限，不新增 i18n 键 */}
+                {needsTarget(fact) && !settled && (
+                  <div className="mt-1.5">
+                    <ApplicationSelect
+                      value={s.picked[key] ?? ""}
+                      onPick={(app) => s.setPicked(key, app?.id ?? "")}
+                      emptyLabel={t("status.pickRecord")}
+                    />
+                  </div>
+                )}
+
                 {fact.kind === "会议链接" && !settled && (
                   <div className="mt-1.5 flex items-center gap-2 text-[11px]">
                     <a
@@ -145,9 +172,14 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                       size="sm"
                       variant="outline"
                       className="h-7 px-2 text-[11px]"
-                      disabled={s.busy === key || (low && !s.acked[key])}
+                      disabled={
+                        s.busy === key ||
+                        (low && !s.acked[key]) ||
+                        // 需要归属但还没选定：先在下拉里选，再放行写入
+                        (needsTarget(fact) && !s.picked[key])
+                      }
                       onClick={() =>
-                        s.write(fact).then((ok) => {
+                        s.write(fact, s.picked[key] ?? "").then((ok) => {
                           if (ok) onWritten?.();
                         })
                       }

@@ -763,7 +763,7 @@ export default {
   "suggest.done": "Written",
   "suggest.inLedger": "In ledger",
   "suggest.ack": "I've checked the value",
-  "suggest.needRecord": "No matching application: pick the record in the tracker first",
+  "suggest.needRecord": "No automatic match: pick the record on the card before writing",
   "suggest.unsupported": "This kind of clue can't be written in one click",
   "suggest.recordGone": "The record no longer exists; refresh and retry",
   "suggest.notAllowed": "The current stage can't be overridden like this",

@@ -58,3 +58,8 @@ scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；m
 #  【composition root + backend_process / updater / window / navigation /
 #  notifications】列入发布后重构批——发布窗口内不动刚修过两次的生命周期代码。）
 web/electron/main.js = 967
+
+# --- 邮件事实解析：2026-09-25 PR-4 新增归属传播（_resolve_target 抽出 +
+#  extract_facts 恰好命中一条时向全部事实传播 targetId）——与 match_rows /
+#  阶段信号强内聚，拆分收益低；待与「建议卡就地选定」同批稳定后再审视。）
+packages/jobws-core/src/jobws_core/mail_facts.py = 317

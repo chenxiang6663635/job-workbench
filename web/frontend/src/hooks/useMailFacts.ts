@@ -25,6 +25,9 @@ export function useMailFacts(message: ImapMessage) {
   const [ignored, setIgnored] = useState<Record<string, boolean>>({});
   const [acked, setAcked] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  // 就地选定的归属记录（key → id）：后端没匹配到 targetId 的卡片，由用户在
+  // 卡片上直接补选（2026-09-25 真机缺陷——此前只能绕道完整解析对话框）
+  const [pickedTargets, setPickedTargets] = useState<Record<string, string>>({});
   // 可选 AI 增强：只在 Provider 已配置（BYOK）时出现；模型名由用户填并记住
   const [providerReady, setProviderReady] = useState(false);
   // 默认模型来自设置页（与简历导入 / 改写共用同一个真值），本地仍可临时改
@@ -69,8 +72,8 @@ export function useMailFacts(message: ImapMessage) {
   const keyOf = useCallback((fact: MailFact) => `${fact.kind}:${fact.value}`, []);
 
   const write = useCallback(
-    async (fact: MailFact): Promise<boolean> => {
-      const plan = planFactWrite(fact, message);
+    async (fact: MailFact, targetOverride = ""): Promise<boolean> => {
+      const plan = planFactWrite(fact, message, targetOverride);
       if (plan.kind === "blocked") {
         setError(t(plan.reasonKey));
         return false;
@@ -175,9 +178,13 @@ export function useMailFacts(message: ImapMessage) {
     setIgnored((prev) => ({ ...prev, [key]: true }));
   }, []);
 
+  const setPicked = useCallback((key: string, id: string) => {
+    setPickedTargets((prev) => ({ ...prev, [key]: id }));
+  }, []);
+
   return {
     facts, error, setError, busy, done, ignored, acked, copied,
     providerReady, model, setModel, aiBusy, aiModel,
-    keyOf, write, runAi, copy, setAck, ignore,
+    keyOf, write, runAi, copy, setAck, ignore, picked: pickedTargets, setPicked,
   };
 }

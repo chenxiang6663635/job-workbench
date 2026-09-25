@@ -277,6 +277,75 @@ test("忽略一条后该卡片消失，其余卡片不受影响", async ({ page 
   await expect(page.getByRole("group", { name: "Suggested stage" })).toBeVisible();
 });
 
+test("后端没给归属：卡片就地出现记录下拉，选定后写入（2026-09-25 真机缺陷）", async ({ page }) => {
+  // 真实后端在零/多命中时 targetId 是空串——此前 UI 没有就地选定的出口，
+  // 「确认写入」必然被 needRecord 拦死；本文件上方夹具的 mock 给了 A001，
+  // 把这条断链盖住了。这里用**真实形状**（targetId 为空）钉住新出口。
+  await page.route(/\/api\/imap\/suggest-facts/, (route) =>
+    route.fulfill({
+      json: {
+        facts: [
+          {
+            kind: "链接有效期",
+            value: "2026-10-02",
+            label: "完成测评（链接即将失效）",
+            evidence: "链接有效期：7天",
+            confidence: "low",
+            source: "body",
+            targetId: "",
+            note: "",
+          },
+        ],
+        total: 1,
+      },
+    })
+  );
+  // 记录列表（ApplicationSelect 自取）与 PATCH 都拦掉：demo 工作区零改动
+  await page.route(/\/api\/applications\/A001/, (route) => {
+    if (route.request().method() !== "PATCH") return route.continue();
+    return route.fulfill({ json: { item: { id: "A001" } } });
+  });
+  await page.route(/\/api\/applications\?/, (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    return route.fulfill({
+      json: {
+        items: [
+          { id: "A001", 公司: "Demo", 岗位: "Engineer", 当前阶段: "已投" },
+        ],
+        total: 1,
+      },
+    });
+  });
+
+  let patched: { 下次动作日期?: string; 下次动作?: string } | null = null;
+  page.on("request", (req) => {
+    if (req.url().includes("/api/applications/A001") && req.method() === "PATCH") {
+      patched = req.postDataJSON();
+    }
+  });
+
+  await openSuggestions(page);
+
+  const card = page.getByRole("group", { name: "Link expiry: 2026-10-02" });
+  const write = card.getByRole("button", { name: "Write" });
+
+  // 未选定归属 → 写入禁用；下拉就地在卡片上（不再绕道完整解析对话框）
+  await expect(write).toBeDisabled();
+
+  await card.getByRole("combobox").click();
+  await page.getByRole("option", { name: /A001/ }).click();
+
+  // 低把握事实仍需先勾「我已核对取值」（既有纪律不被就地选定绕过）
+  await card.getByRole("checkbox").check();
+  await expect(write).toBeEnabled();
+  await write.click();
+
+  await expect(card.getByText("Written")).toBeVisible();
+  expect(patched).not.toBeNull();
+  expect(patched!.下次动作日期).toBe("2026-10-02");
+  expect(patched!.下次动作).toBe("完成测评（链接即将失效）");
+});
+
 test("正文口径：拉取列表标「原文」、建议卡出处标「摘录」", async ({ page }) => {
   await openPage(page, "applications");
   await page.getByRole("button", { name: "Fetch from mailbox" }).click();

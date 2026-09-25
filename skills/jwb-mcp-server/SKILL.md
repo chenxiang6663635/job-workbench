@@ -4,7 +4,7 @@ description: Use when 为求职工作台或类似的本地优先工具构建、�
 compatibility: 需要 Python 3.12+（MCP SDK 与领域包同一条基线）；领域层已抽成可安装包 jobws-core，**装上即用、不需要仓库在侧**（少数仓库侧写操作会返回 unknown_operation，属能力说明而非依赖）；jobws 指仓库内的 python tools/jobws.py。
 license: MIT
 metadata:
-  version: 26.9.15
+  version: 26.9.0
 ---
 
 # MCP server 构建与维护（stdio 形态）

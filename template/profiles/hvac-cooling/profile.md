@@ -14,11 +14,15 @@
 ```
 hvac-cooling/
 ├── profile.md            本文件：插件元信息
-├── lexicon.md            三级词典，两个方向共用
+├── lexicon.md            三级词典，6 个方向共用
 ├── failure_keywords.txt  失败原因聚类关键词表
-└── directions/
-    ├── datacenter.md     方向锚点表 + 方向特有词
-    └── hvac.md
+└── directions/           方向锚点表 + 方向特有词（2026-09-24 从 2 个扩到 6 个）
+    ├── datacenter.md             数据中心冷却 / 热管理
+    ├── hvac.md                   空调制冷 / HVAC 优化
+    ├── thermal-management.md     电子 / 服务器 / 芯片散热
+    ├── thermal-fluid-cfd.md      热流体仿真 / CFD
+    ├── thermal-design-cae.md     热设计 / CAE
+    └── energy-storage-thermal.md 储能 / 电池热管理
 ```
 
 词典与方向分离的理由：同一领域内不同方向共享大部分技术词汇（制冷循环、传热、风水系统），差异只在少数方向特有词与评分锚点。分开维护避免两处词典漂移。

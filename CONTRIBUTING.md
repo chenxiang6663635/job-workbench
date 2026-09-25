@@ -91,20 +91,20 @@
     1. **在 squash 对话框里手动改掉最终的提交信息**：那既不改 PR 标题、也不触发 `edited`，校验不会重跑——英文 subject 照样落进 main。机制上拦不住（`pull_request` 事件看不到你合并时手填的那段），所以规矩是**合的时候不要动默认的提交信息**。
     2. **校验脚本与被校验对象同源同 PR**：workflow 与 `tools/*.py` 都取自 PR 自己的分支，所以一个 PR 可以顺手把判定放宽（把 CJK 正则改成 `.*`）而 CI 依旧全绿。单人仓库没有第二个审批人，实际防线是 `tests/` 里钉住的行为——放宽正则会让那批用例立刻红。**改判定规则时必须同步改测试并写明理由**，这就是这条防线起作用的唯一方式。
 
-## 版本号体系（时间戳，2026-09-15 起）
+## 版本号体系（月粒度 CalVer `YY.MM.N`，2026-09-24 起）
 
 语义化版本号已弃用（0.x 的 minor/patch 映射、`v1.0.0` 的提法一并作废）。现行规则：
 
-- **双形态**：
-  - **发布号**（tag / CHANGELOG 段名）= `YY.MM.DD.N`——`YY` 两位数年份、`MM` 月、`DD` 日、`N` 当天第几次发布（从 1 起）。例：`26.09.15.1`。
-  - **机器版本**（`web/electron/package.json` 的 `version`、`latest.yml`、产物文件名、界面「关于」区块）= `YY.M.D`（同日的三段形式，如 `26.9.15`）。**不带 N**——实测 electron-builder 会把 build metadata（`+N`）在产物文件名与 latest.yml 两处剥离，且 electron-updater 对非 semver 直接抛 `ERR_UPDATER_INVALID_VERSION`。**界面显示的也是机器版本**：N 只在打 tag 那一刻才存在，运行时无从派生；要对回发布号请查 tag 或 CHANGELOG 段名（曾把「界面显示」写进发布号那条，与实现冲突，已订正——第二轨 MAJOR-1）。
-- **生成**：`python tools/jobws.py release version` 打印"若今天发布"的号（按发布当日生成；同日已有 tag 时 N 递增，读 `git tag` 序列，不落状态文件）。**写入 `package.json` 仍由人工 bump**（发布流程第 2 步），`release check` 把关。
-- **唯一来源**：`web/electron/package.json` 的 `version`（机器版本形态）；发布号由机器版本 + 当日 tag 派生，不存在第二套真值源。
-- **tag 约定**：`v<发布号>`（如 `v26.09.15.1`）；**CHANGELOG 段名 = 发布号**。tag 与机器版本的比对规则 = **日期三段一致**（`release_assist.version_matches_tag`，本地与 CI 同源）；同日多版在机器层不可区分，属已知取舍。
+- **单一形态（2026-09-24 起）**：版本号 = **月粒度 CalVer `YY.MM.N`**（如 `26.9.0`）——tag、CHANGELOG 段名、`web/electron/package.json` 的 `version`、`latest.yml`、产物文件名、界面「关于」区块**全部是同一个号**（不再区分「发布号 / 机器版本」双形态）。
+- **第三位 `N` = 当月第几发**（从 0 起）：首发 `26.9.0`；hotfix **锁前两位只动第三位**（`26.9.1`——这是 electron-updater 语义下唯一能触发更新的 bump 方式：`-rc` 后缀会被判更旧、`+N` 后缀参与判等，都不触发）；同月第二发继续递增（`26.9.2`）；换月清零（`26.10.0`）。
+- **为什么必须改（实测证据）**：electron-updater 的版本比较直接走 Node semver——四段（`26.9.15.1`）与月份补零（`26.09`）都**非法**（`semver.valid` → null，比较抛 `TypeError` 或直接 skip tag），旧双形态随之一并作废；月粒度三段是合法 semver，且有 Bitwarden Desktop（`YYYY.N.P`）同类先例。
+- **生成**：`python tools/jobws.py release version` 打印"若本月发布"的号（读 `git tag` 序列，当月已有 tag 时 N 递增，不落状态文件）。**写入 `package.json` 仍由人工 bump**（发布流程第 2 步），`release check` 把关。
+- **唯一来源**：`web/electron/package.json` 的 `version`；不存在第二套真值源。
+- **tag 约定**：`v<版本号>`（如 `v26.9.0`）；**CHANGELOG 段名 = 版本号**。tag 与版本的比对规则 = **逐字相等**（`release_assist.version_matches_tag`，本地与 CI 同源）。
 - **破坏性变更**：不再由版本号承载——写进该版 CHANGELOG 的「破坏性变更」小节 + 段首「升级须知」（影响与迁移步骤）。
-- **发布纪律（2026-09-15 起）**：**单一发布节点**——中间批次不 bump / 不 tag / 不 Release / 不出安装包；全部批次做完后只发布一次，号在发布当日生成。
+- **发布纪律（2026-09-15 起）**：**单一发布节点**——中间批次不 bump / 不 tag / 不 Release / 不出安装包；全部批次做完后只发布一次。
 - **其它 version 字段（私有 / 独立包，不参与发布）**：`web/frontend/package.json` 与 `mcp/pyproject.toml` 的 `version` 是各自包的私有字段，**不得与发布号联动**；`.codebuddy-plugin/marketplace.json` 无 version 字段。**例外（派生物，不是真值源）**：领域包 `packages/jobws-core` 的版本在**构建期**由它自己的 `setup.py` 读 `web/electron/package.json` 写进 wheel 元数据，运行时从 `importlib.metadata` 读回（CI 断言三者一致，见 `jobws_core/_version.py`）。它同样**不是**真值源——改版本仍然只改 `package.json` 一处，不要去改包的 `pyproject.toml`。
-- **当代参考**：tag 序列从 `v0.1.0`（2026-09-08）到 `v0.3.2`（2026-09-14）为语义化时代；**下一个版本是首个时间戳版本**（号 = 发布当日生成），实际值一律以 `web/electron/package.json` 与 `git tag` 为准。
+- **当代参考**：tag 序列从 `v0.1.0`（2026-09-08）到 `v0.3.2`（2026-09-14）为语义化时代，`v26.09.15.1` 时期（2026-09-15 体系，**未真正发布过 tag**）作废；**下一个版本是 `26.9.0`**（2026-09 月粒度首号），实际值一律以 `web/electron/package.json` 与 `git tag` 为准。
 
 ## CHANGELOG 写法（单文件两级制，2026-09-20 起）
 
@@ -121,14 +121,14 @@
 从 `main` 打 tag，不从分支发（**单一发布节点**：中间不发布，见 §版本号体系）：
 
 1. **冒烟验证**（CI 已跑全量自动化测试，人工冒烟不可省）：跑构建脚本产出安装产物 → **安装运行一次** → 用旧数据打开八个页面各操作一遍；UI 相关批按截图对比验收（能指出可见差异）。
-2. **生成当日号并 bump 机器版本**：`python tools/jobws.py release version` 取"今日发布号"（`YY.MM.DD.N`）→ 把 `web/electron/package.json` 的 `version` 写为同日的 `YY.M.D`。
-3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为**发布号** + ISO 日期（段名与 tag 同名）。
-4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v26.09.15.1`——校验 tag 与机器版本"日期三段一致"、CHANGELOG 有该发布号段，并预览将发布的 Release 说明（与 CI 同一实现；红着就别打 tag）。
-5. **dry_run 演练**：`gh workflow run release.yml -f dry_run=true -f tag=v<发布号>`（产出 exe + `latest.yml` 与说明，不碰 Release；`tag` 输入用于校验 CHANGELOG 段与版本比对——**需在第 3 步落章之后跑**）→ 通过后再 `git tag -a v<发布号> -m "..."` 并推送。
+2. **生成当月号并 bump 版本**：`python tools/jobws.py release version` 取"本月发布号"（`YY.MM.N`）→ 把 `web/electron/package.json` 的 `version` 写为同一个号。
+3. 把 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 段改为**版本号** + ISO 日期（段名与 tag 同名）。
+4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v26.9.0`——校验 tag 与版本**逐字相等**、CHANGELOG 有该版本段，并预览将发布的 Release 说明（与 CI 同一实现；红着就别打 tag）。
+5. **dry_run 演练**：`gh workflow run release.yml -f dry_run=true -f tag=v<版本号>`（产出 exe + `latest.yml` 与说明，不碰 Release；`tag` 输入用于校验 CHANGELOG 段与版本比对——**需在第 3 步落章之后跑**）→ 通过后再 `git tag -a v<版本号> -m "..."` 并推送。
 6. 发布后核验 `gh release view --json assets`（安装包 + `latest.yml` 都在）并**真下载一次**；构建产物按发布号归档到仓库外目录（产物已被 .gitignore 排除）。
 
-**hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再按当日生成新号发布（同日再发 N 递增）。**不**从旧 tag 拉 hotfix 分支。
-**撤回坏版本**：用新号重发（同日递增 N 或次日新号）；重发同名版本无效。
+**hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再取当月号发布（**锁前两位只动第三位**，N 递增；换月重新从 0 起）。**不**从旧 tag 拉 hotfix 分支。
+**撤回坏版本**：用**更高**版本号重发（当月 N 递增即可）；重发同名版本无效——electron-updater 不会接受相同或更低的号覆盖（详见 `docs/release-checklist.md` 的 RUNBOOK）。
 
 **自动更新**：Windows 打包版**已启用**（electron-updater，v0.2.1 起；unsigned 更新链的取舍已记于 SECURITY.md），首次分发仍走手动安装包；**macOS 自动更新不做**（剩余阻碍是代码签名，系统必需）。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
 
@@ -144,9 +144,9 @@
 - 本文件与 [AGENTS.md](AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
-- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（**≈29s / 1062 条**（2026-09-22 复核：1062 通过 + 6 跳过）；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（**≈40s / 1352 条**（2026-09-24 复核：1352 通过 + 10 跳过）；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
 - **测试规模与阈值（2026-09-20 起）**：三套测试**分别**计阈值，别只盯 pytest 总量（增速最快的其实是 e2e）。
-  - 基线（2026-09-22 实测）：pytest **77 文件 / 1062 条（+6 跳过）/ 本机全量 ≈29s**（CI 里 pytest job 约 30s，**不在关键路径**）；vitest **12 文件 / 80 用例**（`web/frontend/tests/unit/`）；Playwright **11 spec / 94 用例**（CI 里 **≈2 分钟——关键路径**）；MCP **7 文件 / 61 条**（`mcp/tests/`，与 pytest 分开跑）。CI 各 job 的**耗时**数量级（2026-09-20 实测，会随用例数浮动，看 Actions 上的当次数字）：UI 冒烟 ~171s / 后端 exe 冒烟 ~90s / 前端构建 ~28s / MCP ~24s / 领域包 ~14s。
+  - 基线（2026-09-24 实测）：pytest **97 文件 / 1352 条（+10 跳过）/ 本机全量 ≈40s**（CI 里 pytest job 约 40s，**不在关键路径**）；vitest **22 文件 / 172 用例**（`web/frontend/tests/unit/`）；Playwright **17 spec / 115 用例**（CI 里 **≈2.5 分钟——关键路径**）；MCP **7 文件 / 61 条**（`mcp/tests/`，与 pytest 分开跑）。CI 各 job 的**耗时**数量级（会随用例数浮动，看 Actions 上的当次数字）：UI 冒烟 ~171s / 后端 exe 冒烟 ~90s / 前端构建 ~30s / MCP ~24s / 领域包 ~14s。
   - **这些数字随批次变动**：上面几个是**实测快照**不是契约，改完代码以本地实跑为准；发现与文档差得远就顺手改这里（别把"应该跑多少条"写进去）。
   - 动手阈值：**本机全量 > 60s 或钩子体感 > 30s → 先给钩子/本地加 pytest-xdist（`-n 4`，覆盖率不降；32 核机器别 `auto`）**；CI 的 pytest job > 3 分钟 → CI 侧再并行；**CI 总时长 > 5 分钟 → 先审 UI 冒烟与后端 exe 冒烟（当前 171s / 90s），不是 pytest**；> 10 分钟才谈分片/过滤。
   - 明确不做：① 钩子改跑「与改动相关的子集」——本仓库跨层耦合（领域层 → CLI → 后端 → 前端）、没有 模块→测试 映射，漏跑就是假绿；② UI 冒烟按路径过滤——有后端改动打红 UI 的先例，要压走 `--shard` 或拆 job。
@@ -212,7 +212,6 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
   界面靠弹窗确认）；插件命令必须在 `.codebuddy-plugin/plugin.json` 的 `commands` 里登记。
 - **对齐以加法为主**：既有命令名与参数是契约（见 `skills/jwb-cli-contract`），
   重命名是破坏性变更——缺的补上、新的按规则起名，既有的只在矩阵里登记。
-- 资产分发到各宿主：`python tools/jobws.py skills install`——批 10 起一次分发**三类资产**（技能 / 命令 / 子代理，落点见脚本头部注释；`--link` 是实验选项，Windows 需开发者模式）。**零克隆通道**（插件市场安装、`npx skills add`）见 README「快速开始」；无论走哪条通道，副本过期 / 多出 / 内容不一致都由上面的检查器按资产类型逐项报出。
 - 资产分发到各宿主：`python tools/jobws.py skills install`——批 10 起一次分发**三类资产**（技能 / 命令 / 子代理，落点见脚本头部注释；`--link` 是实验选项，Windows 需开发者模式）。**零克隆通道**（插件市场安装、`npx skills add`）见 README「快速开始」；**仓库内的项目级副本**由上面的检查器按资产类型逐项比对（用户级 `~/.agents/skills/` 与插件市场缓存不在视野内——它们不随仓库走，见 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)）。
 
 ## 文案与 i18n（界面文字一律走 t()）

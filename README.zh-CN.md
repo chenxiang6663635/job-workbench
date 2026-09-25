@@ -5,16 +5,24 @@
 [![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)
+![Electron](https://img.shields.io/badge/Electron-44-blue.svg)
+![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)
+![平台](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
+![无遥测](https://img.shields.io/badge/telemetry-none-brightgreen)
+![最后提交](https://img.shields.io/github/last-commit/chenxiang6663635/job-workbench)
 
-一个**本地优先、AI 可审计**的求职工作台：从 JD 解析到 offer 决策的完整链路，用纯 Markdown 与 CSV 管理在你自己的磁盘上，由你自己的 AI CLI 驱动。
+> 版本号是月粒度 CalVer `YY.MM.N`（`26.9.0` = 当月第一次发布，hotfix 只递增第三位）。安装包**未经代码签名**——首次运行 Windows 可能显示「Windows 已保护你的电脑」，见「下载」一节的处理方式。
+
+一个**本地优先、AI 可审计**的求职工作台：从 JD 解析到 offer 决策的完整链路，用纯 Markdown 与 CSV 管理在你自己的磁盘上——可以从**桌面端、浏览器或你自己的 AI CLI** 三种入口驱动。
 
 ## 为什么做这个项目
 
 求职意味着敏感的个人数据（简历、电话、投递历史）——以及可能悄悄编造事实的 AI 输出。这个项目围绕三个回答构建：
 
-- **本地优先的隐私**。一切以纯文本存在你自己的磁盘上——git 能 diff、Excel 能打开、无遥测、无服务器。真实个人数据留在 `personal/`（整体 gitignore）：克隆本仓库得到空工作区，你可以放心公开 fork 而不泄露任何东西。
+- **本地优先的隐私**。一切以纯文本存在你自己的磁盘上——git 能 diff、Excel 能打开、无遥测、**没有云端服务器**（桌面端启动的本地后端只监听 127.0.0.1）。真实个人数据留在 `personal/`（整体 gitignore）：克隆本仓库得到空工作区，你可以放心公开 fork 而不泄露任何东西。
 - **可审计的 AI，而非黑箱自动化**。你自己的 AI CLI（BYOK 模型）做语义判断——读 JD、评匹配度；Python 脚本做一切确定性的事：资格门槛、评分校验、PDF 生成、追踪表读写——且每个自动判定（投递健康度、CSV 导入差异、失败聚类）都附带明确的、可人工核对的**理由**，绝不是一个裸分数。
 - **反编造护栏**。简历导入是**抽取而非生成**：每个落盘的值都必须能在原文找到，未抽到的字段标黄。AI 改写建议必须通过五项本地反编造校验才能被采用。
+- **一套引擎，任何专业**。评分规则与专业无关——领域知识装在**纯数据插件**里（内置两个示例：暖通制冷、软件后端），换专业只要照 [`docs/domain-contract.md`](docs/domain-contract.md) 写一份即可。
 
 ## 它解决什么问题
 
@@ -23,6 +31,7 @@
 - 这家公司值得投吗？上周看过类似的，当时怎么判断的？
 - 三个月前投这家，用的是哪版简历？当时的 JD 怎么写的？
 - 现在有几家在流程中？哪个明天截止？
+- 邮件里写着「请在 25 日前完成测评」——这个截止会不会被悄悄忘掉？
 
 工作台把这些变成可查询、可回溯的文件结构。
 
@@ -41,7 +50,8 @@
 - **邮件台账与诚实深链**（`mails.csv` + `jobws track mail`）：面试邀约、笔试通知、拒信都是一等记录，可指回投递记录；拉取的邮件带 Message-ID 且**一键记入台账**。「打开原邮件」分级诚实：自己粘的链接优先；Gmail 由 Message-ID 生成真实可用的 `rfc822msgid` 搜索深链；Outlook / QQ / 163 等没有可用深链——给「复制主题去邮箱搜索」，**不造假链接**。**邮件永不自动改阶段**，一律由你确认。
 - **简历版式与强调色**：内置经典 / 紧凑 / 强调三套版式共享同一套占位符骨架，全部单栏、全部过 ATS 校验；强调色四档与版式自由组合，生成的 PDF 与预览同源；把自己的合规 HTML 放进模板目录即出现在选择器里。
 - **界面字体与字号**：字号为连续滑块（80%–150%，步进 5%，即根字号缩放），与桌面端全局缩放解耦、浏览器里同样生效；界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible Next 与系统栈 / 衬线），等宽字体**独立**可选 **6 款**（Maple Mono 默认、JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro），**数字字体**另设一槽（Geist Mono 默认、JetBrains Mono、IBM Plex Mono 或跟随界面字体）——全部本地打包（OFL-1.1、离线可用）、只发拉丁子集（中文走系统栈）。
-- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市，任一不过不打分），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市；档案没填的岗位判「待补档案」——不打分也不终止，补齐即可评；城市偏好类只在「培养与稳定性」轻度扣分，硬性不可行才拦下），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **领域插件是数据不是代码**：内置两个示例插件（暖通制冷——6 个方向；软件后端——最小参考实现）。你自己的专业按 [`docs/domain-contract.md`](docs/domain-contract.md) 写一份插件即可——纯数据、零代码改动，有两个完整范例可抄，`jobws lint domains` 自动校验结构。
 
 ## 界面预览
 
@@ -62,7 +72,13 @@
 
 不想配环境的话，[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里有桌面版 `job-workbench-setup-*.exe`（免 Python / Node）：安装包是**向导式**——可自选安装位置，并选择「为所有用户 / 仅为我」（升级旧版时沿默认选项即可）。数据在 `%APPDATA%\job-workbench\`，不离开本机。
 
+**安装包尚未做代码签名。** 首次运行 Windows 可能显示「Windows 已保护你的电脑」——未签名软件的正常提示：点「**更多信息**」→「**仍要运行**」。SmartScreen 信誉按版本重新积累，后续版本可能再次提示。每个 Release 同时附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的哈希），可自行核对下载完整性；签名的缺位**不影响自动更新**（完整性以 `latest.yml` 里的哈希为准）。
+
 ```bash
+# 0. 只想先看看界面？一条命令得到一份填满数据的 demo 工作区
+#    （8 条投递 / 3 场面试 / 2 位联系人 / 1 个 Offer / 3 场宣讲会 / 6 道题 / 6 封邮件，全占位数据）
+python tools/jobws.py init --target demo --demo
+
 # 1. 初始化工作区（生成六个模块 + 档案模板 + 领域插件）
 #    --domain 换成你专业的插件，可选值见 docs/README.md 的「领域插件」表
 python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
@@ -71,8 +87,9 @@ python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
 python tools/jobws.py skills install --target user
 
 # 3. 填写 my_job_hunt/AGENTS.md
-#    第三节的硬门槛事实必填——不填则 JD 硬门槛判定会卡住（设计如此，不允许猜测）
-#    文件里还有两条通用诚实红线：简历动词经得起追问、永不编造经历
+#    第三节的硬门槛事实必填——不填的岗位会被判「待补档案」（不打分也不终止），
+#    补齐即可评分；判定永不猜测。文件里还有两条通用诚实红线：
+#    简历动词经得起追问、永不编造经历
 ```
 
 **不想克隆仓库也能用？** 两条通道任选：
@@ -127,7 +144,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 ## 贡献
 
-欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；代码改动走 PR（CI 绿：后端测试 + 前端构建），纯文档可直推。**投入节奏**：单维护者项目，投入是**分批**的——可能集中几天推进一批，也可能整周没有动作（面试周 / 笔试周停工，见 CONTRIBUTING「可持续性约定」）；对外部 issue 的首复目标是 48 小时内、滑期会在 pinned issue 说明（见 [docs/maintenance.md](docs/maintenance.md)），受求职节奏影响偶尔会有几天不回。
+欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；所有改动走 PR（CI 绿：后端测试 + 前端 lint/build + PR 标题校验 + UI 冒烟；`main` 有分支保护，纯文档同样走 PR）。**投入节奏**：单维护者项目，投入是**分批**的——可能集中几天推进一批，也可能整周没有动作（面试周 / 笔试周停工，见 CONTRIBUTING「可持续性约定」）；对外部 issue 的首复目标是 48 小时内、滑期会在 pinned issue 说明（见 [docs/maintenance.md](docs/maintenance.md)），受求职节奏影响偶尔会有几天不回。
 
 ## License
 

@@ -3,15 +3,16 @@
 本项目的所有显著变更记录于此文件。
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
-**版本号用时间戳体系**：发布号 `YY.MM.DD.N`（按发布当日生成、同日递增 N，如 `26.09.15.1`），
-机器版本（`package.json`）为同日的 `YY.M.D`（如 `26.9.15`）——规则与理由见
+**版本号用月粒度日历体系**：版本号 `YY.MM.N`（如 `26.9.0`）——`N` 是**当月第几发**
+（从 0 起）：hotfix 锁前两位只动第三位（`26.9.1`），同月第二发继续递增（`26.9.2`），
+换月清零（`26.10.0`）；tag `v26.9.0` **不补零**。规则与理由见
 [CONTRIBUTING.md](CONTRIBUTING.md) 的「版本号体系」一节。
 
-> **生效边界**：本体系自 **`v26.09.15.1`** 起适用；`v0.3.2` 及以前的段名是历史编号，
+> **生效边界**：本体系自 **`v26.9.0`** 起适用；`v0.3.2` 及以前的段名是历史编号，
 > 保留不改（已发出的 tag 不能改写）。
 
 **版本号唯一来源**：`web/electron/package.json` 的 `version` 字段。
-**tag 约定**：每个版本发布时打 `v<发布号>` tag（如 `v26.09.15.1`）；**CHANGELOG 段名与该发布号同名**。
+**tag 约定**：每个版本发布时打 `v<版本号>` tag（如 `v26.9.0`）；**CHANGELOG 段名与版本号同名**。
 **破坏性变更**：不再由主版本号承载——写在该版本的「破坏性变更」小节，并在段首「升级须知」说明影响与迁移步骤。
 **过渡纪律（2026-09-22 起）**：删除或改名列这类破坏性变更**先废弃、后移除**——先在段内 `### Deprecated` 登记并保持读时兼容，至少一个发布节点后才进 `### Removed` 并给出迁移办法。**有废弃 / 移除就必须列出**（即使升级本身不需要你做任何动作）。这两个小节按需出现在「技术细节」之下（没有内容时不写空节）；写法细则见 CONTRIBUTING「CHANGELOG 写法」。数据格式侧的承诺见 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)。
 
@@ -23,7 +24,7 @@
 
 > **本节是累积记录，不是「尚未实现」**：按单一发布节点纪律，下面这些功能**都已
 > 实现可用**（开发模式与本地构建里就能用），只是还没随某个发布号发出去——发版时
-> 会整体归入当日的 `YY.MM.DD.N` 段。请勿以「未发布」推断功能不存在。
+> 会整体归入当月的 `YY.MM.N` 段。请勿以「未发布」推断功能不存在。
 
 ### Highlights (English)
 
@@ -79,6 +80,10 @@
 
 > 本节按 Keep a Changelog 分节保留原始详注（文字未改）；内部工程条目统一归 `Infrastructure`。
 
+- **发布前审计修复四项桌面壳问题**（第三轮只读审计）：① **安装版系统通知补设 AUMID**——electron-builder（NSIS）打包不会像 Squirrel 那样自动设置 AppUserModelID，缺失时 Windows 会**静默丢弃**「到点提醒」的 toast（不报错、不崩溃，就是收不到，CI 冒烟测不出通知）；② **单实例锁**——双开后关掉先启动的窗口会把共享的后端杀掉，另一窗口界面还在而全部请求失效（"双击没反应就再双击一下"是首发期最常见的操作），现在第二实例直接退出并把已有窗口拉到前面；③ **更新检查失败不再弹模态框**——离线或 GitHub API 限流时每次启动都被弹一次（更新是增强，不是必需），只有用户点了「下载更新」之后的失败才弹窗告知；④ **提醒设置的「提前几天」不再被重置**——提醒状态迁移时原样保留 `days`，此前收到第一条通知的当天它就被静默改回默认 3。
+- **发布流水线三件套（发布调研结论落地）**：Release 资产新增 `SHA256SUMS.txt`（安装包与 `latest.yml` 的哈希——无签名场景下用户核对哈希是可信发布的最低成本替代）；Release 说明自动附加「未签名软件」双语安装指引（SmartScreen 拦截页的处理方式与原因）；构建链新增 **NSIS 静默安装 → 验证 → 卸载冒烟**（GitHub runner 即干净 Windows，「装得上、卸得掉」零成本覆盖）。配套新增 `docs/release-checklist.md`（CI 自动 / 人工必做 / 发布后 72 小时 RUNBOOK / 后续待办）。
+- **版本号体系改为月粒度 CalVer `YY.MM.N`**（原时间戳 `YY.MM.DD.N` 作废）：`26.9.0` = 当月第一次发布、`26.9.1` = hotfix、`26.10.0` = 换月；tag 与 CHANGELOG 段名与 `package.json` 是同一个号。为什么改：electron-updater 的版本比较走 Node semver，旧四段号（`26.09.15.1`）与补零月份都非法——实测比较抛 `TypeError`，自动更新会在第一次发版时就静默失效。界面「关于」显示的号从此就是完整发布号（此前显示的机器版本不含第 4 段）；对使用者的唯一变化是看到号变短了。
+
 #### 破坏性变更
 
 - **领域层包化·第二批 PR-B：MCP 装上就能用，但升级需三步（2026-09-19）**：`url_infer` / `tls_policy` / `status_parse` / `jd_score` / `report` / `question_bank` 六个模块搬进 `packages/jobws-core`，**MCP 的「需要仓库在侧」硬闸与 `JOBWS_REPO_ROOT` 整段删除**。三处会影响既有使用方式：
@@ -101,7 +106,7 @@
   - **窗口位置尺寸记忆（笔 3）**：新增 `web/electron/window_state.js`（纯函数：收进当前显示器工作区——屏内原样 / 部分越界平移 / 拔屏回落主屏居中 / 负坐标是正常值 / 尺寸抬下限压上限 / 坏数据不抛）+ `main.js` 接线（`userData/window-state.json`，去抖 400ms + 关窗即落，落盘用 `getNormalBounds()`）；登记进 `build.files` 与 CI 的 Electron 自检。
   - **诊断包导出（笔 3）**：新增 `routers/diagnostics.py`（`GET /api/system/diagnostics` → zip：`diagnostics.json` / `main-log.txt` / `README_诊断包说明.txt`）；复用 `system_paths` 与 `tracker.run_check` 当单一事实源，家目录前缀脱敏为 `~`，日志尾部 128KB 且注明截断；前端入口走窄模块 `lib/diagnostics.ts`（工作区由调用方传——`lib/http` 会连带初始化 i18n，而 i18n 顶层碰 `document`，单测环境无 jsdom）。
   - **设置页找得到 / 退得回 / 知道何时生效（笔 4）**：新增 `lib/settingsRegistry.ts`（登记表 + 纯判定：分组、搜索词、`@modified`、`visibleCardIds`）、`hooks/usePreferenceEntries.ts`（四个真值源适配；**外观偏好的信号是根元素属性**，用 MutationObserver 观察而不是给每张卡串 onChange）、`components/settings/SettingsTools.tsx` 与 `PreferenceStatusCard.tsx`（逐项当前值 + 生效方式 + 已改标记 + 单项/全部还原）。`ThemePicker` 拆出 `FontControls.tsx`（加 `version`/`hidden` 后越过 300 行，按纪律只能拆）；`ThemePicker` 用版本号**同步状态而非 key 重挂载**——它有未决的撤销窗口与编辑器草稿（首跑 e2e 因此红了三条 ux 用例）。
-  - **到点提醒最小形态（笔 5）**：新增 `routers/reminders.py`（`GET /api/reminders/due`，复用看板的三个 helper：什么算到点只能有一处定义）+ `web/electron/reminders.js`（`todayKey` 用本地日期、`shouldNotify` 一天一次、`buildNotification` 先过期的再待办最后宣讲会、超出三行收成"等 N 项"）+ main.js 接线（窗口加载后查一次、之后每 6 小时，点通知聚焦窗口，**关窗即停、不驻留**）。preload 增 `setReminders` / `setWorkspace` 两个白名单方法（工作区真值在渲染进程，`lib/http.setWorkspace` 是唯一漏斗）。
+  - **到点提醒最小形态（笔 5）**：新增 `routers/reminders.py`（`GET /api/reminders/due`，复用看板的三个 helper：什么算到点只能有一处定义）+ `web/electron/reminders.js`（`todayKey` 用本地日期、`shouldNotify` 一天一次【注：2026-09-24 起去重粒度已改为**按事项、每天一次**，见「看得见的变化」最新条】、`buildNotification` 先过期的再待办最后宣讲会、超出三行收成"等 N 项"）+ main.js 接线（窗口加载后查一次、之后每 6 小时，点通知聚焦窗口，**关窗即停、不驻留**）。preload 增 `setReminders` / `setWorkspace` 两个白名单方法（工作区真值在渲染进程，`lib/http.setWorkspace` 是唯一漏斗）。
   - **中文排版两条下限（笔 6）**：核对结论 = **两条都合规**（十套主题暗色底最低 5%、暗色正文最高 96%，无 `#000`/`#fff`；全仓无 `font-thin|extralight|light`），本笔不为了改而改，只把结论固化成 `tests/unit/typography.test.ts`（含变异验证：把底色压到 0% 后断言确实红）。
 - **审计修复（P0/P1/P2 单分支，2026-09-23）**：三路零上下文子代理各带 `文件:行号` 实证，修复按严重度分三笔。
   - **新增模块**：`web/electron/url_guard.js`（导航用 `new URL().origin` 严格比对；外链只放行 `https:`，配 `url_guard.test.js`）、`web/backend/iocaps.py`（`read_text_capped` / `read_bytes_capped`：磁盘读取的上限收口，素材库 / 简历模板 / 岗位解析卡不再裸 `read()`）、`lib/date.ts`（本地日期口径：`todayISO` / `parseLocalDate` / `daysUntil`，配 5 条单测）、`lib/imapRange.ts` 与两个从页面拆出的组件（`ApplicationFilters` / `ResumeToolbar`）、`tools/i18n_source_scan.py`（行扫描原语从 `check_i18n_hardcode.py` 拆出——后者是存量豁免、水位只许变小，加判定只能先拆）。
@@ -141,7 +146,7 @@
 - **来源枚举新增「宣讲会 / 招聘会」**，并**把「来源」纳入 `track check` 自检**：此前来源只在写入入口校验，手改 CSV 绕过它们后脏值无人拦；现在自检会点名不在枚举里的来源值。网页端「新增投递」表单同步提供来源下拉（可留空）。
 - **宣讲会 / 招聘会独立表（`talks.csv`）与 `track talk` 子命令**：记录活动的时间、形式、地点/链接与收获，用「关联记录」指回投递记录（未关联时公司必填，指到不存在的记录会被拒绝）。进展页新增「宣讲会」页签（列表、行内改参加状态、新增表单），可导出 `.ics` 日程（提前 1 小时提醒）。CLI 与 `track add` 同款：默认直接写、`--preview` 走一次性令牌两段式。**宣讲会不写主表时间线**——它不是投递推进节点，时间线只留岗位的真实进展。
 - **粘贴岗位链接自动识别来源**：新增投递时把岗位页 URL 粘进表单，离开输入框即补全 `https://` 前缀，并在能识别时预填来源（`nowcoder.com` → 牛客、`yingjiesheng.com` → 应届生求职网、`.edu.cn` → 学校就业网、`careers.` / `campus.` / `xyzp.` 等招聘子域 → 企业校招官网）；**未知域名留空由用户自选，公司与岗位刻意不推断**（从域名猜公司名必然靠不住）。推断纯本地、不联网，代码在 `tools/url_infer.py`。
-- **「没有下一步动作」引导**：追踪页在有进行中记录缺「下次动作」时给出提示条，一键切到「只看缺下一步的」筛选视图；全部补齐后提示自动消失——「近 7 天待办」依赖它，缺了就拉不动。
+- **「没有下一步动作」引导**：追踪页在有进行中记录缺「下次动作」时给出提示条，一键切到「只看缺下一步的」筛选视图；全部补齐后提示自动消失——「近 7 天待办」依赖它，缺了就拉不动。（注：提醒去重粒度已于 2026-09-24 升级为**按事项、每天一次**，见「看得见的变化」最新条。）
 - **设置页新增「关于」区块**：显示运行中的**机器版本**（`YY.M.D`，如 `26.9.15`）与运行平台（Windows / macOS / Linux）——打包版由主进程注入，开发模式回退读 `package.json`，都取不到时显示「未知」而不是编一个。同行的**发布号**（带当天序号 `N`）只在打 tag 那一刻才存在，请查 tag 或 CHANGELOG 段名。
 - **题库成为一等公民（独立 `questions.csv`）**：进展页的题库拆成两个视图——**我的题库**（自建可编辑，含领域 / 科目 / 状态 `未看·看过·会了` / 答案要点）与**被问过的**（沿用原按公司 + 岗位聚合的面试问题）。新增 `jobws bank list / add / import`；`bank import` 从 `03_面试准备/**/*.md` **只读解析**后先给预览、确认才落盘（走两段式令牌）。**题库与面试记录分开**：面试记「被问过的事实」，题库记「要准备的题」——并表会让要准备的题被只发生过一次的题淹没，复习状态也无处安放。
 - **界面主题成为一等能力（外观卡 + 10 套内置皮肤）**：设置页新增「外观」——默认暗之外内置浅色与 8 套开源皮肤（Catppuccin Mocha·Latte / Nord / Tokyo Night / Rosé Pine + Dawn / Gruvbox / Everforest，色板取自各自官方项目、文件头注明许可），支持「跟随系统」；切换即全站生效、刷新不闪白。另有**主题编辑器**（改关键色、实时对比度提示、存为「我的主题」）与 JSON / tweakcn CSS 导入导出。
@@ -238,7 +243,6 @@
 
 ### Fixed
 
-- **发布前审计修复四项桌面壳问题**（第三轮只读审计）：① **安装版系统通知补设 AUMID**——electron-builder（NSIS）打包不会像 Squirrel 那样自动设置 AppUserModelID，缺失时 Windows 会**静默丢弃**「到点提醒」的 toast（不报错、不崩溃，就是收不到，CI 冒烟测不出通知）；② **单实例锁**——双开后关掉先启动的窗口会把共享的后端杀掉，另一窗口界面还在而全部请求失效（"双击没反应就再双击一下"是首发期最常见的操作），现在第二实例直接退出并把已有窗口拉到前面；③ **更新检查失败不再弹模态框**——离线或 GitHub API 限流时每次启动都被弹一次（更新是增强，不是必需），只有用户点了「下载更新」之后的失败才弹窗告知；④ **提醒设置的「提前几天」不再被重置**——提醒状态迁移时原样保留 `days`，此前收到第一条通知的当天它就被静默改回默认 3。
 - **`web/start.ps1` 不再依赖「终端里激活了哪个 Python」**：它按 `-Py` → `JOBWS_PYTHON` → 仓库内 `.venv` → PATH 的顺序解析，并逐个验版本（≥3.9）与依赖（能 `import fastapi, uvicorn`），全不合格就给人话报错与三条修法。新增 `-CheckOnly` 只做预检。**`setx` 保存的用户级 `JOBWS_PYTHON` 也会被读到**——`setx` 只对新终端生效，脚本把"刚设完但当前终端还没刷新"这一步接住并打印提示。背景：终端自动激活的 conda 环境里的 `python` 可能是 3.8 或没装依赖的环境——那会让后端"起不来"或"起成半坏状态"，而原因看起来像功能坏了。
 - **「拉取邮件」只显示一句裸的 `Internal Server Error`**（2026-09-15 实测）：根因是后端被 Python 3.8 启动，而 IMAP 路径用的 `imaplib.IMAP4_SSL(timeout=…)` 参数 3.9 才有——`TypeError` 没有任何一层接住，界面既没有错误码也没有指向。两处一起修：① **后端启动时校验解释器**：低于 3.9 直接拒绝启动并说明原因与出路（换 3.12），3.9–3.11 给人话警告（未验证不等于不能用）；② **未捕获异常不再裸奔**：全局兜底把任何未预期异常变成结构化响应（`server.error` + 可读 detail + 参数），完整 traceback 进日志。**安装包用户不受影响**（应用自带 3.12 运行时）。
 

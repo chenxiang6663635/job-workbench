@@ -86,8 +86,8 @@ jobws-mcp --workspace personal        # 工作区名，或绝对路径
 - **两个操作仍需要仓库**：`prep.toggle`（笔记勾选框写回）与 `init`（初始化工作区）的实现
   模块按设计留仓，登记发生在仓库的 `tools/approval.py`。独立安装下调它们会得到
   `unknown_operation`——**稳定错误码**，明确表示"这个操作需要仓库在侧"，不是崩溃。
-  其余十一个写操作（`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`）
-  装包即用。
+  其余十九个写操作（`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`，
+  以及七类删除与 `job.rename`）装包即用。
 
 注：两个包现在**同一条基线**：Python **3.12+**（`jobws-mcp` 此前写 3.10+ 是因为领域层
 还没搬完；现在它硬依赖领域包，版本线随之对齐）。

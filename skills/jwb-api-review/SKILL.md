@@ -4,7 +4,7 @@ description: Use when 审查或新增求职工作台后端 API 时，需要按�
 compatibility: 面向「开发 / 扩展本仓库后端」的场景；仓库在侧（jobws 指仓库内的 python tools/jobws.py）；Python 3.12+。
 license: MIT
 metadata:
-  version: 26.9.15
+  version: 26.9.0
 ---
 
 # 后端 API 审查清单

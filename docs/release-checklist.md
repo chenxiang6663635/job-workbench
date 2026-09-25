@@ -1,0 +1,53 @@
+# 发布检查清单（Release Checklist）
+
+> 每次打 tag 前过一遍。分两栏：**CI 自动**（release.yml 已固化，绿了就是过了）与
+> **人工必做**（必须有人的判断或桌面会话，机器替代不了）。配套阅读：CONTRIBUTING
+> 的「发布流程」六步与「版本号体系」；版本号 = 月粒度 CalVer `YY.MM.N`（`26.9.0`
+> 首发 / `26.9.1` hotfix / `26.10.0` 换月）。
+>
+> 出事了怎么办（RUNBOOK，见第三节）：**撤 latest 标记 → 发一个版本号更高的修复版**
+> ——electron-updater 不会接受相同或更低的版本号覆盖，「删掉坏的 Release 重传」无效。
+
+## 一、CI 自动（release.yml，绿了即过）
+
+- [ ] 闸 1：tag `v26.9.x` 与 `web/electron/package.json` 的 version **逐字一致**
+- [ ] 闸 2：CHANGELOG 有同名版本段（抽段即 Release 说明）
+- [ ] 闸 3：产物 exe + `latest.yml` 真实产出（缺 latest.yml 拒发——老用户收不到更新）
+- [ ] 后端 exe 冒烟（`scripts/smoke_backend_exe.py`：起产物 → 健康检查）
+- [ ] **安装/卸载冒烟**（NSIS `/S` 静默装 → 验证 → 静默卸载；2026-09-24 新增）
+- [ ] **SHA256SUMS.txt** 生成并挂 Release（无签名场景的「可信发布」补偿）
+- [ ] **Release notes 自动附加**未签名 / SmartScreen 说明（微软官方口径：未签名拦截页更严重、每版本信誉归零）
+- [ ] 发布后核验资产：exe + blockmap + latest.yml + SHA256SUMS.txt 四样全在
+
+## 二、人工必做（发布日，约 15 分钟 + 真机）
+
+**版本落章**：
+
+- [ ] `python tools/jobws.py release version` 取号 → bump `web/electron/package.json`（同一号）
+- [ ] CHANGELOG `[Unreleased]` 改为 `[版本号] - ISO 日期` → `release check --tag v<号>` 绿
+- [ ] dry_run 演练：`gh workflow run release.yml -f dry_run=true -f tag=v<号>` → 下载 artifact 里的安装包
+
+**真机冒烟**（自己的 Windows 真机，CI 没有桌面会话）：
+
+- [ ] **通知实测**：造一条今天到期的待办 → 确认 toast 真的弹出（CI 测不了通知；AUMID 2026-09-24 修复后的首次实测必须做）
+- [ ] **双开**：第二个实例应直接退出并聚焦已有窗口
+- [ ] **离线启动**：断网启动应安静（更新检查失败只进日志，不弹窗）
+- [ ] 人眼验收四项：八个页面各操作一遍 / 深浅主题各看一遍 / 设置页搜索与单项还原 / 中英切换
+
+**发布**：
+
+- [ ] `git tag -a v<号> -m "..." && git push origin v<号>` → CI 走完
+- [ ] `gh release view` 核资产四样 → **真下载一次** → 核对 SHA256
+- [ ] 发布公告要素：定位一句话 / 隐私承诺（数据不出本机、更新检查仅访问 GitHub）/ SmartScreen 说明（已自动附）/ issue 反馈入口
+
+## 三、发布后 72 小时（RUNBOOK）
+
+- [ ] 盯 GitHub Issues（无遥测，这是唯一反馈面）
+- [ ] 盯 Release 下载量（Release 页侧栏 / API）
+- [ ] 出问题：撤 latest 标记 → **发更高版本号的修复版** → README 置顶已知问题 → 公告说明
+
+## 四、v1.x 待办（不阻塞本节点）
+
+- [ ] winget 分发（`winget-create` 从 installer URL 生成 manifest，人工提 PR）
+- [ ] 代码签名评估（Azure Artifact Signing ≈$9.99/月限地区 / OV 证书 $150–300/年；触发条件：SmartScreen 误报成为高频 issue）
+- [ ] 更多领域插件（`docs/domain-contract.md`；`jwb-domain-setup` 技能上线后引导用户自助生成）

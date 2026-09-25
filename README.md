@@ -3,8 +3,15 @@
 [![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)
+![Electron](https://img.shields.io/badge/Electron-44-blue.svg)
+![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)
+![Platform](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
+![No telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)
+![Last commit](https://img.shields.io/github/last-commit/chenxiang6663635/job-workbench)
 
-A **local-first, auditable AI-assisted job-search workbench**: run the whole pipeline — from JD analysis to offer decision — in plain Markdown & CSV on your own disk, driven by your own AI CLI.
+> Version numbers are month-granularity CalVer `YY.MM.N` (`26.9.0` = first release of the month; a hotfix bumps `N`). The installer is **not code-signed** — see [Download](#download) for what Windows may show on first run.
+
+A **local-first, auditable AI-assisted job-search workbench**: run the whole pipeline — from JD analysis to offer decision — in plain Markdown & CSV on your own disk. Drive it from the desktop app, the browser, or your own AI CLI.
 
 English | [简体中文](README.zh-CN.md)
 
@@ -14,9 +21,10 @@ English | [简体中文](README.zh-CN.md)
 
 Job hunting means sensitive personal data (resumes, phone numbers, employer history) — and AI outputs that can quietly fabricate facts. This project is built around three answers:
 
-- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, no server. Real personal data stays in `personal/`, which is fully git-ignored: a fresh clone gives you an empty workspace, and you can fork this repo without leaking a thing.
+- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, and **no cloud server** (the desktop app starts a local backend that listens on 127.0.0.1 only). Real personal data stays in `personal/`, which is fully git-ignored: a fresh clone gives you an empty workspace, and you can fork this repo without leaking a thing.
 - **Auditable AI, not black-box automation.** Your own AI CLI (BYOK models) does the semantic judgment — reading the JD, scoring fit. Python scripts do everything deterministic: eligibility gates, score validation, PDF generation, tracker I/O — and every automated verdict (application health, CSV import diffs, failure clustering) comes with explicit, human-checkable **reasons**, never a bare score.
 - **Anti-fabrication safeguards.** Resume import is *extraction, not generation*: every persisted value must trace back to source text, and unextracted fields are flagged. AI rewrite suggestions must pass five local anti-fabrication checks before they can be accepted.
+- **One engine, any field.** The scoring rules are field-agnostic — the domain knowledge lives in **data-only profiles** (two ship in the box: HVAC & cooling, software backend), so any specialty works by authoring one per [`docs/domain-contract.md`](docs/domain-contract.md).
 
 ## What it solves
 
@@ -25,6 +33,7 @@ The real difficulty of job hunting is not "not knowing what to do" — it is **s
 - Is this company worth applying to? What did I conclude about a similar one last week?
 - Which resume version did I send them three months ago, and what did the JD ask for?
 - How many applications are in flight, and which deadline is tomorrow?
+- The email said "finish the assessment before the 25th" — will that deadline quietly slip?
 
 The workbench turns all of that into queryable, traceable files.
 
@@ -43,7 +52,8 @@ The workbench turns all of that into queryable, traceable files.
 - **Email ledger & honest deep links** (`mails.csv` + `jobws track mail`): interview invites, test notices and rejections become first-class records that link back to an application — pulled emails carry their Message-ID and can be filed with one click. "Open original" is graded honestly: your own pasted link wins; Gmail gets a real `rfc822msgid` search deep link; other providers (Outlook / QQ / 163 / …) get a "copy the subject and search" fallback instead of a fake link. **Emails never change stages by themselves** — you always confirm.
 - **Resume layouts & accent colors**: three built-in layouts (Classic / Compact / Accent) share a single placeholder skeleton, all single-column and ATS-checked; four accent colors combine freely with any layout, and the generated PDF matches the preview. Drop your own compliant HTML into the templates directory and it appears in the picker.
 - **Interface typography**: a continuous size slider (80%–150%, 5% steps — root-font scaling, decoupled from desktop zoom and available in a plain browser); **12 UI typefaces** (Inter by default, plus Geist, IBM Plex Sans, Manrope, Plus Jakarta Sans, DM Sans, Figtree, Outfit, Public Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible Next, and system/serif) and an independent **6-family monospace slot** (Maple Mono by default; JetBrains Mono, Fira Code, Geist Mono, IBM Plex Mono, Source Code Pro) plus a dedicated **numerals slot** (Geist Mono by default, or JetBrains Mono / IBM Plex Mono / follow the UI typeface) — all bundled locally under OFL-1.1, Latin subsets only (CJK falls back to the system stack).
-- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; any fail means no scoring), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; unfilled profile facts yield "awaiting profile facts" instead of a fail — fill them and re-run; city *preferences* only deduct from growth, hard infeasibility still vetoes), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **Domain profiles are data, not code**: two ship in the box (HVAC & cooling — 6 directions; software backend — the minimal reference example). Your own field works by authoring a profile per [`docs/domain-contract.md`](docs/domain-contract.md) — pure data, two full examples to copy, validated by `jobws lint domains`.
 
 ## UI Preview
 
@@ -64,7 +74,7 @@ All pages below run on generated demo data (`jobws init --demo`); companies, rol
 ```bash
 # 0. Just want to look around first? One command gives you a filled demo workspace
 #    (8 applications / 3 interviews / 2 contacts / 1 offer / 3 talks & job fairs
-#     / 6 question-bank items, all placeholder data)
+#     / 6 question-bank items / 6 emails, all placeholder data)
 python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
@@ -76,8 +86,9 @@ python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
 python tools/jobws.py skills install --target user
 
 # 3. Fill in my_job_hunt/AGENTS.md
-#    Section 3 (hard eligibility facts) is required — the JD gate deliberately
-#    refuses to guess. The file also carries two honesty red lines:
+#    Section 3 (hard eligibility facts) is required — unfilled fields put a job
+#    into "awaiting profile facts" (not scored, not killed) until you fill them;
+#    the gate never guesses. The file also carries two honesty red lines:
 #    every resume verb must survive questioning; never fabricate experience.
 ```
 
@@ -132,6 +143,14 @@ install, launch, done. The installer is a wizard: pick the install folder and
 whether to install for all users or just you (when upgrading, keep the
 defaults). Data lives in `%APPDATA%\job-workbench\` and never leaves
 your machine. Prefer source? Skip to [Quick start](#quick-start).
+
+**The installer is not code-signed yet.** On first run Windows may show
+"Windows protected your PC" (SmartScreen) — that is expected for unsigned
+software: click **More info** → **Run anyway**. SmartScreen reputation builds
+per release, so the notice may reappear on later versions. Each release also
+attaches `SHA256SUMS.txt` (hashes for the installer and `latest.yml`) — you can
+verify your download against it. Auto-update works normally despite the missing
+signature (integrity is checked against the hash in `latest.yml`).
 
 ## Docs
 

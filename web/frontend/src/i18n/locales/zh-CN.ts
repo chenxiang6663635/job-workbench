@@ -738,6 +738,7 @@ const zhCN = {
   "settings.aboutUnknown": "未知",
   "settings.aboutNote": "本地优先、无遥测——版本信息与数据都只在这台机器上。",
   "settings.aboutDocs": "打开使用手册（GitHub · docs/usage-guide）",
+  "settings.openLogs": "打开日志文件夹",
 
   // 简历工坊页
   "resume.modeAria": "编辑模式",

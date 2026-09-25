@@ -4,12 +4,14 @@
 // 前端静态产物由 FastAPI 同源托管（web/frontend/dist），无需 vite dev server，
 // 也无需放宽 CORS —— 页面与 API 同源。
 
-const { app, BrowserWindow, dialog, ipcMain, Notification, screen, session, shell } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, screen, session, shell } = require("electron");
 const { spawn, execFileSync } = require("child_process");
 const http = require("http");
+const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const { tFor } = require("./i18n");
+const { buildDiagnostics } = require("./diagnostics");
 const { isAllowedNavigation, isSafeExternalUrl } = require("./url_guard");
 
 const BACKEND_PORT = 8765;
@@ -32,11 +34,23 @@ function backendEnv() {
 
 let backendProcess = null;
 let backendReady = false;
+// 「主动停止」标志：stopBackend()（关窗 / 退出流程）置位；`exit` 回调据此把
+// 「我们自己杀的」与「后端自己崩的」分开。不加它的后果实测过（2026-09-25）：
+// 关窗时 taskkill 强杀 → 退出码非 0 → 被当成"运行中崩溃"弹窗——用户已经关窗，
+// 还弹出一个错误框。Electron 的退出事件只有 code 没有 signal，行业通行修法
+// 就是应用层标志位（见 `stopBackend` / `exit` 两处）。
+let backendStopping = false;
 
 // 仓库根：web/electron/ 向上两级
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const BACKEND_DIR = path.join(REPO_ROOT, "web", "backend");
 const DIST_DIR = path.join(REPO_ROOT, "web", "frontend", "dist");
+
+// 日志文件路径（log() 与「复制诊断信息」共用；userData = %APPDATA%\job-workbench）。
+// 惰性求值而不是模块级常量：userData 的解析尽量贴近既有行为（原来就在 log() 内取）。
+function logFilePath() {
+  return path.join(app.getPath("userData"), "main.log");
+}
 
 function log(msg) {
   const line = `[job-workbench] ${new Date().toISOString()} ${msg}`;
@@ -53,7 +67,7 @@ function log(msg) {
   try {
     const dir = app.getPath("userData");
     fs.mkdirSync(dir, { recursive: true });
-    const lp = path.join(dir, "main.log");
+    const lp = logFilePath();
     if (fs.existsSync(lp) && fs.statSync(lp).size > 1024 * 1024) {
       fs.renameSync(lp, `${lp}.old`);
     }
@@ -253,7 +267,8 @@ function waitBackendReady(cb) {
         const t = tFor(resolvedLang());
         notifyUser(
           t("backendTimeoutTitle"),
-          `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}\n\n${HEALTH_URL}`);
+          `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}\n\n${HEALTH_URL}`,
+          { withDiagnostics: true });
         app.quit();
         return;
       }
@@ -274,6 +289,7 @@ function findBackendExe() {
 
 function startBackend() {
   if (backendProcess) return;
+  backendStopping = false;   // 新一次启动：清掉上一轮「主动停止」标志
 
   const exe = findBackendExe();
   if (exe) {
@@ -291,7 +307,8 @@ function startBackend() {
       // 必须出声（2026-09-23 二轮审计）：此前只写日志就 app.quit()——进程结束时
       // 连 30 秒那条"启动超时"提示都来不及出现，用户看到的就是"双击了没反应"
       const t = tFor(resolvedLang());
-      notifyUser(t("backendMissingPythonTitle"), t("backendMissingPythonMessage"));
+      notifyUser(t("backendMissingPythonTitle"), t("backendMissingPythonMessage"),
+                 { withDiagnostics: true });
       app.quit();
       return;
     }
@@ -312,6 +329,13 @@ function startBackend() {
     log(`Backend process error: ${err.message}`);
   });
   backendProcess.on("exit", (code) => {
+    // 主动停止（关窗 / 退出流程走的 stopBackend）：正常路径，不弹窗——见
+    // backendStopping 的注释（此前缺这个分支：关窗退出会误报"后端已停止"）。
+    if (backendStopping) {
+      log(`Backend stopped by app, code=${code}`);
+      backendProcess = null;
+      return;
+    }
     // 2026-09-23 审计 P2：此前只写日志就静默自退（或窗口停在空白）——用户看到的
     // 是"双击了没反应"，而根因（后端起不来 / 中途崩了）只有打开日志才看得到。
     // 写日志与告诉用户是两件事，都要做。
@@ -319,11 +343,13 @@ function startBackend() {
     if (!backendReady && code !== 0) {
       log(`Backend exited unexpectedly, code=${code}`);
       notifyUser(t("backendStartFailedTitle"),
-                 `${t("backendStartFailedMessage", { code })}\n\n${t("backendStartFailedDetail")}`);
+                 `${t("backendStartFailedMessage", { code })}\n\n${t("backendStartFailedDetail")}`,
+                 { withDiagnostics: true });
     } else if (backendReady && code) {
       log(`Backend died while running, code=${code}`);
       notifyUser(t("backendDiedTitle"),
-                 `${t("backendDiedMessage", { code })}\n\n${t("backendDiedDetail")}`);
+                 `${t("backendDiedMessage", { code })}\n\n${t("backendDiedDetail")}`,
+                 { withDiagnostics: true });
     }
     backendProcess = null;
   });
@@ -333,25 +359,80 @@ function startBackend() {
  * 给用户一条**看得见**的说明。
  *
  * 为什么单独成函数：窗口可能还没创建（后端没起来正是窗口创建不了的原因），
- * 那时 `dialog.showMessageBox` 没有父窗口可用；而 `showErrorBox` 不依赖窗口。
- * 顺序上"有窗口就挂窗口、没有就直接弹"，两条路都要能出声。
+ * 那时没有父窗口可用——`showMessageBox` 不传父窗口同样能弹（旧版走 `showErrorBox`
+ * 兜底，但它**不能带按钮**，而后端起不来恰恰最需要"把日志交出去"的出口，
+ * 所以统一走 showMessageBox，「有窗挂窗、无窗直弹」）。
+ *
+ * `withDiagnostics`：附一个「复制诊断信息」按钮——调研惯例（Slack 故障弹窗里的
+ * Download Logs、Obsidian 生态的「复制诊断报告」命令）：故障当下这个弹窗是用户
+ * 唯一会看的界面，信息出口就该在这里。默认只有 OK。
  */
-function notifyUser(title, message) {
+function notifyUser(title, message, { withDiagnostics = false } = {}) {
+  const buttons = withDiagnostics ? [tFor(resolvedLang())("copyDiag"), "OK"] : ["OK"];
+  const opts = {
+    type: "error", title, message, buttons,
+    defaultId: buttons.length - 1, cancelId: buttons.length - 1,
+  };
   try {
     const win = BrowserWindow.getAllWindows()[0];
-    if (win) {
-      dialog.showMessageBox(win, { type: "error", title, message, buttons: ["OK"] });
-    } else {
-      dialog.showErrorBox(title, message);
-    }
+    const shown = win ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts);
+    shown
+      .then(({ response }) => {
+        if (withDiagnostics && response === 0) copyDiagnostics();
+      })
+      .catch((e) => log(`notifyUser failed: ${e.message}`));
   } catch (e) {
     // 通知失败不该变成第二次崩溃：日志里留一句即可
     log(`notifyUser failed: ${e.message}`);
   }
 }
 
+/** 读日志尾部 N 行（单文件上限 1MB，整读即可）；读不到时给一句可读说明。 */
+function readLogTail(lines) {
+  try {
+    const all = fs.readFileSync(logFilePath(), "utf8").split(/\r?\n/);
+    return all.slice(-lines).join("\n");
+  } catch (e) {
+    return `(cannot read log: ${e.message})`;
+  }
+}
+
+/**
+ * 「复制诊断信息」：版本 / 平台 / 日志尾部（含 [backend-err]）→ 剪贴板。
+ * 只在用户点按钮时执行、只进剪贴板——本地优先 / 无遥测承诺下的标准形态
+ * （调研：Obsidian 生态的 "Generate full report with debug info"、Servarr 的"贴 Gist"）。
+ * 主目录路径在拼装时脱敏（`diagnostics.redactHome`），产物可安全贴进公开 issue。
+ */
+function copyDiagnostics() {
+  try {
+    const text = buildDiagnostics({
+      version: app.getVersion(),
+      electron: process.versions.electron,
+      node: process.versions.node,
+      platform: process.platform,
+      arch: process.arch,
+      logPath: logFilePath(),
+      tail: readLogTail(200),
+      home: os.homedir(),
+    });
+    clipboard.writeText(text);
+    const t = tFor(resolvedLang());
+    dialog.showMessageBox({
+      type: "info", title: t("copyDiag"), message: t("diagCopied"), buttons: ["OK"],
+    });
+  } catch (e) {
+    log(`copyDiagnostics failed: ${e.message}`);
+  }
+}
+
+// 设置页「关于」卡的「打开日志文件夹」：系统文件管理器打开 userData
+// （日志与数据同目录：%APPDATA%\job-workbench）。调研惯例：VS Code 的
+// `Developer: Open Logs Folder`、GitHub Desktop 的 `Help → Show Logs in Explorer`。
+ipcMain.handle("app:open-log-folder", () => shell.openPath(app.getPath("userData")));
+
 function stopBackend() {
   if (!backendProcess) return;
+  backendStopping = true;   // 先置位再杀：exit 回调是异步的，顺序反了会漏
   const pid = backendProcess.pid;
   try {
     if (process.platform === "win32") {

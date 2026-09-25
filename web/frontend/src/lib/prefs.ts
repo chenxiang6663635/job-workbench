@@ -31,6 +31,8 @@ interface JobwsPrefs {
   setReminders(value: ReminderPatch): Promise<{ reminders: boolean; reminderDays: number }>;
   onZoomChanged(cb: (payload: { level: number; percent: number }) => void): () => void;
   onReminderFocus(cb: (payload: { id?: string }) => void): () => void;
+  /** 打开日志文件夹（2026-09-25 支持性批）。**可选**：更早版本的桌面壳没有这个方法 */
+  openLogFolder?(): Promise<string>;
 }
 
 declare global {
@@ -93,6 +95,16 @@ export function onReminderFocus(cb: (id: string) => void): () => void {
     const id = payload && typeof payload.id === "string" ? payload.id : "";
     if (id) cb(id);
   });
+}
+
+/** 桌面壳是否支持「打开日志文件夹」（更早的壳没有该方法，Web 形态没有通道）。 */
+export function canOpenLogFolder(): boolean {
+  return !!prefsBridge()?.openLogFolder;
+}
+
+/** 打开日志文件夹（设置页「关于」卡）：日志与数据同在 userData（%APPDATA%\job-workbench）。 */
+export function openLogFolder() {
+  return prefsBridge()?.openLogFolder?.();
 }
 
 /** 订阅缩放变化（来自快捷键或其它窗口）；无通道时是空订阅。

@@ -697,6 +697,7 @@ export default {
   "settings.aboutUnknown": "Unknown",
   "settings.aboutNote": "Local-first, no telemetry — your version info and your data stay on this machine.",
   "settings.aboutDocs": "Open the usage guide (GitHub · docs/usage-guide)",
+  "settings.openLogs": "Open log folder",
 
   "resume.modeAria": "Editing mode",
   "resume.modeStd": "Standard",

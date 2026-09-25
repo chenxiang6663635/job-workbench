@@ -3,6 +3,7 @@ import { Info } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
 import { cn } from "../../lib/utils";
+import { canOpenLogFolder, openLogFolder } from "../../lib/prefs";
 import type { SystemPaths } from "../../api";
 
 /** 「关于」卡：应用版本 / 运行平台 / 使用手册入口。
@@ -73,6 +74,19 @@ export default function AboutCard({
           >
             {t("settings.aboutDocs")}
           </a>
+          {/* 日志入口（2026-09-25 支持性批）：故障反馈要能把日志交出来。桌面端才有
+              （Web 形态无主进程；更早的壳没有该方法——canOpenLogFolder 判两者）。
+              调研惯例：VS Code 的 Developer: Open Logs Folder、GitHub Desktop 的
+              Help → Show Logs in Explorer。 */}
+          {canOpenLogFolder() && (
+            <button
+              type="button"
+              onClick={() => openLogFolder()}
+              className="block text-left text-[11px] text-primary hover:underline"
+            >
+              {t("settings.openLogs")}
+            </button>
+          )}
         </div>
       )}
     </Card>

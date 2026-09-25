@@ -41,4 +41,7 @@ contextBridge.exposeInMainWorld("jobwsPrefs", {
     ipcRenderer.on("reminder:focus", listener);
     return () => ipcRenderer.removeListener("reminder:focus", listener);
   },
+
+  /** 打开日志文件夹（设置页「关于」卡）。日志与数据同在 userData（%APPDATA%\job-workbench） */
+  openLogFolder: () => ipcRenderer.invoke("app:open-log-folder"),
 });

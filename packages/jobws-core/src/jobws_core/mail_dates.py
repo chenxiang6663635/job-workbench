@@ -22,6 +22,7 @@
 """
 
 import datetime
+import email.utils
 import re
 
 from .status_parse import DATE_CN_RE, DATE_ISO_RE
@@ -44,18 +45,33 @@ def with_clock(value, line):
 
 
 def coerce_date(value):
-    """收敛成 date：接受 date / datetime / 'YYYY-MM-DD[ HH:MM]' / 'YYYY/M/D'。"""
+    """收敛成 date：接受 date / datetime / 'YYYY-MM-DD[ HH:MM]' / 'YYYY/M/D'
+    / RFC 5322 邮件日期头（`Mon, 25 Sep 2026 10:30:00 +0800`）。
+
+    RFC 5322 那一支不是锦上添花，而是**唯一真实入口**：IMAP 的 `Date` 头就是这个
+    形态（`tools/imap_fetch.py` 原样返回），前端也原样透传。此前只认 ISO 形态，
+    结果是**每一封**邮件的时长基准都静默退化成"今天"（界面照打「未取到邮件日期」），
+    「3 天内」被算成"还有 3 天"——正是本模块开头警告的反向结论（2026-09-25 真机）。
+
+    时区刻意不做换算：调用方只问"哪一天"，取日历日期即可（与 `duration_date`
+    的粒度一致）；需要精确时刻的地方不用本函数。
+    """
     if isinstance(value, datetime.datetime):
         return value.date()
     if isinstance(value, datetime.date):
         return value
-    m = re.match(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", (value or "").strip())
-    if not m:
-        return None
+    text = (value or "").strip()
+    m = re.match(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", text)
+    if m:
+        try:
+            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            return None
     try:
-        return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-    except ValueError:
+        parsed = email.utils.parsedate_to_datetime(text)
+    except (TypeError, ValueError):
         return None
+    return parsed.date() if parsed else None
 
 
 def add_workdays(start, n):

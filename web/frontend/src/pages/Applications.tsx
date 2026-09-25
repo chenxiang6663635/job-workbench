@@ -10,6 +10,7 @@ import {
   type HistoryEntry,
 } from "../api";
 import { NONE, readDrill, type SortKey } from "../lib/applicationMeta";
+import { formatMailDate } from "../lib/date";
 import { DRILL_KEY } from "../lib/pageDrill";
 import { useJobDirs } from "../hooks/useJobDirs";
 import { useMissingNext } from "../hooks/useMissingNext";
@@ -251,29 +252,24 @@ export default function Applications() {
         <ImapFetchDialog
           onClose={() => setShowImap(false)}
           onUse={(body) => {
-            // 不在这里解析：关闭拉取框、预填原文，走同一条「解析 → 确认」流程
-            setShowImap(false);
+            // 不在这里解析：预填原文，走同一条「解析 → 确认」流程。
+            // **拉取框保持挂载**，二级对话框叠在它上面——用户从二级点取消 / 关掉时
+            // 要回到原来的邮件列表与位置，而不是连列表一起被关掉（2026-09-25 真机：
+            // 此前这里先 setShowImap(false)，回头无路，而且重开会重连邮箱）。
             setStatusDraft(body);
             setShowStatus(true);
           }}
-          onRecord={(m) => {
-            const parsed = new Date(m.date);
-            const pad = (n: number) => String(n).padStart(2, "0");
-            // IMAP 的 Date 头是 RFC 5322 原文（"Tue, 16 Sep ..."）——转成 CSV 既有的
-            // 「YYYY-MM-DD HH:MM」再落库，否则与手工行混排后「日期倒序」失序（审查 m-1）；
-            // 解析失败保留原文（诚实展示，仅排序降级）。
-            const date = isNaN(parsed.getTime())
-              ? m.date
-              : `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} ` +
-                `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+          onRecord={(m) =>
             // 只沉淀元数据，不解析、不改任何投递阶段；标签/关联在「进展 → 邮件」里补。
-            return api.createMail({
+            // 日期口径统一走 lib/date（RFC 2822 → CSV 的 `YYYY-MM-DD HH:mm`）：此前这里
+            // 与「解析建议」那条链路各写一套，其中一套漏了转换（2026-09-25 真机）。
+            api.createMail({
               消息id: m.messageId ?? "",
               主题: m.subject,
               发件人: m.from,
-              日期: date,
-            });
-          }}
+              日期: formatMailDate(m.date),
+            })
+          }
         />
       )}
 

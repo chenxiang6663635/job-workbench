@@ -347,6 +347,22 @@ def test_link_validity_compact_days_without_nei():
     assert "邮件日期" in fact["note"]
 
 
+def test_link_validity_accepts_rfc5322_mail_date():
+    """回归（2026-09-25 真机）：IMAP 的 Date 头是 **RFC 5322 原文**
+    （"Sun, 20 Sep 2026 09:05:00 +0800"），而 `coerce_date` 只认 YYYY-MM-DD。
+
+    后果不是"这封邮件恰好没日期"，而是**所有邮件都取不到**：时长基准静默退化成
+    今天，界面上照打「未取到邮件日期」，结论从"已过期"翻成"还有 7 天"。
+    """
+    facts = mail_facts.extract_facts(
+        "请复制以下链接进入\nhttps://example.com/su/abc\n链接有效期：7天",
+        today=TODAY, mail_date="Sun, 20 Sep 2026 09:05:00 +0800")
+    fact = _facts_by_kind(facts, "链接有效期")[0]
+    assert fact["value"] == "2026-09-27", "基准应为邮件日期 09-20 + 7 天"
+    assert "邮件日期" in fact["note"]
+    assert "未取到" not in fact["note"]
+
+
 def test_compact_days_alone_is_not_a_deadline():
     """防回归：宽松时长只给「链接有效期」用——没有「链接+有效」的紧凑时长
     不该变成截止（「3 个工作日内联系你」类承诺仍被严格版的「内」+ 语气门挡住）。"""

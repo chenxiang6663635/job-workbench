@@ -1198,7 +1198,7 @@ const zhCN = {
   // applyNote 里的「保存」用 {{save}} 插值，避免中英文各写一份后漂移
   "rewrite.instructionRequired": "先写一句改写方向",
   "rewrite.title": "AI 改写建议",
-  "rewrite.desc": "只改写既有事实的表述。建议先过反编造校验，通过才能直接采用",
+  "rewrite.desc": "只改写既有事实的表述。建议先过反编造校验，通过才能直接采用。默认模型来自「设置」页，这里改的只作用于本页",
   "rewrite.phInstruction": "改写方向，如：把项目表述往数据中心冷却方向靠",
   "rewrite.phModel": "模型名，如 deepseek-chat",
   "rewrite.generating": "生成中…",
@@ -1324,7 +1324,7 @@ const zhCN = {
   "mail.openTitle": "打开你粘贴的邮件链接",
   "mail.gmailHint": "在 Gmail 中搜索这封邮件（需已登录 Gmail）",
   // 解释"为什么只有 Gmail 有链接"：不写清楚就会被当成缺陷反复问
-  "mail.noLinkHint": "深链只对 Gmail 可用（由 Message-ID 构造）；Outlook / QQ / 163 等拿不到可用链接——按主题到你的邮箱里搜索",
+  "mail.noLinkHint": "深链只对 Gmail 自动可用（由 Message-ID 构造）；Outlook / QQ / 163 等按主题去邮箱搜索，或在这条记录里粘一次原邮件地址——之后就能一键打开",
   // 正文口径三态（邮件正文批）：同一封邮件在三个环节被清洗到不同粒度，
   // 界面上必须写清"这是原文 / 已截断 / 已是摘录"，否则会被读成"数据丢了"
   "mail.bodyOriginal": "原文",

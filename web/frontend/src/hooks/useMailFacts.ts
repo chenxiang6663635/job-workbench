@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { useModelChoice } from "./useModelChoice";
 import { api, type Application, type ImapMessage, type Mail } from "../api";
+import { formatMailDate } from "../lib/date";
 import type { MailFact } from "../lib/domainTypes";
 import { planFactWrite } from "../lib/factWrites";
 import { suggestFacts, suggestFactsAi } from "../lib/mailFacts";
@@ -41,8 +42,9 @@ export function useMailFacts(message: ImapMessage) {
       原文: message.body || "",
       ics: message.calendar || "",
       // 邮件发出日：时长表达（「3 天内」）的推算基准——必须带上，否则会按
-      // "你什么时候看的"算（三天前的邮件会被算成"还有 3 天"）
-      日期: message.date || "",
+      // "你什么时候看的"算（三天前的邮件会被算成"还有 3 天"）。`message.date` 是
+      // IMAP 的 `Date` 头原文（RFC 2822），统一过 lib/date 同一份口径。
+      日期: formatMailDate(message.date),
     })
       .then((r) => {
         if (alive) setFacts(r.facts);

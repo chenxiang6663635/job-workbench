@@ -21,6 +21,18 @@ import type { TranslationKey } from "./i18n/locales/zh-CN";
 
 type Tab = "dashboard" | "applications" | "jobs" | "resume" | "prepare" | "progress" | "library" | "settings";
 
+/**
+ * 内容区最大宽度（顶栏与 `<main>` **共用这一处**）。
+ *
+ * 2026-09-25 从 `max-w-7xl`（1280px）抬到 1600px：1280 在 1920 屏上左右各空
+ * 320px，看板 / 追踪表这类密集页面白扔了三分之一宽度。上限**只在窗口宽于它时
+ * 生效**，窄屏照旧铺满可用宽度——所以不需要（也不该）为每台机器定制像素值。
+ *
+ * 必须是常量：这两处此前各写一个 `max-w-7xl`，只改一处就让顶栏与内容区错位，
+ * 那正是本次要修的问题。
+ */
+const CONTENT_MAX_W = "max-w-[1600px]";
+
 // label 改成 i18n key：文案不再写死在组件里（翻译缺失时回落 zh-CN，不会露出 key 名）。
 // 页面与组件内部的文案不在本批范围，留给「批量抽取」批统一处理。
 // 「准备」放在「简历工坊」与「进展」之间（2026-09-18）：侧栏顺序即
@@ -77,7 +89,7 @@ export default function App() {
       <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-hero-glow" />
 
       <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-6">
+        <div className={`mx-auto flex h-16 ${CONTENT_MAX_W} items-center gap-3 px-6`}>
           <div className="flex shrink-0 items-center gap-2">
             <img src="/favicon.png" alt={t("app.title")} className="h-7 w-7 rounded-lg" />
             <span className="whitespace-nowrap text-sm font-semibold tracking-wide text-foreground">
@@ -92,10 +104,12 @@ export default function App() {
               py-3/-my-3 给垂直绘制留余量；px-1/-mx-1 同理给**水平**余量——
               否则最左/最右 tab 的光晕在滚动容器边缘被裁掉半边（用户反馈 #4）。 */}
           {/* 间距与内边距是**按实测压过的**，不要随手放大：英文标签比中文长 2–4 倍，
-              1440 宽（内容区 max-w-7xl = 1280px）下 8 个 tab 原本溢出 48px
+              1440 宽（当时内容区上限 1280px）下 8 个 tab 原本溢出 48px
               （scrollWidth 777 vs clientWidth 729），第 8 个被裁成 `Set`。
               gap-px / px-2 / 图标 gap-1 合计省下 63px。改这里前先看
-              `e2e/nav.spec.ts` 的溢出断言。 */}
+              `e2e/nav.spec.ts` 的溢出断言。
+              2026-09-25 内容区上限抬到 1600px 后，1440 屏下可用宽度反而更大，
+              这里的溢出余量只增不减——但压缩过的间距**不回退**。 */}
           <div className="-mx-1 -my-3 flex min-w-0 items-center gap-px overflow-x-auto px-1 py-3">
             {TABS.map((item) => (
               <button
@@ -199,7 +213,7 @@ export default function App() {
       {/* UX-6：全站唯一的成功播报区（错误侧由 ErrorBanner 的 role="alert" 管） */}
       <LiveRegion />
 
-      <main className="relative mx-auto max-w-7xl px-6 pb-16 pt-24">
+      <main className={`relative mx-auto ${CONTENT_MAX_W} px-6 pb-16 pt-24`}>
         {online === false ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6">
             <p className="text-sm font-medium text-destructive">

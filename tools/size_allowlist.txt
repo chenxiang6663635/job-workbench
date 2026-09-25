@@ -52,3 +52,9 @@ web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导�
 mcp/jobws_mcp/server.py = 358  # 工具注册表 + 参数模型；build_server() 301 行（按能力分组的注册块，拆分列入后续重构）
 mcp/jobws_mcp/tools_readonly.py = 429  # 六个只读工具；dashboard_summary() 109 行（编排 + 组装，拆分列入后续重构）
 scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；main() 97 行（步骤线性，拆分列入后续重构）
+#
+# --- Electron 主进程：2026-09-25 发布前收口批把它与 .js/.mjs 纳入扫描 ---
+# （此前 web/electron 与 .js 都在范围外；这一行是现状存档，只许变小。拆分
+#  【composition root + backend_process / updater / window / navigation /
+#  notifications】列入发布后重构批——发布窗口内不动刚修过两次的生命周期代码。）
+web/electron/main.js = 967

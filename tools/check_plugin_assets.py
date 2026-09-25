@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 
@@ -80,3 +81,97 @@ def inspect_plugin_assets(repo_root):
     _walk("commands", _inspect_command)
     _walk("agents", _inspect_agent)
     return findings
+
+
+# ---- 清单一致性（2026-09-25 发布前收口批）-------------------------------------
+#
+# 「技能清单」有三份手写副本：plugin.json 的 skills、marketplace.json 的
+# plugins[0].skills、以及 skills/ 磁盘目录。jwb-domain-setup 加入时
+# marketplace.json 漏改（8 vs 9）——当时没有任何校验能发现（独立审计）。
+# 集合与数量都是**派生值**：下面的校验断言"写出来的清单与磁盘事实一致"。
+
+# 描述里的技能数量形态（只认**阿拉伯数字**：写对只有一种写法，中文数字
+# 「八个」这类不在校验面内——改文案时统一用阿拉伯数字）。
+# 中文两种语序（「技能 9 个」「9 个技能」）+ 英文（「9 skills」）。
+_SKILL_COUNT_RES = (
+    re.compile(r"技能\s*(\d+)\s*个"),
+    re.compile(r"(\d+)\s*个技能"),
+    re.compile(r"(\d+)\s*skills?\b"),
+)
+
+
+def _skill_dirs(skills_root):
+    """skills/ 下的实际技能目录名集合（jwb- 前缀 + 目录）。"""
+    if not os.path.isdir(skills_root):
+        return set()
+    return {name for name in os.listdir(skills_root)
+            if name.startswith("jwb-")
+            and os.path.isdir(os.path.join(skills_root, name))}
+
+
+def _listed_skill_names(items):
+    """清单里的路径写法（`./skills/jwb-x` / `skills/jwb-x` / `jwb-x`）统一成目录名。"""
+    return {os.path.basename(str(p).rstrip("/\\")) for p in (items or [])}
+
+
+def _count_problems(label, description, expected):
+    """描述里的数量（若有写明）必须等于集合大小。"""
+    problems = []
+    for pattern in _SKILL_COUNT_RES:
+        for found in pattern.findall(description or ""):
+            if int(found) != expected:
+                problems.append(
+                    "%s 的描述写着 %s（个）技能，skills/ 下实际 %d 个——"
+                    "数量是派生值，加/删技能时描述要一起改"
+                    % (label, found, expected))
+    return problems
+
+
+def manifest_consistency_problems(repo_root):
+    """插件清单三处一致：plugin.json == marketplace.json == skills/ 实际目录。
+
+    返回问题列表（空 = 通过）。读不出 JSON 直接算问题——校验器自身的失败同样
+    要响亮（静默跳过会让"清单坏了"以绿灯形态存活）。
+    """
+    problems = []
+    plugin_dir = os.path.join(repo_root, ".codebuddy-plugin")
+    actual = _skill_dirs(os.path.join(repo_root, "skills"))
+
+    def _load(name):
+        try:
+            with open(os.path.join(plugin_dir, name), "r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except (OSError, ValueError) as exc:
+            problems.append("%s 读不出来：%s" % (name, exc))
+            return None
+
+    plugin = _load("plugin.json")
+    market = _load("marketplace.json")
+    if plugin is None or market is None:
+        return problems
+
+    plugin_skills = _listed_skill_names(plugin.get("skills"))
+    if plugin_skills != actual:
+        problems.append(
+            "plugin.json 的技能集合与 skills/ 目录不一致：漏列 %s、多列 %s"
+            % (sorted(actual - plugin_skills) or "无",
+               sorted(plugin_skills - actual) or "无"))
+
+    market_plugins = market.get("plugins") or []
+    market_skills = _listed_skill_names(
+        market_plugins[0].get("skills") if market_plugins else [])
+    if market_skills != actual:
+        problems.append(
+            "marketplace.json 的技能集合与 skills/ 目录不一致：漏列 %s、多列 %s"
+            % (sorted(actual - market_skills) or "无",
+               sorted(market_skills - actual) or "无"))
+
+    problems.extend(_count_problems(
+        "plugin.json", plugin.get("description"), len(actual)))
+    problems.extend(_count_problems(
+        "marketplace.json", market.get("description"), len(actual)))
+    if market_plugins:
+        problems.extend(_count_problems(
+            "marketplace.json（plugins[0]）", market_plugins[0].get("description"),
+            len(actual)))
+    return problems

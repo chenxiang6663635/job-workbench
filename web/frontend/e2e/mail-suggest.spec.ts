@@ -324,9 +324,17 @@ test("后端没给归属：卡片就地出现记录下拉，选定后写入（20
     }
   });
 
-  await openSuggestions(page);
+  // 不用共享 helper：openSuggestions 硬断言「Meeting link」卡，而本用例的
+  // 夹具只有一条链接有效期（真实形状）
+  await openPage(page, "applications");
+  await page.getByRole("button", { name: "Fetch from mailbox" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const toggle = page.getByRole("button", { name: "Suggestions" });
+  await toggle.focus();
+  await page.keyboard.press("Enter");
 
   const card = page.getByRole("group", { name: "Link expiry: 2026-10-02" });
+  await expect(card).toBeVisible();
   const write = card.getByRole("button", { name: "Write" });
 
   // 未选定归属 → 写入禁用；下拉就地在卡片上（不再绕道完整解析对话框）

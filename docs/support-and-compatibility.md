@@ -6,9 +6,9 @@
 2. **什么环境被支持**（支持策略）
 3. **我的数据会不会因为升级打不开**（数据兼容承诺）
 
-相关决策留档：[`decisions/ship-once-per-release.md`](decisions/ship-once-per-release.md)（单一发布节点与时间戳版本）、[`decisions/read-missing-columns-as-empty.md`](decisions/read-missing-columns-as-empty.md)（兼容条款的技术实现）、[`decisions/keep-writes-human-confirmed.md`](decisions/keep-writes-human-confirmed.md)（写入边界）。
+相关决策留档：[`decisions/ship-once-per-release.md`](decisions/ship-once-per-release.md)（单一发布节点与月粒度 CalVer 版本）、[`decisions/read-missing-columns-as-empty.md`](decisions/read-missing-columns-as-empty.md)（兼容条款的技术实现）、[`decisions/keep-writes-human-confirmed.md`](decisions/keep-writes-human-confirmed.md)（写入边界）。
 
-## 一、毕业条件（首个时间戳发布即 1.0-equivalent）
+## 一、毕业条件（首个正式发布即 1.0-equivalent）
 
 毕业不是「功能攒够了」，而是**可判据的稳定**。四条全部满足才算毕业：
 

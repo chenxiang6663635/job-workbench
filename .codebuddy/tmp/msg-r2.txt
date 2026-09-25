@@ -1,0 +1,23 @@
+docs: 第二轮盘点修复——CHANGELOG 段落归位、MCP 计数、四态遗漏与未签名说明等 17 处
+
+第二轮子代理盘点（Top 8 全清 + 顺手项）的修复：
+
+- CHANGELOG：四项桌面壳修复从 [0.3.2]（09-14）段移入 [Unreleased]（首发 Release notes
+  从其抽段，错位等于修复从发布说明里消失）；补登 09-24 发布流水线三件套（SHA256
+  清单 / SmartScreen 公告 / 安装卸载冒烟 + release-checklist）
+- MCP 计数：三处「其余十一个写操作」→「十九个」（approval.py 已自登记 19 个，
+  文档停在 09-19 旧集合）；括号列举补七类删除与 job.rename
+- 四态遗漏：jwb-apply SKILL.md「门槛结论非通过即终止」→ 不通过才终止、待补档案
+  提示补齐、待确认请用户确认（AI 投递分支此前会走错）
+- hvac-cooling profile.md 结构树补 4 个新方向文件、「两个方向共用」→ 6 个
+- 未签名安装说明：README 两份补 SmartScreen 处理与 SHA256 核对（英文
+  「see Download」引用此前悬空、中文缺对应段）
+- 版本体系「时间戳」残留群：CONTRIBUTING 节标题与 hotfix 语言、ADR 已知取舍与
+  复评条件、support-and-compatibility、docs/README ADR 摘要、glossary、release.yml
+  演练输入示例
+- 顺手项：docs/README 索引补 oauth2 调研报告；usage-guide 两份 demo 构成补 6 封邮件；
+  README.zh 贡献节 CI 口径对齐（含「main 有分支保护、纯文档也走 PR」）；web/README
+  目录树补 7 个 routers 与 electron 纯函数模块
+
+门禁：pytest 1352/10、四端一致（jwb-apply 改后已重分发）、skills check / size /
+i18n 全过。

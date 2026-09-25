@@ -144,6 +144,14 @@ whether to install for all users or just you (when upgrading, keep the
 defaults). Data lives in `%APPDATA%\job-workbench\` and never leaves
 your machine. Prefer source? Skip to [Quick start](#quick-start).
 
+**The installer is not code-signed yet.** On first run Windows may show
+"Windows protected your PC" (SmartScreen) — that is expected for unsigned
+software: click **More info** → **Run anyway**. SmartScreen reputation builds
+per release, so the notice may reappear on later versions. Each release also
+attaches `SHA256SUMS.txt` (hashes for the installer and `latest.yml`) — you can
+verify your download against it. Auto-update works normally despite the missing
+signature (integrity is checked against the hash in `latest.yml`).
+
 ## Docs
 
 - [Roadmap](ROADMAP.md) — Now / Later plus a shipped-batch log; items link to a tracking issue when one exists

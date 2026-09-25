@@ -28,7 +28,7 @@ on:
         type: boolean
         default: true
       tag:
-        description: "演练用：模拟的 tag（如 v26.09.15.1）——校验 tag 比对与 CHANGELOG 段；真实发布（tag push）不需要填"
+        description: "演练用：模拟的 tag（如 v26.9.0）——校验 tag 比对与 CHANGELOG 段；真实发布（tag push）不需要填"
         type: string
         default: ""
 

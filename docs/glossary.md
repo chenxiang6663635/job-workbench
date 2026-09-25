@@ -30,7 +30,7 @@ CHANGELOG 与各文档里出现的**内部术语**集中在这里定义一次；
 | **宿主提示缓存** | MCP 宿主会缓存工具清单——新工具一律**追加在注册末尾**，避免作废缓存 | CHANGELOG、`mcp/` |
 | **批次（PR-A / PR-B / 批 4.6 / 批 8 / 收尾批）** | 内部计划里的工作批次编号，用于指代某一段工程；细节看 CHANGELOG 对应条目 | CHANGELOG |
 | **候选池** | `ROADMAP.md` 里「想过但决定现在不做」的暂缓事项登记处：每条写一句话 + **触发条件**，开工前先走四道门 | `ROADMAP.md` |
-| **毕业条件** | 首个时间戳发布等于 1.0-equivalent 的**可核判据**（连续自用无阻断、主流程冒烟、无未决阻断项、兼容条款生效） | `docs/support-and-compatibility.md` |
+| **毕业条件** | 首个正式发布（`26.x`）等于 1.0-equivalent 的**可核判据**（连续自用无阻断、主流程冒烟、无未决阻断项、兼容条款生效） | `docs/support-and-compatibility.md` |
 | **ADR（决策记录）** | 一条一文件的短决策记录（背景 / 决策 / 已评估的替代方案 / 复评条件），放 `docs/decisions/`；回答「为什么这样定」，路线图只回答「做什么」 | `docs/decisions/`、`docs/README.md` |
 | **过渡纪律（Deprecated → Removed）** | 破坏性变更先废弃、保持读时兼容，至少一个发布节点后才移除，并在 CHANGELOG 显式列出（即使升级无需动作） | `CHANGELOG.md`、`docs/support-and-compatibility.md` |
 | **冒烟** | 最小可运行的端到端验证（打包后真跑一遍），与单元测试互补 | CONTRIBUTING |

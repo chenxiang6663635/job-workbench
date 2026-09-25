@@ -91,7 +91,7 @@
     1. **在 squash 对话框里手动改掉最终的提交信息**：那既不改 PR 标题、也不触发 `edited`，校验不会重跑——英文 subject 照样落进 main。机制上拦不住（`pull_request` 事件看不到你合并时手填的那段），所以规矩是**合的时候不要动默认的提交信息**。
     2. **校验脚本与被校验对象同源同 PR**：workflow 与 `tools/*.py` 都取自 PR 自己的分支，所以一个 PR 可以顺手把判定放宽（把 CJK 正则改成 `.*`）而 CI 依旧全绿。单人仓库没有第二个审批人，实际防线是 `tests/` 里钉住的行为——放宽正则会让那批用例立刻红。**改判定规则时必须同步改测试并写明理由**，这就是这条防线起作用的唯一方式。
 
-## 版本号体系（时间戳，2026-09-15 起）
+## 版本号体系（月粒度 CalVer `YY.MM.N`，2026-09-24 起）
 
 语义化版本号已弃用（0.x 的 minor/patch 映射、`v1.0.0` 的提法一并作废）。现行规则：
 
@@ -127,8 +127,8 @@
 5. **dry_run 演练**：`gh workflow run release.yml -f dry_run=true -f tag=v<版本号>`（产出 exe + `latest.yml` 与说明，不碰 Release；`tag` 输入用于校验 CHANGELOG 段与版本比对——**需在第 3 步落章之后跑**）→ 通过后再 `git tag -a v<版本号> -m "..."` 并推送。
 6. 发布后核验 `gh release view --json assets`（安装包 + `latest.yml` 都在）并**真下载一次**；构建产物按发布号归档到仓库外目录（产物已被 .gitignore 排除）。
 
-**hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再按当日生成新号发布（同日再发 N 递增）。**不**从旧 tag 拉 hotfix 分支。
-**撤回坏版本**：用新号重发（同日递增 N 或次日新号）；重发同名版本无效。
+**hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再取当月号发布（**锁前两位只动第三位**，N 递增；换月重新从 0 起）。**不**从旧 tag 拉 hotfix 分支。
+**撤回坏版本**：用**更高**版本号重发（当月 N 递增即可）；重发同名版本无效——electron-updater 不会接受相同或更低的号覆盖（详见 `docs/release-checklist.md` 的 RUNBOOK）。
 
 **自动更新**：Windows 打包版**已启用**（electron-updater，v0.2.1 起；unsigned 更新链的取舍已记于 SECURITY.md），首次分发仍走手动安装包；**macOS 自动更新不做**（剩余阻碍是代码签名，系统必需）。`personal/` 隐私剥离已完成（整体 gitignore + `git filter-repo` 历史清洗）。
 

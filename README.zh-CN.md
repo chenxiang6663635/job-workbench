@@ -72,6 +72,8 @@
 
 不想配环境的话，[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里有桌面版 `job-workbench-setup-*.exe`（免 Python / Node）：安装包是**向导式**——可自选安装位置，并选择「为所有用户 / 仅为我」（升级旧版时沿默认选项即可）。数据在 `%APPDATA%\job-workbench\`，不离开本机。
 
+**安装包尚未做代码签名。** 首次运行 Windows 可能显示「Windows 已保护你的电脑」——未签名软件的正常提示：点「**更多信息**」→「**仍要运行**」。SmartScreen 信誉按版本重新积累，后续版本可能再次提示。每个 Release 同时附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的哈希），可自行核对下载完整性；签名的缺位**不影响自动更新**（完整性以 `latest.yml` 里的哈希为准）。
+
 ```bash
 # 0. 只想先看看界面？一条命令得到一份填满数据的 demo 工作区
 #    （8 条投递 / 3 场面试 / 2 位联系人 / 1 个 Offer / 3 场宣讲会 / 6 道题 / 6 封邮件，全占位数据）
@@ -142,7 +144,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 ## 贡献
 
-欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；代码改动走 PR（CI 绿：后端测试 + 前端构建），纯文档可直推。**投入节奏**：单维护者项目，投入是**分批**的——可能集中几天推进一批，也可能整周没有动作（面试周 / 笔试周停工，见 CONTRIBUTING「可持续性约定」）；对外部 issue 的首复目标是 48 小时内、滑期会在 pinned issue 说明（见 [docs/maintenance.md](docs/maintenance.md)），受求职节奏影响偶尔会有几天不回。
+欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；所有改动走 PR（CI 绿：后端测试 + 前端 lint/build + PR 标题校验 + UI 冒烟；`main` 有分支保护，纯文档同样走 PR）。**投入节奏**：单维护者项目，投入是**分批**的——可能集中几天推进一批，也可能整周没有动作（面试周 / 笔试周停工，见 CONTRIBUTING「可持续性约定」）；对外部 issue 的首复目标是 48 小时内、滑期会在 pinned issue 说明（见 [docs/maintenance.md](docs/maintenance.md)），受求职节奏影响偶尔会有几天不回。
 
 ## License
 

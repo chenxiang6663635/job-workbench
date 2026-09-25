@@ -74,9 +74,14 @@ web/
 │   ├── resume_import.py      简历导入抽取（PDF / Word / MD / TXT）
 │   ├── tls_http.py           出网证书策略接线
 │   ├── pyinstaller.spec      PyInstaller onedir 打包配置
-│   └── routers/              dashboard / applications / jobs / progress / resume / library / prep / provider / system / sync / workspace / approvals / imap
+│   ├── snapshot_io.py        快照备份 / 还原与演练（锁序 + 回滚点）  ← 另有 datecheck /
+│   │                         imapguard / iocaps / applist / errdetail / lockctx 等共享模块
+│   └── routers/              dashboard / applications / jobs / progress / resume / library / prep /
+│                             provider / system / sync / workspace / approvals / imap / mail_setup /
+│                             imap_facts / reminders / snapshot / diagnostics / registry / application_delete
 │                             （sync = 工作区指纹端点，供界面感知外部改动）
-├── electron/                 Electron 桌面壳（探测打包 exe → spawn → 开窗 → 退出杀进程树）
+├── electron/                 Electron 桌面壳（探测打包 exe → spawn → 开窗 → 退出杀进程树；
+│                             window_state / reminders / zoom / url_guard / i18n 为纯函数模块，随 CI 单测）
 └── frontend/
     └── src/
         ├── api.ts            API 客户端与类型（全局工作区状态）

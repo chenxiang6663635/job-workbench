@@ -48,10 +48,10 @@ distribution 名是 `jobws-core`，但 **import 名是 `jobws_core`**：`tools/j
   monkeypatch 会静默失效），留仓的 `_cli*.py` 挂回 `tracker.*`。
   **CLI 子模块按用户拍板留仓**。
 - `jobws_core.approval` —— 两段式写入协议的**外壳**。操作注册表**不在包里**：
-  由**调用侧** `register()` 登记，而且**分层**：本包导入时自登记「实现已在包内」的十一个
-  （`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`），仓库侧的
-  `tools/approval.py` 再追加 `prep.toggle` 与 `init`（那两个领域模块按拍板留仓）——
-  协议层因此不认识任何具体实现，这是解掉包级循环依赖的关键。
+  由**调用侧** `register()` 登记，而且**分层**：本包导入时自登记「实现已在包内」的十九个
+  （`track.*` / `talk.add` / `mail.add` / `interview.*` / `question.*`，以及七类删除与
+  `job.rename`），仓库侧的 `tools/approval.py` 再追加 `prep.toggle` 与 `init`
+  （那两个领域模块按拍板留仓）——协议层因此不认识任何具体实现，这是解掉包级循环依赖的关键。
 
 **两批共用的形态：**
 

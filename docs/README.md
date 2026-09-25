@@ -40,7 +40,8 @@
 | [`research/plan_next_features.md`](research/plan_next_features.md) | 上述调研的研究计划（四个互不重叠功能域的检索分工） |
 | [`research/report_agent-integration.md`](research/report_agent-integration.md) | **定位与宿主集成**调研整合（决策级）：agent 插件/工具这条路的成本与反面证据、dsh 插件解剖、agent-first 分层、Python 工具的 agent 暴露方式。**这是「AI 助手是一等宿主、界面是可选查看器」这一方向判断的依据**。性质是结论整合（子代理报告被调度器截断），未能确认的部分集中列在文末「未确认清单」，不要当完整调研用 |
 | [`research/report_electron_33_to_44.md`](research/report_electron_33_to_44.md) | **Electron 33 → 44 升级调研**（执行级）：官方破坏性变更逐条对照我们的实际 API 面（对照 `main.js` 行号）→ 风险分级 + 桌面冒烟清单。结论：CI 完全不碰 Electron，所以「CI 全绿」不能作为升级依据；真正要验的是打包链路（v42 起不再 postinstall 下载二进制）、缩放四件套、自动更新与 PDF 预览 |
-| [`research/report_full_repo_audit_2026-09-16.md`](research/report_full_repo_audit_2026-09-16.md) | **全仓库审计报告（2026-09-16）**：结构 / 依赖 / 配置 / 规模盘点、发现清单与按优先级改进建议——治理批与整改批的依据 |
+| [`research/report_full_repo_audit_2026-09-16.md`](research/report_full_repo_audit_2026-09-16.md) | **全仓库审计报告（2026-09-16）**：结构 / 依赖 / 配置 / 规模盘点、发现清单与按优先级改进建议——治理批与整改批的依据（docstring 与数字为当时快照） |
+| [`research/oauth2-imap-feasibility.md`](research/oauth2-imap-feasibility.md) | **Outlook / 企业邮箱 OAuth2 for IMAP 可行性调研**（2026-09-24）：Google / Microsoft 应用注册与本地回调要求、令牌安全存放取舍、零依赖下的工作量估算与建议——结论为「v1 不做，触发条件见文内」，每一条带来源、未核实项显式标注 |
 
 ## 开发流程
 
@@ -66,7 +67,7 @@
 |---|---|
 | [`decisions/keep-hooks-local-and-off.md`](decisions/keep-hooks-local-and-off.md) | 宿主 hooks 保持本地、默认关闭，本批不实现（含替代方案与复评条件） |
 | [`decisions/keep-writes-human-confirmed.md`](decisions/keep-writes-human-confirmed.md) | 写入一律人工确认：不做自动投递、不代登录、AI 产出永不直接落盘 |
-| [`decisions/ship-once-per-release.md`](decisions/ship-once-per-release.md) | 单一发布节点 + 时间戳版本号（含 CalVer 四段的已知取舍） |
+| [`decisions/ship-once-per-release.md`](decisions/ship-once-per-release.md) | 单一发布节点 + 月粒度 CalVer 版本号（`YY.MM.N`；2026-09-24 自时间戳四段改版，原文保留含更新注记） |
 | [`decisions/read-missing-columns-as-empty.md`](decisions/read-missing-columns-as-empty.md) | 工作区数据向后兼容：读时缺列按空、写时统一表头、不要求迁移 |
 
 ## 约定文件

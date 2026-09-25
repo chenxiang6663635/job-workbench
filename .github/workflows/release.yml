@@ -324,11 +324,16 @@ jobs:
 
           # per-user 安装（perMachine: false）落在 %LOCALAPPDATA%\Programs 下；
           # 目录名跟着 productName（"Job Workbench"）走，探两个候选而不是写死。
+          # 卸载器名同样是 productName 派生（"Uninstall Job Workbench.exe"）——
+          # 用通配匹配，不写死连字符/大小写形态（2026-09-25 演练：探测写死
+          # "Uninstall job-workbench.exe"，实际早已装好却报"装不上"）。
           $candidates = @(
             (Join-Path $env:LOCALAPPDATA "Programs\job-workbench"),
             (Join-Path $env:LOCALAPPDATA "Programs\Job Workbench")
           )
-          $installDir = $candidates | Where-Object { Test-Path (Join-Path $_ "Uninstall job-workbench.exe") } |
+          $installDir = $candidates |
+            Where-Object { Test-Path $_ } |
+            Where-Object { Get-ChildItem $_ -Filter "Uninstall*.exe" -ErrorAction SilentlyContinue } |
             Select-Object -First 1
           if (-not $installDir) {
             $listing = (Get-ChildItem (Join-Path $env:LOCALAPPDATA "Programs") -Directory -ErrorAction SilentlyContinue).Name -join ", "
@@ -340,6 +345,14 @@ jobs:
           if (-not $uninstaller) { throw "安装目录里没有卸载器" }
           $uninst = Start-Process -FilePath $uninstaller.FullName -ArgumentList "/S" -Wait -PassThru
           if ($uninst.ExitCode -ne 0) { throw "静默卸载失败（exit $($uninst.ExitCode)）" }
+          # NSIS 卸载器会先把自己复制到 %TEMP% 再由副本执行——原进程退出 ≠ 卸载完成，
+          # 只查 exit code 等于把「卸得掉」测成「卸载器启动过」。等目录真正消失（60 秒上限）。
+          $gone = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            if (-not (Test-Path $installDir)) { $gone = $true; break }
+            Start-Sleep -Seconds 1
+          }
+          if (-not $gone) { throw "卸载器已退出但安装目录仍在：$installDir" }
           Write-Host "已卸载（安装 → 验证 → 卸载 全链路通过）"
 
       # 演练模式：只构建 + 校验 + 存成 workflow artifact，不碰 Release

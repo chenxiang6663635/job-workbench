@@ -280,6 +280,18 @@ def test_resolve_workspace_rejects_relative_escape(tmp_path, monkeypatch):
         paths.resolve_workspace(os.path.join("..", "outside"))
 
 
+def test_resolve_workspace_rejects_drive_relative(tmp_path, monkeypatch):
+    """盘符相对写法（`C:foo`）两平台一致拒绝（2026-09-25 收口批）。
+
+    此前只拦绝对路径：Windows 上 `C:foo` 会让 join 重置到盘根（靠 realpath 兜），
+    Linux 上它只是普通文件名、**会通过**——同一输入两平台两种结论。现与 Web
+    默认工作区同口径（escape_reason 前置拦截）。
+    """
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
+    with pytest.raises(paths.WorkspaceError):
+        paths.resolve_workspace("C:foo")
+
+
 def test_card_score_flags_inconsistent_card(tmp_path, monkeypatch):
     """四维之和与总分不符：总分照给，但不给档位（与后端 `_parse_card` 同口径）。"""
     monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))

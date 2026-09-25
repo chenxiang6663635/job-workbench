@@ -178,12 +178,24 @@ if os.path.isfile(os.path.join(DIST_DIR, "index.html")):
 
 def _pause_if_frozen():
     """打包成 exe 双击运行时，出错若立即退出窗口会一闪而过，用户只看到"没反应"。
-    保持控制台打开等人按回车；源码模式终端本来就不会闪退，无需等待。"""
-    if getattr(sys, "frozen", False):
-        try:
-            input("\n按回车键关闭窗口...")
-        except (EOFError, KeyboardInterrupt):
-            pass
+    保持控制台打开等人按回车；源码模式终端本来就不会闪退，无需等待。
+
+    **只对交互式终端暂停**（2026-09-25 收口批，四端复核发现）：桌面壳以
+    stdio: pipe 拉起后端且不关闭 stdin 时，input() 会永久阻塞——进程不退、
+    壳的 exit 回调不来，用户 30 秒后看到「启动超时」弹窗、真实原因只留在
+    日志里；CI 冒烟此前用 DEVNULL 绕开的正是同一行为。
+    """
+    if not getattr(sys, "frozen", False):
+        return
+    try:
+        if not sys.stdin or not sys.stdin.isatty():
+            return          # 非交互（管道 / DEVNULL）：停了也没人能按回车
+    except (AttributeError, ValueError):    # stdin 被替换成不可判定的对象
+        return
+    try:
+        input("\n按回车键关闭窗口...")
+    except (EOFError, KeyboardInterrupt):
+        pass
 
 
 def _port_in_use(port):

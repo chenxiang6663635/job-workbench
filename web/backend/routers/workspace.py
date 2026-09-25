@@ -22,7 +22,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from jobws_core import approval
+from jobws_core import approval, containment
 import init_workspace
 from apierror import ApiError
 from deps import ROOT, allowed_roots, data_root, resolve_default_workspace
@@ -127,14 +127,11 @@ def _resolve_new_workspace(name: str) -> str:
 
     root = os.path.normpath(data_root())
     full = os.path.normpath(os.path.join(root, candidate))
-    # 前缀比较前先 normcase：Windows 文件系统大小写不敏感、而字符串比较敏感——
-    # 盘符大小写不同时，正常名字会被误判越界（独立审查 MAJOR-2）。
-    try:
-        inside = (os.path.normcase(os.path.commonpath([root, full]))
-                  == os.path.normcase(root))
-    except ValueError:      # 不同盘符
-        inside = False
-    if not inside or os.path.normcase(full) == os.path.normcase(root):
+    # 归属判定走共享原语（2026-09-25 收口批，四端复核跟进）：此前是 normcase +
+    # commonpath 的字符串版、**不解析链接**——数据根里放一个指向外部的 junction
+    # 同名占位，就会「通过后写到链接目标」（根外）。strictly 变体同时保留
+    # 「不等于数据根本身」的既有语义（MAJOR-2 的大小写关切由原语内部承接）。
+    if not containment.strictly_within_any(full, [root]):
         raise ApiError(400, "ws.outOfRange", "工作区越出允许范围")
     return full
 

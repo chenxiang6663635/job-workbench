@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import io
 import os
 import re
 import urllib.error
@@ -303,8 +302,12 @@ def create_job(job: NewJob, ws: str = Depends(workspace_dir)):
         if os.path.exists(job_dir):  # 双检：并发下同名
             raise ApiError(409, "job.exists", "岗位已存在: %s" % name, name=name)
         os.makedirs(job_dir)
-        with io.open(os.path.join(job_dir, JD_FILE), "w", encoding="utf-8", newline="") as f:
-            f.write("# %s %s\n\n%s\n" % (job.公司.strip(), job.岗位.strip(), job.JD文本.strip()))
+        # 原子写（2026-09-25 收口批，四端复核发现）：此前是本文件唯一一处裸写——
+        # fetch_jd 早已走 atomicio（同一文件两种强度）；磁盘满/断电时半截 JD 不该
+        # 成为岗位的"存在证据"（目录已建 + 文件半写是最坏形态）。
+        atomicio.atomic_write_text(
+            os.path.join(job_dir, JD_FILE),
+            "# %s %s\n\n%s\n" % (job.公司.strip(), job.岗位.strip(), job.JD文本.strip()))
 
     return _summary(ws, name)
 

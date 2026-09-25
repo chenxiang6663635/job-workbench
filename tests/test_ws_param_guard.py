@@ -159,6 +159,17 @@ def test_absolute_path_still_400(client):
     assert resp.status_code == 400
 
 
+def test_ws_drive_relative_is_not_silently_served(client):
+    """盘符相对写法（`C:foo`）不得被静默服务（2026-09-25 收口批的行为锁）。
+
+    平台差异有据：Windows 上 join 会重置到盘根、realpath 判定兜住 → 400；
+    Linux 上它是普通文件名 → 界内但不存在 → 404。两平台都不是 200——本用例
+    只锁「不静默服务」这一条（细粒度由 containment.escape_reason 用例锁定）。
+    """
+    resp = client.get("/api/system/paths", params={"ws": "C:foo"})
+    assert resp.status_code in (400, 404), resp.text
+
+
 # --- 默认工作区的边界闸（2026-09-25 发布前收口批，审计 P1-A） --------------------
 #
 # 此前只有显式 `?ws=` 走 `_inside_allowed_roots`；默认工作区来自环境变量

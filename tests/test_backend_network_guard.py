@@ -27,3 +27,20 @@ def test_non_loopback_hosts_are_rejected():
     for host in ("0.0.0.0", "::", "192.168.1.10", "10.0.0.1", "example.com", "",
                  "   "):
         assert main.is_loopback_host(host) is False, repr(host)
+
+
+def test_pause_if_frozen_skips_non_interactive(monkeypatch):
+    """冻结态 + 非交互 stdin（管道 / DEVNULL）→ 直接返回、不调用 input（2026-09-25 收口批）。
+
+    背景（四端复核）：桌面壳以 stdio: pipe 拉起后端且不关闭 stdin 时，input()
+    会永久阻塞——进程不退、壳拿不到 exit 回调，用户 30 秒后看到「启动超时」
+    弹窗，真实原因只留在日志；CI 冒烟此前用 DEVNULL 绕开的正是同一行为。
+    本用例的 stdin 就是 pytest 的非交互实现（isatty() 为 False）。
+    """
+
+    def _boom(*_args):
+        raise AssertionError("非交互 stdin 不应调用 input（会阻塞壳的退出回调）")
+
+    monkeypatch.setattr("builtins.input", _boom)
+    monkeypatch.setattr(main.sys, "frozen", True, raising=False)
+    main._pause_if_frozen()      # 修复前：AssertionError；修复后：直接返回

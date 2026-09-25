@@ -81,6 +81,26 @@ def test_preview_init_invalid_reports_reason_param(client, tmp_path):
     assert "no-such-domain" in body["error_params"]["reason"]
 
 
+def test_preview_rejects_symlinked_name_escape(client, tmp_path):
+    """数据根内已存在同名目录链接（指向根外）→ 新建预览 400（2026-09-25 收口批）。
+
+    此前 `_resolve_new_workspace` 的归属判定是 normcase + commonpath 的字符串版、
+    **不解析链接**——数据根里放一个指向外部的 junction 同名占位，就会「通过后
+    写到链接目标」（根外）；四端复核发现，与本批统一后的 containment 语义对齐。
+    """
+    outside = tmp_path.parent / "outside-ws"
+    outside.mkdir(exist_ok=True)
+    link = tmp_path / "link-ws"
+    try:
+        os.symlink(str(outside), str(link), target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip("本机不能创建目录符号链接：%s" % exc)
+
+    resp = client.post("/api/workspaces/preview", json={"name": "link-ws"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error_code"] == "ws.outOfRange"
+
+
 def test_apply_rejects_replayed_token(client):
     token = client.post("/api/workspaces/preview",
                         json={"name": "ws-a"}).json()["token"]

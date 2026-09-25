@@ -96,7 +96,7 @@
 
 ## 技能文件（工作流定义）
 
-`../skills/` 下八个：五个求职向——`jwb-recruit-coach`（评分标准与红线）、`jwb-jd`、`jwb-apply`、`jwb-track`、`jwb-resume`；三个开发向——`jwb-cli-contract`（CLI 契约）、`jwb-api-review`（API 审查）、`jwb-mcp-server`（MCP 指南）。
+`../skills/` 下九个：五个求职向——`jwb-recruit-coach`（评分标准与红线）、`jwb-jd`、`jwb-apply`、`jwb-track`、`jwb-resume`；一个扩展向——`jwb-domain-setup`（生成 / 定制领域插件，人确认制）；三个开发向——`jwb-cli-contract`（CLI 契约）、`jwb-api-review`（API 审查）、`jwb-mcp-server`（MCP 指南）。
 
 这些既是 AI 可加载的技能，也是各工作流的规格说明——读它们等于读流程定义。
 

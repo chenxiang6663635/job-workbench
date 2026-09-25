@@ -20,6 +20,7 @@
  *   npm.cmd run capture        # 重建 demo-shots → 起后端 → 拍 16 张 → 关后端
  *   npm.cmd run capture -- --only prepare,settings      # 只重拍某几页（**不会**清其余图）
  *   npm.cmd run capture -- --base-url http://127.0.0.1:8765   # 连已在跑的服务（不重建、不清图）
+ *   npm.cmd run capture -- --theme catppuccin-mocha     # 换主题拍（默认 dark；取值见 src/lib/theme.ts）
  *
  * 镜像规范：`docs/screenshots/`（英文）与 `docs/screenshots/zh-CN/`（中文），
  * 文件名为 `NN-<page>.png`，编号 = App.tsx 的 TABS 顺序（**新增页面要整体重排，
@@ -61,6 +62,7 @@ const USAGE = `用法：node scripts/capture-screenshots.mjs [选项]
   --workspace <name>  拍哪个工作区（默认 demo-shots，须在仓库内）
   --out <dir>         图片输出根目录（默认 docs/screenshots，须在仓库内）
   --only a,b          只拍这几页（可选：${PAGES.join(", ")}；不会清其余图）
+  --theme <id>        截图使用的主题（默认 dark；取值见 src/lib/theme.ts）
   --no-rebuild        跳过 demo-shots 重建（复用现有数据）
   -h, --help          显示本说明`;
 
@@ -84,8 +86,8 @@ function withinRepo(rel, label) {
 }
 
 function parseArgs(argv) {
-  const args = { port: 8769, workspace: "demo-shots", out: "docs/screenshots" };
-  const takesValue = new Set(["--base-url", "--port", "--workspace", "--out", "--only"]);
+  const args = { port: 8769, workspace: "demo-shots", out: "docs/screenshots", theme: "dark" };
+  const takesValue = new Set(["--base-url", "--port", "--workspace", "--out", "--only", "--theme"]);
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
     if (key === "--help" || key === "-h") { console.log(USAGE); process.exit(0); }
@@ -106,6 +108,8 @@ function parseArgs(argv) {
       args.out = value;
     } else if (key === "--only") {
       args.only = value.split(",").map((s) => s.trim()).filter(Boolean);
+    } else if (key === "--theme") {
+      args.theme = value;
     }
   }
   if (args.only) {
@@ -218,19 +222,20 @@ async function assertWorkspace(page, expected) {
  *
  * - 工作区：不写就会拍到 personal 真实数据（localStorage 的残留会盖掉后端默认值）；
  * - 语言：不写就会拍到系统语言那一套，中文目录里可能躺着英文界面；
- * - 主题：**既有 14 张全部是暗色**，而主题的默认值是「跟随系统」（`lib/theme.ts`
- *   的 `SYSTEM_ID` 排在第一位）——全新 context 没有 localStorage，会在浅色系统的
- *   机器上拍出另一套风格。这正是必须显式钉住而不是靠默认值的原因。
+ * - 主题：默认钉 `dark`（既有截图规格），`--theme` 可换；不写会跟随系统
+ *   （`lib/theme.ts` 的 `SYSTEM_ID` 排在第一位）——全新 context 没有
+ *   localStorage，会在浅色系统的机器上拍出另一套风格。这正是必须显式钉住
+ *   而不是靠默认值的原因。
  *
  * 语言取值见 `src/i18n/index.ts`（`en` / `zh-CN`，不是 `zh`）；
  * 主题取值见 `src/lib/theme.ts`（键名带点：`jobws.theme`）。
  */
-function envScript(workspace, lang) {
+function envScript(workspace, lang, theme) {
   return `
     try {
       localStorage.setItem("jobws_selected_workspace", ${JSON.stringify(workspace)});
       localStorage.setItem("jobws_lang", ${JSON.stringify(lang)});
-      localStorage.setItem("jobws.theme", "dark");
+      localStorage.setItem("jobws.theme", ${JSON.stringify(theme)});
     } catch (e) { /* 隐私模式下不可用：assertWorkspace 会把后果暴露出来 */ }
   `;
 }
@@ -329,7 +334,7 @@ async function main() {
         locale: lang.code,
         deviceScaleFactor: 1,
       });
-      await context.addInitScript(envScript(args.workspace, lang.code));
+      await context.addInitScript(envScript(args.workspace, lang.code, args.theme));
 
       for (const key of pages) {
         // **每页新开一个 page**，不要复用同一个：同一页面内的 hash 导航

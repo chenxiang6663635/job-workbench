@@ -52,7 +52,7 @@ If you just want to see what it looks like without filling in any real informati
 python tools/jobws.py init --target demo --demo
 ```
 
-That also lays down a full set of placeholder data (8 applications / 3 interviews / 2 contacts / 1 offer / 3 talks & job fairs / 6 question-bank items / 6 emails / 2 parsed JD cards / 1 resume). Every company and person name is fake, so you can click around or take screenshots safely; the `software-backend` domain profile is installed by default because the demo data's "direction" field depends on it. Once it is running, pick `demo` from the workspace dropdown in the top-right corner.
+That also lays down a full set of placeholder data (8 applications / 3 interviews / 2 contacts / 1 offer / 3 talks & job fairs / 6 question-bank items / 6 emails / 7 parsed JD cards / 1 resume). Every company and person name is fake, so you can click around or take screenshots safely; the `software-backend` domain profile is installed by default because the demo data's "direction" field depends on it. Once it is running, pick `demo` from the workspace dropdown in the top-right corner.
 
 ### Fill in your profile: AGENTS.md (the prerequisite for scoring)
 

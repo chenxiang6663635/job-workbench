@@ -74,7 +74,8 @@ All pages below run on generated demo data (`jobws init --demo`); companies, rol
 ```bash
 # 0. Just want to look around first? One command gives you a filled demo workspace
 #    (8 applications / 3 interviews / 2 contacts / 1 offer / 3 talks & job fairs
-#     / 6 question-bank items / 6 emails, all placeholder data)
+#     / 6 question-bank items / 6 emails / 7 parsed JD cards / 1 resume,
+#     all placeholder data)
 python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)

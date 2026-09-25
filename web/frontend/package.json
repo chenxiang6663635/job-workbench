@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:ui": "playwright test",
+    "test:ui:smoke": "playwright test smoke.spec.ts viewports.spec.ts a11y.spec.ts nav.spec.ts",
     "test:unit": "vitest run",
     "capture": "node scripts/capture-screenshots.mjs"
   },

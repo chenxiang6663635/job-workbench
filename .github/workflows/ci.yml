@@ -194,8 +194,10 @@ jobs:
 
   # 最小 UI 冒烟：钉住静态检查测不到的那一类问题（英文标签挤爆顶栏、横向溢出、
   # 控制台报错、serious/critical 可访问性）。**不是**全量 E2E——业务流仍靠发布前的
-  # 人工冒烟，这里只跑七个页面 × 三个视口的最小断言集（约 40 秒）。
-  # 与 CONTRIBUTING §明确不做 的「全量 Playwright E2E 不做」配套：例外有边界、有理由。
+  # 人工冒烟，这里只跑七个页面 × 三个视口的最小断言集（约 1.5 分钟，2026-09-25 拆级）。
+  #
+  # 拆级背景：e2e 用例逐批长到 115 条后，PR 上跑全量让每次反馈多等 2 分钟——
+  # 全量改在 push main 后跑（下面的 e2e-full job，不阻塞 PR、合并后即回归）。
   ui-smoke:
     name: UI 冒烟（布局 + a11y）
     runs-on: ubuntu-latest
@@ -236,11 +238,75 @@ jobs:
         working-directory: web/frontend
         run: npm run build
 
+      # 浏览器缓存（2026-09-25 加）：`--with-deps` 的 apt 部分每次都要跑（有系统依赖），
+      # 但浏览器二进制（~170MB）缓存后省一次下载。键挂 package-lock（Playwright
+      # 版本在其中），锁文件变化即失效重建。
+      - name: 缓存 Playwright 浏览器
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/frontend/package-lock.json') }}
+
       - name: 安装 Playwright 浏览器
         working-directory: web/frontend
         run: npx playwright install --with-deps chromium
 
       - name: 布局 + a11y 冒烟
+        working-directory: web/frontend
+        run: npm run test:ui:smoke
+
+  # 全量 E2E（115 条）：2026-09-25 从 ui-smoke 拆出。它的价值形态是「合并后的完整
+  # 回归」——push main 后跑，不阻塞任何 PR；PR 上的布局 + a11y 门禁由 ui-smoke 的最小集
+  # 守住。发布前的最终防线仍是真机人工冒烟（docs/release-checklist.md）。
+  e2e-full:
+    name: E2E 全量（main push）
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 安装后端依赖
+        run: pip install -r web/backend/requirements-dev.txt
+
+      - name: 安装领域包
+        run: pip install ./packages/jobws-core
+
+      - name: 初始化 demo 工作区
+        run: python tools/jobws.py init --target demo --demo
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+
+      - name: 安装前端依赖
+        working-directory: web/frontend
+        run: npm ci
+
+      - name: 构建前端
+        working-directory: web/frontend
+        run: npm run build
+
+      - name: 缓存 Playwright 浏览器
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/frontend/package-lock.json') }}
+
+      - name: 安装 Playwright 浏览器
+        working-directory: web/frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: 全量 E2E
         working-directory: web/frontend
         run: npm run test:ui
 

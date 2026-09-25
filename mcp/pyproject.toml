@@ -23,7 +23,8 @@ license = { text = "MIT" }
 # 对方的升级牵着走。形态 A 的路线决策见 plans。
 #
 # 钉下界到实测过的 2.2：SDK 仍在 2.x 内频繁演进，浮动解析会让 CI 与本地跑的
-# 不是同一套代码。uv.lock 被仓库的 *.lock 规则忽略，下界与锁保持一致。
+# 不是同一套代码。uv.lock 已于 2026-09-25 入库（收口批给 *.lock 加了
+# `!uv.lock` 例外），下界与锁保持一致。
 # 领域层（批 6 第二批）：tracker / approval / pathres / jd_score / report /
 # question_bank 等**全部**在包里，MCP 因此不再需要仓库在侧——原先那段
 # sys.path 注入与 JOBWS_REPO_ROOT 推导已从 jobws_mcp/paths.py 删除。
@@ -34,6 +35,13 @@ license = { text = "MIT" }
 #     uv pip install ./mcp                 # 后
 # CI 的 mcp job 按这个顺序装（见 .github/workflows/ci.yml）。
 dependencies = ["mcp>=2.2,<3", "jobws-core"]
+
+# uv 专属：jobws-core 不在 PyPI（它是本仓 packages/jobws-core）——声明路径源，
+# 让 `uv lock` / `uv pip install ./mcp` 能解析它（pip 忽略本段）。
+# 2026-09-25 收口批：uv.lock 入库（此前被 *.lock 规则忽略），可复现性从
+# 「下界约束」升级到「锁 + 下界」双保险。
+[tool.uv.sources]
+jobws-core = { path = "../packages/jobws-core" }
 
 [project.optional-dependencies]
 # anyio 由 SDK 传递提供，但测试直接 import 它——传递依赖换树就断，显式列出

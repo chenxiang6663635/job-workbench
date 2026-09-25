@@ -1,0 +1,9 @@
+# lock 的输入（生成命令：uv pip compile requirements.lock.in --python-version 3.12
+# --generate-hashes -o requirements.lock）。
+#
+# 为什么 PyInstaller 也进同一份 lock：release.yml 的打包环境 = 运行依赖 +
+# PyInstaller——「同一个 SHA 两周后重建 installer 必须解析出同一棵依赖树」，
+# 打包器本身也是那棵树的一部分。运行时声明仍是 requirements.txt（人类维护），
+# 本文件只是编译输入，不放宽任何约束。
+-r requirements.txt
+pyinstaller<7

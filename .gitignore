@@ -17,6 +17,11 @@ Thumbs.db
 
 # Web 运行时产物：文件锁、依赖与构建输出
 *.lock
+# 例外（2026-09-25 发布前收口批）：**可复现锁文件**要入库——
+# requirements.lock（uv pip compile 产物，带 hash，发布链按它安装）与
+# uv.lock（mcp 依赖树）。其余 *.lock（运行时文件锁等）继续忽略。
+!web/backend/requirements.lock
+!uv.lock
 node_modules/
 dist/
 build/

@@ -168,4 +168,29 @@ describe("planFactWrite", () => {
       body: { 下次动作日期: "2026-09-24", 下次动作: "完成测评（链接即将失效）" },
     });
   });
+
+  // 2026-09-25 真机缺陷：后端没匹配到记录时，用户在卡片上就地选定归属（PR-4）
+  it("后端没给归属时，就地选定的记录补位（targetOverride）", () => {
+    const plan = planFactWrite(
+      fact({ kind: "链接有效期", value: "2026-09-24", label: "完成测评（链接即将失效）" }),
+      MESSAGE,
+      "A002"
+    );
+
+    expect(plan).toEqual({
+      kind: "application",
+      id: "A002",
+      body: { 下次动作日期: "2026-09-24", 下次动作: "完成测评（链接即将失效）" },
+    });
+  });
+
+  it("override 优先于后端匹配到的 targetId（用户显式选择说了算）", () => {
+    const plan = planFactWrite(
+      fact({ kind: "阶段", value: "一面", evidence: "邀请您参加一面", targetId: "A001" }),
+      MESSAGE,
+      "A002"
+    );
+
+    expect(plan.kind === "status" && plan.id).toBe("A002");
+  });
 });

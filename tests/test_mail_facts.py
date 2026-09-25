@@ -363,6 +363,52 @@ def test_link_validity_accepts_rfc5322_mail_date():
     assert "未取到" not in fact["note"]
 
 
+# --- 归属传播（targetId）：建议卡一键写入的前提 -----------------------------------
+# 2026-09-25 真机缺陷：正文事实（截止/链接有效期/时间）从不带 targetId，
+# 「确认写入」必然被 needRecord 拦截；e2e 的 mock 直接给了 targetId，把这条
+# 断链盖到了今天。恰好命中一条时归属应传播到**全部**事实；多命中不猜
+# （与 AI 路径同一口径），交用户就地选定。
+
+def test_body_facts_inherit_target_when_exactly_one_record():
+    rows = [{"id": "A001", "公司": "云帆智算", "岗位": "后端工程师"}]
+    facts = mail_facts.extract_facts(
+        "云帆智算提醒：请复制以下链接进入\nhttps://example.com/su/abc\n链接有效期：7天",
+        today=TODAY, rows=rows, mail_date="Sun, 20 Sep 2026 09:05:00 +0800")
+    assert _facts_by_kind(facts, "链接有效期")[0]["targetId"] == "A001"
+
+
+def test_body_facts_stay_unassigned_when_multiple_records_match():
+    rows = [
+        {"id": "A001", "公司": "TCL", "岗位": "节能工程师"},
+        {"id": "A002", "公司": "TCL", "岗位": "性能工程师"},
+    ]
+    facts = mail_facts.extract_facts(
+        "TCL 提醒：请复制以下链接进入\nhttps://example.com/su/abc\n链接有效期：7天",
+        today=TODAY, rows=rows)
+    assert _facts_by_kind(facts, "链接有效期")[0]["targetId"] == ""
+
+
+def test_body_facts_stay_unassigned_when_no_record_matches():
+    rows = [{"id": "A001", "公司": "云帆智算", "岗位": "后端工程师"}]
+    facts = mail_facts.extract_facts(
+        "请复制以下链接进入\nhttps://example.com/su/abc\n链接有效期：7天",
+        today=TODAY, rows=rows)
+    assert _facts_by_kind(facts, "链接有效期")[0]["targetId"] == ""
+
+
+def test_stage_fact_stays_unassigned_when_multiple_records_match():
+    """阶段卡同样不猜：此前多命中会取 hits[0]，可能把阶段写到另一条记录头上。"""
+    rows = [
+        {"id": "A001", "公司": "TCL", "岗位": "节能工程师"},
+        {"id": "A002", "公司": "TCL", "岗位": "性能工程师"},
+    ]
+    facts = mail_facts.extract_facts(
+        "TCL 通知：请完成在线测评", today=TODAY, rows=rows)
+    stage = _facts_by_kind(facts, "阶段")
+    if stage:
+        assert stage[0]["targetId"] == ""
+
+
 def test_compact_days_alone_is_not_a_deadline():
     """防回归：宽松时长只给「链接有效期」用——没有「链接+有效」的紧凑时长
     不该变成截止（「3 个工作日内联系你」类承诺仍被严格版的「内」+ 语气门挡住）。"""

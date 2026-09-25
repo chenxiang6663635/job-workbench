@@ -32,11 +32,18 @@ function mailBody(meta: MailMeta, link: string): Record<string, string> {
   };
 }
 
-export function planFactWrite(fact: MailFact, meta: MailMeta): FactWrite {
+export function planFactWrite(
+  fact: MailFact,
+  meta: MailMeta,
+  /** 卡片上就地选定的归属记录 id：后端没匹配到 targetId 时的前端补位（优先于它） */
+  targetOverride = "",
+): FactWrite {
+  // 需要归属的写路径统一取「就地选定 > 后端匹配」；会议链接的台账关联同源
+  const tid = targetOverride || fact.targetId;
   if (fact.kind === "会议链接") {
     return {
       kind: "mail",
-      body: { ...mailBody(meta, fact.targetId), 会议链接: fact.value },
+      body: { ...mailBody(meta, tid), 会议链接: fact.value },
     };
   }
   if (fact.kind === "公司岗位") {
@@ -44,27 +51,27 @@ export function planFactWrite(fact: MailFact, meta: MailMeta): FactWrite {
     return { kind: "mail", body: mailBody(meta, fact.value) };
   }
   if (fact.kind === "阶段") {
-    if (!fact.targetId) return { kind: "blocked", reasonKey: "suggest.needRecord" };
-    return { kind: "status", id: fact.targetId, stage: fact.value, evidence: fact.evidence };
+    if (!tid) return { kind: "blocked", reasonKey: "suggest.needRecord" };
+    return { kind: "status", id: tid, stage: fact.value, evidence: fact.evidence };
   }
   if (fact.kind === "时间") {
-    if (!fact.targetId) return { kind: "blocked", reasonKey: "suggest.needRecord" };
+    if (!tid) return { kind: "blocked", reasonKey: "suggest.needRecord" };
     // 追踪表的「下次动作日期」是 YYYY-MM-DD；带钟点的取值只取日期部分
     return {
       kind: "application",
-      id: fact.targetId,
+      id: tid,
       body: { 下次动作日期: fact.value.slice(0, 10) },
     };
   }
   if (fact.kind === "截止" || fact.kind === "链接有效期") {
-    if (!fact.targetId) return { kind: "blocked", reasonKey: "suggest.needRecord" };
+    if (!tid) return { kind: "blocked", reasonKey: "suggest.needRecord" };
     // 截止（要交东西）与链接有效期（链接会失效、要复制保存）走同一条既有写路径：
     // 日期进「下次动作日期」、动作短语（label）进「下次动作」——到点提醒读的就是
     // 这两个字段（看板的待办桶），写进去即自动获得提醒，不再另建提醒链路。
     // 两者的区别体现在 label 上（如「完成测评（链接即将失效）」）。
     return {
       kind: "application",
-      id: fact.targetId,
+      id: tid,
       body: {
         下次动作日期: fact.value.slice(0, 10),
         下次动作: fact.label,

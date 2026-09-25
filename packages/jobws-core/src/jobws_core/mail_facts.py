@@ -235,19 +235,37 @@ def _body_facts(text, today, mail_date=None):
 
 # --- 阶段与记录匹配 ---------------------------------------------------------------
 
-def _stage_or_record_facts(text, rows, focus_id):
-    """阶段信号 + 命中的投递记录（口径全部复用 status_parse，不另造一套）。"""
-    parsed = parse_signals(text)
-    top = parsed["signals"][0] if parsed["signals"] else None
+def _resolve_target(text, rows, focus_id):
+    """这封邮件归属哪条投递记录：手动指定 > 恰好命中一条 > 空。
 
+    多命中**不猜**（2026-09-25 与 AI 路径对齐）：此前规则路径多命中会取
+    第一条，两条 TCL 同时命中时「建议阶段」可能写到另一条记录头上。
+    返回 ``(target_id, hits)``——hits 一并交回，调用方不必重复匹配。
+    """
     if focus_id:
         target = next((r for r in (rows or [])
                        if (r.get("id") or "").strip() == (focus_id or "").strip()), None)
         hits = [(target, "手动指定")] if target is not None else []
     else:
         hits = match_rows(text, rows or [])
+    if len(hits) == 1:
+        return (hits[0][0].get("id") or ""), hits
+    return "", hits
 
-    target_id = (hits[0][0].get("id") or "") if hits else ""
+
+def _stage_or_record_facts(text, rows, focus_id, hits=None):
+    """阶段信号 + 命中的投递记录（口径全部复用 status_parse，不另造一套）。
+
+    `hits` 由 `extract_facts` 统一解析后传入（同一封邮件只匹配一次）；
+    直接调用本函数时才在这里解析。
+    """
+    parsed = parse_signals(text)
+    top = parsed["signals"][0] if parsed["signals"] else None
+
+    if hits is None:
+        target_id, hits = _resolve_target(text, rows, focus_id)
+    else:
+        target_id = (hits[0][0].get("id") or "") if len(hits) == 1 else ""
     facts = []
     if top:
         facts.append(_fact("阶段", top["stage"], "建议阶段", "、".join(top["evidence"]),
@@ -275,9 +293,19 @@ def extract_facts(body, ics_text="", today=None, rows=None, focus_id="",
       以它为基准，取不到时退回今天并在 note 里写明——基准不该是"你什么时候看的"。
     """
     text = strip_quoted(body)
+    target_id, hits = _resolve_target(text, rows, focus_id)
     facts = _ics_facts(parse_ics(ics_text))
     facts.extend(_body_facts(text, today, mail_dates.coerce_date(mail_date)))
-    facts.extend(_stage_or_record_facts(text, rows, focus_id))
+    facts.extend(_stage_or_record_facts(text, rows, focus_id, hits=hits))
+
+    # 归属传播（2026-09-25 真机缺陷）：恰好命中一条时，这封邮件的全部事实
+    # 都归它——此前只有「阶段/公司岗位」带归属，「截止/链接有效期/时间」
+    # 恒为空串，「确认写入」必然被 needRecord 拦截；e2e 的 mock 给了
+    # targetId，把这条断链盖到了今天。多命中/零命中留空：前端就地选定，不猜。
+    if target_id:
+        for fact in facts:
+            if not fact.get("targetId"):
+                fact["targetId"] = target_id
 
     seen, deduped = set(), []
     for fact in facts:

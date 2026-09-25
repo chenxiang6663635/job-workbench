@@ -808,7 +808,7 @@ const zhCN = {
   "suggest.done": "已写入",
   "suggest.inLedger": "已在台账",
   "suggest.ack": "我已核对取值",
-  "suggest.needRecord": "没有匹配到投递记录：先在追踪表选定这条更新属于哪条记录",
+  "suggest.needRecord": "没有自动匹配到投递记录：请在卡片上选定归属后再写入",
   "suggest.unsupported": "这类线索暂不支持一键写入",
   "suggest.recordGone": "记录已不存在，请刷新后重试",
   "suggest.notAllowed": "当前阶段不允许这样覆盖",

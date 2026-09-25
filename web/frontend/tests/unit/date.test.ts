@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { daysUntil, parseLocalDate, todayISO } from "../../src/lib/date";
+import { daysUntil, formatMailDate, parseLocalDate, todayISO } from "../../src/lib/date";
 
 describe("todayISO", () => {
   it("returns the local calendar day, not the UTC one", () => {
@@ -84,5 +84,33 @@ describe("daysUntil", () => {
   it("returns null when the target cannot be parsed", () => {
     expect(daysUntil("")).toBeNull();
     expect(daysUntil("2026-02-31", new Date(2026, 8, 30, 10))).toBeNull();
+  });
+});
+
+describe("formatMailDate", () => {
+  // 2026-09-25 真机：IMAP 的 Date 头是 RFC 2822 原文，而解析建议那条链路原样把它
+  // 透传给后端 → 后端拿不到日期 → 「3 天内」按今天算（"还有 3 天"，实际已过期）。
+  // 这条用例钉的是"前端必须交出后端与 CSV 都认的那个形状"。
+  it("normalizes the RFC 2822 Date header to the CSV shape", () => {
+    const raw = "Sun, 20 Sep 2026 09:05:00 +0800";
+    const d = new Date(raw);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    expect(formatMailDate(raw)).toBe(
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+        `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    );
+  });
+
+  it("keeps an already-CSV value untouched", () => {
+    expect(formatMailDate("2026-09-16 10:00")).toBe("2026-09-16 10:00");
+  });
+
+  it("returns blank for blank input (no invented date)", () => {
+    expect(formatMailDate("")).toBe("");
+    expect(formatMailDate(undefined)).toBe("");
+  });
+
+  it("falls back to the raw text when nothing parses (honest over pretty)", () => {
+    expect(formatMailDate("日期未知")).toBe("日期未知");
   });
 });

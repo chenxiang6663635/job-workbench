@@ -1129,7 +1129,7 @@ export default {
 
   "rewrite.instructionRequired": "Write the direction of the rewrite first",
   "rewrite.title": "AI rewrite suggestions",
-  "rewrite.desc": "Only the wording of facts you already have is rewritten. Suggestions must pass the anti-fabrication check before you can adopt them",
+  "rewrite.desc": "Only the wording of facts you already have is rewritten. Suggestions must pass the anti-fabrication check before you can adopt them. The default model comes from Settings; changes here apply to this panel only",
   "rewrite.phInstruction": "Rewrite direction, e.g. steer the project wording toward data-centre cooling",
   "rewrite.phModel": "Model name, e.g. deepseek-chat",
   "rewrite.generating": "Generating…",
@@ -1250,7 +1250,7 @@ export default {
   "mail.openTitle": "Open the email link you pasted",
   "mail.gmailHint": "Search this email in Gmail (must be signed in)",
   // Say WHY only Gmail has a link: otherwise it reads as a defect and keeps coming back
-  "mail.noLinkHint": "A deep link is only possible for Gmail (built from the Message-ID); Outlook / QQ / 163 and others have none — search by subject in your mailbox",
+  "mail.noLinkHint": "Automatic deep links exist for Gmail only (built from the Message-ID); for Outlook / QQ / 163 and others, search by subject — or paste the message URL once on the record and it opens in one click afterwards",
   // Body wording tri-state (mail body batch): the same message is cleaned to different
   // granularity in three places, so each one has to say what it is
   "mail.bodyOriginal": "Original",

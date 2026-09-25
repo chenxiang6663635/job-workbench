@@ -63,3 +63,37 @@ export function daysUntil(target: string, from: Date = new Date()): number | nul
   const end = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   return Math.round((end.getTime() - start.getTime()) / 86400_000);
 }
+
+/** `YYYY-MM-DD HH:mm`（本模块唯一的时间戳形状，写回与显示共用）。 */
+function stamp(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
+}
+
+/**
+ * 邮件日期（IMAP 的 `Date` 头）→ CSV 既有的 `YYYY-MM-DD HH:mm`。
+ *
+ * `Date` 头是 RFC 2822 原文（`Sun, 20 Sep 2026 09:05:00 +0800`），而它要去三处，
+ * 口径必须同一份：写进 `mails.csv` 的「日期」列（不转会让导入行与手工行混排后
+ * 「日期倒序」失序，审查 m-1）、作为解析建议的时长基准、界面显示。此前这三处
+ * 各写各的，其中「时长基准」那条路干脆没转（后端拿不到日期 → 按今天算，
+ * 2026-09-25 真机）。后端 `mail_dates.coerce_date` 现在两种形态都认，这里统一
+ * 转换只是为了同一个日期不再有两种长相。
+ *
+ * 解析失败退回原文：宁可显示得难看，也不猜一个日期（与 `parseLocalDate` 的
+ * "不拿 Invalid Date 去比较"同一条线）。
+ */
+export function formatMailDate(raw: string | undefined | null): string {
+  const text = (raw || "").trim();
+  if (!text) return "";
+  // 已经是 CSV 口径：原样返回，不再过一次 `new Date(string)`——那条路对
+  // `2026-09-16 10:00` 这类非 ISO 形态在浏览器间不一致，且没必要改写既有值。
+  if (parseLocalDate(text)) return text;
+  // RFC 2822（IMAP 的 Date 头）：各浏览器都支持这一形态；带时区偏移时按本地呈现，
+  // 与 CSV 里手工输入的本地时间口径一致。
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? text : stamp(parsed);
+}

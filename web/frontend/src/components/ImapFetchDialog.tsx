@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import MailBody from "./MailBody";
 import { RANGE_OPTIONS, rangeLabelKey } from "../lib/imapRange";
-import { Check, ChevronRight, Inbox, Loader2, MailPlus, RefreshCw, Search, Sparkles, X } from "lucide-react";
-import MailSuggestions from "./MailSuggestions";
+import { Inbox, Loader2, RefreshCw, Search, X } from "lucide-react";
+import ImapMessageRow from "./ImapMessageRow";
 import { api, type ImapMessage } from "../api";
 import {
   Dialog,
@@ -86,6 +85,17 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
   // 切换时间窗即重新拉取（首次挂载也走这里）——用户改的是服务端搜索条件，
   // 不重拉的话列表与所选范围对不上
   useEffect(load, [sinceDays]);
+
+  // 记入台账：一次只允许一条在飞——没有 Message-ID 的邮件没有后端去重兜底，
+  // 连点会落两条一模一样的行（审查 m-2）。状态留在这一层，条目组件只发事件。
+  const record = (m: ImapMessage) => {
+    if (!onRecord || recordingUid) return;
+    setRecordingUid(m.uid);
+    onRecord(m)
+      .then(() => setRecorded((prev) => ({ ...prev, [m.uid]: true })))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setRecordingUid((cur) => (cur === m.uid ? null : cur)));
+  };
 
   const q = query.trim().toLowerCase();
   const filtered = (messages ?? []).filter(
@@ -185,88 +195,17 @@ export default function ImapFetchDialog({ onClose, onUse, onRecord }: Props) {
           )}
 
           {filtered.map((m) => (
-            <div
+            <ImapMessageRow
               key={m.uid}
-              className="rounded-lg border border-border bg-card/60 shadow-sm transition-colors hover:border-primary/40"
-            >
-              <div className="group flex items-start gap-3 p-3">
-                {/* 行主体：走「解析 → 建议 → 确认」链路（原行为不变） */}
-                <button
-                  type="button"
-                  onClick={() => onUse(m.body)}
-                  title={t("imap.useThis")}
-                  className="min-w-0 flex-1 cursor-pointer text-left"
-                >
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {m.subject || t("imap.noSubject")}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {m.from} · {m.date}
-                  </p>
-                  {/* 预览是原文（保留引用与签名）、硬截 140 字——用统一视图标注，
-                      免得与建议卡的"已剥离引用"摘录被读成两份不一致的数据 */}
-                  <div className="mt-1.5">
-                    <MailBody text={m.body} truncated={m.truncated} limit={140} />
-                  </div>
-                </button>
-                <div className="flex shrink-0 flex-col items-center gap-1.5">
-                  {/* 解析建议（批 9）：正文 / ICS → 候选事实，卡片逐条确认才写入 */}
-                  <button
-                    type="button"
-                    aria-label={t("suggest.title")}
-                    aria-expanded={suggestUid === m.uid}
-                    title={t("suggest.title")}
-                    onClick={() => setSuggestUid((cur) => (cur === m.uid ? null : m.uid))}
-                    className={
-                      suggestUid === m.uid
-                        ? "cursor-pointer text-primary"
-                        : "cursor-pointer text-muted-foreground transition-colors hover:text-primary"
-                    }
-                  >
-                    <Sparkles size={16} />
-                  </button>
-                  {/* 记入邮件台账（批 4.5）：元数据直接落 mails.csv，不用再手打一遍 */}
-                  {onRecord && (
-                    <button
-                      type="button"
-                      disabled={!!recorded[m.uid] || recordingUid === m.uid}
-                      aria-label={t("imap.recordTitle")}
-                      title={t("imap.recordTitle")}
-                      onClick={() => {
-                        if (recordingUid) return;
-                        setRecordingUid(m.uid);
-                        onRecord(m)
-                          .then(() =>
-                            setRecorded((prev) => ({ ...prev, [m.uid]: true }))
-                          )
-                          .catch((e: Error) => setError(e.message))
-                          .finally(() =>
-                            setRecordingUid((cur) => (cur === m.uid ? null : cur))
-                          );
-                      }}
-                      className="cursor-pointer text-muted-foreground transition-colors hover:text-primary disabled:cursor-default disabled:text-success"
-                    >
-                      {recorded[m.uid] ? <Check size={16} /> : <MailPlus size={16} />}
-                    </button>
-                  )}
-                  <ChevronRight
-                    size={16}
-                    className="text-muted-foreground transition-colors group-hover:text-primary"
-                  />
-                </div>
-              </div>
-              {suggestUid === m.uid && (
-                <div className="px-3 pb-3">
-                  <MailSuggestions
-                    message={m}
-                    onOpenStatus={onUse}
-                    onWritten={() =>
-                      setRecorded((prev) => ({ ...prev, [m.uid]: true }))
-                    }
-                  />
-                </div>
-              )}
-            </div>
+              message={m}
+              expanded={suggestUid === m.uid}
+              onToggleSuggest={() => setSuggestUid((cur) => (cur === m.uid ? null : m.uid))}
+              onUse={onUse}
+              onRecord={onRecord ? () => record(m) : undefined}
+              recorded={!!recorded[m.uid]}
+              busy={recordingUid === m.uid}
+              onWritten={() => setRecorded((prev) => ({ ...prev, [m.uid]: true }))}
+            />
           ))}
         </div>
 

@@ -20,15 +20,27 @@ interface MailBodyProps {
   variant?: "original" | "excerpt";
   /** 预览字符数；不传则显示全文 */
   limit?: number;
+  /**
+   * 固定显示行数（列表预览用）。字面量映射是刻意的：Tailwind 的 JIT 只认源文件里
+   * 出现过的类名，拼字符串（`line-clamp-${n}`）会在构建时被丢。
+   */
+  lines?: 1 | 2 | 3;
   /** 紧凑形态（建议卡）：徽章与正文同行，不额外占一行 */
   compact?: boolean;
 }
+
+const CLAMP_CLASS: Record<number, string> = {
+  1: "line-clamp-1",
+  2: "line-clamp-2",
+  3: "line-clamp-3",
+};
 
 export default function MailBody({
   text,
   truncated = false,
   variant = "original",
   limit,
+  lines,
   compact = false,
 }: MailBodyProps) {
   const { t } = useTranslation();
@@ -64,7 +76,14 @@ export default function MailBody({
           {variant === "excerpt" ? t("mail.bodyExcerptNote") : t("mail.bodyOriginalNote")}
         </span>
       </p>
-      <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">{shown}</p>
+      <p
+        className={
+          "whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground" +
+          (lines ? ` ${CLAMP_CLASS[lines]}` : "")
+        }
+      >
+        {shown}
+      </p>
     </div>
   );
 }

@@ -162,6 +162,16 @@ def test_suggest_facts_duration_without_mail_date_notes_the_basis(tmp_path, clie
     assert "未取到邮件日期" in deadline["note"]
 
 
+def test_suggest_facts_accepts_rfc5322_mail_date(tmp_path, client):
+    """回归（2026-09-25 真机）：前端传的是 IMAP 的 Date 头**原文**（RFC 5322），
+    不是 ISO——只测 ISO 会让链路看着是通的，而基准其实静默退化成今天。"""
+    _seed(tmp_path, [ROW])
+    facts = _suggest(client, 原文="请在 3 天内完成在线测评",
+                     日期="Sun, 20 Sep 2026 09:05:00 +0800").json()["facts"]
+    deadline = next(f for f in facts if f["kind"] == "截止")
+    assert deadline["value"] == "2026-09-23", "基准应为邮件日期 09-20 + 3 天"
+
+
 # --- 可选 AI 增强（BYOK）：只产建议、绝不写入 ------------------------------------
 
 AI_CONTENT = (

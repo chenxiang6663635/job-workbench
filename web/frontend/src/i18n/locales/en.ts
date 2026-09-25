@@ -1250,7 +1250,7 @@ export default {
   "mail.openTitle": "Open the email link you pasted",
   "mail.gmailHint": "Search this email in Gmail (must be signed in)",
   // Say WHY only Gmail has a link: otherwise it reads as a defect and keeps coming back
-  "mail.noLinkHint": "Automatic deep links exist for Gmail only (built from the Message-ID); for Outlook / QQ / 163 and others, search by subject — or paste the message URL once on the record and it opens in one click afterwards",
+  "mail.noLinkHint": "Your mailbox can't auto-open the original email (only Gmail can): copy the subject and search in your mailbox",
   // Body wording tri-state (mail body batch): the same message is cleaned to different
   // granularity in three places, so each one has to say what it is
   "mail.bodyOriginal": "Original",

@@ -267,26 +267,32 @@ jobs:
           $hashBlock = $hashLines -join [Environment]::NewLine
           # 单引号 here-string：不插值（PowerShell 的 ` 在双引号里是转义符，markdown
           # 代码栅栏 ``` 会被吃掉）；占位符后置替换。
+          #
+          # 缩进纪律（2026-09-25 演练抓到的坑）：here-string 的**内容行与结束符在
+          # YAML 里必须与其他行同缩进**——YAML 块标量会剥离共同缩进，PowerShell
+          # 收到的仍是顶格文本（`'@` 顶格，5.1/7 都合规）。只给首尾两行缩进、
+          # 内容行顶格时，那条顶格的 `---` 会被 YAML 当作文档分隔符，整份 workflow
+          # 解析失败（push 产生 0 秒 failure、workflow_dispatch 报 422）。
           $notice = @'
-
----
-
-## 安装说明（未签名软件 / unsigned build）
-
-本安装包**未经代码签名**。首次运行时 Windows 可能显示「Windows 已保护你的电脑」——
-这是未签名软件的正常提示：点「更多信息」→「仍要运行」。SmartScreen 信誉按版本重新
-积累，后续版本可能再次提示。
-
-This installer is **not code-signed**. On first run Windows may show "Windows protected
-your PC" — that is expected for unsigned software: click **More info** → **Run anyway**.
-SmartScreen reputation resets per release, so the notice may reappear on later versions.
-
-## 校验和 / Checksums (SHA256)
-
-```
-__HASHES__
-```
-'@
+          
+          ---
+          
+          ## 安装说明（未签名软件 / unsigned build）
+          
+          本安装包**未经代码签名**。首次运行时 Windows 可能显示「Windows 已保护你的电脑」——
+          这是未签名软件的正常提示：点「更多信息」→「仍要运行」。SmartScreen 信誉按版本重新
+          积累，后续版本可能再次提示。
+          
+          This installer is **not code-signed**. On first run Windows may show "Windows protected
+          your PC" — that is expected for unsigned software: click **More info** → **Run anyway**.
+          SmartScreen reputation resets per release, so the notice may reappear on later versions.
+          
+          ## 校验和 / Checksums (SHA256)
+          
+          ```
+          __HASHES__
+          ```
+          '@
           $notice = $notice.Replace("__HASHES__", $hashBlock)
           Add-Content -Path release-notes.md -Value $notice -Encoding utf8
           Write-Host "SHA256SUMS.txt 与安装说明已追加到 release-notes.md"

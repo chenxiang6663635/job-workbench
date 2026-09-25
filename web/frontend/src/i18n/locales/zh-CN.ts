@@ -1324,7 +1324,7 @@ const zhCN = {
   "mail.openTitle": "打开你粘贴的邮件链接",
   "mail.gmailHint": "在 Gmail 中搜索这封邮件（需已登录 Gmail）",
   // 解释"为什么只有 Gmail 有链接"：不写清楚就会被当成缺陷反复问
-  "mail.noLinkHint": "深链只对 Gmail 自动可用（由 Message-ID 构造）；Outlook / QQ / 163 等按主题去邮箱搜索，或在这条记录里粘一次原邮件地址——之后就能一键打开",
+  "mail.noLinkHint": "你的邮箱不支持自动打开原邮件（只有 Gmail 做得到）：点右侧复制主题，去邮箱里粘贴搜索",
   // 正文口径三态（邮件正文批）：同一封邮件在三个环节被清洗到不同粒度，
   // 界面上必须写清"这是原文 / 已截断 / 已是摘录"，否则会被读成"数据丢了"
   "mail.bodyOriginal": "原文",

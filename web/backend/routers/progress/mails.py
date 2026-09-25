@@ -29,9 +29,10 @@ VALID_MAIL_TAGS = tracker.MAIL_TAGS
 # ---------------------------------------------------------------------------
 # 邮件（批 4.5）：独立表 mails.csv，与投递记录用「关联记录」相连。
 # 与 talks 同一把锁、同一条纪律：邮件只驱动「记录产生」，**不自动改阶段**。
-# 「打开原邮件」链接随行附带（_openLink 计算字段）：自粘链接优先，Gmail 由
-# Message-ID 构造，其余邮箱 kind=none——前端诚实降级为「打开邮箱 + 复制主题
-# 搜索」提示，不显示可能失效的假链接。
+# 「打开原邮件」链接随行附带（_openLink 计算字段）：自粘链接优先；Gmail 深链
+# 只对配置的 Gmail 邮箱构造（provider 感知，2026-09-25 真机——非 Gmail 用户点了
+# Gmail 搜索页就是错误页），其余 kind=none——前端诚实降级为「打开邮箱 + 复制
+# 主题搜索」提示，不显示可能失效的假链接。
 # ---------------------------------------------------------------------------
 
 
@@ -54,10 +55,19 @@ def _sort_mails(rows):
 
 
 
-def _with_open_link(row):
-    """随行附带「打开原邮件」链接（计算字段；前缀下划线与 _changed 同规矩）。"""
+def _with_open_link(row, ws):
+    """随行附带「打开原邮件」链接（计算字段；前缀下划线与 _changed 同规矩）。
+
+    provider 感知（2026-09-25 真机）：Gmail 深链只对配置的 Gmail 邮箱构造——
+    非 Gmail / 未配置直接 none，不给「点了就错」的链接。
+    """
+    from routers import imap  # 延迟导入：与 imap_facts.py 的 provider 同款手法
+
+    # 复用既有公开路由取配置（user 明文保留；password 已脱敏，这里不碰凭证）
+    user = (imap.get_imap(ws).get("user") or "").strip()
     link = mail_link.build_open_link(row.get("消息id", ""),
-                                     row.get("webmail链接", ""))
+                                     row.get("webmail链接", ""),
+                                     imap_user=user)
     return dict(row, _openLink=link)
 
 
@@ -79,7 +89,7 @@ class NewMail(BaseModel):
 def list_mails(ws: str = Depends(workspace_dir), app: str = None):
     rows = tracker.read_mails(ws, app_id=(app or "").strip() or None)
     rows = _sort_mails(rows)
-    return {"rows": [_with_open_link(r) for r in rows], "total": len(rows)}
+    return {"rows": [_with_open_link(r, ws) for r in rows], "total": len(rows)}
 
 
 
@@ -120,7 +130,7 @@ def create_mail(item: NewMail, ws: str = Depends(workspace_dir)):
         row["会议链接"] = (item.会议链接 or "").strip()
         rows.append(row)
         tracker.write_mails(rows, ws)
-    return _with_open_link(row)
+    return _with_open_link(row, ws)
 
 
 
@@ -175,10 +185,10 @@ def update_mail(mail_id: str, item: PatchMail, ws: str = Depends(workspace_dir))
                 changed.append(field)
                 row[field] = value
         if not changed:
-            return _with_open_link(row)
+            return _with_open_link(row, ws)
         tracker.write_mails(rows, ws)
 
-    return _with_open_link(dict(row, _changed=changed))
+    return _with_open_link(dict(row, _changed=changed), ws)
 
 
 @router.get("/mails/preview-delete")

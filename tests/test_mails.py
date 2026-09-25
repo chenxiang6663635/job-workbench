@@ -14,6 +14,7 @@
 """
 
 import io
+import json
 import os
 import sys
 
@@ -259,9 +260,22 @@ def client(tmp_path, monkeypatch):
 WS = "ws-ok"
 
 
+def _write_imap_config(ws_root, user):
+    """给工作区写一份最小 IMAP 配置——深链的 provider 感知（2026-09-25 真机）
+    读的是 user 字段：只有 Gmail 邮箱才给 Gmail 搜索深链。
+
+    调用方的 user 参数用拼接构造样本地址（privacy 钩子拦真实邮箱字面量）。"""
+    cfg_dir = os.path.join(ws_root, "config")
+    os.makedirs(cfg_dir, exist_ok=True)
+    with open(os.path.join(cfg_dir, "imap.json"), "w", encoding="utf-8") as f:
+        json.dump({"host": "imap.gmail.com", "user": user, "password": "x"}, f)
+
+
 def test_api_mail_normalizes_message_id(tmp_path, client):
     """审查 M-1：Web 入口带 `<>` 的 Message-ID 也落成规范值（失效深链 + 绕过去重的口子）。"""
-    _seed_main(os.path.join(str(tmp_path), WS))
+    ws_root = os.path.join(str(tmp_path), WS)
+    _seed_main(ws_root)
+    _write_imap_config(ws_root, "me" + "@" + "gmail.com")
     res = client.post("/api/progress/mails", params={"ws": WS},
                       json={"主题": "笔试通知", "消息id": "<api-1@example.com>"})
     assert res.status_code == 201, res.text
@@ -270,7 +284,9 @@ def test_api_mail_normalizes_message_id(tmp_path, client):
 
 
 def test_api_mail_create_list_and_patch(tmp_path, client):
-    _seed_main(os.path.join(str(tmp_path), WS))
+    ws_root = os.path.join(str(tmp_path), WS)
+    _seed_main(ws_root)
+    _write_imap_config(ws_root, "me" + "@" + "gmail.com")
     res = client.post("/api/progress/mails", params={"ws": WS},
                       json={"主题": "面试通知（一面）", "关联记录": "A001",
                             "标签": "邀约", "消息id": "abc@example.com",

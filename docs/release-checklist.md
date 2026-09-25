@@ -8,6 +8,10 @@
 > 出事了怎么办（RUNBOOK，见第三节）：**撤 latest 标记 → 发一个版本号更高的修复版**
 > ——electron-updater 不会接受相同或更低的版本号覆盖，「删掉坏的 Release 重传」无效。
 
+## 〇、发布阻断清单（任一存在即不发布）
+
+数据损坏 / 静默覆盖 · secret 泄漏 · 路径越界 · installer 装不上或起不来 · 更新链失效 · 主流程阻断 · privacy 文案与行为不一致 · backup–restore 不可靠。其中四类**不等功能批次**、可直接 `26.9.N` hotfix：安全 / 数据损坏 / 安装·启动阻断 / 更新链失效。完整定义与发布窗口纪律见 CONTRIBUTING「发布治理」。
+
 ## 一、CI 自动（release.yml，绿了即过）
 
 - [ ] 闸 1：tag `v26.9.x` 与 `web/electron/package.json` 的 version **逐字一致**
@@ -15,7 +19,7 @@
 - [ ] 闸 3：产物 exe + `latest.yml` 真实产出（缺 latest.yml 拒发——老用户收不到更新）
 - [ ] 后端 exe 冒烟（`scripts/smoke_backend_exe.py`：起产物 → 健康检查）
 - [ ] **安装/卸载冒烟**（NSIS `/S` 静默装 → 验证 → 静默卸载；2026-09-24 新增）
-- [ ] **SHA256SUMS.txt** 生成并挂 Release（无签名场景的「可信发布」补偿）
+- [ ] **SHA256SUMS.txt** 生成并挂 Release（**完整性**补偿：证明下载未损坏、与已发布文件一致；**不构成发布者身份认证**——未签名场景的身份信任根是 GitHub 账号与仓库保护）
 - [ ] **Release notes 自动附加**未签名 / SmartScreen 说明（微软官方口径：未签名拦截页更严重、每版本信誉归零）
 - [ ] 发布后核验资产：exe + blockmap + latest.yml + SHA256SUMS.txt 四样全在
 
@@ -38,7 +42,8 @@
 
 - [ ] `git tag -a v<号> -m "..." && git push origin v<号>` → CI 走完
 - [ ] `gh release view` 核资产四样 → **真下载一次** → 核对 SHA256
-- [ ] 发布公告要素：定位一句话 / 隐私承诺（数据不出本机、更新检查仅访问 GitHub）/ SmartScreen 说明（已自动附）/ issue 反馈入口
+- [ ] **发布后完整验证链**（人工至少一次——验的是"用户拿到的东西"，不是本地构建产物）：真下载 → 安装 → 首次启动 → 建工作区 → 打开旧工作区 → 退出 → 再启动 → 卸载（CI 已自动覆盖安装/卸载冒烟；这条是人眼版）
+- [ ] 发布公告要素：定位一句话 / 隐私承诺（**按 `docs/data-flow-matrix.md` 表述**——不复述"不联网"类绝对句）/ SmartScreen 说明（已自动附）/ issue 反馈入口
 
 ## 三、发布后 72 小时（RUNBOOK）
 

@@ -43,7 +43,7 @@
 
 ## 功能一览
 
-- **四个 CLI 工作流**：`jwb-jd`（JD 解析评分）、`jwb-apply`（投递包）、`jwb-track`（追踪看板）、`jwb-resume`（PDF 重建校验）——全部命令见[使用手册 CLI 命令速查](docs/usage-guide.zh-CN.md)
+- **四个 AI 工作流**：`jwb-jd`（JD 解析评分）、`jwb-apply`（投递包）、`jwb-track`（追踪看板）、`jwb-resume`（PDF 重建校验）——由仓库内 `jobws` CLI 驱动，全部命令见[使用手册 CLI 命令速查](docs/usage-guide.zh-CN.md)
 - **Web 界面**（`web/`）：八个页面与 CLI 共享同一份数据——看板、追踪表、岗位池、简历工坊（一键导入**抽取而非生成** + AI 改写反编造护栏 + 导出 Word）、准备（宣讲会 / 题库）、进展（面试 / 邮件 / 联系人 / Offer）、素材库、设置，详见 [`web/README.md`](web/README.md)
 - **投递之后的闭环**：面试记录（一键导出 .ics）、招聘方联系人跟进提醒、Offer 并排对比（**只并排事实，绝不给建议**）、版本谱系、周期复盘、失败聚类、投递健康度四态——每条给具体理由而非黑箱分数
 - **只读邮箱拉取（可选）**：用你自己的 IMAP 授权码拉取最近的招聘邮件，转成逐条状态建议；只读连接、只在点击时连接、凭证只存本地、确认前不改数据——详见[使用手册](docs/usage-guide.zh-CN.md)
@@ -72,7 +72,7 @@
 
 不想配环境的话，[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里有桌面版 `job-workbench-setup-*.exe`（免 Python / Node）：安装包是**向导式**——可自选安装位置，并选择「为所有用户 / 仅为我」（升级旧版时沿默认选项即可）。数据在 `%APPDATA%\job-workbench\`，不离开本机。
 
-**安装包尚未做代码签名。** 首次运行 Windows 可能显示「Windows 已保护你的电脑」——未签名软件的正常提示：点「**更多信息**」→「**仍要运行**」。SmartScreen 信誉按版本重新积累，后续版本可能再次提示。每个 Release 同时附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的哈希），可自行核对下载完整性；签名的缺位**不影响自动更新**（完整性以 `latest.yml` 里的哈希为准）。
+**安装包尚未做代码签名。** 首次运行 Windows 可能显示「Windows 已保护你的电脑」——未签名软件的正常提示：点「**更多信息**」→「**仍要运行**」。SmartScreen 信誉按版本重新积累，后续版本可能再次提示。自 v26.9.0 起，每个 Release 同时附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的哈希），可自行核对下载完整性；签名的缺位**不影响自动更新**（完整性以 `latest.yml` 里的哈希为准）。
 
 ```bash
 # 0. 只想先看看界面？一条命令得到一份填满数据的 demo 工作区
@@ -123,7 +123,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | 目录 | 用途 |
 |---|---|
 | `template/` | 通用骨架：档案模板、空工作区、领域插件 |
-| `skills/` | 四个求职向工作流 + 教练评分标准，另有三个开发向技能（CLI 契约 / API 审查 / MCP），跨运行时单一源 |
+| `skills/` | 九个技能——五个求职向工作流（JD / 投递 / 追踪 / 简历 / 教练）、一个扩展向（领域插件生成）与三个开发向（CLI 契约 / API 审查 / MCP），跨运行时单一源 |
 | `docs/four-ends.md` | **四端能力对照**（命令行 / AI 宿主 / 编辑器插件 / 桌面界面），由 `tools/four_ends_matrix.json` 生成、由 `jobws lint four-ends` 校验。接进 AI 宿主见 `docs/mcp-integration.md`——**配置键名按宿主不同，别照抄** |
 | `tools/` | Python 领域层——统一入口 + 领域模块 + 门禁脚本 |
 | `web/` | Web 界面：FastAPI 后端 + React 前端（八个页面），与 CLI 共享同一份数据 |

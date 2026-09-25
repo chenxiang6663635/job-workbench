@@ -56,12 +56,16 @@ RETENTION_RULES = [
 WEEKLY_INTERVAL = 86400 * 7  # 更老：每周至多一份
 
 
-def _app_version():
+def app_version():
     """应用版本（月粒度 CalVer YY.MM.N，如 26.9.0）。
 
     打包版：主进程拉起后端时注入 JOBWS_APP_VERSION（= Electron app.getVersion()）；
     开发模式：回退读仓库 web/electron/package.json 的 version。
     两条都不可用时返回空串——「关于」区块据此显示「未知」，不编造版本。
+
+    2026-09-25 收口批：去掉下划线前缀——`main.py` 的 `FastAPI(version=…)`
+    也改用它（此前写死 0.1.0，OpenAPI 暴露的产品版本过期），两个消费者共用
+    这一份来源。
     """
     injected = os.environ.get("JOBWS_APP_VERSION", "").strip()
     if injected:
@@ -193,7 +197,7 @@ def system_paths(ws: str = Depends(workspace_dir)):
         # 两者都不可用时为空串，前端按"有则显示"处理。
         # 这里曾经还有 buildDate（读 JOBWS_BUILD_DATE），但全仓没有任何生产方
         # （打包链与 main.js 都不设置它）——死字段不留，已删（第二轨 MAJOR-2）。
-        "appVersion": _app_version(),
+        "appVersion": app_version(),
         "platform": sys.platform,
         # 无遥测声明：本地优先产品的信任基石，UI 直接展示
         "telemetry": False,

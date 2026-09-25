@@ -47,6 +47,13 @@
 | [electron-updater](https://github.com/electron-userland/electron-builder) | MIT | 自动更新（随应用分发；只向本仓库的 GitHub Release 查询版本） |
 | [electron-builder](https://github.com/electron-userland/electron-builder) | MIT | 打包工具 |
 
+## MCP 服务（可选，`mcp/`，不随安装包分发）
+
+| 依赖 | 许可证 | 用途 |
+|---|---|---|
+| [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) | MIT | 宿主集成（stdio 形态的可选组件，独立安装使用） |
+| [jobws-core](packages/jobws-core) | MIT | 本仓领域包（不在 PyPI；安装顺序：先领域包，再 `./mcp`） |
+
 ## 开发工具（不随产品分发）
 
 | 工具 | 许可证 | 用途 |

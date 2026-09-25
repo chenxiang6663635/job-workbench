@@ -20,9 +20,15 @@ Expected behavior vs actual behavior, in a couple of sentences.
 
 **Environment**
 
-- How you run it: from source (`python -m uvicorn`) or the packaged exe
+- App version (Settings → About, or the installer filename) and your OS
+- How you run it: from source (`python -m uvicorn`) or the packaged exe (which release?)
 - Backend log errors if any (lines starting with `[backend-err]` in the terminal, or `%APPDATA%\job-workbench\main.log` for the desktop app)
-- OS
+- For startup problems: the app's error dialog has a "copy diagnostics" button (version / platform / log tail, home paths redacted) — please attach or paste that
+
+**Can you reproduce it in the demo workspace?**
+
+- Yes → it is a product bug; keep the reproduction steps above
+- No → it is likely workspace / data specific; describe what is different about your workspace
 
 **Anything else**
 

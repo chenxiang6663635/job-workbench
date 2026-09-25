@@ -2,7 +2,8 @@
 """工作区解析：与后端 `deps.py` **同口径**，但不 import fastapi。
 
 为什么自己写一遍而不是直接 import `deps`：`deps.py` 第一行就
-`from fastapi import ...`，而 MCP 包跑在独立的 3.10+ 环境里（职责分层：
+`from fastapi import ...`，而 MCP 包跑在独立的解释器环境里（3.12+，与领域包
+同基线；此处曾写 3.10+ 是领域层搬迁完成前的旧基线——2026-09-25 收口批订正）（职责分层：
 MCP 是宿主里的可选组件、不需要 fastapi，主干也不需要 MCP SDK；依赖面
 不同，不是约束冲突——见 `mcp/pyproject.toml` 的说明段）。
 

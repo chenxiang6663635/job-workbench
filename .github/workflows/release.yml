@@ -151,6 +151,17 @@ jobs:
           pip install -r web/backend/requirements.txt "pyinstaller<7"
           if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（exit $LASTEXITCODE）" }
 
+      # 领域包必须**非 editable** 安装：build_backend_exe.ps1 会拒绝 editable
+      # （PyInstaller 要把包内容拷进产物，editable 的指针打不进去）。
+      # 2026-09-25 dry_run 演练抓到：这条链此前漏装领域包，构建在第一步就退出——
+      # ci.yml 的 pytest / exe 冒烟两个 job 都装它，release.yml 是唯一漏的。
+      - name: 安装领域包（非 editable）
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          pip install ./packages/jobws-core
+          if ($LASTEXITCODE -ne 0) { throw "领域包安装失败（exit $LASTEXITCODE）" }
+
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:

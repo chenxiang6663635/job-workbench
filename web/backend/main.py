@@ -41,49 +41,17 @@ if TOOLS not in sys.path:
 
 from routers import registry as route_registry  # 路由登记表：见 routers/registry.py（顺序有约束）
 
-# ---- 解释器基线（与 tests/conftest.py 的护栏、CONTRIBUTING 的口径同源）----
-#
-# **技术要求是 ≥3.9**：IMAP 路径把超时交给 `imaplib.IMAP4_SSL(timeout=…)`，这个参数
-# 3.9 才有。3.8 上它不是"连不上邮箱"，而是抛 `TypeError: unexpected keyword argument`
-# —— 2026-09-15 实测：界面上只看到一句裸的 "Internal Server Error"，既没有错误码也没有
-# 指向（那台机器上后端被 conda 的 3.8 启动了）。所以太旧的解释器必须**在启动时**拒绝，
-# 而不是等到用户点「拉取邮件」。
-#
-# **支持基线是 3.12**：CI 与打包只验证它；3.9–3.11 能用但未经验证，启动时给警告而不是拒绝。
-IMAP_MIN_PY = (3, 9)
-SUPPORTED_MIN_PY = (3, 12)
+# ---- 启动前检查（解释器基线与监听边界）----
+# 2026-09-25 收口批：两段检查整体移到 web/backend/preflight.py（main.py 因新增
+# 监听边界检查越过 300 行规模预算；检查的共性都是"启动之前决定该不该起"）。
+# 这里 re-export 函数名，测试（main.interpreter_verdict / main.is_loopback_host）
+# 与调用方照旧可用；preflight 只含纯函数，import 无副作用。
+from preflight import enforce_interpreter, interpreter_verdict, is_loopback_host  # noqa: E402,F401
+
 logger = logging.getLogger("jobworkbench")
 
+enforce_interpreter()
 
-def interpreter_verdict(version_info):
-    """按解释器版本给出 ("ok" | "warn" | "refuse", 说明)。纯函数，便于测试。"""
-    current = tuple(version_info[:2])
-    if current < IMAP_MIN_PY:
-        return "refuse", (
-            "本应用需要 Python %d.%d+ 才能启动：IMAP 路径使用 imaplib 的 timeout 参数，"
-            "%d.%d 上会直接抛 TypeError。请改用 Python %d.%d 启动后端"
-            "（或使用桌面安装包——它自带运行时）。"
-            % (IMAP_MIN_PY[0], IMAP_MIN_PY[1], current[0], current[1],
-               SUPPORTED_MIN_PY[0], SUPPORTED_MIN_PY[1]))
-    if current < SUPPORTED_MIN_PY:
-        return "warn", (
-            "当前解释器 %d.%d 低于支持基线 %d.%d（CI 与打包只验证后者）：可以运行，"
-            "但未经验证——出问题请先用 %d.%d 复现。"
-            % (current[0], current[1], SUPPORTED_MIN_PY[0], SUPPORTED_MIN_PY[1],
-               SUPPORTED_MIN_PY[0], SUPPORTED_MIN_PY[1]))
-    return "ok", ""
-
-
-def _enforce_interpreter():
-    verdict, message = interpreter_verdict(sys.version_info)
-    if verdict == "refuse":
-        print("[job-workbench] 解释器不满足技术要求：" + message, file=sys.stderr)
-        raise SystemExit(2)
-    if verdict == "warn":
-        print("[job-workbench] 警告：" + message, file=sys.stderr)
-
-
-_enforce_interpreter()
 
 app = FastAPI(title="求职工作台", version="0.1.0")
 
@@ -132,10 +100,21 @@ def _apply_workspace_env(cli_workspace=None):
 
     优先级：CLI --workspace > 环境变量 JOBWS_WORKSPACE > personal/。
     设置环境变量后，deps.workspace_dir 在无 ?ws= 时使用该默认值。
+
+    **设置后立即预检**（2026-09-25 收口批，审计 P1-A）：配置越界在这里就报错
+    退出（退出码 2，与解释器拒收同码），而不是启动成功、等到每个请求才 400——
+    双击 exe 场景的配置错误应该第一秒被响亮指出（_pause_if_frozen 兜住
+    窗口可见性）。
     """
     import deps
     if cli_workspace:
         os.environ[deps.ENV_WORKSPACE] = cli_workspace.strip()
+    try:
+        deps.resolve_default_workspace()
+    except deps.ApiError as exc:
+        print("[job-workbench] 默认工作区配置越界：%s" % exc.detail, file=sys.stderr)
+        _pause_if_frozen()
+        raise SystemExit(2)
 
 # 前端 Vite 开发服务器。本地原型，来源限定 localhost
 app.add_middleware(
@@ -247,10 +226,25 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="求职工作台 Web 后端")
     parser.add_argument("--workspace", default=None,
-                        help="默认工作区（相对仓库根，如 personal 或 other_workspace）")
+                        help="默认工作区名（相对数据根/应用根，如 personal；越界值会被拒绝）")
     parser.add_argument("--port", type=int, default=8765, help="监听端口")
-    parser.add_argument("--host", default="127.0.0.1", help="监听地址")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="监听地址（非本机回环需同时传 --unsafe-network-api）")
+    parser.add_argument("--unsafe-network-api", action="store_true",
+                        help="显式承认风险：把**没有鉴权**的本地 API 暴露到非回环地址")
     args = parser.parse_args()
+
+    if not is_loopback_host(args.host):
+        if not args.unsafe_network_api:
+            print("错误：--host %s 会把**没有任何鉴权**的数据 API 暴露到本机之外。"
+                  % args.host, file=sys.stderr)
+            print("本机使用不需要改 --host；确要让同网络访问，请显式加 "
+                  "--unsafe-network-api（同网络可访问者都能读写工作区数据）。",
+                  file=sys.stderr)
+            _pause_if_frozen()
+            sys.exit(2)
+        print("警告：--unsafe-network-api 已生效——API 无鉴权，监听 %s 时"
+              "同网络可访问者都能读写你的工作区数据。" % args.host)
 
     _apply_workspace_env(args.workspace)
     url = "http://127.0.0.1:%d" % args.port

@@ -74,6 +74,8 @@ graphify-out/
 # 团队协作与定时任务的本地运行时状态
 .codebuddy/teams/
 .codebuddy/automations/
+# 临时中转文件（提交信息 / PR 正文等，用完即删）——2026-09-24 一次 git add -A 把它带进来过
+.codebuddy/tmp/
 # 真实 MCP 配置可能含密钥；入库的是 mcp.example.json
 .codebuddy/mcp.json
 

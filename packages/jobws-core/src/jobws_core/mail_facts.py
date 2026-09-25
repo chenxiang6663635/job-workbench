@@ -106,6 +106,13 @@ _TASK_WORDS = ("在线测评", "在线笔试", "在线编程", "性格测试", "
 _DURATION_RE = re.compile(
     r"(?<!月)(\d{1,3})\s*(?:个)?\s*(工作日|自然日|天|日|小时)\s*(?:内|以内|之内)")
 
+# 宽松版（2026-09-25 加）：只给「链接有效期」用——「链接有效期：7天」这类**没有
+# 「内」**的紧凑写法（TCL 实业 AI 面试通知真机实测：此前两头都断，用户拿不到
+# 这条倒计时）。截止路径仍用严格版：「内」是挡「我们会在 3 个工作日内联系你」
+# 类承诺噪音的一道门，而链接有效期有「链接 + 有效」双词门，语义已足够明确。
+_DURATION_LOOSE_RE = re.compile(
+    r"(?<!月)(\d{1,3})\s*(?:个)?\s*(工作日|自然日|天|日|小时)")
+
 # 指令语气：时长只在「要你做点什么」的句子里才算你的待办——
 # 「我们会在 3 个工作日内联系你」是对方的承诺，这类句子在招聘邮件里非常常见，
 # 不加这道门就会变成噪音（虽然写入前有逐条确认兜底，噪音本身就是缺陷）。
@@ -181,8 +188,15 @@ def _time_fact_from_line(line, today, mail_date=None):
     """
     ref = today or datetime.date.today()
     value, confidence, note = mail_dates.find_absolute(line, ref)
-    if not value and _is_deadline_line(line):
-        token = _DURATION_RE.search(line)
+    if not value:
+        # 时长表达按语义分流（2026-09-25）：截止用严格版（「内」必需），链接有效期
+        # 用宽松版（"有效期：7天"没有「内」）——此前入口条件只认截止语气，链接
+        # 有效期根本没机会走到这里。
+        token = None
+        if _is_deadline_line(line):
+            token = _DURATION_RE.search(line)
+        elif _is_link_validity(line):
+            token = _DURATION_LOOSE_RE.search(line)
         if token:
             value, confidence, note = mail_dates.duration_date(token, ref, mail_date)
     if not value:

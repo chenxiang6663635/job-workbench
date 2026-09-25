@@ -113,10 +113,10 @@ def _hits(text, markers):
 
 
 def _round_hits(text, markers):
-    """轮次词的命中：弱词必须与邀请类措辞共现才算数（见 WEAK_MARKERS 注释）。"""
-    if _hits(text, INVITE_WORDS):
-        return _hits(text, markers)
-    return [m for m in _hits(text, markers) if m not in WEAK_MARKERS]
+    """轮次词命中：弱词须与邀请类措辞**同行**（全文级会误放落款，2026-09-25）。"""
+    lines = [ln for ln in (text or "").splitlines() if _hits(ln, INVITE_WORDS)]
+    return [m for m in _hits(text, markers)
+            if m not in WEAK_MARKERS or any(m in ln for ln in lines)]
 
 
 def parse(text, today=None):

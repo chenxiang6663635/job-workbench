@@ -24,6 +24,11 @@ describe("reminderLines（提醒条的显示判定）", () => {
     expect(reminderLines(null)).toEqual([]);
   });
 
+  it("缺 counts 的畸形答复 → 空数组且不抛错（否则会被 ErrorBoundary 升级为整站报错）", () => {
+    const broken = { date: "2026-09-26", workspace: "demo", window: 3 } as RemindersDue;
+    expect(reminderLines(broken)).toEqual([]);
+  });
+
   it("只有已过期 → 一条 alert，跳追踪表", () => {
     expect(reminderLines(due({ overdue: 2 }))).toEqual([
       {

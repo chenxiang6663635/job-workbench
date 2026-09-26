@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle, CalendarClock, Clock, Megaphone } from "lucide-react";
 import { fetchReminders } from "../lib/reminders";
 import { reminderLines, type ReminderLine } from "../lib/reminderMeta";
+import { getPrefs } from "../lib/prefs";
 import type { RemindersDue } from "../lib/domainTypes";
 
-/** 行图标（纯 UI 映射；显示判定都在 lib 的 reminderLines 里，可单测）。 */
+/** 行图标（纯 UI 映射；显示判定都在 lib/reminderMeta.ts 里，可单测）。 */
 const LINE_ICON: Record<ReminderLine["kind"], typeof Clock> = {
   overdue: AlertTriangle,
   todos: Clock,
@@ -13,19 +14,26 @@ const LINE_ICON: Record<ReminderLine["kind"], typeof Clock> = {
 };
 
 /**
- * 内容区顶部的常驻提醒条（首发前收口批 笔 5 的前端半件）。
+ * 内容区顶部的常驻提醒条（提醒条批，PR #221）。
  *
  * 与系统通知的分工：通知在**没看 app 时**每天戳一次（主进程定时拉同一端点）；
  * 这条在**已经打开** app 时把"今天有什么"摆在最上面——不必记得去翻看板。
  *
- * 三条纪律：
- * - 无到点事项时整条不渲染（判定见 lib/reminders.ts 的 reminderLines，有单测）；
+ * 与「到点提醒」开关的关系（独立审查 M1）：开关与「提前几天」的**真值在主进程**
+ * （发通知的就是它），所以这里必须读同一份偏好——否则用户关掉开关后应用内还常驻
+ * 一条提醒，与手册「关掉开关或关闭窗口即停」的说法矛盾；天数不跟设置走的话，
+ * 这条还会用默认 3 天去否掉用户设的 7 天。浏览器形态没有偏好通道（`getPrefs()`
+ * 返回 null），此时没有开关可读，按默认窗口拉取。
+ *
+ * 三条渲染纪律：
+ * - 无到点事项时整条不渲染（判定见 lib/reminderMeta.ts 的 reminderLines，有单测）；
  * - 跳转用 hash 路由（App 的 hashchange 监听会切 tab）——零耦合，不 import App 的 switchTab；
  * - 拉取失败只 console.error 并整条不出：提醒条是锦上添花，不该在任何页面上报错打扰
  *   （数据层错误已由各页自己的通道报 —— 见 Settings 的 ErrorBanner）。
  *
- * `role="status"` 与全站 LiveRegion 的分工：LiveRegion 是**操作反馈**队列（点了按钮的
- * 成功播报），这是**常驻信息**区（打开时若有到点事项，屏幕阅读器顺口报一句）。
+ * 可访问性：**不用 `role="status"`** —— 条里是可聚焦链接，读屏会把链接文本一并念得
+ * 乱七八糟（先例与理由见 components/UndoBar.tsx 的注释）；播报交给全站唯一播报区
+ * LiveRegion，这里只做普通的可访问容器（aria-label 说明这条是什么）。
  */
 export default function ReminderBar() {
   const { t } = useTranslation();
@@ -33,14 +41,25 @@ export default function ReminderBar() {
 
   useEffect(() => {
     let alive = true;
-    fetchReminders()
-      .then((d) => {
-        if (alive) setDue(d);
+    // 偏好链：开关关掉 → null（停用）；否则给出用户设的窗口天数；
+    // 浏览器形态没有通道 → undefined（用后端默认）
+    const pref = getPrefs();
+    const windowDays = pref
+      ? pref.then((snap) => (snap.reminders === false ? null : snap.reminderDays))
+      : Promise.resolve(undefined);
+
+    windowDays
+      .then((days) => {
+        if (!alive || days === null) return;
+        return fetchReminders(days).then((d) => {
+          if (alive) setDue(d);
+        });
       })
       .catch((e: unknown) => {
         // 控制台日志不是界面文案：保持英文，免得被「残余硬编码」检查误伤
         console.error("fetchReminders failed", e);
       });
+
     return () => {
       alive = false;
     };
@@ -58,7 +77,7 @@ export default function ReminderBar() {
 
   return (
     <div
-      role="status"
+      aria-label={t("reminder.title")}
       className={`mb-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border px-4 py-2 text-xs ${
         hasAlert
           ? "border-destructive/30 bg-destructive/10"

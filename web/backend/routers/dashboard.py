@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """看板统计。
 
-复用 tools/jobws.py report 的 count_by / parse_date（纯统计函数，无副作用）。
+复用 tools/jobws.py report 的 count_by（纯统计函数，无副作用）；`parse_date` 随
+upcoming/overdue 判据去了中立模块 `remind.py`。
 upcoming/overdue 的判定**不在这里**——已搬到中立的 `remind.py`（它同时被
 `routers/reminders.py` 的系统通知使用："什么算到点"只能有一处定义）。
 report 侧另有对应的 section helper（_append_section_todo / _append_section_overdue），

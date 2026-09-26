@@ -35,7 +35,7 @@ web/frontend/src/api.ts = 460  # 前端唯一 API 客户端（端点清单 + 工
 web/frontend/src/pages/Applications.tsx = 461  # 页面容器（筛选 + 工具栏 + 新建表单 + 弹窗编排）；2026-09-17 关联邮件块 + 页头 + 空态原语 + 偏移同步（811→818）；2026-09-21 H-2b 表格拆 ApplicationsTable / ApplicationRow，元数据迁 lib/applicationMeta.ts（818→461）
 # Settings.tsx 原 352 行登记：2026-09-26 收口批把「界面大小」卡拆到 settings/ZoomCard.tsx
 # （352→232，跌破 300 阈值）→ 按自洁规则删掉这一行。
-web/frontend/src/i18n/locales/zh-CN.ts = 1509  # 双语键集的源语言单一真源（en.ts 的编译期键集对齐约束依赖它，结构上不可随手拆文件）；2026-09-26 收口批加提醒条 7 键（1500→1509）。减债方向：按域拆命名空间 / 合并同值键——列入 i18n 结构批
+web/frontend/src/i18n/locales/zh-CN.ts = 1509  # 双语键集的源语言单一真源（en.ts 的编译期键集对齐约束依赖它，结构上不可随手拆文件）；2026-09-26 提醒条批加 7 键 = +9 行（注释 1 + 键 7 + 分隔空行 1，1500→1509，**零余量**——再加任一键即红）。减债方向：按域拆命名空间 / 合并同值键——列入 i18n 结构批
 web/frontend/src/pages/Dashboard.tsx = 694  # 看板（统计卡 + 漏斗 + 待推进 + 复盘）；2026-09-17 页头 + 两处空态原语（698→700）；2026-09-21 登记值归零到实测（700→694，H-2 分叉②；只下调水位登记，未改代码）
 web/frontend/src/pages/Resume.tsx = 544  # 简历工坊（模式切换 + 表单 + 预览 + 谱系）；2026-09-17 页头（两处 return）+ 空态原语（539→544）
 web/frontend/src/pages/Jobs.tsx = 524  # 岗位池（列表 + 详情双栏）；2026-09-17 页头 + 空态原语（520→524）

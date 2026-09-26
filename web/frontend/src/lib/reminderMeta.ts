@@ -11,8 +11,14 @@ export interface ReminderLine {
   count: number;
   /** hash 路由目标（App 的 hashchange 监听会切 tab） */
   href: "#applications" | "#prepare";
-  /** i18n 基础键：调用时带 count 走 _one / _other（i18next 标准复数） */
-  labelKey: string;
+  /**
+   * i18n **基础键**（调用时带 count 走 _one / _other）。
+   *
+   * 收成字面量联合而不是 string：`t()` 的静态检查只认字面量，变量键会从
+   * i18n 扫描器（`jobws lint i18n` 的"key 必须存在"一档）与 `TranslationKey`
+   * 编译期检查**双双漏过**——收窄到这三个名字，至少让改名时 TS 先报错。
+   */
+  labelKey: "reminder.overdue" | "reminder.upcoming" | "reminder.talks";
   /** 逾期 = 警报（整条转 destructive 色）；待办 / 宣讲会 = 提醒 */
   severity: "alert" | "warn";
 }
@@ -22,10 +28,13 @@ export interface ReminderLine {
  * ——整条不渲染，不留空壳。
  *
  * 顺序固定为 逾期 → 待办 → 宣讲会（最急的在前）。
+ *
+ * 对畸形答复设防：后端返回 200 但缺 `counts`（旧壳 / 代理 / 半截响应）时返回空数组，
+ * **不抛错**——否则会被全站 ErrorBoundary 接住，把"少一条提醒"升级成"整站渲染失败"。
  */
 export function reminderLines(due: RemindersDue | null): ReminderLine[] {
-  if (!due) return [];
-  const { counts } = due;
+  const counts = due?.counts;
+  if (!counts) return [];
   const lines: ReminderLine[] = [];
   if (counts.overdue > 0) {
     lines.push({

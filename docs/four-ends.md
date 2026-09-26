@@ -7,7 +7,7 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **44** 条、各端不提供的例外 **67** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
+**基数（随本文件自动生成）**：登记能力 **45** 条、各端不提供的例外 **67** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
 
 ## 能力矩阵
 
@@ -57,6 +57,7 @@
 | 通用 | `export.obsidian` | `export --obsidian` | — | — | — |
 | 题库 | `question.due` | `bank due` | — | — | `GET /api/progress/questions/drill` |
 | 题库 | `question.wrong` | `bank wrong` | — | — | `GET /api/progress/questions/preview-wrong` |
+| 到点提醒 | `reminder.due` | — | — | — | `GET /api/reminders/due` |
 
 ## 各端不提供的能力（含原因）
 

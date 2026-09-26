@@ -18,6 +18,11 @@
 
 窗口口径（近 7 天）以本模块为准；`days`（提前几天提醒）是**通知的节奏**，
 在 `routers/reminders.py` 里收口。
+
+**已知的第二份副本**（不在本模块收编范围，但改动时要想着它）：
+`mcp/jobws_mcp/tools_readonly.dashboard_summary` 有一份等价口径（用
+`tracker.parse_iso_date` 且对字段 `strip()`，与本模块的 `report.parse_date` 不同）。
+它受 MCP 端"不 import web 层"的边界约束；下沉到领域层共用是列在后续重构的方向。
 """
 
 from __future__ import annotations
@@ -58,8 +63,8 @@ def upcoming_talks(ws, today):
     不入主表时间线，但在近 7 天里有它的位置）；② 「时间」列**带时刻**
     （`YYYY-MM-DD HH:MM`），而 `parse_date` 只认纯日期——先取日期前缀再解析，
     否则整条会被静默丢掉（这类"少给数据"比报错危险）。
-    空时间的活动直接跳过：没有日期就无从谈「近 7 天」（与 `_sort_talks`
-    把空时间排最后同一口径）。
+    空时间的活动直接跳过：没有日期就无从谈「近 7 天」（与「准备」页把空时间
+    排最后同一口径）。
     """
     limit = today + timedelta(days=WINDOW_DAYS)
     upcoming = []

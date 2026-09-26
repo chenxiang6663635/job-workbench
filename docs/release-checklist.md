@@ -14,7 +14,7 @@
 
 ## 〇、发布阻断清单（任一存在即不发布）
 
-数据损坏 / 静默覆盖 · secret 泄漏 · 路径越界 · installer 装不上或起不来 · 更新链失效 · 主流程阻断 · privacy 文案与行为不一致 · backup–restore 不可靠。其中四类**不等功能批次**、可直接 `26.9.N` hotfix：安全 / 数据损坏 / 安装·启动阻断 / 更新链失效。完整定义与发布窗口纪律见 CONTRIBUTING「发布治理」。
+数据损坏 / 静默覆盖 · secret 泄漏 · 路径越界 · installer 装不上或起不来 · 更新链失效 · 主流程阻断 · privacy 文案与行为不一致 · backup–restore 不可靠。其中四类**不等功能批次**、可直接 `26.9.N` hotfix：安全 / 数据损坏 / 安装·启动阻断 / 更新链失效。完整定义与发布窗口纪律见 docs/contributing.zh-CN.md 的「发布治理」节。
 
 ## 一、CI 自动（release.yml，绿了即过）
 

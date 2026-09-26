@@ -17,7 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOOK_PATH = os.path.join(ROOT, ".githooks", "pre_commit.py")
 
 # 样本**拼接构造**而不是写字面量：本文件自己也会过隐私护栏，一个成型的 11 位号码
-# 会让护栏朝自己开火（CONTRIBUTING「测试样本拼接构造」同款理由）。
+# 会让护栏朝自己开火（同 docs/contributing.zh-CN.md「隐私约定」：示例一律用假数据，样本拼接构造而不是贴真值）。
 REAL_LOOKING_PHONE = "138" + "1" + "2345678"
 PLACEHOLDER_PHONE = "138" + "0000000" + "0"
 

@@ -85,7 +85,7 @@ def pytest_configure(config):
         "解释器基线不对：本仓库要求 Python %d.%d+，当前是 %s（%s）。\n"
         "请换 3.12 的解释器重跑，例如：\n"
         "  <venv>\\Scripts\\python.exe -m pytest tests/ -q\n"
-        "约定与维护者环境见 CONTRIBUTING「解释器基线」一节；"
+        "约定与维护者环境见 docs/contributing.zh-CN.md 的「解释器基线」条；"
         "`python` 可能落到别项目在用的 conda 环境（那会得出错误的结论）。\n"
         % (BASELINE[0], BASELINE[1],
            ".".join(str(part) for part in sys.version_info[:3]), sys.executable))

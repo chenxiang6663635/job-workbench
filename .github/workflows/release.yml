@@ -12,9 +12,14 @@ name: Release
 #   2. CHANGELOG.md 里必须有该版本的条目（否则等于发布了没人知道的东西）
 #   3. 必须真的产出 .exe（否则不许静默成功）
 #
-# 拆成两个 job 的原因：**权限不能下沉到 step，只能下沉到 job**。构建链里跑了
-# npm ci（任意依赖的 postinstall）与 pip install，若让写权限覆盖整条链，任何一个
-# 被投毒的依赖都可能拿到可写 token。所以构建只给读权限，另一个 job 才拿写权限。
+# 权限模型：**权限不能下沉到 step，只能下沉到 job**。构建链里跑了 npm ci（任意
+# 依赖的 postinstall）与 pip install，若让写权限覆盖整条链，任何一个被投毒的依赖
+# 都可能拿到可写 token。所以构建/测试只给读权限，publish job 才拿写权限。
+#
+# 并行结构（2026-09-25，#214）：package（打包链）与 e2e（全量 UI 证明链）拆成
+# 两个**并行** job——两者只共同依赖一次 vite build（~10s，各自做、不做 artifact
+# 传递），串行时 210s 的 E2E 把 106s 的打包白白压在后面。publish 需要两者都绿：
+# E2E 红则 Release 不发生（打包产物只留在演练 artifact 里当诊断材料）。
 on:
   push:
     tags:
@@ -43,7 +48,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  package:
     name: 构建 Windows 安装包
     runs-on: windows-latest
     timeout-minutes: 60
@@ -210,44 +215,6 @@ jobs:
         run: |
           python scripts/smoke_backend_exe.py web/backend/dist/job-workbench-backend/job-workbench-backend.exe
           if ($LASTEXITCODE -ne 0) { throw "打包后端冒烟失败（exit $LASTEXITCODE）——产物可能缺模块/资源，不要按绿发布" }
-
-      # --- 全量 UI E2E（2026-09-25 发布前收口批：发布证明链）------------------------
-      # 为什么在这里（独立审计 P1）：PR 层只跑 smoke 子集（#197 的提速保留），
-      # 于是「PR 绿 → 合并 → 全量 E2E 还在跑 → tag 发版」存在一条缝——而 tag 触发
-      # 的 release 链此前不跑任何 UI 测试。现在：**任何一个 tag 都必须先过全量
-      # 115 条**，失败即 build 失败、publish 不会发生。dry_run 演练同链覆盖。
-      # 细节：demo 工作区要先建（playwright 的 webServer 以 --workspace demo 起
-      # 后端）；Windows runner 的 Playwright 浏览器缓存路径是
-      # %LOCALAPPDATA%\ms-playwright（Linux 的 ~/.cache 在 Windows 上是空目录、
-      # 缓存会永远 miss）；Windows 装浏览器不需要 --with-deps（那是 Linux 依赖）。
-      - name: 初始化 demo 工作区（E2E 前置）
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          python tools/jobws.py init --target demo --demo
-          if ($LASTEXITCODE -ne 0) { throw "demo 工作区初始化失败（exit $LASTEXITCODE）" }
-
-      - name: 缓存 Playwright 浏览器（Windows 路径）
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: ~/AppData/Local/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/frontend/package-lock.json') }}
-
-      - name: 安装 Playwright 浏览器（Chromium）
-        shell: pwsh
-        working-directory: web/frontend
-        run: |
-          $ErrorActionPreference = "Stop"
-          npx playwright install chromium
-          if ($LASTEXITCODE -ne 0) { throw "Playwright 浏览器安装失败（exit $LASTEXITCODE）" }
-
-      - name: 全量 UI E2E（发布证明链）
-        shell: pwsh
-        working-directory: web/frontend
-        run: |
-          $ErrorActionPreference = "Stop"
-          npm run test:ui
-          if ($LASTEXITCODE -ne 0) { throw "全量 E2E 失败（exit $LASTEXITCODE）——UI 有回归，不要按绿发布" }
 
       - name: 定位产物与更新元数据
         id: artifact
@@ -425,9 +392,108 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
+  # --- 全量 UI E2E（2026-09-25 发布前收口批：发布证明链；#214 拆成并行 job）------
+  # 为什么必须有（独立审计 P1）：PR 层只跑 smoke 子集（#197 的提速保留），于是
+  # 「PR 绿 → 合并 → 全量 E2E 还在跑 → tag 发版」存在一条缝——而 tag 触发的
+  # release 链此前不跑任何 UI 测试。现在：**任何一个 tag 都必须先过全量**，
+  # 失败则 publish 不发生。dry_run 演练同链覆盖。
+  #
+  # 为什么与 package 并行：两者只共同依赖一次 vite build（~10s，各自做、不传
+  # artifact），串行时 210s 的 E2E 把打包白白压在后面。E2E 红时 package 的产物
+  # 仍会存为演练 artifact（当诊断材料），但 publish 不会发生——发布闸在 needs。
+  e2e:
+    name: 全量 UI E2E（发布证明链）
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # E2E 的 webServer 起的是**真实后端**（--workspace demo），所以要按 lock 装
+      # 后端运行依赖（与打包链同一份 lock，保持同源）。
+      - name: 安装后端依赖（按 lock）
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m pip install --upgrade pip
+          pip install -r web/backend/requirements.lock
+          if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（exit $LASTEXITCODE）" }
+
+      # 后端 import 的是**包**（jobws_core）：PR-1 的演练抓过 release 链漏装领域包，
+      # E2E 的后端同样跑不起来——两边同源装。
+      - name: 安装领域包（非 editable）
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          pip install ./packages/jobws-core
+          if ($LASTEXITCODE -ne 0) { throw "领域包安装失败（exit $LASTEXITCODE）" }
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "20"
+
+      # 只装前端依赖：E2E 不打包桌面壳，electron 链的 npm ci（~15s）省下
+      - name: 安装前端依赖
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm ci --prefix web/frontend
+          if ($LASTEXITCODE -ne 0) { throw "前端依赖安装失败（exit $LASTEXITCODE）" }
+
+      # E2E 验证的是 dist（与安装包里的前端同源），先构建
+      - name: 构建前端产物
+        shell: pwsh
+        working-directory: web/frontend
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "前端构建失败（exit $LASTEXITCODE）" }
+
+      # demo 工作区要先建（playwright 的 webServer 以 --workspace demo 起后端）
+      - name: 初始化 demo 工作区（E2E 前置）
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python tools/jobws.py init --target demo --demo
+          if ($LASTEXITCODE -ne 0) { throw "demo 工作区初始化失败（exit $LASTEXITCODE）" }
+
+      # Windows runner 的 Playwright 浏览器缓存路径是 %LOCALAPPDATA%\ms-playwright
+      # （Linux 的 ~/.cache 在 Windows 上是空目录、缓存会永远 miss）；Windows 装
+      # 浏览器不需要 --with-deps（那是 Linux 依赖）。
+      - name: 缓存 Playwright 浏览器（Windows 路径）
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/frontend/package-lock.json') }}
+
+      - name: 安装 Playwright 浏览器（Chromium）
+        shell: pwsh
+        working-directory: web/frontend
+        run: |
+          $ErrorActionPreference = "Stop"
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { throw "Playwright 浏览器安装失败（exit $LASTEXITCODE）" }
+
+      - name: 全量 UI E2E（发布证明链）
+        shell: pwsh
+        working-directory: web/frontend
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm run test:ui
+          if ($LASTEXITCODE -ne 0) { throw "全量 E2E 失败（exit $LASTEXITCODE）——UI 有回归，不要按绿发布" }
+
   publish:
     name: 创建 Release 并挂载安装包
-    needs: build
+    needs: [package, e2e]
     runs-on: windows-latest
     timeout-minutes: 20
     permissions:
@@ -459,7 +525,7 @@ jobs:
           # 不必为此引入一次代码拉取——publish 只需要 artifact 与说明文件。
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-          ASSET: ${{ needs.build.outputs.asset }}
+          ASSET: ${{ needs.package.outputs.asset }}
         run: |
           $ErrorActionPreference = "Stop"
           $asset = $env:ASSET

@@ -23,7 +23,7 @@ Do this once. Skip it if your environment is already set up.
 ### Install dependencies (once each)
 
 ```bash
-# Backend (upper-bound pins — relaxed step by step since the 3.12 baseline, each verified by a full regression run; current values in contributing.en-US.md)
+# Backend (upper-bound pins — relaxed step by step since the 3.12 baseline, each verified by a full regression run; current values in web/backend/requirements.txt)
 cd <repo>\web\backend
 pip install -r requirements.txt
 

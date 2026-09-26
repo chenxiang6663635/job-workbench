@@ -23,7 +23,7 @@ English（主版）：[`usage-guide.md`](usage-guide.md) ｜ 本文件是简体�
 ### 安装依赖（各一次）
 
 ```bash
-# 后端依赖（上限已随 3.12 基线逐步放宽、每条跑全量回归后才合；当前值见 contributing.zh-CN.md）
+# 后端依赖（上限已随 3.12 基线逐步放宽、每条跑全量回归后才合；当前值见 web/backend/requirements.txt）
 cd <仓库目录>\web\backend
 pip install -r requirements.txt
 

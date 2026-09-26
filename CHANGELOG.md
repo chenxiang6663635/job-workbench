@@ -20,6 +20,25 @@
 
 - **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 docs/contributing.zh-CN.md 的「CHANGELOG 写法」节；内部术语见 [`docs/glossary.md`](docs/glossary.md)。
 
+## [Unreleased]
+
+### Highlights (English)
+
+- **A due-reminder bar on every page (2026-09-26)** — opening the app now shows what is due today at the top of the content area: overdue items, to-dos inside your reminder window, and talks in the next 7 days. Each count is a link to the page that handles it; the bar stays out of the way when nothing is due.
+
+### 看得见的变化
+
+- **内容区顶部多了「到点提醒」条（2026-09-26）**：打开应用就能看到今天有什么——已过期几条、近 N 天有几条待办、近 7 天有几场宣讲会，点一下跳到对应的页面去处理（#221）。没有到点事项时整条不出现。
+
+### 技术细节
+
+#### Infrastructure（内部工程）
+
+> 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
+
+- **提醒判据收一处（2026-09-26，#221）**：`upcoming_todos` / `upcoming_talks` / `overdue_pending` 从 `routers/dashboard.py` 搬进中立的 `web/backend/remind.py`，看板与系统通知端点共用——此前是「通知跨模块读看板的私有名」，依赖方向倒挂。纯搬运、零行为变化（`test_reminders_api` / `test_dashboard_talks` 12 passed）；`dashboard.py` 275→214 行。
+- **设置页界面大小卡拆出（2026-09-26，#221）**：`Settings.tsx` 352→232 行，跌破 300 阈值 → `tools/size_allowlist.txt` 登记行按自洁规则删除；同时登记 `i18n/locales/zh-CN.ts` 的贴线变动（提醒条 7 键，1500→1509——它是双语键集的源语言单一真源，拆文件会破坏 `en.ts` 的编译期键集对齐，减债方向写进登记理由）。
+
 ## [26.9.0] - 2026-09-25
 
 ### Highlights (English)

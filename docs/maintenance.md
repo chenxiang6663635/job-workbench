@@ -11,7 +11,8 @@ for contributors and for anyone evaluating the project's health.
   the month; hotfix locks the first two segments and bumps `N`) — one and the same
   number for the tag, the CHANGELOG section name, `web/electron/package.json`,
   artifact name, `latest.yml`, and the About card in the UI. The full discipline
-  lives in [contributing.en-US.md](contributing.en-US.md).
+  lives in [contributing.zh-CN.md](contributing.zh-CN.md) (Chinese; the versioning
+  section is summary-only in the English companion).
 - Every release gets a changelog entry ([CHANGELOG.md](../CHANGELOG.md)) and
   GitHub release notes.
 - **Before tagging**, run `python tools/jobws.py release check --tag v26.9.0`

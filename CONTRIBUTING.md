@@ -8,11 +8,12 @@ Most useful contributions: bug fixes, documentation, **new domain profiles**
 (see [docs/domain-contract.md](docs/domain-contract.md)), privacy safeguards, tests, and
 interoperability improvements.
 
-**This file is the short index.** The full handbook exists in two languages, kept in sync as
-a pair (the Chinese one is authoritative when they disagree):
+**This file is the short index.** The full handbook is written in Chinese (authoritative);
+the English companion covers what a contributor needs to work here, and keeps the
+maintainer-only sections as summaries:
 
-- 🇨🇳 [docs/contributing.zh-CN.md](docs/contributing.zh-CN.md) — 完整中文版
-- 🇬🇧 [docs/contributing.en-US.md](docs/contributing.en-US.md) — full English version
+- 🇨🇳 [docs/contributing.zh-CN.md](docs/contributing.zh-CN.md) — 完整中文版（权威）
+- 🇬🇧 [docs/contributing.en-US.md](docs/contributing.en-US.md) — English companion (contributor sections in full; maintainer sections summarised)
 
 ## Before anything else: privacy rules
 
@@ -57,7 +58,7 @@ cd web/frontend && npm install
 
 ```bash
 python -m pytest tests/ -q                                  # full backend suite (~40s)
-python tools/jobws.py lint i18n ui-tokens themes four-ends size
+python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}   # one check name per invocation; expand the braces
 cd web/frontend && npm run lint && npm run build            # npm.cmd on Windows
 ```
 
@@ -104,13 +105,16 @@ Walk through these before writing code — they filter out most ideas early:
 
 ## Where the details live
 
+Sections marked *(summary)* carry a summary only in the English companion — the authoritative
+full text (and the decision history) is the Chinese handbook.
+
 | Topic | Read |
 |---|---|
 | Privacy rules, the four gates, review protocol | [en](docs/contributing.en-US.md#privacy-rules-in-force-since-open-sourcing--read-before-contributing) · [中文（权威）](docs/contributing.zh-CN.md) |
 | Branching, commits, squash rules, branch cleanup | [en §Branching](docs/contributing.en-US.md#branching-strategy-tiered-prs--trunk-based) · [中文](docs/contributing.zh-CN.md) |
-| Commit & CHANGELOG writing rules | [en §Commit conventions](docs/contributing.en-US.md#commit-conventions-conventional-commits) · [en §CHANGELOG style](docs/contributing.en-US.md#changelog-style-single-file-two-levels-since-2026-09-20) |
-| Versioning (`YY.MM.N`) and the release process | [en §Versioning](docs/contributing.en-US.md#versioning-month-granularity-calver-yymmn-since-2026-09-24) · [en §Release process](docs/contributing.en-US.md#release-process-manual-archiving) · [release checklist](docs/release-checklist.md) |
-| Release blocking list, freeze window | [en §Release governance](docs/contributing.en-US.md#release-governance-blocking-list--freeze-window--tiered-verification) |
+| Commit & CHANGELOG writing rules | [en §Commit conventions](docs/contributing.en-US.md#commit-conventions-conventional-commits) · [en §CHANGELOG style *(summary)*](docs/contributing.en-US.md#changelog-style-single-file-two-levels-since-2026-09-20) · [中文（权威）](docs/contributing.zh-CN.md) |
+| Versioning (`YY.MM.N`) and the release process | [en §Versioning *(summary)*](docs/contributing.en-US.md#versioning-month-granularity-calver-yymmn-since-2026-09-24) · [en §Release process *(summary)*](docs/contributing.en-US.md#release-process-manual-archiving) · [release checklist](docs/release-checklist.md) · [中文（权威）](docs/contributing.zh-CN.md) |
+| Release blocking list, freeze window | [en §Release governance *(summary)*](docs/contributing.en-US.md#release-governance-blocking-list--freeze-window--tiered-verification) · [中文（权威）](docs/contributing.zh-CN.md) |
 | Code hygiene (size budget, no silent errors, …) | [en §Code hygiene](docs/contributing.en-US.md#code-hygiene-borrowed-from-an-anti-shit-mountain-checklist-trimmed-to-six-clauses) · [中文](docs/contributing.zh-CN.md) |
 | Copy and i18n rules | [en §Copy & i18n](docs/contributing.en-US.md#copy--i18n-ui-strings-always-go-through-t) |
 | Adding a capability (all four entrances) | [docs/four-ends.md](docs/four-ends.md) |

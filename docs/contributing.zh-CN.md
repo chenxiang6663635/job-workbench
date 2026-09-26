@@ -1,8 +1,11 @@
 # 贡献与开发流程（完整版）
 
-> **本文是完整的中文细则。** 短索引在仓库根 [CONTRIBUTING.md](../CONTRIBUTING.md)（英文，
-> 对齐 README 的 English-first）；英文细则为 [contributing.en-US.md](contributing.en-US.md)。
-> 两份细则成对维护——维护者以中文写作，英文由其派生，**冲突时以本文为准**。
+> **本文是完整的中文细则，也是唯一权威版本。** 短索引在仓库根 [CONTRIBUTING.md](../CONTRIBUTING.md)
+> （英文，对齐 README 的 English-first）；英文伴读版为 [contributing.en-US.md](contributing.en-US.md)
+> ——按**两档承诺**维护：**必读节**（项目定位 / 隐私约定 / 新需求四道门 / 分支策略 / 提交规范 /
+> 四端一致性 / 文案与 i18n / 代码卫生 / 明确不做 / 可持续性约定）**承诺与本文同步**；
+> **治理节**（版本号体系 / CHANGELOG 写法 / 发布流程 / 发布治理 / AI 协作者 / 开发者工具）
+> **只承诺摘要**。决策史、日期证据与案例记录只存在于本文；**任何冲突以本文为准**。
 
 本文定义本仓库的开发流程约束。适用对象：维护者本人（第一用户）、AI 协作者与外部贡献者。
 数据分层与领域约定见 [AGENTS.md](../AGENTS.md)；文档索引见 [docs/README.md](README.md)。

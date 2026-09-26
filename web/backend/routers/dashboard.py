@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 """看板统计。
 
-复用 tools/jobws.py report 的 count_by / parse_date（纯统计函数，无副作用）。
-upcoming/overdue 的判定逻辑此处直接实现——report 侧已有对应的 section
-helper（_append_section_todo / _append_section_overdue），两边口径须一致。
+复用 tools/jobws.py report 的 count_by（纯统计函数，无副作用）；`parse_date` 随
+upcoming/overdue 判据去了中立模块 `remind.py`。
+upcoming/overdue 的判定**不在这里**——已搬到中立的 `remind.py`（它同时被
+`routers/reminders.py` 的系统通知使用："什么算到点"只能有一处定义）。
+report 侧另有对应的 section helper（_append_section_todo / _append_section_overdue），
+两处口径须一致。
 """
 
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Depends
 
@@ -17,8 +20,9 @@ from jobws_core import jd_score
 from jobws_core import job_dirs
 from jobws_core import tracker
 from deps import DIR_JOBS, safe_join, workspace_dir
-from jobws_core.report import count_by, parse_date, retrospective  # noqa: E402 - report 与 tracker 同目录
+from jobws_core.report import count_by, retrospective  # noqa: E402 - report 与 tracker 同目录
 from routers import jobs as jobs_router  # noqa: E402 - 关联口径复用，不写第二份
+from remind import overdue_pending, upcoming_talks, upcoming_todos  # noqa: E402 - 判据中立模块（见其 docstring）
 
 router = APIRouter(prefix="/api/dashboard")
 
@@ -103,70 +107,6 @@ def job_pool_overview(ws):
         "total": total,
         "scoreByState": score_by_state,
     }
-
-
-def _upcoming_todos(rows, today):
-    """近 7 天待办：活跃记录中，下次动作日期或截止日期落在 [today, today+7]。"""
-    limit = today + timedelta(days=7)
-    upcoming = []
-    for row in rows:
-        if row.get("当前阶段") in TERMINAL:
-            continue
-        for field, reason in (("下次动作日期", "下次动作"), ("截止日期", "截止")):
-            when = parse_date(row.get(field))
-            if when and today <= when <= limit:
-                upcoming.append({
-                    "id": row.get("id", ""), "公司": row.get("公司", ""),
-                    "岗位": row.get("岗位", ""), "date": when.isoformat(),
-                    "reason": reason, "说明": row.get("下次动作", "") or "",
-                })
-                break
-    upcoming.sort(key=lambda x: x["date"])
-    return upcoming
-
-
-def _upcoming_talks(ws, today):
-    """近 7 天宣讲会：`[today, today+7]` 内的活动，按时间升序。
-
-    与 `_upcoming_todos` 有两处不同：① 数据源是 `talks.csv`（活动笔记——它
-    不入主表时间线，但在近 7 天里有它的位置）；② 「时间」列**带时刻**
-    （`YYYY-MM-DD HH:MM`），而 `parse_date` 只认纯日期——先取日期前缀再解析，
-    否则整条会被静默丢掉（这类"少给数据"比报错危险）。
-    空时间的活动直接跳过：没有日期就无从谈「近 7 天」（与 `_sort_talks`
-    把空时间排最后同一口径）。
-    """
-    limit = today + timedelta(days=7)
-    upcoming = []
-    for row in tracker.read_talks(ws):
-        raw = (row.get("时间") or "").strip()
-        when = parse_date(raw[:10]) if raw else None
-        if not when or not (today <= when <= limit):
-            continue
-        upcoming.append({
-            "id": row.get("宣讲会id", ""), "公司": row.get("公司", ""),
-            "时间": raw, "形式": row.get("形式", ""),
-            "地点或链接": row.get("地点或链接", ""),
-            "是否参加": row.get("是否参加", ""),
-            "date": when.isoformat(),
-        })
-    upcoming.sort(key=lambda x: x["时间"])
-    return upcoming
-
-
-def _overdue_pending(rows, today):
-    """已过截止日仍待投。"""
-    overdue = []
-    for row in rows:
-        if row.get("当前阶段") != "待投":
-            continue
-        dl = parse_date(row.get("截止日期"))
-        if dl and dl < today:
-            overdue.append({
-                "id": row.get("id", ""), "公司": row.get("公司", ""),
-                "岗位": row.get("岗位", ""), "截止日期": dl.isoformat(),
-            })
-    overdue.sort(key=lambda x: x["截止日期"])
-    return overdue
 
 
 def _stale_rows(rows, history, today, stale_days):
@@ -256,10 +196,10 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         "funnel": funnel,
         "byDirection": by_direction,
         "byBatch": by_batch,
-        "upcoming": _upcoming_todos(rows, today),
+        "upcoming": upcoming_todos(rows, today),
         # 宣讲会是「投递前」的日程——它不入主表时间线，但在近 7 天里有它的位置
-        "upcomingTalks": _upcoming_talks(ws, today),
-        "overdue": _overdue_pending(rows, today),
+        "upcomingTalks": upcoming_talks(ws, today),
+        "overdue": overdue_pending(rows, today),
         "stale": _stale_rows(rows, history, today, stale_days),
         "pending": _pending_health(rows, history, today),
         "staleDays": stale_days,

@@ -13,6 +13,7 @@ import Settings from "./pages/Settings";
 import { useBackendBoot } from "./hooks/useBackendBoot";
 import { drillToApplication } from "./lib/pageDrill";
 import { onReminderFocus } from "./lib/prefs";
+import ReminderBar from "./components/ReminderBar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Button } from "./components/ui/button";
 import LiveRegion from "./components/LiveRegion";
@@ -214,6 +215,10 @@ export default function App() {
       <LiveRegion />
 
       <main className={`relative mx-auto ${CONTENT_MAX_W} px-6 pb-16 pt-24`}>
+        {/* 到点提醒条（提醒条批，PR #221）：常驻在内容区顶部。key 绑工作区是双保险
+            ——切工作区实际走整页 reload（useBackendBoot），组件必然重挂；留着 key
+            是为了将来换掉 reload 实现时也不会串工作区数据 */}
+        {workspaceReady && <ReminderBar key={currentWs} />}
         {online === false ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6">
             <p className="text-sm font-medium text-destructive">

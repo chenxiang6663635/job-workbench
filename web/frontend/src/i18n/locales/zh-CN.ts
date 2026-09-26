@@ -572,6 +572,15 @@ const zhCN = {
   "dash.activityTitle": "最近动作",
   "dash.activityEmpty": "还没有变更记录——投递推进后，这里会出现时间线。",
 
+  // 到点提醒条（笔 5）：复数按 lineage.jobCount 的约定在源语言定义两套
+  "reminder.title": "到点提醒",
+  "reminder.overdue_one": "{{count}} 条已过期",
+  "reminder.overdue_other": "{{count}} 条已过期",
+  "reminder.upcoming_one": "近 {{days}} 天 {{count}} 条待办",
+  "reminder.upcoming_other": "近 {{days}} 天 {{count}} 条待办",
+  "reminder.talks_one": "{{count}} 场宣讲会",
+  "reminder.talks_other": "{{count}} 场宣讲会",
+
   // 设置页。Provider（BYOK）、邮箱只读拉取、数据与隐私三块
   "settings.title": "设置",
   // 中文值中文优先、把外来词放括号里：这正是本批要修的那处"中文界面下冒英文"。

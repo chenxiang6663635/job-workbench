@@ -517,6 +517,39 @@ export interface SnapshotRestoreResult {
   snapshotDir: string;
 }
 
+// ---- 到点提醒（收口批 笔 5）----
+// 字段名是**数据契约**（后端 /api/reminders/due 直接把 tracker 的行透传），与
+// electron/reminders.js 同源；翻了取不到值。列表各取前 5 条，计数是完整的。
+export interface ReminderItem {
+  id: string;
+  公司: string;
+  /** ISO 日期；已过期来源总有它（后端已统一，前端与主进程都不按来源猜字段名） */
+  date: string;
+  /** 还剩几天，负数 = 已过期几天。日期差只在后端算 */
+  daysLeft: number;
+  /** 待办来源：「下次动作」/「截止」 */
+  reason?: string;
+  说明?: string;
+  岗位?: string;
+  /** 宣讲会来源：带时刻的原始值（YYYY-MM-DD HH:MM） */
+  时间?: string;
+  形式?: string;
+  地点或链接?: string;
+  是否参加?: string;
+  截止日期?: string;
+}
+
+export interface RemindersDue {
+  date: string;
+  workspace: string;
+  /** 待办的「提前几天」窗口（设置页 3/5/7 档） */
+  window: number;
+  counts: { todos: number; talks: number; overdue: number };
+  todos: ReminderItem[];
+  talks: ReminderItem[];
+  overdue: ReminderItem[];
+}
+
 export interface ResumeTemplateItem {
   rel: string;
   name: string;

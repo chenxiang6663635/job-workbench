@@ -169,6 +169,7 @@ project_hidden = [
     # ——留着裸名只会让 PyInstaller 报「hidden import not found」，或误收同名第三方包。
     "deps",
     "py_runtime",
+    "remind",  # 2026-09-26 提醒条批：upcoming/overdue 的中立判定模块（dashboard/reminders 静态 import 得到，此处为名单完整）
     "ro_files",
     "routers",
     "routers.registry",  # 收口批笔 6 后：路由登记表（main.py 只 import 它，再由它 import 全部路由）

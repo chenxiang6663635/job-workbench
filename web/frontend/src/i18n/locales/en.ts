@@ -539,6 +539,15 @@ export default {
   "dash.activityTitle": "Recent activity",
   "dash.activityEmpty": "No changes recorded yet — the timeline shows up here as applications move.",
 
+  // Due-reminder bar (hardening batch, item 5): plural keys follow lineage.jobCount
+  "reminder.title": "Due today",
+  "reminder.overdue_one": "{{count}} overdue",
+  "reminder.overdue_other": "{{count}} overdue",
+  "reminder.upcoming_one": "{{count}} to-do in the next {{days}} days",
+  "reminder.upcoming_other": "{{count}} to-dos in the next {{days}} days",
+  "reminder.talks_one": "{{count}} talk",
+  "reminder.talks_other": "{{count}} talks",
+
   "settings.title": "Settings",
   "settings.providerTitle": "Provider",
   "settings.langTitle": "Interface language",

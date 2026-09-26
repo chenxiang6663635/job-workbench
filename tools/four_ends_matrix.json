@@ -409,6 +409,15 @@
       "plugin": null,
       "gui": "GET /api/progress/questions/preview-wrong",
       "note": "错题本：标签里含「错题」的题（零 schema 变更——标签本就是分类位，加列会撞 schema 自检）。列表只读；标记（--add / --remove）**复用 question.update 的两段式**，不新增写操作。界面里也可标：训练面板的「标错题」按钮走 GET /api/progress/questions/preview-wrong（领域层重算标签 → 令牌 → 通用 apply 落盘），题目详情里加/去「错题」标签同效；界面的错题本视图 = 「准备 → 训练」的「只错题」模式。"
+    },
+    {
+      "id": "reminder.due",
+      "stage": "到点提醒",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/reminders/due",
+      "note": "只读：已过期 / 近 N 天待办 / 近 7 天宣讲会（判据在 `web/backend/remind.py`——看板与两个消费方共用，防止两套口径；PR #221 自 routers/dashboard.py 搬出）。桌面端有两个消费方：系统通知（主进程定时拉取）与内容区顶部的**常驻提醒条**。CLI / MCP / 插件三端显式不提供：提醒是「打开应用时看到」的形态，命令行与 AI 宿主没有常驻位置（与 prep.toggle 同款理由）。"
     }
   ],
   "error_map": [

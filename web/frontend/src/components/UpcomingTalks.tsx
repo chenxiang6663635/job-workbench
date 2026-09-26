@@ -7,7 +7,7 @@ import { EmptyState } from "./ui/empty";
  *
  * 为什么单独一个组件：① `Dashboard.tsx` 是登记过水位的存量文件（只许变小），
  * 区块内联必然超；② 宣讲会数据来自 `talks.csv`、与主表时间线无关，独立组件
- * 让这条边界一眼可见（后端 `_upcoming_talks` 也是独立 helper）。
+ * 让这条边界一眼可见（后端判据 `remind.upcoming_talks` 也是独立函数）。
  *
  * 点任意一条 → 去「准备」板块的宣讲会页签（页签初值走 sessionStorage）。
  */

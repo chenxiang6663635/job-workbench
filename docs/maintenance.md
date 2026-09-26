@@ -11,7 +11,7 @@ for contributors and for anyone evaluating the project's health.
   the month; hotfix locks the first two segments and bumps `N`) — one and the same
   number for the tag, the CHANGELOG section name, `web/electron/package.json`,
   artifact name, `latest.yml`, and the About card in the UI. The full discipline
-  lives in [CONTRIBUTING.md](../CONTRIBUTING.md).
+  lives in [contributing.en-US.md](contributing.en-US.md).
 - Every release gets a changelog entry ([CHANGELOG.md](../CHANGELOG.md)) and
   GitHub release notes.
 - **Before tagging**, run `python tools/jobws.py release check --tag v26.9.0`
@@ -33,7 +33,7 @@ for contributors and for anyone evaluating the project's health.
 ## Pull requests
 
 - Every code PR gets a per-file review **before merge**, recorded as a PR
-  comment — see the SOP in [CONTRIBUTING.md](../CONTRIBUTING.md).
+  comment — see the SOP in [contributing.en-US.md](contributing.en-US.md).
 - CI must be green (backend tests + frontend build) before merge; squash
   merges only, linear history.
 

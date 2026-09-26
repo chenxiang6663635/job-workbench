@@ -165,7 +165,7 @@ def scan_markdown(workspace=None, module_dir=MODULE_DIR, skipped=None):
 
     读不动的文件**不静默丢弃**：文件名与原因记进 `skipped`（调用方负责展示）。
     在"预览即承诺"的两段式里，少给题比报错更危险——用户会以为就这些（第二轨
-    MAJOR-3；另见 CONTRIBUTING 的禁静默吞错）。
+    MAJOR-3；另见 docs/contributing.zh-CN.md 的禁静默吞错）。
 
     `skipped` 由调用方传入一个列表（保持本函数的返回类型不变）。
     """

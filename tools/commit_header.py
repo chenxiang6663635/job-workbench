@@ -12,7 +12,7 @@ subject**。只约定提交信息、不管 PR 标题，就会出现「作者本�
 而是 GitHub 用 PR 标题现场生成的——本地钩子结构上看不到 PR 标题，
 所以必须由 CI 补这一刀。
 
-**语言规则是「必须」而不是「允许」**：CONTRIBUTING 提交规范写的是
+**语言规则是「必须」而不是「允许」**：docs/contributing.zh-CN.md 提交规范写的是
 「提交 subject 与 PR 标题一律中文」。原钩子只写「subject 允许中文」，
 那是许可不是要求，于是英文一样通过——许可式规则等于没有规则。
 
@@ -27,7 +27,7 @@ import re
 TYPES = {"feat", "fix", "docs", "style", "refactor", "perf", "test", "build",
          "ci", "chore", "revert", "data", "job"}
 
-# `!` 后缀 = 破坏性变更（CONTRIBUTING 提交规范要求支持 feat!/fix(x)!）
+# `!` 后缀 = 破坏性变更（docs/contributing.zh-CN.md 提交规范要求支持 feat!/fix(x)!）
 HEADER_PATTERN = re.compile(
     r"^(?P<type>[a-z]+)(?:\((?P<scope>[a-z0-9][a-z0-9_/-]*)\))?(?P<bang>!)?: (?P<subject>\S.*)$"
 )

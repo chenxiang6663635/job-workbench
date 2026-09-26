@@ -145,7 +145,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 ## 贡献
 
-欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；所有改动走 PR（CI 绿：后端测试 + 前端 lint/build + PR 标题校验 + UI 冒烟；`main` 有分支保护，纯文档同样走 PR）。**投入节奏**：单维护者项目，投入是**分批**的——可能集中几天推进一批，也可能整周没有动作（面试周 / 笔试周停工，见 CONTRIBUTING「可持续性约定」）；对外部 issue 的首复目标是 48 小时内、滑期会在 pinned issue 说明（见 [docs/maintenance.md](docs/maintenance.md)），受求职节奏影响偶尔会有几天不回。
+欢迎 issue 与 PR——bug 修复、文档、新领域插件、隐私护栏、测试与互操作性改进尤其有用。请先读 [CONTRIBUTING.md](CONTRIBUTING.md)（短索引，英文）与[完整中文细则](docs/contributing.zh-CN.md)（新需求四道门、分支策略、发布流程）与[行为准则](.github/CODE_OF_CONDUCT.md)；**安全漏洞请走私密通道，见 [SECURITY.md](SECURITY.md)**（不要开公开 issue）；所有改动走 PR（CI 绿：后端测试 + 前端 lint/build + PR 标题校验 + UI 冒烟；`main` 有分支保护，纯文档同样走 PR）。**投入节奏**：单维护者项目，投入是**分批**的——可能集中几天推进一批，也可能整周没有动作（面试周 / 笔试周停工，见 docs/contributing.zh-CN.md 的「可持续性约定」节）；对外部 issue 的首复目标是 48 小时内、滑期会在 pinned issue 说明（见 [docs/maintenance.md](docs/maintenance.md)），受求职节奏影响偶尔会有几天不回。
 
 ## License
 

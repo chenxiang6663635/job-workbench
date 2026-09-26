@@ -86,7 +86,7 @@ CJK = re.compile(u"[\u4e00-\u9fff]")
 # 方向与中文那类**相反**：中文检查防的是"英文界面里冒中文"，它只看 CJK，于是
 # "中文界面里冒英文"是它的结构性盲区（设置页卡片标题 Provider、Electron 的窗口
 # 初始标题与两个更新对话框，2026-09-13 实测确认），tsc / eslint / UI 冒烟同样
-# 看不见。范围与**已知边界**（2026-09-14 扩过一次，理由见 CONTRIBUTING）：
+# 看不见。范围与**已知边界**（2026-09-14 扩过一次，理由见 docs/contributing.zh-CN.md）：
 #   目录：web/frontend/src/pages/**、web/frontend/src/components/**、web/electron/**
 #         —— 范围由 EN_SCOPE_RELS 定义，check_english 直接消费它（此前 targets 是
 #         硬编码的 pages + electron，改常量根本不生效：2026-09-14 反向验证才发现）。

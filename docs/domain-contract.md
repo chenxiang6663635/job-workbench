@@ -104,7 +104,7 @@ CI 跑同一条（同一实现）。校验内容：目录 ID 命名、必备文�
 - 文件名（`profile.md` / `lexicon.md` / `failure_keywords.txt` / `directions/*.md`）。
 
 **想改核心行为**（新的解析规则、新的评分维度、新的文件类型）——那超出插件边界，
-请开 issue 走 [CONTRIBUTING.md](../CONTRIBUTING.md) 的新需求四道门。
+请开 issue 走 [docs/contributing.zh-CN.md](contributing.zh-CN.md) 的新需求四道门。
 
 ## 5. 手把手：用 AI 生成你自己的插件（不写代码）
 

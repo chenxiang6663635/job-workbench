@@ -74,7 +74,7 @@ def count_legacy_imports():
             with io.open(full, "r", encoding="utf-8") as handle:
                 tree = ast.parse(handle.read(), filename=full)
         except (SyntaxError, ValueError) as exc:
-            # 解析不了就跳过并说明——不许静默（CONTRIBUTING「至少记日志」）
+            # 解析不了就跳过并说明——不许静默（docs/contributing.zh-CN.md「代码卫生」第 3 条）
             print("跳过（无法解析）：%s（%s）" % (rel, exc), file=sys.stderr)
             continue
         for node in ast.walk(tree):

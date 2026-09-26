@@ -138,7 +138,7 @@ if (-not $backendPy) {
     Write-Host "  修法（任选其一）：" -ForegroundColor Yellow
     Write-Host "    1) 设一次环境变量指向你的 3.12 venv，再重跑本脚本：" -ForegroundColor Yellow
     Write-Host '       setx JOBWS_PYTHON "<venv>\Scripts\python.exe"' -ForegroundColor Yellow
-    Write-Host "    2) 在仓库外建一个 venv 并装依赖（约定见 CONTRIBUTING「解释器基线」）：" -ForegroundColor Yellow
+    Write-Host "    2) 在仓库外建一个 venv 并装依赖（约定见 docs/contributing.zh-CN.md 的「解释器基线」条）：" -ForegroundColor Yellow
     Write-Host "       uv venv <路径> --python <3.12 解释器>; uv pip install --python <路径>\Scripts\python.exe -r web/backend/requirements-dev.txt" -ForegroundColor Yellow
     Write-Host "    3) 本次显式指定：.\start.ps1 -Py <python 路径>" -ForegroundColor Yellow
     exit 1

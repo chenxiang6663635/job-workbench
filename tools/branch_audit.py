@@ -9,7 +9,7 @@
 **所以判据只有 PR 记录**（`merged: true`）。无 PR 的分支才回退到「头部提交
 subject 是否已出现在 main」（squash 会把 PR 标题留作 subject，故可命中）。
 
-只读、只报告、不删除——删的动作由人决定（见 CONTRIBUTING「合完就删分支」）。
+只读、只报告、不删除——删的动作由人决定（见 docs/contributing.zh-CN.md 的「提交规范」节）。
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@
 **版本号用月粒度日历体系**：版本号 `YY.MM.N`（如 `26.9.0`）——`N` 是**当月第几发**
 （从 0 起）：hotfix 锁前两位只动第三位（`26.9.1`），同月第二发继续递增（`26.9.2`），
 换月清零（`26.10.0`）；tag `v26.9.0` **不补零**。规则与理由见
-[CONTRIBUTING.md](CONTRIBUTING.md) 的「版本号体系」一节。
+[docs/contributing.zh-CN.md](docs/contributing.zh-CN.md) 的「版本号体系」一节。
 
 > **生效边界**：本体系自 **`v26.9.0`** 起适用；`v0.3.2` 及以前的段名是历史编号，
 > 保留不改（已发出的 tag 不能改写）。
@@ -14,11 +14,11 @@
 **版本号唯一来源**：`web/electron/package.json` 的 `version` 字段。
 **tag 约定**：每个版本发布时打 `v<版本号>` tag（如 `v26.9.0`）；**CHANGELOG 段名与版本号同名**。
 **破坏性变更**：不再由主版本号承载——写在该版本的「破坏性变更」小节，并在段首「升级须知」说明影响与迁移步骤。
-**过渡纪律（2026-09-22 起）**：删除或改名列这类破坏性变更**先废弃、后移除**——先在段内 `### Deprecated` 登记并保持读时兼容，至少一个发布节点后才进 `### Removed` 并给出迁移办法。**有废弃 / 移除就必须列出**（即使升级本身不需要你做任何动作）。这两个小节按需出现在「技术细节」之下（没有内容时不写空节）；写法细则见 CONTRIBUTING「CHANGELOG 写法」。数据格式侧的承诺见 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)。
+**过渡纪律（2026-09-22 起）**：删除或改名列这类破坏性变更**先废弃、后移除**——先在段内 `### Deprecated` 登记并保持读时兼容，至少一个发布节点后才进 `### Removed` 并给出迁移办法。**有废弃 / 移除就必须列出**（即使升级本身不需要你做任何动作）。这两个小节按需出现在「技术细节」之下（没有内容时不写空节）；写法细则见 docs/contributing.zh-CN.md 的「CHANGELOG 写法」节。数据格式侧的承诺见 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)。
 
 **取材原则**：只记录对使用者可见的软件变更（功能 / 修复 / 破坏性变更）。向工作区录入个人数据（岗位评分、事实补齐等）属于数据操作，不是软件变更，不入此册。
 
-- **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 CONTRIBUTING「CHANGELOG 写法」；内部术语见 [`docs/glossary.md`](docs/glossary.md)。
+- **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 docs/contributing.zh-CN.md 的「CHANGELOG 写法」节；内部术语见 [`docs/glossary.md`](docs/glossary.md)。
 
 ## [26.9.0] - 2026-09-25
 
@@ -90,7 +90,7 @@
 
 > 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
 
-- **公开承诺与治理收口（2026-09-25）**：① **隐私文案改为与真实数据流一致**——顶栏与设置页原写「不发请求、不上传任何内容 / nothing is sent anywhere」，而产品实际存在 AI 改写、IMAP 拉取、JD 抓取与启动后一次更新检查；现按新增的 **`docs/data-flow-matrix.md`（数据流矩阵：什么数据、什么时候、去哪里）**精确表述，并立规「新增出网能力先更新矩阵」（矩阵是隐私承诺的权威底稿，界面文案与它冲突时以它为准）；② **提醒开关标注「仅应用运行时有效」**（关窗即停是刻意取舍，UI 必须说清）；③ **README 中英**：SHA256SUMS 说明改「自 v26.9.0 起」（v0.3.2 实际无此资产）、「Four CLI workflows」概念纠正（`jwb-*` 是工作流技能、CLI 入口是 `jobws`）、技能清单计数 8→9；④ **贡献口径统一**：CONTRIBUTING「可直推 main」与英文 README 的直推说法作废（分支保护 + `enforce_admins=true` 下直推物理不可能）——**所有改动走 PR**；⑤ **ADR 放宽 hotfix 触发**：安全 / 数据损坏 / 安装启动阻断 / 更新链失效四类不等功能批次，可走 `26.9.N`；⑥ **发布治理成文**（CONTRIBUTING 新节 + checklist）：发布阻断清单八项、发布窗口（RC）纪律、Tier 1/2/3 分层验证、发布后完整验证链；⑦ **代码卫生两条**：所有运行时产品代码须被结构检查覆盖（新增目录 / 后缀须同步 `check_size.py`）、失败路径双通道（用户消息 + 本地日志，诊断包排除清单测试锁死）；⑧ FastAPI `version` 从写死的 `0.1.0` 改为产品版本（壳注入来源，与「关于」区块同一实现——`app_version()` 去私有化）；⑨ Bug 模板补 App 版本 / 安装来源 / 诊断附件 / **demo 复现前置判断**；THIRD-PARTY 补 MCP 段；checklist 的 SHA256 定位修正为**完整性**（不构成发布者身份认证）。
+- **公开承诺与治理收口（2026-09-25）**：① **隐私文案改为与真实数据流一致**——顶栏与设置页原写「不发请求、不上传任何内容 / nothing is sent anywhere」，而产品实际存在 AI 改写、IMAP 拉取、JD 抓取与启动后一次更新检查；现按新增的 **`docs/data-flow-matrix.md`（数据流矩阵：什么数据、什么时候、去哪里）**精确表述，并立规「新增出网能力先更新矩阵」（矩阵是隐私承诺的权威底稿，界面文案与它冲突时以它为准）；② **提醒开关标注「仅应用运行时有效」**（关窗即停是刻意取舍，UI 必须说清）；③ **README 中英**：SHA256SUMS 说明改「自 v26.9.0 起」（v0.3.2 实际无此资产）、「Four CLI workflows」概念纠正（`jwb-*` 是工作流技能、CLI 入口是 `jobws`）、技能清单计数 8→9；④ **贡献口径统一**：CONTRIBUTING「可直推 main」与英文 README 的直推说法作废（分支保护 + `enforce_admins=true` 下直推物理不可能）——**所有改动走 PR**；⑤ **ADR 放宽 hotfix 触发**：安全 / 数据损坏 / 安装启动阻断 / 更新链失效四类不等功能批次，可走 `26.9.N`；⑥ **发布治理成文**（docs/contributing.zh-CN.md 新节 + checklist）：发布阻断清单八项、发布窗口（RC）纪律、Tier 1/2/3 分层验证、发布后完整验证链；⑦ **代码卫生两条**：所有运行时产品代码须被结构检查覆盖（新增目录 / 后缀须同步 `check_size.py`）、失败路径双通道（用户消息 + 本地日志，诊断包排除清单测试锁死）；⑧ FastAPI `version` 从写死的 `0.1.0` 改为产品版本（壳注入来源，与「关于」区块同一实现——`app_version()` 去私有化）；⑨ Bug 模板补 App 版本 / 安装来源 / 诊断附件 / **demo 复现前置判断**；THIRD-PARTY 补 MCP 段；checklist 的 SHA256 定位修正为**完整性**（不构成发布者身份认证）。
 - **发布前收口：边界、门禁与可复现（2026-09-25）**：三份独立审查（代码边界 / 发布承诺 / 治理覆盖）经逐条核实后的待修项统一收口——① **路径边界统一**：三种「越界」口径（`deps` 的字符串前缀、`ro_files` 与 MCP 的 realpath）收成 `jobws_core.containment` 单一原语（realpath + commonpath），工作区内的 junction / 符号链接指向外部一律 fail-closed，Web 与 MCP 同源；② **默认工作区同闸**：`JOBWS_WORKSPACE` / `--workspace` 越界此前会被**静默服务**（与 `?ws=` 的严格校验自相矛盾），现在启动即拒绝（退出码 2，文案指出修法；默认路径与显式路径走同一道闸）；③ **监听边界**：`--host` 非回环必须显式加 `--unsafe-network-api`（无鉴权 API 不该由一个日常参数进局域网；解释器基线与监听检查拆出 `web/backend/preflight.py`）；④ **门禁盲区收口**：规模闸纳入 `web/electron` 与 `.js/.mjs`（main.js 967 行登记水位，拆分列入发布后重构批），新增**插件清单一致性 gate**（`plugin.json == marketplace.json == skills/`，描述里的技能数量必须等于实际——它当场抓到并修掉了 marketplace 8→9 的真实漂移）；⑤ **发布证明链**：tag / 演练触发的 release 链强制跑全量 115 条 UI E2E（「PR 绿但全量 E2E 还在跑就 tag」的缝被关掉；PR 层保持 smoke 子集，#197 提速不受影响）；⑥ **可复现构建**：新增带 hash 的 `requirements.lock`（发布链按锁安装，含 PyInstaller）与 `mcp/uv.lock` 入库（`.gitignore` 开 `!` 例外）。
 - **CI 拆级提速（2026-09-25）**：e2e 用例长到 115 条后，PR 上跑全量让每次反馈多等约 2 分钟——`ui-smoke` 的 PR 门禁改为最小集（`npm run test:ui:smoke`：smoke + viewports + a11y + nav，约 1 分钟），全量 115 条移入新 `e2e-full` job（push main 后跑，不阻塞 PR、合并后即回归）；顺带缓存 Playwright 浏览器（键挂 package-lock）。发布前的最终防线仍是真机人工冒烟（`docs/release-checklist.md`）不变。
 - **README 截图整套重拍 + demo 岗位池扩到 7 个（2026-09-25）**：16 张文档截图全部重拍——主题换成 Catppuccin Mocha（`capture` 脚本新增 `--theme` 参数，默认仍 dark），并反映 09-23/24 批次的界面变化（设置页分组导航与搜索、四态徽章等）——旧图停在 09-13 前后。demo 数据新增 5 个岗位（白泽安全 71 / 蓝湖数科 64 / 星河物流 58 / 青梧文档 48 / 墨丘科技 42），看板「评分档位 × 投递状态」图从 1 档有数据变为 4 档分布（含未投递状态），岗位页与高分未投清单随之有真实内容——此前首屏这张图只有一条数据。
@@ -225,7 +225,7 @@
 - **领域层开始可安装（`packages/jobws-core`，批 6 第一批）**：写入原语（`workspace_io`）与文件锁（`filelock`）**原样**迁入新包（import 名 `jobws_core`，src layout），装上就能用，不再依赖「仓库在侧」。旧路径保留为转发 shim + 废弃告警，存量 24 处 import 点**零改动**；新增 `jobws lint legacy-imports` 把旧名 import 数记成**只许下降**的水位（基线 `filelock=16` / `workspace_io=8`），降到 0 即可删 shim。包版本是 `web/electron/package.json` 的**派生物**（构建期读入、运行时从包元数据读回），不产生第二套版本真值源。import 名之所以是 `jobws_core` 而不是 `jobws`：`tools/jobws.py` 是 CLI 入口模块，同名会让 68 个以 `import jobws` 取 CLI 的用例解析到包（实测踩到，理由已写进包注释）。
 - **CI 新增两条冒烟与一条闸门覆盖（批 6）**：① **独立安装冒烟**——干净 venv 装 wheel、**在仓库之外**运行（Python 把 cwd 当 sys.path 首项，仓库内跑会命中源码树）、断言非 editable、临时工作区读写一条、版本三向一致；pytest 跑的是源码树，测不到「装上能不能用」，这条补的正是那一段。② **后端 exe 冒烟**——真构建 exe 后跑 `scripts/smoke_backend_exe.py`，是唯一能抓到「领域层没进包」的检查（`pyinstaller.spec` 自陈「CI 只构建不运行产物、会全绿」的老缺口）。③ 规模闸门的扫描范围加入 `packages/`，否则新包文件会逃出「≤300 行 / 函数 ≤80」约束。
 - **清理源码注释里的一处真实公司名**：`web/backend/routers/jobs.py` 的注释示例曾引用真实投递过的公司——公开仓库不该出现它，已改为虚构示例。
-- **五处静默吞错清零**（按 CONTRIBUTING「至少记日志」）：前端岗位链接推断失败、`start.ps1` 的就绪轮询（Verbose 记录、不刷屏）、tracker 的 schema sidecar 写入、IMAP 的两次 logout。
+- **五处静默吞错清零**（按 docs/contributing.zh-CN.md「代码卫生」第 3 条（禁静默吞错））：前端岗位链接推断失败、`start.ps1` 的就绪轮询（Verbose 记录、不刷屏）、tracker 的 schema sidecar 写入、IMAP 的两次 logout。
 - **`tools/tracker.py`（2522 行）包化为 `tools/tracker/` 包**（19 个子模块 + PEP 562 门面）：对外 **41 个引用点零改动**（`import tracker` 语义不变，含可变全局 `WORKSPACE` 的跟随语义）；旧路径保留 14 行迁移提示 shim。打包链（`pyinstaller.spec`）同步支持包目录收集与子模块展开——**打包版经真机冒烟验证**（`/api/system/check` 实际执行 tools 代码）。全仓此前仅存的超长函数（`run_check` 136、`build_parser` 151 等 7 个）随包化一并拆平。
 - **`web/backend/routers/progress.py`（839 行）包化为 `routers/progress/` 包**（8 个子模块，`__init__` 照旧暴露 `router`）：21 条路由与拆分前逐一对上，`main.py` 一行未改。
 - **余下 9 个超 80 行函数全部拆平**（`report.build_report` 182、`resume_build.main` 135、`jd_score.main` 126 等；其余豁免区之外的 Python 文件已无超长函数）；规模清单随之**减 4 条**（自洁强制）、更新 5 条水位。

@@ -27,7 +27,7 @@ distribution 名是 `jobws-core`，但 **import 名是 `jobws_core`**：`tools/j
 ## 版本
 
 **本包版本是派生物，不是产品版本真值源。** 真值源仍是 `web/electron/package.json`
-的 `version`（见 `CONTRIBUTING.md` 与 `tools/release_assist.py`）：构建期由本目录的
+的 `version`（见 `docs/contributing.zh-CN.md` 与 `tools/release_assist.py`）：构建期由本目录的
 `setup.py` 读它写进 wheel 元数据，运行时由 `jobws_core.__version__`
 （`importlib.metadata.version("jobws-core")`）读回。二者由 CI 断言一致。
 

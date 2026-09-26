@@ -57,6 +57,12 @@
 
 ## 四、v1.x 待办（不阻塞本节点）
 
+### 26.9.1 候选（首发后立即做）
+
+- [ ] **桌面图标**：`web/electron/package.json` 的 `build.nsis.createDesktopShortcut` 现为 `false`，装完只有开始菜单项、没有桌面图标——首发真机复验时第一个撞上的就是这个（找不到入口）。改为 `true`；改完要走一次 `dry_run` 演练确认快捷方式生成（**触发理由**：真实用户首用即受阻，不是审美问题）。
+
+### 长期
+
 - [ ] winget 分发（`winget-create` 从 installer URL 生成 manifest，人工提 PR）
 - [ ] 代码签名评估（Azure Artifact Signing ≈$9.99/月限地区 / OV 证书 $150–300/年；触发条件：SmartScreen 误报成为高频 issue）
 - [ ] 更多领域插件（`docs/domain-contract.md`；`jwb-domain-setup` 技能上线后引导用户自助生成）

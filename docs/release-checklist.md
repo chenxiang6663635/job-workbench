@@ -7,6 +7,10 @@
 >
 > 出事了怎么办（RUNBOOK，见第三节）：**撤 latest 标记 → 发一个版本号更高的修复版**
 > ——electron-updater 不会接受相同或更低的版本号覆盖，「删掉坏的 Release 重传」无效。
+>
+> **本轮（v26.9.0）的勾选状态：2026-09-26 记录**。CI 那七项与「版本落章」三项已由
+> 演练 `36205442739` 与 `release check --tag v26.9.0`（exit 0）验证并勾选；真机与发布
+> 那几项留空等人工。下一个发布节点请把勾选重置（清单是可复用的操作单，不是台账）。
 
 ## 〇、发布阻断清单（任一存在即不发布）
 
@@ -14,22 +18,22 @@
 
 ## 一、CI 自动（release.yml，绿了即过）
 
-- [ ] 闸 1：tag `v26.9.x` 与 `web/electron/package.json` 的 version **逐字一致**
-- [ ] 闸 2：CHANGELOG 有同名版本段（抽段即 Release 说明）
-- [ ] 闸 3：产物 exe + `latest.yml` 真实产出（缺 latest.yml 拒发——老用户收不到更新）
-- [ ] 后端 exe 冒烟（`scripts/smoke_backend_exe.py`：起产物 → 健康检查）
-- [ ] **安装/卸载冒烟**（NSIS `/S` 静默装 → 验证 → 静默卸载；2026-09-24 新增）
-- [ ] **SHA256SUMS.txt** 生成并挂 Release（**完整性**补偿：证明下载未损坏、与已发布文件一致；**不构成发布者身份认证**——未签名场景的身份信任根是 GitHub 账号与仓库保护）
-- [ ] **Release notes 自动附加**未签名 / SmartScreen 说明（微软官方口径：未签名拦截页更严重、每版本信誉归零）
-- [ ] 发布后核验资产：exe + blockmap + latest.yml + SHA256SUMS.txt 四样全在
+- [x] 闸 1：tag `v26.9.x` 与 `web/electron/package.json` 的 version **逐字一致** — v26.9.0：演练 `36205442739` 通过（package.json 读为 `26.9.0`）
+- [x] 闸 2：CHANGELOG 有同名版本段（抽段即 Release 说明） — v26.9.0：`release check --tag v26.9.0` exit 0，段存在
+- [x] 闸 3：产物 exe + `latest.yml` 真实产出（缺 latest.yml 拒发——老用户收不到更新） — v26.9.0：exe 122 MB 级 + `latest.yml`（26.9.0 + sha512 + size）已在演练 artifact 内核过
+- [x] 后端 exe 冒烟（`scripts/smoke_backend_exe.py`：起产物 → 健康检查） — v26.9.0：演练内步骤通过（起进程 + `/api/system/check` + 资源自检）
+- [x] **安装/卸载冒烟**（NSIS `/S` 静默装 → 验证 → 静默卸载；2026-09-24 新增） — v26.9.0：演练内装→验→卸→等目录消失全通过
+- [x] **SHA256SUMS.txt** 生成并挂 Release（**完整性**补偿：证明下载未损坏、与已发布文件一致；**不构成发布者身份认证**——未签名场景的身份信任根是 GitHub 账号与仓库保护） — v26.9.0：清单已生成，本地重算 exe 哈希与清单一致
+- [x] **Release notes 自动附加**未签名 / SmartScreen 说明（微软官方口径：未签名拦截页更严重、每版本信誉归零） — v26.9.0：`release-notes.md` 尾部含中英安装说明 + 校验和块
+- [ ] 发布后核验资产：exe + blockmap + latest.yml + SHA256SUMS.txt 四样全在（**打 tag 后**才做）
 
 ## 二、人工必做（发布日，约 15 分钟 + 真机）
 
 **版本落章**：
 
-- [ ] `python tools/jobws.py release version` 取号 → bump `web/electron/package.json`（同一号）
-- [ ] CHANGELOG `[Unreleased]` 改为 `[版本号] - ISO 日期` → `release check --tag v<号>` 绿
-- [ ] dry_run 演练：`gh workflow run release.yml -f dry_run=true -f tag=v<号>` → 下载 artifact 里的安装包
+- [x] `python tools/jobws.py release version` 取号 → bump `web/electron/package.json`（同一号） — v26.9.0：#189 已落章（package.json / plugin.json / 技能 metadata 三处同步）
+- [x] CHANGELOG `[Unreleased]` 改为 `[版本号] - ISO 日期` → `release check --tag v<号>` 绿 — v26.9.0：`## [26.9.0] - 2026-09-25`；`release check` exit 0
+- [x] dry_run 演练：`gh workflow run release.yml -f dry_run=true -f tag=v<号>` → 下载 artifact 里的安装包 — v26.9.0：四轮演练，最新 `36205442739` success（并行结构首跑），产物已下载核验
 
 **真机冒烟**（自己的 Windows 真机，CI 没有桌面会话）：
 

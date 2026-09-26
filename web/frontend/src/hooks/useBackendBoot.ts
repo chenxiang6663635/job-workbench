@@ -50,16 +50,31 @@ export function useBackendBoot() {
           if (def) {
             setCurrentWs(def.name);
             setWorkspace(def.name);
-            // 回退到默认时**写回 localStorage**（2026-09-26 修复）：选中值失效
-            // （工作区被删 / 换了数据根）时原先只在内存里回退，localStorage 里的
-            // 旧名会被所有"直接读它"的地方继续拿去用（notes.ts 也读同一个键），
-            // 曾导致指纹轮询每 10s 一次 404、外部改动感知失效；写回之后这类读数
-            // 与界面一致。
-            try {
-              localStorage.setItem(WS_STORAGE_KEY, def.name);
-            } catch {
-              // localStorage 不可用时退化为仅本次会话有效（与 switchWorkspace 同）
+            // 回退到默认时**把失效的选中值写回**（2026-09-26 修复）：选中值在当前
+            // 数据根下不存在时（工作区被删 / 从 dev 栈切到安装版），原先只在内存里
+            // 回退，localStorage 里的旧名会被"直接读它"的地方继续拿去用——指纹轮询
+            // 曾因此每 10s 一次 404、外部改动感知整条失效（见 useWorkspaceSync 注释）。
+            //
+            // **只在 saved 非空时才写**：空串 = 用户从没选过，语义是"跟随后端默认
+            // 工作区"；若也写回一个具体名字，就把"跟随"钉死成了"记住"——后端默认
+            // 变了（JOBWS_WORKSPACE / --workspace）GUI 不再跟，正是本类静默分叉。
+            if (saved) {
+              try {
+                localStorage.setItem(WS_STORAGE_KEY, def.name);
+              } catch {
+                // localStorage 不可用：退化为仅本次会话有效（与 switchWorkspace 同）
+              }
             }
+          } else {
+            // 连默认工作区都没有（默认目录不存在 / 未初始化——resolve_default_workspace
+            // 允许这种配置）：回到"未选择"状态。清掉失效的选中值并显式声明用后端默认，
+            // 顶栏也不会再显示一个列表里没有的名字（否则显示与数据来源分叉）。
+            try {
+              localStorage.removeItem(WS_STORAGE_KEY);
+            } catch {
+              // localStorage 不可用：忽略（本次会话内仍按内存状态走）
+            }
+            setWorkspace("");
           }
         }
         setWorkspaceReady(true);

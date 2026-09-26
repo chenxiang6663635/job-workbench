@@ -64,6 +64,9 @@ export function useWorkspaceSync(
 
   useEffect(() => {
     if (!enabled) return () => undefined;
+    // 每次启用都从"没有基线"开始：否则离线屏「重试」重启轮询时会拿旧基线比对，
+    // 首个成功的轮询就会判成"外部改过"→ 立刻整页重载（独立审查 N2）
+    lastRef.current = null;
     let stopped = false;
     let timer: number | undefined;
     let warned = false;

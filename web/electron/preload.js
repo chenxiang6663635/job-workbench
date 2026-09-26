@@ -21,7 +21,9 @@ contextBridge.exposeInMainWorld("jobwsPrefs", {
   setLang: (lang) => ipcRenderer.invoke("prefs:set-lang", lang),
 
   /** 上报当前工作区：主进程的到点提醒要按**用户实际在用的工作区**查（否则多工作区用户
-      收到的是默认工作区的提醒）。真值仍在渲染进程（localStorage），这里只做转达。 */
+      收到的是默认工作区的提醒）。真值在渲染进程**已激活的工作区状态**（lib/http 的
+      currentWorkspace）——localStorage 里那个只是"上次选中的名字"的历史记录，可能与
+      已激活值分叉（2026-09-26 的指纹 404 事故正由这类分叉而来），这里只做转达。 */
   setWorkspace: (ws) => ipcRenderer.invoke("prefs:set-workspace", ws),
 
   /** 到点提醒：开关 + 提前天数（真值在主进程：它才是发通知的那一方）。

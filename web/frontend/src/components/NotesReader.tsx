@@ -75,6 +75,8 @@ export default function NotesReader({
 }: NotesReaderProps) {
   const { t } = useTranslation();
   const dir = NOTES_SECTIONS.find((s) => s.key === section)?.dir ?? "";
+  // 同 NotesBrowser：工作区名只在挂载时取一次，依赖 workspaceReady 门控 + boot 的
+  // 失效值写回先于挂载发生（否则会静默读到旧值）
   const ws = useMemo(readWorkspace, []);
   // 先剥 HTML 注释再交给渲染与大纲——同一份文本，两侧行号才不会漂移。
   // 两处都按正文 memo（A-3）：它们都是整篇扫描，此前每次交互（展开答案、勾选预览）

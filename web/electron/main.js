@@ -557,7 +557,7 @@ const REMINDER_DAYS_DEFAULT = 3;
 const REMINDER_DAYS_MAX = 30;
 let reminderState = { enabled: true, days: REMINDER_DAYS_DEFAULT, notified: {} };
 let reminderTimer = null;
-// 渲染进程上报的当前工作区（真值在它的 localStorage 里）：不报就按后端默认工作区查
+// 渲染进程上报的当前工作区（真值在它**已激活的工作区状态**，不是 localStorage 的选中记录——两者会分叉，见 preload.js）；不报就按后端默认工作区查
 let reportedWorkspace = "";
 
 function remindersPath() {

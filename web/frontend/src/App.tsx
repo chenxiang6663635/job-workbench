@@ -83,9 +83,11 @@ export default function App() {
   // 外部改动同步（批 8）：CLI / MCP / 插件写过数据后，桌面端要能看到。
   // 整页 reload 与「切换工作区」同款（各页面在 mount 时拉数据）——外部改动是
   // 低频事件，重载代价可接受；只在**指纹变化**时触发（见 hook 内注释）。
-  // 工作区就绪后才轮询指纹：未就绪时 currentWorkspace 还没激活，
-  // 轮询会打在后端默认工作区上（首屏那一刻的错位对象）
-  useWorkspaceSync(() => window.location.reload(), workspaceReady);
+  // 工作区就绪**且后端在线**才轮询指纹：未就绪时 currentWorkspace 还没激活，轮询会打在
+  // 后端默认工作区上（首屏那一刻的错位对象）；离线时轮询只会空转刷 warn，而离线屏的
+  // 「重试」会重跑 boot → enabled 重新翻转，轮询跟着重启（boot 的 catch 也会置就绪，
+  // 所以光靠 workspaceReady 挡不住离线）。
+  useWorkspaceSync(() => window.location.reload(), workspaceReady && online !== false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

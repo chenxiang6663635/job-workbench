@@ -35,8 +35,8 @@ for contributors and for anyone evaluating the project's health.
 
 - Every code PR gets a per-file review **before merge**, recorded as a PR
   comment — see the SOP in [contributing.en-US.md](contributing.en-US.md).
-- CI must be green (backend tests + frontend build) before merge; squash
-  merges only, linear history.
+- CI must be green (backend tests + frontend build + PR-title check + UI smoke)
+  before merge; squash merges only, linear history.
 
 ## Maintenance rhythm
 

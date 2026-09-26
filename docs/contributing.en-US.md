@@ -9,11 +9,12 @@
 >   sustainability. These carry the rules in full and are kept in sync with the Chinese text.
 > - **Summary sections** — versioning, CHANGELOG style, release process, release governance,
 >   AI collaborator notes, developer tooling. Each opens with a `Summary tier` line; the full
->   rules — and the decision history, dated evidence and case records, which live nowhere
->   else — are in the Chinese text.
+>   rules — and the decision history, dated evidence and case records — are kept in the
+>   Chinese text only (between these two files; project-level records also appear in
+>   [CHANGELOG.md](../CHANGELOG.md) and `docs/decisions/`).
 >
 > The short index is [CONTRIBUTING.md](../CONTRIBUTING.md). Same principle as the CHANGELOG's
-> `### Highlights (English)`: **English commits to a summary, not to every line.**
+> `### Highlights (English)`: **English commits to a summary, not to every entry.**
 
 This document defines the development-process constraints of this repository. It applies
 to the maintainer (the first user), AI collaborators, and outside contributors.
@@ -117,8 +118,10 @@ for a follow-up PR — never merged silently. Squash and merge; delete the branc
 > exception does not apply.
 
 **All changes go through a PR** (including text and data-only changes): `main` has branch
-protection with `enforce_admins` on, so a direct push is rejected at the protocol level —
-and with it, "direct-push text-only changes" from an earlier era is void as a rule.
+protection with `enforce_admins` on, so a direct push is rejected at the protocol level.
+(Historical note: "text-only changes may be pushed directly" was a rule from before
+protection was enabled — it is void; under `enforce_admins=true`, a direct push was never
+an executable option.)
 
 - **Create the branch before you start** (`git switch -c feat/xxx`); do not write on `main`
   first and check out later — if you forget to branch midway, the commit lands straight on
@@ -134,8 +137,10 @@ and with it, "direct-push text-only changes" from an earlier era is void as a ru
   `--no-verify` (explain why in the PR).
 - **The PR title is checked too (CI workflow `pr-title`)**: the local hook only runs when
   *you* type `git commit`, whereas the PR title is what GitHub uses to generate the trunk
-  commit subject at merge time — **the local hook structurally cannot see it**. On
-  violation CI turns red; fix it with
+  commit subject at merge time — **the local hook structurally cannot see it**. The check
+  reads the title from the `PR_TITLE` **environment variable rather than interpolating it
+  into `run:`** — a PR title is externally controllable input, and interpolating it into a
+  shell is an open back door. On violation CI turns red; fix it with
   `gh pr edit <number> --title "feat(scope): 中文说明"`. The workflow explicitly subscribes
   to `edited`, because `pull_request` by default only fires on opened / synchronize /
   reopened — **editing the title does not re-run it by default**.
@@ -154,7 +159,7 @@ and with it, "direct-push text-only changes" from an earlier era is void as a ru
   decision.
 - Fallback (what if something goes wrong): a data-snapshot backup + `git revert` — a squash
   commit can be rolled back as a whole without polluting the trunk history.
-- Only three situations call for a branch instead of a direct push: an experiment you might
+- Branching is also the isolation tool for three situations: an experiment you might
   abandon / a refactor that takes more than half a day / a change that temporarily breaks
   "the currently usable state".
 - **No** `develop` / `release` / `hotfix` branches.
@@ -164,8 +169,8 @@ and with it, "direct-push text-only changes" from an earlier era is void as a ru
 Format: `<type>(<scope>): <description>`
 
 - `feat` / `fix` / `docs` / `chore` / `refactor` / `data` / `job`: **none of them trigger a
-  version bump** — under the timestamp system the version is generated from "the day of
-  release" (see §Versioning).
+  version bump** — the version comes from the release month under month-granularity CalVer
+  `YY.MM.N` (see §Versioning), and is no longer derived from the commit type.
 - Breaking changes: the `!` suffix or a `BREAKING CHANGE:` body section; when landed, write
   it into that version's "Breaking changes" subsection in the CHANGELOG (the version number
   itself no longer expresses breakingness).
@@ -220,7 +225,12 @@ month resets to 0). `web/electron/package.json` is the **single source of truth*
 point**: intermediate batches do not bump / tag / create a Release / build an installer.
 Generate the month's number with `python tools/jobws.py release version`; writing it into
 `package.json` is still a manual bump. Other `version` fields (frontend, MCP package) are
-private to those packages and must not be tied to the release number.
+private to those packages and must not be tied to the release number. **Exception (a
+derivative, not a source of truth)**: the domain package `packages/jobws-core` reads its
+version at **build time** from its own `setup.py` out of `web/electron/package.json`, and
+reads it back at runtime from `importlib.metadata` (CI asserts the three agree) — changing
+the version still means editing `package.json` only; **do not edit the package's
+`pyproject.toml`**.
 
 ## CHANGELOG style (single file, two levels, since 2026-09-20)
 
@@ -255,15 +265,17 @@ order:
 
 1. **Manual smoke** (CI has already run the full automated suite; a manual smoke is not
    optional): build the installer → **install and run it once** → open the eight pages with
-   real data and operate each one; for UI batches, accept by screenshot comparison.
+   your **existing (previous-version) workspace data** and operate each one — the point is
+   the upgrade path; for UI batches, accept by screenshot comparison.
 2. `python tools/jobws.py release version` → write that number into
    `web/electron/package.json`.
 3. Turn the CHANGELOG `Unreleased` section into the **version number** + ISO date.
 4. **Local pre-check**: `python tools/jobws.py release check --tag v<version>` (tag and
    version character-for-character equal, CHANGELOG section present, release notes preview —
    do not tag while it is red).
-5. **dry_run rehearsal**: `gh workflow run release.yml -f dry_run=true -f tag=v<version>` —
-   once it passes, `git tag -a v<version> -m "..."` and push.
+5. **dry_run rehearsal**: `gh workflow run release.yml -f dry_run=true -f tag=v<version>`
+   (**run it after step 3 has landed** — the `tag` input checks the CHANGELOG section and the
+   version comparison) — once it passes, `git tag -a v<version> -m "..."` and push.
 6. After release, verify with `gh release view --json assets` and **download the artefact
    once for real**.
 
@@ -297,7 +309,9 @@ Four of them **do not wait for a feature batch** and can go straight to a `26.9.
 broken update chain**.
 
 **Freeze window (RC stage)**: from the moment a release intent is fixed until the tag,
-`main` accepts release-blocking fixes only; everything else queues for the next `N`.
+`main` accepts release-blocking fixes only; everything else queues for the next `N`. **No rc
+tag is actually published** — the window discipline is followed as written. (Standard moves:
+dry_run rehearsal → real-machine smoke → tag.)
 **Tiered verification**: Tier 1 = every PR (full pytest + the seven scanners + frontend
 lint / tsc / unit + UI smoke); Tier 2 = after landing on `main` (full E2E suite +
 domain-package install smoke + exe smoke); Tier 3 = at release (the full release.yml chain +
@@ -352,10 +366,13 @@ should be rejected in review.
   `JOBWS_PYTHON` > the repository's `.venv` > the interpreter running them, so they do not
   depend on which environment the terminal has activated; below 3.12 the hook **degrades to
   a warning instead of blocking** (CI is the backstop).
-- **Install the domain package before developing**: `pip install packages/jobws-core`
-  (packaging and CI use a non-editable install; for local development
-  `uv pip install -e packages/jobws-core --config-settings editable_mode=compat` puts the
-  whole `src` on the path so new modules become visible without reinstalling).
+- **Install the domain package before developing**: `pip install packages/jobws-core`.
+  **Packaging must use a non-editable install** (`scripts/build_backend_exe.ps1` enforces
+  it) — a non-editable install's static module map cannot see **new files**, so moving a
+  module into the package without reinstalling gives a `ModuleNotFoundError`. For local
+  development `uv pip install -e packages/jobws-core --config-settings
+  editable_mode=compat` puts the whole `src` on the path, so new modules become visible
+  automatically.
 - **`jobws lint legacy-imports`**: legacy-name import sites are a **monotonically
   decreasing** budget (`tools/legacy_imports_allowlist.txt`); new code always uses
   `jobws_core`, and cleared names stay in `LEGACY_NAMES` as a firewall.

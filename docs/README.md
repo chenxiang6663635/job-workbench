@@ -48,7 +48,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **贡献入口（英文短索引，对齐 README 的 English-first）**：隐私红线、环境搭建、本地验证链、提交与 PR 规则、新需求四道门，并指向下面两份完整细则 |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | **贡献入口（英文短索引，对齐 README 的 English-first）**：隐私红线、环境搭建、本地验证链、提交与 PR 规则、新需求四道门，并指向下面的中文完整细则与英文伴读版 |
 | [`contributing.zh-CN.md`](contributing.zh-CN.md) | **完整中文细则（权威版）**：分支策略与双轨审查、提交规范、版本号体系、CHANGELOG 写法、发布流程与发布治理、可持续性约定、i18n 约定、代码卫生 |
 | [`contributing.en-US.md`](contributing.en-US.md) | **英文伴读版（两档承诺）**：贡献者必读节（定位、隐私、四道门、分支与 PR、提交规范、四端一致性、文案 i18n、代码卫生、明确不做、可持续性）与中文版同步；治理节（版本号体系、CHANGELOG 写法、发布流程与发布治理、AI 协作者、开发者工具）只给摘要——全文与决策史在中文版，任何冲突以中文版为准 |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（单文件两级制：白话「看得见的变化」+ 英文摘要 + 「技术细节」；格式基于 Keep a Changelog）；版本号唯一来源为 `web/electron/package.json` |

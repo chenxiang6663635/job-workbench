@@ -1,14 +1,7 @@
-import { useEffect, useState, type SyntheticEvent } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FolderOpen, HardDrive, Languages, Monitor } from "lucide-react";
+import { FolderOpen, HardDrive, Languages } from "lucide-react";
 import { LANGS } from "../i18n";
-import {
-  getPrefs,
-  hasDesktopPrefs,
-  onZoomChanged,
-  setZoomLevel,
-  type PrefsSnapshot,
-} from "../lib/prefs";
 import { api, type SystemPaths } from "../api";
 import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle } from "../components/ui/card";
@@ -18,6 +11,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import ThemePicker from "../components/ThemePicker";
 import DataPrivacyCard from "../components/settings/DataPrivacyCard";
+import ZoomCard from "../components/settings/ZoomCard";
 import AboutCard from "../components/settings/AboutCard";
 import ImapCard from "../components/settings/ImapCard";
 import ProviderCard from "../components/settings/ProviderCard";
@@ -49,31 +43,6 @@ export default function Settings() {
   const [group, setGroup] = useState<SettingsGroupId | "all">("all");
   const cards = visibleCardIds(query, group, modifiedCardIds(entries));
   const hide = (id: string) => cn(!cards.has(id) && "hidden");
-
-  // ---- 界面大小（桌面端偏好通道；浏览器里没有通道，降级为一句说明）----
-  // 级别真值在主进程（web/electron/main.js）：这里只是它的视图——拖动时预览、
-  // 松手时落盘，并按主进程的广播回填（用快捷键调完，滑块会跟着动）。
-  const [zoom, setZoom] = useState<PrefsSnapshot | null>(null);
-  const desktopPrefs = hasDesktopPrefs();
-
-  useEffect(() => {
-    let alive = true;
-    getPrefs()?.then((snap) => {
-      if (alive) setZoom(snap);
-    });
-    const off = onZoomChanged((payload) => {
-      if (alive) setZoom((s) => (s ? { ...s, level: payload.level, percent: payload.percent } : s));
-    });
-    return () => {
-      alive = false;
-      off();
-    };
-  }, []);
-
-  /** 松手落盘：鼠标/触摸/键盘三类结束路径与失焦都走它。 */
-  const commitZoom = (e: SyntheticEvent<HTMLInputElement>) => {
-    void setZoomLevel(Number((e.target as HTMLInputElement).value), true);
-  };
 
   // IMAP 卡已整块搬到 components/settings/ImapCard.tsx（邮箱配置批）：它的状态
   // （凭证草稿、脏标记、文件夹候选）只在那张卡里用得到，页面代持只会两头难读。
@@ -179,60 +148,10 @@ export default function Settings() {
             选择即生效（只改根属性）；「跟随系统」由 lib/theme 监听系统亮暗自动切换 */}
         <ThemePicker hidden={!cards.has("theme")} version={version} />
 
-        {/* 界面大小：与语言同为「设备级」偏好，紧挨着放。桌面端才有偏好通道——
-            浏览器直连时降级成一句说明，而不是把整张卡藏起来：藏起来会让人以为
-            功能不存在（那正是这次要修的那类「按了没反应」的老问题）。 */}
-        <Card className={cn("space-y-4 p-5", hide("zoom"))}>
-          <CardHeader className="p-0">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Monitor size={16} className="text-primary" /> {t("settings.zoomTitle")}
-            </CardTitle>
-          </CardHeader>
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t("settings.zoomDesc")}
-          </p>
-
-          {desktopPrefs ? (
-            zoom ? (
-              <>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={zoom.min}
-                    max={zoom.max}
-                    step={zoom.step}
-                    value={zoom.level}
-                    aria-label={t("settings.zoomTitle")}
-                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary"
-                    onChange={(e) => {
-                      // 拖动中只预览（persist=false，不落盘）：输入事件本身已按帧调度，
-                      // 不再叠一层节流。这里**不回写 IPC 返回值**——拖动很快时旧响应
-                      // 可能盖掉新位置（独立审查提的竞态）；百分比松手后由广播校正。
-                      const level = Number(e.target.value);
-                      setZoom((s) => (s ? { ...s, level } : s));
-                      void setZoomLevel(level, false);
-                    }}
-                    onPointerUp={commitZoom}
-                    onPointerCancel={commitZoom}
-                    onBlur={commitZoom}
-                    onKeyUp={commitZoom}
-                  />
-                  <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums font-numeric">
-                    {zoom.percent}%
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">{t("settings.zoomHint")}</p>
-              </>
-            ) : (
-              <Skeleton className="h-1.5 w-full" />
-            )
-          ) : (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {t("settings.zoomDesktopOnly")}
-            </p>
-          )}
-        </Card>
+        {/* 界面大小卡已拆到 components/settings/ZoomCard.tsx（收口批）：
+            拆出去的直接原因是 Settings.tsx 是登记过水位（旧 693，只许变小）的存量文件，
+            拆完跌破 300 阈值，按自洁规则同步删掉了 size_allowlist 的那一行 */}
+        <ZoomCard hidden={!cards.has("zoom")} />
 
         {/* 模型服务卡整块在 components/settings/ProviderCard.tsx（模型服务批）：
             服务商预设、默认模型、模型可点选都在那边，状态也由它自持。 */}

@@ -1,7 +1,7 @@
 # 决策：单一发布节点 + 时间戳版本号
 
 - 状态：已采纳（2026-09-15 起执行；2026-09-22 留档）
-- 相关：`CONTRIBUTING.md`（版本号体系与发布流程）、`ROADMAP.md`（Now 段的说明）、`tools/release_assist.py`、`.github/workflows/release.yml`
+- 相关：`docs/contributing.zh-CN.md`（版本号体系与发布流程）、`ROADMAP.md`（Now 段的说明）、`tools/release_assist.py`、`.github/workflows/release.yml`
 
 ## 背景
 

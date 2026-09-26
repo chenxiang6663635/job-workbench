@@ -21,7 +21,7 @@
 2. **只对必填列报错**：自检（`jobws track check`）只对必填列缺失报警；可选列缺失是正常状态。
 3. **版本不写进 CSV**：结构版本记在 `.schema.json` sidecar 里，不往用户表里塞版本列（那会变成用户看得见却看不懂的噪音）。
 4. **删除/改名列走过渡**：真要废弃某列或改名，先登记为 `Deprecated`（读时兼容），至少一个发布节点后才 `Removed`，并在 CHANGELOG 的「破坏性变更」里显式列出与给出迁移办法。
-5. **承诺写进正式文档**：这条承诺的对外表述在 [`../support-and-compatibility.md`](../support-and-compatibility.md)（毕业条件与支持策略）里，并由 README 中英的文档列表、`ROADMAP.md` 的 Graduation 段与 `CONTRIBUTING.md` 的发布流程交叉引用——不写在散文里，写在可被引用与被检查的位置。
+5. **承诺写进正式文档**：这条承诺的对外表述在 [`../support-and-compatibility.md`](../support-and-compatibility.md)（毕业条件与支持策略）里，并由 README 中英的文档列表、`ROADMAP.md` 的 Graduation 段与 `docs/contributing.zh-CN.md` 的发布流程交叉引用——不写在散文里，写在可被引用与被检查的位置。
 
 ## 已知边界
 

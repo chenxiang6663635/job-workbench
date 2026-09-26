@@ -2,7 +2,7 @@
 """构建期版本桥：把产品版本真值源写进本包的元数据。
 
 为什么要有 setup.py（而不是纯 pyproject）：版本真值源是
-`web/electron/package.json`（时间戳体系，见 CONTRIBUTING），而 setuptools 的
+`web/electron/package.json`（月粒度 CalVer，见 docs/contributing.zh-CN.md 的「版本号体系」），而 setuptools 的
 `[tool.setuptools.dynamic] version.attr` 只能 **AST 静态读取**字面量、不能执行
 `json.load`。构建期仓库一定在侧，故在这里读一次并交给 setuptools。
 

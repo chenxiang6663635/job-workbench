@@ -55,7 +55,7 @@ _CALVER = re.compile(r"^(\d{2})\.(1[0-2]|[1-9])\.(0|[1-9]\d*)$")
 
 
 def read_version():
-    """版本号唯一来源：web/electron/package.json（CONTRIBUTING 的规定）。
+    """版本号唯一来源：web/electron/package.json（docs/contributing.zh-CN.md 的规定）。
 
     任何换不到**非空字符串版本号**的形态（JSON 坏、键缺失、值不是字符串）统一
     抛 ValueError——入口层映射为退出码 2。旧实现 `["version"]` 直取：键缺失抛

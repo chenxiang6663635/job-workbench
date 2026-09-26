@@ -433,8 +433,8 @@ rejected in review (see the "governance rules" section of the matrix).
 - Run the verification (scripts / lint / tsc) before committing; never write "it should run"
   into a commit message.
 - **Local verification chain (the same as CI)**: `pip install -r
-  web/backend/requirements-dev.txt` → `python -m pytest tests/ -q` (**≈42s / 1455 cases**
-  (re-verified 2026-09-25: 1455 passed + 14 skipped; the 60 MCP-side cases in `mcp/tests/`
+  web/backend/requirements-dev.txt` → `python -m pytest tests/ -q` (**≈42s / 1455 cases — the latest re-check, i.e. the current
+  value** (2026-09-25: 1455 passed + 14 skipped; the 60 MCP-side cases in `mcp/tests/`
   run separately); check that the case count was not accidentally under-collected) →
   **before committing run `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**
   (the first three already run in CI; `size` is the size-budget gate added 2026-09-16 — when

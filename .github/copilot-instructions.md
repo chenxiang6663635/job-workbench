@@ -1,6 +1,6 @@
 # GitHub Copilot 仓库指引
 
-共享仓库规则（诚实红线、三层分离、工程约定）的**唯一事实源是根目录 `AGENTS.md`**，请先阅读并遵守；本文只做摘要，与 `AGENTS.md` 冲突时以其为准。开发流程见 `CONTRIBUTING.md`（含隐私约定）。
+共享仓库规则（诚实红线、三层分离、工程约定）的**唯一事实源是根目录 `AGENTS.md`**，请先阅读并遵守；本文只做摘要，与 `AGENTS.md` 冲突时以其为准。开发流程见 `docs/contributing.zh-CN.md`（完整中文细则，含隐私约定；英文细则 `docs/contributing.en-US.md`，短索引在根 `CONTRIBUTING.md`）。
 
 ## 摘要
 

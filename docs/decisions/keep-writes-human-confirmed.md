@@ -1,7 +1,7 @@
 # 决策：写入一律人工确认，不做自动投递与代登录
 
 - 状态：已采纳（2026-09-22）
-- 相关：`CONTRIBUTING.md`（写入两段式）、`docs/four-ends.md`（各端例外登记）、`skills/jwb-cli-contract`、`skills/jwb-api-review`
+- 相关：`docs/contributing.zh-CN.md`（写入两段式）、`docs/four-ends.md`（各端例外登记）、`skills/jwb-cli-contract`、`skills/jwb-api-review`
 
 ## 背景
 

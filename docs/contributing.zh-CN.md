@@ -78,7 +78,7 @@
 - `feat` / `fix` / `docs` / `chore` / `refactor` / `data` / `job`：**都不触发版本号变化**——时间戳体系下版本号按"发布当日"生成（见 §版本号体系），不再由提交类型推导。
 - 破坏性变更：`!` 后缀或正文 `BREAKING CHANGE:` 段；落地时写进该版 CHANGELOG 的「破坏性变更」小节（版本号本身不再表达破坏性）。
 - **数据操作与代码分开提交**：往工作区录入数据的提交用 `data:` / `job:` 前缀，不与功能提交混合
-- **语言：提交 subject 与 PR 标题一律中文，正文也用中文**。PR 标题在 squash 合并后会**直接成为主干上的提交 subject**，所以这两处是同一条规则的两半——只约定提交信息而漏掉 PR 标题，就会出现「作者本地提交是中文、合并进主干却变成英文」的混排（实证：PR #15 / #16 的英文标题以 `53e7b04` / `b774cce` 落进 main，夹在前后中文提交之间）。subject 与标题由钩子 + CI 机检（见 §提交流程）；**PR 正文不机检**——正文里必然有代码块、type 枚举与英文术语，机器判定只会做出一个被绕过或被抱怨的噪音闸，这部分靠双轨审查。issue / PR 模板里的英文表头是给外部反馈者的**填空提示**，不是正文语言要求；面向英文读者的 README / docs 英文版另论。
+- **语言：提交 subject 与 PR 标题一律中文，正文也用中文**（机器判定，不是风格偏好）。**不写中文的外部贡献者**：照开 PR 并在正文说明即可——本地 `commit-msg` 钩子会拒绝（用 `--no-verify` 提交并注明），CI 的 PR 标题闸也会红，两者都属预期；**维护者在合并前替其改名**（不要求对方去和机器人搏斗）。PR 标题在 squash 合并后会**直接成为主干上的提交 subject**，所以这两处是同一条规则的两半——只约定提交信息而漏掉 PR 标题，就会出现「作者本地提交是中文、合并进主干却变成英文」的混排（实证：PR #15 / #16 的英文标题以 `53e7b04` / `b774cce` 落进 main，夹在前后中文提交之间）。subject 与标题由钩子 + CI 机检（见 §提交流程）；**PR 正文不机检**——正文里必然有代码块、type 枚举与英文术语，机器判定只会做出一个被绕过或被抱怨的噪音闸，这部分靠双轨审查。issue / PR 模板里的英文表头是给外部反馈者的**填空提示**，不是正文语言要求；面向英文读者的 README / docs 英文版另论。
 - **合并方式**：`main` 开了 `required_linear_history`，所以只有 squash 与 rebase 两条路。**用 squash**——rebase 会把分支里每条提交的原始 subject 原样铺进主干，PR 标题那道闸就完全绕过了（本地 commit-msg 闸此时是唯一拦截点）。
 - **合完就删分支（两侧都删），别攒着**。2026-09-16 清账时发现本地积了 **26 个已合并分支**（远端也留着 8 个），根因是 squash 的副作用——**squash 会重写提交，分支与 `main` 的 ancestry 永远对不上**，于是 `git branch --merged main` 一个都认不出来，`git branch -d` 也会拒绝，看起来像「这些分支还有用」。实际上它们全部对应已合并的 PR。
   - **判据只有一条可信：PR 记录**（`merged: true`），不是 `--merged`、也不是 `git rev-list main..<branch>`。清账脚本 `tools/branch_audit.py` 走的就是这条（按分支名查 PR → 读 `merged`；无 PR 时才回退到「头部 subject 是否已在 main」）。**只报告、不删除**——它打印「可安全删除 / 需人工确认 / 保留」三组，删的动作由人决定：
@@ -170,7 +170,7 @@
 - 本文件与 [AGENTS.md](../AGENTS.md) 是互补关系：这里管"流程"，AGENTS.md 管"数据分层与诚实红线"，互不重复。
 - AI 修改代码时同样受四道门约束；发现走不到第三道门的需求，应建议降级为一次性脚本或 `personal/` 配置。
 - 提交前跑通验证（脚本 / lint / tsc），不把"应该能跑"写进提交信息。
-- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（**≈42s / 1455 条**（2026-09-25 复核：1455 通过 + 14 跳过；另有 mcp 侧 60 条在 `mcp/tests/` 单独跑）；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
+- **本地验证链（与 CI 同款）**：`pip install -r web/backend/requirements-dev.txt` → `python -m pytest tests/ -q`（**≈42s / 1455 条 —— 这是最近一次复核的当前值**（2026-09-25：1455 通过 + 14 跳过；另有 mcp 侧 60 条在 `mcp/tests/` 单独跑）；看用例数是不是被意外收集漏了）→ **提交前跑 `python tools/jobws.py lint {i18n,ui-tokens,themes,four-ends,size}`**（前三条 CI 已跑；`size` 是 2026-09-16 新增的规模预算闸门——超限先拆或登记进 `tools/size_allowlist.txt` 写清理由，别静默绕过；`four-ends` 是 2026-09-17 新增的四端一致性闸门，见下条）→ 前端 `npm run lint` + `npm run build`（Windows 用 `npm.cmd`）→ **改了纯逻辑（类名合并、格式化、回退分支）就把用例加进 `web/frontend/tests/unit/`**（`npm run test:unit`，Vitest；它刻意不引 jsdom、只收 `tests/unit/**`）→ **UI 改动加跑 `npm run test:ui`**（布局 + a11y 冒烟；需先 `npm run build` 产出 dist，且 demo 工作区存在：`python tools/jobws.py init --target demo --demo`）。
 - **测试规模与阈值（2026-09-20 起）**：三套测试**分别**计阈值，别只盯 pytest 总量（增速最快的其实是 e2e）。
   - 基线（2026-09-24 实测）：pytest **97 文件 / 1352 条（+10 跳过）/ 本机全量 ≈40s**（CI 里 pytest job 约 40s，**不在关键路径**）；vitest **22 文件 / 172 用例**（`web/frontend/tests/unit/`）；Playwright **17 spec / 115 用例**（**2026-09-25 拆级**：PR 上的 `ui-smoke` 只跑最小集 smoke + viewports + a11y + nav（`npm run test:ui:smoke`），全量 115 条在 push main 后的 `e2e-full` job 跑——不阻塞 PR、合并后即回归）；MCP **7 文件 / 61 条**（`mcp/tests/`，与 pytest 分开跑）。CI 各 job 的**耗时**数量级（会随用例数浮动，看 Actions 上的当次数字）：UI 冒烟（PR 最小集）~100s / **e2e-full（main push）~170s** / 后端 exe 冒烟 ~90s / 前端构建 ~30s / MCP ~24s / 领域包 ~14s。
   - **这些数字随批次变动**：上面几个是**实测快照**不是契约，改完代码以本地实跑为准；发现与文档差得远就顺手改这里（别把"应该跑多少条"写进去）。
@@ -252,7 +252,7 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 - **放行数据类命中**：登记进 `tools/i18n_hardcode_allowlist.txt`：`路径 = 片段1|片段2  # 理由`；**英文命中写在 `en:` 段**（`en:路径 = 片段  # 理由`）——两套豁免互不通用，写错段等于没写；前缀**必须小写**。同一文件可分多行登记（每行写自己的理由），解析时是**合并**。**只放行列出来的片段，不整文件放行**——整文件豁免曾让一个已翻译文件里藏的 4 处漏翻（列头、差异标签、按钮 tooltip）全绿通过。清单是"现状存档"：某句中文翻掉了、文件删了，必须同步删，否则脚本报「片段已不再出现 / 文件已无命中」（留着会给将来的同名中文预授权）。重新生成草稿：`python tools/jobws.py lint i18n --print-allowlist`，理由要人写。
 - **验证**：改动前端后跑 `npx tsc -b` + `npx eslint .`；`npm run build` 交给 CI（本地 vite 会重写 `dist/` 的数百个文件）。
 
-## 代码卫生（借鉴反屎山清单，精简为四人条款）
+## 代码卫生（借鉴反屎山清单，精简为六条）
 
 写代码时自查，PR 自审时复核：
 

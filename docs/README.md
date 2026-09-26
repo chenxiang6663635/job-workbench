@@ -15,8 +15,8 @@
 
 | 文档 | 状态 | 说明 |
 |---|---|---|
-| [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射。**注意**：文中「tools/ 下共 6 个脚本」等清单是 2026-08 的当时记录——脚本已归并为 `tools/jobws.py` 唯一入口，现状见 `CONTRIBUTING.md` |
-| [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | 历史（部分章节已被取代） | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录。**注意**：依赖版本与 Python 基线等章节是 2026-08 的当时记录（3.8 时代），现状以 `CONTRIBUTING.md` 与 `web/backend/requirements.txt` 为准 |
+| [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射。**注意**：文中「tools/ 下共 6 个脚本」等清单是 2026-08 的当时记录——脚本已归并为 `tools/jobws.py` 唯一入口，现状见 `contributing.zh-CN.md` |
+| [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | 历史（部分章节已被取代） | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录。**注意**：依赖版本与 Python 基线等章节是 2026-08 的当时记录（3.8 时代），现状以 `contributing.zh-CN.md` 与 `web/backend/requirements.txt` 为准 |
 | [`specs/2026-08-31-job-workbench-productization.md`](specs/2026-08-31-job-workbench-productization.md) | **现行** | 产品化三期路线（差异化点/架构/桌面壳/扩展）+ 一期与 P0+P1 完成记录 |
 | [`specs/2026-09-02-tracking-enhancement.md`](specs/2026-09-02-tracking-enhancement.md) | **现行** | 投递追踪增强：面试/联系人/Offer 独立 CSV、反编造护栏、时间线 |
 | [`specs/2026-09-02-resume-data-driven.md`](specs/2026-09-02-resume-data-driven.md) | **现行** | 简历数据驱动「标准版式」：JSON + 内置模板渲染 PDF + ATS 校验。**注意**：文中的 `resume_build.py render` 等旧命令现已只打印迁移提示并退出 2（现状：`python tools/jobws.py resume …`）；「Python 3.8 兼容」为当时基线（现为 3.12） |

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jobws-core"
 # 版本不写死在这里——它是**派生物**：由 setup.py 在构建期读
-# web/electron/package.json（产品版本唯一真值源，见 CONTRIBUTING 与
+# web/electron/package.json（产品版本唯一真值源，见 docs/contributing.zh-CN.md 与
 # tools/release_assist.py）后写入 wheel 元数据。运行时从
 # importlib.metadata 读回（jobws_core._version）。
 dynamic = ["version"]

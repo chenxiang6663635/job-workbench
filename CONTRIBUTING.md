@@ -27,7 +27,9 @@ guardrails exist because it is easy to leak it by accident:
   itself. **Found a vulnerability?** Use the private channel in [SECURITY.md](SECURITY.md) —
   no reproduction details in public issues.
 
-Details and the two-channel rule: [handbook §Privacy rules](docs/contributing.en-US.md).
+Details and the two-channel rule: [handbook](docs/contributing.en-US.md#privacy-rules-in-force-since-open-sourcing--read-before-contributing)
+· [中文（权威）](docs/contributing.zh-CN.md). What the app itself sends where (a different
+question from what you commit) is in [docs/data-flow-matrix.md](docs/data-flow-matrix.md).
 
 ## Set up
 
@@ -83,10 +85,14 @@ Walk through these before writing code — they filter out most ideas early:
 - **Conventional Commits**: `<type>(<scope>): <subject>`, types limited to
   `feat / fix / docs / chore / refactor / data / job`. Data entry goes in separate `data:` /
   `job:` commits.
-- **Subjects and PR titles are Chinese by convention** (the PR title becomes the trunk commit
-  subject after a squash merge). **If you do not write Chinese, open the PR anyway and say so
-  in the body** — the PR-title check will go red, that is expected, and the maintainer
-  retitles it before merging. Do not fight the bot.
+- **Subjects and PR titles must be Chinese** — this is machine-enforced, not a style
+  preference (the PR title becomes the trunk commit subject after a squash merge, and the
+  gate is the same implementation locally and in CI). **If you do not write Chinese, open
+  the PR anyway and say so in the body.** Expect two red things, both harmless: your local
+  commit is rejected by the `commit-msg` hook (**commit with `--no-verify`** and note it in
+  the PR body), and the PR-title check on CI goes red. The maintainer retitles before
+  merging — the obligation is recorded in the handbook (§Commit conventions). Do not fight
+  the bot.
 - **Everything goes through a PR** — `main` has branch protection, so even a typo fix does.
   Branch first (`git switch -c fix/123-something`), squash and merge, delete the branch.
 - **Every PR gets a dual-track review**: the author reads their own diff file by file and
@@ -100,13 +106,16 @@ Walk through these before writing code — they filter out most ideas early:
 
 | Topic | Read |
 |---|---|
-| Privacy rules, the four gates, review protocol | [handbook](docs/contributing.en-US.md) |
-| Branching, commits, squash rules, branch cleanup | [handbook §Branching](docs/contributing.en-US.md) |
-| Versioning (`YY.MM.N`) and the release process | [handbook §Versioning](docs/contributing.en-US.md) · [release checklist](docs/release-checklist.md) |
-| Release blocking list, freeze window | [handbook §Release governance](docs/contributing.en-US.md) |
-| Code hygiene (size budget, no silent errors, …) | [handbook §Code hygiene](docs/contributing.en-US.md) |
-| Copy and i18n rules | [handbook §Copy & i18n](docs/contributing.en-US.md) |
+| Privacy rules, the four gates, review protocol | [en](docs/contributing.en-US.md#privacy-rules-in-force-since-open-sourcing--read-before-contributing) · [中文（权威）](docs/contributing.zh-CN.md) |
+| Branching, commits, squash rules, branch cleanup | [en §Branching](docs/contributing.en-US.md#branching-strategy-tiered-prs--trunk-based) · [中文](docs/contributing.zh-CN.md) |
+| Commit & CHANGELOG writing rules | [en §Commit conventions](docs/contributing.en-US.md#commit-conventions-conventional-commits) · [en §CHANGELOG style](docs/contributing.en-US.md#changelog-style-single-file-two-levels-since-2026-09-20) |
+| Versioning (`YY.MM.N`) and the release process | [en §Versioning](docs/contributing.en-US.md#versioning-month-granularity-calver-yymmn-since-2026-09-24) · [en §Release process](docs/contributing.en-US.md#release-process-manual-archiving) · [release checklist](docs/release-checklist.md) |
+| Release blocking list, freeze window | [en §Release governance](docs/contributing.en-US.md#release-governance-blocking-list--freeze-window--tiered-verification) |
+| Code hygiene (size budget, no silent errors, …) | [en §Code hygiene](docs/contributing.en-US.md#code-hygiene-borrowed-from-an-anti-shit-mountain-checklist-trimmed-to-six-clauses) · [中文](docs/contributing.zh-CN.md) |
+| Copy and i18n rules | [en §Copy & i18n](docs/contributing.en-US.md#copy--i18n-ui-strings-always-go-through-t) |
 | Adding a capability (all four entrances) | [docs/four-ends.md](docs/four-ends.md) |
+| **What data leaves your machine** (the privacy promise) | [docs/data-flow-matrix.md](docs/data-flow-matrix.md) |
+| Graduation criteria, support, data compatibility | [docs/support-and-compatibility.md](docs/support-and-compatibility.md) |
 | Data layering, the honesty red lines | [AGENTS.md](AGENTS.md) |
 | Architecture, data and API contracts | [docs/README.md](docs/README.md) |
 

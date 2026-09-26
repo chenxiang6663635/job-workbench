@@ -7,10 +7,10 @@
 ## Self-check
 
 - [ ] `pytest tests/` passes (locally or via CI)
-- [ ] `python tools/jobws.py lint i18n / ui-tokens / themes / size` green (CI runs all four; `size` = size budget, stock files registered in `tools/size_allowlist.txt`)
+- [ ] `python tools/jobws.py lint i18n / ui-tokens / themes / four-ends / size` green (CI runs all five; `size` = size budget, stock files registered in `tools/size_allowlist.txt`; `four-ends` = the capability matrix and its docs page must agree)
 - [ ] Frontend changes: `npm run lint` + `npm run build` green; unit tests added/extended under `web/frontend/tests/unit/` where the change is pure logic (`npm run test:unit`)
 - [ ] UI changes: `npm run test:ui` passes (layout + a11y smoke; run `npm run build` first — it serves `dist`)
-- [ ] **No real personal data**: nothing from `personal/`, no real companies/jobs/names/phones/emails/schools in the diff, screenshots or examples (use `Sample Corp A`, `sample@example.com`)
+- [ ] **No real personal data**: nothing from `personal/`, no real companies/jobs/names/phones/emails/schools in the diff, screenshots or examples (use the placeholders the rest of the repo uses: `示例公司A`, `sample@example.com`, `13800000000`)
 - [ ] Honest red lines untouched (resume verbs may be questioned; knowledge gaps are never fabricated) - if touched, justify in the description
 - [ ] `tools/` changes stayed domain-agnostic (domain knowledge goes into profiles, personal facts stay in `personal/`)
 
@@ -24,7 +24,7 @@
 
 <!-- Bot dependency PRs (`dependabot[bot]`, patch/minor only) are exempt from Round 2 —
      author self-review + the four CI checks are the gate. Major bumps are NOT exempt.
-     See CONTRIBUTING.md §分支策略 → 「例外（机器人依赖 PR）」. -->
+     See docs/contributing.zh-CN.md「分支策略」→「例外（机器人依赖 PR）」. -->
 
 
 ## Verification *

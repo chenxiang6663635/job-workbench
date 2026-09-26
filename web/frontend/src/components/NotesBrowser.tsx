@@ -34,6 +34,10 @@ import { Skeleton } from "./ui/skeleton";
 
 export default function NotesBrowser() {
   const { t } = useTranslation();
+  // 工作区名只在挂载时取一次（readWorkspace 读 localStorage 的选中记录）。
+  // **正确性依赖**：内容区被 workspaceReady 门控（App.tsx），而 useBackendBoot 会在
+  // 回退默认时把失效的选中值写回——写回在前、挂载在后，这里才读得到收敛后的值。
+  // 若将来去掉那层门控、或把写回挪到更晚，这里（NotesReader 同款）会静默读到旧值。
   const ws = useMemo(readWorkspace, []);
   // 三个输入态都从 sessionStorage 起步（A-6）：切页签会**卸载**本组件（Radix Tabs
   // 不 forceMount），不记住的话"去宣讲会看一眼再回来"就把搜索结果全清空了。

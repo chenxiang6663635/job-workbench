@@ -25,10 +25,12 @@
 ### Highlights (English)
 
 - **A due-reminder bar on every page (2026-09-26)** — opening the app now shows what is due today at the top of the content area: overdue items, to-dos inside your reminder window, and talks in the next 7 days. Each count is a link to the page that handles it; the bar stays out of the way when nothing is due.
+- **"External changes stopped refreshing" fixed (2026-09-26)** — if you had deleted a workspace, or moved between the repo-based dev setup and the installed app (they use different data roots), the auto-refresh that picks up changes written from the CLI / AI host failed silently (a hidden 404 every 10 s). The poller now reads the same workspace the UI shows, and a stale saved value is corrected automatically.
 
 ### 看得见的变化
 
 - **内容区顶部多了「到点提醒」条（2026-09-26）**：打开应用就能看到今天有什么——已过期几条、近 N 天有几条待办、近 7 天有几场宣讲会，点一下跳到对应的页面去处理（#221）。没有到点事项时整条不出现。
+- **修好「外部改动不再自动刷新」的静默失效（2026-09-26）**：你在命令行 / AI 宿主里改完数据切回应用，界面本该自动刷新——但如果你曾删过某个工作区、或从「仓库里跑」切到「安装版」（两者数据目录不同），这条感知会**静默失效**（后台每 10 秒一次 404，界面毫无提示）。现在轮询与界面读的是同一个工作区，失效的选中值也会被自动修正（#222）。
 
 ### 技术细节
 
@@ -36,6 +38,7 @@
 
 > 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
 
+- **当前工作区读数口收一（2026-09-26，#222）**：`lib/http.ts` 新增 `getCurrentWorkspace()`（已激活工作区的显式读数口——ESM live binding 依赖打包器行为，函数把"要此刻的值"写成契约）；指纹轮询从"每次读 localStorage 的选中记录"改为读它；`api.ts` 删掉无人消费的 `currentWorkspace` 再导出。写回边界同时收口：只在确实修正了**非空**的失效选中值时才写回（空串语义是"跟随后端默认"，写回会把"跟随"钉成"记住"）。
 - **提醒判据收一处（2026-09-26，#221）**：`upcoming_todos` / `upcoming_talks` / `overdue_pending` 从 `routers/dashboard.py` 搬进中立的 `web/backend/remind.py`，看板与系统通知端点共用——此前是「通知跨模块读看板的私有名」，依赖方向倒挂。纯搬运、零行为变化（`test_reminders_api` / `test_dashboard_talks` 12 passed）；`dashboard.py` 275→214 行。
 - **设置页界面大小卡拆出（2026-09-26，#221）**：`Settings.tsx` 352→232 行，跌破 300 阈值 → `tools/size_allowlist.txt` 登记行按自洁规则删除；同时登记 `i18n/locales/zh-CN.ts` 的贴线变动（提醒条 7 键，1500→1509——它是双语键集的源语言单一真源，拆文件会破坏 `en.ts` 的编译期键集对齐，减债方向写进登记理由）。
 

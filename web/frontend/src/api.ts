@@ -29,7 +29,7 @@ function resumeOptQuery(opts?: ResumeRenderOpts): string {
 
 // 全局工作区状态与 HTTP 请求封装已迁 `lib/http.ts`（H-1：api.ts / lib/bank.ts /
 // lib/drill.ts / lib/records.ts 四处副本合一）。这里再导出，既有 import 方零改动。
-export { currentWorkspace, setWorkspace };
+export { setWorkspace };
 
 export const api = {
   dashboard: () => request<DashboardData>("/dashboard"),

@@ -20,6 +20,7 @@
 // - **仅在"指纹变化 且 近 3s 无指针/键盘活动"时回调**；
 // - 网络错误不吞：首次失败给一条 console.warn（禁静默吞错是本仓纪律），之后静默重试。
 import { useEffect, useRef } from "react";
+import { getCurrentWorkspace } from "../lib/http";
 
 const POLL_MS = 10_000;
 // 宽限期**必须明显小于轮询间隔**（2026-09-23 二轮审查）：两者相等时，用户只要在
@@ -28,15 +29,20 @@ const POLL_MS = 10_000;
 // 界面停在旧值直到下一次外部改动。取 3s：足够覆盖本端的防抖保存（百毫秒级），
 // 又不会吃掉整整一个轮询周期的外部变化。
 const ACTIVITY_GRACE_MS = 3_000;
-const WS_STORAGE_KEY = "jobws_selected_workspace";
 
+/**
+ * 用**已激活**的工作区拼查询串（不是 localStorage 里"上次选中的名字"）。
+ *
+ * 2026-09-26 修掉的缺陷：此前这里直接读 localStorage，而 useBackendBoot 在
+ * 「选中值已失效（工作区被删 / 换了数据根，如 dev 栈与安装版数据根不同）」时
+ * **只在内存里**回退到默认工作区——两边一分叉，这个轮询就永远在问一个不存在的
+ * 工作区：每 10s 一次 404，「外部改动感知」（CLI / MCP 写完切回 GUI 自动刷新）
+ * 整条失效，且只在控制台留一条 warn，界面毫无提示。改用激活值后，轮询对象与
+ * 界面显示的工作区必然一致。
+ */
 function currentWorkspaceQuery(): string {
-  try {
-    const name = localStorage.getItem(WS_STORAGE_KEY) ?? "";
-    return name ? `?ws=${encodeURIComponent(name)}` : "";
-  } catch {
-    return "";
-  }
+  const name = getCurrentWorkspace();
+  return name ? `?ws=${encodeURIComponent(name)}` : "";
 }
 
 async function fetchFingerprint(): Promise<string> {

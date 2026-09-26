@@ -25,10 +25,12 @@
 ### Highlights (English)
 
 - **A due-reminder bar on every page (2026-09-26)** — opening the app now shows what is due today at the top of the content area: overdue items, to-dos inside your reminder window, and talks in the next 7 days. Each count is a link to the page that handles it; the bar stays out of the way when nothing is due.
+- **"External changes stopped refreshing" fixed (2026-09-26)** — if you had deleted a workspace, or moved between the repo-based dev setup and the installed app (they use different data roots), the auto-refresh that picks up changes written from the CLI / AI host failed silently (a hidden 404 every 10 s). The poller now reads the same workspace the UI shows, and a stale saved value is corrected automatically.
 
 ### 看得见的变化
 
 - **内容区顶部多了「到点提醒」条（2026-09-26）**：打开应用就能看到今天有什么——已过期几条、近 N 天有几条待办、近 7 天有几场宣讲会，点一下跳到对应的页面去处理（#221）。没有到点事项时整条不出现。
+- **修好「外部改动不再自动刷新」的静默失效（2026-09-26）**：你在命令行 / AI 宿主里改完数据切回应用，界面本该自动刷新——但如果你曾删过某个工作区、或从「仓库里跑」切到「安装版」（两者数据目录不同），这条感知会**静默失效**（后台每 10 秒一次 404，界面毫无提示）。现在轮询与界面读的是同一个工作区，失效的选中值也会被自动修正（#222）。
 
 ### 技术细节
 

@@ -50,6 +50,16 @@ export function useBackendBoot() {
           if (def) {
             setCurrentWs(def.name);
             setWorkspace(def.name);
+            // 回退到默认时**写回 localStorage**（2026-09-26 修复）：选中值失效
+            // （工作区被删 / 换了数据根）时原先只在内存里回退，localStorage 里的
+            // 旧名会被所有"直接读它"的地方继续拿去用（notes.ts 也读同一个键），
+            // 曾导致指纹轮询每 10s 一次 404、外部改动感知失效；写回之后这类读数
+            // 与界面一致。
+            try {
+              localStorage.setItem(WS_STORAGE_KEY, def.name);
+            } catch {
+              // localStorage 不可用时退化为仅本次会话有效（与 switchWorkspace 同）
+            }
           }
         }
         setWorkspaceReady(true);

@@ -2,7 +2,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setWorkspace as setWorkspaceViaApi } from "../../src/api";
-import { humanizeError, requestJson, setWorkspace } from "../../src/lib/http";
+import {
+  getCurrentWorkspace,
+  humanizeError,
+  requestJson,
+  setWorkspace,
+} from "../../src/lib/http";
 
 /**
  * H-1 批（前端 HTTP 单一实现）的守卫网：此前 request / humanize / ws 自检在
@@ -71,6 +76,16 @@ describe("humanizeError（错误本地化）", () => {
     const msg = humanizeError("   ", 502);
     expect(msg).toBe("【api.requestFailed】");
     expect(mocks.t).toHaveBeenCalledWith("api.requestFailed", { status: 502 });
+  });
+});
+
+describe("getCurrentWorkspace（当前激活工作区的唯一读数口）", () => {
+  it("setWorkspace 后读到最新值；清空回到空串（beforeEach 保证起点是空）", () => {
+    expect(getCurrentWorkspace()).toBe("");
+    setWorkspace("personal");
+    expect(getCurrentWorkspace()).toBe("personal");
+    setWorkspace("");
+    expect(getCurrentWorkspace()).toBe("");
   });
 });
 

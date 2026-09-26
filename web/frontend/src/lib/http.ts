@@ -14,6 +14,18 @@ export function setWorkspace(ws: string) {
   // 无桌面通道时 reportWorkspace 是空操作，浏览器形态零影响。
   reportWorkspace(ws);
 }
+/**
+ * 当前**已激活**的工作区（空串 = 未激活，用后端默认）。
+ *
+ * 为什么要函数而不只是读导出的 `let`：ESM 的 live binding 依赖打包器行为
+ * （vite 保持，被转成 CJS 就成了快照值）。函数把"要此刻的值"写成显式契约，
+ * 调用点也读得懂语义。**要当前工作区的新代码都走它**——不要再去读 localStorage
+ * 里那个"上次选中的名字"：两者会分叉（选中值可能已被删掉 / 换了数据根），
+ * 分叉的后果见 useWorkspaceSync 里 2026-09-26 修掉的 404 事故。
+ */
+export function getCurrentWorkspace(): string {
+  return currentWorkspace;
+}
 
 // 统一在工作区激活时给路径附加 ?ws=。库中 API 在 Web 场景必须显式传 workspace
 // （tools/ 模块级 WORKSPACE 全局在并发下会互相覆盖），因此所有请求都带 ws。

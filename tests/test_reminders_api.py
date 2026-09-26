@@ -5,7 +5,7 @@
 通知。它需要的是一份小、快、只读的答复——而不是把整个看板（漏斗、健康度、最近动作）
 拉一遍。
 
-判定全部复用看板那三个 helper（`_upcoming_todos` / `_upcoming_talks` / `_overdue_pending`）：
+判定全部来自中立模块 `web/backend/remind.py`（看板与通知共用，本批从 dashboard 搬出）：
 "什么算到点"只能有一处定义，否则通知说今天到期、看板说没有，用户只能信一个。
 """
 

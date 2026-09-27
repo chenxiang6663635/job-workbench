@@ -38,7 +38,7 @@
 
 > 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
 
-- **发布验证记录制度 + 对外文案收口（2026-09-26）**：① 新增 `docs/releases/`——每版发布后归档一份《发布验证记录》（资产哈希 / CI 门禁 / 真机项 / 发布后核验），首份为 `26.9.0-verification.md`；发布流程同步加「归档发布验证记录」步骤（清单是操作单、会被下一版重置，这里是永久历史）。② 对外文案收口（对齐 `docs/data-flow-matrix.md` 的权威口径）：README 中英、`SECURITY.md`、`docs/support-and-compatibility.md` 里的绝对句（`never leaves your machine` / `no uploads` / `不上传任何数据`）改为与真实数据流一致的表述。
+- **发布验证记录制度 + 对外文案收口（2026-09-26，#223）**：① 新增 `docs/releases/`——每版发布后归档一份《发布验证记录》（tag / commit / workflow run / 资产哈希 / CI 门禁 / 真机项 / 发布后核验），首份为 `26.9.0-verification.md`；发布流程同步加「归档发布验证记录」步骤（清单是操作单、会被下一版重置，这里是永久历史）。② 对外文案收口（对齐 `docs/data-flow-matrix.md` 的权威口径）：README 中英、`SECURITY.md`、`docs/support-and-compatibility.md` 里的绝对句（`never leaves your machine` / `no uploads` / `不上传任何数据`）改为与真实数据流一致的表述。
 
 - **当前工作区读数口收一（2026-09-26，#222）**：`lib/http.ts` 新增 `getCurrentWorkspace()`（已激活工作区的显式读数口——ESM live binding 依赖打包器行为，函数把"要此刻的值"写成契约）；指纹轮询从"每次读 localStorage 的选中记录"改为读它；`api.ts` 删掉无人消费的 `currentWorkspace` 再导出。写回边界同时收口：只在确实修正了**非空**的失效选中值时才写回（空串语义是"跟随后端默认"，写回会把"跟随"钉成"记住"）。
 - **提醒判据收一处（2026-09-26，#221）**：`upcoming_todos` / `upcoming_talks` / `overdue_pending` 从 `routers/dashboard.py` 搬进中立的 `web/backend/remind.py`，看板与系统通知端点共用——此前是「通知跨模块读看板的私有名」，依赖方向倒挂。纯搬运、零行为变化（`test_reminders_api` / `test_dashboard_talks` 12 passed）；`dashboard.py` 275→214 行。

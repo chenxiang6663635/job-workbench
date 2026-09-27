@@ -260,7 +260,7 @@ by "written for humans to read":
 > [release-checklist.md](release-checklist.md); the authoritative full text is
 > [contributing.zh-CN.md](contributing.zh-CN.md) §发布流程.*
 
-Tag from `main`, never release from a branch (**a single release point**). The six steps, in
+Tag from `main`, never release from a branch (**a single release point**). The seven steps, in
 order:
 
 1. **Manual smoke** (CI has already run the full automated suite; a manual smoke is not
@@ -278,6 +278,10 @@ order:
    version comparison) — once it passes, `git tag -a v<version> -m "..."` and push.
 6. After release, verify with `gh release view --json assets` and **download the artefact
    once for real**.
+7. **Archive a release verification record**: create `docs/releases/<version>-verification.md`
+   (copy the skeleton from `docs/releases/26.9.0-verification.md`) — tag / commit / workflow
+   run / asset hashes / on-machine items / post-release checks. The checklist is a reusable
+   operation sheet (reset each release); `docs/releases/` is the append-only history.
 
 **Hotfix**: fix-forward — a `fix/` branch through a PR into `main`, released with the third
 segment bumped; never branch a hotfix off an old tag. **Withdrawing a bad release**:

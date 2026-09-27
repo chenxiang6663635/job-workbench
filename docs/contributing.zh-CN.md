@@ -130,6 +130,7 @@
 4. **打 tag 前本地预检**：`python tools/jobws.py release check --tag v26.9.0`——校验 tag 与版本**逐字相等**、CHANGELOG 有该版本段，并预览将发布的 Release 说明（与 CI 同一实现；红着就别打 tag）。
 5. **dry_run 演练**：`gh workflow run release.yml -f dry_run=true -f tag=v<版本号>`（产出 exe + `latest.yml` 与说明，不碰 Release；`tag` 输入用于校验 CHANGELOG 段与版本比对——**需在第 3 步落章之后跑**）→ 通过后再 `git tag -a v<版本号> -m "..."` 并推送。
 6. 发布后核验 `gh release view --json assets`（安装包 + `latest.yml` 都在）并**真下载一次**；构建产物按发布号归档到仓库外目录（产物已被 .gitignore 排除）。
+7. **归档发布验证记录**：新建 `docs/releases/<版本>-verification.md`（骨架照 `docs/releases/26.9.0-verification.md`）——tag / commit / workflow run / 资产哈希 / 真机项 / 发布后核验。`docs/release-checklist.md` 是可复用的操作单（会被下一版重置），`docs/releases/` 是每版一份的**不重写历史**。
 
 **hotfix**：fix-forward——开 `fix/` 分支走 PR 合入 `main`，再取当月号发布（**锁前两位只动第三位**，N 递增；换月重新从 0 起）。**不**从旧 tag 拉 hotfix 分支。
 **撤回坏版本**：用**更高**版本号重发（当月 N 递增即可）；重发同名版本无效——electron-updater 不会接受相同或更低的号覆盖（详见 `docs/release-checklist.md` 的 RUNBOOK）。

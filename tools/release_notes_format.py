@@ -26,14 +26,17 @@ def structure_notes(notes, version):
 
     其余小节（Highlights (English) / 看得见的变化）保持原样——它们就是页面
     的主体；段里没有「### 技术细节」时（如极小版本），折叠是空操作。
+    空输入原样返回（纯函数契约；调用方由 find_section 保证非空，防御直调）。
     """
+    if not notes.strip():
+        return notes
     lines = notes.splitlines()
     head, rest = lines[0], lines[1:]
 
     download = [
         "## 下载（Windows 安装包）",
         "",
-        "**`%s`** —— 在本页下方 **Assets** 区（点 Show all 展开）。"
+        "**`%s`** —— 在本页下方 **Assets** 区。"
         % _ASSET_NAME.format(version=version),
         "附：`latest.yml`（自动更新元数据）· `SHA256SUMS.txt`（完整性核对）· "
         "`.blockmap`（增量更新）。",
@@ -47,7 +50,7 @@ def structure_notes(notes, version):
         if not folding and line.startswith("### 技术细节"):
             folding = True
             out.append("<details>")
-            out.append("<summary><b>技术细节（内部工程 / 依赖与构建）</b></summary>")
+            out.append("<summary><b>技术细节（内部工程 · 依赖 · 逐项变更记录）</b></summary>")
             out.append("")
             out.append(line)
             continue

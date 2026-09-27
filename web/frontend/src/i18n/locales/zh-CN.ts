@@ -25,7 +25,7 @@ const zhCN = {
   "status.online": "已连接",
   "status.offline": "后端未启动",
   // 顶栏状态点只有一格宽：短标签 + 完整语义放 title（悬停可见，读屏也能读到）
-  "status.localDataHint": "已连接本地工作区：数据保存在本机、无遥测——联网功能仅访问你启用的服务",
+  "status.localDataHint": "已连接本地工作区：数据保存在本机、无遥测——联网功能只访问你启用的服务，另有一次启动后的更新检查（仅版本与平台，发往 GitHub）",
   "error.backend": "无法连接到后端（localhost:8765）",
   "error.backendHint": "请在仓库根目录运行：",
   "error.renderFailed": "页面渲染出错",
@@ -650,14 +650,14 @@ const zhCN = {
   "mailProvider.unsupportedOutlook": "Outlook / Hotmail 个人账号自 2024-09-16 起停用基本认证（第三方 IMAP 必须走 OAuth2）。本工作台目前只有「用户名 + 授权码」，所以这个邮箱暂时连不上——别耗在这里，换成上面任一服务商，或用企业邮箱的授权码试试。",
   "settings.imapEmailRequired": "请填写邮箱地址（授权码与服务器都围绕它工作）",
   "settings.imapPortRange": "端口需在 1–65535 之间",
-  "settings.imapSaved": "IMAP 配置已保存（授权码只存本机 config/imap.json）",
+  "settings.imapSaved": "IMAP 配置已保存（授权码以明文存于本机 config/imap.json，不进入导出 / 快照 / 诊断包；能读取你用户目录的程序也能读取它）",
   // 后端也返回同一句 note（响应契约保留），但展示由前端负责——界面语言该由渲染方
   // 决定；整句连括号一起放进 key，英文里全角括号会很怪
   "settings.imapTestResult_one": "只读连接成功；本次测试没有读取、修改或删除任何邮件。（{{server}} · {{folder}}，共 {{count}} 封）",
   "settings.imapTestResult_other": "只读连接成功；本次测试没有读取、修改或删除任何邮件。（{{server}} · {{folder}}，共 {{count}} 封）",
 
   "settings.privacy": "数据与隐私",
-  "settings.privacyDesc": "工作区数据保存在本机、无遥测。联网功能（AI 改写 / 邮箱拉取 / 岗位抓取 / 更新检查）只访问你启用的对应服务，且只发送你确认提交的那部分内容。文件就是数据库——你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。",
+  "settings.privacyDesc": "工作区数据保存在本机、无遥测。联网功能（AI 改写 / AI 邮件解析 / 邮箱拉取 / 岗位抓取）只在你主动使用时才发送对应内容、且只访问你启用的服务；桌面版启动后另有一次仅含版本与平台信息的更新检查（发往 GitHub 本仓库）。文件就是数据库——你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。",
   "settings.exportNotice": "导出包含你的真实简历与个人信息，请妥善保管导出的 zip。",
   "settings.exportZip": "导出整包 zip",
   "settings.backupNow": "立即备份",
@@ -706,7 +706,7 @@ const zhCN = {
   "settings.snapshotDir": "快照位置：",
   "settings.workspace": "工作区：",
   "settings.neverBackup": "从未备份",
-  "settings.snapshotNote": "快照刻意存放在工作区之外——与源数据同盘同目录的备份会被误删、被 git、被同步工具一并波及。导出包含简历与个人信息，不含应用外的快照。",
+  "settings.snapshotNote": "快照刻意存放在工作区之外——与源数据同盘同目录的备份会被误删、被 git、被同步工具一并波及。它在工作区之外（系统用户目录）：防误删 / 回滚可靠、默认与数据同盘，便携 / 自定义数据目录下也可能落在另一块盘——但都不构成异地容灾，挡不住硬盘损坏或整个数据目录被删；要防这类情况，请定期用「导出」把整包存到另一块盘 / NAS / 云盘。（导出包含简历与个人信息，不含应用外的快照。）",
   // 快照还原与演练（收口批 笔 2）：演练只读、还原不删东西、先落回滚点——文案按这三条写
   "settings.snapshotListTitle": "可还原的快照",
   "settings.snapshotEmpty": "还没有快照——先点上方「立即备份」，之后就能在这里演练与还原。",
@@ -745,7 +745,7 @@ const zhCN = {
   "settings.aboutVersion": "版本",
   "settings.aboutPlatform": "运行平台",
   "settings.aboutUnknown": "未知",
-  "settings.aboutNote": "本地优先、无遥测——数据与版本信息都保存在本机；联网功能仅访问你启用的服务。",
+  "settings.aboutNote": "本地优先、无遥测——数据保存在本机；联网功能只访问你启用的服务，另有一次启动后的更新检查（仅版本与平台，发往 GitHub）。",
   "settings.aboutDocs": "打开使用手册（GitHub · docs/usage-guide）",
   "settings.openLogs": "打开日志文件夹",
 

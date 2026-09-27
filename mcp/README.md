@@ -1,7 +1,8 @@
 # jobws-mcp
 
 求职工作台（job-workbench）的 MCP 服务。本地优先：读本机工作区的
-Markdown / CSV，不出网。**默认只读**；写入走**两段式**——`preview_*` 只给
+Markdown / CSV，**服务自身不出网**（宿主拿到返回内容后可能按其隐私策略发送给模型服务——见
+[`../docs/data-flow-matrix.md`](../docs/data-flow-matrix.md) 的「MCP 服务与 AI 宿主边界」）。**默认只读**；写入走**两段式**——`preview_*` 只给
 令牌与差异（不落盘），用户确认后 `apply_approval` 才真正写入。
 
 ## 提供的工具

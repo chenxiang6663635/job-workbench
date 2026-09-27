@@ -28,7 +28,7 @@ export default {
   // 顶栏只有一格宽：短标签 + 完整语义放 title（见 status.localDataHint）
   "status.online": "Connected",
   "status.offline": "Backend offline",
-  "status.localDataHint": "Local workspace connected — data stays on this machine; no telemetry. Online features only reach the services you enable",
+  "status.localDataHint": "Local workspace connected — data stays on this machine; no telemetry. Online features only reach the services you enable, plus one startup update check (version and platform only, to GitHub)",
   "error.backend": "Cannot connect to the backend (localhost:8765)",
   "error.backendHint": "Run from the repository root:",
   "error.renderFailed": "Something went wrong rendering this page",
@@ -611,12 +611,12 @@ export default {
   "mailProvider.unsupportedOutlook": "Personal Outlook / Hotmail accounts stopped accepting basic auth on 2024-09-16 (third-party IMAP now requires OAuth2). This workbench only supports username + app password, so this mailbox cannot connect yet — pick one of the providers above, or try your work mailbox’s authorization code.",
   "settings.imapEmailRequired": "Enter an email address (the app password and server both resolve from it)",
   "settings.imapPortRange": "Port must be between 1 and 65535",
-  "settings.imapSaved": "IMAP configuration saved (app password stored locally in config/imap.json)",
+  "settings.imapSaved": "IMAP configuration saved (the app password is stored in plain text in config/imap.json — excluded from exports, snapshots and diagnostics; any program that can read your user profile can read it)",
   "settings.imapTestResult_one": "Read-only connection succeeded; this test did not read, modify or delete any message. ({{server}} · {{folder}}, {{count}} message)",
   "settings.imapTestResult_other": "Read-only connection succeeded; this test did not read, modify or delete any message. ({{server}} · {{folder}}, {{count}} messages)",
 
   "settings.privacy": "Data & privacy",
-  "settings.privacyDesc": "Workspace data stays on this machine, with no telemetry. Online features (AI rewrite, mail fetch, job posting fetch, update check) only call the services you enable — and only the content you confirm is sent. The files are the database: open them in any editor, or export the whole bundle and leave this app for good.",
+  "settings.privacyDesc": "Workspace data stays on this machine, with no telemetry. Online features (AI rewrite, AI mail parsing, mail fetch, job posting fetch) send content only when you actively use them, and only to the services you enable; the desktop app also makes one update check at startup (version and platform only, to GitHub). The files are the database: open them in any editor, or export the whole bundle and leave this app for good.",
   "settings.exportNotice": "The export contains your real résumé and personal details — keep the zip safe.",
   "settings.exportZip": "Export everything (zip)",
   "settings.backupNow": "Back up now",
@@ -665,7 +665,7 @@ export default {
   "settings.snapshotDir": "Snapshot location: ",
   "settings.workspace": "Workspace: ",
   "settings.neverBackup": "never",
-  "settings.snapshotNote": "Snapshots are deliberately kept outside the workspace — a backup sitting beside its source gets deleted by mistake, swept into git, or caught by sync tools. The export holds your résumé and personal data, not the snapshots outside the app.",
+  "settings.snapshotNote": "Snapshots are deliberately kept outside the workspace — a backup sitting beside its source gets deleted by mistake, swept into git, or caught by sync tools. They live outside the workspace, in your system user folder: reliable against accidental deletion and for rollbacks, on the same disk by default — though with a portable setup or a custom data directory they can land on another disk. Either way it is not off-site backup: it will not survive disk failure or the whole data folder being lost — for that, export the bundle regularly to another disk / NAS / cloud drive. (The export holds your résumé and personal data, not the snapshots outside the app.)",
   // Snapshot restore and drill (batch 2): the drill is read-only, restore never deletes,
   // and a rollback point is written first — the copy says exactly that.
   "settings.snapshotListTitle": "Restorable snapshots",
@@ -704,7 +704,7 @@ export default {
   "settings.aboutVersion": "Version",
   "settings.aboutPlatform": "Platform",
   "settings.aboutUnknown": "Unknown",
-  "settings.aboutNote": "Local-first, no telemetry — your data and version info stay on this machine; online features only call the services you enable.",
+  "settings.aboutNote": "Local-first, no telemetry — your data stays on this machine; online features only call the services you enable, plus one startup update check (version and platform only, to GitHub).",
   "settings.aboutDocs": "Open the usage guide (GitHub · docs/usage-guide)",
   "settings.openLogs": "Open log folder",
 

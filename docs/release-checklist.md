@@ -64,7 +64,7 @@
 
 ### 26.9.1 候选（首发后立即做）
 
-- [ ] **桌面图标**：`web/electron/package.json` 的 `build.nsis.createDesktopShortcut` 现为 `false`，装完只有开始菜单项、没有桌面图标——首发真机复验时第一个撞上的就是这个（找不到入口）。改为 `true`；改完要走一次 `dry_run` 演练确认快捷方式生成（**触发理由**：真实用户首用即受阻，不是审美问题）。
+- [x] **桌面图标**：`web/electron/package.json` 的 `build.nsis.createDesktopShortcut` 已随 26.9.1 收口批改为 `true`（#218，配置层完成）——**剩：dry_run / 真机确认桌面快捷方式生成**（发布时验证）。
 
 ### 长期
 

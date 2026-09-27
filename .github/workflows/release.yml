@@ -548,7 +548,7 @@ jobs:
           if (-not $existing) {
             Write-Host "Release $($env:TAG) 不存在，创建 draft（先完整、再公开）"
             gh release create $env:TAG --draft --title $env:TAG --notes-file release-notes.md
-            if ($LASTEXITCODE -ne 0) { throw "创建 Release 失败（exit $LASTEXITCODE）" }
+            if ($LASTEXITCODE -ne 0) { throw "创建 Release 失败（exit $LASTEXITCODE）——若提示 Release 已存在，可能是刚才 view 的瞬时失败；重跑本 job 会走 draft 续传" }
           } else {
             Write-Host "Release $($env:TAG) 已存在且为 draft，继续补传"
             gh release edit $env:TAG --notes-file release-notes.md

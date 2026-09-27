@@ -18,12 +18,14 @@ test("进展 · 邮件：删除走预览弹窗、Cancel 不落盘", async ({ pag
   await page.getByRole("tab", { name: "Emails" }).click();
   const panel = page.getByRole("tabpanel");
   await expect(panel).toBeVisible();
-  // 数据是异步拉的：等第一段真实内容出现（骨架是纯 div，不匹配这些）
-  await expect(panel.locator("input, table, li, p").first()).toBeVisible({
-    timeout: 10_000,
-  });
 
   const rows = panel.getByRole("button", { name: "Delete record" });
+  // 数据是异步拉的：**直接等目标元素本身**（第一行的删除按钮），而不是等
+  // 「任意 input/table/li/p 可见」——那个条件会被「6 emails」计数段落满足，
+  // 而此刻邮件卡片（含删除按钮）可能尚未渲染，count() 就会拿到 0
+  // （#224 记录的互位 flaky 根因：计数发生在列表渲染完成之前）。
+  // 假设钉住：列表为单次渲染——若未来改分批/虚拟渲染，count 会偏小、toHaveCount 会翻红。
+  await expect(rows.first()).toBeVisible({ timeout: 10_000 });
   const before = await rows.count();
   expect(before).toBeGreaterThan(0);
 

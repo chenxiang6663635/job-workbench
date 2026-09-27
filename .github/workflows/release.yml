@@ -509,7 +509,9 @@ jobs:
           name: release-payload
 
       # 用 gh（runner 预装、第一方）而不是第三方 release action：少一个供应链依赖。
-      # --clobber 让同一 tag 可以重跑；Release 已存在时只更新说明与资产，不重复创建。
+      # 发布语义（2026-09-27，#226）：先完整再公开（draft→上传→核验→publish）、
+      # 公开即不可变（已 publish 的 Release 重跑直接拒绝——出问题发更高版本号）；
+      # --clobber 仅在 draft 阶段生效（未公开 = 可变），用于同一次发布内的重试。
       #
       # 每条 gh 后面都必须显式判 $LASTEXITCODE：GitHub 的 pwsh 包装器只在**脚本末尾**
       # 检查一次退出码，而 $ErrorActionPreference="Stop" 对原生命令不生效。漏判的后果
@@ -531,14 +533,24 @@ jobs:
           $asset = $env:ASSET
           if (-not (Test-Path $asset)) { throw "artifact 里没有找到 $asset" }
 
-          # 这条失败属正常分支（Release 尚不存在），单独放宽，不看退出码
-          $null = gh release view $env:TAG 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Release $($env:TAG) 不存在，创建"
-            gh release create $env:TAG --title $env:TAG --notes-file release-notes.md
-            if ($LASTEXITCODE -ne 0) { throw "创建 Release 失败（exit $LASTEXITCODE）" }
+          # 探测现有 Release 状态：不存在 → 建 draft；draft → 继续补传（未公开 = 可变）；
+          # **已 publish → 拒绝覆盖**（append-only：公开制品不因重跑而变化，
+          # 出问题发更高版本号——fix-forward，见 docs/contributing.zh-CN.md §发布流程）。
+          # view 失败属正常分支（Release 尚不存在），单独放宽，不看退出码。
+          $existing = $null
+          $viewOut = gh release view $env:TAG --json isDraft 2>$null
+          if ($LASTEXITCODE -eq 0) { $existing = $viewOut | ConvertFrom-Json }
+
+          if ($existing -and -not $existing.isDraft) {
+            throw "Release $($env:TAG) 已发布——公开制品不可覆盖（append-only）。出问题请发更高版本号（如 26.9.1），不要重跑本工作流覆盖旧资产。"
+          }
+
+          if (-not $existing) {
+            Write-Host "Release $($env:TAG) 不存在，创建 draft（先完整、再公开）"
+            gh release create $env:TAG --draft --title $env:TAG --notes-file release-notes.md
+            if ($LASTEXITCODE -ne 0) { throw "创建 Release 失败（exit $LASTEXITCODE）——若提示 Release 已存在，可能是刚才 view 的瞬时失败；重跑本 job 会走 draft 续传" }
           } else {
-            Write-Host "Release $($env:TAG) 已存在，更新说明"
+            Write-Host "Release $($env:TAG) 已存在且为 draft，继续补传"
             gh release edit $env:TAG --notes-file release-notes.md
             if ($LASTEXITCODE -ne 0) { throw "更新 Release 说明失败（exit $LASTEXITCODE）" }
           }
@@ -557,4 +569,9 @@ jobs:
           if ($missing) {
             throw "上传命令返回 0，但 Release 资产列表里缺少：$($missing -join ', ')。实际列表：$($assets -join ', ')"
           }
+
+          # 资产齐全才 publish（先完整、再公开）——publish 之后本脚本的重跑会被
+          # 上面的「已发布拒绝覆盖」拦住，形成 append-only。
+          gh release edit $env:TAG --draft=false
+          if ($LASTEXITCODE -ne 0) { throw "publish 失败（exit $LASTEXITCODE）——Release 仍是 draft，请人工检查后手动发布" }
           Write-Host "已发布：$($env:TAG) / $($files -join ', ')"

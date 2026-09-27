@@ -33,6 +33,8 @@ import re
 import subprocess
 import sys
 
+from release_notes_format import structure_notes  # noqa: E402  # 同目录模块（tools/ 在 sys.path）
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PACKAGE_JSON = os.path.join(ROOT, "web", "electron", "package.json")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
@@ -252,17 +254,18 @@ def main():
         return 1
 
     if args.notes_out:
+        structured = structure_notes(notes, version)
         try:
             with io.open(args.notes_out, "w", encoding="utf-8") as handle:
-                handle.write(notes + "\n")
+                handle.write(structured + "\n")
         except OSError as exc:
             print("错误：写出 %s 失败：%s" % (args.notes_out, exc))
             return 2
-        print("Release 说明已写出：%s" % args.notes_out)
+        print("Release 说明已写出（下载引导置顶 + 技术细节折叠）：%s" % args.notes_out)
     else:
         print("")
         print("--- Release 说明预览（发布后将原样成为 Release 说明） ---")
-        print(notes)
+        print(structure_notes(notes, version))
     return 0
 
 

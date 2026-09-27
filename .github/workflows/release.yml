@@ -294,6 +294,9 @@ jobs:
           
           ---
           
+          <details>
+          <summary><b>安装说明（未签名软件 / SmartScreen）与完整性核对 / Checksums</b></summary>
+
           ## 安装说明（未签名软件 / unsigned build）
           
           本安装包**未经代码签名**。首次运行时 Windows 可能显示「Windows 已保护你的电脑」——
@@ -309,6 +312,8 @@ jobs:
           ```
           __HASHES__
           ```
+
+          </details>
           '@
           $notice = $notice.Replace("__HASHES__", $hashBlock)
           Add-Content -Path release-notes.md -Value $notice -Encoding utf8

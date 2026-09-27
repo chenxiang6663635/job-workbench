@@ -142,8 +142,11 @@ latest release — grab `job-workbench-setup-*.exe` from
 [Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest),
 install, launch, done. The installer is a wizard: pick the install folder and
 whether to install for all users or just you (when upgrading, keep the
-defaults). Data lives in `%APPDATA%\job-workbench\` and never leaves
-your machine. Prefer source? Skip to [Quick start](#quick-start).
+defaults). Data lives in `%APPDATA%\job-workbench\` and stays local — no
+project-run server, no telemetry. Networking happens only through the features
+you enable, plus one startup update check — details in the
+[data-flow matrix](docs/data-flow-matrix.md). Prefer source? Skip to
+[Quick start](#quick-start).
 
 **The installer is not code-signed yet.** On first run Windows may show
 "Windows protected your PC" (SmartScreen) — that is expected for unsigned

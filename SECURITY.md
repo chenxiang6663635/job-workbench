@@ -2,7 +2,8 @@
 
 Job Workbench is a **local-first desktop app**: there is no server component, no
 account, and no telemetry. The app runs on your machine, reads and writes files in
-your workspace, and talks only to services **you** configure. That shape decides
+your workspace, and talks only to services **you** configure (plus one startup
+update check to GitHub). That shape decides
 what counts as a vulnerability here, so please read the threat model below before
 reporting.
 
@@ -13,7 +14,7 @@ build before reporting.
 
 | Version | Supported |
 |---|---|
-| latest release (version numbers follow month-granularity CalVer `YY.MM.N` — first release will be `26.9.0`) | Yes |
+| latest release (version numbers follow month-granularity CalVer `YY.MM.N`; the first CalVer release is `26.9.0`) | Yes |
 | older tags | No |
 
 ## Reporting a vulnerability
@@ -101,8 +102,11 @@ This is a single-maintainer, unpaid project: the target for a first response is
 
 - Backend binds loopback only by default (`--host` defaults to `127.0.0.1`; do not
   change it), CORS restricted to the local dev origin.
-- No telemetry, no analytics, no accounts, no uploads — the system endpoint
-  reports `telemetry: false` and the Settings page says the same thing.
+- No telemetry, no analytics, no accounts, no project-run server — the system
+  endpoint reports `telemetry: false` and the Settings page says the same thing.
+  Content leaves your machine only through features you enable (AI features, mail
+  fetch, job fetch, and one startup update check), and only to the service
+  involved — see the [data-flow matrix](docs/data-flow-matrix.md).
 - Credentials are masked in API responses and never written into logs.
 - Certificate verification is on by default on **every** outbound path (mail and
   HTTP), through a single implementation (`jobws_core.tls_policy`). Skipping it requires

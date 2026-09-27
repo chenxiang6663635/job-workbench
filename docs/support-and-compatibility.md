@@ -27,9 +27,9 @@
 |---|---|
 | **发布版本** | 只支持**最近一次发布**（与 [`../SECURITY.md`](../SECURITY.md) 同口径：修复只落在最新版；更早的版本请先升级再报问题） |
 | **运行环境（命令行 / 后端）** | Python **3.12**（验证基线，`<3.12` 会被自检拦下）；标准库为主；`pypdf`（PDF 校验）与 `certifi`（出网证书兜底）随后端依赖声明安装，缺失时对应能力降级并给出可读错误；PDF 生成需本机 Chrome 或 Edge |
-| **桌面端** | Windows 安装包（主目标平台，真机冒烟后才发布）；其他平台未验证，不承诺 |
+| **桌面端** | Windows 安装包（主目标平台；真机冒烟后才发布，正式包复装见 `release-checklist.md` 的「发布后完整验证链」）；其他平台未验证，不承诺 |
 | **AI 宿主** | CodeBuddy、Claude Code（`.codebuddy/`、`.claude/` 落点）；跨运行时 `~/.agents/skills/`；**MCP 宿主**（Gemini CLI、Codex、VS Code 等）按 [`mcp-integration.md`](mcp-integration.md) 配置 |
-| **数据位置** | 全部本地：工作区在你的目录里、凭证在工作区 `config/`、不上传任何数据；出网只发生在你显式触发的操作里（AI 功能为 BYOK、IMAP 为你配置的邮箱） |
+| **数据位置** | 全部本地：工作区在你的目录里、凭证在工作区 `config/`；无项目方云端、无遥测。联网只发生在你启用的功能：AI（BYOK）/ IMAP（你的邮箱）/ JD 抓取 / 启动后一次更新检查——明细以 [`data-flow-matrix.md`](data-flow-matrix.md) 为准（隐私承诺的权威底稿） |
 | **不支持的用法** | 自动投递、代登录、把工具当服务端多用户使用（见 ADR [`keep-writes-human-confirmed.md`](decisions/keep-writes-human-confirmed.md)） |
 
 安全相关的取舍（如自动更新链未签名）单列在 [`../SECURITY.md`](../SECURITY.md)，不在本文里重复。

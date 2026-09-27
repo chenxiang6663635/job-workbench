@@ -44,7 +44,7 @@ def build_server(workspace=None):
         title="求职工作台",
         description="本地优先的求职工作台数据接口：只读优先，写入走两段式确认。",
         instructions=(
-            "所有数据都在本机工作区（纯文本 CSV / Markdown），不联网。"
+            "所有数据都在本机工作区（纯文本 CSV / Markdown）；本服务自身不联网、不上传，宿主对返回内容的使用受宿主隐私策略约束。"
             "读取：用 list_* 工具或 jobws:// 资源（按需读，不要全量预载）；"
             "写入：**必须两段式**——先调 preview_* 拿到令牌，把 summary 与 diff "
             "展示给用户，用户确认后再用同一令牌调 apply_approval。"

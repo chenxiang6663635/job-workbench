@@ -10,6 +10,8 @@ site_dir: .build/site
 theme:
   name: material
   language: zh
+  # 关闭 Material 默认的 Google Fonts（每页 render-blocking 第三方请求；fonts.gstatic.com 在国内不可达）
+  font: false
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

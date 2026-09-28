@@ -13,6 +13,9 @@ suffix 结构下，每种语言的构建只包含本语言的页面文件：`gui
   norm_src_uri，如 en 手册页里的 `guide.md`）的链接 → `/<去后缀路径>/`
 
 只改站内相对 `*.md` 链接（保留锚点）；外链、图片、已是 URL 的链接一律不动。
+改写前用 i18n 插件挂好的 alternates 校验「目标语言版本真实存在」；不存在则原样
+返回，交给 mkdocs 报 not_found（--strict 拦住）——避免从「严格构建红」退化为
+运行时静默 404。
 
 依赖 mkdocs-static-i18n 的内部状态（current_language / default_language /
 languages）：该包在 site/requirements.txt 中已 pin，升级时需连同本 hook 一起验证。
@@ -34,7 +37,17 @@ def _dir_url(clean_path):
     return "/" + clean_path + "/"
 
 
-def _rewrite(target, *, src_dir, current, default, non_defaults, page):
+def _has_locale_version(target_file, locale):
+    """目标页的 locale 版本是否真实存在（用 i18n 插件预挂的 alternates 判断）。
+
+    alternates[locale] 只在目标语言版本真实存在时其 .locale == locale；
+    仅因 fallback_to_default 补位的回退副本 .locale 仍是默认语言。
+    """
+    alternate = (getattr(target_file, "alternates", None) or {}).get(locale)
+    return alternate is not None and getattr(alternate, "locale", None) == locale
+
+
+def _rewrite(target, *, src_dir, current, default, non_defaults, page, files):
     path, sep, anchor = target.partition("#")
     if (not path or path.startswith("/") or _URL_SCHEME.match(path)
             or not path.endswith(".md")):
@@ -48,8 +61,15 @@ def _rewrite(target, *, src_dir, current, default, non_defaults, page):
             suffix = "." + locale + ".md"
             if site_path.endswith(suffix):
                 clean = site_path[: -len(suffix)]
+                # 目标页的默认语言文件（同页族互链时即 page.file）；改写前先查
+                # 它的 alternates，确认另一语言版本真实存在
+                target_file = files.src_uris.get(clean + ".md")
+                if target_file is None or not _has_locale_version(target_file, locale):
+                    return target
                 return "/" + locale + _dir_url(clean) + sep + anchor
     elif site_path == getattr(page.file, "norm_src_uri", None):
+        if not _has_locale_version(page.file, default):
+            return target
         clean = site_path[: -len(".md")]
         return _dir_url(clean) + sep + anchor
     return target
@@ -68,7 +88,7 @@ def on_page_markdown(markdown, *, page, config, files):
     def repl(match):
         prefix, target, tail = match.groups()
         new = _rewrite(target, src_dir=src_dir, current=current, default=default,
-                       non_defaults=non_defaults, page=page)
+                       non_defaults=non_defaults, page=page, files=files)
         if new == target:
             return match.group(0)
         return prefix + new + tail

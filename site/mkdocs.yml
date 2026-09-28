@@ -1,0 +1,60 @@
+# 站点配置——构建入口（先组装、再严格构建）：
+#   python site/scripts/build_site.py
+#   python -m mkdocs build -f site/mkdocs.yml --strict
+site_name: 求职工作台
+
+# 均为相对本文件所在目录（site/）的路径；.build/ 已 gitignore，不是版本库内容
+docs_dir: .build/docs
+site_dir: .build/site
+
+theme:
+  name: material
+  language: zh
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: 切换到深色模式
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: 切换到浅色模式
+  features:
+    - content.code.copy
+
+# Task 5 建 download 页后补第五项「下载」
+nav:
+  - 首页: index.md
+  - 使用手册: manual/guide.md
+  - 数据与隐私: privacy/index.md
+  - 支持与兼容: compat/index.md
+
+# 跨语言页面互链 → 目标语言站点 URL（i18n suffix 结构下正文互链的坏链修复；
+# 见 hooks/i18n_cross_language_links.py 的模块 docstring）
+hooks:
+  - hooks/i18n_cross_language_links.py
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      languages:
+        - locale: zh
+          name: 简体中文
+          default: true
+        - locale: en
+          name: English
+          nav_translations:
+            首页: Home
+            使用手册: Manual
+            数据与隐私: Privacy
+            支持与兼容: Support & Compatibility
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.superfences

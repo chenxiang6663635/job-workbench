@@ -80,7 +80,7 @@ docs/screenshots/*.png, zh-CN/*.png → assets/screenshots/（保子目录）
 
 **Files:** Create: `.github/workflows/site.yml`
 
-- [ ] Step 1: 两 job 照 release.yml 的读写分离：`build`（PR/push；paths: `site/**`、`docs/**`、本文件；py3.12；`pip install -r site/requirements.txt`；build --strict；`contents: read`）与 `publish`（`needs: build`；仅 main push；在 `site/.build/site` git init 并强制推 `site-dist`；`contents: write`，其余权限空）
+- [ ] Step 1: 两 job 照 release.yml 的读写分离：`build`（PR/push；paths: `site/**`、`docs/**`、`.github/workflows/site.yml`、`web/electron/package.json`、`CHANGELOG.md`；py3.12；`pip install -r site/requirements.txt`；build --strict；`contents: read`）与 `publish`（`needs: build`；仅 main push；在 `site/.build/site` git init 并强制推 `site-dist`；`contents: write`，其余权限空）
 - [ ] Step 2: 本分支 push 后 `gh run list --workflow site.yml --limit 3` 绿
 - [ ] Step 3: 提交（`ci(site): 站点构建与 site-dist 产物发布`）
 

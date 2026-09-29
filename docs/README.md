@@ -24,6 +24,8 @@
 | [`specs/2026-09-03-p0-p3-roadmap.md`](specs/2026-09-03-p0-p3-roadmap.md) | **现行** | P0–P3 四批：工程底座、投递后闭环、增强、长期资产（含验收记录） |
 | [`specs/2026-09-05-batch1-3-roadmap.md`](specs/2026-09-05-batch1-3-roadmap.md) | **现行** | 第一~三批：导入导出闭环、题库与健康度、失败聚类与 JD 抓取（含验收记录） |
 | [`specs/2026-09-07-open-source-release.md`](specs/2026-09-07-open-source-release.md) | **现行** | 开源发布：隐私清洗、MIT、治理入口、CI 与发布流程。**注意**：开头的「现状审计」一节（LICENSE 缺失、`.github/` 仅 ISSUE_TEMPLATE 等）是 2026-09-07 的当时记录，均已反转，现状以仓库实际为准 |
+| [`specs/2026-09-28-project-site-design.md`](specs/2026-09-28-project-site-design.md) | **现行** | 项目官网设计：国内可访问的文档站（MkDocs Material）——内容单源（`docs/` 白名单组装）、下载设计（GitHub Releases + SHA256 校验和）、零自费与隐私边界 |
+| [`specs/2026-09-28-project-site-plan.md`](specs/2026-09-28-project-site-plan.md) | **现行** | 上述设计的实施计划：组装器 / 骨架 / CI / 首页 / 下载页 / 仓库登记 / 上线验证七个任务，含逐步验证与 Review Focus |
 | [`specs/2026-08-30-autumn-recruit-workbench-design.md`](specs/2026-08-30-autumn-recruit-workbench-design.md) | ⚠️ **已废弃** | v1.0 个人工具设计。目录结构已失效，**勿据此开发**。保留作评分框架的设计依据追溯 |
 | [`domain-contract.md`](domain-contract.md) | **现行** | 领域插件契约：结构、格式、边界与校验方式（`jobws lint domains` 的判定依据） |
 

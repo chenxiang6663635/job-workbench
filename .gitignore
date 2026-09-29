@@ -127,6 +127,9 @@ personal/05_投递追踪/quarantine/
 web/electron/release/
 web/electron/out/
 
+# 站点构建产物（site/scripts/build_site.py 组装 + MkDocs 构建）：可从 docs/ 复现，不进版本库
+site/.build/
+
 # 前端依赖安装与构建的本地日志
 npm-debug.log*
 yarn-error.log*

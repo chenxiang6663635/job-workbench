@@ -127,6 +127,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | `docs/four-ends.md` | **四端能力对照**（命令行 / AI 宿主 / 编辑器插件 / 桌面界面），由 `tools/four_ends_matrix.json` 生成、由 `jobws lint four-ends` 校验。接进 AI 宿主见 `docs/mcp-integration.md`——**配置键名按宿主不同，别照抄** |
 | `tools/` | Python 领域层——统一入口 + 领域模块 + 门禁脚本 |
 | `web/` | Web 界面：FastAPI 后端 + React 前端（八个页面），与 CLI 共享同一份数据 |
+| `site/` | 项目官网（文档站）的组装器 / 配置 / 内容与构建 |
 | `tests/` | pytest 测试套件（隐私护栏、反编造检查、追踪表语义），CI 质量门 |
 | `personal/` | 使用者的真实工作区（**已整体 gitignore，仓库内不含任何真实数据**） |
 | `docs/` | 使用手册、文档索引、设计文档（`docs/specs/`） |

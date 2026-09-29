@@ -126,6 +126,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `skills/` | Nine skills — five job-hunting workflows (JD / apply / track / resume / coach), one setup/extension skill (domain profiles), and three maintainer-facing skills (CLI contract / API review / MCP) — single source across AI runtimes |
 | `tools/` | Python domain layer — one CLI entry point plus domain modules and gate scripts |
 | `web/` | Web UI: FastAPI backend + React frontend (eight pages), same data files as the CLI |
+| `site/` | Project site (documentation site): assembler, config, page content and build |
 | `tests/` | pytest suite — privacy guards, anti-fabrication checks, tracker semantics; the CI gate |
 | `personal/` | Your real workspace (**fully git-ignored; the repo ships zero real data**) |
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |

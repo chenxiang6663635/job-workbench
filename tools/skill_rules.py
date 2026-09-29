@@ -40,7 +40,7 @@ NAME_RE = re.compile(r"^jwb-[a-z0-9]+(-[a-z0-9]+)*$")
 # 正文里禁止出现的仓库顶层目录（技能分发到宿主后，工作目录是用户自己的工作区，
 # 这些前缀在那里都不存在）。新增顶层目录时记得加进来——漏了不会报错，只会让
 # 技能把宿主引到死路径上。
-REPO_PATH_PREFIXES = ("tools/", "web/", "template/", "skills/", "tests/")
+REPO_PATH_PREFIXES = ("tools/", "web/", "template/", "skills/", "tests/", "site/")
 
 
 def frontmatter_problems(text, frontmatter_end, fields, entry):

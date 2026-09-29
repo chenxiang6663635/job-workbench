@@ -73,11 +73,16 @@ def test_agent_on_disk_but_not_declared_is_reported():
     assert any("未在 plugin.json" in p for p in problems), problems
 
 
-# ---- 2. 规模预算：mcp/ 与 scripts/ 必须在扫描范围内 --------------------------
+# ---- 2. 规模预算：mcp/、scripts/ 与 site/ 必须在扫描范围内 --------------------
 
 def test_scan_dirs_cover_mcp_and_scripts():
     assert "mcp" in check_size.SCAN_DIRS
     assert "scripts" in check_size.SCAN_DIRS
+
+
+def test_scan_dirs_cover_site():
+    """站点批（2026-09-28）：site/ 的组装器与 i18n 钩子纳入规模治理。"""
+    assert "site" in check_size.SCAN_DIRS
 
 
 def test_mcp_source_files_are_actually_walked():

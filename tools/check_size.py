@@ -47,9 +47,12 @@ LIMIT_DATA_FILE = 1500
 # 全仓最复杂、最接近用户机器的 main.js（967 行）恰好零治理（独立审计点名的
 # 「rule 很好，但 coverage 不完整」）。JS 与 TS 同口径：只守文件行数、不做
 # 函数长度静态判定（浏览器侧/主进程的箭头函数与嵌套难界定，见 python_functions）。
+# 2026-09-28 站点批：`site/`（组装器与 i18n 钩子）纳入扫描；`site/.build/` 是 MkDocs
+# 构建产物（gitignored、含 vendored JS），按 dist/build 同口径跳过。
 SCAN_DIRS = ("tools", "web/backend", "web/frontend/src", "tests", "packages",
-             "mcp", "scripts", "web/electron")
-SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", "release", ".venv"}
+             "mcp", "scripts", "web/electron", "site")
+SKIP_DIRS = {"__pycache__", "node_modules", "dist", "build", "release", ".venv",
+             ".build"}
 SOURCE_SUFFIX = (".py", ".ts", ".tsx", ".js", ".mjs")
 
 # 数据/声明型：行数多但复杂度低，与业务代码同阈值没有意义。

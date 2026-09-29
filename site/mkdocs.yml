@@ -26,7 +26,8 @@ theme:
   features:
     - content.code.copy
 
-# 「下载」页当前为最小占位（site/content/download.tmpl.md），完整内容由后续批次填充
+# nav 五项：下载页（site/content/download.tmpl.md 与 .en 版）的版本号 / 发布日期
+# 由 build_site.py 从 web/electron/package.json 与 CHANGELOG.md 注入，不人工维护。
 nav:
   - 首页: index.md
   - 使用手册: manual/guide.md
@@ -50,6 +51,8 @@ plugins:
           default: true
         - locale: en
           name: English
+          # 英文站站名本地化（插件支持的语言级覆盖；中文站沿用全局 site_name）
+          site_name: Job Workbench
           nav_translations:
             首页: Home
             使用手册: Manual

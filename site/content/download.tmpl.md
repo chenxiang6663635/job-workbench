@@ -26,7 +26,7 @@ SmartScreen 信誉按版本重新积累，**后续版本升级后可能再次提
 
 ## 校验下载完整性
 
-每个 Release 都附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的 SHA256 哈希）。下载完成后，在 PowerShell 或 CMD 里执行（文件名换成你实际下载的那个）：
+**自 v26.9.0 起**，每个 Release 附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的 SHA256 哈希）。下载完成后，在 PowerShell 或 CMD 里执行（文件名换成你实际下载的那个）：
 
 ```bat
 certutil -hashfile job-workbench-setup-{{VERSION}}-win64.exe SHA256

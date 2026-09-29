@@ -16,7 +16,7 @@
      通用名，装到用户级目录时等于拿通用词跟别人抢位置。
   5. `compatibility` 必填——环境声明，让宿主能判断能否挂载。
   6. **正文不得引用仓库相对路径**（`tools/`、`web/`、`template/`、`skills/`、
-     `tests/` 这些顶层目录）——技能会被 `install_skills` 分发到宿主的技能目录，
+     `tests/`、`site/` 这些顶层目录）——技能会被 `install_skills` 分发到宿主的技能目录，
      那时的工作目录是**用户自己的工作区**、不在这个仓库里：正文里写
      `tools/jobws.py` 只会把宿主引到一条不存在的路径上。命令名就写 `jobws`，
      "它在仓库里的哪个位置"写进 frontmatter 的 `compatibility`（该字段不参与本

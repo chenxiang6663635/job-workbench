@@ -267,7 +267,7 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
 2. **提取时机（rule of three）**：同一逻辑第 2 次出现时考虑提取，第 3 次必须提取到公共模块；新增第 3 个 `if/elif` 分支且每分支 >10 行时提取 dispatch。
 3. **禁静默吞错**：`except Exception: pass` 与空 `catch {}` 一律不许——至少记日志（`logger.warning` / `console.error`）。
 4. **单一真值源**：同一枚举/映射/常量只允许在一个模块定义，其他位置引用它——发现第 2 处内联副本即收敛回注册处。
-5. **所有运行时产品代码必须被至少一套结构检查覆盖**（2026-09-25 收口批原则化）：`.py / .ts / .tsx / .js / .mjs` × `tools/ packages/ web/backend/ web/frontend/ web/electron/ mcp/ scripts/`——规模闸门此前漏了 `web/electron` 与 `.js`（最接近用户机器的 967 行 `main.js` 恰好零治理），现已补齐；**新增运行时代码目录 / 后缀时必须同步 `tools/check_size.py` 的 `SCAN_DIRS` / `SOURCE_SUFFIX`**。
+5. **所有运行时产品代码必须被至少一套结构检查覆盖**（2026-09-25 收口批原则化）：`.py / .ts / .tsx / .js / .mjs` × `tools/ packages/ web/backend/ web/frontend/ web/electron/ mcp/ scripts/ site/`——规模闸门此前漏了 `web/electron` 与 `.js`（最接近用户机器的 967 行 `main.js` 恰好零治理），现已补齐；**新增运行时代码目录 / 后缀时必须同步 `tools/check_size.py` 的 `SCAN_DIRS` / `SOURCE_SUFFIX`**。
 6. **失败路径双通道**（2026-09-25 收口批）：启动失败 / 后端崩溃 / 更新失败 / 还原失败 / 写冲突这类问题，必须**同时**有"用户可见消息 + 本地结构化日志"，缺一不可；诊断包字段固定（版本 / 平台 / 日志尾部），**永远排除**简历、邮件、API key、密码与工作区内容（`web/electron/diagnostics.js` + 测试锁死）。
 
 > 来源：借鉴 thermal_comfort_code 的 anti-shit-mountain 清单，按本仓库规模精简（不搬其双阈值过渡制与 L1/L2/L3 分级）。

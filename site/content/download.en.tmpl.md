@@ -26,7 +26,7 @@ SmartScreen reputation rebuilds per version, so **later releases may prompt agai
 
 ## Verify the download
 
-Every release ships `SHA256SUMS.txt` (SHA256 hashes of the installer and `latest.yml`). After downloading, run this in PowerShell or CMD (substituting the file you actually downloaded):
+**Starting with v26.9.0**, each release ships `SHA256SUMS.txt` (SHA256 hashes of the installer and `latest.yml`). After downloading, run this in PowerShell or CMD (substituting the file you actually downloaded):
 
 ```bat
 certutil -hashfile job-workbench-setup-{{VERSION}}-win64.exe SHA256

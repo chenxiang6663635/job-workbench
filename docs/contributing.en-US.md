@@ -518,7 +518,7 @@ Self-check while writing; re-check during PR self-review:
    registry.
 5. **All runtime product code must be covered by at least one structural check**:
    `.py / .ts / .tsx / .js / .mjs` × `tools/`, `packages/`, `web/backend/`,
-   `web/frontend/`, `web/electron/`, `mcp/`, `scripts/`. **When adding a runtime code
+   `web/frontend/`, `web/electron/`, `mcp/`, `scripts/`, `site/`. **When adding a runtime code
    directory or suffix you must sync `SCAN_DIRS` / `SOURCE_SUFFIX` in
    `tools/check_size.py`.**
 6. **Two channels for failure paths**: problems such as a failed start, a backend crash, a

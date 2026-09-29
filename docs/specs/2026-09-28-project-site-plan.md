@@ -119,5 +119,5 @@ docs/screenshots/*.png, zh-CN/*.png → assets/screenshots/（保子目录）
 - [ ] Step 2: **[用户]** 注册 EdgeOne 国际版（edgeone.ai，邮箱）→ 连接 GitHub 仓库 → 选 `site-dist`、输出目录 `/`、无构建命令 → 部署 → 取默认域名
 - [ ] Step 3: 域名打开站点（本机 + 用户侧）；若 Git 集成不支持「监控分支零构建」→ 备选：CI 内 EdgeOne CLI 上传（token 入 Secrets）
 - [ ] Step 4: **[用户]** 把域名发给 1-2 个无代理受众实测可达性 → 结论决定是否走 C（域名 + 备案）
-- [ ] Step 5: README「Docs」节加官网链接；应用内「打开使用手册」改指站点（**单独小 PR**，走产品流程）
+- [ ] Step 5: README「Docs」节加官网链接；应用内「打开使用手册」改指在线入口（**单独小 PR**，走产品流程；2026-09-29 落实：按钮先指 Gitee 手册页保国内可达，站点域名落地后再评估回切）
 - [ ] Step 6: 记忆落档（上线结果 + 实测结论）

@@ -705,7 +705,7 @@ export default {
   "settings.aboutPlatform": "Platform",
   "settings.aboutUnknown": "Unknown",
   "settings.aboutNote": "Local-first, no telemetry — your data stays on this machine; online features only call the services you enable, plus one startup update check (version and platform only, to GitHub).",
-  "settings.aboutDocs": "Open the usage guide (web)",
+  "settings.aboutDocs": "Open the usage guide (Gitee, web)",
   "settings.openLogs": "Open log folder",
 
   "resume.modeAria": "Editing mode",

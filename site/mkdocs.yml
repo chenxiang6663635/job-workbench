@@ -26,12 +26,13 @@ theme:
   features:
     - content.code.copy
 
-# Task 5 建 download 页后补第五项「下载」
+# 「下载」页当前为最小占位（site/content/download.tmpl.md），完整内容由后续批次填充
 nav:
   - 首页: index.md
   - 使用手册: manual/guide.md
   - 数据与隐私: privacy/index.md
   - 支持与兼容: compat/index.md
+  - 下载: download.md
 
 # 跨语言页面互链 → 目标语言站点 URL（i18n suffix 结构下正文互链的坏链修复；
 # 见 hooks/i18n_cross_language_links.py 的模块 docstring）
@@ -54,6 +55,7 @@ plugins:
             使用手册: Manual
             数据与隐私: Privacy
             支持与兼容: Support & Compatibility
+            下载: Download
 
 markdown_extensions:
   - admonition

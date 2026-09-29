@@ -18,16 +18,21 @@ name: Site
 # （同类教训见 ci.yml 里「后端测试（pytest）」job 的注释：必需检查的名字/触发条件
 # 一变，main 上的 PR 就会全部卡在 Expected）。
 on:
+  # 版本/日期是站点文案的真值源（web/electron/package.json、CHANGELOG.md），变更必须触发重建。
   pull_request:
     paths:
       - "site/**"
       - "docs/**"
       - ".github/workflows/site.yml"
+      - "web/electron/package.json"
+      - "CHANGELOG.md"
   push:
     paths:
       - "site/**"
       - "docs/**"
       - ".github/workflows/site.yml"
+      - "web/electron/package.json"
+      - "CHANGELOG.md"
 
 # 默认最小权限；publish job 单独提权（照 release.yml）。
 permissions:

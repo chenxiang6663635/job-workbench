@@ -160,6 +160,7 @@ signature (integrity is checked against the hash in `latest.yml`).
 
 ## Docs
 
+- [Online docs site](https://chenxiang6663635.github.io/job-workbench/) — project intro, usage guide and downloads as a website (bilingual, searchable; if GitHub is unreachable, use the [Gitee mirror](https://gitee.com/Chenxiang663635/job-workbench))
 - [Roadmap](ROADMAP.md) — Now / Later plus a shipped-batch log; items link to a tracking issue when one exists
 - [Doc index](docs/README.md) — status of every document (current / deprecated)
 - [Usage guide](docs/usage-guide.md) — startup, the eight pages, AI workflows, CLI reference, FAQ

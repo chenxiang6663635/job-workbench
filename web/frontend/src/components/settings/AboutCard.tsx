@@ -16,7 +16,9 @@ import type { SystemPaths } from "../../api";
  *  "tag 才有的第 4 段"）。
  *
  *  文档入口是四端里性价比最高的一处：桌面端与 Web 共用这套前端（桌面端没有
- *  菜单栏可加），改这里 = 两端同时获得「卡住时去哪儿看文档」的路。 */
+ *  菜单栏可加），改这里 = 两端同时获得「卡住时去哪儿看文档」的路。
+ *  链接指向 Gitee 镜像（2026-09-29）：应用用户以国内网络为主，GitHub 原链常打不开；
+ *  在线网页版站点与镜像双入口见 README 文档区。 */
 export default function AboutCard({
   paths,
   pathsError,
@@ -66,7 +68,7 @@ export default function AboutCard({
           </p>
           <a
             className="text-[11px] text-primary hover:underline"
-            href={`https://github.com/chenxiang6663635/job-workbench/blob/main/docs/usage-guide${
+            href={`https://gitee.com/Chenxiang663635/job-workbench/blob/main/docs/usage-guide${
               i18n.language.startsWith("en") ? "" : ".zh-CN"
             }.md`}
             target="_blank"

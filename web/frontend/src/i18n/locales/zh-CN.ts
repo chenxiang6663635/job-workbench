@@ -746,7 +746,7 @@ const zhCN = {
   "settings.aboutPlatform": "运行平台",
   "settings.aboutUnknown": "未知",
   "settings.aboutNote": "本地优先、无遥测——数据保存在本机；联网功能只访问你启用的服务，另有一次启动后的更新检查（仅版本与平台，发往 GitHub）。",
-  "settings.aboutDocs": "打开使用手册（GitHub · docs/usage-guide）",
+  "settings.aboutDocs": "打开使用手册（Gitee 网页版）",
   "settings.openLogs": "打开日志文件夹",
 
   // 简历工坊页

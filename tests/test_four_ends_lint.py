@@ -72,6 +72,37 @@ def test_mcp_tools_parsed_in_registration_order(tmp_path):
     assert names == ["list_applications", "preview_add_application"]
 
 
+def test_mcp_tools_reports_missing_unparse(monkeypatch, tmp_path):
+    """低版本解释器（无 ast.unparse）：显式报错，**不许**返回空表。
+
+    空表会被上层读成「一个工具都没注册」——2026-09-30 实测在 Python 3.8 下刷出
+    14 条「MCP 工具 … 未注册」假缺陷，而真正原因（解释器太旧）一条都看不到。
+    """
+    server = tmp_path / "mcp" / "jobws_mcp" / "server.py"
+    _write(str(server), (
+        "def build_server():\n"
+        "    @mcp.tool()\n"
+        "    def list_jobs():\n"
+        "        pass\n"
+    ))
+    monkeypatch.delattr(four_ends_probe.ast, "unparse", raising=False)
+
+    names, errors = four_ends_probe.mcp_tools(str(tmp_path))
+
+    assert names is None, "能力缺失必须返回 None（空表＝静默误报）"
+    assert len(errors) == 1 and "≥3.9" in errors[0], errors
+
+
+def test_low_python_check_reports_one_reason(monkeypatch):
+    """整条检查同上：只报一条明确原因，不刷假缺陷（checker 对 None 的既有语义）。"""
+    monkeypatch.delattr(four_ends_probe.ast, "unparse", raising=False)
+
+    issues, _doc = check_four_ends.check(ROOT)
+
+    assert len(issues) == 1, issues
+    assert "≥3.9" in issues[0]
+
+
 def test_gui_routes_includes_package_prefix(tmp_path):
     """两层结构：包 __init__ 声明 prefix，子模块的 router 不带 prefix。
 

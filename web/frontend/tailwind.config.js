@@ -51,6 +51,11 @@ export default {
           2: "hsl(var(--elevation-2-surface))",
           3: "hsl(var(--elevation-3-surface))",
         },
+        /* 区域层（UI 线 B 有限版）：导航区独立一档；内容区=background、面板区=card 为既有键 */
+        region: {
+          nav: "hsl(var(--region-nav-surface))",
+          "nav-border": "hsl(var(--region-nav-border))",
+        },
       },
       /* 视觉升级：阴影、渐变与动画。全部走 CSS 变量，零运行时开销 */
       boxShadow: {

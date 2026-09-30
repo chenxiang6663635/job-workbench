@@ -51,6 +51,10 @@
 
     /* 视觉增强变量：发光主色、卡片渐变、页面顶部光晕 */
     --glow-primary: 199 89% 58%;
+    /* 区域层（UI 线 B 有限版）：导航区独立一档——内容区=background、
+       面板区=card、导航区=本键；border 沿用主题 --border 语义 */
+    --region-nav-surface: 222 44% 7.8%;
+    --region-nav-border: 219 32% 20%;
 
     /* 层级三件套（批 4 地基，2026-09-15）：elevation-{n} = {surface, border, shadow}。
        暗色的层次主通道是**表面明度阶梯**与**描边**，阴影只补边缘感——近黑表面上的

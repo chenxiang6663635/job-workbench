@@ -4,7 +4,7 @@
 规则（与批 4 施工单一致，口径唯一实现，CI 与本地同跑）：
 
 1. **parity（完整性）**：每套主题的变量键集合必须等于**本模块的 EXPECTED_KEYS**
-   清单（45 键）——抓「新主题加了变量、旧主题忘了加」这类漂移；**多键同样报错**
+   清单（47 键）——抓「新主题加了变量、旧主题忘了加」这类漂移；**多键同样报错**
    （新增 token 时必须显式同步：本清单 / theme.ts 的 THEME_VAR_KEYS / 主题文件）。
    注意：`index.css` 的 `:root` 只提供**默认暗主题的数值**，不是键集合的来源。
 1b. **值格式**：除渐变 / 阴影类键外，每个主题键必须是 HSL 三元组（`H S% L%`）——
@@ -33,13 +33,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 THEMES_DIR = os.path.join(ROOT, "web", "frontend", "src", "themes")
 BASE_CSS = os.path.join(ROOT, "web", "frontend", "src", "index.css")
 
-# 主题变量基准清单（45 键；与主题文件生成脚本同构）。
+# 主题变量基准清单（47 键；与主题文件生成脚本同构）。
 EXPECTED_KEYS = [
     "background", "foreground", "card", "card-foreground", "popover",
     "popover-foreground", "primary", "primary-foreground", "secondary",
     "secondary-foreground", "muted", "muted-foreground", "destructive",
     "destructive-foreground", "success", "warning", "border", "border-strong",
     "input", "ring", "highlight", "scrim", "glow-primary",
+    "region-nav-surface", "region-nav-border",
 ] + ["elevation-%d-surface" % i for i in range(4)] \
   + ["elevation-%d-border" % i for i in (1, 2, 3)] \
   + ["elevation-%d-shadow" % i for i in (1, 2, 3)] \
@@ -62,6 +63,9 @@ CONTRAST_CHECKS = [
     ("warning", "card", 4.5),
     ("destructive", "background", 4.5),
     ("destructive", "card", 4.5),
+    # 区域层（UI 线 B 有限版）：导航区文字（默认前景 / 弱化前景）也过正文门限
+    ("foreground", "region-nav-surface", 4.5),
+    ("muted-foreground", "region-nav-surface", 4.5),
 ]
 CHART_MIN = 3.0
 DARK_STEP_MIN = 1.12

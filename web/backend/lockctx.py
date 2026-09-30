@@ -13,6 +13,7 @@ POSIX 同口径），而此前全仓没有任何一层接它 → 冒泡到 `main
 import os
 from contextlib import contextmanager
 
+from jobws_core import workspace_io
 from jobws_core.filelock import file_lock
 
 from apierror import ApiError
@@ -26,8 +27,6 @@ def lock_path(ws, kind):
     数据丢失级故障：CLI / 桌面端 / 网页端用同一把锁）。工厂本身是纯计算、不碰文件
     系统，这里补上幂等的 `makedirs`（原先是每个调用点自己建目录）。
     """
-    from jobws_core import workspace_io   # 函数内 import：与本文件既有轻量风格一致
-
     path = workspace_io.lock_path(ws, kind)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     return path

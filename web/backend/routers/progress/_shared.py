@@ -7,14 +7,14 @@
 
 from __future__ import annotations
 
+import lockctx
+
 from apierror import ApiError
 
 
 def _lock_path(ws: str) -> str:
     """tracker.lock 路径——2026-09-30 起统一走 lockctx（与其余 router 同一条路）。"""
-    from lockctx import lock_path
-
-    return lock_path(ws, "tracking")
+    return lockctx.lock_path(ws, "tracking")
 
 
 def delete_preview_response(operation, errors, plan, error_code, error_message, ws):

@@ -46,6 +46,49 @@ def test_domains_lists_plugins(client):
     assert body["demoDefault"] == "software-backend"
 
 
+def test_directions_read_workspace_plugin(client, tmp_path):
+    """方向候选来自**工作区装入的插件**，而不是前端写死的三项（2026-09-30）。
+
+    标题取方向文件首行（`# 方向：X` → `X`）；解析不出前缀就整行当标题；
+    `alwaysAccepted` 是后端恒接受口径的唯一来源（`tracker.DIRECTIONS`）。
+    """
+    ws = tmp_path / "ws-dir"
+    (ws / "config" / "directions").mkdir(parents=True)
+    (ws / "config" / "profile.md").write_text("# 档案\n", encoding="utf-8")
+    (ws / "config" / "directions" / "thermal-fluid-cfd.md").write_text(
+        "# 方向：热流体仿真 / CFD\n\n正文\n", encoding="utf-8")
+    (ws / "config" / "directions" / "no-title.md").write_text(
+        "没有标题行\n", encoding="utf-8")
+    # BOM 是第三方插件作者的常态（记事本 / Excel 系工具保存）——标题要照常解析出来
+    (ws / "config" / "directions" / "bom.md").write_text(
+        "\ufeff# 方向：带 BOM 的标题\n", encoding="utf-8")
+
+    resp = client.get("/api/workspaces/directions", params={"ws": "ws-dir"})
+
+    assert resp.status_code == 200, resp.text
+    # 工作区回显（issue #22 的通用保证）在新端点上同样成立
+    assert resp.headers["X-Jobws-Workspace"] == "ws-dir"
+    body = resp.json()
+    assert [item["id"] for item in body["items"]] == [
+        "bom", "no-title", "thermal-fluid-cfd"]
+    titles = {item["id"]: item["title"] for item in body["items"]}
+    assert titles["thermal-fluid-cfd"] == "热流体仿真 / CFD"
+    assert titles["bom"] == "带 BOM 的标题"
+    assert titles["no-title"] == "没有标题行"
+    assert body["total"] == 3
+    assert body["alwaysAccepted"] == ["other"]
+
+
+def test_directions_empty_workspace(client, tmp_path):
+    """没装方向文件的工作区：items 空、恒接受值照给（前端退化成只剩它）。"""
+    (tmp_path / "bare-ws" / "config").mkdir(parents=True)
+    (tmp_path / "bare-ws" / "config" / "profile.md").write_text("x", encoding="utf-8")
+
+    body = client.get("/api/workspaces/directions", params={"ws": "bare-ws"}).json()
+
+    assert body == {"items": [], "total": 0, "alwaysAccepted": ["other"]}
+
+
 def test_preview_does_not_create_then_apply_creates(client, tmp_path):
     target = tmp_path / "new-ws"
 

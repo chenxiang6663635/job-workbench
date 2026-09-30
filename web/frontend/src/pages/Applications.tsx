@@ -4,7 +4,6 @@ import { FileUp, Inbox, Mail, Plus, Search, X } from "lucide-react";
 import {
   api,
   BATCHES,
-  DIRECTIONS,
   SOURCES,
   type Application,
   type HistoryEntry,
@@ -17,6 +16,7 @@ import { useMissingNext } from "../hooks/useMissingNext";
 import { domainLabel } from "../lib/domainLabels";
 import ApplicationFilters from "../components/ApplicationFilters";
 import ApplicationsTable from "../components/ApplicationsTable";
+import DirectionSelect from "../components/DirectionSelect";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
 import StatusUpdateDialog from "../components/StatusUpdateDialog";
@@ -59,7 +59,7 @@ export default function Applications() {
   const [draft, setDraft] = useState({
     公司: "",
     岗位: "",
-    方向: "hvac",
+    方向: "other",
     批次: "正式批",
     来源: "",
     链接: "",
@@ -156,7 +156,7 @@ export default function Applications() {
         setDraft({
           公司: "",
           岗位: "",
-          方向: "hvac",
+          方向: "other",
           批次: "正式批",
           来源: "",
           链接: "",
@@ -207,7 +207,11 @@ export default function Applications() {
           />
         </div>
 
-        <ApplicationFilters value={filter} onChange={setFilter} />
+        <ApplicationFilters
+          value={filter}
+          onChange={setFilter}
+          used={[...items.map((item) => item.方向), filter.direction]}
+        />
 
         <Button variant="outline" onClick={() => setShowStatus(true)}>
           <Mail size={15} /> {t("app.pasteMail")}
@@ -301,21 +305,11 @@ export default function Applications() {
               value={draft.岗位}
               onChange={(e) => setDraft({ ...draft, 岗位: e.target.value })}
             />
-            <Select
+            <DirectionSelect
               value={draft.方向}
-              onValueChange={(v) => setDraft({ ...draft, 方向: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("form.phDirection")} />
-              </SelectTrigger>
-              <SelectContent>
-                {DIRECTIONS.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {domainLabel("direction", d, t)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(v) => setDraft({ ...draft, 方向: v })}
+              used={[draft.方向]}
+            />
             <Select
               value={draft.批次}
               onValueChange={(v) => setDraft({ ...draft, 批次: v })}

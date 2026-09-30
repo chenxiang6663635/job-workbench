@@ -786,10 +786,9 @@ export const BATCHES = ["提前批", "正式批", "补录"];
 // 新增来源必须同批改 tracker.py，否则会出现「下拉能选、保存被拒」。
 export const SOURCES = ["应届生求职网", "牛客", "企业校招官网", "学校就业网", "内推",
   "宣讲会", "招聘会", "其他"];
-// 方向 ID 取决于工作区装入的领域插件（后端 available_directions 动态读
-// <工作区>/config/directions/*.md）。此处是前端可选项的默认清单，与 Applications 页共用一份，
-// 避免两页各写一份后漂移；后端在插件不可用时对未知方向放行。
-export const DIRECTIONS = ["datacenter", "hvac", "other"];
+// 方向候选**不再写死**：2026-09-30 起由 GET /api/workspaces/directions 动态提供
+// （工作区装入的方向 + 后端恒接受值 + 记录里已用过的值），合成规则见
+// lib/directionOptions.ts，下拉见 components/DirectionSelect.tsx。
 
 // 面试记录枚举，与后端 tracker.INTERVIEW_* 一致（单一事实源在 tools/jobws.py track）
 export const INTERVIEW_ROUNDS = ["测评", "笔试", "AI面", "群面", "一面", "二面",

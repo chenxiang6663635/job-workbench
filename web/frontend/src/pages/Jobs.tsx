@@ -4,7 +4,6 @@ import { ArrowDown, ArrowUp, Inbox, Loader2, Plus, Search } from "lucide-react";
 import {
   api,
   BATCHES,
-  DIRECTIONS,
   STAGES,
   type Application,
   type JobOrder,
@@ -16,6 +15,7 @@ import {
 import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { domainLabel } from "../lib/domainLabels";
 import { DRILL_KEY, drillToApplication } from "../lib/pageDrill";
+import DirectionSelect from "../components/DirectionSelect";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -398,21 +398,10 @@ export default function Jobs() {
             {t("job.applyNoteB")}
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Select
+            <DirectionSelect
               value={applyDraft.方向}
-              onValueChange={(v) => setApplyDraft({ ...applyDraft, 方向: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("form.phDirection")} />
-              </SelectTrigger>
-              <SelectContent>
-                {DIRECTIONS.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {domainLabel("direction", d, t)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(v) => setApplyDraft({ ...applyDraft, 方向: v })}
+            />
             <Select
               value={applyDraft.批次}
               onValueChange={(v) => setApplyDraft({ ...applyDraft, 批次: v })}

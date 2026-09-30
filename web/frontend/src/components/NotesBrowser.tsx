@@ -189,6 +189,19 @@ export default function NotesBrowser() {
     [ws, onCancelToggle, clearToggleError]
   );
 
+  // 点正文里的笔记互链：切到目标文件——收尾与 onSelect / onPickHit 同款
+  // （清写回残留与错误、清定位、更新"上次打开"记忆）。
+  const onOpenNote = useCallback(
+    (target: NotesActive) => {
+      onCancelToggle();
+      clearToggleError();
+      setFocusLine(null);
+      setActive(target);
+      writeLastOpened(ws, target);
+    },
+    [ws, onCancelToggle, clearToggleError]
+  );
+
   if (listError) {
     return <ErrorBanner message={t("notes.loadFailed", { reason: listError })} />;
   }
@@ -258,6 +271,7 @@ export default function NotesBrowser() {
         onClearPending={onClearPending}
         focusLine={focusLine}
         focusNonce={focusNonce}
+        onOpenNote={onOpenNote}
         onBackToTree={
           keyword.trim()
             ? () => {

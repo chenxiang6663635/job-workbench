@@ -10,9 +10,11 @@ import {
   NOTES_SECTIONS,
   readWorkspace,
   stripHtmlComments,
+  type NotesActive,
   type NotesNode,
   type NotesSectionKey,
 } from "../lib/notes";
+import { resolveNoteLink } from "../lib/notesLink";
 import { captureNotesPos, readNotesPos, restoreNotesPos } from "../lib/notesView";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesMarkdown from "./NotesMarkdown";
@@ -52,6 +54,8 @@ export interface NotesReaderProps {
   focusNonce: number;
   /** 回目录树（搜索态下路径行的目录段可点）：清搜索、左栏换回目录树 */
   onBackToTree?: () => void;
+  /** 点正文里的笔记互链（一期：03/04 两棵树内的 .md）：上层负责切换目标文件 */
+  onOpenNote?: (target: NotesActive) => void;
 }
 
 export default function NotesReader({
@@ -72,6 +76,7 @@ export default function NotesReader({
   focusLine,
   focusNonce,
   onBackToTree,
+  onOpenNote,
 }: NotesReaderProps) {
   const { t } = useTranslation();
   const dir = NOTES_SECTIONS.find((s) => s.key === section)?.dir ?? "";
@@ -84,6 +89,13 @@ export default function NotesReader({
   // hooks 必须在每次渲染里同序调用。
   const clean = useMemo(() => (content ? stripHtmlComments(content.content) : ""), [content]);
   const outline = useMemo(() => extractOutline(clean), [clean]);
+  // 笔记互链解析（一期）：以当前文件为基准；deps 用 file?.rel 这个原始值，
+  // 避免父组件重渲染产生的新对象把 memo 打穿（否则整篇会被反复重解析）。
+  const fileRel = file?.rel ?? null;
+  const resolveNote = useMemo(
+    () => (fileRel ? (href: string) => resolveNoteLink(href, { section, rel: fileRel }) : undefined),
+    [section, fileRel]
+  );
 
   // 搜索命中后的定位：命中行 → 它所属的块（起始行 ≤ 它的最后一个块）→ 滚过去并
   // 标记。**用 DOM 不用 hash 跳转**：App 是 hash 路由，原生 #hash 会被判无效并
@@ -242,6 +254,8 @@ export default function NotesReader({
               pendingLine={pendingLine}
               queuedLines={batchMode ? pending : undefined}
               locked={locked}
+              resolveNote={resolveNote}
+              onOpenNote={onOpenNote}
             />
             {content.truncated && (
               <p className="mt-6 rounded-md border border-warning/60 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">

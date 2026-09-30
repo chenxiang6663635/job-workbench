@@ -59,16 +59,23 @@ def test_directions_read_workspace_plugin(client, tmp_path):
         "# 方向：热流体仿真 / CFD\n\n正文\n", encoding="utf-8")
     (ws / "config" / "directions" / "no-title.md").write_text(
         "没有标题行\n", encoding="utf-8")
+    # BOM 是第三方插件作者的常态（记事本 / Excel 系工具保存）——标题要照常解析出来
+    (ws / "config" / "directions" / "bom.md").write_text(
+        "\ufeff# 方向：带 BOM 的标题\n", encoding="utf-8")
 
     resp = client.get("/api/workspaces/directions", params={"ws": "ws-dir"})
 
     assert resp.status_code == 200, resp.text
+    # 工作区回显（issue #22 的通用保证）在新端点上同样成立
+    assert resp.headers["X-Jobws-Workspace"] == "ws-dir"
     body = resp.json()
-    assert [item["id"] for item in body["items"]] == ["no-title", "thermal-fluid-cfd"]
+    assert [item["id"] for item in body["items"]] == [
+        "bom", "no-title", "thermal-fluid-cfd"]
     titles = {item["id"]: item["title"] for item in body["items"]}
     assert titles["thermal-fluid-cfd"] == "热流体仿真 / CFD"
+    assert titles["bom"] == "带 BOM 的标题"
     assert titles["no-title"] == "没有标题行"
-    assert body["total"] == 2
+    assert body["total"] == 3
     assert body["alwaysAccepted"] == ["other"]
 
 

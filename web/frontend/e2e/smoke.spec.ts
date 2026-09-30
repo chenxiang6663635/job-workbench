@@ -232,24 +232,29 @@ test("空库首页给引导；接口失败不误报空态", async ({ page }) => 
   });
 
   // 方向候选动态化（2026-09-30）：下拉里的方向来自**工作区装入的插件**，不再是写死三项。
-  // 断言不硬编码条数（demo 装什么方向由插件决定）：只要求接口给的方向出现在下拉里、
-  // 且是 `标题（原始值）` 的形态；没有方向文件的工作区跳过（那种候选只剩恒定值）。
+  // 断言不硬编码条数（demo 装什么方向由插件决定）。查询显式带 `ws=demo`：页面被
+  // ENV_SCRIPT 固定在 demo，而这句 fetch 不带 ws 时会落到后端默认工作区——本地复用
+  // personal 后端（reuseExistingServer）时两边会分叉，用例随即变红或假绿。
   test("方向下拉列出工作区装入的方向（含文件标题）", async ({ page }) => {
-  await openPage(page, "applications");
+    await openPage(page, "applications");
 
-  const payload = await page.evaluate(async () => {
-  const res = await fetch("/api/workspaces/directions");
-  return res.ok ? await res.json() : null;
-  });
-  const items = (payload?.items ?? []) as { id: string; title: string }[];
-  const always = (payload?.alwaysAccepted ?? []) as string[];
-  test.skip(items.length === 0, "该工作区没有装入方向文件");
+    const payload = await page.evaluate(async () => {
+      const res = await fetch("/api/workspaces/directions?ws=demo");
+      return res.ok ? await res.json() : null;
+    });
+    const items = (payload?.items ?? []) as { id: string; title: string }[];
+    const always = (payload?.alwaysAccepted ?? []) as string[];
+    test.skip(items.length === 0, "该工作区没有装入方向文件");
 
-  await page.getByRole("combobox", { name: "Filter by direction" }).click();
-  await expect(
-  page.getByRole("option", { name: `${items[0].title}（${items[0].id}）` })
-  ).toBeVisible();
-  expect(await page.getByRole("option").count()).toBeGreaterThanOrEqual(
-  items.length + always.length
-  );
+    await page.getByRole("combobox", { name: "Filter by direction" }).click();
+    // 候选 ≥ 装入的 + 恒接受（表里已用过的还会往上加）；「全部方向」是额外一项
+    expect(await page.getByRole("option").count()).toBeGreaterThanOrEqual(
+      items.length + always.length
+    );
+    // 有标题的方向按 `标题（原始值）` 渲染；标题解析不出来时（端点的容错口径）不硬断形态
+    if (items[0].title) {
+      await expect(
+        page.getByRole("option", { name: `${items[0].title}（${items[0].id}）` })
+      ).toBeVisible();
+    }
   });

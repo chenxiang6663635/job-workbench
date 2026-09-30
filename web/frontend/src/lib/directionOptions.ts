@@ -27,8 +27,8 @@ export function buildDirectionOptions(input: {
   const seen = new Set<string>();
   const options: DirectionOption[] = [];
   const add = (raw: string, title?: string) => {
-    const value = (raw || "").trim();
-    if (!value || seen.has(value)) return;
+    const value = typeof raw === "string" ? raw : "";
+    if (!value.trim() || seen.has(value)) return;   // 只剔空值：值本身保持原样
     seen.add(value);
     const name = (title || "").trim();
     const fallback = input.fallbackLabel ? input.fallbackLabel(value) : value;

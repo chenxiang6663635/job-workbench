@@ -512,6 +512,21 @@
     },
     {
       "end": "cli",
+      "item": "direction.list",
+      "reason": "命令行在打分与校验时按方向实时读工作区 `config/directions/`，不需要先取候选清单。"
+    },
+    {
+      "end": "mcp",
+      "item": "direction.list",
+      "reason": "同上：AI 宿主不需要候选枚举；写入路径本来就带校验。"
+    },
+    {
+      "end": "plugin",
+      "item": "direction.list",
+      "reason": "插件命令层不含枚举来源——它的说法是「与工作区 config/directions/ 一致」（skills/jwb-track）。"
+    },
+    {
+      "end": "cli",
       "item": "audit.crossEnd",
       "reason": "维护者自用的只读审查子代理，命令行没有对应命令。"
     },

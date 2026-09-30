@@ -59,7 +59,7 @@ export default function Applications() {
   const [draft, setDraft] = useState({
     公司: "",
     岗位: "",
-    方向: "hvac",
+    方向: "other",
     批次: "正式批",
     来源: "",
     链接: "",
@@ -156,7 +156,7 @@ export default function Applications() {
         setDraft({
           公司: "",
           岗位: "",
-          方向: "hvac",
+          方向: "other",
           批次: "正式批",
           来源: "",
           链接: "",
@@ -210,7 +210,7 @@ export default function Applications() {
         <ApplicationFilters
           value={filter}
           onChange={setFilter}
-          used={items.map((item) => item.方向)}
+          used={[...items.map((item) => item.方向), filter.direction]}
         />
 
         <Button variant="outline" onClick={() => setShowStatus(true)}>
@@ -308,6 +308,7 @@ export default function Applications() {
             <DirectionSelect
               value={draft.方向}
               onChange={(v) => setDraft({ ...draft, 方向: v })}
+              used={[draft.方向]}
             />
             <Select
               value={draft.批次}

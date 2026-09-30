@@ -25,20 +25,32 @@ export function useDirectionOptions(used: string[] = []): DirectionOption[] {
   const [data, setData] = useState<DirectionsPayload>(EMPTY);
 
   useEffect(() => {
+    let alive = true;   // 卸载后不再 setState（StrictMode 下也不会写回过期结果）
     requestJson<DirectionsPayload>("/workspaces/directions").then(
-      (body) =>
+      (body) => {
+        if (!alive) return;
         setData({
           items: Array.isArray(body?.items) ? body.items : [],
           alwaysAccepted: Array.isArray(body?.alwaysAccepted) ? body.alwaysAccepted : [],
-        }),
-      () => setData(EMPTY)
+        });
+      },
+      () => {
+        if (alive) setData(EMPTY);
+      }
     );
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // 调用方多半就地 map 出新数组（如 `rows.map((r) => r.方向)`）：按**内容**而不是
-  // 数组引用做依赖，免得每次渲染都重算候选。
-  const usedKey = used.join("\u0000");
-  const usedValues = useMemo(() => (usedKey ? usedKey.split("\u0000") : []), [usedKey]);
+  // 数组引用做依赖，免得每次渲染都重算候选。键用 JSON 序列化——用分隔符连接的话，
+  // 值里恰好含该分隔符会串味（["a\u0000b"] 与 ["a","b"] 撞成同一个键）。
+  const usedKey = JSON.stringify(used);
+  const usedValues = useMemo(
+    () => (usedKey === "[]" ? [] : (JSON.parse(usedKey) as string[])),
+    [usedKey]
+  );
 
   return useMemo(
     () =>

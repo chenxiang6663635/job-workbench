@@ -82,12 +82,13 @@ python tools/jobws.py init --target demo --demo
 
 # 1. 初始化工作区（生成六个模块 + 档案模板 + 领域插件）
 #    --domain 换成你专业的插件，可选值见 docs/README.md 的「领域插件」表
-python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
+#    （`personal` 是命令行的默认工作区名，换成任何目录名都可以）
+python tools/jobws.py init --target personal --domain hvac-cooling
 
 # 2. 分发技能 / 命令 / 子代理到你的 AI CLI（CodeBuddy / Claude Code / 跨运行时 ~/.agents/skills/）
 python tools/jobws.py skills install --target user
 
-# 3. 填写 my_job_hunt/AGENTS.md
+# 3. 填写 personal/AGENTS.md
 #    第三节的硬门槛事实必填——不填的岗位会被判「待补档案」（不打分也不终止），
 #    补齐即可评分；判定永不猜测。文件里还有两条通用诚实红线：
 #    简历动词经得起追问、永不编造经历

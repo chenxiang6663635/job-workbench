@@ -26,6 +26,8 @@ English（主版）：[`usage-guide.md`](usage-guide.md) ｜ 本文件是简体�
 # 后端依赖（上限已随 3.12 基线逐步放宽、每条跑全量回归后才合；当前值见 web/backend/requirements.txt）
 cd <仓库目录>\web\backend
 pip install -r requirements.txt
+# 后端启动时导入领域包（jobws_core），缺了 uvicorn 会直接退出：
+pip install ../../packages/jobws-core
 
 # 前端依赖
 cd <仓库目录>\web\frontend

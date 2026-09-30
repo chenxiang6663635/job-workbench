@@ -98,3 +98,9 @@ def test_doctor_reads_the_requested_workspace(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "catppuccin-mocha" in out, out      # 目标工作区的值
     assert "nord" not in out, out              # 默认工作区的值不该出现
+
+    # 缺省行为不变：不传 --workspace 时读默认工作区（与旧的无参调用等价）
+    assert prefs.cmd_doctor(_Args()) == 0
+    out_default = capsys.readouterr().out
+    assert "nord" in out_default, out_default
+    assert "catppuccin-mocha" not in out_default, out_default

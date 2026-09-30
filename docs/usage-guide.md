@@ -26,6 +26,8 @@ Do this once. Skip it if your environment is already set up.
 # Backend (upper-bound pins — relaxed step by step since the 3.12 baseline, each verified by a full regression run; current values in web/backend/requirements.txt)
 cd <repo>\web\backend
 pip install -r requirements.txt
+# The backend imports the domain package at startup — without it uvicorn exits immediately:
+pip install ../../packages/jobws-core
 
 # Frontend
 cd <repo>\web\frontend

@@ -12,7 +12,7 @@
 # **解释器不由"终端里碰巧激活了哪个环境"决定**（2026-09-15 实测踩到：终端自动激活的
 # conda 环境里，`python` 可能是 3.8 或没装依赖的环境，后端于是起不来/或起成半坏状态）。
 # 解析顺序：`-Py` → `JOBWS_PYTHON` → 仓库内 `.venv` → PATH 上的 python；每个候选都要
-# **验版本（≥3.9）且验依赖（能 import fastapi/uvicorn）**，都不合格就给人话报错并退出。
+# **验版本（≥3.9）且验依赖（能 import fastapi/uvicorn/jobws_core）**，都不合格就给人话报错并退出。
 
 # param 必须是脚本第一条可执行语句（PowerShell 语法要求），不能放在赋值之后
 param([string]$RepoRoot = "", [string]$Py = "", [switch]$CheckOnly)

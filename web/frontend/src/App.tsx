@@ -93,7 +93,7 @@ export default function App() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-hero-glow" />
 
-      <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+      <nav className="fixed inset-x-0 top-0 z-50 border-b border-region-nav-border bg-region-nav/90 backdrop-blur-xl">
         <div className={`mx-auto flex h-16 ${CONTENT_MAX_W} items-center gap-3 px-6`}>
           <div className="flex shrink-0 items-center gap-2">
             <img src="/favicon.png" alt={t("app.title")} className="h-7 w-7 rounded-lg" />

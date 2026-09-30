@@ -26,6 +26,10 @@
   --highlight: 41 32% 75%;
   --scrim: 0 0% 0%;
   --glow-primary: 83 34% 63%;
+  /* 区域层（UI 线 B 有限版）：导航区独立一档——内容区=background、
+     面板区=card、导航区=本键；border 沿用主题 --border 语义 */
+  --region-nav-surface: 199 13% 21.6%;
+  --region-nav-border: 199 12% 27%;
   --elevation-0-surface: 202 14% 16%;
   --elevation-1-surface: 199 13% 24%;
   --elevation-2-surface: 199 12% 27%;

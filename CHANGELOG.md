@@ -29,6 +29,7 @@
 - **"External changes stopped refreshing" fixed (2026-09-26)** — if you had deleted a workspace, or moved between the repo-based dev setup and the installed app (they use different data roots), the auto-refresh that picks up changes written from the CLI / AI host failed silently (a hidden 404 every 10 s). The poller now reads the same workspace the UI shows, and a stale saved value is corrected automatically.
 - **Notes can jump between files (2026-09-29)** — relative links inside a note (to another note under 03_面试准备 / 04_知识库, including across the two trees) are now clickable and open the target note in place; links pointing outside the two note trees or to non-markdown files stay as plain text, and external http(s) links are unchanged.
 - **The font-size slider now scales all text (2026-09-29)** — small labels in the notes tree, the question bank and settings cards used to be hard-coded pixel sizes that ignored the slider; they now use relative units, and the notes tree / bank group labels were bumped one step (11→12px) for readability.
+- **The top bar sits on its own tier now (2026-09-29)** — the header previously shared the page tint (only blur separated them); it now uses a dedicated region color one low-contrast step away plus its own border (VS Code titleBar-style). Both are real theme tokens: all 10 built-in themes ship validated values, and the theme gate grew two new contrast checks for this surface.
 
 ### 看得见的变化
 
@@ -38,6 +39,7 @@
 - **修好「外部改动不再自动刷新」的静默失效（2026-09-26）**：你在命令行 / AI 宿主里改完数据切回应用，界面本该自动刷新——但如果你曾删过某个工作区、或从「仓库里跑」切到「安装版」（两者数据目录不同），这条感知会**静默失效**（后台每 10 秒一次 404，界面毫无提示）。现在轮询与界面读的是同一个工作区，失效的选中值也会被自动修正（#222）。
 - **笔记正文互链可以直接点开（2026-09-29）**：在「准备 → 笔记」里读材料时，正文中的相对链接（指向 `03_面试准备` / `04_知识库` 内的其他笔记，含跨两棵树的互链）现在可以点击并当场切换正文，不必回左侧目录树找；指向两棵树之外（如简历工坊、岗位池）或非 .md 的链接保持旧的弱化文本样式，外链行为不变。
 - **「字号」滑块现在作用于全站文字（2026-09-29）**：此前笔记树、题库、设置卡等处的小字是写死的像素值——拖动「字号」时它们纹丝不动（缩小窗口或放大字号后相对显得更小）；本次把全站 178 处任意字号统一为相对单位，滑块从此覆盖每一处文字；笔记树与题库的父目录 / 分组标签顺带从 11px 提到 12px，更好读。
+- **顶栏有了自己的「区域层」（2026-09-29）**：此前顶栏与页面底色几乎是同一档（只靠模糊区分）；现在导航区使用独立的主题色（相对页面底色低反差地差一档）+ 自己的边框——像 VS Code 的标题栏那样「分区但不割裂」；内容区与卡片区维持既有键不重复定义，10 套内置主题全部带上经门禁校验的新色值。
 
 ### 技术细节
 
@@ -56,6 +58,7 @@
 - **设置页界面大小卡拆出（2026-09-26，#221）**：`Settings.tsx` 352→232 行，跌破 300 阈值 → `tools/size_allowlist.txt` 登记行按自洁规则删除；同时登记 `i18n/locales/zh-CN.ts` 的贴线变动（提醒条 7 键，1500→1509——它是双语键集的源语言单一真源，拆文件会破坏 `en.ts` 的编译期键集对齐，减债方向写进登记理由）。
 - **笔记互链一期（2026-09-29）**：新增 `lib/notesLink.ts` 的 `resolveNoteLink`（纯函数双基准解析：默认当前文件目录、以 section 目录名开头按工作区根；`..` 越界 / 未登记目录 / 外链 / 非 `.md` / 非法 percent 编码 → null，渲染侧保持弱化降级）；`NotesMarkdown` 的 `a` 渲染器从模块级 `baseComponents` 迁入按渲染的 memo，新增可选 `resolveNote` / `onOpenNote`（点击 `preventDefault`，hash 路由下不回看板）；`NotesBrowser` 新增 `onOpenNote`（收尾对齐 `onPickHit`）。**零后端改动**——读取仍走后端 `/prep` 的既有三层防护（section 白名单 + `safe_join` + realpath 二次确认 + 256KB 截断）。新增 8 条单元测试 + 1 条 e2e（含 Axe）；解析器落在新文件 `lib/notesLink.ts`（61 行纯函数）——`lib/notes.ts` 终态未改动（289 行，未越规模闸门）。
 - **UI 线 A：字号收敛（2026-09-29）**：`web/frontend/src` 的 `text-[Npx]` 任意字号 **178 处 / 53 文件**收敛为 `text-[N/16rem]`（默认字号下像素等价、随根字号缩放——「字号连续可调」从此真正覆盖全站）；树 / 题库 / 分组标签 9 处 11px→12px（`text-xs`）。重拍 `docs/screenshots` 16 张（diff 同时包含此前未随界面更新重拍的既有差异，如到点提醒条；`capture` 管线本身未改）。验证：eslint 0 错 / build / 单测 196 / smoke 59 / notes+prepare-tabs+ux 23 / lint{size,ui-tokens,i18n} 全过。
+- **区域层 token（UI 线 B 有限版，2026-09-29）**：新增 `--region-nav-surface` / `--region-nav-border` 两键（导航区；内容区=background、面板区=card 为既有键、不重复定义）——四处同步（45→47 键）：`index.css :root` + `themes/*.css`×9（脚本按「背景→卡片 40% 插值 + 沿用主题 --border」生成）+ `theme.ts` THEME_VAR_KEYS + `check_themes.py` EXPECTED_KEYS；`check_themes` 新增「foreground / muted-foreground 对 region-nav-surface ≥4.5」两条对比度检查，10 套主题全过；`tailwind.config.js` 加 `region.nav` 映射，`App.tsx` 顶栏改用 `bg-region-nav/90` + `border-region-nav-border`；重拍 16 张截图。`theme.ts` 触发 size 水位（318>317）→ 压缩注释回 316。
 
 ## [26.9.0] - 2026-09-25
 

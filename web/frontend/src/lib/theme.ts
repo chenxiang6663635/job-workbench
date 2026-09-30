@@ -41,14 +41,14 @@ export const THEMES: ThemeOption[] = [
 /** 内置主题 id 集合（含 system 与 dark）。 */
 const BUILTIN_IDS = new Set(THEMES.map((item) => item.id));
 
-/** 主题变量全集（45 键）——与 tools/check_themes.py 的基准清单、主题文件同构。
-    编辑器「从当前主题继承全部、只改关键色」靠它列举与校验。 */
+/** 主题变量全集（47 键；与 check_themes.py 基准清单、主题文件同构）——编辑器「继承全部、只改关键色」靠它列举与校验。 */
 export const THEME_VAR_KEYS = [
   "background", "foreground", "card", "card-foreground", "popover",
   "popover-foreground", "primary", "primary-foreground", "secondary",
   "secondary-foreground", "muted", "muted-foreground", "destructive",
   "destructive-foreground", "success", "warning", "border", "border-strong",
   "input", "ring", "highlight", "scrim", "glow-primary",
+  "region-nav-surface", "region-nav-border",
   "elevation-0-surface", "elevation-1-surface", "elevation-2-surface",
   "elevation-3-surface",
   "elevation-1-border", "elevation-2-border", "elevation-3-border",
@@ -143,9 +143,8 @@ function ensureSystemListener(choice: string): void {
 
 // --- 自定义主题（批 4 编辑器）-----------------------------------------------
 //
-// 自定义主题 = 一份变量表（45 键，HSL 三元组），存 localStorage 的 JSON 数组，
-// 以动态 <style> 注入 CSS（避免每次编辑都写文件/重构建）。与内置主题共用同一
-// 应用路径：applyTheme 认 id、CSS 认 [data-theme]——编辑器只是「造变量表」的那一层。
+// 自定义主题 = 一份变量表（47 键，HSL 三元组），存 localStorage、以动态 <style> 注入 CSS
+//（与内置主题共用同一应用路径：applyTheme 认 id、CSS 认 [data-theme]；编辑器只是「造变量表」的那一层）。
 
 const CUSTOM_KEY = "jobws.theme.custom";
 const CUSTOM_STYLE_ID = "jobws-custom-themes";
@@ -154,7 +153,7 @@ export interface CustomTheme {
   id: string;
   /** 用户命名（显示在主题网格里） */
   label: string;
-  /** 45 键变量表（与内置主题文件同构） */
+  /** 47 键变量表（与内置主题文件同构） */
   vars: Record<string, string>;
 }
 
@@ -296,7 +295,7 @@ function normalizeValue(value: string): string {
   return (inner ? inner[1] : value).trim();
 }
 
-/** 只保留 45 键里认识的键，值归一化为三元组。 */
+/** 只保留 47 键里认识的键，值归一化为三元组。 */
 function normalizeVars(vars: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const key of Object.keys(vars)) {

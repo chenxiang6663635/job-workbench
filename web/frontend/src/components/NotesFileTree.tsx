@@ -114,7 +114,7 @@ export default function NotesFileTree({
               onClick={() => toggleDir(node.rel)}
               aria-expanded={!isCollapsed}
               className={cn(
-                "flex w-full cursor-pointer items-center gap-1 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground",
+                "flex w-full cursor-pointer items-center gap-1 py-1 text-left text-xs text-muted-foreground transition-colors hover:text-foreground",
                 indent(depth)
               )}
             >
@@ -138,7 +138,7 @@ export default function NotesFileTree({
             ref={isActive ? activeRef : undefined}
             onClick={() => onSelect(section, node)}
             className={cn(
-              "flex w-full cursor-pointer items-center gap-2 rounded-md border-l-2 border-transparent py-1.5 pr-2 text-left text-[13px] text-foreground transition-colors hover:bg-secondary",
+              "flex w-full cursor-pointer items-center gap-2 rounded-md border-l-2 border-transparent py-1.5 pr-2 text-left text-[0.8125rem] text-foreground transition-colors hover:bg-secondary",
               indent(depth),
               isActive && "border-primary bg-secondary font-medium"
             )}
@@ -153,12 +153,12 @@ export default function NotesFileTree({
               {node.fileKind === "readme" ? t("notes.readmeLabel") : node.name}
             </span>
             {unreadable.includes(node.rel) && (
-              <span className="ml-auto shrink-0 rounded-full border border-destructive/60 px-1.5 text-[10px] text-destructive">
+              <span className="ml-auto shrink-0 rounded-full border border-destructive/60 px-1.5 text-[0.625rem] text-destructive">
                 {t("notes.badgeUnreadable")}
               </span>
             )}
             {node.size === 0 && (
-              <span className="ml-auto shrink-0 rounded-full border border-border px-1.5 text-[10px] text-muted-foreground">
+              <span className="ml-auto shrink-0 rounded-full border border-border px-1.5 text-[0.625rem] text-muted-foreground">
                 {t("notes.badgeEmpty")}
               </span>
             )}
@@ -184,7 +184,7 @@ export default function NotesFileTree({
         {hits.map(({ section, nodes }) =>
           nodes.length === 0 ? null : (
             <div key={section.key} className="mb-1">
-              <p className="px-2 pb-0.5 pt-2 text-[11px] font-medium text-muted-foreground">
+              <p className="px-2 pb-0.5 pt-2 text-xs font-medium text-muted-foreground">
                 {t(GROUP_LABEL[section.key])}
               </p>
               <ul>{renderNodes(nodes, section.key, 0)}</ul>

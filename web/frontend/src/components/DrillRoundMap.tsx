@@ -48,7 +48,7 @@ export function DrillRoundMap({
             aria-current={isCurrent ? "step" : undefined}
             title={item.题目}
             className={cn(
-              "h-7 min-w-7 cursor-pointer rounded-md border px-1.5 font-numeric text-[11px] tabular-nums transition-colors",
+              "h-7 min-w-7 cursor-pointer rounded-md border px-1.5 font-numeric text-[0.6875rem] tabular-nums transition-colors",
               isWritten
                 ? "border-success/60 bg-success/10 text-foreground"
                 : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",

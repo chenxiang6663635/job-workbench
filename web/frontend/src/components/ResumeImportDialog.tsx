@@ -206,7 +206,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t("resumeImp.sourceText", { count: result.characters })}
               </div>
-              <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-foreground">
+              <pre className="whitespace-pre-wrap break-words font-mono text-[0.75rem] leading-relaxed text-foreground">
                 {result.text}
               </pre>
             </div>
@@ -228,7 +228,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                 )}
               </div>
               {issues.length > 0 && (
-                <ul className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-[12px] text-destructive">
+                <ul className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-[0.75rem] text-destructive">
                   {issues.map((i, idx) => (
                     <li key={idx}>· {i}</li>
                   ))}
@@ -246,7 +246,7 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
                     : "border-border";
                   return (
                     <div key={key}>
-                      <Label className="text-[11px] text-muted-foreground">{t(labelKey)}</Label>
+                      <Label className="text-[0.6875rem] text-muted-foreground">{t(labelKey)}</Label>
                       <Input
                         value={basics[key] || ""}
                         onChange={(e) => setBasics((b) => ({ ...b, [key]: e.target.value }))}
@@ -258,16 +258,16 @@ export default function ResumeImportDialog({ currentVersion, onClose, onImported
               </div>
               {/* 其余结构（教育/项目/工作/技能/其他） */}
               <div>
-                <Label className="text-[11px] text-muted-foreground">{t("resumeImp.restLabel")}</Label>
+                <Label className="text-[0.6875rem] text-muted-foreground">{t("resumeImp.restLabel")}</Label>
                 <Textarea
                   value={restJson}
                   onChange={(e) => setRestJson(e.target.value)}
                   rows={16}
                   spellCheck={false}
-                  className={`font-mono text-[12px] ${restOk ? "" : "border-destructive ring-1 ring-destructive/40"}`}
+                  className={`font-mono text-[0.75rem] ${restOk ? "" : "border-destructive ring-1 ring-destructive/40"}`}
                 />
                 {!restOk && (
-                  <p className="mt-1 text-[12px] text-destructive">{t("resumeImp.jsonInvalid")}</p>
+                  <p className="mt-1 text-[0.75rem] text-destructive">{t("resumeImp.jsonInvalid")}</p>
                 )}
               </div>
             </div>

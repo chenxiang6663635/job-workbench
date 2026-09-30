@@ -38,7 +38,7 @@ export default function AboutCard({
       </CardHeader>
 
       {pathsError ? (
-        <p className="text-[11px] text-destructive">
+        <p className="text-[0.6875rem] text-destructive">
           {t("settings.pathsFailed", { error: pathsError })}
         </p>
       ) : !paths ? (
@@ -46,14 +46,14 @@ export default function AboutCard({
       ) : (
         <div className="space-y-1.5">
           <p className="flex flex-wrap items-baseline gap-2">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[0.6875rem] text-muted-foreground">
               {t("settings.aboutVersion")}
             </span>
             <span className="font-mono text-lg font-semibold text-foreground">
               {paths.appVersion || t("settings.aboutUnknown")}
             </span>
           </p>
-          <dl className="space-y-1 text-[11px] text-muted-foreground">
+          <dl className="space-y-1 text-[0.6875rem] text-muted-foreground">
             <div className="flex flex-wrap gap-1.5">
               <dt className="text-muted-foreground">{t("settings.aboutPlatform")}</dt>
               <dd className="text-muted-foreground">
@@ -63,11 +63,11 @@ export default function AboutCard({
               </dd>
             </div>
           </dl>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
             {t("settings.aboutNote")}
           </p>
           <a
-            className="text-[11px] text-primary hover:underline"
+            className="text-[0.6875rem] text-primary hover:underline"
             href={`https://gitee.com/Chenxiang663635/job-workbench/blob/main/docs/usage-guide${
               i18n.language.startsWith("en") ? "" : ".zh-CN"
             }.md`}
@@ -84,7 +84,7 @@ export default function AboutCard({
             <button
               type="button"
               onClick={() => openLogFolder()}
-              className="block text-left text-[11px] text-primary hover:underline"
+              className="block text-left text-[0.6875rem] text-primary hover:underline"
             >
               {t("settings.openLogs")}
             </button>

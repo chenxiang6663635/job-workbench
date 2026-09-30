@@ -38,7 +38,7 @@ export default function FolderCandidates({
           {loading ? t("settings.imapFolderLoading") : t("settings.imapFolderLoad")}
         </Button>
         {folders.length > 0 && (
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[0.6875rem] text-muted-foreground">
             {t("settings.imapFolderCandidates")}
           </span>
         )}
@@ -49,7 +49,7 @@ export default function FolderCandidates({
             <button
               key={name}
               type="button"
-              className="rounded-full border border-border px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              className="rounded-full border border-border px-2.5 py-0.5 font-mono text-[0.6875rem] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
               onClick={() => onPick(name)}
             >
               {name}

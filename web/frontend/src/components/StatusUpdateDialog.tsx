@@ -189,7 +189,7 @@ export default function StatusUpdateDialog({ applications, onClose, onApplied, i
             rows={7}
             spellCheck={false}
             placeholder={t("status.placeholder")}
-            className="resize-y text-[13px]"
+            className="resize-y text-[0.8125rem]"
           />
 
           <div className="flex flex-wrap items-center gap-3">

@@ -40,7 +40,7 @@ export default function VersionLineage() {
     <div className="flex items-center gap-2">
       <GitBranch size={15} className="text-primary" />
       <h3 className="text-sm font-medium text-foreground">{t("lineage.title")}</h3>
-      <span className="text-[11px] text-muted-foreground">
+      <span className="text-[0.6875rem] text-muted-foreground">
         {t("lineage.subtitle")}
       </span>
     </div>
@@ -79,7 +79,7 @@ export default function VersionLineage() {
           <Card key={it.version} className="p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-foreground">{it.version}</p>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-[0.6875rem] text-muted-foreground">
                 {t("lineage.jobCount", { count: it.total })}
               </span>
             </div>
@@ -104,7 +104,7 @@ export default function VersionLineage() {
       </div>
 
       {items.some((i) => i.version === "（未填版本）") && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[0.6875rem] text-muted-foreground">
           {t("lineage.tip")}
         </p>
       )}

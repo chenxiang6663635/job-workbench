@@ -174,7 +174,7 @@ export default function ImapCard({ hidden = false }: ImapCardProps) {
             {providers.map((item) => (
               <SelectItem key={item.id} value={item.id}>
                 {providerName(item)}
-                <span className="ml-2 text-[11px] text-muted-foreground">{item.host}</span>
+                <span className="ml-2 text-[0.6875rem] text-muted-foreground">{item.host}</span>
               </SelectItem>
             ))}
             <SelectItem value={MANUAL_PROVIDER_ID}>
@@ -208,7 +208,7 @@ export default function ImapCard({ hidden = false }: ImapCardProps) {
             {recognised && recognised.id !== providerId && (
               <button
                 type="button"
-                className="text-[11px] text-primary underline-offset-2 hover:underline"
+                className="text-[0.6875rem] text-primary underline-offset-2 hover:underline"
                 onClick={applyRecognised}
               >
                 {t("settings.imapProviderAuto", { name: providerName(recognised) })}

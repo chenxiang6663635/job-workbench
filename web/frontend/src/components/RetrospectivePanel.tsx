@@ -50,7 +50,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
       <div className="flex items-center gap-2">
         <RotateCcw size={15} className="text-primary" />
         <h3 className="text-sm font-semibold text-foreground">{t("retro.title")}</h3>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[0.6875rem] text-muted-foreground">
           {t("retro.recordCount", { total: data.total })}
         </span>
       </div>
@@ -81,7 +81,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
                   />
                   <Num align="right" className={`w-24 shrink-0 ${rateColor(c.rate)}`}>
                     {c.rate === null ? "—" : `${c.rate}%`}
-                    <span className="ml-1 text-[10px] text-muted-foreground">
+                    <span className="ml-1 text-[0.625rem] text-muted-foreground">
                       {c.advanced}/{c.reached}
                     </span>
                   </Num>
@@ -89,7 +89,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
               ))}
             </div>
           )}
-          <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-2.5 text-[0.6875rem] leading-relaxed text-muted-foreground">
             {t("retro.conversionHint")}
           </p>
         </Card>
@@ -107,7 +107,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
                     </span>
                     <span className="text-foreground">
                       {t("app.daysUnit", { count: s.median })}
-                      <span className="ml-1.5 text-[10px] text-muted-foreground">
+                      <span className="ml-1.5 text-[0.625rem] text-muted-foreground">
                         {t("retro.avgOf", { avg: s.avg, n: s.n })}
                       </span>
                     </span>
@@ -167,7 +167,7 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
         ) : (
           <>
             {clusters.note && (
-              <p className="mb-2 text-[11px] text-warning">{noteText(clusters)}</p>
+              <p className="mb-2 text-[0.6875rem] text-warning">{noteText(clusters)}</p>
             )}
             <div className="space-y-2">
               {clusters.clusters.map((c) => (
@@ -184,20 +184,20 @@ export default function RetrospectivePanel({ data }: { data: Retrospective }) {
                     />
                     <Num align="right" muted className="w-16 shrink-0">
                       {t("retro.times", { count: c.count })}
-                      <span className="ml-1 text-[10px] text-muted-foreground">
+                      <span className="ml-1 text-[0.625rem] text-muted-foreground">
                         {Math.round((c.count * 100) / Math.max(1, clusters.total))}%
                       </span>
                     </Num>
                   </div>
                   {c.examples.length > 0 && (
-                    <p className="mt-1 pl-28 text-[11px] leading-relaxed text-muted-foreground">
+                    <p className="mt-1 pl-28 text-[0.6875rem] leading-relaxed text-muted-foreground">
                       {c.examples.join("；")}
                     </p>
                   )}
                 </div>
               ))}
             </div>
-            <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-2.5 text-[0.6875rem] leading-relaxed text-muted-foreground">
               {t("retro.clusterHint1")}
               <code>config/failure_keywords.txt</code>
               {t("retro.clusterHint2")}

@@ -35,10 +35,10 @@ export function QuestionBankRow({ row, onOpen }: { row: BankRow; onOpen: () => v
       }}
       className="cursor-pointer p-3 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
     >
-      <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs">
         <Badge
           variant={STATUS_VARIANT[row.状态] ?? "secondary"}
-          className="rounded px-1.5 py-0.5 text-[11px]"
+          className="rounded px-1.5 py-0.5 text-xs"
         >
           {row.状态 || "未看"}
         </Badge>
@@ -47,14 +47,14 @@ export function QuestionBankRow({ row, onOpen }: { row: BankRow; onOpen: () => v
         {row.due && (
           <Badge
             variant="warning"
-            className="rounded px-1.5 py-0.5 text-[11px]"
+            className="rounded px-1.5 py-0.5 text-xs"
             title={row.reason}
           >
             {t("bank.badgeDue")}
           </Badge>
         )}
         {tagsOf(row.标签 || "").includes(WRONG_TAG) && (
-          <Badge variant="destructive" className="rounded px-1.5 py-0.5 text-[11px]">
+          <Badge variant="destructive" className="rounded px-1.5 py-0.5 text-xs">
             {t("bank.badgeWrong")}
           </Badge>
         )}

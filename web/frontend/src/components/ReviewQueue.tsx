@@ -172,7 +172,7 @@ export default function ReviewQueue() {
         {/* 模式切换走 ui/segmented：原生 radio 自带分组语义与方向键，手搓按钮组
             两者都没有（与看板 / 题库同一套控件） */}
         <div>
-          <p className="mb-1 text-[11px] text-muted-foreground">{t("drill.mode")}</p>
+          <p className="mb-1 text-[0.6875rem] text-muted-foreground">{t("drill.mode")}</p>
           <Segmented
             value={mode}
             onChange={setMode}
@@ -181,7 +181,7 @@ export default function ReviewQueue() {
           />
         </div>
         <div>
-          <p className="mb-1 text-[11px] text-muted-foreground">{t("drill.size")}</p>
+          <p className="mb-1 text-[0.6875rem] text-muted-foreground">{t("drill.size")}</p>
           <Select value={String(size)} onValueChange={(value) => setSize(Number(value))}>
             <SelectTrigger className="h-9 w-20 text-xs" aria-label={t("drill.size")}>
               <SelectValue />
@@ -232,7 +232,7 @@ export default function ReviewQueue() {
           差异卡改为内联在按钮组上方，确认语义与两段式流程一个字节都没动。 */}
       {current && (
         <Card className="flex flex-1 flex-col gap-3 p-4">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 text-[0.6875rem] text-muted-foreground">
             <span>
               {t("drill.progress", { index: index + 1, total: items.length })}
             </span>
@@ -267,7 +267,7 @@ export default function ReviewQueue() {
           )}
 
           {/* 键位要写出来才有人知道（A-5）：不写的话这功能等于不存在 */}
-          <p className="text-[11px] text-muted-foreground">{t("drill.kbdHint")}</p>
+          <p className="text-[0.6875rem] text-muted-foreground">{t("drill.kbdHint")}</p>
 
           <div className="mt-auto flex flex-wrap gap-2">
             <Button size="sm" onClick={() => grade("未看")} disabled={locked}>

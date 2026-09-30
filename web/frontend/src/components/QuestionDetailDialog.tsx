@@ -29,7 +29,7 @@ const DIFFICULTY_NONE = "__none__";
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-[0.6875rem] text-muted-foreground">{label}</p>
       <p className="mt-0.5 break-words text-xs leading-relaxed text-foreground">{value || "—"}</p>
     </div>
   );
@@ -55,7 +55,7 @@ function ReadOnlyPanel({ item }: { item: BankQuestion }) {
         />
       </div>
       <div>
-        <p className="text-[11px] text-muted-foreground">{t("bank.fieldAnswer")}</p>
+        <p className="text-[0.6875rem] text-muted-foreground">{t("bank.fieldAnswer")}</p>
         <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2.5 text-xs leading-relaxed text-foreground">
           {item.答案要点 || t("bank.noAnswer")}
         </p>
@@ -142,7 +142,7 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="mb-1 text-[11px] text-muted-foreground">{t("bank.fieldStatus")}</p>
+          <p className="mb-1 text-[0.6875rem] text-muted-foreground">{t("bank.fieldStatus")}</p>
           <Segmented
             value={status}
             onChange={setStatus}
@@ -151,7 +151,7 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
           />
         </div>
         <div>
-          <p className="mb-1 text-[11px] text-muted-foreground">{t("bank.fieldDifficulty")}</p>
+          <p className="mb-1 text-[0.6875rem] text-muted-foreground">{t("bank.fieldDifficulty")}</p>
           <Select
             value={difficulty || DIFFICULTY_NONE}
             onValueChange={(value) => setDifficulty(value === DIFFICULTY_NONE ? "" : value)}

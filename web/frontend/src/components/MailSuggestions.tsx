@@ -97,8 +97,8 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                   <span
                     className={
                       low
-                        ? "rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-foreground"
-                        : "rounded bg-secondary/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                        ? "rounded bg-warning/15 px-1.5 py-0.5 text-[0.625rem] text-foreground"
+                        : "rounded bg-secondary/60 px-1.5 py-0.5 text-[0.625rem] text-muted-foreground"
                     }
                   >
                     {low ? t("suggest.low") : t("suggest.high")}
@@ -110,7 +110,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                 <div className="mt-1">
                   <MailBody text={fact.evidence} variant="excerpt" compact />
                 </div>
-                {fact.note && <p className="mt-1 text-[11px] text-warning">{fact.note}</p>}
+                {fact.note && <p className="mt-1 text-[0.6875rem] text-warning">{fact.note}</p>}
 
                 {/* 归属就地选定（2026-09-25 真机缺陷）：后端没匹配到记录时，
                     与其让「确认写入」必然被拦，不如在卡片上直接给出口。
@@ -128,7 +128,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                 )}
 
                 {fact.kind === "会议链接" && !settled && (
-                  <div className="mt-1.5 flex items-center gap-2 text-[11px]">
+                  <div className="mt-1.5 flex items-center gap-2 text-[0.6875rem]">
                     <a
                       href={fact.value}
                       target="_blank"
@@ -149,7 +149,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                 )}
 
                 {low && !settled && (
-                  <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
                     <input
                       type="checkbox"
                       className="h-3 w-3 accent-primary"
@@ -163,7 +163,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
 
               <div className="flex shrink-0 items-center gap-1.5">
                 {settled ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-success">
+                  <span className="inline-flex items-center gap-1 text-[0.6875rem] text-success">
                     <Check size={12} /> {settled}
                   </span>
                 ) : (
@@ -171,7 +171,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-2 text-[11px]"
+                      className="h-7 px-2 text-[0.6875rem]"
                       disabled={
                         s.busy === key ||
                         (low && !s.acked[key]) ||
@@ -209,10 +209,10 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
       })}
 
       {s.providerReady && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-2 text-[11px]">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-2 text-[0.6875rem]">
           <span className="text-muted-foreground">{t("suggest.aiTitle")}</span>
           <Input
-            className="h-7 w-32 text-[11px]"
+            className="h-7 w-32 text-[0.6875rem]"
             placeholder={t("suggest.aiModelPlaceholder")}
             aria-label={t("suggest.aiModelLabel")}
             value={s.model}
@@ -221,7 +221,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
           <Button
             size="sm"
             variant="outline"
-            className="h-7 px-2 text-[11px]"
+            className="h-7 px-2 text-[0.6875rem]"
             disabled={s.aiBusy}
             onClick={s.runAi}
           >
@@ -241,7 +241,7 @@ export default function MailSuggestions({ message, onWritten, onOpenStatus }: Pr
         <button
           type="button"
           onClick={() => onOpenStatus(message.body)}
-          className="cursor-pointer text-[11px] text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
+          className="cursor-pointer text-[0.6875rem] text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
         >
           {t("suggest.openFull")}
         </button>

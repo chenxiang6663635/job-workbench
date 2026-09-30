@@ -196,7 +196,7 @@ function StaleList({
       <div className="mb-3 flex items-center gap-2">
         <Hourglass size={15} className="text-warning" />
         <h2 className="text-sm font-semibold text-foreground">{t("dash.staleTitle")}</h2>
-        <span className="ml-auto text-[10px] text-muted-foreground">
+        <span className="ml-auto text-[0.625rem] text-muted-foreground">
           {/* count 是给 i18next 选复数形式的，days 才是显示值——少传 count
               会直接显示 key 名 `dash.staleSubtitle`（冒烟时抓到过） */}
           {t("dash.staleSubtitle", { count: staleDays, days: staleDays })}
@@ -577,7 +577,7 @@ export default function Dashboard() {
                             size="sm"
                             onClick={() => snooze(u.id, u.date)}
                             title={t("dash.postpone7")}
-                            className="h-6 px-1.5 text-[10px]"
+                            className="h-6 px-1.5 text-[0.625rem]"
                           >
                             {t("dash.postpone7")}
                           </Button>

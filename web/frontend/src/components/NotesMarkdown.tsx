@@ -47,7 +47,7 @@ const baseComponents: Components = {
     <h1
       id={anchorId(node)}
       {...lineAttr(node)}
-      className="mb-2 mt-0 text-[21px] font-semibold tracking-tight"
+      className="mb-2 mt-0 text-[1.3125rem] font-semibold tracking-tight"
       {...props}
     />
   ),
@@ -55,7 +55,7 @@ const baseComponents: Components = {
     <h2
       id={anchorId(node)}
       {...lineAttr(node)}
-      className="mb-2.5 mt-8 scroll-mt-24 border-t border-border pt-6 text-[16px] font-semibold first-of-type:border-t-0 first-of-type:pt-0"
+      className="mb-2.5 mt-8 scroll-mt-24 border-t border-border pt-6 text-[1rem] font-semibold first-of-type:border-t-0 first-of-type:pt-0"
       {...props}
     />
   ),
@@ -63,7 +63,7 @@ const baseComponents: Components = {
     <h3
       id={anchorId(node)}
       {...lineAttr(node)}
-      className="mb-1.5 mt-5 scroll-mt-24 text-[15px] font-semibold"
+      className="mb-1.5 mt-5 scroll-mt-24 text-[0.9375rem] font-semibold"
       {...props}
     />
   ),
@@ -71,21 +71,21 @@ const baseComponents: Components = {
   h4: ({ node, ...props }) => (
     <h4
       {...lineAttr(node)}
-      className="mb-1.5 mt-4 scroll-mt-24 text-[14px] font-semibold"
+      className="mb-1.5 mt-4 scroll-mt-24 text-[0.875rem] font-semibold"
       {...props}
     />
   ),
   h5: ({ node, ...props }) => (
     <h5
       {...lineAttr(node)}
-      className="mb-1 mt-3.5 scroll-mt-24 text-[13.5px] font-semibold"
+      className="mb-1 mt-3.5 scroll-mt-24 text-[0.84375rem] font-semibold"
       {...props}
     />
   ),
   h6: ({ node, ...props }) => (
     <h6
       {...lineAttr(node)}
-      className="mb-1 mt-3 scroll-mt-24 text-[13px] font-semibold text-muted-foreground"
+      className="mb-1 mt-3 scroll-mt-24 text-[0.8125rem] font-semibold text-muted-foreground"
       {...props}
     />
   ),
@@ -144,7 +144,7 @@ const baseComponents: Components = {
       );
     }
     return (
-      <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[12.5px]" {...props}>
+      <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[0.78125rem]" {...props}>
         {children}
       </code>
     );
@@ -152,7 +152,7 @@ const baseComponents: Components = {
   // 表格只在 table 上挂行号：单元格（th/td）的 position 是单元格自身的位置，
   // 挂上去会让"定位到某一行"指到单元格而非表格起点。
   table: ({ node, ...props }) => (
-    <table {...lineAttr(node)} className="my-3 w-full border-collapse text-[13.5px]" {...props} />
+    <table {...lineAttr(node)} className="my-3 w-full border-collapse text-[0.84375rem]" {...props} />
   ),
   th: ({ node, ...props }) => (
     <th className="border border-border bg-secondary px-2.5 py-1.5 text-left font-semibold" {...props} />
@@ -168,7 +168,7 @@ const baseComponents: Components = {
   // （与 lib/bank.ts 的错误本地化同款）。
   img: ({ node, src, alt, ...props }) => (
     <span
-      className="my-1 inline-flex max-w-full items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1 align-middle text-[11px] text-muted-foreground"
+      className="my-1 inline-flex max-w-full items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1 align-middle text-[0.6875rem] text-muted-foreground"
       title={i18n.t("notes.imageSkippedHint")}
       {...props}
     >
@@ -275,7 +275,7 @@ function NotesMarkdown({
   );
 
   return (
-    <div className="text-[15px] leading-[1.85] text-foreground">
+    <div className="text-[0.9375rem] leading-[1.85] text-foreground">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {content}
       </ReactMarkdown>

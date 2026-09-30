@@ -121,7 +121,7 @@ export function QuestionForm({
               <Input value={tags} onChange={(e) => setTags(e.target.value)} className="text-xs" />
             </FormField>
             <div>
-              <p className="mb-1 text-[11px] text-muted-foreground">{t("bank.fieldDifficulty")}</p>
+              <p className="mb-1 text-[0.6875rem] text-muted-foreground">{t("bank.fieldDifficulty")}</p>
               <Select
                 value={difficulty || DIFFICULTY_NONE}
                 onValueChange={(value) => setDifficulty(value === DIFFICULTY_NONE ? "" : value)}

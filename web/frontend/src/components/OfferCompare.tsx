@@ -134,7 +134,7 @@ export default function OfferCompare() {
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold text-foreground">{o.公司}</p>
                 <div className="flex items-center gap-1">
-                  <Badge variant="outline" className="rounded-md px-1.5 py-0 font-mono text-[10px]">
+                  <Badge variant="outline" className="rounded-md px-1.5 py-0 font-mono text-[0.625rem]">
                     {o.offer_id}
                   </Badge>
                   {/* 删除（批 D）：预览 → 确认弹窗 → 落盘 */}
@@ -161,7 +161,7 @@ export default function OfferCompare() {
               </div>
 
               {(o.薪资构成 || o.备注 || o.关联记录) && (
-                <div className="mt-3 space-y-1.5 border-t border-border pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+                <div className="mt-3 space-y-1.5 border-t border-border pt-2.5 text-[0.6875rem] leading-relaxed text-muted-foreground">
                   {o.薪资构成 && <p>{t("offer.composition", { value: o.薪资构成 })}</p>}
                   {o.备注 && <p>{o.备注}</p>}
                   {o.关联记录 && (

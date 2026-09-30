@@ -157,7 +157,7 @@ export default function NotesSearch({
         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
           {/* 常驻的 live region：读屏要听得到"检索中 → 命中 N 条"的变化——
               live region 必须先在 DOM 里，后续变化才会被播报 */}
-          <span aria-live="polite" className="text-[11px] text-muted-foreground">
+          <span aria-live="polite" className="text-[0.6875rem] text-muted-foreground">
             {loading
               ? t("notes.searching")
               : data
@@ -195,11 +195,11 @@ export default function NotesSearch({
               {groups.map((group) => (
                 <li key={`${group.section}/${group.rel}`}>
                   {/* 组头 = 文件名（含本文件命中数）：结果按文件归拢 */}
-                  <p className="truncate px-2 pt-1.5 text-[11px] font-medium text-muted-foreground">
+                  <p className="truncate px-2 pt-1.5 text-[0.6875rem] font-medium text-muted-foreground">
                     {group.name}
                     {/* 计数不加透明度：muted-foreground 在暗色下恰好贴着 4.5:1，
                         再叠 opacity 就掉到 4.49（axe serious，实测被 e2e 抓到） */}
-                    <span className="ml-1 text-[10.5px]">×{group.hits.length}</span>
+                    <span className="ml-1 text-[0.65625rem]">×{group.hits.length}</span>
                   </p>
                   <ul className="space-y-0.5">
                     {group.hits.map((hit) => {
@@ -222,7 +222,7 @@ export default function NotesSearch({
                                 keyword={keyword}
                               />
                             </span>
-                            <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
+                            <span className="block truncate font-mono text-[0.65625rem] text-muted-foreground">
                               {t("notes.hitLine", { line: hit.line })}
                               {hit.inName && !hit.text ? ` · ${t("notes.hitInName")}` : ""}
                             </span>
@@ -237,12 +237,12 @@ export default function NotesSearch({
           )}
           {/* 截断与没搜全是两件事，分开说——都不静默 */}
           {data.truncated && (
-            <p className="px-2 text-[11px] text-muted-foreground">
+            <p className="px-2 text-[0.6875rem] text-muted-foreground">
               {t("notes.hitCountTruncated", { count: data.items.length })}
             </p>
           )}
           {data.skipped.length > 0 && (
-            <p className="px-2 text-[11px] text-muted-foreground">
+            <p className="px-2 text-[0.6875rem] text-muted-foreground">
               {t("notes.searchSkipped", { count: data.skipped.length })}
             </p>
           )}

@@ -33,7 +33,7 @@ export default function MailAuthHint({ provider, messageKey }: MailAuthHintProps
         <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
           {t(messageKey)}
           {provider.docUrl && (
             <>

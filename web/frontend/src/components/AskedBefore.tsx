@@ -35,10 +35,10 @@ function QuestionCard({ item }: { item: QuestionGroup["items"][number] }) {
   const { t } = useTranslation();
   return (
     <Card className="p-3">
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
         <Badge
           variant={ROUND_VARIANT[item.轮次] ?? "secondary"}
-          className="rounded px-1.5 py-0.5 text-[11px]"
+          className="rounded px-1.5 py-0.5 text-xs"
         >
           {item.轮次 || t("question.roundMissing")}
         </Badge>
@@ -165,7 +165,7 @@ export function AskedBefore() {
                 <Sparkles size={14} className="text-primary" />
                 <span className="text-sm font-semibold text-foreground">{g.公司}</span>
                 {g.岗位 && <span className="text-xs text-muted-foreground">{g.岗位}</span>}
-                <Badge variant="secondary" className="ml-auto text-[11px]">
+                <Badge variant="secondary" className="ml-auto text-xs">
                   {t("question.groupCount", { count: g.total })}
                 </Badge>
               </div>

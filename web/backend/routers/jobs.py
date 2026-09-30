@@ -30,6 +30,7 @@ from jobws_core import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, safe_join, workspace_dir
 from iocaps import read_text_capped
+import lockctx
 from lockctx import locked
 from ro_files import inside
 from routers.progress._shared import delete_preview_response
@@ -295,8 +296,7 @@ def create_job(job: NewJob, ws: str = Depends(workspace_dir)):
     if os.path.exists(job_dir):
         raise ApiError(409, "job.exists", "岗位已存在: %s" % name, name=name)
 
-    lock_path = safe_join(ws, DIR_JOBS, ".jobs.lock")
-    os.makedirs(safe_join(ws, DIR_JOBS), exist_ok=True)
+    lock_path = lockctx.lock_path(ws, "jobs")
 
     with locked(lock_path):
         if os.path.exists(job_dir):  # 双检：并发下同名
@@ -409,8 +409,7 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
     name = _dir_name(company, role)
     job_dir = safe_join(ws, DIR_JOBS, name)
 
-    lock_path = safe_join(ws, DIR_JOBS, ".jobs.lock")
-    os.makedirs(safe_join(ws, DIR_JOBS), exist_ok=True)
+    lock_path = lockctx.lock_path(ws, "jobs")
     with locked(lock_path):
         if not os.path.isdir(job_dir):
             os.makedirs(job_dir)

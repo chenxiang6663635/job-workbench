@@ -24,6 +24,7 @@ from apierror import ApiError
 from iocaps import read_response
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
+import lockctx
 from lockctx import locked
 from redact import mask_secret
 
@@ -51,8 +52,8 @@ def _config_path(ws):
 
 
 def _lock_path(ws):
-    """Provider 锁文件。与配置内容分离，避免 locked 锁内容文件本身在 Windows 上的问题。"""
-    return safe_join(ws, "config", "provider.lock")
+    """Provider 锁文件（走 lockctx）。与配置内容分离，避免 locked 锁内容文件本身在 Windows 上的问题。"""
+    return lockctx.lock_path(ws, "provider")
 
 
 def _empty_config():

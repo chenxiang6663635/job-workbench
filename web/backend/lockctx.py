@@ -10,11 +10,27 @@ POSIX 同口径），而此前全仓没有任何一层接它 → 冒泡到 `main
 为什么包一层而不是在每个 router 里 try/except：一旦有人在某个入口单独处理，
 两个入口对用户说的话就会漂（一个说"稍后重试"、一个说"内部错误"）。
 """
+import os
 from contextlib import contextmanager
 
 from jobws_core.filelock import file_lock
 
 from apierror import ApiError
+
+
+def lock_path(ws, kind):
+    """锁文件路径（唯一真源 = `workspace_io.lock_path` 的 `_LOCK_KINDS` 表）。
+
+    为什么和 `locked()` 放在一起：持锁只有一种写法，锁路径也只该有一个来源——各
+    router 曾各自手拼字符串（今天逐字一致，改一处就会**静默失配**，而互斥失效是
+    数据丢失级故障：CLI / 桌面端 / 网页端用同一把锁）。工厂本身是纯计算、不碰文件
+    系统，这里补上幂等的 `makedirs`（原先是每个调用点自己建目录）。
+    """
+    from jobws_core import workspace_io   # 函数内 import：与本文件既有轻量风格一致
+
+    path = workspace_io.lock_path(ws, kind)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
 
 
 @contextmanager

@@ -31,6 +31,7 @@ from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
 from iocaps import ensure_within, read_bytes_capped, read_response, read_text_capped
+import lockctx
 from lockctx import locked
 from ro_files import inside
 from routers import provider
@@ -66,10 +67,8 @@ def _data_path(ws, version):
 
 
 def _lock_path(ws):
-    lock_dir = os.path.join(ws, DIR_RESUME)
-    if not os.path.isdir(lock_dir):
-        os.makedirs(lock_dir)
-    return os.path.join(lock_dir, "resume.lock")
+    """resume.lock——走 lockctx（锁名唯一真源 = `workspace_io._LOCK_KINDS`）。"""
+    return lockctx.lock_path(ws, "resume")
 
 
 def _check_version(version):

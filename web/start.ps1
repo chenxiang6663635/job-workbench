@@ -120,10 +120,12 @@ function Resolve-BackendPython {
             Write-Host "  跳过（解释器 $ver 低于 3.9）：$cand" -ForegroundColor Yellow
             continue
         }
-        # 依赖也要真在：版本对了但没装 fastapi/uvicorn 的环境同样起不来
-        & $cand -c "import fastapi, uvicorn" 2>$null
+        # 依赖也要真在：版本对了但缺依赖的环境同样起不来。jobws_core 必须一起探——
+        # 它在 web/backend 是导入期硬依赖（routers/workspace.py 顶部 `from jobws_core …`）；
+        # 实测仓库内 .venv 曾有 fastapi/uvicorn 却没装领域包：旧探测会选中它，然后后端起不来。
+        & $cand -c "import fastapi, uvicorn, jobws_core" 2>$null
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "  跳过（该环境缺 fastapi/uvicorn）：$cand" -ForegroundColor Yellow
+            Write-Host "  跳过（该环境缺 fastapi/uvicorn/jobws_core）：$cand" -ForegroundColor Yellow
             continue
         }
         return $cand
@@ -133,13 +135,14 @@ function Resolve-BackendPython {
 
 $backendPy = Resolve-BackendPython
 if (-not $backendPy) {
-    Write-Host "错误：找不到可用的后端解释器（需要 Python 3.9+ 且装了 fastapi/uvicorn）。" -ForegroundColor Red
+    Write-Host "错误：找不到可用的后端解释器（需要 Python 3.9+ 且装了 fastapi/uvicorn/jobws_core）。" -ForegroundColor Red
     Write-Host "  已尝试：-Py 参数、JOBWS_PYTHON（含 setx 保存的用户级设置）、$root\.venv、PATH 上的 python。" -ForegroundColor Red
     Write-Host "  修法（任选其一）：" -ForegroundColor Yellow
     Write-Host "    1) 设一次环境变量指向你的 3.12 venv，再重跑本脚本：" -ForegroundColor Yellow
     Write-Host '       setx JOBWS_PYTHON "<venv>\Scripts\python.exe"' -ForegroundColor Yellow
-    Write-Host "    2) 在仓库外建一个 venv 并装依赖（约定见 docs/contributing.zh-CN.md 的「解释器基线」条）：" -ForegroundColor Yellow
-    Write-Host "       uv venv <路径> --python <3.12 解释器>; uv pip install --python <路径>\Scripts\python.exe -r web/backend/requirements-dev.txt" -ForegroundColor Yellow
+    Write-Host "    2) 在仓库外建一个 venv 并装依赖（约定见 docs/contributing.zh-CN.md 的「解释器基线」条；" -ForegroundColor Yellow
+    Write-Host "       jobws-core 是导入期硬依赖，必须一起装，漏装的表现就是本脚本选中它却起不来）：" -ForegroundColor Yellow
+    Write-Host "       uv venv <路径> --python <3.12 解释器>; uv pip install --python <路径>\Scripts\python.exe -r web/backend/requirements-dev.txt packages/jobws-core" -ForegroundColor Yellow
     Write-Host "    3) 本次显式指定：.\start.ps1 -Py <python 路径>" -ForegroundColor Yellow
     exit 1
 }

@@ -12,7 +12,6 @@ check_direction/next_id/sort_key），Web 层只做 HTTP 编排与文件锁。
 from __future__ import annotations
 
 import math
-import os
 from datetime import date
 from typing import Optional
 
@@ -26,7 +25,8 @@ from jobws_core import tracker
 from jobws_core import url_infer
 from apierror import ApiError
 from applist import SORTS, due_within_rows, sort_items, with_stage_days
-from deps import DIR_TRACKING, workspace_dir
+from deps import workspace_dir
+import lockctx
 from lockctx import locked
 # 目录名拆分只有一处实现（job_dirs.split_dir_name）；前端「一键投递」传目录名过来，由这里拆。
 from routers import jobs as jobs_router
@@ -245,9 +245,7 @@ def import_applications(item: ImportRequest, ws: str = Depends(workspace_dir)):
                        # 同 job.fetchTooShort：避开 i18next 的保留插值名 count
                        errors=counts["error"])
 
-    lock_path = os.path.join(ws, DIR_TRACKING)
-    os.makedirs(lock_path, exist_ok=True)
-    lock_path = os.path.join(lock_path, "tracker.lock")
+    lock_path = lockctx.lock_path(ws, "tracking")
 
     with locked(lock_path):
         written = tracker.commit_import(preview, workspace=ws)
@@ -266,9 +264,7 @@ def add_application(app: NewApplication, ws: str = Depends(workspace_dir)):
     if errs:
         raise ApiError(422, "app.directionInvalid", errs[0], direction=app.方向)
 
-    lock_path = os.path.join(ws, DIR_TRACKING)
-    os.makedirs(lock_path, exist_ok=True)
-    lock_path = os.path.join(lock_path, "tracker.lock")
+    lock_path = lockctx.lock_path(ws, "tracking")
 
     # 公司与岗位只有一处来源：给了目录名就由后端拆（与前端「一键投递」同源），
     # 否则按字面值用。**不接受「目录名和字面值都给」时两边不一致还照字面值写**，
@@ -364,8 +360,7 @@ def update_application(app_id: str, patch: PatchApplication, ws: str = Depends(w
     if not updates:
         raise ApiError(422, "app.noFieldsToUpdate", "没有提供任何要更新的字段")
 
-    lock_path = os.path.join(ws, DIR_TRACKING, "tracker.lock")
-    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    lock_path = lockctx.lock_path(ws, "tracking")
 
     with locked(lock_path):
         rows = tracker.read_rows(ws)
@@ -494,8 +489,7 @@ def apply_status_suggestion(item: ApplySuggestionRequest,
             raise ApiError(422, "status.dateFormat", errs[0],
                            label="下次动作日期", value=item.下次动作日期)
 
-    lock_path = os.path.join(ws, DIR_TRACKING, "tracker.lock")
-    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    lock_path = lockctx.lock_path(ws, "tracking")
 
     with locked(lock_path):
         rows = tracker.read_rows(ws)

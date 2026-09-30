@@ -274,7 +274,8 @@ def tracking_lock(workspace=None):
 
 
 def _lock_path(workspace=None):
-    """写类操作的互斥锁文件：<工作区>/05_投递追踪/tracker.lock（与 Web 层同一把锁）。
+    """写类操作的互斥锁文件：<工作区>/05_投递追踪/tracker.lock（与 Web 层同一把锁；
+    路径取自 workspace_io._LOCK_KINDS，2026-09-30 收编）。
 
     三个 apply_approved_* 在锁内做「读最新 → 重校验 → 写」整段——否则并发的
     两次落盘会各自算出同一个 next_id，后写覆盖前写（独立审查 M1）。锁文件所在
@@ -282,6 +283,6 @@ def _lock_path(workspace=None):
     makedirs 幂等，并发首建也无害（跨宿主审查 MINOR 确认过这一点）。
     """
     ws = resolve_ws(workspace)
-    tracking_dir = os.path.join(ws, "05_投递追踪")
-    os.makedirs(tracking_dir, exist_ok=True)
-    return os.path.join(tracking_dir, "tracker.lock")
+    path = workspace_io.lock_path(ws, "tracking")   # 锁名唯一真源
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path

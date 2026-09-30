@@ -5,6 +5,7 @@ import { ImageOff } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
 import i18n from "../i18n";
+import type { NotesActive } from "../lib/notes";
 import { cn } from "../lib/utils";
 import { TaskCheckbox } from "./NotesTaskCheckbox";
 import { TaskLineContext } from "./notesTaskLine";
@@ -160,41 +161,6 @@ const baseComponents: Components = {
   hr: ({ node, ...props }) => (
     <hr {...lineAttr(node)} className="my-6 border-t border-border" {...props} />
   ),
-  a: ({ node, href, children, ...props }) => {
-    if (href?.startsWith("#")) {
-      // 站内锚点（手写目录链接 / GFM 脚注）：**必须 preventDefault**——
-      // App 是 hash 路由，原生跳转会触发 hashchange、未知 hash 被判无效并
-      // 直接踢回看板（独立审查 MINOR-3；大纲按钮已是同款处理）。
-      const id = href.slice(1);
-      return (
-        <a
-          href={href}
-          onClick={(e) => {
-            e.preventDefault();
-            document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          className="text-primary hover:underline"
-          {...props}
-        >
-          {children}
-        </a>
-      );
-    }
-    if (/^https?:/i.test(href ?? "")) {
-      return (
-        <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline" {...props}>
-          {children}
-        </a>
-      );
-    }
-    // 相对链接（工作区内互链，如 ../04_知识库/）：SPA 里没有对应路由——
-    // 显示为弱化的文本（点了不会 404，最保守的退化；将来做路由跳转时再升级）。
-    return (
-      <span className="text-muted-foreground underline decoration-dotted" title={href}>
-        {children}
-      </span>
-    );
-  },
   // 图片一律渲染成明确占位（2026-09-21 批次 C-4）：相对路径在 SPA 里必然 404、
   // 外链要联网（与本应用"本地优先"相抵）——统一兜底，不做"加载一半失败"
   // （比不加载更困惑）。真支持需新增笔记侧只读文件端点（复用 ro_files 的
@@ -221,6 +187,8 @@ function NotesMarkdown({
   pendingLine = null,
   queuedLines,
   locked = false,
+  resolveNote,
+  onOpenNote,
 }: {
   content: string;
   onToggleTask?: (line: number) => void;
@@ -228,10 +196,70 @@ function NotesMarkdown({
   /** 批量待提交的行号（C-1） */
   queuedLines?: number[];
   locked?: boolean;
+  /** 笔记互链解析（纯函数；返回 null = 不可打开）。与 onOpenNote 同时传才生效 */
+  resolveNote?: (href: string) => NotesActive | null;
+  /** 打开解析到的目标笔记（上层负责切换文件与状态收尾） */
+  onOpenNote?: (target: NotesActive) => void;
 }) {
   const components = useMemo<Components>(
     () => ({
       ...baseComponents,
+      // a 渲染器需要回调（两条互链行为都挂在它上面），因此不能在模块级
+      // baseComponents 里定义——与 input 同款：移入按渲染的 memo，props 变就重建。
+      a: ({ node, href, children, ...props }) => {
+        if (href?.startsWith("#")) {
+          // 站内锚点（手写目录链接 / GFM 脚注）：**必须 preventDefault**——
+          // App 是 hash 路由，原生跳转会触发 hashchange、未知 hash 被判无效并
+          // 直接踢回看板（独立审查 MINOR-3；大纲按钮已是同款处理）。
+          const id = href.slice(1);
+          return (
+            <a
+              href={href}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="text-primary hover:underline"
+              {...props}
+            >
+              {children}
+            </a>
+          );
+        }
+        if (/^https?:/i.test(href ?? "")) {
+          return (
+            <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline" {...props}>
+              {children}
+            </a>
+          );
+        }
+        // 笔记互链（一期：03_面试准备 / 04_知识库 两棵树内的 .md）：解析成功才
+        // 升级为可点；点击同样 **必须 preventDefault**（同 #锚点分支的理由）。
+        const target = resolveNote?.(href ?? "") ?? null;
+        if (target && onOpenNote) {
+          return (
+            <a
+              href={href}
+              onClick={(e) => {
+                e.preventDefault();
+                onOpenNote(target);
+              }}
+              className="text-primary hover:underline"
+              title={target.rel}
+              {...props}
+            >
+              {children}
+            </a>
+          );
+        }
+        // 其余相对链接（跨模块 / 越界 / 非 .md / 未传回调）：保持最保守的降级——
+        // 弱化文本，点了不会 404。
+        return (
+          <span className="text-muted-foreground underline decoration-dotted" title={href}>
+            {children}
+          </span>
+        );
+      },
       input: ({ node, checked, ...props }) => (
         <TaskCheckbox
           checked={checked}
@@ -243,7 +271,7 @@ function NotesMarkdown({
         />
       ),
     }),
-    [onToggleTask, pendingLine, queuedLines, locked]
+    [onToggleTask, pendingLine, queuedLines, locked, resolveNote, onOpenNote]
   );
 
   return (

@@ -76,6 +76,33 @@ test("笔记：切换文件、HTML 注释不渲染、a11y 零命中", async ({ p
   ).toEqual([]);
 });
 
+test("笔记：正文互链可点跳转，不可解析链接保持弱化降级", async ({ page }) => {
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Notes" }).click();
+
+  // demo 的 03 README 默认打开：跨出两棵树的引用不可解析——保持弱化文本（不是 link）
+  await expect(page.getByRole("link", { name: "../02_简历工坊/" })).toHaveCount(0);
+  await expect(page.getByText("../02_简历工坊/", { exact: false }).first()).toBeVisible();
+
+  // 点正文里的互链 → 当场切换为行为故事模板（不回左侧树）
+  await page.getByRole("link", { name: "行为面/_模板_行为故事.md" }).click();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "为什么用故事库而不是题库" })
+  ).toBeVisible();
+
+  // 新的可交互面纳入 a11y 扫描（serious / critical 零命中，与既有套同口径）
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  const serious = results.violations.filter(
+    (v) => v.impact === "serious" || v.impact === "critical"
+  );
+  expect(
+    serious,
+    `笔记互链面有 serious/critical：${serious.map((v) => v.id).join("、")}`
+  ).toEqual([]);
+});
+
 test("笔记：勾选框可翻转（预览 → 确认 → 落盘 → 重拉），用例自恢复", async ({
   page,
 }) => {

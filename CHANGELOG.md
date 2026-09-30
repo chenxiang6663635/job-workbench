@@ -27,6 +27,7 @@
 - **A due-reminder bar on every page (2026-09-26)** — opening the app now shows what is due today at the top of the content area: overdue items, to-dos inside your reminder window, and talks in the next 7 days. Each count is a link to the page that handles it; the bar stays out of the way when nothing is due.
 - **The usage guide now opens online (2026-09-29)** — the About card's link points at the Gitee-mirrored manual page so it opens from mainland networks; the docs site and the mirror are linked from the README.
 - **"External changes stopped refreshing" fixed (2026-09-26)** — if you had deleted a workspace, or moved between the repo-based dev setup and the installed app (they use different data roots), the auto-refresh that picks up changes written from the CLI / AI host failed silently (a hidden 404 every 10 s). The poller now reads the same workspace the UI shows, and a stale saved value is corrected automatically.
+- **Notes can jump between files (2026-09-29)** — relative links inside a note (to another note under 03_面试准备 / 04_知识库, including across the two trees) are now clickable and open the target note in place; links pointing outside the two note trees or to non-markdown files stay as plain text, and external http(s) links are unchanged.
 
 ### 看得见的变化
 
@@ -34,6 +35,7 @@
 - **安装后桌面上有图标了（2026-09-27）**：此前安装完只有开始菜单入口，真实用户首用就在找图标上卡住（v26.9.0 真机复验记录在案）。NSIS 的 `createDesktopShortcut` 改为 `true`——随 26.9.1 安装包生效。
 - **内容区顶部多了「到点提醒」条（2026-09-26）**：打开应用就能看到今天有什么——已过期几条、近 N 天有几条待办、近 7 天有几场宣讲会，点一下跳到对应的页面去处理（#221）。没有到点事项时整条不出现。
 - **修好「外部改动不再自动刷新」的静默失效（2026-09-26）**：你在命令行 / AI 宿主里改完数据切回应用，界面本该自动刷新——但如果你曾删过某个工作区、或从「仓库里跑」切到「安装版」（两者数据目录不同），这条感知会**静默失效**（后台每 10 秒一次 404，界面毫无提示）。现在轮询与界面读的是同一个工作区，失效的选中值也会被自动修正（#222）。
+- **笔记正文互链可以直接点开（2026-09-29）**：在「准备 → 笔记」里读材料时，正文中的相对链接（指向 `03_面试准备` / `04_知识库` 内的其他笔记，含跨两棵树的互链）现在可以点击并当场切换正文，不必回左侧目录树找；指向两棵树之外（如简历工坊、岗位池）或非 .md 的链接保持旧的弱化文本样式，外链行为不变。
 
 ### 技术细节
 
@@ -50,6 +52,7 @@
 - **当前工作区读数口收一（2026-09-26，#222）**：`lib/http.ts` 新增 `getCurrentWorkspace()`（已激活工作区的显式读数口——ESM live binding 依赖打包器行为，函数把"要此刻的值"写成契约）；指纹轮询从"每次读 localStorage 的选中记录"改为读它；`api.ts` 删掉无人消费的 `currentWorkspace` 再导出。写回边界同时收口：只在确实修正了**非空**的失效选中值时才写回（空串语义是"跟随后端默认"，写回会把"跟随"钉成"记住"）。
 - **提醒判据收一处（2026-09-26，#221）**：`upcoming_todos` / `upcoming_talks` / `overdue_pending` 从 `routers/dashboard.py` 搬进中立的 `web/backend/remind.py`，看板与系统通知端点共用——此前是「通知跨模块读看板的私有名」，依赖方向倒挂。纯搬运、零行为变化（`test_reminders_api` / `test_dashboard_talks` 12 passed）；`dashboard.py` 275→214 行。
 - **设置页界面大小卡拆出（2026-09-26，#221）**：`Settings.tsx` 352→232 行，跌破 300 阈值 → `tools/size_allowlist.txt` 登记行按自洁规则删除；同时登记 `i18n/locales/zh-CN.ts` 的贴线变动（提醒条 7 键，1500→1509——它是双语键集的源语言单一真源，拆文件会破坏 `en.ts` 的编译期键集对齐，减债方向写进登记理由）。
+- **笔记互链一期（2026-09-29）**：新增 `lib/notesLink.ts` 的 `resolveNoteLink`（纯函数双基准解析：默认当前文件目录、以 section 目录名开头按工作区根；`..` 越界 / 未登记目录 / 外链 / 非 `.md` / 非法 percent 编码 → null，渲染侧保持弱化降级）；`NotesMarkdown` 的 `a` 渲染器从模块级 `baseComponents` 迁入按渲染的 memo，新增可选 `resolveNote` / `onOpenNote`（点击 `preventDefault`，hash 路由下不回看板）；`NotesBrowser` 新增 `onOpenNote`（收尾对齐 `onPickHit`）。**零后端改动**——读取仍走后端 `/prep` 的既有三层防护（section 白名单 + `safe_join` + realpath 二次确认 + 256KB 截断）。新增 8 条单元测试 + 1 条 e2e（含 Axe）；解析器落在新文件 `lib/notesLink.ts`（61 行纯函数）——`lib/notes.ts` 终态未改动（289 行，未越规模闸门）。
 
 ## [26.9.0] - 2026-09-25
 

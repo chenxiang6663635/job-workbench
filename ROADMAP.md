@@ -59,6 +59,7 @@ every batch below lands before it, none of them ships on its own, and the whole 
   distribution channel with progressive disclosure; the plugin shell grows from skills-only to
   commands + subagents; hooks stay local, auditable and off by default. **hooks 仍保持本地、默认关闭**（决策见 [`docs/decisions/keep-hooks-local-and-off.md`](docs/decisions/keep-hooks-local-and-off.md)）。
 - [x] **System reminders, complete** — **已实现（2026-09-24 补全，候选池条目移出）**：提前 N 天（3/5/7 可配）+ 两类已过期（截止日期已过仍待投 / **下次动作日期已过**——后者此前哪个桶都不进）+ **按事项**去重（今天新出现的也报）+ 点通知展开该条。移出理由：候选池写的触发条件「错过截止日真实发生过」已被用户需求满足，且最小形态提醒已在收口批落地。
+- [ ] **笔记内相对链接跳转（一期）** — **已开工（2026-09-29，分支 `feat/notes-relative-links`）**：复用 `/prep/{section}/content` 只读端点，覆盖 `03_面试准备` / `04_知识库` 两棵树内的 `.md` 互链（`lib/notesLink.ts` 解析纯函数 + 渲染接线 + e2e）；不可解析链接保持弱化降级、外链行为不变；00/01/02/05 与附件留二期（需新增「笔记侧只读文件端点」）。
 
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
 is stable for daily use and the workspace format promises **backward compatibility** — new columns
@@ -93,3 +94,4 @@ conversion is ever required. **判据已成文（2026-09-22）**：四条可核�
 | 依赖主版本升级（Electron 等） | 调研已做（[`docs/research/report_electron_33_to_44.md`](docs/research/report_electron_33_to_44.md)）；升级要人工批次、单独冒烟 | 安全修复需要，或宿主 / 打包链要求 |
 | 文档英文润色（超出 i18n 范围） | README 与文档的英文由人过一遍（术语一致但语感生硬） | 有英文母语使用者开始用时 |
 | 托盘常驻 + 开机自启 | 关窗后退到托盘、继续发到点提醒（带总开关）。现在**关窗即停**——刻意的轻量取舍（工具类惯例：VS Code / Obsidian 也是关窗即退；驻留托盘属"持续通知职责"类应用） | 提醒成为日常依赖（真实发生过"关着窗口错过截止"），或用户明确要求后台常驻 |
+| 区域可拖拽组合布局（桌面端） | 面板 / 分栏可拖放重组（候选库：dockview / flexlayout-react）；需要新的布局容器模型、持久化与每页迁移，8 页响应式基线要重写 | 多屏 / 宽屏成为主要使用方式，或面板重排成为日常诉求（先看 UI 线 A / B 落地后的真实使用） |

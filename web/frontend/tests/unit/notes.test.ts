@@ -8,6 +8,69 @@ import {
   findAnchorLine,
   stripHtmlComments,
 } from "../../src/lib/notes";
+import { resolveNoteLink } from "../../src/lib/notesLink";
+
+describe("resolveNoteLink（正文相对链接 → 可打开笔记）", () => {
+  const from = { section: "interview" as const, rel: "技术面/甲.md" };
+  const interview = (rel: string) => ({ section: "interview" as const, rel });
+  const knowledge = (rel: string) => ({ section: "knowledge" as const, rel });
+
+  it("同目录相对路径", () => {
+    expect(resolveNoteLink("乙.md", from)).toEqual(interview("技术面/乙.md"));
+  });
+
+  it("上一级与 ./ 前缀", () => {
+    expect(resolveNoteLink("../丙.md", { section: "interview", rel: "技术面/子/甲.md" })).toEqual(
+      interview("技术面/丙.md")
+    );
+    expect(resolveNoteLink("./丁.md", from)).toEqual(interview("技术面/丁.md"));
+  });
+
+  it("跨 section：.. 回到工作区根再进另一棵树", () => {
+    expect(resolveNoteLink("../../04_知识库/暖通原理基础/丙.md", from)).toEqual(
+      knowledge("暖通原理基础/丙.md")
+    );
+  });
+
+  it("以 section 目录名开头（工作区根基准）", () => {
+    expect(resolveNoteLink("04_知识库/暖通原理基础/丙.md", from)).toEqual(
+      knowledge("暖通原理基础/丙.md")
+    );
+    expect(resolveNoteLink("03_面试准备/技术面/乙.md", from)).toEqual(interview("技术面/乙.md"));
+  });
+
+  it("剥离 #锚点、解码 %20", () => {
+    expect(resolveNoteLink("戊.md#小节", from)).toEqual(interview("技术面/戊.md"));
+    expect(resolveNoteLink("a%20b.md", from)).toEqual(interview("技术面/a b.md"));
+  });
+
+  it("外链 / 纯锚点 / 非 md / 目录 / 空 → null", () => {
+    expect(resolveNoteLink("https://example.com/x.md", from)).toBeNull();
+    expect(resolveNoteLink("mailto:a@b.c", from)).toBeNull();
+    expect(resolveNoteLink("#小节", from)).toBeNull();
+    expect(resolveNoteLink("图.pdf", from)).toBeNull();
+    expect(resolveNoteLink("子目录/", from)).toBeNull();
+    expect(resolveNoteLink("", from)).toBeNull();
+    expect(resolveNoteLink(undefined, from)).toBeNull();
+  });
+
+  it("逃出工作区或落在未登记目录 → null", () => {
+    expect(resolveNoteLink("../../../x.md", from)).toBeNull();
+    expect(resolveNoteLink("../../02_简历工坊/简历.md", from)).toBeNull();
+  });
+
+  it("非法百分号编码 → null（不抛错）", () => {
+    expect(resolveNoteLink("%E0%A4%A", from)).toBeNull();
+  });
+
+  it("编码穿越与回到根再上跳 → null（边界不变量）", () => {
+    // %2e%2e%2f 解码后是 ../ ——同样必须被边界拦截
+    expect(resolveNoteLink("%2e%2e%2f%2e%2e%2fx.md", from)).toBeNull();
+    expect(resolveNoteLink("../../../../x.md", from)).toBeNull();
+    // 已在 section 根：再上跳即越界
+    expect(resolveNoteLink("../乙.md", { section: "interview", rel: "甲.md" })).toBeNull();
+  });
+});
 
 describe("findAnchorLine（命中行 → 该滚到哪个块）", () => {
   it("命中落在块中间时取该块的起始行", () => {

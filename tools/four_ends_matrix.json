@@ -42,6 +42,15 @@
       "note": "抓取 JD 链接并落盘 JD原文.md；仅 GUI 提供（抓取需人在界面粘链接）。"
     },
     {
+      "id": "direction.list",
+      "stage": "通用",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/workspaces/directions",
+      "note": "只读：当前工作区装入的领域方向（id + 方向文件首行标题）与后端恒接受的取值。仅 GUI 提供——命令行与 AI 宿主在打分 / 校验时按方向实时读同一批文件，不需要先取候选清单；界面需要它是因为下拉必须在**保存前**就知道哪些值会被接受（否则第三方插件工作区会出现「选了却被拒」）。"
+    },
+    {
       "id": "job.list",
       "stage": "岗位池",
       "cli": null,

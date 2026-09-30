@@ -229,4 +229,27 @@ test("空库首页给引导；接口失败不误报空态", async ({ page }) => 
   await page.getByRole("button", { name: "Create a workspace" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByText(/Three steps/)).toBeVisible();
-});
+  });
+
+  // 方向候选动态化（2026-09-30）：下拉里的方向来自**工作区装入的插件**，不再是写死三项。
+  // 断言不硬编码条数（demo 装什么方向由插件决定）：只要求接口给的方向出现在下拉里、
+  // 且是 `标题（原始值）` 的形态；没有方向文件的工作区跳过（那种候选只剩恒定值）。
+  test("方向下拉列出工作区装入的方向（含文件标题）", async ({ page }) => {
+  await openPage(page, "applications");
+
+  const payload = await page.evaluate(async () => {
+  const res = await fetch("/api/workspaces/directions");
+  return res.ok ? await res.json() : null;
+  });
+  const items = (payload?.items ?? []) as { id: string; title: string }[];
+  const always = (payload?.alwaysAccepted ?? []) as string[];
+  test.skip(items.length === 0, "该工作区没有装入方向文件");
+
+  await page.getByRole("combobox", { name: "Filter by direction" }).click();
+  await expect(
+  page.getByRole("option", { name: `${items[0].title}（${items[0].id}）` })
+  ).toBeVisible();
+  expect(await page.getByRole("option").count()).toBeGreaterThanOrEqual(
+  items.length + always.length
+  );
+  });

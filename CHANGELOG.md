@@ -30,6 +30,7 @@
 - **Notes can jump between files (2026-09-29)** — relative links inside a note (to another note under 03_面试准备 / 04_知识库, including across the two trees) are now clickable and open the target note in place; links pointing outside the two note trees or to non-markdown files stay as plain text, and external http(s) links are unchanged.
 - **The font-size slider now scales all text (2026-09-29)** — small labels in the notes tree, the question bank and settings cards used to be hard-coded pixel sizes that ignored the slider; they now use relative units, and the notes tree / bank group labels were bumped one step (11→12px) for readability.
 - **The top bar sits on its own tier now (2026-09-29)** — the header previously shared the page tint (only blur separated them); it now uses a dedicated region color one low-contrast step away plus its own border (VS Code titleBar-style). Both are real theme tokens: all 10 built-in themes ship validated values, and the theme gate grew two new contrast checks for this surface.
+- **Direction options come from your workspace now (2026-09-30)** — the direction dropdown used to offer three hard-coded values, so a third-party domain profile could show options the backend would refuse ("pick it, fail to save") while the directions it actually ships were unreachable. The list is now built from the workspace's own `config/directions/` files, plus values the backend always accepts and values your existing records already use; each option is labelled with the direction file's title and its raw value (e.g. 热流体仿真 / CFD（thermal-fluid-cfd）).
 
 ### 看得见的变化
 
@@ -40,8 +41,10 @@
 - **笔记正文互链可以直接点开（2026-09-29）**：在「准备 → 笔记」里读材料时，正文中的相对链接（指向 `03_面试准备` / `04_知识库` 内的其他笔记，含跨两棵树的互链）现在可以点击并当场切换正文，不必回左侧目录树找；指向两棵树之外（如简历工坊、岗位池）或非 .md 的链接保持旧的弱化文本样式，外链行为不变。
 - **「字号」滑块现在作用于全站文字（2026-09-29）**：此前笔记树、题库、设置卡等处的小字是写死的像素值——拖动「字号」时它们纹丝不动（缩小窗口或放大字号后相对显得更小）；本次把全站 178 处任意字号统一为相对单位，滑块从此覆盖每一处文字；笔记树与题库的父目录 / 分组标签顺带从 11px 提到 12px，更好读。
 - **顶栏有了自己的「区域层」（2026-09-29）**：此前顶栏与页面底色几乎是同一档（只靠模糊区分）；现在导航区使用独立的主题色（相对页面底色低反差地差一档）+ 自己的边框——像 VS Code 的标题栏那样「分区但不割裂」；内容区与卡片区维持既有键不重复定义，10 套内置主题全部带上经门禁校验的新色值。
+- **方向下拉列出你工作区实际装载的方向（2026-09-30）**：此前这个下拉写死三项——插件里装的第三个方向永远冒不出来，换成第三方领域插件后更会出现「选了却保存失败」（界面给的选项后端不认）。现在候选 = 工作区 `config/directions/*.md` 里装入的方向 + 恒可用的「其他方向」+ **老记录里已经用过的值**（换了插件也不会让老记录的值从下拉里消失、避免编辑时被静默改值）；显示名取方向文件首行的标题并附原始值，例如「热流体仿真 / CFD（thermal-fluid-cfd）」——中英界面同一套，不用新译文。
 
 ### 技术细节
+- **方向候选动态化（2026-09-30）**：新增只读端点 `GET /api/workspaces/directions`（`routers/workspace.py`）——数据源与命令行 / MCP 同一处（`tracker.available_directions` 读工作区 `config/directions/*.md`，文件名即写入追踪表的原始值），另返回`alwaysAccepted`（= `tracker.DIRECTIONS`，后端恒接受口径的**唯一来源**，前端不再自带第二份）与每个方向文件首行标题（解析失败回退空串，不让一个坏文件把整份候选打成 500）。前端：`lib/directionOptions.ts` 合成候选（纯函数，去重且顺序稳定）、`hooks/useDirectionOptions.ts` 按当前工作区拉取（拿不到就退化成只剩「已用值」，不新增打不开页面的路径）、`components/DirectionSelect.tsx` 把原先四个消费点（三处表单 + 过滤器通用组）收成一处并删掉写死的 `DIRECTIONS` 常量；过滤器那处把「表里已出现过的方向」也算进候选，老记录仍筛得到。契约面同步：矩阵登记 `direction.list`（GUI-only）+ 重生成 `docs/four-ends.md`。验证：pytest 1432 条、新增 5 条纯函数单测 + 2 条 API 用例 + 1 条 e2e，前端 lint 0 错 / build / 单测 201 条全过。
 
 #### Infrastructure（内部工程）
 

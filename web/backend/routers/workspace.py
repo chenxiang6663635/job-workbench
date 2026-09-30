@@ -19,13 +19,13 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from jobws_core import approval, containment
+from jobws_core import approval, containment, tracker
 import init_workspace
 from apierror import ApiError
-from deps import ROOT, allowed_roots, data_root, resolve_default_workspace
+from deps import ROOT, allowed_roots, data_root, resolve_default_workspace, workspace_dir
 
 router = APIRouter(prefix="/api/workspaces")
 
@@ -79,6 +79,47 @@ def list_domains():
             for name in init_workspace.list_domains()
         ],
         "demoDefault": DEMO_DEFAULT_DOMAIN,
+    }
+
+
+_DIRECTION_TITLE_PREFIXES = ("方向：", "方向:")
+
+
+def _direction_title(ws: str, name: str) -> str:
+    """方向文件首行标题（`# 方向：热流体仿真 / CFD` → `热流体仿真 / CFD`）。
+
+    读不到 / 解析不出就返回空串——前端会回退显示原始值；一个坏文件不该让整份
+    候选 500（候选本身仍然可用，只是那一项少个好看的标签）。
+    """
+    path = os.path.join(ws, "config", "directions", name + ".md")
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            line = handle.readline().strip()
+    except OSError:
+        return ""
+    line = line.lstrip("#").strip()
+    for prefix in _DIRECTION_TITLE_PREFIXES:
+        if line.startswith(prefix):
+            line = line[len(prefix):].strip()
+            break
+    return line
+
+
+@router.get("/directions")
+def list_directions(ws: str = Depends(workspace_dir)):
+    """当前工作区装入的领域方向（只读）——方向下拉的唯一数据源。
+
+    与命令行、MCP 读的是同一批文件（`tracker.available_directions`：文件名即写入
+    追踪表的原始值）。`alwaysAccepted` 是后端**恒接受**的取值（`tracker.DIRECTIONS`）
+    ——前端据此拼候选，不再自带第二份接受口径：第三方插件的工作区曾因为前端写死
+    三项，出现「下拉能选、保存被拒」（或反过来，装了的方向选不到）。
+    """
+    items = [{"id": name, "title": _direction_title(ws, name)}
+             for name in tracker.available_directions(ws)]
+    return {
+        "items": items,
+        "total": len(items),
+        "alwaysAccepted": list(tracker.DIRECTIONS),
     }
 
 

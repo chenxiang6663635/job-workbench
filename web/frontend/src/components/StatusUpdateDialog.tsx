@@ -4,7 +4,6 @@ import { ArrowRight, CheckCircle2, Loader2, Mail, Plus, X } from "lucide-react";
 import {
   api,
   BATCHES,
-  DIRECTIONS,
   STAGES,
   TERMINAL,
   type Application,
@@ -19,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import DirectionSelect from "./DirectionSelect";
 import { Button } from "./ui/button";
 import { Input, Textarea } from "./ui/input";
 import {
@@ -414,18 +414,13 @@ function NewRecordPanel({ result, onCreated }: NewRecordPanelProps) {
           onChange={(e) => setRole(e.target.value)}
           className="h-8 text-xs"
         />
-        <Select value={direction} onValueChange={setDirection} disabled={done}>
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {DIRECTIONS.map((d) => (
-              <SelectItem key={d} value={d}>
-                {domainLabel("direction", d, t)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <DirectionSelect
+          value={direction}
+          onChange={setDirection}
+          used={[direction]}
+          disabled={done}
+          triggerClassName="h-8 text-xs"
+        />
         <Select value={batch} onValueChange={setBatch} disabled={done}>
           <SelectTrigger className="h-8 text-xs">
             <SelectValue />

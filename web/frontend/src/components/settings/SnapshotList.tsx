@@ -108,7 +108,7 @@ export default function SnapshotList({
 
   if (snapshots.length === 0) {
     return (
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
         {t("settings.snapshotEmpty")}
       </p>
     );
@@ -116,7 +116,7 @@ export default function SnapshotList({
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-medium text-foreground">
+      <p className="text-[0.6875rem] font-medium text-foreground">
         {t("settings.snapshotListTitle")}
       </p>
 
@@ -127,8 +127,8 @@ export default function SnapshotList({
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-3 py-2"
           >
             <div className="min-w-0 space-y-0.5">
-              <p className="truncate font-mono text-[11px] text-foreground">{item.name}</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="truncate font-mono text-[0.6875rem] text-foreground">{item.name}</p>
+              <p className="text-[0.6875rem] text-muted-foreground">
                 {formatSnapshotTime(item.mtime)}
                 {" · "}
                 {formatBytes(item.size)}
@@ -139,7 +139,7 @@ export default function SnapshotList({
             <div className="flex shrink-0 items-center gap-2">
               <Button
                 variant="outline"
-                className="h-7 px-2.5 text-[11px]"
+                className="h-7 px-2.5 text-[0.6875rem]"
                 disabled={drilling !== null || preparing !== null}
                 onClick={() => runDrill(item.name)}
               >
@@ -150,7 +150,7 @@ export default function SnapshotList({
               </Button>
               <Button
                 variant="outline"
-                className="h-7 px-2.5 text-[11px]"
+                className="h-7 px-2.5 text-[0.6875rem]"
                 disabled={drilling !== null || preparing !== null}
                 onClick={() => openRestore(item.name)}
               >
@@ -167,32 +167,32 @@ export default function SnapshotList({
       {/* 演练结果：差异摆在动手之前。零写入由后端保证（见 tests/test_snapshot_restore.py） */}
       {drill && (
         <div className="space-y-1.5 rounded-lg border border-border bg-background/60 px-3 py-2">
-          <p className="truncate text-[11px] text-muted-foreground">
+          <p className="truncate text-[0.6875rem] text-muted-foreground">
             {t("settings.snapshotDrillFor", { name: drill.name })}
           </p>
           <div className="flex flex-wrap items-center gap-1.5">
             {drillBadges(drill.preview).map((badge) => (
-              <Badge key={badge.key} variant="outline" className="text-[11px]">
+              <Badge key={badge.key} variant="outline" className="text-[0.6875rem]">
                 {t(DRILL_LABELS[badge.key], { n: badge.count })}
               </Badge>
             ))}
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
             {t("settings.snapshotKept", { n: drill.preview.notInSnapshot })}
           </p>
           {drill.preview.keptExamples.length > 0 && (
-            <p className="break-all text-[11px] text-muted-foreground">
+            <p className="break-all text-[0.6875rem] text-muted-foreground">
               {t("settings.snapshotKeptExamples", {
                 list: drill.preview.keptExamples.join(" / "),
               })}
             </p>
           )}
           {!canRestore(drill.preview) && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[0.6875rem] text-muted-foreground">
               {t("settings.snapshotNothingToDo")}
             </p>
           )}
-          <p className="text-[11px] text-muted-foreground">{t("settings.snapshotDrillHint")}</p>
+          <p className="text-[0.6875rem] text-muted-foreground">{t("settings.snapshotDrillHint")}</p>
         </div>
       )}
 

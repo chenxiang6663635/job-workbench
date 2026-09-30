@@ -121,7 +121,7 @@ export default function DataPrivacyCard({
         </Button>
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
         {t("settings.diagnosticsDesc")}
       </p>
 
@@ -140,7 +140,7 @@ export default function DataPrivacyCard({
         />
       </div>
 
-      <div className="space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
+      <div className="space-y-1 border-t border-border pt-3 text-[0.6875rem] text-muted-foreground">
         {/* 三态齐全：加载中骨架 / 读取失败可定位 / 就绪显示真实路径 */}
         {pathsError ? (
           <p className="text-destructive">{t("settings.pathsFailed", { error: pathsError })}</p>

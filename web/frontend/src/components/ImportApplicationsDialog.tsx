@@ -64,7 +64,7 @@ function RowBlock({ status, items }: { status: string; items: ImportRowIssue[] }
         >
           <Badge
             variant={meta.variant}
-            className="mt-0.5 shrink-0 gap-1 rounded px-1.5 py-0.5 text-[10px]"
+            className="mt-0.5 shrink-0 gap-1 rounded px-1.5 py-0.5 text-[0.625rem]"
           >
             <Icon size={10} /> {t(meta.labelKey)}
           </Badge>
@@ -81,7 +81,7 @@ function RowBlock({ status, items }: { status: string; items: ImportRowIssue[] }
               })}
             </div>
             {it.errors.length > 0 && (
-              <p className="mt-1 text-[11px] leading-relaxed text-destructive">
+              <p className="mt-1 text-[0.6875rem] leading-relaxed text-destructive">
                 {t("impCsv.rowError", {
                   line: it.line,
                   errors: it.errors.join("；"),
@@ -229,7 +229,7 @@ export default function ImportApplicationsDialog({ onClose, onImported }: Props)
               rows={6}
               spellCheck={false}
               placeholder={t("impCsv.placeholder")}
-              className="flex-1 resize-y font-mono text-[12px]"
+              className="flex-1 resize-y font-mono text-[0.75rem]"
             />
             <div className="flex flex-col gap-2">
               <input

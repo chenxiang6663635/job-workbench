@@ -90,7 +90,7 @@ export default function GapPanel({ dir }: { dir: string }) {
           <Puzzle size={15} className="text-primary" />
           <h4 className="text-sm font-medium text-foreground">{t("gap.title")}</h4>
         </div>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[0.6875rem] text-muted-foreground">
           {t("gap.versionNote", { version: gap.resumeVersion })}
         </span>
       </div>
@@ -106,14 +106,14 @@ export default function GapPanel({ dir }: { dir: string }) {
                   <Icon size={14} className={s.iconCls} />
                   <span className="text-xs font-medium text-foreground">{t(s.titleKey)}</span>
                 </div>
-                <Badge variant={s.variant} className="rounded-md px-1.5 py-0 text-[11px]">
+                <Badge variant={s.variant} className="rounded-md px-1.5 py-0 text-[0.6875rem]">
                   {gap.counts[s.key]}
                 </Badge>
               </div>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{t(s.hintKey)}</p>
+              <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-muted-foreground">{t(s.hintKey)}</p>
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {items.length === 0 && (
-                  <span className="text-[11px] text-muted-foreground">{t("gap.none")}</span>
+                  <span className="text-[0.6875rem] text-muted-foreground">{t("gap.none")}</span>
                 )}
                 {items.map((item) => {
                   const term = typeof item === "string" ? item : item.term;
@@ -121,12 +121,12 @@ export default function GapPanel({ dir }: { dir: string }) {
                   return (
                     <span
                       key={term}
-                      className="rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-foreground"
+                      className="rounded-md border border-border bg-background/60 px-2 py-1 text-[0.6875rem] text-foreground"
                       title={level ? t("gap.levelTitle", { level }) : undefined}
                     >
                       {term}
                       {level && (
-                        <span className={`ml-1 text-[10px] ${LEVEL_CLS[level] ?? "text-muted-foreground"}`}>
+                        <span className={`ml-1 text-[0.625rem] ${LEVEL_CLS[level] ?? "text-muted-foreground"}`}>
                           {level}
                         </span>
                       )}
@@ -139,7 +139,7 @@ export default function GapPanel({ dir }: { dir: string }) {
         })}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
         {t("gap.footer")}
       </p>
     </div>

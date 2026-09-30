@@ -55,7 +55,7 @@ export function BankPreviewCard({
       {table ? (
         <div className="max-h-48 overflow-auto rounded-lg border border-border bg-surface-0">
           {/* aria-label 用 summary（数据串）：表内容的自然描述，免新键 */}
-          <table aria-label={summary} className="w-full border-collapse text-[11px] leading-relaxed">
+          <table aria-label={summary} className="w-full border-collapse text-[0.6875rem] leading-relaxed">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
                 {table.header.map((cell) => (
@@ -79,7 +79,7 @@ export function BankPreviewCard({
                     <span className="flex items-center gap-1.5">
                       <Badge
                         variant={KIND_VARIANT[row.kind]}
-                        className="shrink-0 rounded px-1.5 py-0.5 text-[10px]"
+                        className="shrink-0 rounded px-1.5 py-0.5 text-[0.625rem]"
                       >
                         {t(KIND_LABEL[row.kind])}
                       </Badge>
@@ -95,7 +95,7 @@ export function BankPreviewCard({
         </div>
       ) : (
         /* 解析不了就原样等宽展示（不做二次解析——用户据此决定要不要落盘） */
-        <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[0.6875rem] leading-relaxed text-muted-foreground">
           {diff.join("\n")}
         </pre>
       )}

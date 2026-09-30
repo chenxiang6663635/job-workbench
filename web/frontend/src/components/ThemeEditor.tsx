@@ -182,7 +182,7 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
               </span>
               <span
                 className={cn(
-                  "flex items-center gap-1 font-medium tabular-nums font-numeric text-[11px]",
+                  "flex items-center gap-1 font-medium tabular-nums font-numeric text-[0.6875rem]",
                   level === "fail" ? "text-destructive" : "text-muted-foreground"
                 )}
               >
@@ -217,7 +217,7 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
           <Copy size={13} className="mr-1" />
           {t("settings.themeExportCss")}
         </Button>
-        {applied && <span className="text-[11px] text-success">{t("settings.themeApplied")}</span>}
+        {applied && <span className="text-[0.6875rem] text-success">{t("settings.themeApplied")}</span>}
       </div>
 
       <div className="space-y-2">
@@ -229,7 +229,7 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
           value={importText}
           onChange={(event) => setImportText(event.target.value)}
           rows={2}
-          className="w-full rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] text-foreground outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full rounded-lg border border-border bg-surface-0 p-2 font-mono text-[0.6875rem] text-foreground outline-none focus:ring-2 focus:ring-primary/40"
         />
         <Button variant="outline" size="sm" onClick={onImport} disabled={!importText.trim()}>
           <Upload size={13} className="mr-1" />
@@ -239,14 +239,14 @@ export default function ThemeEditor({ onSaved }: ThemeEditorProps) {
 
       <ThemePresetList items={customThemes} onRename={onRename} onDelete={onDelete} />
 
-      {note && <p className="text-[11px] text-muted-foreground">{note}</p>}
+      {note && <p className="text-[0.6875rem] text-muted-foreground">{note}</p>}
       {Object.keys(currentVars).length === 0 && (
-        <p className="text-[11px] text-destructive">{t("settings.themeReadFailed")}</p>
+        <p className="text-[0.6875rem] text-destructive">{t("settings.themeReadFailed")}</p>
       )}
       <button
         type="button"
         onClick={() => setVars(readCurrentVars())}
-        className="cursor-pointer text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+        className="cursor-pointer text-[0.6875rem] text-muted-foreground underline-offset-2 hover:underline"
       >
         {t("settings.themeResetFromCurrent")}
       </button>

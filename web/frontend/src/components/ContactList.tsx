@@ -176,7 +176,7 @@ export default function ContactList() {
                       {[c.角色, c.公司].filter(Boolean).join(" · ") || t("contact.roleMissing")}
                     </p>
                   </div>
-                  <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[10px] font-mono">
+                  <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[0.625rem] font-mono">
                     {c.联系人id}
                   </Badge>
                 </div>
@@ -212,7 +212,7 @@ export default function ContactList() {
                       size="sm"
                       onClick={() => markContacted(c)}
                       title={t("contact.markTitle")}
-                      className="h-6 px-2 text-[11px]"
+                      className="h-6 px-2 text-[0.6875rem]"
                     >
                       <PhoneCall size={11} /> {t("contact.marked")}
                     </Button>

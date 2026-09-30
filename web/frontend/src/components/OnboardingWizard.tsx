@@ -163,7 +163,7 @@ export function OnboardingWizard({
                 <div key={label} className="flex flex-1 items-center gap-2">
                   <span
                     className={
-                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] " +
+                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] " +
                       (value < step
                         ? "bg-primary/20 text-primary"
                         : value === step
@@ -196,7 +196,7 @@ export function OnboardingWizard({
 
         {created ? (
           <div className="space-y-3">
-            <p className="break-all rounded-md bg-muted/40 p-2 font-mono text-[11px] text-foreground">
+            <p className="break-all rounded-md bg-muted/40 p-2 font-mono text-[0.6875rem] text-foreground">
               {created}
             </p>
             <Button className="w-full" onClick={() => window.location.reload()}>
@@ -239,7 +239,7 @@ export function OnboardingWizard({
                   />
                   <span className="font-mono text-xs">{item.id}</span>
                   {item.isDemoDefault && (
-                    <span className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    <span className="rounded border border-border px-1.5 py-0.5 text-[0.625rem] text-muted-foreground">
                       {t("onboard.demoTag")}
                     </span>
                   )}
@@ -259,7 +259,7 @@ export function OnboardingWizard({
         ) : (
           <div className="space-y-3">
             <p className="text-sm font-medium text-foreground">{preview?.summary}</p>
-            <ul className="max-h-44 space-y-0.5 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-[11px] text-muted-foreground">
+            <ul className="max-h-44 space-y-0.5 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-[0.6875rem] text-muted-foreground">
               {preview?.diff.map((line) => <li key={line}>{line}</li>)}
             </ul>
             <p className="break-all text-xs text-muted-foreground">

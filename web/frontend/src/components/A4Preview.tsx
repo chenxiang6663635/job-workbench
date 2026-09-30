@@ -114,7 +114,7 @@ export function A4Preview({
         </div>
       </div>
       {scale < 1 && (
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        <p className="mt-2 text-center text-[0.6875rem] text-muted-foreground">
           {t("a4.scaledNotice", { percent: Math.round(scale * 100) })}
         </p>
       )}

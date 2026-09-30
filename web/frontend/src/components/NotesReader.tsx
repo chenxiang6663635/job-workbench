@@ -174,7 +174,7 @@ export default function NotesReader({
     <section className="min-w-0 flex-1 rounded-lg bg-card-gradient p-6 shadow-card ring-1 ring-highlight/5 lg:p-8">
       {/* 路径行（B-6）：搜索态下首段（目录名）可点 = 回目录树——「我在哪、怎么回去」
           在正文区也答得上，不用回左栏找入口 */}
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-1 font-mono text-[11px] text-muted-foreground">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-1 font-mono text-[0.6875rem] text-muted-foreground">
         {onBackToTree ? (
           <button
             type="button"
@@ -268,7 +268,7 @@ export default function NotesReader({
               className="sticky top-6 hidden w-40 shrink-0 self-start xl:block"
               aria-label={t("notes.outline")}
             >
-              <p className="mb-2 text-[11px] font-medium text-muted-foreground">
+              <p className="mb-2 text-[0.6875rem] font-medium text-muted-foreground">
                 {t("notes.outline")}
               </p>
               <ul>

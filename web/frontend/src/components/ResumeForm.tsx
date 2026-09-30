@@ -33,7 +33,7 @@ function Section({
       </button>
       {open && (
         <div className="mt-2 space-y-2">
-          {hint && <p className="text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
+          {hint && <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">{hint}</p>}
           {children}
         </div>
       )}
@@ -123,7 +123,7 @@ export default function ResumeForm({ data, onChange }: Props) {
         {education.map((e, i) => (
           <div key={i} className="space-y-2 rounded-lg bg-secondary/40 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">{t("resumeForm.itemIndex", { index: i + 1 })}</span>
+              <span className="text-[0.6875rem] text-muted-foreground">{t("resumeForm.itemIndex", { index: i + 1 })}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -145,7 +145,7 @@ export default function ResumeForm({ data, onChange }: Props) {
           variant="link"
           size="sm"
           onClick={() => addItem("education", { school: "", major: "", degree: "", period: "", note: "" })}
-          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          className="h-auto gap-1 p-0 text-[0.6875rem] text-primary"
           >
           <Plus size={12} /> {t("resumeForm.addEducation")}
           </Button>
@@ -158,7 +158,7 @@ export default function ResumeForm({ data, onChange }: Props) {
         {projects.map((p, i) => (
           <div key={i} className="space-y-2 rounded-lg bg-secondary/40 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">{t("resumeForm.projectIndex", { index: i + 1 })}</span>
+              <span className="text-[0.6875rem] text-muted-foreground">{t("resumeForm.projectIndex", { index: i + 1 })}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -186,7 +186,7 @@ export default function ResumeForm({ data, onChange }: Props) {
           variant="link"
           size="sm"
           onClick={() => addItem("projects", { title: "", tag: "", points: [""] })}
-          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          className="h-auto gap-1 p-0 text-[0.6875rem] text-primary"
           >
           <Plus size={12} /> {t("resumeForm.addProject")}
           </Button>
@@ -196,7 +196,7 @@ export default function ResumeForm({ data, onChange }: Props) {
         {work.map((w, i) => (
           <div key={i} className="space-y-2 rounded-lg bg-secondary/40 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">{t("resumeForm.segmentIndex", { index: i + 1 })}</span>
+              <span className="text-[0.6875rem] text-muted-foreground">{t("resumeForm.segmentIndex", { index: i + 1 })}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -223,7 +223,7 @@ export default function ResumeForm({ data, onChange }: Props) {
           variant="link"
           size="sm"
           onClick={() => addItem("work", { org: "", role: "", period: "", points: [""] })}
-          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          className="h-auto gap-1 p-0 text-[0.6875rem] text-primary"
           >
           <Plus size={12} /> {t("resumeForm.addWork")}
           </Button>
@@ -251,7 +251,7 @@ export default function ResumeForm({ data, onChange }: Props) {
           variant="link"
           size="sm"
           onClick={() => addItem("skills", { group: "", items: "" })}
-          className="h-auto gap-1 p-0 text-[11px] text-primary"
+          className="h-auto gap-1 p-0 text-[0.6875rem] text-primary"
           >
           <Plus size={12} /> {t("resumeForm.addSkillGroup")}
           </Button>

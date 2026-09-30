@@ -52,8 +52,8 @@ export default function MailBody({
     // 徽章与正文各自成节点：正文必须保持"就是那段文本"——塞进同一个节点会让
     // 按文本精确匹配的断言（与读屏）拿到 "Excerpt面试邀请" 这种拼接结果
     return (
-      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <span className="shrink-0 rounded border border-border px-1 py-0.5 text-[10px]">
+      <p className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
+        <span className="shrink-0 rounded border border-border px-1 py-0.5 text-[0.625rem]">
           {badge}
         </span>
         <span className="min-w-0 truncate" title={text}>
@@ -65,7 +65,7 @@ export default function MailBody({
 
   return (
     <div className="space-y-1">
-      <p className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-2 text-[0.625rem] text-muted-foreground">
         <span className="rounded border border-border px-1.5 py-0.5">{badge}</span>
         {(truncated || cropped) && (
           <span className="rounded border border-border px-1.5 py-0.5">

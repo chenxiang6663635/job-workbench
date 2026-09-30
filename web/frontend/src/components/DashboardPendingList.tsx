@@ -37,7 +37,7 @@ export function DashboardPendingList({
       <div className="mb-3 flex items-center gap-2">
         <Flame size={15} className="text-destructive" />
         <h2 className="text-sm font-semibold text-foreground">{t("dash.pendingTitle")}</h2>
-        <span className="ml-auto text-[10px] text-muted-foreground">
+        <span className="ml-auto text-[0.625rem] text-muted-foreground">
           {t("dash.pendingSubtitle")}
         </span>
       </div>

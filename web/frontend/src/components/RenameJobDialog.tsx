@@ -115,7 +115,7 @@ export default function RenameJobDialog({
               </p>
               {/* diff 原样等宽展示（与 DeleteRecordButton 同款）：解析错了比
                   显示得丑危险得多（用户据此决定要不要落盘） */}
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[0.6875rem] leading-relaxed text-muted-foreground">
                 {data.diff.join("\n")}
               </pre>
             </div>

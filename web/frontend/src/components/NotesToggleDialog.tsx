@@ -74,7 +74,7 @@ export default function NotesToggleDialog({
             <pre
               tabIndex={0}
               aria-label={t("notes.toggleDiff")}
-              className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground"
+              className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-0 p-2 font-mono text-[0.6875rem] leading-relaxed text-muted-foreground"
             >
               {flow.diff.join("\n")}
             </pre>

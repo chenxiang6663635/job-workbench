@@ -102,7 +102,7 @@ export default function JobCreateForm({
           {fetching ? t("job.fetching") : t("job.fetchFromUrl")}
         </Button>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
         {t("job.fetchNote")}
       </p>
       <Textarea

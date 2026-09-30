@@ -137,7 +137,7 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
           </SelectContent>
         </Select>
         {shownPreset?.noteKey && (
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
             {t(shownPreset.noteKey)}
           </p>
         )}
@@ -151,7 +151,7 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
             onChange={(e) => setBaseUrl(e.target.value)}
           />
           {hintKey && (
-            <p className="text-[11px] leading-relaxed text-muted-foreground">{t(hintKey)}</p>
+            <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">{t(hintKey)}</p>
           )}
         </FormField>
 
@@ -178,7 +178,7 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
             onChange={(e) => setModel(e.target.value)}
           />
           {!model.trim() && (
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
               {t("settings.providerModelHint")}
             </p>
           )}
@@ -197,11 +197,11 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
           {models.models.length > 0 ? (
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-[0.6875rem] text-muted-foreground">
                   {t("settings.providerModelsTitle")}
                 </span>
                 {models.truncated && (
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-[0.6875rem] text-muted-foreground">
                     {t("settings.providerModelsTruncated", {
                       shown: models.models.length,
                       total: models.modelCount,
@@ -214,7 +214,7 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
                   <button
                     key={name}
                     type="button"
-                    className="rounded-full border border-border px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                    className="rounded-full border border-border px-2.5 py-0.5 font-mono text-[0.6875rem] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                     onClick={() => setModel(name)}
                   >
                     {name}
@@ -223,7 +223,7 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
               </div>
             </>
           ) : (
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
               {t("settings.providerModelsEmpty")}
             </p>
           )}
@@ -261,7 +261,7 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
               </Button>
             </div>
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
             {t("settings.referralDisclosure")}
             {t("settings.referralNoData")}
           </p>

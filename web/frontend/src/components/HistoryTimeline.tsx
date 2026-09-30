@@ -29,7 +29,7 @@ export default function HistoryTimeline({ entries }: { entries: HistoryEntry[] }
             <div className="pb-3">
               <div className="flex items-center gap-2 text-xs">
                 <span className="font-mono text-muted-foreground">{e.时间}</span>
-                <span className="rounded bg-secondary/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <span className="rounded bg-secondary/60 px-1.5 py-0.5 text-[0.625rem] text-muted-foreground">
                   {e.字段}
                 </span>
               </div>

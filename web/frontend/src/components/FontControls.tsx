@@ -148,7 +148,7 @@ export default function FontControls({ version = 0 }: { version?: number }) {
           </Num>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-muted-foreground" aria-hidden="true">
+          <span className="text-[0.625rem] text-muted-foreground" aria-hidden="true">
             A
           </span>
           <input

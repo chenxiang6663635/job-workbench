@@ -31,9 +31,9 @@ export function BankCounts({
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
       {shown.map((key) => (
-        <Badge key={key} variant={VARIANT[key]} className="rounded px-1.5 py-0.5 text-[11px]">
+        <Badge key={key} variant={VARIANT[key]} className="rounded px-1.5 py-0.5 text-[0.6875rem]">
           {key}
-          <Num className="text-[11px]">{counts[key]}</Num>
+          <Num className="text-[0.6875rem]">{counts[key]}</Num>
         </Badge>
       ))}
     </span>

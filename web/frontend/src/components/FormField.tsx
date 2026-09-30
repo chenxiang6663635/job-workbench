@@ -12,7 +12,7 @@ import { Select, SelectTrigger } from "./ui/select";
 /**
  * 表单字段容器：Label + 控件。此前在四处各写一遍完全相同的三行结构
  * （ResumeForm 的 Row / InterviewForm / OfferForm / Settings 的内联 div），
- * 按 rule of three 收敛为一处，顺带统一 label 的排版（mb-1 + text-[11px]）。
+ * 按 rule of three 收敛为一处，顺带统一 label 的排版（mb-1 + text-[0.6875rem]）。
  *
  * `id` 必须真的落在**能聚焦的那个元素**上，配 `htmlFor` 才是有效关联：
  * - 原生控件：直接把 id 传给控件本身；
@@ -56,11 +56,11 @@ export function FormField({
 
   return (
     <div className={className}>
-      <Label htmlFor={id} className="mb-1 block text-[11px] text-muted-foreground">
+      <Label htmlFor={id} className="mb-1 block text-[0.6875rem] text-muted-foreground">
         {label}
       </Label>
       {control}
-      {hint && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-1 text-[0.6875rem] leading-relaxed text-muted-foreground">{hint}</p>}
     </div>
   );
 }

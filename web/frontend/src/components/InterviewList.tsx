@@ -39,7 +39,7 @@ function ResultBadge({ value }: { value: string }) {
   return (
     <Badge
       variant={RESULT_VARIANT[value] ?? "warning"}
-      className="rounded-md px-1.5 py-0 text-[11px]"
+      className="rounded-md px-1.5 py-0 text-[0.6875rem]"
     >
       {domainLabel("result", value, t)}
     </Badge>

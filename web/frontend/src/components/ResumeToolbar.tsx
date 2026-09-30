@@ -84,7 +84,7 @@ export default function ResumeToolbar({
           <FileDown size={15} /> {t("resume.exportWord")}
         </a>
       </Button>
-      <span className="text-[11px] text-muted-foreground">{t("resume.wordTitle")}</span>
+      <span className="text-[0.6875rem] text-muted-foreground">{t("resume.wordTitle")}</span>
     </div>
   );
 }

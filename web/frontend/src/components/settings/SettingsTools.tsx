@@ -43,13 +43,13 @@ export default function SettingsTools({
         />
         <Button
           variant={modifiedOnly ? "default" : "outline"}
-          className="h-8 shrink-0 px-2.5 text-[11px]"
+          className="h-8 shrink-0 px-2.5 text-[0.6875rem]"
           aria-pressed={modifiedOnly}
           onClick={() => onQueryChange(modifiedOnly ? "" : "@modified")}
         >
           <Filter size={12} /> {t("settings.toolsModifiedOnly")}
           {modified > 0 && (
-            <Badge variant="outline" className="ml-1 px-1 py-0 text-[10px]">
+            <Badge variant="outline" className="ml-1 px-1 py-0 text-[0.625rem]">
               {modified}
             </Badge>
           )}
@@ -65,7 +65,7 @@ export default function SettingsTools({
         <Button
           size="sm"
           variant={group === "all" ? "secondary" : "ghost"}
-          className="h-7 px-2.5 text-[11px]"
+          className="h-7 px-2.5 text-[0.6875rem]"
           aria-pressed={group === "all"}
           onClick={() => onGroupChange("all")}
         >
@@ -76,7 +76,7 @@ export default function SettingsTools({
             key={item.id}
             size="sm"
             variant={group === item.id ? "secondary" : "ghost"}
-            className="h-7 px-2.5 text-[11px]"
+            className="h-7 px-2.5 text-[0.6875rem]"
             aria-pressed={group === item.id}
             onClick={() => onGroupChange(item.id)}
           >

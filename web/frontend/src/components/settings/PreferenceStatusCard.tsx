@@ -63,12 +63,12 @@ export default function PreferenceStatusCard({
               <p className="flex items-center gap-1.5 text-xs text-foreground">
                 {t(entry.labelKey)}
                 {entry.modified && (
-                  <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                  <Badge variant="outline" className="px-1 py-0 text-[0.625rem]">
                     {t("settings.statusModified")}
                   </Badge>
                 )}
               </p>
-              <p className="truncate text-[11px] text-muted-foreground">
+              <p className="truncate text-[0.6875rem] text-muted-foreground">
                 {entry.value} · {t(EFFECT_KEYS[entry.effect])}
               </p>
             </div>
@@ -77,7 +77,7 @@ export default function PreferenceStatusCard({
               {entry.toggle && (
                 <Button
                   variant={entry.toggle.on ? "default" : "outline"}
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-[0.6875rem]"
                   aria-pressed={entry.toggle.on}
                   aria-label={t("settings.entryReminders")}
                   onClick={() => entry.toggle?.set(!entry.toggle.on)}
@@ -90,7 +90,7 @@ export default function PreferenceStatusCard({
               {/* 枚举项渲染成下拉（"提前几天"）：与开关一样是即时生效项 */}
               {entry.choice && (
                 <select
-                  className="h-7 cursor-pointer rounded-md border border-border bg-background px-2 text-[11px] text-foreground"
+                  className="h-7 cursor-pointer rounded-md border border-border bg-background px-2 text-[0.6875rem] text-foreground"
                   aria-label={t(entry.labelKey)}
                   value={entry.choice.value}
                   onChange={(e) => entry.choice?.set(e.target.value)}
@@ -105,7 +105,7 @@ export default function PreferenceStatusCard({
               {entry.modified && entry.reset && (
                 <Button
                   variant="outline"
-                  className="h-7 px-2.5 text-[11px]"
+                  className="h-7 px-2.5 text-[0.6875rem]"
                   onClick={() => onReset(entry)}
                 >
                   <RotateCcw size={12} /> {t("settings.statusResetOne")}
@@ -118,7 +118,7 @@ export default function PreferenceStatusCard({
 
       {modified.length > 1 && (
         <div className="border-t border-border pt-3">
-          <Button variant="outline" className="h-7 px-2.5 text-[11px]" onClick={onResetAll}>
+          <Button variant="outline" className="h-7 px-2.5 text-[0.6875rem]" onClick={onResetAll}>
             <RotateCcw size={12} /> {t("settings.statusResetAll", { n: modified.length })}
           </Button>
         </div>

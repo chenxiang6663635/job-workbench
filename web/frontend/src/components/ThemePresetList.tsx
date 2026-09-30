@@ -47,7 +47,7 @@ export default function ThemePresetList({
               />
               <Button
                 size="sm"
-                className="h-7 shrink-0 px-2 text-[11px]"
+                className="h-7 shrink-0 px-2 text-[0.6875rem]"
                 onClick={() => {
                   onRename(theme.id, renameDraft, theme.label);
                   setRenamingId(null);
@@ -66,7 +66,7 @@ export default function ThemePresetList({
                     setRenamingId(theme.id);
                     setRenameDraft(theme.label);
                   }}
-                  className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:text-primary"
+                  className="flex cursor-pointer items-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors duration-150 hover:text-primary"
                 >
                   <Pencil size={11} aria-hidden="true" />
                   {t("settings.themeRename")}
@@ -74,7 +74,7 @@ export default function ThemePresetList({
                 <button
                   type="button"
                   onClick={() => setDeleteTarget({ id: theme.id, label: theme.label })}
-                  className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:text-destructive"
+                  className="flex cursor-pointer items-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors duration-150 hover:text-destructive"
                 >
                   <Trash2 size={11} aria-hidden="true" />
                   {t("settings.themeDelete")}

@@ -122,7 +122,7 @@ export default function ApplicationRow({
               >
                 {domainLabel("stage", it.当前阶段, t)}
               </span>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[0.625rem] text-muted-foreground">
                 {t("app.terminalLocked")}
               </span>
             </div>

@@ -177,14 +177,14 @@ export default function Settings() {
 
           {/* 三态与「数据与隐私」卡同款：读取失败可定位 / 加载中骨架 / 就绪显示真实路径 */}
           {pathsError ? (
-            <p className="text-[11px] text-destructive">
+            <p className="text-[0.6875rem] text-destructive">
               {t("settings.pathsFailed", { error: pathsError })}
             </p>
           ) : !paths ? (
             <Skeleton className="h-12 w-full" />
           ) : (
             <div className="space-y-1.5">
-              <p className="break-all text-[11px] text-muted-foreground">
+              <p className="break-all text-[0.6875rem] text-muted-foreground">
                 {t("settings.dataRoot")}
                 <span className="font-mono text-muted-foreground">{paths.dataRoot}</span>
               </p>
@@ -192,7 +192,7 @@ export default function Settings() {
                 <Badge variant="outline">
                   {paths.mode === "portable" ? t("settings.modePortable") : t("settings.modeUser")}
                 </Badge>
-                <span className="text-[11px] leading-relaxed text-muted-foreground">
+                <span className="text-[0.6875rem] leading-relaxed text-muted-foreground">
                   {paths.mode === "portable"
                     ? t("settings.modePortableHint")
                     : t("settings.modeUserHint")}

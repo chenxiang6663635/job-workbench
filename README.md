@@ -80,13 +80,14 @@ python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
 #    Swap --domain for your own field — see the "Domain profiles" table in docs/README.md
-python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
+#    ("personal" is the CLI's default workspace name; any directory name works.)
+python tools/jobws.py init --target personal --domain hvac-cooling
 
 # 2. Distribute skills / commands / subagents to your AI CLI
 #    (CodeBuddy / Claude Code / cross-runtime ~/.agents/skills/)
 python tools/jobws.py skills install --target user
 
-# 3. Fill in my_job_hunt/AGENTS.md
+# 3. Fill in personal/AGENTS.md
 #    Section 3 (hard eligibility facts) is required — unfilled fields put a job
 #    into "awaiting profile facts" (not scored, not killed) until you fill them;
 #    the gate never guesses. The file also carries two honesty red lines:

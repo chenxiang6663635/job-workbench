@@ -26,10 +26,10 @@
 
 ```bash
 # 1. 初始化工作区：--domain 换成你专业的插件；只想先看看界面可加 --demo
-python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
+python tools/jobws.py init --target personal --domain hvac-cooling
 # 2. 分发技能 / 命令 / 子代理到你的 AI CLI（CodeBuddy / Claude Code / ~/.agents/skills/）
 python tools/jobws.py skills install --target user
-# 3. 填好 my_job_hunt/AGENTS.md 的硬门槛事实，再对 AI CLI 说「解析这份 JD」
+# 3. 填好 personal/AGENTS.md 的硬门槛事实，再对 AI CLI 说「解析这份 JD」
 ```
 
 命令行只需 Python 3.12+（标准库）；PDF 生成需要 Chrome 或 Edge。**不想配环境？**[下载](download.md)页提供免 Python / Node 的桌面版安装包。

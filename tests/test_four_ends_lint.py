@@ -72,6 +72,36 @@ def test_mcp_tools_parsed_in_registration_order(tmp_path):
     assert names == ["list_applications", "preview_add_application"]
 
 
+def test_mcp_tools_reports_missing_unparse(monkeypatch, tmp_path):
+    """低版本解释器（无 ast.unparse）：显式报错，**不许**返回空表。
+
+    空表会被上层读成「一个工具都没注册」——2026-09-30 实测在 Python 3.8 下刷出
+    14 条「MCP 工具 … 未注册」假缺陷，而真正原因（解释器太旧）一条都看不到。
+    版本检查排在文件检查之前，所以这里连 server.py 都不需要造。
+    """
+    monkeypatch.delattr(four_ends_probe.ast, "unparse", raising=False)
+
+    names, errors = four_ends_probe.mcp_tools(str(tmp_path))
+
+    assert names is None, "能力缺失必须返回 None（空表＝静默误报）"
+    assert len(errors) == 1 and "≥3.9" in errors[0], errors
+
+
+def test_low_python_check_reports_one_reason(monkeypatch):
+    """整条检查同上：低版本只报一条明确原因，不刷「未注册」假缺陷。
+
+    断言先按**性质**钉（有 ≥3.9 提示、无「未注册」误报），再补"只此一条"——
+    这样失败信息指向降级路径本身，而不是"全仓基线脏了"。
+    """
+    monkeypatch.delattr(four_ends_probe.ast, "unparse", raising=False)
+
+    issues, _doc = check_four_ends.check(ROOT)
+
+    assert any("≥3.9" in item for item in issues), issues
+    assert not any("未注册" in item for item in issues), issues
+    assert len(issues) == 1, issues
+
+
 def test_gui_routes_includes_package_prefix(tmp_path):
     """两层结构：包 __init__ 声明 prefix，子模块的 router 不带 prefix。
 

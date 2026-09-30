@@ -75,3 +75,32 @@ def test_get_single_key(ws, capsys):
     assert capsys.readouterr().out.strip() == "nord"
     assert prefs.cmd_get(_Args(key="resume_style")) == 0
     assert capsys.readouterr().out.strip() == ""
+
+
+def test_doctor_reads_the_requested_workspace(tmp_path, monkeypatch, capsys):
+    """`doctor --workspace X` 必须读 X 的偏好（2026-09-30 实修）。
+
+    此前它解析出的 ws 只用来打印路径，偏好却走无参 `prefs_path()` / `read_prefs()`
+    落到**默认工作区**——实测 `--workspace demo` 打印 demo 的路径、显示的却是
+    personal 的偏好，诊断结论正好是反的。
+    """
+    default = tmp_path / "personal"
+    other = tmp_path / "demo"
+    for target, theme in ((default, "nord"), (other, "catppuccin-mocha")):
+        (target / "config").mkdir(parents=True)
+        prefs.write_prefs({"theme": theme}, str(target))
+    # 与 tracker.resolve_ws 同款语义：显式传参优先，缺省回退全局（默认工作区）
+    monkeypatch.setattr(prefs.tracker, "resolve_ws",
+                        lambda workspace=None: str(workspace or default))
+
+    assert prefs.cmd_doctor(_Args(workspace=str(other))) == 0
+
+    out = capsys.readouterr().out
+    assert "catppuccin-mocha" in out, out      # 目标工作区的值
+    assert "nord" not in out, out              # 默认工作区的值不该出现
+
+    # 缺省行为不变：不传 --workspace 时读默认工作区（与旧的无参调用等价）
+    assert prefs.cmd_doctor(_Args()) == 0
+    out_default = capsys.readouterr().out
+    assert "nord" in out_default, out_default
+    assert "catppuccin-mocha" not in out_default, out_default

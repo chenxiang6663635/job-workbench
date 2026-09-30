@@ -26,10 +26,10 @@ The screenshots below are the real interface **in English**, generated from demo
 
 ```bash
 # 1. Initialize a workspace — swap --domain for your field; add --demo to just look around
-python tools/jobws.py init --target my_job_hunt --domain hvac-cooling
+python tools/jobws.py init --target personal --domain hvac-cooling
 # 2. Distribute skills / commands / subagents to your AI CLI (CodeBuddy / Claude Code / ~/.agents/skills/)
 python tools/jobws.py skills install --target user
-# 3. Fill in my_job_hunt/AGENTS.md (hard eligibility facts), then tell your AI CLI: "parse this JD"
+# 3. Fill in personal/AGENTS.md (hard eligibility facts), then tell your AI CLI: "parse this JD"
 ```
 
 The CLI needs Python 3.12+ (standard library only); PDF generation uses Chrome or Edge. **No environment yet?** The [Download](download.md) page has the desktop installer (no Python / Node needed).

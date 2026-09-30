@@ -186,7 +186,7 @@
 - **`jobws lint legacy-imports`（2026-09-17 新增）**：统计旧名 import 点的数量，以清单（`tools/legacy_imports_allowlist.txt`）为**只许下降**的水位。新增代码一律用 `jobws_core`；**水位降到 0 就删 shim**——`filelock` / `workspace_io` 已于 2026-09-19 走完（18 处改新名 + 两个 shim 文件删除）；`tracker` / `approval` / `pathres` 是第二批搬包后新登记的水位（PR-B 继续压到 0）。名字清完后仍留在 `LEGACY_NAMES` 里当**防火墙**：将来谁再写旧名会被当场拦下，而不是静默多出一条老路径。
 - **解释器基线 3.12（2026-09-14 起，原先 3.8）**：CI、打包与文档都以 3.12 为准。技术要求其实只有 ≥3.9（`imaplib` 的 `timeout=`），但**支持**并验证的只有 3.12——所以 `tests/conftest.py` 会在收集前拦住更低版本：测试在错解释器上**静默不可信**，那种失败看起来像"代码坏了"。本题机器最常见的坑是 `python` 落到别的项目在用的 conda 环境（3.8），所以跑之前先 `python -V` 确认。
   - **pre-commit 快检的解释器**：钩子按 `JOBWS_PYTHON` > 仓库内 `.venv` > 运行钩子的解释器 解析；解析到的低于 3.12 时它**降级提示而不是拦提交**（那种结论不可信，CI 兜底）。维护者建议设一次：`setx JOBWS_PYTHON "<3.12 的 python>"`。
-  - **`web/start.ps1` 用同一顺序解析后端解释器**（并额外验依赖：能 `import fastapi, uvicorn` 才算数），**不依赖终端里激活了哪个环境**——终端自动激活 conda base（或其他项目环境）时不再影响本仓库的启动；`.\start.ps1 -CheckOnly` 只做预检并打印会选哪个解释器。**`setx` 保存的用户级 `JOBWS_PYTHON` 也会被读到**（`setx` 只对新终端生效，脚本替你把"刚设完但终端还没刷新"这一步接住，并打印一行提示）。
+  - **`web/start.ps1` 用同一顺序解析后端解释器**（并额外验依赖：能 `import fastapi, uvicorn, jobws_core` 才算数——领域包是后端导入期的硬依赖），**不依赖终端里激活了哪个环境**——终端自动激活 conda base（或其他项目环境）时不再影响本仓库的启动；`.\start.ps1 -CheckOnly` 只做预检并打印会选哪个解释器。**`setx` 保存的用户级 `JOBWS_PYTHON` 也会被读到**（`setx` 只对新终端生效，脚本替你把"刚设完但终端还没刷新"这一步接住，并打印一行提示）。
   - **环境约定**：用一个 3.12 venv 装 `web/backend/requirements-dev.txt`。**放在仓库内
     `.venv/` 或仓库外都可以**（两者都在 `.gitignore` 里；钩子与 `start.ps1` 都优先找
     仓库内 `.venv`，放这里最省事）。实测体积约 98MB——不影响 git（已忽略），但会让

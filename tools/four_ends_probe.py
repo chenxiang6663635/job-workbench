@@ -44,6 +44,13 @@ def cli_capabilities(root):
 
 def mcp_tools(root):
     """MCP 工具名（按注册顺序）：ast 解析 server.py，抓 @mcp.tool 下的函数名。"""
+    # ast.unparse 是 3.9+ 才有的：拿不到它就读不出装饰器原文。这里**显式报错**而不是
+    # 返回空表——空表会被上层读成「一个工具都没注册」，在低版本解释器上刷出一屏假缺陷
+    # （2026-09-30 实测：Python 3.8 下 14 条「未注册」）；"能力缺失"要走 errors 通道
+    # 说清楚，与 cli_capabilities / gui_routes 的降级写法同款。
+    if not hasattr(ast, "unparse"):
+        return None, ["四端检查需要 Python ≥3.9（ast.unparse 不可用；当前 %s）"
+                      % ".".join(str(part) for part in sys.version_info[:3])]
     path = os.path.join(root, "mcp", "jobws_mcp", "server.py")
     if not os.path.isfile(path):
         return None, ["找不到 mcp/jobws_mcp/server.py"]
@@ -55,7 +62,7 @@ def mcp_tools(root):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         for deco in node.decorator_list:
-            text = ast.unparse(deco) if hasattr(ast, "unparse") else ""
+            text = ast.unparse(deco)   # 上面已确认可用；逐次判断会再退化成静默空表
             # 裸 `@mcp.tool`、`@mcp.tool(name=...)`、`@mcp.tool()` 三种都算注册。
             if text == "mcp.tool" or text.startswith("mcp.tool("):
                 names.append(node.name)

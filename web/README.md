@@ -9,6 +9,7 @@
 ```bash
 cd web/backend
 pip install -r requirements.txt
+pip install ../../packages/jobws-core   # 后端启动时导入领域包（缺了 uvicorn 直接退出）
 python -m uvicorn main:app --port 8765
 ```
 

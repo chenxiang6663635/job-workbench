@@ -107,6 +107,12 @@ research_*.md
 web/frontend/test-results*/
 web/frontend/playwright-report/
 web/frontend/blob-report/
+# 有些测试运行器（IDE 集成 / MCP Playwright）把产物落在 `tr-<6 位数字>/`：内容是
+# `.last-run.json` + `.playwright-artifacts-N/*.png`，与 test-results 同族。
+# 2026-09-30 实测：三次运行各 1192–1837 个文件（单次约 133 MB）、合计 4850 个进了
+# 未跟踪列表。只收 `tr-数字` 这一形态——宽写成 `tr-*` 会把将来同名的源码目录也吞掉；
+# 运行器若换命名，按实测值再放宽（理由同上面的 test-results*/）。
+web/frontend/tr-[0-9]*/
 
 # pytest 运行缓存
 .pytest_cache/

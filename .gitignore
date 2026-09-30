@@ -107,6 +107,10 @@ research_*.md
 web/frontend/test-results*/
 web/frontend/playwright-report/
 web/frontend/blob-report/
+# 有些测试运行器（IDE 集成 / MCP Playwright）把产物落在 `tr-<数字>/`：内容是
+# `.last-run.json` + `.playwright-artifacts-N/*.png`，与 test-results 同族。
+# 2026-09-30 实测：一次运行 1819 个文件 / 133 MB 进了未跟踪列表（三份共 4850 个）。
+web/frontend/tr-*/
 
 # pytest 运行缓存
 .pytest_cache/

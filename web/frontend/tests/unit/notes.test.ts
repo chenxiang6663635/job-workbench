@@ -62,6 +62,14 @@ describe("resolveNoteLink（正文相对链接 → 可打开笔记）", () => {
   it("非法百分号编码 → null（不抛错）", () => {
     expect(resolveNoteLink("%E0%A4%A", from)).toBeNull();
   });
+
+  it("编码穿越与回到根再上跳 → null（边界不变量）", () => {
+    // %2e%2e%2f 解码后是 ../ ——同样必须被边界拦截
+    expect(resolveNoteLink("%2e%2e%2f%2e%2e%2fx.md", from)).toBeNull();
+    expect(resolveNoteLink("../../../../x.md", from)).toBeNull();
+    // 已在 section 根：再上跳即越界
+    expect(resolveNoteLink("../乙.md", { section: "interview", rel: "甲.md" })).toBeNull();
+  });
 });
 
 describe("findAnchorLine（命中行 → 该滚到哪个块）", () => {

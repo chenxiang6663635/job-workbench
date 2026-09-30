@@ -5,7 +5,9 @@
 //
 // 解析规则（对齐 VS Code 的双基准约定）：
 // - 默认以**当前文件所在目录**为基准归一化 `..` / `.`（手写与互链生成都是这种形态）；
-// - 也接受直接以 section 目录名开头（`04_知识库/…`，工作区根基准）；
+// - 也接受直接以 section 目录名开头（`04_知识库/…`，工作区根基准）；已知歧义：
+//   首段命中 section 名时**总是**按工作区根解析，不会退化为"当前目录下的同名子目录"
+//   （概率极低；与 VS Code 的 `/` 前缀语义对齐，二期若遇到真实案例再收）；
 // - 结果必须落在 NOTES_SECTIONS 的某一棵树内、且是 .md——否则返回 null，
 //   渲染侧据此保持"弱化文本"的降级（外链 / 越界 / 非 md / 锚点一律不进）。
 // 这里只做纯字符串归一化；真正的读取仍由后端 prep 端点做三层防护（白名单 + realpath
@@ -24,6 +26,8 @@ export function resolveNoteLink(
   if (!href) return null;
   // 带 scheme（http: / mailto: / file: / C:）或协议相对（//）的一律不是笔记互链
   if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("//")) return null;
+  // 跨文件锚点（`x.md#小节`）一期不支持：fragment 剥离后只打开文件本身
+  // （二期可把 fragment 接到 NotesReader 的定位机制上）。
   const hash = href.indexOf("#");
   const raw = hash === -1 ? href : href.slice(0, hash);
   if (!raw) return null;

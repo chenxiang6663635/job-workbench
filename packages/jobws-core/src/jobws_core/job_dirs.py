@@ -20,6 +20,7 @@ import shutil
 
 from . import pathres  # noqa: E402  （快照根目录：**必须**在工作区之外）
 from . import tracker  # noqa: E402  （工作区解析、dedup_key、ConflictError、file_lock）
+from . import workspace_io  # noqa: E402  （锁名唯一真源：_LOCK_KINDS）
 
 DIR_JOBS = "01_岗位池"
 
@@ -78,11 +79,12 @@ def _checked_dir(ws, name):
 
 
 def _lock_path(workspace=None):
-    """岗位池写锁：`<工作区>/01_岗位池/.jobs.lock`（与 create_job / fetch_jd 同一把）。"""
+    """岗位池写锁：`<工作区>/01_岗位池/.jobs.lock`（与 create_job / fetch_jd 同一把；
+    路径取自 workspace_io._LOCK_KINDS）。"""
     ws = tracker.resolve_ws(workspace)
-    base = os.path.join(ws, DIR_JOBS)
-    os.makedirs(base, exist_ok=True)
-    return os.path.join(base, ".jobs.lock")
+    path = workspace_io.lock_path(ws, "jobs")   # 锁名唯一真源
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
 
 
 def _dir_files(job_dir):

@@ -20,6 +20,7 @@ from datetime import datetime
 
 import atomicio
 from jobws_core import workspace_io
+import lockctx
 from lockctx import locked
 from apierror import ApiError
 
@@ -95,9 +96,7 @@ def _all_locks(paths):
 def restore(path, ws, ws_name):
     """还原：锁内先落回滚点，再覆盖同名 + 补齐缺失（从不删除）。"""
     snap_dir = _snapshot_dir(ws)
-    locks = [workspace_io.lock_path(ws, kind) for kind in LOCK_ORDER]
-    for lock_file in locks:
-        os.makedirs(os.path.dirname(lock_file), exist_ok=True)
+    locks = [lockctx.lock_path(ws, kind) for kind in LOCK_ORDER]
 
     with _all_locks(locks):
         rollback, rollback_files = pack(ws, snap_dir, "%s-pre" % ws_name)

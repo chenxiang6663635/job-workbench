@@ -12,7 +12,6 @@ check_direction/next_id/sort_key），Web 层只做 HTTP 编排与文件锁。
 from __future__ import annotations
 
 import math
-import os
 from datetime import date
 from typing import Optional
 

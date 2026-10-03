@@ -19,6 +19,8 @@
   5. `profile.md` 的 `| 插件 ID |` 与目录名一致——照 check_skills 的
      name==目录名：身份两处不一致时，贡献者以为装的是 A、运行的是 B。
   6. `directions/` 下至少一个非空 .md——空方向文件会让方向锚点缺位。
+  7. `profile.md` 的「内置方向」行与 `directions/*.md` 文件名集合一致——
+     不一致＝两处漂移：声明的方向加载不到锚点，目录里的方向无人知晓（#240）。
 
 用法（入口已统一，见 tools/jobws.py）：
     python tools/jobws.py lint domains                 # 校验仓库 template/profiles/
@@ -41,6 +43,8 @@ from jobws_core import jd_score  # noqa: E402  # 复用词典解析器（唯一�
 
 DOMAIN_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 REQUIRED_FILES = ["profile.md", "lexicon.md", "failure_keywords.txt"]
+_DIRECTION_REF_RE = re.compile(r"`([^`]+)`")
+_PAREN_NOTE_RE = re.compile(r"（[^）]*）|\([^)]*\)")
 
 
 def _read(path):
@@ -91,6 +95,41 @@ def _check_failure_keywords(path):
     return problems
 
 
+def _declared_direction_names(profile_text):
+    """解析 `| 内置方向 | ... |` 行里的方向名集合（行不存在返回空集）。
+
+    容忍真实书写：名字用反引号包裹、多项以顿号/逗号分隔、名字后跟（中文说明）。
+    没写反引号时退化为按分隔符切分并剥掉括号说明——宁可宽容解析，也别把
+    整组方向误判成「未登记」的假缺陷。
+    """
+    match = re.search(r"\|\s*内置方向\s*\|([^|\n]*)\|", profile_text)
+    if not match:
+        return set()
+    cell = match.group(1)
+    names = [name.strip() for name in _DIRECTION_REF_RE.findall(cell) if name.strip()]
+    if not names:
+        plain = _PAREN_NOTE_RE.sub("", cell)
+        names = [part.strip() for part in re.split(r"[、,，]", plain) if part.strip()]
+    return set(names)
+
+
+def _check_directions_declared(profile_text, md_files):
+    """「内置方向」声明必须与 directions/*.md 文件名一一对应（#240）。
+
+    不一致就是两处漂移：声明的方向没有锚点文件（评分/解析加载不到该方向），
+    或方向文件躺在目录里却无人知晓（新增方向忘了登记）。差集逐项报出。
+    """
+    declared = _declared_direction_names(profile_text)
+    files = {name[:-3] for name in md_files}
+    problems = []
+    for name in sorted(declared - files):
+        problems.append("内置方向 `%s` 缺 directions/%s.md（profile.md 声明了但没有文件）"
+                        % (name, name))
+    for name in sorted(files - declared):
+        problems.append("directions/%s.md 未登记进 profile.md 的内置方向" % name)
+    return problems
+
+
 def inspect_domains(profiles_root):
     """扫描 profiles_root 下每个领域插件，返回每项的问题清单。
 
@@ -118,6 +157,9 @@ def inspect_domains(profiles_root):
             if not os.path.isfile(os.path.join(path, name)):
                 problems.append("缺少 %s（init 会把它装进工作区 config/）" % name)
 
+        profile = os.path.join(path, "profile.md")
+        profile_text = _read(profile) if os.path.isfile(profile) else None
+
         directions = os.path.join(path, "directions")
         if not os.path.isdir(directions):
             problems.append("缺少 directions/ 目录（至少一个方向文件）")
@@ -130,6 +172,10 @@ def inspect_domains(profiles_root):
             for name in md_files:
                 if not _read(os.path.join(directions, name)).strip():
                     problems.append("directions/%s 是空文件——方向锚点缺位" % name)
+            # 集合一致性（#240）：声明与文件一一对应；目录缺失/空目录已在上文
+            # 各自报过，这里不重复，只在 profile.md 能读到时对账。
+            if profile_text is not None:
+                problems.extend(_check_directions_declared(profile_text, md_files))
 
         lexicon = os.path.join(path, "lexicon.md")
         if os.path.isfile(lexicon):
@@ -139,9 +185,8 @@ def inspect_domains(profiles_root):
         if os.path.isfile(keywords):
             problems.extend(_check_failure_keywords(keywords))
 
-        profile = os.path.join(path, "profile.md")
-        if os.path.isfile(profile):
-            match = re.search(r"\|\s*插件 ID\s*\|\s*`?([^`|\s]+)`?\s*\|", _read(profile))
+        if profile_text is not None:
+            match = re.search(r"\|\s*插件 ID\s*\|\s*`?([^`|\s]+)`?\s*\|", profile_text)
             if not match:
                 problems.append("profile.md 缺 `| 插件 ID | <id> |` 行（身份表）")
             elif match.group(1) != entry:

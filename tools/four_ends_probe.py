@@ -132,7 +132,13 @@ def gui_routes(root):
 
 
 def plugin_assets(root):
-    """插件命令名（去扩展名）与子代理名：声明文件与目录两边都要读。"""
+    """插件命令名（去扩展名）与子代理名：声明文件与目录两边都要读。
+
+    返回 (资产, errors)。`commands/` 或 `agents/` 目录取不到时走 errors 通道返回
+    (None, [原因])：空集合会被上层读成「插件一个命令都没有」，把矩阵每行刷成
+    「插件命令不存在」假缺陷——与 cli_capabilities / gui_routes 的降级写法同款
+    （2026-10-02 四端复核 F2，补齐 #235 的同类残留）。
+    """
     declared_cmds, declared_agents = [], []
     path = os.path.join(root, ".codebuddy-plugin", "plugin.json")
     if os.path.isfile(path):
@@ -141,24 +147,29 @@ def plugin_assets(root):
         declared_agents = [os.path.basename(item) for item in data.get("agents", [])]
     commands_dir = os.path.join(root, "commands")
     agents_dir = os.path.join(root, "agents")
-    found_cmds = sorted(n for n in os.listdir(commands_dir)
-                        if n.endswith(".md")) if os.path.isdir(commands_dir) else []
-    found_agents = sorted(n for n in os.listdir(agents_dir)
-                          if n.endswith(".md")) if os.path.isdir(agents_dir) else []
+    if not os.path.isdir(commands_dir) or not os.path.isdir(agents_dir):
+        return None, ["找不到 commands/ 或 agents/ 目录（插件资产清单无从对账）"]
+    found_cmds = sorted(n for n in os.listdir(commands_dir) if n.endswith(".md"))
+    found_agents = sorted(n for n in os.listdir(agents_dir) if n.endswith(".md"))
     return {
         "commands": [name[:-3] for name in found_cmds],
         "agents": [name[:-3] for name in found_agents],
         "declared_commands": declared_cmds,
         "declared_agents": declared_agents,
-    }
+    }, []
 
 
 def api_codes(root):
-    """后端错误码：正则扫 ApiError(status, "域.语义", ...) 的调用点（跳过打包产物）。"""
-    codes = set()
+    """后端错误码：正则扫 ApiError(status, "域.语义", ...) 的调用点（跳过打包产物）。
+
+    返回 (codes, errors)。web/backend 目录取不到时走 errors 通道返回 (None, [原因])：
+    空集合会被上层读成「后端一个错误码都没有」，把矩阵每行刷成「找不到」假缺陷
+    ——与 cli_capabilities / gui_routes 的降级写法同款（2026-10-01 #235）。
+    """
     base_root = os.path.join(root, "web", "backend")
     if not os.path.isdir(base_root):
-        return codes
+        return None, ["找不到 web/backend 目录（后端错误码定义无从扫描）"]
+    codes = set()
     for dirpath, _dirnames, filenames in os.walk(base_root):
         if os.sep + "dist" in dirpath or os.sep + "build" in dirpath:
             continue
@@ -166,14 +177,23 @@ def api_codes(root):
             if not name.endswith(".py"):
                 continue
             codes.update(_API_CODE_RE.findall(read(os.path.join(dirpath, name))))
-    return codes
+    return codes, []
 
 
 def i18n_keys(root):
-    """中英两份语言包的 err.* 键集合（键必须两侧都在，否则界面会露 key 名）。"""
+    """中英两份语言包的 err.* 键集合（键必须两侧都在，否则界面会露 key 名）。
+
+    返回 ({"zh": set, "en": set}, errors)。目录或任一语言包文件取不到时返回
+    (None, [原因])：只揣着半份键集合去对账，矩阵每行都会被刷成「缺中文/英文
+    文案」的假缺陷（2026-10-01 #235）。
+    """
     locales = os.path.join(root, "web", "frontend", "src", "i18n", "locales")
+    if not os.path.isdir(locales):
+        return None, ["找不到 web/frontend/src/i18n/locales 目录（语言包无从扫描）"]
     result = {}
     for name, tag in (("zh-CN.ts", "zh"), ("en.ts", "en")):
         path = os.path.join(locales, name)
-        result[tag] = set(_I18N_KEY_RE.findall(read(path))) if os.path.isfile(path) else set()
-    return result
+        if not os.path.isfile(path):
+            return None, ["找不到语言包 web/frontend/src/i18n/locales/%s" % name]
+        result[tag] = set(_I18N_KEY_RE.findall(read(path)))
+    return result, []

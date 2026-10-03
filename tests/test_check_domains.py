@@ -11,6 +11,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "tools"))
 
+import check_domains  # noqa: E402
 from check_domains import describe, inspect_domains  # noqa: E402
 
 GOOD_LEXICON = """# 词典
@@ -138,6 +139,55 @@ def test_empty_direction_file_is_reported(tmp_path):
     root = _make(tmp_path, empty_direction=True)
     item = inspect_domains(str(root))[0]
     assert "空文件" in _problems_text(item)
+
+
+def test_directions_mismatch_reports_diff(tmp_path):
+    """声明与 directions/*.md 不一致：缺哪项、多哪项都要指名道姓（#240）。"""
+    root = _make(tmp_path)
+    dom = root / "demo-domain"
+    (dom / "profile.md").write_text(
+        "# 领域插件\n\n| 项 | 值 |\n|---|---|\n| 插件 ID | `demo-domain` |\n"
+        "| 内置方向 | `x`（锚点一）、`y`（锚点二） |\n", encoding="utf-8")
+    (dom / "directions" / "z.md").write_text("## 锚点\n\n- 词\n", encoding="utf-8")
+
+    text = _problems_text(inspect_domains(str(root))[0])
+
+    assert "内置方向 `y`" in text and "directions/y.md" in text, text   # 缺 y
+    assert "directions/z.md" in text and "未登记" in text, text          # 多 z
+
+
+def test_missing_directions_declaration_is_reported(tmp_path):
+    """profile.md 忘写「内置方向」行：directions/ 里的文件不能静默无归属。"""
+    root = _make(tmp_path)
+    (root / "demo-domain" / "profile.md").write_text(
+        "# 领域插件\n\n| 项 | 值 |\n|---|---|\n| 插件 ID | `demo-domain` |\n",
+        encoding="utf-8")
+
+    text = _problems_text(inspect_domains(str(root))[0])
+
+    assert "directions/x.md" in text, text
+
+
+def test_declared_direction_parsing_tolerates_annotations():
+    """真实写法（反引号 + 中文括号说明 + 顿号/逗号）都要解析出来。"""
+    text = "| 内置方向 | `backend`（后端开发）、`data`（数据工程），`ops` |"
+    assert check_domains._declared_direction_names(text) == {"backend", "data", "ops"}
+
+
+def test_declared_direction_parsing_tolerates_plain_names():
+    """没加反引号的写法也要容忍——不能把整组方向误判成「未登记」。"""
+    text = "| 内置方向 | backend（后端开发）、data（数据工程） |"
+    assert check_domains._declared_direction_names(text) == {"backend", "data"}
+
+
+def test_repo_profiles_directions_are_consistent():
+    """真实插件的「内置方向」与 directions/*.md 一一对应——新检查的仓库基线（#240）。"""
+    root = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "template", "profiles")
+    for item in inspect_domains(root):
+        assert not any("directions/" in problem and ("缺" in problem or "未登记" in problem)
+                       for problem in item["problems"]), \
+            "%s：%s" % (item["dir"], item["problems"])
 
 
 def test_empty_root_returns_empty_list(tmp_path):

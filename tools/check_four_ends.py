@@ -57,13 +57,18 @@ def load_matrix(root):
 
 
 def _check_capabilities(caps, actual, gui_list):
-    """正向：矩阵登记的每一项必须在对应端存在；顺带验两条命名规则。"""
+    """正向：矩阵登记的每一项必须在对应端存在；顺带验两条命名规则。
+
+    gui_list / plugin 为 None 表示探针取不到（目录缺失，原因已由 errors 通道
+    逐条上报）——此时**跳过对应维度**：拿空集合逐行对账只会把「目录缺失」这一个
+    根因刷成满屏「找不到」假缺陷（2026-10-02 四端复核 F2，与 #235 同形）。
+    """
     issues = []
     cli = actual["cli"]
     mcp = actual["mcp"]
     plugin = actual["plugin"]
     mcp_set = set(mcp or [])
-    gui_set = set(gui_list or [])
+    gui_set = None if gui_list is None else set(gui_list)
 
     for cap in caps:
         cid = cap.get("id") or "<无 id>"
@@ -89,13 +94,13 @@ def _check_capabilities(caps, actual, gui_list):
             if "预览" in note and not _WRITE_TOOL_RE.match(cap["mcp"]):
                 issues.append("能力 %s：写入类 MCP 工具名 `%s` 不符合 preview_<动作>_<资源>"
                               % (cid, cap["mcp"]))
-        if cap.get("plugin"):
+        if cap.get("plugin") and plugin is not None:
             if (cap["plugin"] not in plugin["commands"]
                     and cap["plugin"] not in plugin["agents"]):
                 issues.append("能力 %s：插件命令/子代理 `%s` 不存在（现有命令：%s；子代理：%s）"
                               % (cid, cap["plugin"], " / ".join(plugin["commands"]),
                                  " / ".join(plugin["agents"])))
-        if cap.get("gui") and not _gui_has(cap["gui"], gui_set):
+        if cap.get("gui") and gui_set is not None and not _gui_has(cap["gui"], gui_set):
             issues.append("能力 %s：GUI 路由 `%s` 在 routers/ 里找不到" % (cid, cap["gui"]))
     return issues
 
@@ -122,6 +127,11 @@ def _check_registration(actual, caps, exceptions):
             issues.append("MCP 工具 `%s` 未在矩阵里登记（也不在例外清单）—— "
                           "新增能力要同步 tools/four_ends_matrix.json" % name)
     plugin = actual["plugin"]
+    if plugin is None:
+        # 探针取不到（commands / agents 目录缺失）——原因已走 errors 通道，
+        # 这里整段跳过：空清单逐行对账会刷出满屏「未登记 / 不存在」假缺陷
+        # （2026-10-02 四端复核 F2，与 #235 同形）。
+        return issues
     # 命令与子代理**各建一个集合**：共用一个时，同名的一对会互相"顶掉"——新增
     # 同名的子代理即使忘了登记，命令那条登记也会让它静默通过（2026-09-23 二轮审查）。
     # 当前两组名字无交集，但闸门不该靠这个巧合成立：按名字归属到各自集合里。
@@ -169,15 +179,20 @@ def _check_exceptions(caps, exceptions):
 
 
 def _check_error_map(rows, codes, keys):
-    """错误码对照：api_code 必须真实存在，文案键必须中英双语都在。"""
+    """错误码对照：api_code 必须真实存在，文案键必须中英双语都在。
+
+    codes / keys 为 None 表示探针取不到（后端目录或语言包缺失，原因已由
+    check() 走 errors 通道逐条上报）——此时跳过对应维度：拿空集合逐行对账，
+    只会把「目录缺失」这一个根因刷成满屏「找不到 / 缺文案」假缺陷（#235）。
+    """
     issues = []
     for row in rows:
         rid = row.get("id") or "<无 id>"
-        if row.get("api_code") and row["api_code"] not in codes:
+        if codes is not None and row.get("api_code") and row["api_code"] not in codes:
             issues.append("错误码对照 %s：api_code `%s` 在后端错误定义里找不到"
                           % (rid, row["api_code"]))
         key = row.get("i18n_key")
-        if key:
+        if key and keys is not None:
             if key not in keys.get("zh", set()):
                 issues.append("错误码对照 %s：%s 缺中文文案" % (rid, key))
             if key not in keys.get("en", set()):
@@ -224,14 +239,18 @@ def check(root):
     issues.extend(e)
     gui, e = gui_routes(root)
     issues.extend(e)
-    plugin = plugin_assets(root)
+    codes, e = api_codes(root)
+    issues.extend(e)
+    keys, e = i18n_keys(root)
+    issues.extend(e)
+    plugin, e = plugin_assets(root)
+    issues.extend(e)
     actual = {"cli": cli, "mcp": mcp, "gui": gui, "plugin": plugin}
 
-    issues.extend(_check_capabilities(caps, actual, gui or []))
+    issues.extend(_check_capabilities(caps, actual, gui))
     issues.extend(_check_registration(actual, caps, exceptions))
     issues.extend(_check_exceptions(caps, exceptions))
-    issues.extend(_check_error_map(matrix.get("error_map", []),
-                                   api_codes(root), i18n_keys(root)))
+    issues.extend(_check_error_map(matrix.get("error_map", []), codes, keys))
     issues.extend(_check_host_fields(matrix.get("host_fields", []), root))
     mirror_issues, _checked = asset_mirrors(root)
     issues.extend(mirror_issues)

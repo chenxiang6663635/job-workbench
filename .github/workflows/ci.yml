@@ -402,3 +402,56 @@ jobs:
 
       - name: 运行 exe 冒烟（真跑领域层代码）
         run: python scripts/smoke_backend_exe.py
+
+  # 安全扫描（issue #207，2026-10-02）：依赖已知漏洞的**阻断闸**。
+  #
+  # 分级语义（摸底后定）：**生产依赖必须干净**——用户拿到的产物只含生产依赖，
+  # `--omit=dev` 视角有 high+ 即红；开发工具链（tailwind 的 chokidar→braces 链、
+  # electron-builder 的 got 链）的告警**只报告不阻断**——它们不进产物，且剩余
+  # 修复要么等上游、要么是 major（`--force` 会引入破坏性升级，属独立工程）。
+  # Python 侧是**运行时**依赖（打进 exe），一律阻断。
+  #
+  # 已知边界：npm audit 的告警面依赖 npm 的 advisory 库（与 GitHub Advisory 同源
+  # 但收录节奏可能不同）；pip-audit 每次扫描时查 OSV；codeql 属后续（#207 登记）。
+  security:
+    name: 安全扫描（依赖 audit）
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "20"
+
+      # 生产依赖（阻断）：不含 devDependencies——正是打包进产物的那棵树。
+      # npm audit 只读 package-lock.json，不需要 npm ci。
+      - name: npm audit——生产依赖（有 high+ 即失败）
+        run: |
+          npm audit --omit=dev --audit-level=high --prefix web/frontend
+          npm audit --omit=dev --audit-level=high --prefix web/electron
+
+      # 完整依赖（报告）：开发工具链的告警可见，但不挡 PR——剩余项要么等上游
+      # 修复、要么需 major 升级（独立工程）。continue-on-error 让红不传播。
+      - name: npm audit——完整依赖（报告，不阻断）
+        continue-on-error: true
+        run: |
+          npm audit --audit-level=high --prefix web/frontend
+          npm audit --audit-level=high --prefix web/electron
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # Python 侧是运行时依赖：-r 直接吃锁文件（requirements.lock 的 --hash 行
+      # 由 pip-audit 的解析器正常跳过）——扫的正是打进 exe 的那棵树。
+      - name: pip-audit（有漏洞即失败）
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r web/backend/requirements.lock

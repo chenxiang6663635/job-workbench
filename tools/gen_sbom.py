@@ -164,4 +164,10 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    # 独立入口（不经 jobws）：Windows 下 stdout 默认是 cp1252（CI runner 实测
+    # 2026-10-02：文件写完后崩在中文 print 上，`UnicodeEncodeError: 'charmap'`）——
+    # 统一 UTF-8，与 tools/jobws.py 的入口同款。
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     sys.exit(main())

@@ -239,7 +239,10 @@ powershell -ExecutionPolicy Bypass -File scripts/index_dev_tools.ps1
   （矩阵写了但不存在、存在但没登记、说明页不同步、技能镜像与真源不一致，都拦）。
 - **命名与配对规则**（检查器会验的那几条）：MCP 写工具名统一 `preview_<动作>_<资源>`；
   写入一律两段式（命令行 `--preview` → `apply`；AI 宿主 `preview_*` → `apply_approval`；
-  界面靠弹窗确认）；插件命令必须在 `.codebuddy-plugin/plugin.json` 的 `commands` 里登记。
+  界面靠弹窗确认）；插件清单（技能 / 命令 / 子代理）**由 `tools/assets_registry.py`
+  生成**到 `.codebuddy-plugin/` 的两份 JSON——加删资产后跑 `python tools/assets_registry.py --write`
+  （命令的展示顺序在该模块的 `COMMAND_ORDER` 里显式登记，技能与子代理按目录自动发现；
+  描述里的数量也从清单派生）。手改生成物会被 `jobws skills check` 拦下（#205）。
 - **对齐以加法为主**：既有命令名与参数是契约（见 `skills/jwb-cli-contract`），
   重命名是破坏性变更——缺的补上、新的按规则起名，既有的只在矩阵里登记。
 - 资产分发到各宿主：`python tools/jobws.py skills install`——批 10 起一次分发**三类资产**（技能 / 命令 / 子代理，落点见脚本头部注释；`--link` 是实验选项，Windows 需开发者模式）。**零克隆通道**（插件市场安装、`npx skills add`）见 README「快速开始」；**仓库内的项目级副本**由上面的检查器按资产类型逐项比对（用户级 `~/.agents/skills/` 与插件市场缓存不在视野内——它们不随仓库走，见 [`docs/support-and-compatibility.md`](support-and-compatibility.md)）。

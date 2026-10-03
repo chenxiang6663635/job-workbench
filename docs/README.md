@@ -75,6 +75,7 @@
 | [`decisions/keep-writes-human-confirmed.md`](decisions/keep-writes-human-confirmed.md) | 写入一律人工确认：不做自动投递、不代登录、AI 产出永不直接落盘 |
 | [`decisions/ship-once-per-release.md`](decisions/ship-once-per-release.md) | 单一发布节点 + 月粒度 CalVer 版本号（`YY.MM.N`；2026-09-24 自时间戳四段改版，原文保留含更新注记） |
 | [`decisions/read-missing-columns-as-empty.md`](decisions/read-missing-columns-as-empty.md) | 工作区数据向后兼容：读时缺列按空、写时统一表头、不要求迁移 |
+| [`decisions/code-signing.md`](decisions/code-signing.md) | 代码签名：暂不采购（选项矩阵 / 触发条件 / 若触发的改造清单；2026-10-02） |
 
 ## 约定文件
 

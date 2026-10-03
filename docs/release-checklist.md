@@ -78,5 +78,5 @@
 ### 长期
 
 - [ ] winget 分发（`winget-create` 从 installer URL 生成 manifest，人工提 PR）
-- [ ] 代码签名评估（Azure Artifact Signing ≈$9.99/月限地区 / OV 证书 $150–300/年；触发条件：SmartScreen 误报成为高频 issue）
+- [ ] 代码签名评估 —— **已决策：暂不采购（2026-10-02，#202）**；选项矩阵（Azure Trusted Signing 已排除：限美加 + 3 年实体）/ 触发条件 / 若触发的改造清单见 [`decisions/code-signing.md`](decisions/code-signing.md)
 - [ ] 更多领域插件（`docs/domain-contract.md`；`jwb-domain-setup` 技能上线后引导用户自助生成）

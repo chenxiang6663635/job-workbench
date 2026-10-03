@@ -438,7 +438,7 @@ def test_dispatch_exit_codes(argv, expected, monkeypatch, capsys):
 
 
 def test_command_map_covers_every_merged_module():
-    """19 个命令全部有映射，且每个模块仍然真的暴露 main()。
+    """22 个命令全部有映射，且每个模块仍然真的暴露 main()。
 
     安全网改走 jobws 之后，命令到模块的映射只由 TARGETS / SUB_TARGETS 单方保证；
     这里从「模块侧」反查一遍，免得改映射时悄悄漏掉一个。数字改动必须显式经过
@@ -446,6 +446,7 @@ def test_command_map_covers_every_merged_module():
     批 4.7 由 18 → 19：新增 `lint four-ends`（四端一致性检查器）。
     批 6 由 19 → 20：新增 `lint legacy-imports`（旧名 import 存量，只许下降）。
     2026-09-19 由 20 → 21：新增 `export --obsidian`（八张 CSV → Obsidian 笔记）。
+    2026-10-02 由 21 → 22：新增 `lint i18n-keys`（键健康：死键 + 中英对称，#212）。
     """
     mapped = {}
     for name, module, _help in jobws.TARGETS:
@@ -453,7 +454,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 21, sorted(mapped)
+    assert len(mapped) == 22, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

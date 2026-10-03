@@ -38,7 +38,6 @@ const zhCN = {
   "common.save": "保存",
   "common.undo": "撤销",
   "common.edit": "编辑",
-  "common.delete": "删除",
   "common.saving": "保存中…",
   "common.collapse": "收起",
   "common.all": "全部",
@@ -595,7 +594,6 @@ const zhCN = {
   "settings.apiKey": "API 密钥（API Key；留空则保留已保存的 key）",
   "settings.apiKeySaved": "已保存（{{key}}）",
   "settings.apiKeyPlaceholder": "sk-...",
-  "settings.saved": "配置已保存",
   "settings.save": "保存配置",
   "settings.test": "测试连接",
   "settings.testing": "测试中...",
@@ -838,7 +836,6 @@ const zhCN = {
   "imap.emptyFiltered": "筛掉之后没有剩下了——换个关键词，或清空筛选框。",
   "imap.useThis": "用这封邮件解析状态",
   "imap.recordTitle": "记入邮件台账（可在「进展 → 邮件」里管理）",
-  "imap.recorded": "已记录",
   "imap.noSubject": "（无主题）",
   "imap.showing_one": "显示 {{shown}} / {{total}} 封",
   "imap.showing_other": "显示 {{shown}} / {{total}} 封",
@@ -1348,8 +1345,6 @@ const zhCN = {
   "mail.meetingLink": "会议链接",
   "mail.meetingLinkPlaceholder": "腾讯会议 / Zoom / Teams 的入会链接",
   "mail.editTitle": "编辑邮件记录",
-  "mail.deleteConfirm": "确认删除？",
-  "mail.deleteTitle": "删除这条邮件记录（不可撤销）",
 
   // 解析卡的维度行。维度名与命中等级都是解析卡里的数据，不翻；这里只翻兜底与空态
   "dim.fallbackLevel": "明细",

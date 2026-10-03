@@ -91,6 +91,20 @@ def test_mcp_source_files_are_actually_walked():
     assert any(rel.startswith("scripts/") for rel in rels)
 
 
+def test_locale_files_are_excluded_from_scan():
+    """locale 目录**不进规模扫描**（2026-10-02，issue #212）。
+
+    防膨胀职责移交 `check_i18n_keys` 的键健康门禁：行数对 locale 是错误约束
+    （声明式内容随功能线性增长，「只许变小」的水位机制只有一个出路——把新
+    文案挤进既有键）。注意排除发生在**遍历层**：classify 仍判 data（那是对的，
+    上一条 `test_real_data_files_stay_data` 继续钉它），改成从 DATA_MARKERS
+    删 `locales/` 会让它落进 logic 型 300 行上限、比现在更红。
+    """
+    rels = [rel for rel, _full in check_size.iter_source_files()]
+    assert not any("/i18n/locales/" in rel for rel in rels)
+    assert not any(rel.endswith("zh-CN.ts") for rel in rels)
+
+
 # ---- 3. 数据型分类：不要再靠子串巧合 ------------------------------------------
 
 @pytest.mark.parametrize("rel", [

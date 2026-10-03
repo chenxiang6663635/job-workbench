@@ -72,6 +72,7 @@ import approval  # noqa: E402
 import check_domains  # noqa: E402
 import check_four_ends  # noqa: E402
 import check_i18n_hardcode  # noqa: E402
+import check_i18n_keys  # noqa: E402
 import check_legacy_imports  # noqa: E402
 import check_pr_title  # noqa: E402
 import check_size  # noqa: E402
@@ -110,7 +111,7 @@ TARGETS = [
     ("prefs", prefs, "工作区偏好（get / set）与环境体检（doctor，含终端字体推荐）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
-    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / ui-tokens 界面 token / domains 领域插件 / four-ends 四端一致性 / themes 主题门禁 / size 规模预算 / legacy-imports 旧名存量）"),
+    ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / i18n-keys 键健康 / ui-tokens 界面 token / domains 领域插件 / four-ends 四端一致性 / themes 主题门禁 / size 规模预算 / legacy-imports 旧名存量）"),
 ]
 
 class _ReleaseVersionTarget(object):
@@ -135,6 +136,7 @@ SUB_TARGETS = {
     ("release", "version"): _ReleaseVersionTarget,
     ("lint", "pr-title"): check_pr_title,
     ("lint", "i18n"): check_i18n_hardcode,
+    ("lint", "i18n-keys"): check_i18n_keys,
     ("lint", "ui-tokens"): check_ui_tokens,
     ("lint", "domains"): check_domains,
     ("lint", "four-ends"): check_four_ends,
@@ -145,8 +147,8 @@ SUB_TARGETS = {
 
 SUB_CHOICES = {"skills": ["install", "check"],
                "release": ["check", "version"],
-               "lint": ["pr-title", "i18n", "ui-tokens", "domains", "four-ends",
-                       "themes", "size", "legacy-imports"]}
+               "lint": ["pr-title", "i18n", "i18n-keys", "ui-tokens", "domains",
+                       "four-ends", "themes", "size", "legacy-imports"]}
 
 HELP_FLAGS = ("-h", "--help")
 

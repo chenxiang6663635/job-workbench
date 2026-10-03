@@ -26,7 +26,7 @@ from .paths import DIR_JOBS, DIR_TRACKING
 
 # 全部走领域包（2026-09-19 PR-B）：原先这里靠 `paths.py` 把 tools/ 加进 sys.path，
 # 那段硬闸已删——本包现在装在哪都能用。
-from jobws_core import jd_score, question_bank, report, tracker  # noqa: E402
+from jobws_core import containment, jd_score, question_bank, report, tracker  # noqa: E402
 
 # 列表默认精简：全字段（17 列）对宿主是噪声，verbose=True 才给全量
 CORE_FIELDS = ["id", "公司", "岗位", "方向", "批次", "截止日期", "投递日期",
@@ -385,12 +385,12 @@ def _job_dir(workspace, job_id):
     job_dir = os.path.join(workspace, DIR_JOBS, name)
     if not os.path.isdir(job_dir):
         return None, "岗位不存在：%s" % name
-    # realpath 二次校验（独立审查 NIT-5）：`01_岗位池/<名>` 可能是指向**工作区外**
-    # 的符号链接 / junction——拼路径时看不出来，读穿出去就晚了。判据下沉在这里，
-    # 让 score_jd 与资源正文读取（resources.read_job_text）共享同一强度，不各写一份。
-    real = os.path.realpath(job_dir)
-    ws_real = os.path.realpath(workspace)
-    if not (real == ws_real or real.startswith(ws_real + os.sep)):
+    # 归属判定统一在 `jobws_core.containment`（2026-10-02 收编批；此前这里是自持的
+    # realpath + startswith）：`01_岗位池/<名>` 可能是指向**工作区外**的符号链接 /
+    # junction——拼路径时看不出来，读穿出去就晚了。判据下沉在这里，让 score_jd 与
+    # 资源正文读取（resources.read_job_text）共享同一强度（原语义含「等于工作区」，
+    # 对应 is_within_or_equal）。
+    if not containment.is_within_or_equal(job_dir, workspace):
         return None, "岗位目录越出工作区：%s" % name
     return job_dir, None
 

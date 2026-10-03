@@ -174,6 +174,24 @@ def test_job_text_rejects_escape_and_unknown(ws_with_job):
     assert text4 is None and "未知正文类型" in error4
 
 
+def test_job_text_rejects_file_symlink_escape(ws_with_job, tmp_path):
+    """`JD原文.md` 本身是指向工作区外文件的链接：第二层 realpath 确认拦下
+    （岗位目录合法、文件被掉包成链接的形态）。"""
+    outside = tmp_path / "outside-secret.md"
+    outside.write_text("secret\n", encoding="utf-8")
+    jd = os.path.join(ws_with_job, "01_岗位池", "云帆_后端", "JD原文.md")
+    os.remove(jd)
+    try:
+        os.symlink(str(outside), jd)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip("本机不能创建符号链接：%s" % exc)
+
+    text, error = resources.read_job_text(ws_with_job, "云帆_后端", "jd")
+
+    assert text is None
+    assert "越出工作区" in error
+
+
 def test_job_text_truncates_long_content(ws_with_job, monkeypatch):
     monkeypatch.setattr(resources, "JD_TEXT_MAX_BYTES", 64)
     with io.open(os.path.join(ws_with_job, "01_岗位池", "云帆_后端", "JD原文.md"),

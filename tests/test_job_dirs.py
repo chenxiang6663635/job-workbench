@@ -54,6 +54,26 @@ def _tree(job_dir):
     return sorted(out)
 
 
+def _make_dir_symlink_or_skip(link, target):
+    """建目录链接（symlink；Windows 无特权时回退 junction），都不行才跳过并明说。
+
+    链接目标在岗位池内/外的行为差异就在 realpath 展开上，静默跳过会让用例假绿；
+    junction 同样被 realpath 展开（mklink /J 不需要开发者模式，本机也能真跑）。
+    """
+    try:
+        os.symlink(str(target), str(link), target_is_directory=True)
+        return
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt":
+        import subprocess
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                                capture_output=True)
+        if result.returncode == 0:
+            return
+    pytest.skip("本机不能创建目录符号链接 / junction：%s -> %s" % (link, target))
+
+
 @pytest.fixture()
 def ws(tmp_path):
     path = tmp_path / "ws"
@@ -164,6 +184,79 @@ def test_apply_delete_aborts_when_snapshot_cannot_be_written(ws, tmp_path, monke
         job_dirs.apply_approved_job_delete(plan["payload"], ws)
 
     assert os.path.isdir(job_dir)  # 目录原样
+
+
+# --- 第二·五组：路径守卫（symlink 逃逸；判定收口 containment 原语）------------
+
+
+def test_preview_delete_rejects_symlink_escape(ws, tmp_path):
+    """`01_岗位池/<名>` 是指向工作区外的符号链接：删除比读取更不可逆，
+    realpath 二次确认（现由 containment 原语承载）必须拦下。"""
+    outside = tmp_path / "outside-job"
+    outside.mkdir()
+    (outside / "重要材料.md").write_text("真实数据\n", encoding="utf-8")
+    _make_dir_symlink_or_skip(os.path.join(ws, "01_岗位池", "逃逸岗"), outside)
+
+    errors, plan = job_dirs.preview_delete_job("逃逸岗", ws)
+
+    assert plan is None
+    assert any("越出岗位池" in error for error in errors), errors
+    assert (outside / "重要材料.md").read_text(encoding="utf-8") == "真实数据\n"
+
+
+def test_delete_rejects_linked_job_pool_root(ws, tmp_path):
+    """岗位池**本身**被替换成指向工作区外的链接（2026-10-02 四端复核 F1）：
+    只验 full ⊆ base 会把删除放到工作区外——读取侧有 safe_join 的「工作区根」
+    锚点兜，删除不可逆，`_checked_dir` 必须自己再锚一层。"""
+    pool = os.path.join(ws, "01_岗位池")
+    outside = tmp_path / "outside-pool"
+    (outside / "岗位甲").mkdir(parents=True)
+    (outside / "岗位甲" / "材料.md").write_text("真实数据\n", encoding="utf-8")
+    os.rename(pool, pool + "-bak")          # fixture 的真岗位池先让位
+    _make_dir_symlink_or_skip(pool, outside)
+
+    errors, plan = job_dirs.preview_delete_job("岗位甲", ws)
+
+    assert plan is None
+    assert any("岗位池" in error for error in errors), errors
+    assert (outside / "岗位甲" / "材料.md").read_text(encoding="utf-8") == "真实数据\n"
+
+
+def test_apply_delete_rejects_symlink_escape(ws, tmp_path):
+    """apply 只认载荷（令牌可能由宿主代传）：越界目录在落盘前的守卫里同样拒绝。"""
+    outside = tmp_path / "outside-job"
+    outside.mkdir()
+    _make_dir_symlink_or_skip(os.path.join(ws, "01_岗位池", "逃逸岗"), outside)
+
+    with pytest.raises(tracker.ConflictError) as excinfo:
+        job_dirs.apply_approved_job_delete({"name": "逃逸岗", "files": []}, ws)
+
+    assert "越出岗位池" in str(excinfo.value)
+    assert os.path.isdir(str(outside)), "外部目录一个字节都不许动"
+
+
+def test_preview_rename_rejects_symlink_escape(ws, tmp_path):
+    """改名与删除共用 `_checked_dir`：逃逸链接同样在预览期拒绝。"""
+    outside = tmp_path / "outside-job"
+    outside.mkdir()
+    _make_dir_symlink_or_skip(os.path.join(ws, "01_岗位池", "逃逸岗"), outside)
+
+    errors, plan = job_rename.preview_rename_job("逃逸岗", "新公司", "新岗位", ws)
+
+    assert plan is None
+    assert any("越出岗位池" in error for error in errors), errors
+
+
+def test_preview_delete_allows_symlink_inside_job_pool(ws):
+    """链接目标仍在岗位池内：不误拒（原语展开链接后判定，合法用法保持放行）。"""
+    real_dir = _seed_job(ws, "内测_目标", {"JD原文.md": "# 内测 目标\n"})
+    _make_dir_symlink_or_skip(os.path.join(ws, "01_岗位池", "别名岗"), real_dir)
+
+    errors, plan = job_dirs.preview_delete_job("别名岗", ws)
+
+    assert errors == []
+    assert plan is not None
+    assert any("JD原文.md" in line for line in plan["diff"]), plan["diff"]
 
 
 # --- 第三组：改名（目录 + JD 首行同步）----------------------------------------

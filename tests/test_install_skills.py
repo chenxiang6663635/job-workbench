@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "tools"))
 
 import install_skills  # noqa: E402
+import skill_assets  # noqa: E402
 from install_skills import link_tree  # noqa: E402
 
 
@@ -116,3 +117,55 @@ def test_link_tree_rebuilds_existing_links_idempotently(tmp_path):
 
     assert linked == ["jwb-x"] and skipped == [] and failed == []
     assert [n for n in os.listdir(str(dst)) if "jobws-tmp" in n] == []
+
+
+# --- `--prune` 的删除保护：is_inside_repo（判定收口 containment） --------------
+
+
+def _make_dir_symlink_or_skip(link, target):
+    """建目录链接（symlink；Windows 无特权时回退 junction），都不行才跳过并明说。"""
+    try:
+        os.symlink(str(target), str(link), target_is_directory=True)
+        return
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt":
+        import subprocess
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                                capture_output=True)
+        if result.returncode == 0:
+            return
+    pytest.skip("本机不能创建目录符号链接 / junction：%s -> %s" % (link, target))
+
+
+def test_is_inside_repo_allows_root_and_children(tmp_path, monkeypatch):
+    """仓库根自身与根内路径放行（含等于根——`--prune` 既有口径）。"""
+    root = tmp_path / "repo"
+    (root / "sub").mkdir(parents=True)
+    monkeypatch.setattr(skill_assets, "ROOT", str(root))
+
+    assert skill_assets.is_inside_repo(str(root)) is True
+    assert skill_assets.is_inside_repo(str(root / "sub")) is True
+
+
+def test_is_inside_repo_rejects_outside(tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setattr(skill_assets, "ROOT", str(root))
+
+    assert skill_assets.is_inside_repo(str(outside)) is False
+
+
+def test_is_inside_repo_rejects_symlink_escape(tmp_path, monkeypatch):
+    """`.claude` 等落点是链接指向仓库外时：kind 的静态判断失效，
+    realpath 后不在仓库内就拒绝删除（`--prune` 的真实保护）。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setattr(skill_assets, "ROOT", str(root))
+    _make_dir_symlink_or_skip(root / "claude-link", outside)
+
+    assert skill_assets.is_inside_repo(str(root / "claude-link")) is False

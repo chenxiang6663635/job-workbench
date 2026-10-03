@@ -13,6 +13,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from check_skills import LEGACY_NAMES  # noqa: E402
 
+from jobws_core import containment  # noqa: E402  （路径包含判定唯一原语：realpath + commonpath）
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 资产清单：真源目录相对仓库根 → 各落点 (目标标识, 说明, 路径类型, 相对路径)。
@@ -95,16 +97,15 @@ def link_tree(src, dst):
 
 
 def is_inside_repo(path):
-    """目标是否真的落在本仓库内。
+    """目标是否真的落在本仓库内（判定统一在 `jobws_core.containment`）。
 
     --prune 承诺只对**项目级**目标生效，而「项目级」是按 ASSETS 表里的 kind
     静态判断的。若 .claude / .agents 是指向用户目录的符号链接或 junction（很常见
-    的配置共享做法），kind 仍然是 project，那道保护就失效了。删之前用 realpath
-    确认它确实在仓库里。
+    的配置共享做法），kind 仍然是 project，那道保护就失效了。删之前用共享原语
+    （realpath + commonpath；2026-10-02 收编批）确认它确实在仓库里——语义不变，
+    **含等于根**（对应 `is_within_or_equal`）。
     """
-    repo = os.path.realpath(ROOT)
-    target = os.path.realpath(path)
-    return target == repo or target.startswith(repo + os.sep)
+    return containment.is_within_or_equal(path, ROOT)
 
 
 def find_legacy(target_dir):

@@ -98,3 +98,50 @@ def test_target_must_stay_inside_repo_root(monkeypatch, capsys, tmp_path):
     assert code == 1, out
     assert "仓库根" in out, out
     assert not os.path.exists(os.path.join(str(tmp_path), "outside"))
+
+
+def _make_dir_symlink_or_skip(link, target):
+    """建目录链接（symlink；Windows 无特权时回退 junction），都不行才跳过并明说。"""
+    try:
+        os.symlink(str(target), str(link), target_is_directory=True)
+        return
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt":
+        import subprocess
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                                capture_output=True)
+        if result.returncode == 0:
+            return
+    pytest.skip("本机不能创建目录符号链接 / junction：%s -> %s" % (link, target))
+
+
+def test_target_symlink_escape_rejected(monkeypatch, capsys, tmp_path):
+    """仓库根内指向外的链接同样拒绝（realpath 后判定）——在既有的
+    「绝对路径 / `..` 逃逸」之外补链接形态。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "keep.txt").write_text("原样", encoding="utf-8")
+    _make_dir_symlink_or_skip(root / "escape", outside)
+
+    code, out, _ = _run(["init", "--target", "escape", "--force", "--yes"],
+                        monkeypatch, capsys, root=str(root))
+
+    assert code == 1, out
+    assert "仓库根" in out, out
+    assert (outside / "keep.txt").read_text(encoding="utf-8") == "原样"
+
+
+def test_target_equals_repo_root_is_not_path_rejected(realish_ws, monkeypatch, capsys):
+    """`--target .`（等于仓库根）是既有口径：由「已存在且不为空」挡下，
+    而不是「必须在仓库根之内」——收编到原语时用 is_within_or_equal 保住的语义。
+
+    （`is_within` 排除「恰好等于根」，与本处口径不同——误用它这条会红。）
+    """
+    code, out, _ = _run(["init", "--target", "."], monkeypatch, capsys, root=realish_ws)
+
+    assert code == 1, out
+    assert "已存在且不为空" in out, out
+    assert "仓库根" not in out, out

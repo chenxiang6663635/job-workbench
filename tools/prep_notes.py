@@ -36,6 +36,7 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+from jobws_core import containment  # noqa: E402  （路径包含判定唯一原语：realpath + commonpath）
 from jobws_core import tracker  # noqa: E402  （复用工作区解析、file_lock 与 ConflictError；
 # file_lock 经 tracker 包门面的 PEP 562 转发取得——不再引旧名 filelock）
 from jobws_core import workspace_io  # noqa: E402
@@ -91,8 +92,9 @@ def _target_path(ws, section, rel):
     - 拒绝对路径 / 盘符开头（`os.path.join` 遇盘符会丢掉前段工作区）；
     - `\\` 归一成 `/` 后切段，拒 `..` / `.` / 空段；
     - 扩展名白名单；
-    - realpath 二次确认：锚点先工作区根、再 section 目录——前缀式校验不解析
-      符号链接，Windows junction 仍能读穿（对齐 MCP 侧强度）。
+    - 归属判定统一在 `jobws_core.containment`（2026-10-02 收编批）：锚点先工作区
+      根、再 section 目录——原语 realpath + commonpath，符号链接 / Windows
+      junction 读穿一律拦（对齐 MCP 侧强度）。
 
     返回 (full, norm_rel, error)；出错时前两项为 None。
     """
@@ -116,12 +118,9 @@ def _target_path(ws, section, rel):
                                 rel=norm_rel)
     base = os.path.join(ws, base_rel)
     full = os.path.join(base, *parts)
-    ws_real = os.path.realpath(ws)
-    base_real = os.path.realpath(base)
-    full_real = os.path.realpath(full)
-    if not base_real.startswith(ws_real + os.sep):
+    if not containment.is_within(base, ws):
         return None, None, _err("path.escape", "路径越出工作区")
-    if not full_real.startswith(base_real + os.sep):
+    if not containment.is_within(full, base):
         return None, None, _err("path.escape", "路径越出工作区")
     return full, norm_rel, None
 

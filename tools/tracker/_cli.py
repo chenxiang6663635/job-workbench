@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 from . import _core
 from ._check import (run_check)
-from ._core import (DATE_RE, TERMINAL_STAGES, check_direction)
+from ._core import (DATE_RE, DIRECTIONS, TERMINAL_STAGES, available_directions)
 from ._schema import (FIELDS)
 from .applications import (read_history, read_rows)
 from .preview_app import (apply_approved_add, preview_add)
@@ -131,7 +131,11 @@ def filter_rows(rows, args):
     if getattr(args, "stage", None):
         result = [r for r in result if r.get("当前阶段") == args.stage]
     if getattr(args, "direction", None):
-        result = [r for r in result if r.get("方向") == args.direction]
+        # strip 口径与 check_list_direction 的候选集合一致（2026-10-02 四端复核 F3b）：
+        # 手改 CSV 出的 "hvac " 既然被接受为可筛值，就必须真能筛到——同函数内
+        # 不能两套口径（候选 strip 后入集合，过滤却按原值逐字比）。
+        result = [r for r in result
+                  if (r.get("方向") or "").strip() == args.direction]
     if getattr(args, "batch", None):
         result = [r for r in result if r.get("批次") == args.batch]
     if getattr(args, "company", None):
@@ -147,16 +151,36 @@ from .applications import sort_key  # noqa: E402,F401  （本模块的 cmd_list 
 
 
 
+def check_list_direction(value, rows, workspace=None):
+    """读侧过滤口径：装入方向 ∪ other ∪ **表里已出现过的值**（与界面候选一致）。
+
+    与写入口的 `check_direction` 分开正是本函数存在的理由（issue #239）：
+    list 只是筛选，换了领域插件后表里留下的老值（如 hvac）必须仍能筛——
+    否则同一条数据界面能筛、命令行报错。工作区没装方向文件时维持「放行」，
+    与写侧「插件不可用时不拦截」的语义一致。
+    """
+    installed = available_directions(workspace)
+    if not installed:
+        return None
+    allowed = set(installed) | set(DIRECTIONS)
+    allowed.update((r.get("方向") or "").strip() for r in rows)
+    allowed.discard("")
+    if value in allowed:
+        return None
+    return ["`--direction` 必须是 %s，实际为 `%s`"
+            % ("/".join(sorted(allowed)), value)]
+
+
 def cmd_list(args):
+    rows = read_rows()
     if getattr(args, "direction", None):
-        errs = check_direction(args.direction)
+        errs = check_list_direction(args.direction, rows)
         if errs:
             print("## 校验失败\n")
             for e in errs:
                 print("- %s" % e)
             return 1
 
-    rows = read_rows()
     if not rows:
         print("追踪表为空。用 `python tools/jobws.py track add` 添加第一条记录。")
         return 0

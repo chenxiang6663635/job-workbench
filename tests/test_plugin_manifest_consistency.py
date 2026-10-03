@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-"""插件清单一致性校验的锁死测试（2026-09-25 发布前收口批）。
+"""插件清单一致性校验的**集成层**测试（2026-09-25 建立，2026-10-02 随 #205 改造）。
 
-背景（独立审计）：「技能清单」在仓库里有三份手写副本——`.codebuddy-plugin/plugin.json`
-的 `skills`、`.codebuddy-plugin/marketplace.json` 的 `plugins[0].skills`、以及
-`skills/` 磁盘目录。`jwb-domain-setup` 加入时 marketplace.json 漏改（8 vs 9），
-而当时的 `check_plugin_assets.py` 只查 commands/agents 的 frontmatter——
-没有任何防线能发现。
+历史语义：「三份手写副本互校」——plugin.json.skills / marketplace.json 的
+plugins[0].skills / skills/ 磁盘目录，外加描述里的技能数量（`jwb-domain-setup`
+加入时 marketplace 漏改 8 vs 9，触发了那套校验，PR #200）。
 
-本文件在**临时仓库骨架**上直接测 `manifest_consistency_problems`：
-三处集合必须一致；description 里的技能数量（阿拉伯数字，可写也可不写，
-写了就必须对）必须等于集合大小。
+现状（issue #205）：两份 JSON 已改为**生成物**（真源在 tools/assets_registry.py），
+本文件相应改为「生成物与真源」的集成验证——registry 自身的单元逻辑（生成幂等、
+计数派生、命令顺序摩擦、版本流动）在 `test_assets_registry.py`。
 """
 
 import json
@@ -19,88 +17,64 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "tools"))
 
+import assets_registry  # noqa: E402
 from check_plugin_assets import manifest_consistency_problems  # noqa: E402
 
+ALL_COMMANDS = ("today", "apply-pack", "retro", "bank", "jd")
 
-def _make(tmp_path, *, disk, plugin_list, market_list,
-          plugin_desc=None, market_desc=None, market_plugin_desc=None):
-    """搭最小仓库骨架：skills/ 磁盘目录 + 两份清单（清单内容与磁盘**各自独立**，
-    这样才能构造出「漂移」形态）。"""
-    for name in disk:
+
+def _synced_repo(tmp_path, skills=("jwb-a", "jwb-b"), commands=ALL_COMMANDS,
+                 version="1.0.0"):
+    """造一份「真源 + 已生成」的仓库——与 check_all 的期望一致。"""
+    for name in skills:
         (tmp_path / "skills" / name).mkdir(parents=True, exist_ok=True)
-    plugin_dir = tmp_path / ".codebuddy-plugin"
-    plugin_dir.mkdir(exist_ok=True)
-
-    plugin = {"skills": ["./skills/%s" % n for n in plugin_list]}
-    if plugin_desc is not None:
-        plugin["description"] = plugin_desc
-    market = {"plugins": [{"skills": ["./skills/%s" % n for n in market_list]}]}
-    if market_desc is not None:
-        market["description"] = market_desc
-    if market_plugin_desc is not None:
-        market["plugins"][0]["description"] = market_plugin_desc
-
-    (plugin_dir / "plugin.json").write_text(
-        json.dumps(plugin, ensure_ascii=False), encoding="utf-8")
-    (plugin_dir / "marketplace.json").write_text(
-        json.dumps(market, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "commands").mkdir(exist_ok=True)
+    for name in commands:
+        (tmp_path / "commands" / ("%s.md" % name)).write_text("x\n", encoding="utf-8")
+    (tmp_path / "agents").mkdir(exist_ok=True)
+    (tmp_path / "agents" / "cross-end-audit.md").write_text("x\n", encoding="utf-8")
+    pkg = tmp_path / "web" / "electron"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "package.json").write_text(json.dumps({"version": version}),
+                                      encoding="utf-8")
+    (tmp_path / ".codebuddy-plugin").mkdir(exist_ok=True)
+    assets_registry.write_all(str(tmp_path))
     return str(tmp_path)
 
 
-def test_consistent_manifests_pass(tmp_path):
-    repo = _make(tmp_path, disk=["jwb-a", "jwb-b"],
-                 plugin_list=["jwb-a", "jwb-b"], market_list=["jwb-a", "jwb-b"],
-                 plugin_desc="技能 2 个、命令 5 个", market_desc="2 skills")
-    assert manifest_consistency_problems(repo) == []
+def test_synced_manifests_pass(tmp_path):
+    """生成物与真源一致 → 空（CI 绿的条件）。"""
+    assert manifest_consistency_problems(_synced_repo(tmp_path)) == []
 
 
-def test_counts_may_be_omitted(tmp_path):
-    """描述里不写数量是允许的（数量为可选）；写了就必须对。"""
-    repo = _make(tmp_path, disk=["jwb-a"], plugin_list=["jwb-a"],
-                 market_list=["jwb-a"])
-    assert manifest_consistency_problems(repo) == []
+def test_hand_edited_manifest_is_flagged(tmp_path):
+    """手改生成物（技能名被改掉）→ 报漂移，并指明重新生成的命令。"""
+    repo = _synced_repo(tmp_path)
+    path = os.path.join(repo, ".codebuddy-plugin", "plugin.json")
+    with open(path, "r", encoding="utf-8") as handle:
+        text = handle.read()
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text.replace("jwb-a", "jwb-ghost"))
 
-
-def test_missing_skill_in_marketplace_is_flagged(tmp_path):
-    """复现真实漂移形态：plugin.json 已加新技能、marketplace.json 停在旧的。"""
-    repo = _make(tmp_path, disk=["jwb-a", "jwb-b"],
-                 plugin_list=["jwb-a", "jwb-b"], market_list=["jwb-a"],
-                 plugin_desc="技能 2 个", market_desc="2 skills")
     problems = manifest_consistency_problems(repo)
-    assert any("marketplace.json" in p and "jwb-b" in p for p in problems), problems
+    assert any("plugin.json" in p and "漂移" in p for p in problems), problems
 
 
-def test_missing_skill_in_plugin_json_is_flagged(tmp_path):
-    repo = _make(tmp_path, disk=["jwb-a", "jwb-b"],
-                 plugin_list=["jwb-a"], market_list=["jwb-a", "jwb-b"])
+def test_broken_manifest_is_reported(tmp_path):
+    """生成物坏掉（非法 JSON）→ 报出来，不静默通过。"""
+    repo = _synced_repo(tmp_path)
+    with open(os.path.join(repo, ".codebuddy-plugin", "marketplace.json"),
+              "w", encoding="utf-8") as handle:
+        handle.write("{ 坏")
+
     problems = manifest_consistency_problems(repo)
-    assert any("plugin.json" in p and "jwb-b" in p for p in problems), problems
+    assert any("marketplace.json" in p for p in problems), problems
 
 
-def test_count_mismatch_in_description_is_flagged(tmp_path):
-    """集合一致、但描述数量没跟上（8 vs 9）——数量是派生值，同样要被抓。"""
-    repo = _make(tmp_path, disk=["jwb-a", "jwb-b"],
-                 plugin_list=["jwb-a", "jwb-b"], market_list=["jwb-a", "jwb-b"],
-                 plugin_desc="技能 8 个", market_desc="2 skills")
+def test_missing_version_source_is_reported(tmp_path):
+    """版本真值源缺失 → 报一条根因（校验器自身的失败同样要响亮）。"""
+    repo = _synced_repo(tmp_path)
+    os.remove(os.path.join(repo, "web", "electron", "package.json"))
+
     problems = manifest_consistency_problems(repo)
-    assert any("plugin.json" in p and "8" in p for p in problems), problems
-
-
-def test_count_mismatch_in_marketplace_plugin_desc_is_flagged(tmp_path):
-    """marketplace 的 plugins[0].description 也在校验面内（两份描述都带数量）。"""
-    repo = _make(tmp_path, disk=["jwb-a"],
-                 plugin_list=["jwb-a"], market_list=["jwb-a"],
-                 market_desc="8 skills", market_plugin_desc="技能包（9 个技能）")
-    problems = manifest_consistency_problems(repo)
-    assert any("marketplace.json" in p and "8" in p for p in problems), problems
-    assert any("plugins[0]" in p and "9" in p for p in problems), problems
-
-
-def test_broken_json_is_reported(tmp_path):
-    (tmp_path / "skills" / "jwb-a").mkdir(parents=True)
-    plugin_dir = tmp_path / ".codebuddy-plugin"
-    plugin_dir.mkdir()
-    (plugin_dir / "plugin.json").write_text("{ 坏", encoding="utf-8")
-    (plugin_dir / "marketplace.json").write_text("{}", encoding="utf-8")
-    problems = manifest_consistency_problems(str(tmp_path))
-    assert problems and "plugin.json" in problems[0], problems
+    assert problems and "读真源失败" in problems[0], problems

@@ -67,6 +67,15 @@ jobs:
       - name: 校验界面硬编码中文
         run: python tools/jobws.py lint i18n
 
+      # 键健康（2026-10-02，issue #212）：死键检测 + 中英键集合对称。与上一条
+      # **互补**——`lint i18n` 查「代码写了键、locale 没有」（代码 → locale）；
+      # 本条查反向（locale 定义了、没人引用）与两语言之间的漂移。
+      # locale 已从规模闸排除（防膨胀职责移交至此）：此前 zh-CN.ts 恰好卡在
+      # 1500 行上限，新增文案只能挤占既有键——那正是规模闸门本要防的耦合。
+      # 判定唯一实现在 tools/check_i18n_keys.py，本地同一命令。
+      - name: 校验 i18n 键健康（死键 + 中英对称）
+        run: python tools/jobws.py lint i18n-keys
+
       # 界面 token 一致性：旧调色板类名写回来时 Tailwind 不报错（样式只是静默
       # 失效），tsc 与 eslint 也看不见类名字符串——只有这条扫描能拦。
       # 与 check_i18n_hardcode.py 同一种范式：判定唯一实现，CI 与 pytest 共用。

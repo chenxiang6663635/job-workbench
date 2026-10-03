@@ -143,6 +143,16 @@ def iter_source_files():
         base = os.path.join(ROOT, rel)
         for dirpath, dirnames, filenames in os.walk(base):
             dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+            # locale 目录**不进规模扫描**（2026-10-02，issue #212）：防膨胀职责已
+            # 移交给 `check_i18n_keys` 的键健康门禁（死键检测 + 中英对称）。行数对
+            # locale 是错误的约束——声明式内容随功能线性增长，而「只许变小」的
+            # 水位机制碰上线性增长只有一个出路：把新文案挤进既有键（一个键承载
+            # 两个语义），恰是规模闸门本要防止的耦合。
+            # **不能**改成从 DATA_MARKERS 里删 `locales/`：那会让它落进 logic 型
+            # （300 行）上限，比现在更红——排除要在遍历层做。
+            if os.path.normpath(dirpath).endswith(
+                    os.path.normpath(os.path.join("i18n", "locales"))):
+                continue
             for name in sorted(filenames):
                 if name.endswith(SOURCE_SUFFIX):
                     full = os.path.join(dirpath, name)

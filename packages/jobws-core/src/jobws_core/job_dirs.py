@@ -18,6 +18,7 @@ import datetime
 import os
 import shutil
 
+from . import containment  # noqa: E402  （路径包含判定唯一原语：realpath + commonpath）
 from . import pathres  # noqa: E402  （快照根目录：**必须**在工作区之外）
 from . import tracker  # noqa: E402  （工作区解析、dedup_key、ConflictError、file_lock）
 from . import workspace_io  # noqa: E402  （锁名唯一真源：_LOCK_KINDS）
@@ -66,14 +67,20 @@ def _safe_name(name):
 def _checked_dir(ws, name):
     """name → 岗位目录绝对路径；越出岗位池（含 symlink / junction 读穿）返回 (None, error)。
 
-    与只读端的 realpath 二次确认同款（`safe_join` 不解析符号链接）——删除 / 改名
-    比读取更不可逆，这层不能省。
+    判定统一在 `jobws_core.containment`（路径包含原语，Web / MCP / 只读端同源；
+    2026-10-02 收编批）：此前这里是自持的一份 realpath + startswith，而删除 /
+    改名比读取更不可逆，这层不能自成一派。语义不变（**允许等于岗位池根**，
+    对应原语的 `is_within_or_equal`；`safe_join` 依旧不解析符号链接，靠这层兜）。
     """
     base = os.path.join(ws, DIR_JOBS)
     full = os.path.join(base, name)
-    base_real = os.path.realpath(base)
-    full_real = os.path.realpath(full)
-    if full_real != base_real and not full_real.startswith(base_real + os.sep):
+    # 双层锚点（2026-10-02 四端复核 F1）：只验 full ⊆ base 时，若 `01_岗位池` 本身
+    # 被替换成指向工作区外的 junction / symlink，删除 / 改名会作用到工作区外——
+    # 读取侧由 safe_join 的「工作区根」锚点兜住，而删除 / 改名不可逆，必须自己
+    # 再锚一层（范本：prep_notes._target_path 的双锚点）。
+    if not containment.is_within_or_equal(base, ws):
+        return None, "岗位池不在工作区内（疑似被链接替换）：%s" % base
+    if not containment.is_within_or_equal(full, base):
         return None, "目录越出岗位池：%s" % name
     return full, None
 

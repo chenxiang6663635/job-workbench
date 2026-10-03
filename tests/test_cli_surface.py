@@ -576,3 +576,87 @@ def test_track_show_and_history_roundtrip(tmp_path, monkeypatch, capsys):
         "track", "--workspace", str(ws), "history", "--id", "A001"])
     assert code == 0, out
     assert "已投" in out or "A001" in out
+
+
+# --- 8. 读侧过滤与写侧校验解耦（issue #239）-----------------------------------
+
+def _ws_with_direction(tmp_path, direction_id="backend"):
+    """最小工作区 + 一个**别的**方向文件。
+
+    关键前提：方向的写侧校验只有在工作区装了方向文件时才严格（读不到就放行）。
+    用例不装这个的话，旧实现也照样通过，用例就失去区分度。
+    """
+    ws = _make_ws(tmp_path)
+    (ws / "config" / "directions").mkdir(parents=True)
+    (ws / "config" / "directions" / (direction_id + ".md")).write_text(
+        "# 方向：示例方向\n", encoding="utf-8")
+    return ws
+
+
+def _legacy_row():
+    """一条换了领域插件后留在表里的「老方向」（hvac）记录。"""
+    row = {field: "" for field in tracker.FIELDS}
+    row.update({"id": "A001", "公司": "示例公司", "岗位": "示例岗位",
+                "方向": "hvac", "批次": "正式批", "当前阶段": "待投"})
+    return row
+
+
+def test_tracker_list_direction_screens_legacy_values(tmp_path, monkeypatch, capsys):
+    """表里出现过的老方向必须能筛（issue #239）：GUI 能筛、CLI 不能，是同一条数据的两个答案。
+
+    旧实现在 list 上跑写入口的 `check_direction`（接受集合 = 装入方向 ∪ other），
+    换插件后 hvac 这类老值直接退出码 1；界面侧把「表里已出现过的值」并进了候选。
+    读侧口径改为与界面一致：装入方向 ∪ 恒接受值 ∪ 表里出现过的值。
+    """
+    ws = _ws_with_direction(tmp_path)
+    tracker.write_rows([_legacy_row()], str(ws))
+
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
+        "--workspace", str(ws), "list", "--direction", "hvac"])
+
+    assert code == 0, out
+    assert "共 1 条" in out
+    assert "示例公司" in out
+
+
+def test_tracker_list_direction_strips_whitespace_like_candidates(tmp_path, monkeypatch, capsys):
+    """候选集合 strip 后入集合、过滤须同口径（2026-10-02 四端复核 F3b）：
+    手改 CSV 出的 "hvac " 被接受为可筛值，就必须真能筛到——不能「接受却 0 条」。"""
+    ws = _ws_with_direction(tmp_path)
+    row = _legacy_row()
+    row["方向"] = "hvac "          # 手改 CSV 的尾空格
+    tracker.write_rows([row], str(ws))
+
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
+        "--workspace", str(ws), "list", "--direction", "hvac"])
+
+    assert code == 0, out
+    assert "共 1 条" in out
+
+
+def test_tracker_add_still_rejects_direction_not_installed(tmp_path, monkeypatch, capsys):
+    """写入口口径不动：未装入的方向仍被拒（读侧放宽不透传到 add）。"""
+    ws = _ws_with_direction(tmp_path)
+
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
+        "--workspace", str(ws), "add",
+        "--company", "示例公司", "--role", "示例岗位",
+        "--direction", "hvac", "--batch", "正式批"])
+
+    assert code == 1, out
+    assert "校验失败" in out
+    assert "hvac" in out
+    assert not (ws / "05_投递追踪" / "tracker.csv").exists(), "校验失败不该落盘"
+
+
+def test_tracker_list_unknown_direction_is_readable_error(tmp_path, monkeypatch, capsys):
+    """放宽只到表内值为止：乱打的值仍走 1 档可读报错，不静默 0 条（三态契约不变）。"""
+    ws = _ws_with_direction(tmp_path)
+    tracker.write_rows([_legacy_row()], str(ws))
+
+    code, out = _invoke_jobws(monkeypatch, capsys, ["track"] + [
+        "--workspace", str(ws), "list", "--direction", "xyz"])
+
+    assert code == 1, out
+    assert "校验失败" in out
+    assert "xyz" in out

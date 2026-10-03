@@ -39,6 +39,7 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+from jobws_core import containment  # noqa: E402
 from jobws_core import question_bank  # noqa: E402
 from jobws_core import tracker  # noqa: E402
 from jobws_core import workspace_io  # noqa: E402
@@ -198,8 +199,14 @@ def export_obsidian(workspace, target_dir, include_notes=False):
 
 
 def _inside(path, root):
-    """`path` 是否就是 `root` 或落在它之下（两侧都应是 realpath）。"""
-    return path == root or path.startswith(root + os.sep)
+    """`path` 是否就是 `root` 或落在它之下。
+
+    判定统一在 `jobws_core.containment`（2026-10-02 收编批）：此前是自持的
+    `realpath` 后 `== / startswith` 比较，现由共享原语承载（realpath +
+    commonpath）；语义不变——**允许等于 root**（导出守卫的拒绝方向由调用方
+    决定：目标在工作区内或等于工作区 → 拒）。
+    """
+    return containment.is_within_or_equal(path, root)
 
 
 # 产物说明（README / jobws.base）的渲染已拆到 `_cli_export_readme.py`：本文件贴着

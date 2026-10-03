@@ -6,6 +6,11 @@
 命令名与参数逐字未变；手工 HTML 路径不再写 VERIFY_FACTS_FILE 全局——改为显式
 传参（verify_pdf 的注释本就要求 Web 并发场景显式传，CLI 同样照办；render 路径
 仍沿用 cmd_render → _render_one 写全局的旧形态，单线程 CLI 下无并发问题）。）
+
+并发纪律（issue #237）：两条构建路径（render / 手写 HTML）都纳入桌面端的同一把
+resume.lock——锁路径走 `workspace_io.lock_path` 的锁名表（唯一真源，不手拼），
+与 routers/resume.py 的构建天然互斥。被占住时**快速失败**：打印「另一端正在
+构建……稍后重试」并以退出码 1 结束，绝不并发写同一个 PDF 文件。
 退出码：0 成功 / 1 业务失败或环境缺失 / 2 用法错误。
 """
 
@@ -22,6 +27,16 @@ if _TOOLS_DIR not in sys.path:
 from resume_build import (DEFAULT_TEMPLATE, DEFAULT_WORKSPACE, MIN_TEXT_LENGTH,  # noqa: E402
                           RESUME_ACCENTS, build_pdf, cmd_render, discover_jobs,
                           find_browser, list_templates, verify_pdf)
+from jobws_core import workspace_io  # noqa: E402  （锁名唯一真源）
+from jobws_core.filelock import file_lock  # noqa: E402
+
+# 构建锁的等待上限（秒）。桌面端构建持锁以秒计（Chrome 打印 + A4 / ATS 校验），
+# CLI 陪着长等没有意义——拿不到就明确失败、让用户稍后重试（file_lock 默认 10s，
+# 这里刻意压短）。0.5s 只是给「另一端恰好刚释放」留一点毛刺余量（每 0.05s 轮询）。
+LOCK_TIMEOUT = 0.5
+
+LOCK_TIMEOUT_MESSAGE = ("错误：另一端正在构建同一工作区的简历（桌面端或另一条命令）"
+                        "——稍后重试；本次没有写入任何文件。")
 
 
 def _build_parser():
@@ -122,6 +137,28 @@ def _print_fail_guidance(last_details):
         print("或 config/ats_required_facts.txt 中列出的项本就不在简历里。")
 
 
+def _resume_lock_path(workspace):
+    """构建锁 resume.lock 的路径：走 workspace_io 的锁名工厂（唯一真源，不手拼）。
+
+    与桌面端构建（web/backend/routers/resume.py）是同一把锁。目录幂等补建、
+    刻意留在锁外（makedirs 本身幂等，与 tracker / prep 两处 _lock_path 同款纪律）。
+    """
+    path = workspace_io.lock_path(workspace, "resume")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
+
+
+def _build_lock(workspace):
+    """构建段互斥上下文：`with _build_lock(ws):`；拿不到时 file_lock 抛 TimeoutError。"""
+    return file_lock(_resume_lock_path(workspace), timeout=LOCK_TIMEOUT)
+
+
+def _lock_busy():
+    """锁被占用的统一口径：可读提示 + 退出码 1（构建未开始，不落任何文件）。"""
+    print(LOCK_TIMEOUT_MESSAGE)
+    return 1
+
+
 def main():
     args = _build_parser().parse_args()
 
@@ -137,8 +174,12 @@ def main():
         if not browser:
             print("错误：未找到 Chrome 或 Edge，无法生成 PDF。")
             return 1
-        return cmd_render(args, browser,
-                          os.path.join(workspace, "config", "ats_required_facts.txt"))
+        try:
+            with _build_lock(workspace):
+                return cmd_render(args, browser,
+                                  os.path.join(workspace, "config", "ats_required_facts.txt"))
+        except TimeoutError:
+            return _lock_busy()
     if args.command is not None:
         print("错误：未知子命令 `%s`。可用子命令：render（省略则打手写 HTML）。" % args.command)
         return 1
@@ -169,7 +210,12 @@ def main():
         print("错误：未找到 Chrome 或 Edge，无法生成 PDF。")
         return 1
 
-    all_passed, last_details = _render_manual_html(args, browser, pdf_dir, out_dir, selected, facts_file)
+    try:
+        with _build_lock(workspace):
+            all_passed, last_details = _render_manual_html(
+                args, browser, pdf_dir, out_dir, selected, facts_file)
+    except TimeoutError:
+        return _lock_busy()
 
     if not args.no_verify and not all_passed:
         print("## ATS 校验未全部通过，不要归档投递。")

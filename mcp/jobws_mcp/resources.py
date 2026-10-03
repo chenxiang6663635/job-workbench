@@ -20,6 +20,8 @@ import io
 import json
 import os
 
+from jobws_core import containment  # 路径包含判定唯一原语（realpath + commonpath）
+
 from . import tools_readonly
 
 # 资源清单：uri → (名称, 说明)。loader 在 read_resource 里按 uri 分派——
@@ -95,7 +97,9 @@ def read_job_text(workspace, job_name, kind):
       1. kind 白名单；
       2. 目录名解析——**复用** `tools_readonly._job_dir`：只接受单个目录名，
          拒绝对路径 / 含分隔符 / `..` / 盘符相对路径，且目录必须真实存在；
-      3. realpath 双重确认落在工作区内（符号链接 / junction 会读穿出去）；
+      3. 归属判定——`jobws_core.containment` 原语（realpath 展开）：符号链接 /
+         junction 读穿到工作区外一律拒（原语义含「等于工作区」，对应
+         is_within_or_equal；2026-10-02 收编批）；
       4. 扩展名白名单（只给 .md / .txt 正文）；
       5. 体积截断（见 JD_TEXT_MAX_BYTES）。
 
@@ -112,9 +116,8 @@ def read_job_text(workspace, job_name, kind):
         return None, error
 
     path = os.path.join(job_dir, filename)
-    real = os.path.realpath(path)
-    ws_real = os.path.realpath(workspace)
-    if not (real == ws_real or real.startswith(ws_real + os.sep)):
+    real = os.path.realpath(path)   # 后续扩展名 / 读取 / 截断都用真实路径
+    if not containment.is_within_or_equal(path, workspace):
         return None, "正文路径越出工作区：%s" % job_name
     if os.path.splitext(real)[1].lower() not in _TEXT_SUFFIX:
         return None, "只提供 Markdown / 纯文本正文：%s" % filename

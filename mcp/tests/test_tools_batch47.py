@@ -156,6 +156,39 @@ def test_score_jd_rejects_missing_job(tmp_path):
     assert "不存在" in data["errors"][0]
 
 
+def _make_dir_symlink_or_skip(link, target):
+    """建目录链接（symlink；Windows 无特权时回退 junction），都不行才跳过并明说。"""
+    try:
+        os.symlink(str(target), str(link), target_is_directory=True)
+        return
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt":
+        import subprocess
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                                capture_output=True)
+        if result.returncode == 0:
+            return
+    pytest.skip("本机不能创建目录符号链接 / junction：%s -> %s" % (link, target))
+
+
+def test_score_jd_rejects_symlink_escape(tmp_path):
+    """`01_岗位池/<名>` 是指向工作区外的链接：目录解析 realpath 后必须拦下
+    （否则宿主能借岗位名把工作区外的内容当「岗位」读）。"""
+    ws = _make_ws(tmp_path)
+    pool = os.path.join(ws, "01_岗位池")
+    os.makedirs(pool, exist_ok=True)
+    outside = tmp_path / "outside-job"
+    outside.mkdir()
+    (outside / "JD原文.md").write_text("# 外部\n", encoding="utf-8")
+    _make_dir_symlink_or_skip(os.path.join(pool, "逃逸岗"), outside)
+
+    data = tools_readonly.score_jd(ws, "逃逸岗")
+
+    assert data["ok"] is False
+    assert "越出工作区" in data["errors"][0]
+
+
 # --- 写入：题库两段式（不落盘）--------------------------------------------------
 
 

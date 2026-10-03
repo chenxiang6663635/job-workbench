@@ -233,3 +233,119 @@ def test_mirror_follows_symlinked_entries(tmp_path):
 
     assert "commands → 项目级 .claude/commands/" in checked
     assert issues == [], issues
+
+
+# --- 探针降级路径（#235）------------------------------------------------------
+
+
+def test_api_codes_missing_backend_returns_none(tmp_path):
+    """web/backend 目录缺失：返回 (None, 原因) 而不是空集合。
+
+    空集合会被上层读成「后端一个错误码都没有」，把矩阵每行刷成
+    「api_code 在后端错误定义里找不到」的假缺陷——与 cli_capabilities /
+    gui_routes 的降级写法同款。
+    """
+    codes, errors = four_ends_probe.api_codes(str(tmp_path))
+    assert codes is None, "取不到必须返回 None（空集合＝静默误报）"
+    assert len(errors) == 1 and "web/backend" in errors[0], errors
+
+
+def test_i18n_keys_missing_locale_file_returns_none(tmp_path):
+    """语言包文件缺失：同样走 None + 原因，不拿半份键集合去对账。"""
+    locales = tmp_path / "web" / "frontend" / "src" / "i18n" / "locales"
+    _write(str(locales / "zh-CN.ts"), '"err.job.not_found": "岗位不存在",\n')
+
+    keys, errors = four_ends_probe.i18n_keys(str(tmp_path))
+
+    assert keys is None, "一个文件取不到就不能只验半边"
+    assert len(errors) == 1 and "en.ts" in errors[0], errors
+
+
+def _hide_dir_via_isdir(monkeypatch, suffix):
+    """让 os.path.isdir 对以 suffix 结尾的路径返回 False（模拟目录缺失）。
+
+    os 是共享模块，fake 对其他路径一律转发真实实现——本文件其余检查
+    （矩阵 / 路由 / 镜像）照常跑，注入的只有「这一个目录不见了」。
+    """
+    real_isdir = os.path.isdir
+    suffix = os.path.join(*suffix.split("/"))
+
+    def fake_isdir(path):
+        if os.path.normpath(str(path)).endswith(suffix):
+            return False
+        return real_isdir(path)
+
+    monkeypatch.setattr(os.path, "isdir", fake_isdir)
+
+
+def test_missing_backend_reports_single_reason(monkeypatch):
+    """整条检查：web/backend 目录缺失只报一条根因，不把矩阵每行刷成「找不到」。"""
+    _hide_dir_via_isdir(monkeypatch, "web/backend")
+
+    issues, _doc = check_four_ends.check(ROOT)
+
+    assert any("web/backend" in item for item in issues), issues
+    assert not any("在后端错误定义里找不到" in item for item in issues), issues
+    assert len(issues) == 1, issues
+
+
+def test_missing_locales_reports_single_reason(monkeypatch):
+    """整条检查：语言包目录缺失同样只报一条，不刷「缺中文/英文文案」。"""
+    _hide_dir_via_isdir(monkeypatch, "web/frontend/src/i18n/locales")
+
+    issues, _doc = check_four_ends.check(ROOT)
+
+    assert any("locales" in item for item in issues), issues
+    assert not any("缺中文文案" in item or "缺英文文案" in item for item in issues), issues
+    assert len(issues) == 1, issues
+
+
+def _hide_subtree_via_isdir(monkeypatch, suffix):
+    """让 os.path.isdir 对以 suffix 结尾的路径**及其子树**返回 False。
+
+    与精确版 `_hide_dir_via_isdir` 的区别：`web/backend` 整棵不见时，
+    `web/backend/routers` 也要一起消失——gui 探针的降级路径只有这样才能覆盖
+    （2026-10-02 四端复核 F2 指出旧用例覆盖不到它）。
+    """
+    real_isdir = os.path.isdir
+    suffix = os.path.join(*suffix.split("/"))
+    inner = os.sep + suffix + os.sep
+
+    def fake_isdir(path):
+        norm = os.path.normpath(str(path))
+        if norm.endswith(suffix) or inner in (norm + os.sep):
+            return False
+        return real_isdir(path)
+
+    monkeypatch.setattr(os.path, "isdir", fake_isdir)
+
+
+def test_missing_backend_subtree_reports_single_reason(monkeypatch):
+    """web/backend **整棵子树**缺失（含 routers/）：只有根因、零逐行假缺陷。
+
+    #235 改造时 gui 维度漏了降级（调用方 `gui or []` 把 None 抹成空集）：真实
+    「目录整棵不见」会刷约 40 条「GUI 路由在 routers/ 里找不到」——2026-10-02
+    四端复核 F2 修掉后，这里钉住整链只剩根因（后端错误码 + GUI 路由各一条）。
+    """
+    _hide_subtree_via_isdir(monkeypatch, "web/backend")
+
+    issues, _doc = check_four_ends.check(ROOT)
+
+    assert not any("在 routers/ 里找不到" in item for item in issues), issues
+    assert not any("在后端错误定义里找不到" in item for item in issues), issues
+    assert len(issues) == 2, issues
+
+
+def test_missing_plugin_dirs_reports_single_reason(monkeypatch):
+    """commands/ 缺失：插件维度只在探针层报一条根因，不刷「不存在 / 未登记」。
+
+    与 #235 同形的另一处残留（2026-10-02 四端复核 F2）：plugin_assets 此前无
+    errors 通道，空清单会按矩阵逐行对账。
+    """
+    _hide_dir_via_isdir(monkeypatch, "commands")
+
+    issues, _doc = check_four_ends.check(ROOT)
+
+    assert any("commands" in item for item in issues), issues
+    assert not any("插件命令" in item for item in issues), issues
+    assert not any("插件子代理" in item for item in issues), issues

@@ -338,6 +338,86 @@ def test_lock_file_hidden_from_listing(client, tmp_path):
         assert ".prep.lock" not in rels
 
 
+# --- 第五组：领域层路径守卫（`_target_path` 的 realpath 二次确认）------------
+#
+# 两个锚点各钉一条：先「section 目录在不在工作区内」、再「目标在不在 section 内」
+# ——写路径比读更不可逆，链接读穿（symlink / junction）必须在预览期就拒。
+
+
+def _make_link_or_skip(link, target):
+    """建链接（目录：symlink；Windows 无特权时回退 junction），都不行才跳过并明说。
+
+    文件链接（用例 3）在 Windows 无开发者模式下建不出来，本机 skip、POSIX 上真跑。
+    """
+    target, link = str(target), str(link)
+    try:
+        os.symlink(target, link, target_is_directory=os.path.isdir(target))
+        return
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt" and os.path.isdir(target):
+        import subprocess
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", link, target],
+                                capture_output=True)
+        if result.returncode == 0:
+            return
+    pytest.skip("本机不能创建链接：%s -> %s" % (link, target))
+
+
+def test_target_path_rejects_section_symlink_escape(tmp_path):
+    """`03_面试准备` 整体是指向工作区外的链接：base 锚点先拒。"""
+    ws = tmp_path / "ws"
+    (ws / "05_投递追踪").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    _make_link_or_skip(ws / PREP_DIR, outside)
+
+    full, rel, err = prep_notes._target_path(str(ws), "interview", "note.md")
+
+    assert full is None and rel is None
+    assert err[0] == "path.escape"
+
+
+def test_target_path_rejects_descendant_symlink_escape(tmp_path):
+    """section 内子目录是指向工作区外的链接：full 锚点拒（`note.md` 真被写出去）。"""
+    ws = tmp_path / "ws"
+    (ws / PREP_DIR).mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    _make_link_or_skip(ws / PREP_DIR / "sub", outside)
+
+    full, rel, err = prep_notes._target_path(str(ws), "interview", "sub/note.md")
+
+    assert full is None and rel is None
+    assert err[0] == "path.escape"
+
+
+def test_target_path_rejects_note_symlink_escape(tmp_path):
+    """`note.md` 本身是指向工作区外文件的链接：full 锚点拒（文件形态）。"""
+    ws = tmp_path / "ws"
+    (ws / PREP_DIR).mkdir(parents=True)
+    outside_file = tmp_path / "secret.md"
+    outside_file.write_text("secret\n", encoding="utf-8")
+    _make_link_or_skip(ws / PREP_DIR / "note.md", outside_file)
+
+    full, rel, err = prep_notes._target_path(str(ws), "interview", "note.md")
+
+    assert full is None and rel is None
+    assert err[0] == "path.escape"
+
+
+def test_target_path_allows_regular_file(tmp_path):
+    """常规相对路径放行（展开链接后的判定不误伤普通文件）。"""
+    ws = tmp_path / "ws"
+    (ws / PREP_DIR).mkdir(parents=True)
+
+    full, rel, err = prep_notes._target_path(str(ws), "interview", "note.md")
+
+    assert err is None
+    assert rel == "note.md"
+    assert full == os.path.join(str(ws), PREP_DIR, "note.md")
+
+
 # --- 第五组：批量翻转（C-1，2026-09-21）---------------------------------------
 #
 # 直接调领域层（不绕 HTTP）——批量是载荷形态的扩展，端点改造是后一笔；走 HTTP

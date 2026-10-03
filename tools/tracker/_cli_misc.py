@@ -73,8 +73,8 @@ def _add_app_parsers(sub):
                        help="只预览、并把这次更新登记为一次性令牌（不落盘）；"
                             "确认后用 python tools/jobws.py apply <令牌> 落盘")
 
-    # 方向选项取决于工作区装入的插件，此处不在定义时写死，
-    # 改为在 cmd_list 中校验，以便给出「可用方向」的具体提示
+    # 方向过滤取值不写死：读侧口径（装入方向 ∪ other ∪ 表里出现过的值）
+    # 在 cmd_list 里与写侧枚举校验分开——换了插件，老值也要能筛（issue #239）
     p_list = sub.add_parser("list", help="列出记录")
     p_list.add_argument("--stage", help="按阶段过滤")
     p_list.add_argument("--direction", help="按方向过滤")

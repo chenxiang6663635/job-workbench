@@ -317,10 +317,12 @@ def main():
     target = os.path.join(ROOT, args.target)
 
     # 审计 P0-5：--target 只允许落在仓库根之内——绝对路径 / `..` 会把初始化
-    # （连同 --force --demo 的覆盖）落到仓库外的任意目录。
-    root_real = os.path.realpath(ROOT)
-    target_real = os.path.realpath(target)
-    if target_real != root_real and not target_real.startswith(root_real + os.sep):
+    # （连同 --force --demo 的覆盖）落到仓库外的任意目录。判定走唯一原语
+    # （realpath + commonpath，链接形态也拦）——注意**允许等于根**（`--target .`
+    # 是既有口径，之后由「已存在且不为空」挡下）：用 is_within_or_equal，
+    # 别换成排除等于的 is_within。
+    from jobws_core import containment
+    if not containment.is_within_or_equal(target, ROOT):
         print("错误：--target 必须在仓库根之内：%s" % args.target)
         return 1
 

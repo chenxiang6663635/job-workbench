@@ -294,6 +294,44 @@ def test_export_target_inside_workspace_is_refused(ws, tmp_path, capsys):
     assert "工作区之外" in capsys.readouterr().err
 
 
+def _make_dir_symlink_or_skip(link, target):
+    """建目录链接（symlink；Windows 无特权时回退 junction），都不行才跳过并明说。"""
+    try:
+        os.symlink(str(target), str(link), target_is_directory=True)
+        return
+    except (OSError, NotImplementedError):
+        pass
+    if os.name == "nt":
+        import subprocess
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                                capture_output=True)
+        if result.returncode == 0:
+            return
+    pytest.skip("本机不能创建目录符号链接 / junction：%s -> %s" % (link, target))
+
+
+def test_export_target_symlink_into_workspace_is_refused(ws, tmp_path):
+    """target 是外部目录里的链接、指向工作区内：realpath 后判定仍拒
+    （「工作区之外」看真实位置，名字落在哪不算数）。"""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = outside / "alias"
+    _make_dir_symlink_or_skip(link, ws)
+
+    with pytest.raises(RuntimeError) as err:
+        _cli_export.export_obsidian(str(ws), str(link))
+
+    assert "工作区之外" in str(err.value)
+
+
+def test_export_target_equals_workspace_is_refused(ws):
+    """target 恰好等于工作区也拒——「之外」是严格口径（含等于即拒）。"""
+    with pytest.raises(RuntimeError) as err:
+        _cli_export.export_obsidian(str(ws), str(ws))
+
+    assert "工作区之外" in str(err.value)
+
+
 def test_hidden_files_are_not_projected(ws, tmp_path):
     """隐藏文件跳过（与只读端点同口径）：草稿、原子写临时名、AppleDouble 都不算材料。"""
     _write_note(ws, "03_面试准备/可见.md", "# 可见\n\n正文。\n")

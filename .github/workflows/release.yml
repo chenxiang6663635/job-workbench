@@ -267,10 +267,29 @@ jobs:
           Write-Host "资产名: $asset"
           "asset=$asset" >> $env:GITHUB_OUTPUT
 
+      # SBOM（issue #206）：两条链（Python / npm）各锁一份 SPDX JSON，随 Release
+      # 挂出——依赖爆 CVE 时直接回答「哪个版本受影响」，不必重建当时的依赖树。
+      # 生成器是仓内 tools/gen_sbom.py（自研理由见其 docstring：CI 零新增安装、
+      # 输入就是锁文件、逻辑可被 pytest 完整覆盖；输出 SPDX 2.3 最小合法结构，
+      # 下游 CVE 工具按 name + versionInfo 即可建索引）。
+      - name: 产出 SBOM（SPDX JSON，Python + npm 两条链）
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          python tools/gen_sbom.py --root . --version $env:VERSION --out sbom.spdx.json
+          if ($LASTEXITCODE -ne 0) { throw "SBOM 产出失败（exit $LASTEXITCODE）——零包 SBOM 比不产出更糟，不要按绿发布" }
+
       # 发布公告的两件套（2026-09-24 发布调研结论）：无签名软件的**预期管理**
       # （SmartScreen 处理说明，微软官方口径：未签名拦截页更严重、每版本信誉归零，
       # 公告里写明处理方法是最便宜的补偿）与 **SHA256 校验清单**（没有代码签名的
       # 情况下，用户核对哈希是"可信发布"的最低成本替代）。
+      #
+      # 已知边界（#226 记录）：electron-builder 产物**非字节可复现**（内嵌时间
+      # 戳类数据，同一个 commit 重跑会得到不同哈希）——SHA256SUMS 证明的是
+      # 「你下载到的这份文件与 Release 上那份一致」（完整性），**不能**用来做
+      # 「按 commit 重建校验」；也不是发布者身份认证。
       - name: 生成 SHA256 清单并附加安装说明
         shell: pwsh
         env:
@@ -379,6 +398,7 @@ jobs:
             latest.yml
             release-notes.md
             SHA256SUMS.txt
+            sbom.spdx.json
           retention-days: 7
           if-no-files-found: error
 
@@ -394,6 +414,7 @@ jobs:
             latest.yml
             release-notes.md
             SHA256SUMS.txt
+            sbom.spdx.json
           retention-days: 3
           if-no-files-found: error
 
@@ -560,10 +581,15 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "更新 Release 说明失败（exit $LASTEXITCODE）" }
           }
 
-          # 安装包 + 自动更新元数据 + SHA256 清单一起传。latest.yml 缺了的话老用户
-          # 永远收不到更新，而这件事在只检查 exe 的时候是**看不出来**的——都要核。
-          $files = @($asset, "latest.yml", "SHA256SUMS.txt")
+          # 安装包 + 自动更新元数据 + SHA256 清单 + SBOM 一起传。latest.yml 缺了的话
+          # 老用户永远收不到更新，而这件事在只检查 exe 的时候是**看不出来**的——都要核。
+          $files = @($asset, "latest.yml", "SHA256SUMS.txt", "sbom.spdx.json")
           if (Test-Path "$asset.blockmap") { $files += "$asset.blockmap" }
+
+          # --clobber 只作用于 **draft**：可写性已被上面的守卫限定（「已发布」一律
+          # 拒绝），draft 内重跑 / 续传时同名资产必须允许覆盖，否则第二次演练就传不
+          # 上去。「公开制品不可变」由守卫（已发布拒绝）+ 时序（先完整、再 publish）
+          # 共同保证，不靠 upload 的默认行为（#226）。
           gh release upload $env:TAG @files --clobber
           if ($LASTEXITCODE -ne 0) { throw "上传发布资产失败（exit $LASTEXITCODE）——发布未完成，不要当成成功" }
 

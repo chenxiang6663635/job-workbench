@@ -26,10 +26,18 @@
 - [x] 闸 3：产物 exe + `latest.yml` 真实产出（缺 latest.yml 拒发——老用户收不到更新） — v26.9.0：exe 122 MB 级 + `latest.yml`（26.9.0 + sha512 + size）已在演练 artifact 内核过
 - [x] 后端 exe 冒烟（`scripts/smoke_backend_exe.py`：起产物 → 健康检查） — v26.9.0：演练内步骤通过（起进程 + `/api/system/check` + 资源自检）
 - [x] **安装/卸载冒烟**（NSIS `/S` 静默装 → 验证 → 静默卸载；2026-09-24 新增） — v26.9.0：演练内装→验→卸→等目录消失全通过
-- [x] **SHA256SUMS.txt** 生成并挂 Release（**完整性**补偿：证明下载未损坏、与已发布文件一致；**不构成发布者身份认证**——未签名场景的身份信任根是 GitHub 账号与仓库保护） — v26.9.0：清单已生成，本地重算 exe 哈希与清单一致
+- [x] **SHA256SUMS.txt** 生成并挂 Release（**完整性**补偿：证明下载未损坏、与已发布文件一致；**不构成发布者身份认证**——未签名场景的身份信任根是 GitHub 账号与仓库保护；也**不能**用于「按 commit 重建校验」——electron-builder 产物非字节可复现，同一个 commit 重跑会得到不同哈希） — v26.9.0：清单已生成，本地重算 exe 哈希与清单一致
+- [ ] **SBOM**（`sbom.spdx.json`，Python + npm 两条链）随 Release 挂出 — 生成器 `tools/gen_sbom.py`（自研理由见其 docstring）；零包即构建失败；解读见下方「SBOM 怎么用」
 - [x] **Release notes 自动附加**未签名 / SmartScreen 说明（微软官方口径：未签名拦截页更严重、每版本信誉归零） — v26.9.0：`release-notes.md` 尾部含中英安装说明 + 校验和块
 - [x] **发布证明链（全量 E2E）**：`publish` 依赖 `[package, e2e]`——E2E 红则 Release 不会创建（2026-09-25 起的并行结构） — v26.9.0：run `36223567485` 内通过
 - [x] 发布后核验资产：exe + blockmap + latest.yml + SHA256SUMS.txt 四样全在（**打 tag 后**才做） — v26.9.0：四样齐（见 `releases/26.9.0-verification.md`）
+
+**SBOM 怎么用**（issue #206）：软件物料清单——两条链（`requirements.lock` /
+`package-lock.json`）全部包名与版本的机器可读清单，SPDX 2.3 JSON 随 Release 挂出
+（`sbom.spdx.json`）。用途：某依赖爆 CVE 时直接对照受影响版本区间，不必重建当时的
+依赖树。导入：grype / Dependency-Track 等工具原生可读；临时查一个包用
+`jq '.packages[] | select(.name=="fastapi")' sbom.spdx.json` 即可。注意
+`licenseDeclared` 一律 `NOASSERTION`——锁文件里没有许可证事实，不猜。
 
 ## 二、人工必做（发布日，约 15 分钟 + 真机）
 

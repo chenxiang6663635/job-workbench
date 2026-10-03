@@ -12,14 +12,20 @@ import { TaskLineContext } from "./notesTaskLine";
 
 export function TaskCheckbox({
   checked,
-  onToggle,
+  onToggleTask,
   pendingLine,
   queuedLines,
   locked,
   ...props
 }: {
   checked?: boolean;
-  onToggle?: (line: number) => void;
+  /**
+   * 业务回调：切换某一行任务的勾选态。**刻意不叫 `onToggle`**——React 19 给
+   * `<input>` 增加了原生 `onToggle` 事件类型，本组件又展开 `InputHTMLAttributes`
+   * （GFM 生成的 props 从这里过），同名会被交叉成 `fn & ToggleEventHandler`，
+   * 传普通回调即类型报错（2026-10-02 React 19 升级实测）。
+   */
+  onToggleTask?: (line: number) => void;
   /** 正在预览的行号——该项呈 pending 禁用态 */
   pendingLine: number | null;
   /** 批量待提交的行号（C-1）：本地即时翻转 + 高亮环，表示"还没落盘" */
@@ -32,7 +38,7 @@ export function TaskCheckbox({
   // 有回调且行号可定位才可点击；否则退回只读展示（缺任一条件都不写）。
   // aria-label 走 t()——它是 form 元素，axe 的 label 规则要求可访问名称
   // （disabled 也不例外），且文案要能翻译。
-  const interactive = onToggle != null && line != null;
+  const interactive = onToggleTask != null && line != null;
   const pending = interactive && pendingLine === line;
   // 批量：点选即本地翻转（"打勾"的反馈是即时的），高亮环说明它还没写进文件
   const queued = interactive && line != null && !!queuedLines?.includes(line);
@@ -46,7 +52,7 @@ export function TaskCheckbox({
       // 展开之后再写 disabled / onChange：GFM 生成的 props 里带 disabled:true，
       // 放前面会被它覆盖（那是只读批的形态，写回批要能点）。
       disabled={!interactive || pending || locked}
-      onChange={interactive ? () => onToggle?.(line) : undefined}
+      onChange={interactive ? () => onToggleTask?.(line) : undefined}
       aria-label={t("notes.checkboxLabel")}
       className={cn(
         "mr-2 h-4 w-4 accent-primary align-middle",

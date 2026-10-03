@@ -263,7 +263,7 @@ function NotesMarkdown({
       input: ({ node, checked, ...props }) => (
         <TaskCheckbox
           checked={checked}
-          onToggle={onToggleTask}
+          onToggleTask={onToggleTask}
           pendingLine={pendingLine}
           queuedLines={queuedLines}
           locked={locked}

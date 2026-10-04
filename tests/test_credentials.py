@@ -331,8 +331,11 @@ def test_select_store_unknown_mode_falls_back_to_auto_with_warning(caplog):
     sys.platform == "win32",
     reason="该用例模拟'平台是 Windows 但 advapi32 拿不到'；Windows 真机路径在 test_credentials_windows.py")
 def test_select_store_auto_on_windows_without_credman_falls_back(caplog):
+    # env={} 是必须的：conftest 的 autouse 安全网把 **真实环境** 钉在 plaintext
+    # （测试绝不碰真机凭据管理器），不覆盖的话这里会走"显式明文"的早退分支、
+    # 根本到不了"auto 在 Windows 上拿不到凭据管理器"这条路径。
     with caplog.at_level(logging.WARNING, logger=credentials.__name__):
-        store = credentials.select_store(platform="win32")
+        store = credentials.select_store(platform="win32", env={})
 
     assert isinstance(store, credentials.PlaintextStore)
     assert "win32" in caplog.text

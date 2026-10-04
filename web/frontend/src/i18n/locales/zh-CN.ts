@@ -612,7 +612,7 @@ const zhCN = {
   "settings.imapDesc1": "配置后，可在「投递追踪」页拉取最近的招聘邮件并解析出状态建议。",
   "settings.imapDesc2": "连接是只读的：不发信、不修改也不删除邮件；",
   "settings.imapDesc3": "只在你点击时连接一次，不会在后台运行。",
-  "settings.imapDesc4": "授权码只保存在本工作区的 config/imap.json，界面与错误信息里都会脱敏。",
+  "settings.imapDesc4": "授权码默认存进 Windows 凭据管理器（源码 / CLI 形态为明文回退：那时它写在 config/imap.json 里），界面与错误信息里都会脱敏。",
   "settings.imapEmail": "邮箱地址",
   "settings.imapPassword": "IMAP 授权码（留空则保留已保存的）",
   "settings.imapPasswordSaved": "已保存（{{key}}）",
@@ -648,14 +648,19 @@ const zhCN = {
   "mailProvider.unsupportedOutlook": "Outlook / Hotmail 个人账号自 2024-09-16 起停用基本认证（第三方 IMAP 必须走 OAuth2）。本工作台目前只有「用户名 + 授权码」，所以这个邮箱暂时连不上——别耗在这里，换成上面任一服务商，或用企业邮箱的授权码试试。",
   "settings.imapEmailRequired": "请填写邮箱地址（授权码与服务器都围绕它工作）",
   "settings.imapPortRange": "端口需在 1–65535 之间",
-  "settings.imapSaved": "IMAP 配置已保存（授权码以明文存于本机 config/imap.json，不进入导出 / 快照 / 诊断包；能读取你用户目录的程序也能读取它）",
+  "settings.imapSaved": "IMAP 配置已保存（授权码默认存入 Windows 凭据管理器，配置文件只保留引用；不进入导出 / 快照 / 诊断包）",
   // 后端也返回同一句 note（响应契约保留），但展示由前端负责——界面语言该由渲染方
   // 决定；整句连括号一起放进 key，英文里全角括号会很怪
   "settings.imapTestResult_one": "只读连接成功；本次测试没有读取、修改或删除任何邮件。（{{server}} · {{folder}}，共 {{count}} 封）",
   "settings.imapTestResult_other": "只读连接成功；本次测试没有读取、修改或删除任何邮件。（{{server}} · {{folder}}，共 {{count}} 封）",
 
+  // 凭据存放形态提示（#203）：IMAP 与 Provider 两张卡共用——后端 `storage` 字段的两态。
+  "settings.credStorageCredman": "已存入 Windows 凭据管理器（工作区配置文件只保留引用）",
+  "settings.credStoragePlaintext": "当前为明文保存：凭据写在你的工作区配置文件里（源码 / CLI 形态的回退；桌面版会在读取时自动迁移进凭据管理器）",
+
   "settings.privacy": "数据与隐私",
   "settings.privacyDesc": "工作区数据保存在本机、无遥测。联网功能（AI 改写 / AI 邮件解析 / 邮箱拉取 / 岗位抓取）只在你主动使用时才发送对应内容、且只访问你启用的服务；桌面版启动后另有一次仅含版本与平台信息的更新检查（发往 GitHub 本仓库）。文件就是数据库——你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。",
+  "settings.privacyCredentialStorage": "凭据默认存入 Windows 凭据管理器；导出、快照与诊断包一律不含凭据文件。",
   "settings.exportNotice": "导出包含你的真实简历与个人信息，请妥善保管导出的 zip。",
   "settings.exportZip": "导出整包 zip",
   "settings.backupNow": "立即备份",
@@ -1086,6 +1091,7 @@ const zhCN = {
   "err.provider.baseUrlInvalid": "服务地址（Base URL）必须以 http:// 或 https:// 开头",
   "err.provider.needBaseUrl": "请先保存模型服务（Provider）的服务地址（Base URL）",
   "err.provider.needApiKey": "请先保存模型服务（Provider）的 API 密钥（API Key）",
+  "err.provider.credentialUnavailable": "在这台电脑的凭据管理器里找不到已保存的 API Key（可能换了 Windows 账户或被系统清理）：请在设置里重新保存",
   "err.provider.connectHttpError": "连接失败（HTTP {{status}}）：{{hint}}",
   "err.provider.connectUnreachable": "无法连接 {{base}}：{{reason}}",
   "err.provider.connectFailed": "连接异常：{{error}}",
@@ -1122,6 +1128,7 @@ const zhCN = {
   "err.imap.hostTooLong": "服务器地址过长（{{length}} 字符，上限 253）：只填主机名，不要带路径",
   "err.imap.needEmail": "请先保存邮箱地址",
   "err.imap.needPassword": "请先保存 IMAP 授权码",
+  "err.imap.credentialUnavailable": "在这台电脑的凭据管理器里找不到已保存的 IMAP 授权码（可能换了 Windows 账户或被系统清理）：请在设置里重新保存",
   "err.imap.testFailed": "IMAP 连接测试失败：{{error}}",
   "err.imap.fetchFailed": "IMAP 拉取失败：{{error}}",
   "err.imap.foldersFailed": "读取可用文件夹失败：{{error}}",

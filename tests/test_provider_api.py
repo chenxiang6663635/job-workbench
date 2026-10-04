@@ -101,6 +101,8 @@ def test_get_returns_empty_defaults(client):
     assert body == {
         "base_url": "", "api_key": "", "hasKey": False,
         "model": "", "baseUrlHint": None,
+        # conftest 把默认形态钉在明文回退（不碰真机凭据管理器）——storage 如实报它
+        "storage": "plaintext",
     }
 
 

@@ -71,13 +71,19 @@ def list_folders(ws: str = Depends(workspace_dir)):
     cfg = imap_routes._read_config(imap_routes._config_path(ws))
     if not cfg["user"]:
         raise ApiError(400, "imap.needEmail", "请先保存邮箱地址")
-    if not cfg["password"]:
+    # 凭据走与 /test、/fetch 同一条解析路径（#203）：凭据管理器形态下授权码不在
+    # 配置文件里——直读 `cfg["password"]` 会把"已保存过"误报成"没配置"，还绕过
+    # 惰性迁移（四端复核 M-1 的根因；前端在「测试连接成功」后会自动调用本端点，
+    # 桌面默认形态下必然撞上）。409（引用在手却取不到）由 `_resolve(strict=True)`
+    # 分流，走到下面这行就只剩"从没配置过"。
+    outcome = imap_routes._resolve(cfg, ws, strict=True)
+    if outcome.secret is None:
         raise ApiError(400, "imap.needPassword", "请先保存 IMAP 授权码")
 
     host = imap_routes._resolve_host(cfg)
     try:
         folders = imap_fetch.probe_folders(
-            host, cfg["user"], cfg["password"], cfg["port"])
+            host, cfg["user"], outcome.secret, cfg["port"])
     except imap_fetch.ImapFetchError as exc:
         # 会话层已经把"登录失败"细分成可操作的几类（`imap.unsafeLogin` / `imap.authFailed`）：
         # 那几条的下一步与"列文件夹失败"完全不同，不能被 catch-all 吞掉

@@ -58,6 +58,23 @@ def _restore_app_root():
     pathres.set_app_root(_ROOT_DIR)
 
 
+@pytest.fixture(autouse=True)
+def _never_touch_real_credential_manager(monkeypatch):
+    """测试默认走**明文回退**，绝不碰真机的 Windows 凭据管理器（2026-10-04，#203）。
+
+    为什么需要：`credentials.select_store()` 的 auto 在 Windows 上会真的解析到
+    凭据管理器——本地跑 pytest 时，任何"保存 / 迁移凭据"的用例都会往**用户自己的**
+    凭据管理器里写条目（污染真实环境、留下测试垃圾）。CI 的 ubuntu job 因平台判定
+    天然走明文，正好掩盖了这个差异；本机 Windows 才会暴露。
+
+    需要 credman 行为的用例两种写法都不受影响：
+    * 假 store：monkeypatch `credentials.select_store` 返回替身（推荐，跨平台）；
+    * 真机往返：`tests/test_credentials_windows.py` 直接构造 `CredManStore()`
+      （不经过 select_store），并自带 try/finally 清理。
+    """
+    monkeypatch.setenv("JOBWS_CREDENTIAL_STORE", "plaintext")
+
+
 BASELINE = (3, 12)
 
 

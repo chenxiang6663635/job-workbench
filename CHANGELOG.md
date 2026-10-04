@@ -24,6 +24,7 @@
 
 ### Highlights (English)
 
+- **Credentials now live in Windows Credential Manager (2026-10-04, issue #203)** — the IMAP app password and the provider API key no longer sit in plain text inside the workspace config files: the desktop build stores them in Windows Credential Manager, and the config files keep only a reference. The settings cards show where the secret lives and warn you when the plaintext fallback is active (source / CLI form, or an explicit `JOBWS_CREDENTIAL_STORE=plaintext`). Nothing to do on upgrade: existing plaintext is migrated on first read, and if that write fails the plaintext stays untouched — your password is never lost. When a reference cannot be resolved (new machine, different Windows account) the UI says "save it again" instead of pretending nothing was configured.
 - **A due-reminder bar on every page (2026-09-26)** — opening the app now shows what is due today at the top of the content area: overdue items, to-dos inside your reminder window, and talks in the next 7 days. Each count is a link to the page that handles it; the bar stays out of the way when nothing is due.
 - **The usage guide now opens online (2026-09-29)** — the About card's link points at the Gitee-mirrored manual page so it opens from mainland networks; the docs site and the mirror are linked from the README.
 - **"External changes stopped refreshing" fixed (2026-09-26)** — if you had deleted a workspace, or moved between the repo-based dev setup and the installed app (they use different data roots), the auto-refresh that picks up changes written from the CLI / AI host failed silently (a hidden 404 every 10 s). The poller now reads the same workspace the UI shows, and a stale saved value is corrected automatically.
@@ -34,6 +35,7 @@
 
 ### 看得见的变化
 
+- **凭据默认存进 Windows 凭据管理器（2026-10-04，issue #203）**：邮箱授权码与 Provider API Key 不再明文躺在工作区配置文件里——桌面版把它们写进 **Windows 凭据管理器**，`config/imap.json` / `config/provider.json` 只保留一条**引用**；设置页会标明当前存放位置，处于明文回退（源码 / CLI 形态，或显式 `JOBWS_CREDENTIAL_STORE=plaintext`）时给出提示。升级不需要你做任何事：旧明文在首次读取时自动迁移，写入失败则明文原样保留（绝不丢钥匙）；引用在系统里取不到时（换了电脑 / Windows 账户）界面明确提示「重新保存」，不会假装成「还没配置」。
 - **使用手册有了在线网页版（2026-09-29）**：项目文档站上线——[GitHub Pages](https://chenxiang6663635.github.io/job-workbench/) 提供完整网页版（介绍 / 使用手册 / 下载页，中英双语、可搜索），国内网络可走 [Gitee 镜像](https://gitee.com/Chenxiang663635/job-workbench)（国内直达）；应用「关于」卡里的使用手册按钮同步改指 [Gitee 镜像的手册页](https://gitee.com/Chenxiang663635/job-workbench/blob/main/docs/usage-guide.zh-CN.md)（Markdown 渲染视图，国内可直达，#230）。
 - **安装后桌面上有图标了（2026-09-27）**：此前安装完只有开始菜单入口，真实用户首用就在找图标上卡住（v26.9.0 真机复验记录在案）。NSIS 的 `createDesktopShortcut` 改为 `true`——随 26.9.1 安装包生效。
 - **内容区顶部多了「到点提醒」条（2026-09-26）**：打开应用就能看到今天有什么——已过期几条、近 N 天有几条待办、近 7 天有几场宣讲会，点一下跳到对应的页面去处理（#221）。没有到点事项时整条不出现。
@@ -55,6 +57,7 @@
 
 #### Infrastructure（内部工程）
 
+- **Electron 主进程模块化（2026-10-04，issue #204）**：`web/electron/main.js` **967 → 128 行**，收敛为装配根——日志 / 后端进程 / 偏好通道 / 诊断桥 / 提醒 / 窗口 / 导航 / 更新 / 单实例共九个模块，全部不 `require("electron")`、可在 node 下直测；新增四份纯逻辑用例并入 CI 自检步（6 → 10 条）。打包白名单守卫从「只扫 main.js」扩为**扫描全部打包模块**（含 `path.join(__dirname, "x.js")` 派生路径）——拆分后子模块漏登记 `build.files` 会「源码形态照跑、安装版启动即崩」，守卫并配了变异测试证明两类漏登记都会被拦。
 > 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
 
 - **文档站构建链与站点骨架（2026-09-28）**：新增 MkDocs Material 文档站——中文默认 / 英文回退（缺英文的页回退中文、导航不碎）、`--strict` 坏链闸门（站内坏链即构建失败）；内容单源：`site/scripts/build_site.py` 按白名单从 `docs/` 组装（未列白名单的文件一律不进产物），版本与日期由模板占位符从 `web/electron/package.json` 与 CHANGELOG 注入；GitHub Actions 按 `site/requirements.txt` 精确 pin 构建，产物经 artifact 交 `publish` job、仅 main 推送时强推 `site-dist` 产物分支（读写权限分离，#229）。

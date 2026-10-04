@@ -193,6 +193,7 @@ class ImportRequest(BaseModel):
 
 @router.post("/import")
 def import_resume(item: ImportRequest, ws: str = Depends(workspace_dir)):
+    # 引用取不到时抛 409 provider.credentialUnavailable，不静默按「未配置」处理
     cfg = provider.read_config(ws)
     if not cfg.get("base_url") or not cfg.get("api_key"):
         raise ApiError(400, "resume.providerMissing",
@@ -569,7 +570,7 @@ def suggest_rewrite(version: str, item: SuggestRequest,
     if not item.instruction.strip():
         raise ApiError(422, "resume.instructionRequired", "改写方向不能为空")
 
-    cfg = provider.read_config(ws)
+    cfg = provider.read_config(ws)  # 同上：引用取不到 → 409，界面正常也拿不到 key
     if not cfg.get("base_url") or not cfg.get("api_key"):
         raise ApiError(400, "resume.providerMissing",
                        "先在「设置」配置 Provider（BYOK）：base_url 与 api_key")

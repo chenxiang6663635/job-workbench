@@ -13,6 +13,8 @@ export interface ProviderSettings {
   model: string;
   /** base_url 的非阻断提示 key（`provider.hint*`），没有则 null */
   baseUrlHint: string | null;
+  /** key 的存放形态（#203）：credman = Windows 凭据管理器；plaintext = 配置文件明文回退 */
+  storage: "credman" | "plaintext";
 }
 
 export interface ProviderModels {

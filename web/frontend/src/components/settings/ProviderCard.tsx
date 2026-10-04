@@ -29,6 +29,7 @@ import {
 } from "../ui/select";
 import { ErrorBanner } from "../ErrorBanner";
 import { FormField } from "../FormField";
+import CredentialStorageNotice from "./CredentialStorageNotice";
 
 /**
  * 「模型服务（BYOK）」卡（2026-09-24 从 pages/Settings.tsx 拆出）。
@@ -168,6 +169,9 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
             onChange={(e) => setApiKey(e.target.value)}
           />
         </FormField>
+
+        {/* key 存哪（#203）：只认 credman / plaintext，未识别形态不渲染 */}
+        <CredentialStorageNotice storage={settings?.storage} hasCredential={settings?.hasKey} />
 
         {/* 默认模型：三处使用点（导入 / 改写 / 邮件 AI）共用，仍可就地临时改 */}
         <FormField label={t("settings.providerModel")}>

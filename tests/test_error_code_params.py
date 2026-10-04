@@ -52,6 +52,17 @@ def _backend_calls():
                 rel = os.path.relpath(path, ROOT_DIR).replace(os.sep, "/")
                 calls.setdefault(node.args[1].value, []).append(
                     (keys, "%s:%d" % (rel, node.lineno)))
+                # `error_code="x.y"` 形态（2026-10-04，#203）：共享接线层
+                # （credential_fields.resolve_strict）把 code 当参数收，抛点里是变量，
+                # 上面那条按位置字面量的扫描看不见它——键的存在性就没守卫了。
+                # 这些 code 由共享层**不带额外 params**抛出（占位符集合为空），
+                # 所以这里登记空集合；将来若给它加 params，必须同时改本测试与文案。
+                for kw in node.keywords:
+                    if (kw.arg == "error_code"
+                            and isinstance(kw.value, ast.Constant)
+                            and isinstance(kw.value.value, str)):
+                        calls.setdefault(kw.value.value, []).append(
+                            (frozenset(), "%s:%d" % (rel, node.lineno)))
     return calls
 
 

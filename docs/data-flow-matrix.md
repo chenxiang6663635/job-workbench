@@ -21,9 +21,11 @@
 
 ## 明细与保证
 
-- **凭证**：`config/imap.json`（邮箱授权码）与 `config/provider.json`（API Key）
-  只存在本机；导出 / 快照 / 诊断包一律排除（`tests/test_export_privacy.py`
-  做 zip 内容字节级泄漏检测）。
+- **凭证**：邮箱授权码与 API Key 默认存 **Windows 凭据管理器**（桌面版）；源码 /
+  CLI 形态或显式 `JOBWS_CREDENTIAL_STORE=plaintext` 时为明文回退，落在
+  `config/imap.json` / `config/provider.json` 里。两种形态都只存在本机；凭据管理器
+  形态下配置文件只保留**引用**（`auth_ref` / `api_key_ref`）。导出 / 快照 / 诊断包
+  一律排除（`tests/test_export_privacy.py` 做 zip 内容字节级泄漏检测）。
 - **AI 功能全部可选**：不配置模型服务时所有 AI 入口禁用，无任何外发。
 - **不在上表 = 不出网**：除表中行外，应用不发起任何网络请求；开发者侧的
   代码图谱类 MCP 工具（GitNexus 等）不随产品分发。

@@ -182,11 +182,11 @@ jobs:
         working-directory: web/frontend
         run: npm run test:unit
 
-      # Electron 主进程是零测试覆盖区（桌面端没有 E2E），能纯函数化的部分
-      # 就靠这两条兜住：① 缩放上下限与按键映射（zoom.js）零依赖单测；
-      # ② 打包白名单守卫——新增模块忘了加进 build.files 时，源码形态照跑、
-      # 安装版启动即崩，只有这条检查能在合并前发现。
-      - name: Electron 主进程自检（缩放逻辑 + 打包白名单 + URL 守卫）
+      # Electron 主进程是零测试覆盖区（桌面端没有 E2E），能纯函数化/可注入的部分
+      # 都靠这些 node 用例兜住；打包白名单守卫则守住"新增模块忘了加进 build.files
+      # 时，源码形态照跑、安装版启动即崩"这类事故（#204 拆分后守卫覆盖全部打包
+      # 模块，不再只扫 main.js）。
+      - name: Electron 主进程自检（纯逻辑用例 + 打包白名单 + URL 守卫）
         # url_guard.test.js 是 P0-2（导航 origin 严格比对 / 外链 scheme 白名单）的
         # 回归网——批末审查发现它当时只在有人手工 `node` 时才跑（测试文件里却写着
         # "CI 也跑这一步"）。护栏没进 CI 等于没有护栏。
@@ -195,6 +195,10 @@ jobs:
           node web/electron/window_state.test.js
           node web/electron/reminders.test.js
           node web/electron/diagnostics.test.js
+          node web/electron/backend_process.test.js
+          node web/electron/prefs.test.js
+          node web/electron/notifications.test.js
+          node web/electron/navigation.test.js
           node web/electron/check_packaging.js
           node web/electron/url_guard.test.js
 

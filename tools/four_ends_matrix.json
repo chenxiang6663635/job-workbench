@@ -141,6 +141,15 @@
       "note": "只读（dry-run）：从邮箱拉取邮件正文，不改动任何数据；仅 GUI 提供（凭证配在界面）。"
     },
     {
+      "id": "imap.folders",
+      "stage": "跟进",
+      "cli": null,
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/mail/folders",
+      "note": "只读（`LIST` 后即登出）：用已保存的凭据列出可选文件夹，不改动任何数据。仅 GUI 提供——四端复核 M-1 发现它此前未登记（旧形状直读 config，漏登记正是它逃过门禁的结构原因）。"
+    },
+    {
       "id": "imap.suggest",
       "stage": "跟进",
       "cli": null,

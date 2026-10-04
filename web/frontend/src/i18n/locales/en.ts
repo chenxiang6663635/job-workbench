@@ -573,7 +573,7 @@ export default {
   "settings.imapDesc1": "Once configured, you can pull recent recruiting emails and parse status suggestions from the tracker page.",
   "settings.imapDesc2": " The connection is read-only: nothing is sent, changed or deleted; ",
   "settings.imapDesc3": "it connects once per click and never runs in the background. ",
-  "settings.imapDesc4": "The app password is stored only in this workspace’s config/imap.json and is masked everywhere it is shown.",
+  "settings.imapDesc4": "The app password goes to Windows Credential Manager by default (the source / CLI form falls back to plaintext in config/imap.json); it is masked everywhere it is shown.",
   "settings.imapEmail": "Email address",
   "settings.imapPassword": "IMAP app password (leave blank to keep the saved one)",
   "settings.imapPasswordSaved": "Saved ({{key}})",

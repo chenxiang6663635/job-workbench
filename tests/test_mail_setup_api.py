@@ -132,6 +132,54 @@ def test_folders_returns_candidates(client, monkeypatch):
     assert body["server"] == "imap.example.com"
 
 
+def test_folders_works_when_the_secret_lives_in_the_credential_store(client, monkeypatch):
+    """凭据管理器形态：授权码不在配置文件里，/folders 仍要能连（四端复核 M-1）。
+
+    前端在「测试连接成功」后**自动**调用本端点；旧实现直读 `cfg["password"]`，
+    在这个形态下会 400「请先保存 IMAP 授权码」——把已经保存过的用户挡在门外，
+    还绕过惰性迁移。
+    """
+    from jobws_core import credentials
+
+    class _FakeStore:
+        kind = "credman"
+
+        def __init__(self):
+            self.entries = {}
+
+        def available(self):
+            return True
+
+        def get(self, ref):
+            return self.entries.get(ref)
+
+        def set(self, ref, secret):
+            self.entries[ref] = secret
+            return True
+
+        def delete(self, ref):
+            self.entries.pop(ref, None)
+            return True
+
+    store = _FakeStore()
+    monkeypatch.setattr(credentials, "select_store", lambda *args, **kwargs: store)
+    _save(client)                     # 授权码进假存储，配置文件里只留 auth_ref
+
+    seen = {}
+
+    def fake_probe(host, user, password, port):
+        seen["password"] = password
+        return ["INBOX"]
+
+    monkeypatch.setattr(imap_fetch, "probe_folders", fake_probe)
+
+    body = client.post("/api/mail/folders", params={"ws": WS}).json()
+
+    assert body["folders"] == ["INBOX"]
+    assert seen["password"] == "auth-code-1234", \
+        "要用系统存储里的授权码，而不是配置文件里的空串"
+
+
 def test_folders_failure_is_wrapped_as_a_readable_error(client, monkeypatch):
     _save(client)
 

@@ -45,10 +45,13 @@ This is a single-maintainer, unpaid project: the target for a first response is
 
 - **Data leaving the machine without your intent.** Anything that uploads
   workspace files, personal facts, resumes or tracker data to a third party.
-- **Credential exposure.** The app stores your IMAP authorization code and your
-  BYOK provider API key in **plaintext** in `<workspace>/config/imap.json` and
-  `<workspace>/config/provider.json`. Leaking those values into logs, error
-  messages, export packages or the network is a bug.
+- **Credential exposure.** The desktop build stores your IMAP authorization code
+  and your BYOK provider API key in **Windows Credential Manager**; the workspace
+  files (`<workspace>/config/imap.json`, `config/provider.json`) keep only a
+  reference. The source / CLI form — or an explicit
+  `JOBWS_CREDENTIAL_STORE=plaintext` — keeps them in plaintext in those files, and
+  the settings cards say which one is in effect. Leaking those values into logs,
+  error messages, export packages or the network is a bug either way.
 - **TLS downgrade on outbound connections.** Every outbound connection — your mail
   server, fetched job pages, and the BYOK provider (connectivity test and resume
   rewrite) — verifies certificates by default and refuses to continue when the
@@ -83,13 +86,17 @@ This is a single-maintainer, unpaid project: the target for a first response is
   (`<pre>{text}</pre>` in `JobDetailView`) — there is no HTML-injection path. A
   hostile page is therefore a content problem unless you can show script execution
   or a path escape.
-- **Credentials are plaintext on disk** (see above). An attacker who already has
-  your OS user account does not need an exploit.
+- **Credentials rest in the OS credential store by default** (see above). An
+  attacker who already has your OS user account can still read them: Credential
+  Manager protects the value at rest, not against your own logged-in session. The
+  plaintext fallback is strictly weaker — any process that can read your user
+  profile can read the file.
 
 ## Explicitly out of scope (by design)
 
-- Anyone who can read your OS user account can read the plaintext credential
-  files. Use separate OS accounts and disk encryption; that is a property of
+- Anyone who can read your OS user account can read the stored credentials
+  (Credential Manager entries included, and the plaintext fallback files in
+  particular). Use separate OS accounts and disk encryption; that is a property of
   local-first, not a vulnerability in the app.
 - Job pages fetched from the internet are untrusted input by definition. Hostile
   HTML in a job posting is a content-handling problem, not a boundary we claim to

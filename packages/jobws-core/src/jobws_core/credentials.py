@@ -88,8 +88,8 @@ class ResolveOutcome(NamedTuple):
 
     `secret=None` 有且只有两种含义：引用在手但系统存储取不到、或两边都没配——
     前者必须由调用方**显式报错**，不能与"用户没配置过"混为一谈。`migrated=True`
-    表示本次发生了「旧明文 → 系统存储」的迁移且 cfg 已被就地改写，**调用方负责
-    把 cfg 落盘**（本模块不碰文件）。
+    表示 cfg 已被**就地改写**（发生了「旧明文 → 系统存储」的迁移，或清理了引用旁
+    残留的明文字段），**调用方负责把 cfg 落盘**（本模块不碰文件）。
     """
     secret: str | None
     kind: str
@@ -163,6 +163,13 @@ def resolve_secret(cfg, *, ref_key, legacy_key, prefix, store, log=None):
             handle.warning("凭据引用在 %s 中取不到（ref=%s）——凭据可能已被删除，"
                            "请重新保存；旧明文字段不再作为回退", store.kind, ref)
             return ResolveOutcome(None, store.kind, False)
+        if _is_text(cfg.get(legacy_key)):
+            # 混合配置（引用 + 残留明文，多为手改或迁移中断）：引用有效，明文已无用。
+            # 就地清掉并让调用方落盘——否则下一次保存会把这段老明文原样写回
+            # （四端复核 n-2）。`migrated=True` 在这里表示"cfg 已被就地改写，请落盘"。
+            cfg.pop(legacy_key, None)
+            handle.info("已清理残留的明文字段（引用 %s 有效，ref=%s）", legacy_key, ref)
+            return ResolveOutcome(secret, store.kind, True)
         return ResolveOutcome(secret, store.kind, False)
 
     legacy = cfg.get(legacy_key)
@@ -200,6 +207,10 @@ def store_secret(cfg, secret, *, ref_key, legacy_key, prefix, store, log=None):
         cfg.pop(legacy_key, None)
         handle.info("凭据已保存到 %s（ref=%s）", store.kind, ref)
         return store.kind
+    # 写失败 → cfg 丢掉引用、回落明文。注意：系统存储里可能残留一条指向旧密文的
+    # 条目（本模块不掌握"cfg 何时真正落盘"——删早了，万一调用方的原子写失败，
+    # 用户就会连仅存的那把钥匙也没了）。这是「绝不丢钥匙」优先于「不留孤儿」的
+    # 取舍；排障时按 ref 到凭据管理器里找。
     cfg[legacy_key] = secret
     cfg.pop(ref_key, None)
     if store.kind == KIND_PLAINTEXT:

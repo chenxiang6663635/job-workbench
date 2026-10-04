@@ -421,3 +421,20 @@ def test_module_logger_keeps_the_secret_out_too(caplog):
 
     assert caplog.records, "迁移失败必须留下日志"
     assert SECRET not in caplog.text
+
+
+def test_resolve_cleans_a_stale_plaintext_beside_a_valid_ref():
+    """引用有效、旁边还残留明文（手改配置 / 迁移中断）→ 清掉明文并要求落盘。
+
+    不清的话，下一次保存会把这段老明文**原样写回**（四端复核 n-2）——引用明明
+    已经生效，文件里却继续躺着一份旧钥匙。
+    """
+    store = _FakeStore(stored=SECRET)
+    cfg = _config(ref=REF, legacy="残留的旧明文")
+
+    outcome = credentials.resolve_secret(
+        cfg, ref_key=REF_KEY, legacy_key=LEGACY_KEY, prefix=PREFIX, store=store)
+
+    assert outcome == credentials.ResolveOutcome(SECRET, credentials.KIND_CREDMAN, True)
+    assert LEGACY_KEY not in cfg, "残留明文必须被清掉"
+    assert cfg[REF_KEY] == REF, "引用本身不动"

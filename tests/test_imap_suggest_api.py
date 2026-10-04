@@ -541,3 +541,39 @@ def test_provider_migration_keeps_a_concurrent_save(tmp_path, client, credman, m
     assert raw["base_url"] == "https://concurrent.example/v1", "迁移写回不得覆盖并发保存"
     assert raw["api_key_ref"] and "api_key" not in raw
     assert credman.entries[raw["api_key_ref"]] == SECRET
+
+
+def test_provider_concurrent_migration_leaves_no_orphan(tmp_path, client, credman, monkeypatch):
+    """并发迁移去重：另一端先落盘了引用 → 采用先到者，并删掉自己刚写的那条。
+
+    两个读请求同时撞上同一条旧明文时，各自都会往凭据管理器写一份；没有去重的话，
+    每并发一次就多一条永久失联的条目（四端复核 m-1①）。
+    """
+    from jobws_core import credentials
+
+    theirs_ref = "job-workbench/aaaa1111bbbb2222/provider"
+    real = credentials.resolve_secret
+    only_once = {"done": False}
+
+    def wrap(*args, **kwargs):
+        outcome = real(*args, **kwargs)
+        if not only_once["done"]:
+            only_once["done"] = True
+            store = kwargs["store"]
+            path = _provider_file(tmp_path)
+            path.write_text(json.dumps({"base_url": "https://api.example.com/v1",
+                                        "api_key_ref": theirs_ref}), encoding="utf-8")
+            store.entries[theirs_ref] = SECRET
+        return outcome
+
+    monkeypatch.setattr(credentials, "resolve_secret", wrap)
+    _write_provider_config(tmp_path, {"base_url": "https://api.example.com/v1",
+                                      "api_key": SECRET})
+
+    body = _get_provider(client)
+
+    raw = _read_provider_file(tmp_path)
+    assert raw["api_key_ref"] == theirs_ref, "采用先到者的引用"
+    assert body["hasKey"] is True and body["storage"] == "credman"
+    assert [r for r in credman.entries if r != theirs_ref] == [], \
+        "自己刚写的那条要被删掉（不留孤儿）"

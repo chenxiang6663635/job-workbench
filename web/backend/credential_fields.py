@@ -50,16 +50,30 @@ def resolve(cfg, *, path, ws, ref_key, legacy_key, prefix, lock_name,
     结果刷新进调用方的 cfg（后续字段读到的是最新值）。不传则维持旧语义（只写回
     手里的 cfg），POST 这类"自己刚读完又自己写"的调用点不需要它。
     """
+    # 变量名不能叫 store：那会遮蔽模块级 `store()`，赋值给同名局部变量后
+    # 右侧的 `store()` 会变成"读取尚未赋值的局部变量"（UnboundLocalError）。
+    backing = store()
     outcome = credentials.resolve_secret(
         cfg, ref_key=ref_key, legacy_key=legacy_key, prefix=prefix,
-        store=store(), log=log)
+        store=backing, log=log)
     if outcome.migrated and persist:
         # 铁律 2：迁移必须持久化——否则每次读都重新迁移一遍（还反复写系统存储）。
         with locked(lock_path(ws, lock_name)):
             if reload is not None:
                 fresh = reload()
                 if isinstance(fresh, dict):
-                    fresh[ref_key] = cfg[ref_key]
+                    mine = cfg.get(ref_key)
+                    theirs = fresh.get(ref_key)
+                    if isinstance(theirs, str) and theirs.strip() and theirs != mine:
+                        # 并发迁移（四端复核 m-1①）：另一端先落盘了自己的引用。密文同源
+                        # （都来自这条旧明文），采用先到者的引用，并把我们刚写进系统存储
+                        # 的那条删掉——否则每并发一次就多一条永久失联的凭据。
+                        try:
+                            backing.delete(mine)
+                        except Exception:  # 存储实现承诺不抛，这里只兜"不因此中断落盘"
+                            pass
+                        mine = theirs
+                    fresh[ref_key] = mine
                     fresh.pop(legacy_key, None)
                     cfg.clear()
                     cfg.update(fresh)

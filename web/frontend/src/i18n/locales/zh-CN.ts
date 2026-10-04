@@ -612,7 +612,7 @@ const zhCN = {
   "settings.imapDesc1": "配置后，可在「投递追踪」页拉取最近的招聘邮件并解析出状态建议。",
   "settings.imapDesc2": "连接是只读的：不发信、不修改也不删除邮件；",
   "settings.imapDesc3": "只在你点击时连接一次，不会在后台运行。",
-  "settings.imapDesc4": "授权码只保存在本工作区的 config/imap.json，界面与错误信息里都会脱敏。",
+  "settings.imapDesc4": "授权码默认存进 Windows 凭据管理器（源码 / CLI 形态为明文回退：那时它写在 config/imap.json 里），界面与错误信息里都会脱敏。",
   "settings.imapEmail": "邮箱地址",
   "settings.imapPassword": "IMAP 授权码（留空则保留已保存的）",
   "settings.imapPasswordSaved": "已保存（{{key}}）",

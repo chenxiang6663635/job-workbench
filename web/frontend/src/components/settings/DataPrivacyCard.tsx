@@ -98,6 +98,11 @@ export default function DataPrivacyCard({
         {t("settings.privacyDesc")}
       </p>
 
+      {/* 凭据存哪（#203）：与 IMAP / Provider 两张卡的提示同源口径 */}
+      <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
+        {t("settings.privacyCredentialStorage")}
+      </p>
+
       <div className="flex flex-wrap items-center gap-2">
         <Button asChild>
           <a href={api.exportUrl()} onClick={() => setInfo(t("settings.exportNotice"))}>

@@ -3,8 +3,10 @@
 
 三条边界（与实时投递状态的调研红线一致）：
 
-1. **凭证只存本地**：`<工作区>/config/imap.json`，读取接口返回脱敏值，
-   传空密码表示保留原值；错误消息与日志不出现完整凭证。
+1. **授权码存系统凭据管理器**：桌面版写 **Windows 凭据管理器**，配置文件
+   `<工作区>/config/imap.json` 里只留引用 `auth_ref`；源码 / CLI 形态是显式
+   明文回退（密文留在那个文件里）。读取接口返回脱敏值，传空密码表示保留原值；
+   错误消息与日志不出现完整凭证。
 2. **只读、默认 dry-run**：拉取走 `tools/imap_fetch.py`（select 只读 +
    BODY.PEEK），`/fetch` 只返回邮件列表供用户挑选——**不写任何数据**。
    状态改动仍然只发生在用户逐条确认后的
@@ -21,20 +23,20 @@ from __future__ import annotations
 import io
 import json
 import os
-import socket
-from jobws_core import tls_policy
-import unicodedata
+from jobws_core import credentials, tls_policy
 
 from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+import credential_fields
 import imap_fetch
 import imapguard
 from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
+from imap_host import check_host_shape
 from lockctx import lock_path, locked
 from redact import mask_secret
 
@@ -58,6 +60,7 @@ def _empty_config():
         "host": "",
         "port": imap_fetch.DEFAULT_PORT,
         "user": "",
+        "auth_ref": "",     # 凭据管理器条目的引用（credman 形态；明文形态为空）
         "password": "",
         "folder": imap_fetch.DEFAULT_FOLDER,
     }
@@ -75,7 +78,7 @@ def _read_config(path):
         return cfg
     if not isinstance(data, dict):
         return cfg
-    for key in ("host", "user", "password", "folder"):
+    for key in ("host", "user", "auth_ref", "password", "folder"):
         value = data.get(key)
         if isinstance(value, str):
             cfg[key] = value
@@ -94,74 +97,46 @@ def _mask_password(password):
     return mask_secret(password)
 
 
-# DNS 名字的通用上限（RFC 1035：253 个字符）
-MAX_HOST_LEN = 253
+def _resolve(cfg, ws, *, strict, persist=True):
+    """解析授权码（必要时迁移旧明文并落盘；接线在 `credential_fields`，与 provider 共用）。
 
+    `strict=True`（/test 与 /fetch）区分 secret=None 的两种含义：「引用在手但系统
+    存储取不到」是凭据没了（409，出路是重新保存），「两边都没配」才是没配置过。
 
-def _is_ipv6_literal(host):
-    """是不是 IPv6 字面量——含冒号但**不是** host:port。
-
-    认三种写法：`[::1]`、裸 `::1`，以及带作用域标识的 `fe80::1%eth0`
-    （`inet_pton` 不认 `%eth0`，剥掉再判——否则合法地址会被误报成
-    "端口请填另一栏"）。
+    `persist=False` 供**已持锁**的调用点（POST）用：迁移结果由调用方在同一次原子写
+    里落盘——`file_lock` 不重入，锁内再 `locked()` 只会等到超时。
     """
-    candidate = host[1:-1] if host.startswith("[") and host.endswith("]") else host
-    candidate = candidate.split("%", 1)[0]
-    try:
-        socket.inet_pton(socket.AF_INET6, candidate)
-        return True
-    except (OSError, ValueError):
-        return False
+    kwargs = dict(path=_config_path(ws), ws=ws, ref_key="auth_ref",
+                  legacy_key="password", prefix="imap", lock_name="imap",
+                  # 展示面顺带迁移时可能撞上并发保存：锁内重读、只应用引用变更（见 credential_fields）
+                  reload=lambda: _read_config(_config_path(ws)))
+    if strict:
+        return credential_fields.resolve_strict(
+            cfg, error_code="imap.credentialUnavailable",
+            error_message="凭据在本机凭据管理器里找不到（可能换了 Windows 账户或被系统清理），"
+                          "请在设置里重新保存 IMAP 授权码", **kwargs)
+    return credential_fields.resolve(cfg, persist=persist, **kwargs)
 
 
-def _check_host_shape(host):
-    """使用前的 host 形状校验（issue #50 A1），返回原值。
+# host 形状校验搬去 `imap_host`（#203 收口批：让 imap.py 回到尺寸预算内）。保留私名
+# 别名：旧名 `_check_host_shape` 照旧可用（低成本的兼容兜底，无其它模块引用）。
+_check_host_shape = check_host_shape
 
-    为什么是"使用前"而不只是"保存时"：保存校验是后加的，老配置里可能已经存着
-    坏值；而且留空 host 时推断出来的值也该走同一道关。坏值最终都会在 `_connect`
-    里变成"连不上 993 端口"——那句话对用户没有任何指向性，真正的原因（把
-    `https://` 或 `host:port` 整段粘了进来）必须在**换得出正确说法的地方**报出来。
 
-    分三个 code 而不是一个通用 code：三种形状问题的**出路不一样**（去掉协议头 /
-    端口填另一栏 / 只填主机名），合成一句话等于把可操作的指引磨成一句废话，
-    英文界面也只能渲染成同一段含糊文案。
+def _public(cfg, outcome):
+    """对外响应：不含完整密码；附服务器推断提示便于前端展示。
 
-    形状判定先做 **NFKC 归一化**：中文输入法下 `imap.qq.com：993`（全角冒号）
-    是一敲就出来的形态，ASCII 判定看不住它，结果就退回到"连接期一句连不上"。
-    归一化**只用于判定**，落盘与响应里仍是用户输入的原值。
+    `storage` 如实报告本次解析的形态（credman / plaintext）：前端据此说明
+    "授权码已存进系统凭据管理器"；写失败退回明文时也能说清它还在文件里。
     """
-    probe = unicodedata.normalize("NFKC", host)
-    if len(probe) > MAX_HOST_LEN:
-        raise ApiError(422, "imap.hostTooLong",
-                       "服务器地址过长（%d 字符，上限 %d）：只填主机名，不要带路径"
-                       % (len(probe), MAX_HOST_LEN),
-                       length=len(probe))
-    if "://" in probe:
-        raise ApiError(422, "imap.hostMalformed",
-                       "服务器地址不要带协议头：去掉 http:// 或 https://，"
-                       "只填主机名（如 imap.qq.com）")
-    if "/" in probe:
-        raise ApiError(422, "imap.hostMalformed",
-                       "服务器地址不能含斜杠：只填主机名，路径不要写进来")
-    if any(ch.isspace() for ch in probe):
-        raise ApiError(422, "imap.hostMalformed",
-                       "服务器地址不能含空格：请检查是否多粘了一段")
-    if ":" in probe and not _is_ipv6_literal(probe):
-        raise ApiError(422, "imap.hostPortInline",
-                       "端口请填在「端口」栏：地址里不要写成 host:port"
-                       "（例如 imap.qq.com:993 应拆成两栏）")
-    return host
-
-
-def _public(cfg):
-    """对外响应：不含完整密码；附服务器推断提示便于前端展示。"""
     return {
         "host": cfg["host"],
         "port": cfg["port"],
         "user": cfg["user"],
         "folder": cfg["folder"],
-        "password": _mask_password(cfg["password"]),
-        "hasPassword": bool(cfg["password"]),
+        "password": _mask_password(outcome.secret or ""),
+        "hasPassword": bool(outcome.secret),
+        "storage": outcome.kind,
         # 前端提示用：留空 host 时实际会连哪台服务器（未知域名返回空串）
         "serverHint": imap_fetch.guess_server(cfg["user"]),
     }
@@ -180,8 +155,14 @@ def _resolve_host(cfg):
 
 @router.get("")
 def get_imap(ws: str = Depends(workspace_dir)):
-    """读当前工作区的 IMAP 配置，授权码脱敏。"""
-    return _public(_read_config(_config_path(ws)))
+    """读当前工作区的 IMAP 配置，授权码脱敏。
+
+    lenient（不抛）：引用在手但取不到时照常 200（hasPassword=False、
+    storage=credman）——用户打开设置页先要能看见现状；报错留给真正要使用
+    凭据的 /test 与 /fetch。顺带做一次惰性迁移（见 `_resolve`）。
+    """
+    cfg = _read_config(_config_path(ws))
+    return _public(cfg, _resolve(cfg, ws, strict=False))
 
 
 class SaveImap(BaseModel):
@@ -194,12 +175,17 @@ class SaveImap(BaseModel):
 
 @router.post("")
 def save_imap(body: SaveImap, ws: str = Depends(workspace_dir)):
-    """保存 IMAP 配置。password 传空则保留原值（前端不来回传完整凭证）。"""
+    """保存 IMAP 配置。password 传空则保留原值（前端不来回传完整凭证）。
+
+    授权码优先写系统凭据管理器（桌面版的 Windows 凭据管理器），配置文件里只留
+    引用 `auth_ref`；写失败退回明文（`storage` 字段如实告知，见 credentials 铁律）。
+    """
     if not (1 <= body.port <= 65535):
         raise ApiError(422, "imap.portRange", "端口需在 1–65535 之间")
 
     path = _config_path(ws)
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    store = credential_fields.store()
 
     with locked(_lock_path(ws)):
         cfg = _read_config(path)
@@ -211,13 +197,20 @@ def save_imap(body: SaveImap, ws: str = Depends(workspace_dir)):
         cfg["folder"] = body.folder.strip() or imap_fetch.DEFAULT_FOLDER
         new_password = (body.password or "").strip()
         if new_password:
-            cfg["password"] = new_password
+            kind = credentials.store_secret(
+                cfg, new_password, ref_key="auth_ref", legacy_key="password",
+                prefix="imap", store=store)
+            outcome = credentials.ResolveOutcome(new_password, kind, False)
+        else:
+            # 传空 = 保留原值，顺带把旧明文惰性迁移进系统存储。persist=False：
+            # 迁移的落盘并入本块的统一原子写（锁不重入，见 `_resolve`）。
+            outcome = _resolve(cfg, ws, strict=False, persist=False)
 
         # 原子写：并发读（GET/test/fetch）不会看到半截文件；
         # 写仍持锁，两次并发保存不会互相覆盖。
         atomic_write_text(path, json.dumps(cfg, ensure_ascii=False, indent=2))
 
-    return _public(cfg)
+    return _public(cfg, outcome)
 
 
 @router.post("/test")
@@ -229,14 +222,16 @@ def test_imap(ws: str = Depends(workspace_dir)):
     cfg = _read_config(_config_path(ws))
     if not cfg["user"]:
         raise ApiError(400, "imap.needEmail", "请先保存邮箱地址")
-    if not cfg["password"]:
+    # strict：引用在手却取不到 → 409「重新保存」（不是 400「没配置」）
+    outcome = _resolve(cfg, ws, strict=True)
+    if outcome.secret is None:
         raise ApiError(400, "imap.needPassword", "请先保存 IMAP 授权码")
 
     host = _resolve_host(cfg)
     folder = cfg["folder"] or imap_fetch.DEFAULT_FOLDER
     try:
         count = imap_fetch.test_connection(
-            host, cfg["user"], cfg["password"], cfg["port"], folder)
+            host, cfg["user"], outcome.secret, cfg["port"], folder)
     except imap_fetch.ImapFetchError as exc:
         raise ApiError(502, exc.code or "imap.testFailed", str(exc), error=str(exc))
 
@@ -277,7 +272,9 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
     cfg = _read_config(_config_path(ws))
     if not cfg["user"]:
         raise ApiError(400, "imap.needEmail", "请先在设置里配置邮箱地址")
-    if not cfg["password"]:
+    # strict：引用在手却取不到 → 409「重新保存」（不是 400「没配置」）
+    outcome = _resolve(cfg, ws, strict=True)
+    if outcome.secret is None:
         raise ApiError(400, "imap.needPassword", "请先在设置里配置 IMAP 授权码")
 
     host = _resolve_host(cfg)
@@ -287,7 +284,7 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
 
     try:
         messages = imap_fetch.fetch_messages(
-            host, cfg["user"], cfg["password"], cfg["port"], folder,
+            host, cfg["user"], outcome.secret, cfg["port"], folder,
             body.limit, since_days)
     except imap_fetch.ImapFetchError as exc:
         raise ApiError(502, exc.code or "imap.fetchFailed", str(exc), error=str(exc))

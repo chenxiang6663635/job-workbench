@@ -23,13 +23,16 @@ import {
 } from "../ui/select";
 import { ErrorBanner } from "../ErrorBanner";
 import { FormField } from "../FormField";
+import CredentialStorageNotice from "./CredentialStorageNotice";
 import FolderCandidates from "./FolderCandidates";
+import ImapTestResultPanel from "./ImapTestResultPanel";
 import MailAuthHint from "./MailAuthHint";
 
 /**
  * 「邮箱只读拉取」卡（2026-09-24 从 pages/Settings.tsx 拆出，为守住水位）。
  * 三条承诺别弄丢：只读连接（`SELECT(readonly)` + `BODY.PEEK`）、凭证只存本机
- * `config/imap.json`、**没有后台轮询**（文件夹候选也是"点一次连一次"）。
+ * （#203 起默认进 Windows 凭据管理器，`config/imap.json` 只留引用）、
+ * **没有后台轮询**（文件夹候选也是"点一次连一次"）。
  */
 interface ImapCardProps {
   /** 设置页的搜索/分组过滤：隐藏时保留挂载（状态不丢） */
@@ -262,6 +265,9 @@ export default function ImapCard({ hidden = false }: ImapCardProps) {
         </FormField>
       </div>
 
+      {/* 授权码存哪（#203）：只认 credman / plaintext，未识别形态不渲染 */}
+      <CredentialStorageNotice storage={cfg?.storage} hasCredential={cfg?.hasPassword} />
+
       <FolderCandidates
         folders={folders}
         loading={foldersLoading}
@@ -286,15 +292,7 @@ export default function ImapCard({ hidden = false }: ImapCardProps) {
 
       {err && <ErrorBanner message={err} onClose={() => setErr(null)} />}
 
-      {testResult && (
-        <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-muted-foreground">
-          {t("settings.imapTestResult", {
-            server: testResult.server,
-            folder: testResult.folder,
-            count: testResult.messageCount,
-          })}
-        </p>
-      )}
+      {testResult && <ImapTestResultPanel result={testResult} />}
     </Card>
   );
 }

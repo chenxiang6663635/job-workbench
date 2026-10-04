@@ -186,6 +186,8 @@ def suggest_facts_ai(item: SuggestFactsAi, ws: str = Depends(workspace_dir)):
     if not model:
         raise ApiError(422, "resume.modelRequired", "请填写模型名（如 deepseek-chat）")
 
+    # 引用取不到时抛 409 provider.credentialUnavailable（与简历侧同口径）：界面看着
+    # 正常、调用却拿不到 key 的情况必须报出来，不能静默当成「没配置过」。
     cfg = provider.read_config(ws)
     if not cfg.get("base_url") or not cfg.get("api_key"):
         raise ApiError(400, "resume.providerMissing",

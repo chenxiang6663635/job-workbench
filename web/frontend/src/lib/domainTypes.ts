@@ -562,6 +562,8 @@ export interface ProviderConfig {
   base_url: string;
   api_key: string;
   hasKey: boolean;
+  /** key 的存放形态（#203）：credman = Windows 凭据管理器；plaintext = 配置文件明文回退 */
+  storage: "credman" | "plaintext";
 }
 
 export interface ProviderTestResult {
@@ -710,7 +712,8 @@ export const TERMINAL = ["已挂", "已放弃", "我拒绝的 offer"];
 export const FAIL_TERMINAL = ["已挂", "已放弃"];
 
 // ---- IMAP 只读拉取（B11）----
-// 授权码只存工作区本地 config/imap.json；接口回传的 password 是脱敏展示值。
+// 授权码默认存 Windows 凭据管理器（#203），工作区 config/imap.json 只留引用；
+// 明文保存只是源码 / CLI 形态的回退。接口回传的 password 是脱敏展示值。
 export interface ImapConfig {
   host: string;
   port: number;
@@ -718,6 +721,8 @@ export interface ImapConfig {
   folder: string;
   password: string;
   hasPassword: boolean;
+  /** 授权码的存放形态（#203）：credman = Windows 凭据管理器；plaintext = 配置文件明文回退 */
+  storage: "credman" | "plaintext";
   /** host 留空时将使用的服务器；未知域名返回空串 */
   serverHint: string;
 }

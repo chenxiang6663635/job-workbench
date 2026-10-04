@@ -4,6 +4,8 @@
 钉住的东西与调研红线一一对应：
 
 1. **凭证只存本地 + 脱敏**：响应里不出现完整授权码；空密码保存表示保留原值。
+   桌面版授权码存 Windows 凭据管理器、配置文件只留引用 `auth_ref`（源码 / CLI
+   形态为显式明文回退）——解析、惰性迁移与写失败回退见文件末尾第 5 节。
 2. **只读、默认 dry-run**：`/fetch` 不写任何数据——追踪表字节不变、
    文件系统不新增产物。它只是「取邮件正文」的取样口。
 3. **无半开会话**：配置不全在连接前就 400；底层错误包装成 502 人话。
@@ -24,6 +26,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 import deps  # noqa: E402
 import imap_fetch  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from routers import imap  # noqa: E402
 
 WS = "ws-ok"
 
@@ -58,6 +61,8 @@ def test_get_returns_empty_defaults(tmp_path, client):
     assert body == {
         "host": "", "port": 993, "user": "", "folder": "INBOX",
         "password": "", "hasPassword": False, "serverHint": "",
+        # conftest 把默认形态钉在明文回退（不碰真机凭据管理器）——storage 如实报它
+        "storage": "plaintext",
     }
 
 
@@ -70,7 +75,9 @@ def test_save_returns_masked_password_only(tmp_path, client):
     assert "auth-code" not in json.dumps(body), "完整授权码不得出现在响应里"
 
     stored = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())
-    assert stored["password"] == "auth-code-1234", "本地文件里应保存完整授权码（只存在这里）"
+    assert stored["password"] == "auth-code-1234", (
+        "明文回退形态下授权码仍住在配置文件里（测试默认形态，见 conftest）；"
+        "credman 形态的「只留引用」由第 5 节的假 store 用例钉住")
 
 
 def test_blank_password_keeps_the_previous_one(tmp_path, client):
@@ -327,3 +334,150 @@ def test_get_ignores_wrongly_typed_fields(tmp_path, client):
     assert body["user"] == ""
     assert body["folder"] == "INBOX"
     assert body["host"] == "imap.example.com"
+
+
+# --- 5. 凭据 at-rest：引用 / 惰性迁移 / 失败回退（issue #203）------------------
+# 桌面版形态下授权码住 Windows 凭据管理器，配置文件只留引用 `auth_ref`；
+# 源码 / CLI 形态是显式明文回退（conftest 的 autouse fixture 已把测试默认钉在
+# plaintext——**绝不碰真机凭据管理器**）。这里用假 store 做跨平台行为验证。
+
+
+class _FakeCredStore:
+    """假凭据管理器：dict 存储 + 两个可编程开关（写失败 / 读不到）。
+
+    不 import test_credentials.py 的私有件：两个测试文件各钉各的契约，
+    共享测试工具会让"改一处、两处变绿"的静默耦合漏进来。
+    """
+
+    kind = "credman"
+
+    def __init__(self):
+        self.stored = {}
+        self.fail_set = False
+        self.get_returns_none = False
+
+    def available(self):
+        return True
+
+    def get(self, ref):
+        if self.get_returns_none:
+            return None
+        return self.stored.get(ref)
+
+    def set(self, ref, secret):
+        if self.fail_set:
+            return False
+        self.stored[ref] = secret
+        return True
+
+    def delete(self, ref):
+        self.stored.pop(ref, None)
+        return True
+
+
+@pytest.fixture()
+def fake_store(monkeypatch):
+    """把凭据存储钉到假 store 上（`select_store` 每次现取，所以打桩模块属性即可；
+    每次调用都返回同一实例）。"""
+    store = _FakeCredStore()
+    monkeypatch.setattr(imap.credentials, "select_store", lambda: store)
+    return store
+
+
+def test_save_stores_the_secret_in_the_credential_manager(tmp_path, client, fake_store):
+    """保存即入凭据管理器：配置文件里只剩引用，密文不再落盘。"""
+    res = _save(client)
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["storage"] == "credman"
+    assert body["hasPassword"] is True
+    assert body["password"].endswith("1234")
+    assert "auth-code" not in json.dumps(body), "完整授权码不得出现在响应里"
+
+    stored = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())
+    assert "password" not in stored, "密文已进凭据管理器，配置文件里不该再留一份"
+    assert stored["auth_ref"].startswith("job-workbench/")
+    assert fake_store.stored[stored["auth_ref"]] == "auth-code-1234"
+
+
+def test_get_lazily_migrates_a_legacy_plaintext_password(tmp_path, client, fake_store):
+    """读时惰性迁移：老配置里的明文搬进系统存储，文件当场改写（否则每次读都重复迁移）。"""
+    path = _config_path(tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    io.open(str(path), "w", encoding="utf-8").write(json.dumps({
+        "host": "imap.example.com", "port": 993, "user": "me@example.com",
+        "password": "auth-code-1234", "folder": "INBOX"}))
+
+    body = client.get("/api/imap", params={"ws": WS}).json()
+
+    assert body["storage"] == "credman"
+    assert body["hasPassword"] is True
+    assert body["password"].endswith("1234")
+    stored = json.loads(io.open(str(path), encoding="utf-8").read())
+    assert "password" not in stored, "迁移后明文不得留在文件里"
+    assert fake_store.stored[stored["auth_ref"]] == "auth-code-1234"
+
+
+def test_save_with_blank_password_also_migrates_a_legacy_plaintext(tmp_path, client, fake_store):
+    """传空密码（保留原值）也要顺手迁移——迁移结果由同一次持锁原子写落盘。"""
+    path = _config_path(tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    io.open(str(path), "w", encoding="utf-8").write(json.dumps({
+        "host": "imap.example.com", "port": 993, "user": "me@example.com",
+        "password": "auth-code-1234", "folder": "INBOX"}))
+
+    res = _save(client, password="", host="imap.changed.com")
+
+    assert res.status_code == 200
+    assert res.json()["storage"] == "credman"
+    stored = json.loads(io.open(str(path), encoding="utf-8").read())
+    assert "password" not in stored
+    assert stored["host"] == "imap.changed.com"
+    assert fake_store.stored[stored["auth_ref"]] == "auth-code-1234"
+
+
+def test_save_keeps_plaintext_when_the_store_write_fails(tmp_path, client, fake_store):
+    """写失败保留明文（数据丢失 > 可用性降级）：响应如实报 plaintext。"""
+    fake_store.fail_set = True
+
+    res = _save(client)
+
+    assert res.status_code == 200
+    assert res.json()["storage"] == "plaintext"
+    assert res.json()["hasPassword"] is True
+    stored = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())
+    assert stored["password"] == "auth-code-1234"
+    assert "auth_ref" not in stored, "写失败不得留下指向空条目的引用"
+
+
+def test_ref_without_stored_secret_is_409_on_use_but_200_on_read(tmp_path, client, fake_store):
+    """「引用在手但取不到」≠「没配置」：使用时 409 指路「重新保存」，读取仍 200 展示现状。"""
+    _save(client)
+    fake_store.get_returns_none = True
+
+    res = client.post("/api/imap/test", params={"ws": WS})
+    assert res.status_code == 409
+    assert res.json()["error_code"] == "imap.credentialUnavailable"
+    assert "重新保存" in res.json()["detail"]
+
+    res = client.post("/api/imap/fetch", params={"ws": WS}, json={})
+    assert res.status_code == 409
+    assert res.json()["error_code"] == "imap.credentialUnavailable"
+
+    body = client.get("/api/imap", params={"ws": WS}).json()
+    assert body["hasPassword"] is False
+    assert body["storage"] == "credman", "引用还在——形态仍是 credman（不是没配过）"
+    assert body["password"] == ""
+
+
+def test_rotation_reuses_the_same_ref(tmp_path, client, fake_store):
+    """轮换（改授权码）复用同一引用：凭据管理器里不留指向旧密文的孤儿条目。"""
+    _save(client)
+    first = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())["auth_ref"]
+
+    _save(client, password="auth-code-5678")
+
+    second = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())["auth_ref"]
+    assert second == first
+    assert fake_store.stored == {first: "auth-code-5678"}, "只应有这一条凭据"

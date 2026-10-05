@@ -68,7 +68,7 @@ def _print_human(diag):
             print("    %s（%s）" % (
                 cand["path"], "含工作区" if cand["has_workspace"] else "无工作区"))
     if diag["state"] == dataroot.STATE_UNAVAILABLE:
-        print("提示：恢复该路径、或清除持久化选择后重试（选择命令随 A3 提供）。")
+        print("提示：恢复该路径，或用 `jobws data-root set/clear` 重选 / 清除选择后重试。")
     if diag["state"] == dataroot.STATE_AMBIGUOUS:
         print("提示：本机有多个候选根含工作区——破坏性操作会在确认目标根之前被拒绝。")
 

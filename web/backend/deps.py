@@ -45,10 +45,13 @@ WS_NEAR_MISS = ("workspace", "ws_", "wks", "workspaces")
 def data_root():
     """可写的数据根目录（personal/ 的父目录）。
 
-    打包后若 exe 装在不可写位置（如 Program Files），会回退到系统用户目录，
-    故工作区可能不在 ROOT 内。见 pathres.resolve_workspace_root。
+    解析优先级（A3，spec 决策 1）：`JOBWS_DATA_DIR` > **持久化选择** > legacy
+    （便携判定 / 系统用户目录）——统一走 `dataroot.resolve_data_root`，不再
+    直接问 pathres（否则 Web 端读不到用户通过 CLI / 控制面做出的选择）。
+    legacy 分支行为不变：打包后若 exe 装在不可写位置（如 Program Files），
+    仍回退到系统用户目录，故工作区可能不在 ROOT 内。
     """
-    return pathres.resolve_workspace_root(ROOT)[0]
+    return dataroot.resolve_data_root(dataroot.form_for_process(), ROOT).path
 
 
 def allowed_roots():

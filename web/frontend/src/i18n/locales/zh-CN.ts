@@ -1091,6 +1091,9 @@ const zhCN = {
   // 下一步（doctor 查看 / 设置页「数据位置」重选），补救命令在三态下都必须可用。
   "err.sys.dataRootUnavailable": "数据根不可用：你选择的数据位置不存在或不可写——请先用 `jobws doctor` 查看详情，再到设置页「数据位置」重新选择后重试",
   "err.sys.dataRootAmbiguous": "检测到多个像真实工作区的数据根——破坏性操作已拒绝；请先用 `jobws doctor` 或到设置页「数据位置」确认要操作的目标根，再重试",
+  // 写入选择的校验失败（A3，控制面与 CLI 共用）：相对路径被拒 / 磁盘写不进去。
+  "err.sys.dataRootInvalidPath": "数据根必须是绝对路径（当前：{{path}}）——请给出完整路径，例如 D:\\job-data 或 /home/你/job-data",
+  "err.sys.dataRootWriteFailed": "数据根选择写入失败：{{error}}——请检查磁盘与权限后重试；原选择未被改变",
 
   "err.provider.baseUrlInvalid": "服务地址（Base URL）必须以 http:// 或 https:// 开头",
   "err.provider.needBaseUrl": "请先保存模型服务（Provider）的服务地址（Base URL）",

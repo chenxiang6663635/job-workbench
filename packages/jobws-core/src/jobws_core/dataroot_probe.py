@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""数据根**只读探测**（A2）：持久化选择的读取 + 候选根的「像不像工作区」扫描。
+"""数据根**只读探测**：持久化选择的读取 + 候选根的「像不像工作区」扫描。
 
-为什么单独一个模块（spec §四/§五，A2）：
-- 三态计算需要两类探测——读 `<user_data_dir>/state/data-root.json`（只读；
-  **A3 才负责写它**）与对已知候选根做「有没有工作区」的浅扫描；
+为什么单独一个模块（spec §四/§五）：
+- 三态计算需要两类探测——读 `<user_data_dir>/state/data-root.json` 与对已知
+  候选根做「有没有工作区」的浅扫描；本模块**只读**，写入（选择 / 根标记）在
+  `dataroot_state`（A3 起），两侧共享 `selection_file()` 与原始文档读取；
 - 探测纪律是性能铁律：只做 `stat` / **单层** `listdir`、绝不哈希、绝不递归；
   目录条目数超过 `SCAN_LIMIT` 直接视为「有工作区」并提前退出（超过这个量级
   大概率是真实数据目录，不值得再逐条 stat）；
@@ -39,6 +40,21 @@ def selection_file():
     return os.path.join(pathres.user_data_dir(), SELECTION_REL)
 
 
+def read_selection_document():
+    """选择文件的**原始文档**（宽读：只要 JSON dict 就返回；缺失 / 坏 → None）。
+
+    与 `read_persisted_selection`（校验后给诊断用的三键对象）分开：A3 的写侧
+    （保留既有 `root_id`）与 `describe()` 的 `root_id` 回落读原始字段，坏文件
+    在这里同样按「未设置」处理。
+    """
+    try:
+        with io.open(selection_file(), "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def read_persisted_selection(env=os.environ):
     """只读探测持久化选择——返回 `{path, readable, shadowed_by}` 或 None（未设置）。
 
@@ -49,19 +65,14 @@ def read_persisted_selection(env=os.environ):
     - `shadowed_by`：env（`JOBWS_DATA_DIR` 非空）遮蔽一个**可读**的选择时报
       "env"（决策 1：遮蔽必须可见；读不出来的选择谈不上被遮蔽）。
     """
-    path = selection_file()
-    if not os.path.isfile(path):
+    if not os.path.isfile(selection_file()):
         return None
+    data = read_selection_document()
+    root = data.get("data_root") if data else None
     sel = {"path": None, "readable": False, "shadowed_by": None}
-    try:
-        with io.open(path, "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-        root = data.get("data_root") if isinstance(data, dict) else None
-        if isinstance(root, str) and os.path.isabs(root.strip()):
-            sel["path"] = os.path.normpath(root.strip())
-            sel["readable"] = True
-    except (ValueError, OSError):
-        pass
+    if isinstance(root, str) and os.path.isabs(root.strip()):
+        sel["path"] = os.path.normpath(root.strip())
+        sel["readable"] = True
     if sel["readable"] and (env.get(pathres.ENV_DATA_DIR) or "").strip():
         sel["shadowed_by"] = "env"
     return sel

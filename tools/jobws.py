@@ -70,6 +70,7 @@ pathres.set_app_root(_REPO_ROOT)
 
 import approval  # noqa: E402
 import _cli_doctor  # noqa: E402  （数据根三态体检；呈现层，判定在 jobws_core.dataroot）
+import _cli_data_root  # noqa: E402  （数据根选择 show/set/clear；失效态补救通道）
 import check_domains  # noqa: E402
 import check_four_ends  # noqa: E402
 import check_i18n_hardcode  # noqa: E402
@@ -111,6 +112,7 @@ TARGETS = [
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
     ("prefs", prefs, "工作区偏好（get / set）与环境体检（doctor，含终端字体推荐）"),
     ("doctor", _cli_doctor, "数据根三态体检（--json 机器可读；unavailable 时非零退出）"),
+    ("data-root", _cli_data_root, "数据根选择（show / set / clear；失效态的补救通道，三态可用）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
     ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / i18n-keys 键健康 / ui-tokens 界面 token / domains 领域插件 / four-ends 四端一致性 / themes 主题门禁 / size 规模预算 / legacy-imports 旧名存量）"),
@@ -204,17 +206,16 @@ def _exit_code(exc):
 
 # 数据根失效（unavailable）时的 CLI 守卫：数据类命令（读 / 写 / 破坏性）一律
 # 非零退出（spec 决策 4 的 fail-closed，四端同报 sys.dataRootUnavailable）。
-# 豁免：doctor（诊断本体与补救的表面）、lint / release / skills（仓库治理与
-# 资产分发，能在 CI 等无工作区的环境运行，不该被本机数据根状态牵连）。
-_DATA_ROOT_EXEMPT = ("doctor", "lint", "release", "skills")
+# 豁免：doctor 与 data-root（诊断本体 + 补救通道，决策 4 要求三态可用）、
+# lint / release / skills（仓库治理与资产分发，能在 CI 等无工作区的环境运行）。
+_DATA_ROOT_EXEMPT = ("doctor", "data-root", "lint", "release", "skills")
 
 
 def _data_root_guard(group):
     """unavailable 时返回错误文案；否则 None。
 
-    persisted 选择目前还没有写入者（A3 才提供写入与选择命令），所以这条闸在
-    日常使用中不会触发；一旦触发即意味着机器上有一份坏的选择——绝不静默
-    回落到别的根（`jobws doctor` 是唯一该在失效态照常可用的数据面命令）。
+    触发即意味着机器上有一份坏的选择——绝不静默回落到别的根；补救走
+    `jobws data-root set/clear`（本守卫对它豁免）。
     """
     if group in _DATA_ROOT_EXEMPT:
         return None

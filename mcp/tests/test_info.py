@@ -10,6 +10,7 @@
 """
 
 import io
+import json
 import os
 import sys
 
@@ -72,6 +73,33 @@ def test_register_uses_dotted_tool_name(ws):
     info.register(fake, ws)
 
     assert fake.names == ["jobws.info"]
+
+
+def test_data_root_follows_persisted_selection(tmp_path, monkeypatch):
+    """A3：`FORM_MCP_ONLY` 也读 Job Workbench 的持久化选择——不再只靠宿主 env。
+
+    隔离用户目录、**不设** `JOBWS_DATA_DIR`，种一份 `state/data-root.json`：
+    `paths.data_root()` 与 `jobws.info` 的 `source` 都要报 `persisted`。
+    """
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "appdata"))
+    monkeypatch.delenv("JOBWS_DATA_DIR", raising=False)
+
+    root = tmp_path / "picked-root"
+    root.mkdir()
+    sel = os.path.join(str(tmp_path / "appdata"), "job-workbench",
+                       "state", "data-root.json")
+    os.makedirs(os.path.dirname(sel), exist_ok=True)
+    with io.open(sel, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"format": 1, "data_root": str(root),
+                             "root_id": "sel-id"}))
+
+    from jobws_mcp import paths
+    assert paths.data_root() == os.path.normpath(str(root))
+
+    diag = info.payload(os.path.join(str(root), "personal"))["dataRoot"]
+    assert diag["source"] == "persisted"
+    assert diag["path"] == os.path.normpath(str(root))
 
 
 def test_ambiguous_hint_is_empty_when_clean(ws):

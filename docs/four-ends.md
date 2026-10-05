@@ -7,7 +7,7 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **48** 条、各端不提供的例外 **71** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
+**基数（随本文件自动生成）**：登记能力 **51** 条、各端不提供的例外 **71** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
 
 ## 能力矩阵
 
@@ -61,6 +61,9 @@
 | 题库 | `question.wrong` | `bank wrong` | — | — | `GET /api/progress/questions/preview-wrong` |
 | 到点提醒 | `reminder.due` | — | — | — | `GET /api/reminders/due` |
 | 数据根 | `dataRoot.diagnostic` | `doctor` | `jobws.info` | — | `GET /api/system/paths` |
+| 数据根 | `dataRoot.read` | `data-root show` | — | — | `GET /api/system/data-root` |
+| 数据根 | `dataRoot.select` | `data-root set` | — | — | `POST /api/system/data-root` |
+| 数据根 | `dataRoot.clear` | `data-root clear` | — | — | `DELETE /api/system/data-root` |
 
 ## 各端不提供的能力（含原因）
 

@@ -32,7 +32,7 @@ from fastapi import APIRouter, Depends, Response
 
 from jobws_core import pathres
 from apierror import ApiError
-from deps import workspace_dir
+from deps import workspace_dir_any_state
 
 router = APIRouter(prefix="/api/system/diagnostics")
 
@@ -195,8 +195,8 @@ def _readme(manifest, home):
 
 
 @router.get("")
-def export_diagnostics(ws: str = Depends(workspace_dir)):
-    """导出诊断包（zip 附件）。"""
+def export_diagnostics(ws: str = Depends(workspace_dir_any_state)):
+    """导出诊断包（zip 附件）——A2：数据根失效时同样可用（诊断面不设闸）。"""
     home = home_dir()
     log_text, log_info = _log_info()
     manifest = _manifest(ws, log_info, home)

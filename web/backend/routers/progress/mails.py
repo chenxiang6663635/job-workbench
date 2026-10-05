@@ -203,4 +203,5 @@ def preview_mail_delete(id: str = "", ws: str = Depends(workspace_dir)):
     from jobws_core.tracker import deletes
     errors, plan = deletes.preview_delete_mail(id, ws)
     return delete_preview_response("mail.delete", errors, plan,
-                                   "progress.mailDeleteFailed", "邮件删除预览失败", ws)
+                                   "progress.mailDeleteFailed", "邮件删除预览失败", ws,
+                                   destructive=True)

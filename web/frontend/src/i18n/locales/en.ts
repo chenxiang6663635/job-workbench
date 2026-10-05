@@ -1025,6 +1025,10 @@ export default {
   "err.sys.snapshotFailed": "The rollback copy could not be written — aborted, nothing in the workspace was touched",
   "err.sys.diagnosticsTooLarge": "The diagnostics package exceeds the size limit ({{limit}} bytes) — trim the main process log and retry",
   "err.sys.snapshotRestoreFailed": "The restore failed halfway ({{written}} files written) — the workspace is now partially restored; the rollback point {{rollback}} in the system snapshot folder holds the pre-restore content",
+  // Data root states (A2): the selected data location is gone / several candidates look
+  // like real workspaces — both copy blocks point at the next step (doctor / Data location).
+  "err.sys.dataRootUnavailable": "The data root is unavailable: the location you selected does not exist or is not writable — run `jobws doctor` for details, then pick a new data location in Settings and retry",
+  "err.sys.dataRootAmbiguous": "Multiple data roots look like real workspaces — the destructive operation was refused; confirm the target root first with `jobws doctor` or in Settings → Data location, then retry",
 
   "err.provider.baseUrlInvalid": "The base URL must start with http:// or https://",
   "err.provider.needBaseUrl": "Save the provider base URL first",

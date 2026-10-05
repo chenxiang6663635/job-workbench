@@ -21,18 +21,7 @@ import sys
 from mcp.server import MCPServer
 
 from . import paths, prompts, resources, tools_readonly, tools_writable
-
-
-def _server_version():
-    """包版本（服务元数据用）；未安装（源码直跑）时回落 "0"，不抛。"""
-    from importlib.metadata import PackageNotFoundError, version
-
-    for name in ("jobws-mcp", "jobws_mcp"):
-        try:
-            return version(name)
-        except PackageNotFoundError:
-            continue
-    return "0"
+from . import info  # 工具注册与版本查询（2026-10-05 A2）；import 顺序在 paths 之后
 
 
 def build_server(workspace=None):
@@ -48,8 +37,9 @@ def build_server(workspace=None):
             "读取：用 list_* 工具或 jobws:// 资源（按需读，不要全量预载）；"
             "写入：**必须两段式**——先调 preview_* 拿到令牌，把 summary 与 diff "
             "展示给用户，用户确认后再用同一令牌调 apply_approval。"
+            + info.ambiguous_hint(workspace)   # 仅歧义时附一行（不带本机路径）
         ),
-        version=_server_version(),
+        version=info.server_version(),
     )
 
     @mcp.tool()
@@ -334,6 +324,11 @@ def build_server(workspace=None):
     def today_todos(days: int = 7) -> str:
         """整理今天的求职待办（只读）。days 是待办窗口天数（默认 7）。"""
         return prompts.today_todos(workspace, days)
+
+    # --- A2：数据根诊断（只读）--------------------------------------------------
+    # 注册名是 `jobws.info`（带点，宿主可见）；实现与序列化在 info.py。
+    # 工具一律**追加在注册末尾**（批 4.7 的顺序纪律）：宿主的工具描述缓存不失效。
+    info.register(mcp, workspace)
 
     return mcp
 

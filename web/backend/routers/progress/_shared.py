@@ -10,6 +10,7 @@ from __future__ import annotations
 import lockctx
 
 from apierror import ApiError
+from deps import require_unambiguous_data_root
 
 
 def _lock_path(ws: str) -> str:
@@ -17,14 +18,21 @@ def _lock_path(ws: str) -> str:
     return lockctx.lock_path(ws, "tracking")
 
 
-def delete_preview_response(operation, errors, plan, error_code, error_message, ws):
+def delete_preview_response(operation, errors, plan, error_code, error_message, ws,
+                            destructive=False):
     """删除类预览端点的统一出口：错误 → 400 结构化；成功 → 令牌 + 差异表。
 
     2026-09-21 批 D：八个删除预览端点（五张从表 + 投递主表 + 岗位目录的删除
     与改名）共用——响应形状与错误投影只在这一处定义，各端点只负责调各自的
     领域预览函数与给错误文案（与领域层"同一份实现"的纪律同源：没有第二份
     就会有失配的机会）。
+
+    A2：`destructive=True`（删除类）的入口先过 `sys.dataRootAmbiguous` 闸——
+    歧义未解决时不签发删除令牌；改名（可逆）不设闸；普通写入也不设闸
+    （spec 决策 3：兼容承诺优先，只拦真破坏性动作）。
     """
+    if destructive:
+        require_unambiguous_data_root()
     if plan is None:
         raise ApiError(400, error_code, error_message, reason="；".join(errors))
     from jobws_core import approval  # 函数内 import：approval 只在写路径用到

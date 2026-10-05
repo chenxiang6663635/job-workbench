@@ -19,7 +19,7 @@ from pydantic import BaseModel
 import snapshot_entries
 import snapshot_io
 from apierror import ApiError
-from deps import workspace_dir
+from deps import require_unambiguous_data_root, workspace_dir
 
 router = APIRouter(prefix="/api/system/snapshots")
 
@@ -71,7 +71,12 @@ def preview_snapshot(body: SnapshotBody, ws: str = Depends(workspace_dir)):
 
 @router.post("/restore")
 def restore_snapshot(body: SnapshotBody, ws: str = Depends(workspace_dir)):
-    """还原快照：锁内先落回滚点，再覆盖同名 + 补齐缺失（从不删除）。"""
+    """还原快照：锁内先落回滚点，再覆盖同名 + 补齐缺失（从不删除）。
+
+    A2：覆盖恢复是破坏性动作——数据根有歧义（多候选且都含真实工作区）时拒绝，
+    先让用户确认要操作哪个根（`jobws doctor` / `/api/system/paths` 有候选清单）。
+    """
+    require_unambiguous_data_root()
     name, path = _resolve(ws, body.name)
     ws_name = _ws_name(ws)
     snapshot_entries.validate(path, ws_name)  # 坏包在锁外就被拒：它一个字都没动

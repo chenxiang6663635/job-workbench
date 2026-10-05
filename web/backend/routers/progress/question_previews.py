@@ -17,7 +17,7 @@ from jobws_core import question_bank as question_store
 from jobws_core import question_review
 from jobws_core import question_delete
 from apierror import ApiError
-from deps import workspace_dir
+from deps import require_unambiguous_data_root, workspace_dir
 
 router = APIRouter()
 
@@ -156,7 +156,10 @@ def preview_question_delete(ws: str = Depends(workspace_dir), id: str = ""):
 
     落盘同样走既有的 `/api/approvals/apply`：写通道只有一条，删也得先看过差异。
     领域层在落盘前会把整表快照写到**工作区之外**（删错可整份复制回来）。
+
+    A2：删除类入口——数据根有歧义（多候选且都含真实工作区）时拒绝签发令牌。
     """
+    require_unambiguous_data_root()
     errors, plan = question_delete.preview_delete_fields((id or "").strip(), None, ws)
     if plan is None:
         # 与 update 同口径：只回 reason（id 可能本来就没给，塞进文案会渲染出空括号）

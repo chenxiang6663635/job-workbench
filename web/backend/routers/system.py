@@ -27,7 +27,7 @@ import atomicio
 from jobws_core import dataroot, pathres
 from jobws_core import tracker
 from apierror import ApiError
-from deps import workspace_dir
+from deps import workspace_dir, workspace_dir_any_state
 
 router = APIRouter(prefix="/api/system")
 
@@ -166,8 +166,8 @@ def system_check(ws: str = Depends(workspace_dir)):
 
 
 @router.get("/paths")
-def system_paths(ws: str = Depends(workspace_dir)):
-    """数据在哪——让用户看得见。"""
+def system_paths(ws: str = Depends(workspace_dir_any_state)):
+    """数据在哪——让用户看得见（A2：数据根失效时照常可用——要找失败原因的是人）。"""
     snap_dir = _snapshot_dir(ws)
     last = None
     if os.path.isdir(snap_dir):
@@ -183,12 +183,12 @@ def system_paths(ws: str = Depends(workspace_dir)):
     from deps import ROOT, data_root  # 函数内 import：本模块别处不依赖 deps
 
     data_root_path = os.path.normpath(data_root())
-    form = dataroot.FORM_PACKAGED if pathres.is_frozen() else dataroot.FORM_SOURCE
+    form = dataroot.form_for_process()
     return {
         "workspace": ws,
         "dataRoot": data_root_path,
         "mode": "portable" if data_root_path == os.path.normpath(ROOT) else "user",
-        "dataRootDiagnostic": dataroot.describe(form, ROOT),
+        "dataRootDiagnostic": dataroot.describe(form, ROOT, workspace_name=os.path.basename(ws)),  # ws 名进 uninitialized 判定
         "snapshotDir": snap_dir,
         "snapshotCount": len([f for f in os.listdir(snap_dir) if f.endswith(".zip")]) if os.path.isdir(snap_dir) else 0,
         "lastBackup": last,

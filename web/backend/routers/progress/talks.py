@@ -194,4 +194,4 @@ def preview_talk_delete(id: str = "", ws: str = Depends(workspace_dir)):
     errors, plan = deletes.preview_delete_talk(id, ws)
     return delete_preview_response("talk.delete", errors, plan,
                                    "progress.talkDeleteFailed",
-                                   "宣讲会删除预览失败", ws)
+                                   "宣讲会删除预览失败", ws, destructive=True)

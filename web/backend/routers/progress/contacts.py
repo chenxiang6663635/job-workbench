@@ -129,4 +129,4 @@ def preview_contact_delete(id: str = "", ws: str = Depends(workspace_dir)):
     errors, plan = deletes.preview_delete_contact(id, ws)
     return delete_preview_response("contact.delete", errors, plan,
                                    "progress.contactDeleteFailed",
-                                   "联系人删除预览失败", ws)
+                                   "联系人删除预览失败", ws, destructive=True)

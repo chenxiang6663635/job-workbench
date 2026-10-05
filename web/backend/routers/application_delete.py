@@ -28,4 +28,5 @@ def preview_application_delete(id: str = "", ws: str = Depends(workspace_dir)):
     from jobws_core.tracker import application_delete
     errors, plan = application_delete.preview_delete_application(id, ws)
     return delete_preview_response("application.delete", errors, plan,
-                                   "app.deleteFailed", "投递删除预览失败", ws)
+                                   "app.deleteFailed", "投递删除预览失败", ws,
+                                   destructive=True)

@@ -216,4 +216,4 @@ def preview_interview_delete(id: str = "", ws: str = Depends(workspace_dir)):
     errors, plan = deletes.preview_delete_interview(id, ws)
     return delete_preview_response("interview.delete", errors, plan,
                                    "progress.interviewDeleteFailed",
-                                   "面试记录删除预览失败", ws)
+                                   "面试记录删除预览失败", ws, destructive=True)

@@ -434,7 +434,7 @@ def preview_delete_job(name: str = "", ws: str = Depends(workspace_dir)):
     """
     errors, plan = job_dirs.preview_delete_job(name, ws)
     return delete_preview_response("job.delete", errors, plan,
-                                   "job.deleteFailed", "岗位删除预览失败", ws)
+                                   "job.deleteFailed", "岗位删除预览失败", ws, destructive=True)
 
 
 @router.get("/preview-rename")

@@ -1087,6 +1087,10 @@ const zhCN = {
   "err.sys.snapshotFailed": "还原前的留痕写不出来——已中止，工作区未做任何改动",
   "err.sys.diagnosticsTooLarge": "诊断包超过体积上限（{{limit}} 字节）——请先清理主进程日志后重试",
   "err.sys.snapshotRestoreFailed": "还原中途失败（已写 {{written}} 个文件）——工作区现在是半还原状态；回滚点 {{rollback}} 留在系统快照目录里，拷回来即可回到还原前",
+  // 数据根三态（A2）：选择的数据位置失效 / 多个候选都像真实工作区——两条都给出
+  // 下一步（doctor 查看 / 设置页「数据位置」重选），补救命令在三态下都必须可用。
+  "err.sys.dataRootUnavailable": "数据根不可用：你选择的数据位置不存在或不可写——请先用 `jobws doctor` 查看详情，再到设置页「数据位置」重新选择后重试",
+  "err.sys.dataRootAmbiguous": "检测到多个像真实工作区的数据根——破坏性操作已拒绝；请先用 `jobws doctor` 或到设置页「数据位置」确认要操作的目标根，再重试",
 
   "err.provider.baseUrlInvalid": "服务地址（Base URL）必须以 http:// 或 https:// 开头",
   "err.provider.needBaseUrl": "请先保存模型服务（Provider）的服务地址（Base URL）",

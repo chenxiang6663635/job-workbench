@@ -75,7 +75,9 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
                              # 批 4.7 主线补口，同样**追加在末尾**（顺序不许动）
                              "list_interviews", "score_jd", "list_questions",
                              "preview_add_interview", "preview_update_interview",
-                             "preview_add_question", "preview_import_questions"]
+                             "preview_add_question", "preview_import_questions",
+                             # A2（2026-10-05）：数据根诊断（只读），同样追加在末尾
+                             "jobws.info"]
 
             result = await session.call_tool("dashboard_summary", {})
             text = result.content[0].text

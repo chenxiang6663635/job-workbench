@@ -151,4 +151,4 @@ def preview_offer_delete(id: str = "", ws: str = Depends(workspace_dir)):
     errors, plan = deletes.preview_delete_offer(id, ws)
     return delete_preview_response("offer.delete", errors, plan,
                                    "progress.offerDeleteFailed",
-                                   "Offer 删除预览失败", ws)
+                                   "Offer 删除预览失败", ws, destructive=True)

@@ -23,6 +23,7 @@ Markdown / CSV，**服务自身不出网**（宿主拿到返回内容后可能�
 | `preview_update_interview` | 预览更新一条面试记录（**不写入**；只列要改的字段） |
 | `preview_add_question` | 预览新增一道题库题目（**不写入**） |
 | `preview_import_questions` | 预览从 `03_面试准备` 导入题目（**不写入**） |
+| `jobws.info` | 安装与数据根诊断（只读；服务 / 领域包版本、当前工作区、数据根三态 `state` / `source` / `form` / `writable` 与候选清单。2026-10-05 A2） |
 
 工具一律**追加在注册末尾**（顺序稳定 → 宿主的工具描述缓存不失效）；需要完整字段
 的列表用 `verbose=True`，列表类默认只给精简列。
@@ -145,6 +146,13 @@ args = ["--workspace", "personal"]
 - 解析结果**必须**落在**可写数据根**之内（2026-09-19 PR-B 起只剩这一个根：独立安装下没有「应用根」这个概念）：宿主可能由模型代传参数，少了这道
   检查等于给出任意目录的读取能力，所以越界一律拒绝而不是警告。比对前会 `realpath`
   （符号链接会读穿），也不允许把根本身当工作区。
+- **数据根状态可见（A2）**：`jobws.info` 返回的 `dataRoot.state` 是三态
+  （`ok` / `ambiguous` / `uninitialized` / `unavailable`，判据见
+  `docs/specs/2026-10-04-single-canonical-data-root.md` §四）；歧义时服务的
+  `instructions` 会附一行**不带本机路径**的提示。请勿假定「MCP 没报歧义 = 全机
+  没有多个数据根」——MCP 只看得到 `JOBWS_DATA_DIR` 与系统用户目录两个候选，
+  **看不到源码形态的应用根**（结构性盲区）。命令行侧对应物是 `jobws doctor`，
+  读的是同一份诊断对象。
 
 ## 测试
 

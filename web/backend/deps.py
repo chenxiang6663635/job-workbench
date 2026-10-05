@@ -14,7 +14,7 @@ import sys
 from fastapi import Query, Request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from jobws_core import containment, pathres  # noqa: E402
+from jobws_core import containment, dataroot, pathres  # noqa: E402
 from apierror import ApiError  # noqa: E402
 
 # 应用根（只读资源）。打包后 exe 同级，解包为仓库根。
@@ -186,19 +186,61 @@ def _resolve_relative_workspace(ws: str) -> str:
     return full
 
 
+def _require_usable_data_root():
+    """unavailable 的 fail-closed 闸（spec §四）：失效时读 / 写 / 破坏性全拒。
+
+    每请求只读一个文件 + 一次 stat（O(1)）——不做候选扫描（那是诊断面的事）。
+    503 语义：服务当前无法访问其数据位置（本机可修复的配置 / 环境态），
+    与 502（上游网关）区分。
+    """
+    if dataroot.persisted_unavailable():
+        raise ApiError(503, "sys.dataRootUnavailable",
+                       "数据根不可用：持久化选择指向的位置不存在或不可写——"
+                       "请修复该路径或清除持久化选择后重试（`jobws doctor` 查看详情）。")
+
+
+def require_unambiguous_data_root():
+    """破坏性入口的歧义闸（spec §四）：多候选且都含真实工作区时拒绝。
+
+    只给**能确证是破坏性**的入口调用（快照还原、删除预览）——普通读写不设闸
+    （否则老用户升级后正常写操作会突然失败，违反兼容承诺）。候选扫描有界
+    （每个候选一层、条目数封顶），且这些入口本就低频。
+    """
+    state = dataroot.detect_state(
+        dataroot.form_for_process(), ROOT, workspace_name=DEFAULT_WORKSPACE_NAME)
+    if state == dataroot.STATE_AMBIGUOUS:
+        raise ApiError(503, "sys.dataRootAmbiguous",
+                       "本机存在多个像真实工作区的数据根——请先确认要操作的目标根，"
+                       "再重试（`jobws doctor` 或 GET /api/system/paths 查看候选清单）。")
+
+
 def workspace_dir(request: Request, ws: str = Query(default=None, description="工作区相对路径")) -> str:
-    """解析工作区绝对路径。缺省用可配置的默认工作区（personal/）。
+    """解析工作区绝对路径（缺省 personal/）；**入口先过数据根守卫**（A2）。
 
-    接受相对路径（供多工作区切换），拒绝绝对路径——后端只服务
-    应用根或数据根之下的目录，不允许任意位置读写。
+    `unavailable` 时 fail-closed（读 / 写 / 破坏性全部拒绝，spec §四）；
+    诊断端点请用 `workspace_dir_any_state`。其余语义与解析细节见
+    `_resolve_workspace`（含 X-Jobws-Workspace 回显与两道校验）。
+    """
+    _require_usable_data_root()
+    return _resolve_workspace(request, ws)
 
-    解析结果会写入 `request.state.workspace`，由 main.py 的中间件以
-    X-Jobws-Workspace 回显（issue #22）：让「实际服务的是哪个工作区」从
-    不可见变为调用方一读就能察觉——静默返回别的工作区数据比报错危险得多。
 
-    细节分别在 `_reject_bad_param_name`（参数名）与
-    `_resolve_relative_workspace`（相对名解析）——规模闸门要求
-    编排与细节分离（初版单函数越 80 行被拦，按提示拆分）。
+def workspace_dir_any_state(request: Request, ws: str = Query(default=None, description="工作区相对路径")) -> str:
+    """同 `workspace_dir`，但**不查数据根失效**——只给诊断类端点用。
+
+    数据根不可用时，用户恰恰最需要诊断对象本身（`/api/system/paths` 与诊断包）。
+    """
+    return _resolve_workspace(request, ws)
+
+
+def _resolve_workspace(request: Request, ws: str) -> str:
+    """工作区解析本体（两个入口共用；行为与拆分前逐字一致）。
+
+    接受相对路径（供多工作区切换），拒绝绝对路径——后端只服务应用根或数据根
+    之下的目录。解析结果写入 `request.state.workspace`，由 main.py 的中间件以
+    X-Jobws-Workspace 回显（issue #22）：让「实际服务的是哪个工作区」从不可见
+    变为调用方一读就能察觉——静默返回别的工作区数据比报错危险得多。细节分别在
+    `_reject_bad_param_name`（参数名）与 `_resolve_relative_workspace`（相对名）。
     """
     _reject_bad_param_name(request)
 

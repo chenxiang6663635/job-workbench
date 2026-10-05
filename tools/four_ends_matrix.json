@@ -436,6 +436,15 @@
       "plugin": null,
       "gui": "GET /api/reminders/due",
       "note": "只读：已过期 / 近 N 天待办 / 近 7 天宣讲会（判据在 `web/backend/remind.py`——看板与两个消费方共用，防止两套口径；PR #221 自 routers/dashboard.py 搬出）。桌面端有两个消费方：系统通知（主进程定时拉取）与内容区顶部的**常驻提醒条**。CLI / MCP / 插件三端显式不提供：提醒是「打开应用时看到」的形态，命令行与 AI 宿主没有常驻位置（与 prep.toggle 同款理由）。"
+    },
+    {
+      "id": "dataRoot.diagnostic",
+      "stage": "数据根",
+      "cli": "doctor",
+      "mcp": "jobws.info",
+      "plugin": null,
+      "gui": "GET /api/system/paths",
+      "note": "只读：解析到哪个数据根、来源（env / persisted / legacy 默认）、形态（源码 / 便携 / 打包 / MCP-only）、三态（ok / ambiguous / uninitialized / unavailable）、可写性与候选清单。四端共用同一份诊断对象（`jobws_core.dataroot.describe()`），只做序列化与呈现（2026-10-05 A2）。已知盲区：MCP 只看得到 env 与系统用户目录两个候选，看不到源码形态的应用根——「MCP 未报歧义」不等于全机无歧义。"
     }
   ],
   "error_map": [
@@ -853,6 +862,11 @@
       "end": "gui",
       "item": "jd.score",
       "reason": "界面只展示差距（gap），评分由解析卡承载；命令行 jd 是完整的评分校验入口。"
+    },
+    {
+      "end": "plugin",
+      "item": "dataRoot.diagnostic",
+      "reason": "数据根状态是「本机环境」的排障信息，编辑器插件命令层不承接宿主环境诊断（CLI 有 doctor、MCP 有 jobws.info、界面有 /api/system/paths）。"
     }
   ],
   "host_fields": [

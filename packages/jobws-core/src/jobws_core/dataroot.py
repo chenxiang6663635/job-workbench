@@ -31,6 +31,7 @@ import os
 from typing import NamedTuple
 
 from . import pathres  # 唯一实现：可写数据根的优先级链（env → 便携 → 用户目录）
+from .dataroot_probe import read_persisted_selection, survey  # 只读探测（A2）
 
 FORM_SOURCE = "source_form"   # 源码 checkout：非 frozen → 可写即便携（仓库根）
 FORM_PORTABLE = "portable"    # 显式便携标记（frozen + portable.txt）
@@ -39,6 +40,15 @@ FORM_MCP_ONLY = "mcp_only"    # 无应用根的独立安装（MCP / 任意 venv�
 
 # 带应用根、整体委托 pathres 的形态；MCP-only 是唯一例外。
 _APP_ROOT_FORMS = (FORM_SOURCE, FORM_PORTABLE, FORM_PACKAGED)
+
+# 三态词表（spec §四）——与 FORM_* 同属跨端契约，值不许漂。
+STATE_OK = "ok"
+STATE_AMBIGUOUS = "ambiguous"
+STATE_UNINITIALIZED = "uninitialized"
+STATE_UNAVAILABLE = "unavailable"
+
+# 判断 `<root>/<ws>` 时缺省用的工作区目录名（与 deps.py / mcp paths.py 同值）。
+DEFAULT_WORKSPACE_NAME = "personal"
 
 # pathres 的「解析原因」→ 诊断对象的 `source` 词表（spec §五）。
 # 便携与用户目录两种来源都加 `legacy_` 前缀：它们在 A3 引入持久化选择后
@@ -124,35 +134,121 @@ def _writable(path):
         return False
 
 
-def describe(form, app_root=None, env=os.environ):
+def form_for_process():
+    """Web / CLI / doctor 的进程形态判定：打包 → packaged；否则 → source_form。
+
+    （`portable` 是 pathres 解析出的「是否便携」，不是调用形态；MCP 的
+    `mcp_only` 由调用方显式指定——见 `describe` 的 `form` 词表。）
+    """
+    return FORM_PACKAGED if pathres.is_frozen() else FORM_SOURCE
+
+
+def _effective_env(form, env):
+    """探测侧的 env 口径——与 A1 的解析边界逐字对齐。
+
+    `FORM_MCP_ONLY` 从传入映射读（纯函数测试可直接传字典）；其余形态由 pathres
+    读进程环境，探测侧同样读 `os.environ`——避免「解析按 A、候选按 B」。
+    """
+    return env if form == FORM_MCP_ONLY else os.environ
+
+
+def persisted_unavailable():
+    """persisted 选择是否存在且指向不可用的根——API / CLI 的高频 fail-closed 闸门。
+
+    与 `detect_state` 分开是为了**代价**：这是每个请求 / 每条命令都要问的问题，
+    只读一个文件 + 一次 stat（O(1)），不做候选扫描（那是诊断面的事）。判定
+    口径与 `_compute_state` 的 unavailable 分支一致（同一份 `_writable`），含
+    决策 4 的边界：env 生效（shadowed_by="env"，决策 1 优先级更高）时失效的
+    选择降级为告警、不放闸——被显式覆盖的陈旧文件不该把产品整个锁死。
+    """
+    sel = read_persisted_selection()
+    if not (sel and sel["readable"] and sel["path"]):
+        return False
+    if sel["shadowed_by"] == "env":
+        return False
+    root = sel["path"]
+    return not os.path.isdir(root) or not _writable(root)
+
+
+def _compute_state(resolved_path, sel, cands, workspace_name):
+    """三态判定（spec §四）——顺序即优先级，两条次序都有理由：
+
+    1. `unavailable` 最先，但**仅当生效来源确实是持久化选择**（决策 4 的边界）：
+       persisted 的失效选择 fail-closed、不静默回落到别的根；若 env 显式覆盖
+       （决策 1 优先级更高，shadowed_by="env"），失效选择降级为告警、state 按
+       env 根正常判定——被显式覆盖的陈旧文件不该把产品锁死；
+    2. `ambiguous` 先于 `uninitialized`：机器上「有数据但不知读哪份」比「没
+       数据」严重——不能被引导去初始化一份新工作区；
+    3. 其余情形：解析根可写且 `<root>/<ws>` 尚未建 → `uninitialized`（正常
+       首启，走初始化流程而不是报错）；否则 `ok`。
+    """
+    usable = bool(sel and sel["readable"] and sel["path"])
+    if usable:
+        root = sel["path"]
+        broken = not os.path.isdir(root) or not _writable(root)
+        if broken and sel["shadowed_by"] != "env":
+            return STATE_UNAVAILABLE
+    elif sum(1 for c in cands if c["has_workspace"]) >= 2:
+        return STATE_AMBIGUOUS
+    ws_dir = os.path.join(resolved_path, workspace_name or DEFAULT_WORKSPACE_NAME)
+    if (_writable(resolved_path) and not os.path.exists(ws_dir)
+            and not os.path.exists(os.path.join(ws_dir, "config", "profile.md"))):
+        return STATE_UNINITIALIZED
+    return STATE_OK
+
+
+def detect_state(form, app_root=None, env=os.environ, workspace_name=None):
+    """三态计算（spec §四）：`ok | ambiguous | uninitialized | unavailable`。
+
+    判据与优先级见 `_compute_state`；`workspace_name` 是「当前工作区」的目录名
+    （缺省 `personal`），只影响 uninitialized 的 `<root>/<ws>` 检查。env 的读取
+    口径与 A1 的解析链一致（见 `_effective_env`）。
+    """
+    res = resolve_data_root(form, app_root, env)
+    eff = _effective_env(form, env)
+    sel = read_persisted_selection(eff)
+    cands = survey(app_root, eff, include_app_root=(form == FORM_SOURCE))
+    return _compute_state(res.path, sel, cands, workspace_name)
+
+
+def describe(form, app_root=None, env=os.environ, workspace_name=None):
     """诊断对象——字段名逐字取 spec §五 的 `ResolvedDataRootDiagnostic`。
 
     **词表**（spec §五）：
     - `source`：解析来源 `env | persisted | legacy_portable | legacy_userdata`
-      ——A1 只可能产出 `env` / `legacy_portable` / `legacy_userdata`；`persisted`
-      随 A3 的持久化选择接入。
+      ——A1/A2 只可能产出 env / `legacy_*`；`persisted` 随 A3 接入解析链。
     - `form`：本次解析的**调用形态** `source_form | portable | packaged | mcp_only`
       ——**刻意不叫 `mode`**：API 响应里已有 `mode` 字段表示 `portable | user` 的
       解析结果（`/api/system/paths`），同一个响应里出现两个 "mode" 会制造同名两义。
+    - `state`：三态（spec §四），判据见 `_compute_state`。**`unavailable` 时解析
+      链仍按现状报 `path`/`source`**——A2 不把 persisted 接入解析（那是 A3），
+      诊断对象用 `persisted_selection` 如实呈现那份（失效的）选择。
     - `writable`：数据根自身（不存在则其父目录）能否写入；与 pathres 的便携判据
       （判定 `<root>/personal`）不是同一件事，不要混用（见 `_writable`）。
+    - `persisted_selection`：只读探测到的 `{path, readable, shadowed_by}` 或 null。
+    - `legacy_candidates`：候选根清单。**至少一个候选含工作区时列出全部候选**
+      （含 has_workspace=false 的——「还查过哪些地方」是歧义判断的完整证据面）；
+      一处都没有时空列表（干净环境不泄露无关路径）。
 
     呈现分工（spec §五）：CLI / API / MCP / 设置页**只做序列化与呈现**，都从这里
-    取同一份对象，不各自再算一份。A1 只填当下能填的：`path` / `source` / `form` /
-    `state`（固定 "ok"）/ `writable`——A1 没有三态与失效检测（那是 A2，先不装
-    守卫，也不猜状态）；其余字段依赖 A2（三态与候选检测）、A3（持久化选择）与
-    B 批（迁移状态机），统一占位（None / [] / "idle"），**不猜值**。
+    取同一份对象，不各自再算一份。`workspace_name` 是「当前工作区」目录名（缺省
+    `personal`），只影响 uninitialized 判定。其余字段（`root_id` /
+    `schema_version` / `migration_state`）依赖 B 批，统一占位（None / "idle"），
+    **不猜值**。
     """
     res = resolve_data_root(form, app_root, env)
+    eff = _effective_env(form, env)
+    sel = read_persisted_selection(eff)
+    cands = survey(app_root, eff, include_app_root=(form == FORM_SOURCE))
     return {
         "path": res.path,
         "source": res.source,
         "form": res.form,
-        "state": "ok",
+        "state": _compute_state(res.path, sel, cands, workspace_name),
         "writable": _writable(res.path),
         "root_id": None,
         "schema_version": None,
-        "persisted_selection": None,
-        "legacy_candidates": [],
+        "persisted_selection": sel,
+        "legacy_candidates": cands if any(c["has_workspace"] for c in cands) else [],
         "migration_state": "idle",
     }

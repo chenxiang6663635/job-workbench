@@ -28,7 +28,7 @@ import sys
 # 硬闸已删（2026-09-19 PR-B）：下面一行是**唯一**的领域层依赖，且它只依赖 os/sys。
 # 缺了它就是装错了（`mcp/pyproject.toml` 已声明 jobws-core），导入期直接报错最清楚。
 # 2026-09-25 收口批：归属判定收口到同包的 `containment`（路径包含原语，Web 同源）。
-from jobws_core import containment, pathres  # noqa: E402
+from jobws_core import containment, dataroot, pathres  # noqa: E402
 
 # 给 pathres 一个「应用根」＝**数据根**，且**必须在此刻**——领域层（`tracker/_core`、
 # `jd_score`）在**导入期**就求值 `ROOT`，晚一步下面的 import 直接 RuntimeError。
@@ -64,11 +64,12 @@ def data_root():
     传 site-packages 进去，就等于把用户数据写到 Python 安装目录旁边
     （pathres 自己的注释正在警告这件事）。所以这里只认两条：
     `JOBWS_DATA_DIR` → 系统用户目录（与 pathres 的第三级同源）。
+
+    2026-10-04 A1：规则**逐字**搬进 `jobws_core.dataroot`（`FORM_MCP_ONLY`），
+    本函数只做转发——返回值与搬前逐字相同（对账见 `tests/test_dataroot.py`）；
+    `allowed_roots()` / `resolve_workspace()` 与导入期的应用根注入都不受影响。
     """
-    env_dir = os.environ.get(ENV_DATA_DIR, "").strip()
-    if env_dir:
-        return os.path.abspath(env_dir)
-    return pathres.user_data_dir()
+    return dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY).path
 
 
 def allowed_roots():

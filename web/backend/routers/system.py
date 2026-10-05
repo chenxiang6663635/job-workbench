@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
 import atomicio
-from jobws_core import pathres
+from jobws_core import dataroot, pathres
 from jobws_core import tracker
 from apierror import ApiError
 from deps import workspace_dir
@@ -183,14 +183,14 @@ def system_paths(ws: str = Depends(workspace_dir)):
     from deps import ROOT, data_root  # 函数内 import：本模块别处不依赖 deps
 
     data_root_path = os.path.normpath(data_root())
+    form = dataroot.FORM_PACKAGED if pathres.is_frozen() else dataroot.FORM_SOURCE
     return {
         "workspace": ws,
         "dataRoot": data_root_path,
         "mode": "portable" if data_root_path == os.path.normpath(ROOT) else "user",
+        "dataRootDiagnostic": dataroot.describe(form, ROOT),
         "snapshotDir": snap_dir,
-        "snapshotCount": len(
-            [f for f in os.listdir(snap_dir) if f.endswith(".zip")]
-        ) if os.path.isdir(snap_dir) else 0,
+        "snapshotCount": len([f for f in os.listdir(snap_dir) if f.endswith(".zip")]) if os.path.isdir(snap_dir) else 0,
         "lastBackup": last,
         # 「关于」区块（时间戳体系 2026-09-15）：版本 / 运行平台。
         # 版本优先级：打包链注入的环境变量 → 仓库 package.json（开发模式）；

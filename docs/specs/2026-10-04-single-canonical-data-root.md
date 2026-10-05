@@ -181,7 +181,9 @@ MCP 端**不可能**知道源码 checkout 在哪（它可能装在任意 venv / 
 ResolvedDataRootDiagnostic
   path                 绝对路径
   source               env | persisted | legacy_portable | legacy_userdata
-  mode                 source_form | portable | packaged | mcp_only
+  form                 source_form | portable | packaged | mcp_only
+                       （**刻意不叫 `mode`**：API 既有字段 `mode` 表示 portable/user 的解析结果，
+                        同一个响应里出现两个"mode"会制造同名两义）
   state                ok | ambiguous | uninitialized | unavailable
   writable             bool
   root_id              数据根身份（来自根标记文件；缺省为 null）

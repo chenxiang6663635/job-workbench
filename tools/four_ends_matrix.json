@@ -472,6 +472,15 @@
       "plugin": null,
       "gui": "DELETE /api/system/data-root",
       "note": "写入（A3，幂等）：清除持久化选择——删掉 `state/data-root.json` 即回到 legacy 默认（这是 A3 的回滚形态）。三态下都可用；`jobws data-root clear`、`DELETE /api/system/data-root`。"
+    },
+    {
+      "id": "dataRoot.migrate",
+      "stage": "数据根",
+      "cli": "data-root migrate",
+      "mcp": null,
+      "plugin": null,
+      "gui": null,
+      "note": "迁移事务（B1，spec 决策 5）：`plan → copy → verify → switch → done/failed`，copy-first / switch-second / delete-never——源目录在 done 之前只读不删，第一版完全不自动删。**默认 dry-run**（只出清单与预检），`--apply` 才执行；`--resume` 按清单/哈希差量续跑在途事务，`--rollback` 把选择指回旧根（不删、不回搬）。switch 是唯一生效点且最后写：相位写在 `state/data-root.json` 的 `migration_state`，`data_root` 只在最后那一次写变成目标；按 `root_id` 幂等。校验含工作区语义项（tracker 行数与主键、profile.md、directions 数量、凭据引用逐条保留——引用取不到只告警，与 #203 的处置一致）。gui 面（设置页「数据位置」卡与一键确认）属 B2。"
     }
   ],
   "error_map": [

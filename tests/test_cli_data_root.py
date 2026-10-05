@@ -163,10 +163,96 @@ def test_set_and_clear_work_while_stale_and_guard_is_exempt(monkeypatch, capsys,
 def test_help_and_missing_subcommand(monkeypatch, capsys):
     code, out = _run(monkeypatch, capsys, ["data-root", "--help"])
     assert code == 0, out
-    assert "show" in out and "set" in out and "clear" in out
+    assert "show" in out and "set" in out and "clear" in out and "migrate" in out
 
     code, out = _run(monkeypatch, capsys, ["data-root"])
     assert code == 2, out
+
+
+# --- migrate（B1）：默认 dry-run / --apply / 幂等 / 用法错误 ---------------------
+
+def _source_root():
+    """迁移的源根 = 当前生效的数据根（与被测 CLI 同一条解析链）。"""
+    from jobws_core import dataroot
+    return dataroot.resolve_data_root(
+        dataroot.form_for_process(), pathres.resolve_root()).path
+
+
+def _mk_ws_file(root):
+    """给源工作区放一个文件（迁移要有东西可搬；dry-run 断言目标未被创建）。"""
+    ws = os.path.join(root, "personal")
+    os.makedirs(os.path.join(ws, "config"), exist_ok=True)
+    with io.open(os.path.join(ws, "config", "profile.md"), "w",
+                 encoding="utf-8", newline="\n") as fh:
+        fh.write("# 档案\n")
+    return ws
+
+
+def test_migrate_dry_run_plans_without_writing(monkeypatch, capsys, tmp_path):
+    _mk_ws_file(_source_root())
+    target = str(tmp_path / "out")
+    code, out = _run(monkeypatch, capsys, ["data-root", "migrate", target])
+    assert code == 0, out
+    assert "dry-run" in out, out
+    assert not os.path.exists(_selection_path()), "dry-run 不该写选择文件"
+    assert not os.path.exists(target), "dry-run 不该建目标目录"
+
+
+def test_migrate_apply_switches_and_show_follows(monkeypatch, capsys, tmp_path):
+    _mk_ws_file(_source_root())
+    target = str(tmp_path / "out")
+    code, out = _run(monkeypatch, capsys,
+                     ["data-root", "migrate", target, "--apply", "--json"])
+    assert code == 0, out
+    result = json.loads(out)
+    assert result["status"] == "done", result
+    assert os.path.isfile(os.path.join(target, "personal", "config", "profile.md"))
+
+    code, out = _run(monkeypatch, capsys, ["data-root", "show", "--json"])
+    assert code == 0, out
+    data = json.loads(out)
+    assert data["source"] == "persisted", out
+    assert data["path"] == target
+
+
+def test_migrate_is_idempotent_when_already_current(monkeypatch, capsys, tmp_path):
+    _mk_ws_file(_source_root())
+    target = str(tmp_path / "out")
+    assert _run(monkeypatch, capsys,
+                ["data-root", "migrate", target, "--apply"])[0] == 0
+    code, out = _run(monkeypatch, capsys, ["data-root", "migrate", target])
+    assert code == 0, out
+    assert "无需迁移" in out, out
+
+
+def test_migrate_rejects_relative_target(monkeypatch, capsys):
+    code, out = _run(monkeypatch, capsys,
+                     ["data-root", "migrate", os.path.join("rel", "x")])
+    assert code == 2, out
+    assert "绝对路径" in out, out
+
+
+def test_migrate_rejects_conflicting_flags(monkeypatch, capsys, tmp_path):
+    code, out = _run(monkeypatch, capsys,
+                     ["data-root", "migrate", str(tmp_path), "--resume"])
+    assert code == 2, out
+    assert "三选一" in out, out
+
+
+def test_migrate_rejects_target_inside_source(monkeypatch, capsys, tmp_path):
+    code, out = _run(monkeypatch, capsys,
+                     ["data-root", "migrate", os.path.join(_source_root(), "inner")])
+    assert code == 2, out
+    assert "源数据根内部" in out, out
+
+
+def test_migrate_resume_and_rollback_without_transaction_are_noops(monkeypatch, capsys):
+    code, out = _run(monkeypatch, capsys, ["data-root", "migrate", "--resume"])
+    assert code == 0, out
+    assert "没有在途事务" in out, out
+    code, out = _run(monkeypatch, capsys, ["data-root", "migrate", "--rollback"])
+    assert code == 0, out
+    assert "没有在途事务" in out, out
 
 
 if __name__ == "__main__":

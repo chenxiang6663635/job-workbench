@@ -112,7 +112,7 @@ TARGETS = [
     ("apply", approval, "凭令牌执行已确认的写入（两段式的第二步）"),
     ("prefs", prefs, "工作区偏好（get / set）与环境体检（doctor，含终端字体推荐）"),
     ("doctor", _cli_doctor, "数据根三态体检（--json 机器可读；unavailable 时非零退出）"),
-    ("data-root", _cli_data_root, "数据根选择（show / set / clear；失效态的补救通道，三态可用）"),
+    ("data-root", _cli_data_root, "数据根选择与迁移（show / set / clear / migrate；补救与迁移通道，三态可用）"),
     ("release", None, "发版辅助（version 生成当日号 / check 预检与 Release 说明抽取）"),
     ("skills", None, "技能资产（install 分发 / check 校验）"),
     ("lint", None, "检查器（pr-title 标题 / i18n 硬编码 / i18n-keys 键健康 / ui-tokens 界面 token / domains 领域插件 / four-ends 四端一致性 / themes 主题门禁 / size 规模预算 / legacy-imports 旧名存量）"),

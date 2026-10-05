@@ -37,7 +37,8 @@ MARKER_FORMAT = 1
 SELECTED_BY = ("user", "migration", "cli")
 
 
-def _now():
+def now_iso():
+    """控制面时间戳（秒级 ISO）：选择文件 / 根标记 / 迁移事务记录共用同一形状。"""
     return datetime.now().isoformat(timespec="seconds")
 
 
@@ -49,11 +50,12 @@ def same_root(a, b):
             == os.path.normcase(os.path.normpath(b.strip())))
 
 
-def _atomic_write_json(path, data):
+def atomic_write_json(path, data):
     """原子写 JSON：同目录临时文件 → flush + fsync → `os.replace`。
 
     `newline="\\n"` 固定换行（Windows 上不产出 CRLF）；失败时清掉临时文件，
-    不让半成品留在 state/ 里。
+    不让半成品留在 state/ 里。**控制面里所有 JSON 落盘都走这里**（选择文件、根标记、
+    迁移事务记录 `dataroot_migrate`）——一处实现，别处不要再写第二份 temp+replace。
     """
     directory = os.path.dirname(path)
     if directory and not os.path.isdir(directory):
@@ -108,10 +110,10 @@ def ensure_root_marker(root, root_id=None):
     data = {
         "format": MARKER_FORMAT,
         "root_id": root_id or uuid.uuid4().hex,
-        "created_at": _now(),
+        "created_at": now_iso(),
         "schema_version": None,
     }
-    _atomic_write_json(os.path.join(root, MARKER_NAME), data)
+    atomic_write_json(os.path.join(root, MARKER_NAME), data)
     return data
 
 
@@ -151,12 +153,12 @@ def write_persisted_selection(root, *, source="cli", env=os.environ):
         "format": SELECTION_FORMAT,
         "data_root": root,
         "root_id": root_id,
-        "selected_at": _now(),
+        "selected_at": now_iso(),
         "selected_by": source,
         "migration_state": "idle",  # B 批迁移事务接管前恒为 idle
         "schema_version": None,     # 工作区数据语义版本：B 批写入真实值
     }
-    _atomic_write_json(selection_file(), data)
+    atomic_write_json(selection_file(), data)
     return data
 
 

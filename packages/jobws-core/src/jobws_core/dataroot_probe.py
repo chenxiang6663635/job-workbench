@@ -34,6 +34,15 @@ SCAN_LIMIT = 200
 # 持久化选择的相对位置（相对 user_data_dir()）；名字与 schema 见 spec 决策 2。
 SELECTION_REL = os.path.join("state", "data-root.json")
 
+# 迁移相位词表（spec §五 的 `migration_state`）：跨端契约值，不许漂。
+# `idle` = 没有在途事务（迁移成功也回到它——spec 决策 5 的 "done" 就是 idle）；
+# `failed` = 事务失败且源目录未受影响，等下一次续跑或干净放弃。
+# 词表放在**读侧**（本模块）：它只是「选择文件里的一个字段怎么读」，
+# 写入侧（`dataroot_migrate`）引用同一份常量，不另抄一套字面量。
+MIGRATION_IDLE = "idle"
+MIGRATION_FAILED = "failed"
+MIGRATION_PHASES = ("idle", "planned", "copying", "verifying", "switching", MIGRATION_FAILED)
+
 
 def selection_file():
     """持久化选择的绝对路径（A2 只读；写入属于 A3）。"""
@@ -76,6 +85,17 @@ def read_persisted_selection(env=os.environ):
     if sel["readable"] and (env.get(pathres.ENV_DATA_DIR) or "").strip():
         sel["shadowed_by"] = "env"
     return sel
+
+
+def read_migration_phase():
+    """只读：选择文件里的 `migration_state`（B1 起是真值，A3 时是占位 `idle`）。
+
+    缺失 / 坏文件 / 值不在词表内 → `idle`（读不出的相位按「没有在途事务」处理，
+    与「坏选择文件按未设置处理」同一条纪律）；`state/` 之外不碰任何东西。
+    """
+    data = read_selection_document() or {}
+    phase = data.get("migration_state")
+    return phase if phase in MIGRATION_PHASES else MIGRATION_IDLE
 
 
 def candidate_roots(app_root=None, env=os.environ, include_app_root=True):

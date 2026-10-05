@@ -35,7 +35,8 @@ import os
 from typing import NamedTuple
 
 from . import pathres  # 唯一实现：可写数据根的优先级链（env → 便携 → 用户目录）
-from .dataroot_probe import read_persisted_selection, survey  # 只读探测（A2）
+from .dataroot_probe import (  # 只读探测（A2）；B1 起迁移相位也属读侧
+    read_migration_phase, read_persisted_selection, survey)
 # A3 的写侧（选择文件 / 根标记）与身份读取——从本模块 re-export：调用方
 # （CLI / API / 测试）只认 `jobws_core.dataroot` 这一个入口。
 from .dataroot_state import (  # noqa: F401
@@ -270,8 +271,8 @@ def describe(form, app_root=None, env=os.environ, workspace_name=None):
     取同一份对象，不各自再算一份。`workspace_name` 是「当前工作区」目录名（缺省
     `personal`），只影响 uninitialized 判定。`root_id` 是数据身份——**根标记
     优先、其次选择文件**（同一根才算，见 `dataroot_state.resolved_root_id`）；
-    `schema_version` / `migration_state` 依赖 B 批，统一占位（None / "idle"），
-    **不猜值**。
+    `schema_version` 仍是占位 None（B 批后续写入真实值，不猜）；`migration_state`
+    自 B1 起读真值（`dataroot_probe.read_migration_phase`，坏值按 idle 处理）。
     """
     res = resolve_data_root(form, app_root, env)
     eff = _effective_env(form, env)
@@ -287,5 +288,5 @@ def describe(form, app_root=None, env=os.environ, workspace_name=None):
         "schema_version": None,
         "persisted_selection": sel,
         "legacy_candidates": cands if any(c["has_workspace"] for c in cands) else [],
-        "migration_state": "idle",
+        "migration_state": read_migration_phase(),
     }

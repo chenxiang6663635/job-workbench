@@ -34,3 +34,10 @@ CHANGELOG 与各文档里出现的**内部术语**集中在这里定义一次；
 | **ADR（决策记录）** | 一条一文件的短决策记录（背景 / 决策 / 已评估的替代方案 / 复评条件），放 `docs/decisions/`；回答「为什么这样定」，路线图只回答「做什么」 | `docs/decisions/`、`docs/README.md` |
 | **过渡纪律（Deprecated → Removed）** | 破坏性变更先废弃、保持读时兼容，至少一个发布节点后才移除，并在 CHANGELOG 显式列出（即使升级无需动作） | `CHANGELOG.md`、`docs/support-and-compatibility.md` |
 | **冒烟** | 最小可运行的端到端验证（打包后真跑一遍），与单元测试互补 | contributing.zh-CN.md |
+| **数据根契约** | 「四端在相同配置下解析到同一个根」的契约：优先级 `JOBWS_DATA_DIR > 持久化选择 > legacy 默认`、三态守卫、契约矩阵 | `docs/specs/2026-10-04-single-canonical-data-root.md`、`tools/four_ends_matrix.json` |
+| **canonical 数据根** | 由解析器唯一选中、用户已确认的领域数据根——**是逻辑角色，不是某个固定盘符路径**；新装默认 `<user_data_dir>/data` | 同上 |
+| **legacy 根** | 历史上曾充当数据根的位置（仓库 checkout、`%APPDATA%\job-workbench` 顶层）：迁移后保留一个观察期，兼作回归证据 | 同上 |
+| **三态（数据根）** | 解析结果的三种非常态：`ambiguous`（多候选）/ `unavailable`（持久选择失效，fail-closed）/ `uninitialized`（根在、工作区未建——正常首启） | 同上 |
+| **root_id** | 数据根的**身份标识**（写在根标记文件里）：随数据一起搬家而**保持不变**；「两个都像真的」时用它判定是否同一份数据 | 同上 |
+| **失效选择（stale selection）** | 持久化选择指向的路径不存在或不可写：读 / 写 / 破坏性操作全部拒绝（`sys.dataRootUnavailable`），**禁止静默回落** | 同上 |
+| **控制面（`state/`）** | `<user_data_dir>/state/` 下的应用级状态与指针（数据根选择、迁移态…），与领域数据（`personal/`）分离 | 同上 |

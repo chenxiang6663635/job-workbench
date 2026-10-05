@@ -42,7 +42,7 @@ import tracker  # noqa: E402
 
 # 有 CLI 面的入口（commit_header 是纯库，不在此列，见文末那条断言）
 CLI_MODULES = [["track"], ["bank"], ["report"], ["resume"], ["jd"], ["init"],
-               ["export"], ["prefs"], ["doctor"],
+               ["export"], ["prefs"], ["doctor"], ["data-root"],
                ["skills", "install"], ["skills", "check"],
                ["lint", "pr-title"], ["lint", "domains"], ["lint", "themes"],
                ["lint", "size"], ["lint", "four-ends"], ["lint", "legacy-imports"],
@@ -449,6 +449,7 @@ def test_command_map_covers_every_merged_module():
     2026-09-19 由 20 → 21：新增 `export --obsidian`（八张 CSV → Obsidian 笔记）。
     2026-10-02 由 21 → 22：新增 `lint i18n-keys`（键健康：死键 + 中英对称，#212）。
     2026-10-05 由 22 → 23：新增 `doctor`（数据根三态体检，A2）。
+    2026-10-05 由 23 → 24：新增 `data-root`（数据根选择 show/set/clear，A3）。
     """
     mapped = {}
     for name, module, _help in jobws.TARGETS:
@@ -456,7 +457,7 @@ def test_command_map_covers_every_merged_module():
             mapped[name] = module
     for key, module in jobws.SUB_TARGETS.items():
         mapped[" ".join(key)] = module
-    assert len(mapped) == 23, sorted(mapped)
+    assert len(mapped) == 24, sorted(mapped)
     for command, module in mapped.items():
         assert callable(getattr(module, "main", None)), \
             "%s 指向的 %s 没有 main()" % (command, module)

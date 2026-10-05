@@ -20,6 +20,7 @@ from routers import (
     applications,
     approvals,
     dashboard,
+    data_root,
     diagnostics,
     imap,
     imap_facts,
@@ -53,6 +54,7 @@ MODULES = (
     mail_setup,  # 服务商预设与文件夹候选（邮箱配置批；同上理由单开）
     resume,
     system,
+    data_root,  # 数据根控制面（A3；system.py 水位只许降故单开）
     snapshot,  # 快照还原与演练（收口批 笔 2；system.py 水位只许降故单开）
     diagnostics,  # 诊断包导出（笔 3；同上）
     reminders,  # 到点提醒的轻端点（笔 5；同上）

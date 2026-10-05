@@ -444,7 +444,34 @@
       "mcp": "jobws.info",
       "plugin": null,
       "gui": "GET /api/system/paths",
-      "note": "只读：解析到哪个数据根、来源（env / persisted / legacy 默认）、形态（源码 / 便携 / 打包 / MCP-only）、三态（ok / ambiguous / uninitialized / unavailable）、可写性与候选清单。四端共用同一份诊断对象（`jobws_core.dataroot.describe()`），只做序列化与呈现（2026-10-05 A2）。已知盲区：MCP 只看得到 env 与系统用户目录两个候选，看不到源码形态的应用根——「MCP 未报歧义」不等于全机无歧义。"
+      "note": "只读：解析到哪个数据根、来源（env / persisted / legacy 默认）、形态（源码 / 便携 / 打包 / MCP-only）、三态（ok / ambiguous / uninitialized / unavailable）、可写性与候选清单。四端共用同一份诊断对象（`jobws_core.dataroot.describe()`），只做序列化与呈现（2026-10-05 A2）。A3 起 `source` 会出现 `persisted`——解析已接入持久化选择（见 dataRoot.select / dataRoot.clear）；`root_id` 读根标记优先、其次选择文件。已知盲区：MCP 只看得到 env 与系统用户目录两个候选，看不到源码形态的应用根——「MCP 未报歧义」不等于全机无歧义。"
+    },
+    {
+      "id": "dataRoot.read",
+      "stage": "数据根",
+      "cli": "data-root show",
+      "mcp": null,
+      "plugin": null,
+      "gui": "GET /api/system/data-root",
+      "note": "只读（A3）：控制面读回数据根诊断——与 dataRoot.diagnostic 是**同一份对象**（`jobws_core.dataroot.describe()`），三态下都可用、不依赖工作区解析（失效态里用户恰恰最需要它）。MCP 侧不单列：读取面由 `jobws.info` 承担（见 dataRoot.diagnostic）。`jobws data-root show [--json]`、`GET /api/system/data-root`。"
+    },
+    {
+      "id": "dataRoot.select",
+      "stage": "数据根",
+      "cli": "data-root set",
+      "mcp": null,
+      "plugin": null,
+      "gui": "POST /api/system/data-root",
+      "note": "写入（A3）：记住数据根——原子写 `<user_data_dir>/state/data-root.json`（只接受绝对路径；换根换 `root_id`、同根保身份），选择命令只在本人发起的两端提供（CLI / 界面），MCP 不代选（数据位置由用户决定）。**三态下都必须可用**（spec 决策 4 的补救通道）：CLI 侧 `data-root` 命令组豁免数据根守卫，API 侧不依赖工作区解析。`jobws data-root set <绝对路径>`、`POST /api/system/data-root`（清除见 dataRoot.clear）。"
+    },
+    {
+      "id": "dataRoot.clear",
+      "stage": "数据根",
+      "cli": "data-root clear",
+      "mcp": null,
+      "plugin": null,
+      "gui": "DELETE /api/system/data-root",
+      "note": "写入（A3，幂等）：清除持久化选择——删掉 `state/data-root.json` 即回到 legacy 默认（这是 A3 的回滚形态）。三态下都可用；`jobws data-root clear`、`DELETE /api/system/data-root`。"
     }
   ],
   "error_map": [

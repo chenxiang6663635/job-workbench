@@ -8,8 +8,10 @@ A1 把「四端各自决定传不传应用根」收口成 `jobws_core.dataroot` 
 迁移前内联规则的逐字对账、`describe()` 的形状与词表（`source` 的 `legacy_*`
 前缀、`form` 字段、state=="ok"）。
 
-A1 刻意保持的现状（A2 才收紧，别把这些当 bug 修）：
-- env 相对值被 `os.path.abspath()` 绑到 cwd；
+A1 当时保持、**A3 已收紧**的一条（此处保留历史注记）：
+- env 相对值不再被 `os.path.abspath()` 绑到 cwd，而是按 spec 决策 1 **拒绝**
+  （fail-fast；`test_mcp_only_relative_env_binds_to_cwd` 已随之订正为拒绝语义）。
+仍然不变的两条：
 - env 空串（含纯空白）视为未设置；
 - 源码形态默认仍是「可写即便携＝仓库根」——B3 才降级为显式选择。
 """
@@ -53,8 +55,9 @@ def _freeze(monkeypatch, frozen):
 def _configure_form(monkeypatch, form, app_root):
     """按 form 摆出该形态的进程环境，返回 env 未设置时的预期 (path, form, source)。
 
-    `source` 是 spec §五 的来源词表：A1 只可能产出 `legacy_portable` /
-    `legacy_userdata`（`persisted` 留给 A3）；`form` 即传入形态、原样回显。
+    `source` 是 spec §五 的来源词表：本表场景（无 env、无 persisted）只产出
+    `legacy_portable` / `legacy_userdata`（`persisted` 场景见
+    `test_dataroot_persisted.py`）；`form` 即传入形态、原样回显。
     """
     if form == dataroot.FORM_SOURCE:
         _freeze(monkeypatch, False)
@@ -140,11 +143,15 @@ def test_mcp_only_without_env_falls_back_to_user_data_dir():
     assert (res.form, res.source) == ("mcp_only", "legacy_userdata")
 
 
-def test_mcp_only_relative_env_binds_to_cwd(monkeypatch):
-    """A1 保持现状：相对 env 值被 abspath 绑到 cwd（A2 才收紧为拒绝）。"""
+def test_mcp_only_relative_env_is_rejected(monkeypatch):
+    """A3 收紧（spec 决策 1）：相对 env 值 fail-fast，不再 abspath 绑到 cwd。
+
+    矩阵覆盖见 tests/test_dataroot_persisted.py 的四 form 参数化；这里只钉
+    MCP-only 这一格（A1 的旧断言与实现都曾允许相对值）。
+    """
     monkeypatch.setenv(pathres.ENV_DATA_DIR, os.path.join("rel", "data"))
-    res = dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY)
-    assert res.path == os.path.abspath(os.path.join("rel", "data"))
+    with pytest.raises(ValueError):
+        dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY)
 
 
 def test_mcp_only_honours_env_mapping(tmp_path):
@@ -157,7 +164,7 @@ def test_mcp_only_honours_env_mapping(tmp_path):
 
 
 def test_mcp_only_replicates_legacy_inline_rule(monkeypatch, tmp_path):
-    """逐字复刻迁移前的内联实现（含空串分支）：
+    """与迁移前的内联实现一致（A3 起相对值被提前拒绝，本表只用绝对 / 空值）：
 
         env_dir = os.environ.get(ENV_DATA_DIR, "").strip()
         path = os.path.abspath(env_dir) if env_dir else pathres.user_data_dir()

@@ -1029,6 +1029,10 @@ export default {
   // like real workspaces — both copy blocks point at the next step (doctor / Data location).
   "err.sys.dataRootUnavailable": "The data root is unavailable: the location you selected does not exist or is not writable — run `jobws doctor` for details, then pick a new data location in Settings and retry",
   "err.sys.dataRootAmbiguous": "Multiple data roots look like real workspaces — the destructive operation was refused; confirm the target root first with `jobws doctor` or in Settings → Data location, then retry",
+  // Saving the choice failed (A3, shared by the control plane and the CLI):
+  // a relative path was refused, or the disk write failed.
+  "err.sys.dataRootInvalidPath": "The data root must be an absolute path (got: {{path}}) — give the full path, e.g. D:\\job-data or /home/you/job-data",
+  "err.sys.dataRootWriteFailed": "The data-root choice could not be saved: {{error}} — check the disk and permissions, then retry; your previous choice was left unchanged",
 
   "err.provider.baseUrlInvalid": "The base URL must start with http:// or https://",
   "err.provider.needBaseUrl": "Save the provider base URL first",

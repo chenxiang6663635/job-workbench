@@ -15,11 +15,15 @@
 按现状规则复刻（`JOBWS_DATA_DIR` → `pathres.user_data_dir()`，来源见
 `mcp/jobws_mcp/paths.py` 的 `data_root()`）。
 
-**A1 的行为零变更边界**（改动必须与之一致）：
-- env 是相对值仍会被 `os.path.abspath()` 绑到 cwd（A2 才收紧为「只接受绝对路径」）；
+**A3 的行为边界**（与 A1「零变更」的差异在此列明）：
+- 优先级：`JOBWS_DATA_DIR`（非空**绝对**路径）> **持久化选择** > legacy 默认，
+  四种 form 一致；相对 env 值 fail-fast（决策 1——A1/A2 版本会 `abspath()`
+  静默绑 cwd，本批起拒绝）；
 - env 空串（含纯空白）仍视为未设置；
-- 打包形态是否便携仍由 `portable.txt` 与可写性判定，默认值一律不变。
-锁见 `tests/test_dataroot.py`；四端取值矩阵见 spec §九。
+- 无 env、无 persisted 时默认位置一律不变（「非打包即便携」的收缩是 B3）；
+- 持久化状态（选择文件 / 根标记）的读写都在 `dataroot_state`。
+锁见 `tests/test_dataroot.py` 与 `tests/test_dataroot_persisted.py`；
+四端取值矩阵见 spec §九。
 
 `form` 取值对应 spec §九 契约矩阵的「形态」列：源码 checkout / 便携标记 /
 打包 NSIS / MCP-only 安装。
@@ -32,6 +36,11 @@ from typing import NamedTuple
 
 from . import pathres  # 唯一实现：可写数据根的优先级链（env → 便携 → 用户目录）
 from .dataroot_probe import read_persisted_selection, survey  # 只读探测（A2）
+# A3 的写侧（选择文件 / 根标记）与身份读取——从本模块 re-export：调用方
+# （CLI / API / 测试）只认 `jobws_core.dataroot` 这一个入口。
+from .dataroot_state import (  # noqa: F401
+    clear_persisted_selection, ensure_root_marker, read_root_marker,
+    resolved_root_id, write_persisted_selection)
 
 FORM_SOURCE = "source_form"   # 源码 checkout：非 frozen → 可写即便携（仓库根）
 FORM_PORTABLE = "portable"    # 显式便携标记（frozen + portable.txt）
@@ -51,8 +60,8 @@ STATE_UNAVAILABLE = "unavailable"
 DEFAULT_WORKSPACE_NAME = "personal"
 
 # pathres 的「解析原因」→ 诊断对象的 `source` 词表（spec §五）。
-# 便携与用户目录两种来源都加 `legacy_` 前缀：它们在 A3 引入持久化选择后
-# 都属于「旧默认」——没有前缀，将来 `persisted` 接进来就分不清新旧（spec §九）。
+# 便携与用户目录两种来源都加 `legacy_` 前缀：A3 引入持久化选择后它们都属于
+# 「旧默认」——没有前缀就分不清新旧（spec §九）。
 _SOURCE_BY_MODE = {
     "env": "env",
     "portable": "legacy_portable",
@@ -67,8 +76,8 @@ class DataRootResolution(NamedTuple):
     - `form`：本次解析的调用形态（`source_form | portable | packaged | mcp_only`）
       ——与诊断对象的 `form` 同一含义，**刻意不叫 `mode`**（理由见 `describe()`）；
     - `source`：解析来源（`env | persisted | legacy_portable | legacy_userdata`）
-      ——pathres 的「解析原因」按 spec §五 词表映射；A1 只可能产出
-      `env` / `legacy_portable` / `legacy_userdata`（`persisted` 留给 A3）。
+      ——pathres 的「解析原因」按 spec §五 词表映射；A3 起四形态都可产出
+      `persisted`（此前只可能 env / `legacy_*`）。
     """
 
     path: str
@@ -82,14 +91,20 @@ def resolve_data_root(form, app_root=None, env=os.environ):
     `form` 见模块 docstring；`app_root` 是应用根（源码＝仓库根、打包＝exe 同级），
     `FORM_MCP_ONLY` 没有它、传了也忽略。
 
-    `env` 的 A1 边界：只有 `FORM_MCP_ONLY` 从传入映射读 `JOBWS_DATA_DIR`
-    （默认 `os.environ`；纯函数测试可直接传字典）；其余三种形态**整体委托**
-    pathres，由它读取进程环境——A1 不复制它的判定分支，A2 收紧绝对路径时再
-    统一两边的 env 口径（见本模块 docstring 的「零变更边界」）。
+    优先级（A3，spec 决策 1）：`JOBWS_DATA_DIR`（非空绝对路径）> 持久化选择
+    （可读且有效）> legacy（便携判定 / `user_data_dir()`），**四种 form 一致**。
+    相对 env 值 fail-fast：A1/A2 版本会 `abspath()` 静默绑 cwd，决策 1 起拒绝。
+
+    `env` 的读取口径：只有 `FORM_MCP_ONLY` 从传入映射读（默认 `os.environ`；
+    纯函数测试可直接传字典）；其余三种形态与 pathres 一致读进程环境——
+    避免「解析按 A、探测按 B」（见 `_effective_env`）。
     """
     if form == FORM_MCP_ONLY:
         return _resolve_mcp_only(form, env)
     if form in _APP_ROOT_FORMS:
+        res = _from_env_or_persisted(form, os.environ)
+        if res:
+            return res
         path, mode = pathres.resolve_workspace_root(app_root)
         return DataRootResolution(path, form, _SOURCE_BY_MODE[mode])
     raise ValueError(
@@ -97,17 +112,37 @@ def resolve_data_root(form, app_root=None, env=os.environ):
         % (form, " / ".join((FORM_SOURCE, FORM_PORTABLE, FORM_PACKAGED, FORM_MCP_ONLY))))
 
 
-def _resolve_mcp_only(form, env):
-    """`FORM_MCP_ONLY`：**逐字复刻** `mcp/jobws_mcp/paths.py` 的既有规则。
+def _from_env_or_persisted(form, env):
+    """`env > persisted` 两级（A3 的接线核心）；都不生效 → None（交 legacy 层）。
 
-    为什么不能委托 pathres 的便携分支：MCP 包可能装在任意 venv，没有「应用根」；
-    给它传 site-packages 就等于把用户数据写到 Python 安装目录旁边（pathres 的
-    注释正在警告这件事）。所以只认两条：`JOBWS_DATA_DIR`（非空、strip 后）→
-    `pathres.user_data_dir()`（与 pathres 第三级同源）。空串/纯空白视为未设置。
+    四种 form **共用同一份判断**——此前 MCP-only 与带应用根形态各持一段 env
+    判定、且都不读 persisted（spec §一 两条解析链的教训）。
     """
     env_dir = (env.get(pathres.ENV_DATA_DIR) or "").strip()
     if env_dir:
-        return DataRootResolution(os.path.abspath(env_dir), form, "env")
+        if not os.path.isabs(env_dir):
+            raise ValueError(
+                "JOBWS_DATA_DIR 必须是绝对路径（相对值会静默绑到 cwd，"
+                "spec 决策 1 起拒绝）：%r" % env_dir)
+        return DataRootResolution(os.path.normpath(env_dir), form, "env")
+    sel = read_persisted_selection(env)
+    if sel and sel["readable"] and sel["path"]:
+        return DataRootResolution(sel["path"], form, "persisted")
+    return None
+
+
+def _resolve_mcp_only(form, env):
+    """`FORM_MCP_ONLY`：env > persisted > `pathres.user_data_dir()`（A3）。
+
+    为什么不能委托 pathres 的便携分支：MCP 包可能装在任意 venv，没有「应用根」；
+    给它传 site-packages 就等于把用户数据写到 Python 安装目录旁边（pathres 的
+    注释正在警告这件事）。所以只认数据根链的三级，与带应用根的形态共用
+    `_from_env_or_persisted`——A3 起 persisted 参与解析：MCP 不再靠宿主配置里
+    的环境变量才知道数据在哪。空串/纯空白仍视为未设置。
+    """
+    res = _from_env_or_persisted(form, env)
+    if res:
+        return res
     return DataRootResolution(pathres.user_data_dir(), form, "legacy_userdata")
 
 
@@ -216,13 +251,14 @@ def describe(form, app_root=None, env=os.environ, workspace_name=None):
 
     **词表**（spec §五）：
     - `source`：解析来源 `env | persisted | legacy_portable | legacy_userdata`
-      ——A1/A2 只可能产出 env / `legacy_*`；`persisted` 随 A3 接入解析链。
+      ——A3 起四种 form 都能产出 `persisted`；env 遮蔽选择时 source=env 且
+      `persisted_selection.shadowed_by="env"`（决策 1 的可见性）。
     - `form`：本次解析的**调用形态** `source_form | portable | packaged | mcp_only`
       ——**刻意不叫 `mode`**：API 响应里已有 `mode` 字段表示 `portable | user` 的
       解析结果（`/api/system/paths`），同一个响应里出现两个 "mode" 会制造同名两义。
-    - `state`：三态（spec §四），判据见 `_compute_state`。**`unavailable` 时解析
-      链仍按现状报 `path`/`source`**——A2 不把 persisted 接入解析（那是 A3），
-      诊断对象用 `persisted_selection` 如实呈现那份（失效的）选择。
+    - `state`：三态（spec §四），判据见 `_compute_state`。`unavailable` 时
+      `path`/`source` 指向那份失效的选择（A3 起解析不回落），诊断对象用
+      `persisted_selection` 如实呈现它。
     - `writable`：数据根自身（不存在则其父目录）能否写入；与 pathres 的便携判据
       （判定 `<root>/personal`）不是同一件事，不要混用（见 `_writable`）。
     - `persisted_selection`：只读探测到的 `{path, readable, shadowed_by}` 或 null。
@@ -232,8 +268,9 @@ def describe(form, app_root=None, env=os.environ, workspace_name=None):
 
     呈现分工（spec §五）：CLI / API / MCP / 设置页**只做序列化与呈现**，都从这里
     取同一份对象，不各自再算一份。`workspace_name` 是「当前工作区」目录名（缺省
-    `personal`），只影响 uninitialized 判定。其余字段（`root_id` /
-    `schema_version` / `migration_state`）依赖 B 批，统一占位（None / "idle"），
+    `personal`），只影响 uninitialized 判定。`root_id` 是数据身份——**根标记
+    优先、其次选择文件**（同一根才算，见 `dataroot_state.resolved_root_id`）；
+    `schema_version` / `migration_state` 依赖 B 批，统一占位（None / "idle"），
     **不猜值**。
     """
     res = resolve_data_root(form, app_root, env)
@@ -246,7 +283,7 @@ def describe(form, app_root=None, env=os.environ, workspace_name=None):
         "form": res.form,
         "state": _compute_state(res.path, sel, cands, workspace_name),
         "writable": _writable(res.path),
-        "root_id": None,
+        "root_id": resolved_root_id(res.path, sel),
         "schema_version": None,
         "persisted_selection": sel,
         "legacy_candidates": cands if any(c["has_workspace"] for c in cands) else [],

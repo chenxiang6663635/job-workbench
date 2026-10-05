@@ -98,12 +98,14 @@ args = ["--workspace", "personal"]
 - 相对工作区名按**数据根**解析；解析结果必须落在**可写数据根**之内（2026-09-19 PR-B 起只剩这一个根）。
 - **越界一律拒绝**（不是警告）：宿主可能由模型代传参数，少了这道检查等于给出任意
   目录的读写能力。比对前会 `realpath`（符号链接会读穿），也不允许把根本身当工作区。
-- **数据根从哪来（现状与已知盲区）**：本包**没有「应用根」概念**（它可能装在任意 venv /
-  site-packages），所以默认只用 `JOBWS_DATA_DIR`，否则落到系统用户目录——**这与你从仓库里跑
-  后端 / CLI 时的数据根不是同一个**（那是仓库 checkout）。反过来，源码形态的应用根本包也
-  **看不到**：因此「MCP 没报歧义」**不等于**全机没有多个候选根。要临时对齐，显式设
-  `JOBWS_DATA_DIR`；按 [`specs/2026-10-04-single-canonical-data-root.md`](specs/2026-10-04-single-canonical-data-root.md)
-  的 A3 落地后，本包改为读取 Job Workbench 自己的**持久化选择**，不再依赖宿主配置里的环境变量。
+- **数据根从哪来（2026-10-05 A3 起）**：本包**没有「应用根」概念**（它可能装在任意 venv /
+  site-packages），解析顺序与其余三端**共用同一实现**（`jobws_core.dataroot`）：
+  `JOBWS_DATA_DIR` → **Job Workbench 自己的持久化选择**（`<系统用户目录>/state/data-root.json`；
+  命令行为 `jobws data-root set <绝对路径>`，设置页入口随 B2）→ 系统用户目录。**只要你选过
+  数据根，本包读的就是同一份**，不再依赖宿主配置里的环境变量。两点注意：源码形态**没选过**
+  时默认仍是仓库 checkout（B3 之前），而本包看不到那个应用根——因此「MCP 没报歧义」**不等于**
+  全机没有多个候选根；要临时对齐，仍可显式设 `JOBWS_DATA_DIR`（优先级高于持久化选择，遮蔽
+  关系在 `jobws.info` 的 `shadowed_by` 里如实报出）。
 - **状态可见（A2，2026-10-05）**：`jobws.info` 的 `dataRoot` 报三态（`ok` /
   `ambiguous` / `uninitialized` / `unavailable`）、`source`、`form` 与候选清单；
   歧义时服务的 `instructions` 会附一行**不带本机路径**的提示。数据根失效

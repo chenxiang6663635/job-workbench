@@ -15,6 +15,7 @@
 
 | 文档 | 状态 | 说明 |
 |---|---|---|
+| [`specs/2026-10-04-single-canonical-data-root.md`](specs/2026-10-04-single-canonical-data-root.md) | **现行** | 单一 canonical 数据根与历史工作区迁移：四端解析收敛为唯一解析器、三态守卫（歧义/失效/未初始化）、持久化数据根选择、迁移事务（copy→verify→switch，可续跑可回滚）与跨端契约矩阵 |
 | [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射。**注意**：文中「tools/ 下共 6 个脚本」等清单是 2026-08 的当时记录——脚本已归并为 `tools/jobws.py` 唯一入口，现状见 `contributing.zh-CN.md` |
 | [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | 历史（部分章节已被取代） | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录。**注意**：依赖版本与 Python 基线等章节是 2026-08 的当时记录（3.8 时代），现状以 `contributing.zh-CN.md` 与 `web/backend/requirements.txt` 为准 |
 | [`specs/2026-08-31-job-workbench-productization.md`](specs/2026-08-31-job-workbench-productization.md) | **现行** | 产品化三期路线（差异化点/架构/桌面壳/扩展）+ 一期与 P0+P1 完成记录 |
@@ -76,6 +77,7 @@
 | [`decisions/ship-once-per-release.md`](decisions/ship-once-per-release.md) | 单一发布节点 + 月粒度 CalVer 版本号（`YY.MM.N`；2026-09-24 自时间戳四段改版，原文保留含更新注记） |
 | [`decisions/read-missing-columns-as-empty.md`](decisions/read-missing-columns-as-empty.md) | 工作区数据向后兼容：读时缺列按空、写时统一表头、不要求迁移 |
 | [`decisions/code-signing.md`](decisions/code-signing.md) | 代码签名：暂不采购（选项矩阵 / 触发条件 / 若触发的改造清单；2026-10-02） |
+| [`decisions/single-canonical-data-root.md`](decisions/single-canonical-data-root.md) | 单一 canonical 数据根 + 历史工作区迁移：四端同源解析、持久化选择、失效 fail-closed、迁移事务；路线 A→B→C'（2026-10-04，含替代方案与复评条件） |
 
 ## 约定文件
 

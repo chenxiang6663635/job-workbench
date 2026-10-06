@@ -73,3 +73,18 @@ jobws report --stdout                   # 只打印不写文件
 ## 输出要求
 
 **不要原样复述脚本输出的表格。** 用自然语言说明：有几家在流程中、最近要处理什么、有没有异常（如已过截止日仍在待投）。
+
+## 宿主形态：没有仓库时（MCP / DSH）
+
+宿主未接仓库（`jobws` CLI 不可用，如装进 DSH 的形态）时，上方「经 `jobws track` / `jobws report`」
+的说法不适用，改用 MCP 工具面（工具名含 `jobws`，宿主可能显示为 `mcp__jobws__*`）：
+
+- **面试复盘**：`list_interviews(app_id, verbose=True)`——**verbose 必须给**，否则拿不到
+  「问题记录 / 我的回答要点 / 复盘与改进」三个字段；字段为空就写「未填写」，**不要代填**。
+  **MCP 不提供阶段时间线**（界面与命令行才有）——需要时间线请让用户在界面查看，
+  不要自己拼一条演进过程。
+- **今日待办**：读资源 `jobws://workspace/dashboard`（**固定近 7 天窗口**，不要声称更宽）；
+  某条记录要详情用 `list_applications(keyword=..., verbose=True)`；看板里没有的就是没有，
+  **不要补推测出来的待办**。输出 ≤5 条：动作 + 对象 + 时限。
+- **更新进展**仍走两段式：`preview_update_application` / `preview_update_interview`
+  拿 token → 展示 diff → 用户确认 → `apply_approval`；看板与列表为只读。

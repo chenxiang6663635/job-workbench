@@ -1,0 +1,60 @@
+# job-workbench × DeepSeek Harness（DSH）——agent preset 声明片段（可选）
+#
+# 形态依据（2026-10-05 从 DSH 本体实证）：preset = `@deepseek-ai/dsh-agent-preset`
+# 的一个实例，config = {id, order, plugins[]}——plugins 列该 preset 挂载的子插件
+# （工具集 / 技能发现 / persona 分节）；registry（`@deepseek-ai/dsh-agent-preset-registry`）
+# 按 `config.default` 选默认（出厂 standard），新增实例即多一个可选项，不碰默认。
+#
+# 三要素对应（对齐 plan：「声明式选择工具、提示词分节与技能」）：
+#   工具  —— plugins 里的 dsh-tool-* 集（基线照抄出厂 standard，MCP 工具经
+#            mcp-client 在 profile 层注册，对本 preset 会话自动可见，2026-10-05 实测）
+#   分节  —— persona 子插件的 prefix（求职语境 + 两段式/不编造纪律；模板内容的落点）
+#   技能  —— skill-filesystem + tool-skill（发现根见 integrations/dsh/README.md）
+#
+# 装配：把 `- insert:` 块放进目标 profile 的 cordis.patch.yml（或 --patch 临时叠加）。
+# preset 的选用在宿主会话/设置里切换（id: jobws）；效果验收见 README 的验收清单。
+- insert:
+    - id: preset-jobws
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: jobws
+        order: 10
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                你在协助用户使用「求职工作台」（job-workbench，本地优先：全部数据在用户
+                本机的工作区，纯文本 CSV / Markdown）。涉及投递、岗位、面试、题库的数据
+                一律用 jobws 提供的 MCP 工具读取，不要凭记忆或推测补写任何求职数据。
+                写入必须两段式：先调 preview_* 工具拿令牌并把差异展示给用户，用户确认后
+                再用同一令牌调 apply_approval——绝不跳过确认直接写。
+                工作流准则在 jwb-* 技能里（jwb-jd / jwb-apply / jwb-track / jwb-resume /
+                jwb-recruit-coach 等）：处理对应请求前先读相应技能。
+                数据「看起来不对」时，先调 jobws 的信息工具看数据根诊断（state/source），
+                不要猜测。
+              suffix: Your working directory is {{cwd}}.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'

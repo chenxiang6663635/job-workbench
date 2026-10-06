@@ -78,6 +78,7 @@
 | [`decisions/read-missing-columns-as-empty.md`](decisions/read-missing-columns-as-empty.md) | 工作区数据向后兼容：读时缺列按空、写时统一表头、不要求迁移 |
 | [`decisions/code-signing.md`](decisions/code-signing.md) | 代码签名：暂不采购（选项矩阵 / 触发条件 / 若触发的改造清单；2026-10-02） |
 | [`decisions/single-canonical-data-root.md`](decisions/single-canonical-data-root.md) | 单一 canonical 数据根 + 历史工作区迁移：四端同源解析、持久化选择、失效 fail-closed、迁移事务；路线 A→B→C'（2026-10-04，含替代方案与复评条件） |
+| [`decisions/first-class-delivery-surfaces.md`](decisions/first-class-delivery-surfaces.md) | 第一等交付面与集成边界：多端平级（能力等价而非实现等价）、单一发布线、运行时独立 / 领域共享、依赖方向、拆仓复评信号（2026-10-06） |
 
 ## 约定文件
 

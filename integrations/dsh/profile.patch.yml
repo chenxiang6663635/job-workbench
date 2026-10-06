@@ -1,0 +1,31 @@
+# job-workbench × DeepSeek Harness（DSH）——profile patch 片段（MCP 接线）
+#
+# 用法（本机自用，2026-10-05 实测通过）：
+#   临时叠加（不改任何 profile，一次启动即止）：
+#     dsh headless --patch <本文件绝对路径> "..."
+#     dsh --profile web --patch <本文件绝对路径>
+#   持久接入：把下面 `- insert:` 块复制进目标 profile 的 cordis.patch.yml（追加到数组里）。
+#
+# patch 语法实证（2026-10-05）：顶层数组里裸 `- id:` 是**存量覆盖**——id 不存在会报
+# `entry "x" not found` 并静默丢弃该条；**新增必须 `- insert:` 包裹**。
+#
+# 数据根刻意不出现（spec 决策 1）：jobws-mcp 自己读 Job Workbench 的持久化选择
+# （`<user_data_dir>/state/data-root.json`）与 B3 默认；`config.env.JOBWS_DATA_DIR`
+# 只作应急覆盖——写死它会制造第二个事实源，正是数据根契约要消灭的形态。
+- insert:
+    - id: mcp-jobws
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: jobws
+        transport: stdio
+        # 当前为开发机形态（专用 venv）；第二阶段换随安装包分发的 jobws-mcp.exe，
+        # 只改 command 一行即可（args 不变）。
+        command: 'D:\tools\venvs\jobws-mcp\Scripts\python.exe'
+        args:
+          - '-m'
+          - 'jobws_mcp.server'
+          - '--workspace'
+          - 'personal'
+        # 自用阶段 true（起不来就响亮失败）；对外发布改 false（不连累整机启动）。
+        failOnStartupError: true
+        toolCallTimeoutMs: 60000

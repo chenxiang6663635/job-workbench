@@ -392,5 +392,24 @@ def test_journal_never_contains_plaintext_secrets(roots):
     assert "auth_ref" not in text
 
 
+# --- 计划指纹（预览 → 确认协议的凭据）--------------------------------------------
+
+def test_plan_fingerprint_changes_when_source_changes(roots):
+    """源数据在预览与确认之间变过 → 指纹必须变——旧确认不许沿用。"""
+    source, target = roots
+    token = migrate.plan_fingerprint(migrate.plan(str(target), str(source)))
+
+    _write(source, "personal/02_简历工坊/预览之后的新文件.md", "迁移前被改\n")
+    plan2 = migrate.plan(str(target), str(source))
+    assert migrate.plan_fingerprint(plan2) != token
+
+
+def test_plan_fingerprint_is_stable_for_the_same_plan(roots):
+    source, target = roots
+    once = migrate.plan_fingerprint(migrate.plan(str(target), str(source)))
+    again = migrate.plan_fingerprint(migrate.plan(str(target), str(source)))
+    assert once == again, "同一份计划两次计算必须同指纹（确定性）"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

@@ -33,7 +33,7 @@ web/backend/routers/system.py = 332  # 2026-09-25 收口批：app_version() 去�
 # （2026-09-16 重构批：dashboard() 已拆为五个 section helper，本行按自洁删除）
 #
 # --- 前端：刻意集中的单一真源 / 页面级容器 ---
-web/frontend/src/api.ts = 460  # 前端唯一 API 客户端（端点清单 + 工作区状态再导出）；2026-09-17~09-19 多批加端点与类型（1174→1265）；2026-09-21 B-2 迁 previewQuestionUpdate 到 lib/bank.ts（1265→1258）；2026-09-21 H-1 批 requestJson / humanizeError / 工作区状态迁 lib/http.ts，四处副本合一（1258→1183）；2026-09-21 H-2a 批类型 / 枚举区（73 类型 + 13 常量）整体外移 lib/domainTypes.ts（1183→460）
+web/frontend/src/api.ts = 486  # 前端唯一 API 客户端（端点清单 + 工作区状态再导出）；2026-09-17~09-19 多批加端点与类型（1174→1265）；2026-09-21 B-2 迁 previewQuestionUpdate 到 lib/bank.ts（1265→1258）；2026-09-21 H-1 批 requestJson / humanizeError / 工作区状态迁 lib/http.ts，四处副本合一（1258→1183）；2026-09-21 H-2a 批类型 / 枚举区（73 类型 + 13 常量）整体外移 lib/domainTypes.ts（1183→460）；2026-10-05 B2 数据根迁移四端点接入（460→486）
 web/frontend/src/pages/Applications.tsx = 461  # 页面容器（筛选 + 工具栏 + 新建表单 + 弹窗编排）；2026-09-17 关联邮件块 + 页头 + 空态原语 + 偏移同步（811→818）；2026-09-21 H-2b 表格拆 ApplicationsTable / ApplicationRow，元数据迁 lib/applicationMeta.ts（818→461）
 # Settings.tsx 原 352 行登记：2026-09-26 收口批把「界面大小」卡拆到 settings/ZoomCard.tsx
 # （352→232，跌破 300 阈值）→ 按自洁规则删掉这一行。
@@ -68,5 +68,5 @@ scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；m
 #  extract_facts 恰好命中一条时向全部事实传播 targetId）——与 match_rows /
 #  阶段信号强内聚，拆分收益低；待与「建议卡就地选定」同批稳定后再审视。）
 packages/jobws-core/src/jobws_core/mail_facts.py = 317
-packages/jobws-core/src/jobws_core/dataroot_migrate.py = 439  # B1 迁移事务状态机（相位/唯一写口/续跑/回滚，spec 决策 5）；字节层与语义项已各自成模块（manifest/semantics），journal 与 resume 的进一步拆分列入后续观察
+packages/jobws-core/src/jobws_core/dataroot_migrate.py = 462  # B1 迁移事务状态机（相位/唯一写口/续跑/回滚，spec 决策 5）；字节层与语义项已各自成模块（manifest/semantics），journal 与 resume 的进一步拆分列入后续观察；B2 加计划指纹（预览→确认协议的凭据）
 packages/jobws-core/src/jobws_core/dataroot_manifest.py = 330  # B1 清单 + 目标侧预检（判定原件集合，逐条独立可钉）；再长优先拆「名字禁忌 / 保留名」一段

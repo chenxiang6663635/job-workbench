@@ -460,6 +460,102 @@ export interface SystemPaths {
   platform: string;
   telemetry: boolean;
   note: string;
+  /** 数据根诊断（B2）：与 CLI doctor / MCP jobws.info 同源的同一份对象 */
+  dataRootDiagnostic: DataRootDiagnostic;
+}
+
+// ---- 数据根诊断与迁移（B2；词表与 spec §五 / §四 逐字对齐，不许漂）-----------
+
+/** 已知候选根（歧义判断的证据面） */
+export interface DataRootCandidate {
+  path: string;
+  has_workspace: boolean;
+  root_id: string | null;
+}
+
+/** 持久化选择的只读探测 */
+export interface DataRootPersistedSelection {
+  path: string | null;
+  readable: boolean;
+  shadowed_by: string | null;
+}
+
+export type DataRootState =
+  | "ok"
+  | "ambiguous"
+  | "uninitialized"
+  | "unavailable";
+
+export type DataRootMigrationState =
+  | "idle"
+  | "planned"
+  | "copying"
+  | "verifying"
+  | "switching"
+  | "failed";
+
+export interface DataRootDiagnostic {
+  path: string;
+  source: "env" | "persisted" | "legacy_portable" | "legacy_userdata";
+  form: "source_form" | "portable" | "packaged" | "mcp_only";
+  state: DataRootState;
+  writable: boolean;
+  root_id: string | null;
+  schema_version: string | null;
+  persisted_selection: DataRootPersistedSelection | null;
+  legacy_candidates: DataRootCandidate[];
+  migration_state: DataRootMigrationState;
+}
+
+export interface MigrateReason {
+  kind: "usage" | "blocked";
+  message: string;
+}
+
+export interface MigratePlanView {
+  ok: boolean;
+  already_current: boolean;
+  source_root: string;
+  target_root: string;
+  workspace: string;
+  target_workspace: string;
+  staging: string;
+  root_id: string;
+  entries: number;
+  skipped: number;
+  links: string[];
+  total_bytes: number | null;
+  free_bytes: number | null;
+  reasons: MigrateReason[];
+  /** 计划指纹：apply 凭它核对「确认的就是这份计划」 */
+  plan_token: string;
+}
+
+export interface MigrateActionResult {
+  status:
+    | "done"
+    | "failed"
+    | "nothing"
+    | "unknown"
+    | "dry-run"
+    | "rolled-back"
+    | "noop";
+  reason?: string | null;
+  phase?: string;
+  steps?: string[];
+  staged?: number;
+  remaining?: number;
+  source_root?: string;
+  target_root?: string;
+  root_id?: string;
+  copy?: { copied: number; reused: number; bytes: number } | null;
+  verify?: { problems: string[]; checked: number; warnings: string[] } | null;
+  completed_at?: string | null;
+  rolled_back_at?: string | null;
+  target_kept?: boolean;
+  staging_kept?: boolean;
+  from?: string | null;
+  to?: string;
 }
 
 export interface BackupResult {

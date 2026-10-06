@@ -33,11 +33,19 @@ logger = logging.getLogger(__name__)
 # `pathres.resolve_root()` 直接报错（完整论证见 tests/test_domain_root.py）。
 ROOT = pathres.resolve_root()
 
-DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
+
+def default_workspace():
+    """默认工作区 = `<数据根>/<工作区名>`（B4 整改 A：收口到唯一实现）。
+
+    旧锚是应用根（`<repo>/personal`）——B3 后新装场景与 API/MCP 分叉；且
+    刻意**不用模块级常量**（解析链依赖 env，常量会静默过期）。
+    """
+    return pathres.default_workspace()
 
 
-# 由 main() 在解析 --workspace 后赋值；模块级常量仅供被 report.py 导入时兜底
-WORKSPACE = DEFAULT_WORKSPACE
+# 由 main() 在解析 --workspace 后赋值；None = 尚未解析——读侧现算
+# `default_workspace()`（report.py 等导入方不经过 main 时的兜底）。
+WORKSPACE = None
 
 
 
@@ -49,8 +57,10 @@ def set_workspace(path):
 
 
 def resolve_ws(workspace=None):
-    """显式传参优先，缺省回退全局。Web 并发场景必须显式传参。"""
-    return os.path.abspath(workspace) if workspace else WORKSPACE
+    """显式传参优先、回退全局，全局未设定时按数据根现算。Web 并发场必须显式传参。"""
+    if workspace:
+        return os.path.abspath(workspace)
+    return WORKSPACE or default_workspace()
 
 
 

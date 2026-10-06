@@ -139,6 +139,12 @@ def cmd_bank(args):
         return _run_preview(errors, plan, "question.add", workspace)
 
     if args.action == "delete":
+        # B4 整改 C：令牌签发前先过歧义闸（与 tracker 删除 / API 同源）
+        from _cli_doctor import destructive_guard_reason
+        reason = destructive_guard_reason()
+        if reason:
+            print("错误：%s" % reason)
+            return 1
         # 单题与批量互斥：两条路都先出预览，看过"将删哪几行"才准落盘
         if args.id and (args.domain or args.subject or args.keyword or args.origin
                         or args.company or args.today):

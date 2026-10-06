@@ -41,7 +41,7 @@ import sys
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
+# B4 整改 A：无 DEFAULT_WORKSPACE 副本——默认工作区经 pathres.default_workspace()。
 
 BROWSER_CANDIDATES = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",

@@ -77,6 +77,9 @@ def _run_init(monkeypatch, tmp_path, argv):
     能装出一个生效的工作区」，把它们也重定向到 tmp 就什么都没测了。
     """
     monkeypatch.setattr(init_workspace, "ROOT", str(tmp_path))
+    # B4 整改 A：`--target` 现在锚**数据根**（不再看 ROOT）——把数据根钉到 tmp；
+    # 否则会落到真实数据根（本机=仓库根，那里恰有历史残渣 ws/ 会让本套全红）。
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
     saved = sys.argv
     sys.argv = ["init_workspace.py"] + argv
     try:

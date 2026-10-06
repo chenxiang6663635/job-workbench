@@ -40,10 +40,11 @@ jobws-mcp --workspace personal          # 工作区名，或绝对路径
 > 领域包）。此前「3.10/3.11 上装不上领域包也不影响 MCP 用」那条退路已随旧路径 shim 的
 > 删除而消失——现在装不上就是装不上。
 >
-> **源码形态的老用户**：MCP 侧不再有「应用根」，数据根只认 `JOBWS_DATA_DIR` → 系统用户
-> 目录。请显式设 `JOBWS_DATA_DIR=<仓库根>`，否则默认工作区会从 `<仓库根>/personal`
-> 变成 `%APPDATA%\job-workbench\personal`，且 `--workspace <仓库根>/personal` 这种
-> 绝对路径会被拒。
+> **源码形态的老用户**：MCP 侧不再有「应用根」，数据根走与其余三端**同一条链**
+> （`JOBWS_DATA_DIR` → 持久化选择 → legacy 保留 → 新默认 `<user_data>/data`，B3）。
+> 数据在仓库 checkout 的会被 **legacy 保留**（不搬迁）——因此默认工作区仍解析到
+> `<仓库根>/personal`，**无需手工配置**；换机 / 新装场景用 `jobws data-root set`
+> 显式选择（`--workspace` 的绝对路径仍只接受落在数据根之内的）。
 
 自检：先不带宿主直接跑一次 `jobws-mcp --help`，能打印帮助就说明命令与环境没问题
 （该进程会等 stdin，用 Ctrl+C 退出即可）。

@@ -196,6 +196,23 @@ def resolve_default_root():
     return default_data_root(), "userdata"
 
 
+def default_workspace(root=None):
+    """默认工作区绝对路径 = `<数据根>/<工作区名>`（B4 整改 A：与 API/MCP 同源）。
+
+    2026-10-05 前 CLI 的默认工作区锚在**应用根**（`<repo>/personal`），B3 把
+    数据根默认切到 `<user_data_dir>/data` 后，新装场景 CLI 与 API/MCP 默认分叉
+    ——本函数把 CLI 侧收口到同一条链（数据根 + `JOBWS_WORKSPACE`，缺省
+    `personal`），与 `deps.resolve_default_workspace` / MCP 的
+    `resolve_default_workspace` 口径一致。
+
+    **调用时求值**（不缓存）：解析链依赖环境变量，模块级常量会在测试与长驻
+    进程里静默过期。
+    """
+    data_root, _mode = resolve_workspace_root(root)
+    name = (os.environ.get(ENV_WORKSPACE) or "").strip() or _DEFAULT_WORKSPACE
+    return os.path.normpath(os.path.join(data_root, name))
+
+
 def resolve_workspace_root(root=None):
     """可写的数据根目录——即 personal/ 的**父目录**（不是 personal 本身）。
 

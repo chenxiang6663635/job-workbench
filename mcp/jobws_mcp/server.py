@@ -21,8 +21,7 @@ import sys
 from mcp.server import MCPServer
 
 from . import paths, prompts, resources, tools_readonly, tools_writable
-from . import info  # 工具注册与版本查询（2026-10-05 A2）；import 顺序在 paths 之后
-from . import annotations  # 工具注解（危险等级，2026-10-05 D1）；只依赖 mcp.types
+from . import annotations, guard, info  # A2 信息工具 / D1 注解 / B4 数据根守卫
 
 
 def build_server(workspace=None):
@@ -41,6 +40,7 @@ def build_server(workspace=None):
             + info.ambiguous_hint(workspace)   # 仅歧义时附一行（不带本机路径）
         ),
         version=info.server_version(),
+        middleware=[guard.DataRootGuard()],  # B4：tools/call 前查数据根（fail-closed）
     )
 
     @mcp.tool(annotations=annotations.READ_ONLY)

@@ -742,6 +742,8 @@ const zhCN = {
   "settings.modePortableHint": "数据就在应用目录旁——整个文件夹拷走即可带走。",
   "settings.modeUserHint": "数据在系统用户目录（应用安装在不可写位置时的回退位置）。",
   "settings.openDataRoot": "打开数据根",
+  "settings.dataLocSource": "来源：{{source}}",
+  "settings.dataLocShadowedByEnv": "环境变量覆盖中",
 
   // 数据位置 · 迁移（B2）：四态徽章 + 两段式搬家（预览纯读 → 确认凭指纹复核）
   "settings.dataLocStateOk": "正常",

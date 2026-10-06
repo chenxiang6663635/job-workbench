@@ -26,7 +26,7 @@ from jobws_core import pathres
 
 ROOT = pathres.resolve_root()
 PROFILES = os.path.join(ROOT, "template", "profiles")
-DEFAULT_WORKSPACE = os.path.join(ROOT, "personal")
+# B4 整改 A：不再有 DEFAULT_WORKSPACE 副本——默认工作区一律经 pathres.default_workspace()。
 
 # 维度名 -> 满分。顺序即解析卡中的书写顺序
 DIMENSIONS = [

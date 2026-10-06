@@ -42,9 +42,18 @@ CASES = [
 
 
 @pytest.fixture()
-def ws(tmp_path):
+def ws(tmp_path, monkeypatch):
     path = tmp_path / "ws"
     (path / "05_投递追踪").mkdir(parents=True)
+    # B4 整改 C：删除令牌签发前有歧义闸（多候选各含工作区 → 拒绝）——测试机
+    # 必须**消歧**：用户目录隔离到 tmp、数据根钉到 tmp、应用根也指到空目录，
+    # 让「有工作区的候选」只剩本夹具这一处（否则真实仓库 / 真实 APPDATA 的
+    # 两份工作区会让闸按设计拒绝，测试红得有理说不清）。
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "appdata"))
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
+    from jobws_core import pathres  # noqa: E402
+    monkeypatch.setattr(pathres, "_APP_ROOT", str(tmp_path / "approot"))
     return str(path)
 
 

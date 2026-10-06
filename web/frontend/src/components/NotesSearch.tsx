@@ -153,7 +153,7 @@ export default function NotesSearch({
       <div className="relative">
         {/* 放大镜压在框内（与左树过滤框同款）；placeholder 不是可访问名称，
             aria-label 必须补——axe 的 label 规则。框内右侧只留固定宽度的清除按钮
-            （pr-9 = right-2 + h-6），状态文字不再压进来——「命中 N 条」一宽就会
+            （pr-9 = right-2 + w-6，独立审查 NIT 修正：水平占位由宽度决定），状态文字不再压进来——「命中 N 条」一宽就会
             盖住输入文字（2026-10-06 实测），且与树过滤框「框内只有放大镜」的
             形态不一致。 */}
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />

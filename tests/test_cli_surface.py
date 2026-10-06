@@ -179,8 +179,13 @@ def test_check_pr_title_exit_codes(monkeypatch, capsys):
 
 
 def test_init_workspace_refuses_to_overwrite_without_force(tmp_path, monkeypatch, capsys):
-    """目标目录非空且没给 --force → 返回 1：静默覆盖已填数据是数据丢失。"""
-    monkeypatch.setattr(init_workspace, "ROOT", str(tmp_path))
+    """目标目录非空且没给 --force → 返回 1：静默覆盖已填数据是数据丢失。
+
+    B4 整改 A：init 的目标锚**数据根**（`init_workspace.ROOT` 现在只影响模板
+    查找）——把数据根钉到 tmp；否则这条在本机靠仓库里的历史残渣 `ws/` 偶然
+    通过、在 CI（干净克隆）上会真去初始化而变红（2026-10-05 实测）。
+    """
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
     occupied = tmp_path / "ws"
     occupied.mkdir()
     (occupied / "occupant.txt").write_text("x", encoding="utf-8")

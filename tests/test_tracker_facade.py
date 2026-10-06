@@ -47,7 +47,7 @@ CONTRACT_NAMES = [
     "write_talks",
     # 补：from-import 引用面（tools/report.py 与 tools/question_bank.py 的
     # `from tracker import (...)` 名单 + question_bank 的 tracker.file_lock）
-    "ROOT", "DEFAULT_WORKSPACE", "FAIL_STAGES", "csv_path", "file_lock",
+    "ROOT", "default_workspace", "FAIL_STAGES", "csv_path", "file_lock",
     "QUESTION_STATUS", "QUESTION_ORIGINS", "QUESTION_DIFFICULTY",
 ]
 

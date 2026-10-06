@@ -701,6 +701,8 @@ export default {
   "settings.modePortableHint": "Data sits right next to the app — copy the whole folder and take it with you.",
   "settings.modeUserHint": "Stored in your system user folder (fallback when the install folder is not writable).",
   "settings.openDataRoot": "Open data root",
+  "settings.dataLocSource": "Source: {{source}}",
+  "settings.dataLocShadowedByEnv": "Overridden by env var",
 
   // Data location · migration (B2): four-state badge + two-phase move (read-only preview → fingerprint-checked confirm)
   "settings.dataLocStateOk": "Healthy",

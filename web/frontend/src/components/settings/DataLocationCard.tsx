@@ -74,6 +74,18 @@ export default function DataLocationCard({
             {t("settings.dataRoot")}
             <span className="font-mono text-muted-foreground">{paths.dataRoot}</span>
           </p>
+          {/* 来源与遮蔽（B4 整改 D）：spec §五 承诺「展示当前根与来源」——
+              诊断对象已有 source/shadowed_by，此前只在类型里、没上屏 */}
+          <p className="flex flex-wrap items-center gap-2 text-[0.6875rem] text-muted-foreground">
+            <span className="font-mono">
+              {t("settings.dataLocSource", { source: diag.source })}
+            </span>
+            {diag.persisted_selection?.shadowed_by === "env" && (
+              <Badge variant="secondary">
+                {t("settings.dataLocShadowedByEnv")}
+              </Badge>
+            )}
+          </p>
           <p className="flex flex-wrap items-center gap-2">
             <Badge
               variant={diag.state === "unavailable" ? "destructive" : "outline"}

@@ -24,7 +24,8 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-from resume_build import (DEFAULT_TEMPLATE, DEFAULT_WORKSPACE, MIN_TEXT_LENGTH,  # noqa: E402
+from jobws_core import pathres  # noqa: E402  （默认工作区：数据根推导，唯一实现）
+from resume_build import (DEFAULT_TEMPLATE, MIN_TEXT_LENGTH,  # noqa: E402
                           RESUME_ACCENTS, build_pdf, cmd_render, discover_jobs,
                           find_browser, list_templates, verify_pdf)
 from jobws_core import workspace_io  # noqa: E402  （锁名唯一真源）
@@ -45,8 +46,8 @@ def _build_parser():
                     "无子命令时打手写 HTML（高级模板）。")
     parser.add_argument("command", nargs="?", default=None,
                         help="render：数据驱动标准版式；省略走手写 HTML")
-    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
-                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--workspace", default=pathres.default_workspace(),
+                        help="工作区目录，默认数据根下的 personal/")
     parser.add_argument("--version", default="all",
                         help="只生成指定版本（手写 resume_<版本>.html / 数据 resume_<版本>.json），默认全部")
     parser.add_argument("--out", help="输出目录，默认工作区下 02_简历工坊/pdf")

@@ -27,7 +27,7 @@ from ._cli_interview import (cmd_interview)
 from ._cli_mail import (cmd_mail)
 from ._cli_offer import (cmd_offer)
 from ._cli_talk import (cmd_talk)
-from ._core import (DEFAULT_WORKSPACE, WORKSPACE)
+from ._core import (WORKSPACE, default_workspace)
 from ._schema import (BATCHES, INTERVIEW_FORMS, INTERVIEW_RESULTS, INTERVIEW_ROUNDS, MAIL_DIRECTIONS, MAIL_TAGS, SOURCES, TALK_ATTEND, TALK_FORMS)
 from .importing import (cmd_import)
 
@@ -220,8 +220,8 @@ def _add_misc_parsers(sub):
 def build_parser():
     """组装 argparse 解析器：按域拆成小 helper（各自 ≤80 行）。"""
     parser = argparse.ArgumentParser(description="投递追踪表增删查改")
-    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
-                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--workspace", default=default_workspace(),
+                        help="工作区目录，默认数据根下的 personal/")
     sub = parser.add_subparsers(dest="cmd")
     _add_app_parsers(sub)
     _add_interview_parser(sub)

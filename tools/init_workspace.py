@@ -300,7 +300,8 @@ def apply_approved_init(payload, workspace=None):
 
 def main():
     parser = argparse.ArgumentParser(description="初始化个人工作区")
-    parser.add_argument("--target", default="personal", help="目标目录名，相对仓库根")
+    parser.add_argument("--target", default="personal",
+                        help="目标目录名，相对数据根（缺省 personal）")
     parser.add_argument("--domain", help="要装入的领域插件 ID，如 hvac-cooling")
     parser.add_argument("--demo", action="store_true",
                         help="额外铺上占位 demo 数据（8 投递 / 3 面试 / 2 联系人 / "
@@ -314,16 +315,19 @@ def main():
                              "确认后用 python tools/jobws.py apply <令牌> 执行")
     args = parser.parse_args()
 
-    target = os.path.join(ROOT, args.target)
+    # B4 整改 A：目标锚从**应用根**改为**数据根**（与 API / MCP 的默认工作区同源；
+    # B3 后旧锚在新装场景会与其余三端分叉）。数据根判定经唯一解析器。
+    from jobws_core import containment, pathres
+    data_root, _mode = pathres.resolve_workspace_root()
+    target = os.path.join(data_root, args.target)
 
-    # 审计 P0-5：--target 只允许落在仓库根之内——绝对路径 / `..` 会把初始化
-    # （连同 --force --demo 的覆盖）落到仓库外的任意目录。判定走唯一原语
-    # （realpath + commonpath，链接形态也拦）——注意**允许等于根**（`--target .`
-    # 是既有口径，之后由「已存在且不为空」挡下）：用 is_within_or_equal，
-    # 别换成排除等于的 is_within。
-    from jobws_core import containment
-    if not containment.is_within_or_equal(target, ROOT):
-        print("错误：--target 必须在仓库根之内：%s" % args.target)
+    # 审计 P0-5（改锚后语义不变）：--target 只允许落在数据根之内——绝对路径 /
+    # `..` 会把初始化（连同 --force --demo 的覆盖）落到根外的任意目录。判定走
+    # 唯一原语（realpath + commonpath，链接形态也拦）——注意**允许等于根**
+    # （`--target .` 是既有口径，之后由「已存在且不为空」挡下）：用
+    # is_within_or_equal，别换成排除等于的 is_within。
+    if not containment.is_within_or_equal(target, data_root):
+        print("错误：--target 必须在数据根之内：%s" % args.target)
         return 1
 
     if os.path.exists(target) and os.listdir(target) and not args.force:

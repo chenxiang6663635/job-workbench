@@ -46,6 +46,21 @@ def _workspace_name():
     return (os.environ.get("JOBWS_WORKSPACE") or "").strip() or dataroot.DEFAULT_WORKSPACE_NAME
 
 
+def destructive_guard_reason():
+    """破坏性入口的歧义判据（B4 整改 C，与 API `deps.require_unambiguous_data_root`
+    同源判定）：多候选且都含真实工作区时返回可读理由，None = 放行。只给删除类
+    令牌签发调用（普通读写不设闸，否则老用户升级后正常写操作会突然失败）；
+    失效（unavailable）的闸在 `jobws.py` 命令组守卫，两者互补。
+    """
+    state = dataroot.detect_state(dataroot.form_for_process(),
+                                  pathres.resolve_root(),
+                                  workspace_name=_workspace_name())
+    if state == dataroot.STATE_AMBIGUOUS:
+        return ("本机存在多个像真实工作区的数据根——破坏性操作已拒绝；"
+                "请先确认要操作的目标根，再重试（`jobws doctor` 查看候选清单）。")
+    return None
+
+
 def _print_human(diag):
     """人读版：状态、根、来源、工作区、持久化选择与候选清单。"""
     print("数据根诊断（三态）：%s" % _STATE_LABELS.get(diag["state"], diag["state"]))

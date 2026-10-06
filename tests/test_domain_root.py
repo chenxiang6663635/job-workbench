@@ -38,20 +38,20 @@ from jobws_core import tracker  # noqa: E402
 # 应用根由 tests/conftest.py 注入（pathres 不再从 __file__ 推断根目录）。
 
 
-def test_default_workspace_sits_under_app_root():
-    """默认工作区 = <应用根>/personal——写成「父目录等于应用根」，位置无关。
+def test_default_workspace_sits_under_data_root():
+    """默认工作区 = <数据根>/personal（B4 整改 A：CLI 与 API / MCP 同源）。
 
-    包化后 ROOT 的 dirname 层级曾少一层（tools/tracker/ 比 tools/tracker.py
-    深一级）→ 默认工作区落到 tools/personal（独立审查 MAJOR-2 实测）。
-    这条断言在领域层搬进 site-packages 后依然成立：那时 ROOT 若漂了，
-    dirname(DEFAULT_WORKSPACE) 就不再等于 resolve_root()，当场变红。
+    旧口径锚**应用根**——B3 把数据根默认切到 `<user_data_dir>/data` 后，新装
+    场景 CLI 建到仓库、其余三端读 user_data，四端默认分叉。本测试随之改锚到
+    数据根：legacy 保留场景（本机=仓库根）下两者同值，所以本机跑起来与旧断言
+    等价；新装场景才真正验证「同源」。
     """
-    app_root = os.path.abspath(pathres.resolve_root())
-    default_ws = os.path.abspath(tracker.DEFAULT_WORKSPACE)
+    data_root, _mode = pathres.resolve_workspace_root()
+    default_ws = os.path.abspath(tracker.default_workspace())
     assert os.path.basename(default_ws) == "personal"
-    assert os.path.dirname(default_ws) == app_root, (
-        "默认工作区的父目录应等于应用根：领域层的 ROOT 推导层级错了"
-        "（默认工作区=%s，应用根=%s）" % (default_ws, app_root)
+    assert os.path.dirname(default_ws) == os.path.abspath(data_root), (
+        "默认工作区的父目录应等于数据根（B4 整改 A）"
+        "（默认工作区=%s，数据根=%s）" % (default_ws, data_root)
     )
 
 

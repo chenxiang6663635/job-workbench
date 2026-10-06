@@ -18,7 +18,8 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-from jobws_core.jd_score import (DEFAULT_WORKSPACE, DIMENSIONS, TOTAL_MAX,  # noqa: E402
+from jobws_core import pathres  # noqa: E402  （默认工作区：数据根推导，唯一实现）
+from jobws_core.jd_score import (DIMENSIONS, TOTAL_MAX,  # noqa: E402
                                  gap_analysis, parse_dimension,
                                  parse_score_section, resolve_profile, verdict)
 
@@ -27,8 +28,8 @@ def _build_parser():
     parser = argparse.ArgumentParser(description="校验 JD 解析卡评分并输出结论档位")
     # --show-profile 只查插件路径，不需要解析卡，故设为可选
     parser.add_argument("card", nargs="?", help="解析卡路径")
-    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
-                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--workspace", default=pathres.default_workspace(),
+                        help="工作区目录，默认数据根下的 personal/")
     parser.add_argument("--domain", help="领域插件 ID，如 hvac-cooling")
     parser.add_argument("--direction", help="方向 ID，如 datacenter / hvac")
     parser.add_argument("--show-profile", action="store_true",

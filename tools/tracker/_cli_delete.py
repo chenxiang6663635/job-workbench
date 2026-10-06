@@ -41,7 +41,18 @@ def _print_errors(errors):
 
 
 def _preview_and_register(operation, plan, ws):
-    """两段式第一步的公共输出：登记令牌并打印差异与下一步。"""
+    """两段式第一步的公共输出：登记令牌并打印差异与下一步。
+
+    B4 整改 C：令牌签发前先过**歧义闸**——多候选且都含真实工作区时，删除
+    意图指向哪个根是不确定的（spec 决策 4「破坏性拒绝」）；与 API
+    `deps.require_unambiguous_data_root` 同源。这是删除类唯一的令牌出口
+    （五张从表 + 投递主表都经本函数），所以闸也只需这一处。
+    """
+    from _cli_doctor import destructive_guard_reason
+    reason = destructive_guard_reason()
+    if reason:
+        print("错误：%s" % reason)
+        return 1
     from jobws_core import approval  # 延迟导入（与 _cli_mail / _cli_interview 同款）
     result = approval.preview(operation, ws, plan["payload"], plan["summary"],
                               plan["diff"], plan["targets"])
@@ -62,7 +73,7 @@ def run_delete_preview(store_key, record_id, operation, workspace=None):
     1 = 校验失败，未做任何改动。领域层负责"将删什么"的完整校验与差异表，
     这里只做打印与协议登记——没有第二份校验就没有失配的机会。
     """
-    ws = workspace or _core.WORKSPACE
+    ws = workspace or _core.resolve_ws()
     errors, plan = deletes.preview_delete(store_key, record_id, ws)
     if errors:
         return _print_errors(errors)
@@ -71,7 +82,7 @@ def run_delete_preview(store_key, record_id, operation, workspace=None):
 
 def run_application_delete_preview(record_id, workspace=None):
     """投递删除的统一尾部（解绑联动版）：差异里含「将解绑的关联记录」清单。"""
-    ws = workspace or _core.WORKSPACE
+    ws = workspace or _core.resolve_ws()
     errors, plan = application_delete.preview_delete_application(record_id, ws)
     if errors:
         return _print_errors(errors)

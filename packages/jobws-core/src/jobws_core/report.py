@@ -22,8 +22,8 @@ from datetime import date, timedelta
 
 
 from .tracker import (
-    DEFAULT_WORKSPACE, FAIL_STAGES, ROOT, STAGES, TERMINAL_STAGES,
-    csv_path, parse_iso_date, read_history, read_rows, set_workspace,
+    FAIL_STAGES, ROOT, STAGES, TERMINAL_STAGES, csv_path, default_workspace,
+    parse_iso_date, read_history, read_rows, set_workspace,
 )
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # 时间线时间戳的日期部分（YYYY-MM-DD HH:MM）
@@ -138,7 +138,7 @@ def load_failure_keywords(workspace=None):
     返回 [(类别, [关键词...]), ...]；文件不存在时返回空列表（调用方退化为
     按「状态原因」原文频次统计——宁可粗一点，也不编造分类）。
     """
-    ws = workspace or DEFAULT_WORKSPACE
+    ws = workspace or default_workspace()
     path = os.path.join(ws, FAILURE_KEYWORDS_FILE)
     if not os.path.isfile(path):
         return []
@@ -490,8 +490,8 @@ def build_report(rows, today, workspace=None):
 
 def main():
     parser = argparse.ArgumentParser(description="生成投递漏斗看板")
-    parser.add_argument("--workspace", default=DEFAULT_WORKSPACE,
-                        help="工作区目录，默认仓库下的 personal/")
+    parser.add_argument("--workspace", default=default_workspace(),
+                        help="工作区目录，默认数据根下的 personal/")
     parser.add_argument("--out", help="输出文件路径，默认工作区下 05_投递追踪/看板.md")
     parser.add_argument("--stdout", action="store_true", help="只打印到标准输出，不写文件")
     args = parser.parse_args()

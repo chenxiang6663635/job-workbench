@@ -20,7 +20,7 @@
 
 - **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 docs/contributing.zh-CN.md 的「CHANGELOG 写法」节；内部术语见 [`docs/glossary.md`](docs/glossary.md)。
 
-## [Unreleased]
+## [26.10.0] - 2026-10-06
 
 ### Highlights (English)
 

@@ -5,7 +5,7 @@ description: Use when 用户已确认要投递某个岗位，要求生成投递�
 compatibility: Python 3.12+；jobws 指仓库内的 python tools/jobws.py（在仓库根运行）；工作区已初始化；全本地运行，产物只写你的工作区。
 license: MIT
 metadata:
-  version: 26.9.0
+  version: 26.10.0
 allowed-tools: Bash(jobws:*)
 ---
 

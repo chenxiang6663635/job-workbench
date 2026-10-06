@@ -5,7 +5,8 @@
 import { currentWorkspace, requestJson as request, setWorkspace } from "./lib/http";
 import type {
   Application, ApprovalApplyResult, BackupResult, BankImportPreview, BankListResult,
-  Contact, DashboardData, GapResult, HistoryEntry, ImapConfig, ImapFetchResult,
+  Contact, DashboardData, GapResult, HistoryEntry, ImapConfig,
+  ImapFetchResult, MigrateActionResult, MigratePlanView,
   ImapTestResult, ImportCommitResult, ImportPreviewResult, ImportResult, Interview,
   JobDetail, JobOrder, JobSort, JobStatus, JobSummary, LibraryList, LineageItem, Mail,
   Offer, PrepContent, PrepList, PrepSearch, PrepTogglePreview, ProviderConfig,
@@ -415,6 +416,31 @@ export const api = {
     request<{ ok: boolean; path: string }>("/system/open-folder", {
       method: "POST",
       body: { path: which },
+    }),
+
+  // 数据根迁移（B2 引导式：预览 → 确认；预览是纯读报告，永远 200）
+  dataRootMigratePreview: (target: string) =>
+    request<MigratePlanView>("/system/data-root/migrate/preview", {
+      method: "POST",
+      body: { target },
+    }),
+
+  dataRootMigrateApply: (target: string, planToken: string) =>
+    request<MigrateActionResult>("/system/data-root/migrate/apply", {
+      method: "POST",
+      body: { target, plan_token: planToken },
+    }),
+
+  dataRootMigrateResume: (apply: boolean) =>
+    request<MigrateActionResult>("/system/data-root/migrate/resume", {
+      method: "POST",
+      body: { apply },
+    }),
+
+  dataRootMigrateRollback: (apply: boolean) =>
+    request<MigrateActionResult>("/system/data-root/migrate/rollback", {
+      method: "POST",
+      body: { apply },
     }),
 
   exportUrl: () => {

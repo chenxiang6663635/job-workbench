@@ -139,5 +139,140 @@ def test_all_routes_work_while_unavailable(client, tmp_path):
     assert _get(client)["source"] != "persisted"
 
 
+# --- 迁移事务（B2）：preview → apply（plan_token 复核）→ resume / rollback --------
+
+@pytest.fixture()
+def mig_client(tmp_path, monkeypatch):
+    """与 A3 的 client 同款隔离，但数据根收进 `tmp_path/root`——迁移目标
+    不能落在源内部（preflight 的 usage 判定），必须给它留出兄弟位置。"""
+    monkeypatch.delenv("JOBWS_DATA_DIR", raising=False)
+    monkeypatch.delenv("JOBWS_WORKSPACE", raising=False)
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "appdata"))
+    monkeypatch.setattr(deps, "ROOT", str(tmp_path / "root"))
+    (tmp_path / "root" / "personal").mkdir(parents=True)
+
+    import main  # noqa: E402  （在 ROOT 被改写之后导入）
+    return TestClient(main.app)
+
+
+def _mk_ws(root):
+    """给数据根放一个最小工作区（迁移要有东西可搬）。"""
+    ws = os.path.join(str(root), "personal")
+    os.makedirs(os.path.join(ws, "config"), exist_ok=True)
+    with io.open(os.path.join(ws, "config", "profile.md"), "w",
+                 encoding="utf-8", newline="\n") as fh:
+        fh.write("# 档案\n")
+    return ws
+
+
+def _preview(client, target):
+    res = client.post("/api/system/data-root/migrate/preview",
+                      json={"target": str(target)})
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+def test_migrate_preview_is_read_only(mig_client, tmp_path):
+    client = mig_client
+    _mk_ws(deps.ROOT)
+    view = _preview(client, tmp_path / "out")
+    assert view["ok"] is True and view["reasons"] == [], view
+    assert view["entries"] == 1 and view["plan_token"]
+    assert not os.path.exists(_selection_path()), "预览不该写选择文件"
+    assert not os.path.exists(str(tmp_path / "out")), "预览不该建目标目录"
+
+
+def test_migrate_apply_completes_with_token(mig_client, tmp_path):
+    client = mig_client
+    _mk_ws(deps.ROOT)
+    target = tmp_path / "out"
+    view = _preview(client, target)
+
+    res = client.post("/api/system/data-root/migrate/apply",
+                      json={"target": str(target), "plan_token": view["plan_token"]})
+    assert res.status_code == 200, res.text
+    assert res.json()["status"] == "done", res.text
+    assert os.path.isfile(os.path.join(str(target), "personal", "config", "profile.md"))
+    assert _get(client)["path"] == str(target)
+
+
+def test_migrate_apply_rejects_stale_token(mig_client, tmp_path):
+    client = mig_client
+    _mk_ws(deps.ROOT)
+    target = tmp_path / "out"
+    view = _preview(client, target)
+    with io.open(os.path.join(deps.ROOT, "personal", "extra.md"), "w",
+                 encoding="utf-8", newline="\n") as fh:
+        fh.write("预览之后才写入\n")
+
+    res = client.post("/api/system/data-root/migrate/apply",
+                      json={"target": str(target), "plan_token": view["plan_token"]})
+    assert res.status_code == 409, res.text
+    assert res.json()["error_code"] == "sys.dataRootPlanStale", res.text
+
+
+def test_migrate_apply_blocked_returns_409(mig_client, tmp_path):
+    client = mig_client
+    _mk_ws(deps.ROOT)
+    target = os.path.join(deps.ROOT, "personal", "inner")   # 目标落在源内部
+
+    res = client.post("/api/system/data-root/migrate/apply",
+                      json={"target": target, "plan_token": "whatever"})
+    assert res.status_code == 409, res.text
+    assert res.json()["error_code"] == "sys.dataRootMigrateBlocked", res.text
+
+
+def test_migrate_apply_is_idempotent_when_already_current(mig_client, tmp_path):
+    client = mig_client
+    _mk_ws(deps.ROOT)
+    target = tmp_path / "out"
+    assert _post(client, target).status_code == 200          # 选择已指向目标
+
+    res = client.post("/api/system/data-root/migrate/apply",
+                      json={"target": str(target), "plan_token": ""})
+    assert res.status_code == 200, res.text
+    assert res.json() == {"status": "noop", "already_current": True}, res.text
+
+
+def test_migrate_resume_and_rollback_without_transaction(mig_client):
+    client = mig_client
+    res = client.post("/api/system/data-root/migrate/resume", json={"apply": False})
+    assert res.status_code == 200, res.text
+    assert res.json()["status"] == "nothing", res.text
+    res = client.post("/api/system/data-root/migrate/rollback", json={"apply": True})
+    assert res.status_code == 200, res.text
+    assert res.json()["status"] == "nothing", res.text
+
+
+def test_migrate_rollback_after_apply_points_back(mig_client, tmp_path):
+    client = mig_client
+    _mk_ws(deps.ROOT)
+    target = tmp_path / "out"
+    view = _preview(client, target)
+    client.post("/api/system/data-root/migrate/apply",
+                json={"target": str(target), "plan_token": view["plan_token"]})
+
+    res = client.post("/api/system/data-root/migrate/rollback", json={"apply": True})
+    assert res.status_code == 200, res.text
+    assert res.json()["status"] == "rolled-back", res.text
+    assert _get(client)["path"] == str(deps.ROOT)
+    assert os.path.isdir(os.path.join(str(target), "personal")), "回滚不删目标"
+
+
+def test_migrate_works_while_unavailable(mig_client, tmp_path):
+    """三态可用（spec 决策 4/5）：失效态里预览 / 续跑照样是明路。"""
+    client = mig_client
+    _plant_selection(json.dumps({"data_root": str(tmp_path / "gone")}))
+    assert _get(client)["state"] == "unavailable"
+
+    view = _preview(client, tmp_path / "out")   # 源根失效 → 计划如实报 blocked
+    assert view["ok"] is False
+    assert any("源工作区不存在" in item["message"] for item in view["reasons"])
+
+    res = client.post("/api/system/data-root/migrate/resume", json={"apply": False})
+    assert res.status_code == 200, res.text
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

@@ -479,8 +479,8 @@
       "cli": "data-root migrate",
       "mcp": null,
       "plugin": null,
-      "gui": null,
-      "note": "迁移事务（B1，spec 决策 5）：`plan → copy → verify → switch → done/failed`，copy-first / switch-second / delete-never——源目录在 done 之前只读不删，第一版完全不自动删。**默认 dry-run**（只出清单与预检），`--apply` 才执行；`--resume` 按清单/哈希差量续跑在途事务，`--rollback` 把选择指回旧根（不删、不回搬）。switch 是唯一生效点且最后写：相位写在 `state/data-root.json` 的 `migration_state`，`data_root` 只在最后那一次写变成目标；按 `root_id` 幂等。校验含工作区语义项（tracker 行数与主键、profile.md、directions 数量、凭据引用逐条保留——引用取不到只告警，与 #203 的处置一致）。gui 面（设置页「数据位置」卡与一键确认）属 B2。"
+      "gui": "POST /api/system/data-root/migrate/",
+      "note": "迁移事务（B1/B2，spec 决策 5）：`plan → copy → verify → switch → done/failed`，copy-first / switch-second / delete-never——源目录在 done 之前只读不删，第一版完全不自动删。**默认 dry-run**（只出清单与预检），`--apply` 才执行；`--resume` 按清单/哈希差量续跑在途事务，`--rollback` 把选择指回旧根（不删、不回搬）。switch 是唯一生效点且最后写：相位写在 `state/data-root.json` 的 `migration_state`，`data_root` 只在最后那一次写变成目标；按 `root_id` 幂等。校验含工作区语义项（tracker 行数与主键、profile.md、directions 数量、凭据引用逐条保留——引用取不到只告警，与 #203 的处置一致）。gui 面（B2）：设置页「数据位置」卡——四态徽章 + 两段式迁移（预览/确认/续跑/回滚），确认凭计划指纹复核；「无歧义自动」触发属 B3 的默认切换场景。"
     }
   ],
   "error_map": [

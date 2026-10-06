@@ -64,7 +64,7 @@
 | 数据根 | `dataRoot.read` | `data-root show` | — | — | `GET /api/system/data-root` |
 | 数据根 | `dataRoot.select` | `data-root set` | — | — | `POST /api/system/data-root` |
 | 数据根 | `dataRoot.clear` | `data-root clear` | — | — | `DELETE /api/system/data-root` |
-| 数据根 | `dataRoot.migrate` | `data-root migrate` | — | — | — |
+| 数据根 | `dataRoot.migrate` | `data-root migrate` | — | — | `POST /api/system/data-root/migrate/` |
 
 ## 各端不提供的能力（含原因）
 

@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FolderOpen, HardDrive, Languages } from "lucide-react";
+import { Languages } from "lucide-react";
 import { LANGS } from "../i18n";
 import { api, type SystemPaths } from "../api";
 import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
 import { PageHeader } from "../components/ui/page-header";
-import { Skeleton } from "../components/ui/skeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import ThemePicker from "../components/ThemePicker";
 import DataPrivacyCard from "../components/settings/DataPrivacyCard";
+import DataLocationCard from "../components/settings/DataLocationCard";
 import ZoomCard from "../components/settings/ZoomCard";
 import AboutCard from "../components/settings/AboutCard";
 import ImapCard from "../components/settings/ImapCard";
@@ -161,55 +160,17 @@ export default function Settings() {
             授权码引导、文件夹候选都在那边，状态也由它自持。 */}
         <ImapCard hidden={!cards.has("imap")} />
 
-        {/* 数据位置：数据根 + 模式（便携 = 应用目录旁；用户目录 = 安装到不可写
-            位置时的回退）。与「数据与隐私」相邻：一张回答「数据在哪」，一张
-            回答「怎么带走 / 怎么备份」。 */}
-        <Card className={cn("space-y-4 p-5", hide("dataLoc"))}>
-          <CardHeader className="p-0">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <HardDrive size={16} className="text-primary" /> {t("settings.dataLocTitle")}
-            </CardTitle>
-          </CardHeader>
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t("settings.dataLocDesc")}
-          </p>
-
-          {/* 三态与「数据与隐私」卡同款：读取失败可定位 / 加载中骨架 / 就绪显示真实路径 */}
-          {pathsError ? (
-            <p className="text-[0.6875rem] text-destructive">
-              {t("settings.pathsFailed", { error: pathsError })}
-            </p>
-          ) : !paths ? (
-            <Skeleton className="h-12 w-full" />
-          ) : (
-            <div className="space-y-1.5">
-              <p className="break-all text-[0.6875rem] text-muted-foreground">
-                {t("settings.dataRoot")}
-                <span className="font-mono text-muted-foreground">{paths.dataRoot}</span>
-              </p>
-              <p className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">
-                  {paths.mode === "portable" ? t("settings.modePortable") : t("settings.modeUser")}
-                </Badge>
-                <span className="text-[0.6875rem] leading-relaxed text-muted-foreground">
-                  {paths.mode === "portable"
-                    ? t("settings.modePortableHint")
-                    : t("settings.modeUserHint")}
-                </span>
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => api.openFolder("dataRoot").catch((e: Error) => setError(e.message))}
-            >
-              <FolderOpen size={15} /> {t("settings.openDataRoot")}
-            </Button>
-          </div>
-        </Card>
+        {/* 数据位置卡已拆到 components/settings/DataLocationCard.tsx（B2：四态徽章
+            与两段式迁移长在卡里——设置页是登记过水位的存量文件，只许变小）。
+            与「数据与隐私」相邻：一张回答「数据在哪 / 怎么搬家」，一张回答
+            「怎么带走 / 怎么备份」。 */}
+        <DataLocationCard
+          paths={paths}
+          pathsError={pathsError}
+          onError={setError}
+          onReload={loadPaths}
+          hidden={!cards.has("dataLoc")}
+        />
 
         {/* 关于卡已拆到 components/settings/AboutCard.tsx（评分放宽批：加使用手册
             入口时顺带抽取——桌面端与 Web 共用这套前端，文档入口两端同时获得） */}

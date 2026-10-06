@@ -41,7 +41,7 @@ export const SETTINGS_CARDS: SettingsCardMeta[] = [
   { id: "provider", group: "services", keywords: ["provider", "模型", "api key", "密钥", "deepseek", "base url", "model"] },
   { id: "imap", group: "services", keywords: ["imap", "邮箱", "mail", "授权码", "服务商", "文件夹", "qq", "163", "gmail", "outlook"] },
   { id: "prefs", group: "appearance", keywords: ["偏好", "preference", "已修改", "还原", "reset"] },
-  { id: "dataLoc", group: "data", keywords: ["数据位置", "路径", "data", "portable", "便携"] },
+  { id: "dataLoc", group: "data", keywords: ["数据位置", "路径", "data", "portable", "便携", "迁移", "搬家", "migrate"] },
   { id: "about", group: "data", keywords: ["关于", "about", "版本", "version"] },
   { id: "privacy", group: "data", keywords: ["隐私", "privacy", "备份", "快照", "snapshot", "诊断", "导出"] },
 ];

@@ -37,6 +37,7 @@ rename 之后）→ 只补最后一步；其余（`planned` / `copying` / `verif
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import logging
@@ -186,6 +187,29 @@ def plan(target, source, workspace=None):
 def reasons_text(plan_doc):
     """把预检理由拼成一行人读文案（CLI 与失败原因共用一份）。"""
     return "；".join(item["message"] for item in plan_doc.get("reasons") or []) or "（无）"
+
+
+def plan_fingerprint(plan_doc):
+    """计划的指纹——预览 → 确认协议的「确认凭据」（spec 决策 5 的形状复用）。
+
+    apply 侧重算并比对：清单（相对路径 / 大小 / sha256）、跳过项、预检理由任一
+    变化都会换指纹——源数据在预览与确认之间被人动过，就绝不按旧计划执行。
+    只取**稳定字段**：不含 `free_bytes`（探测值，两次读取天然可以不同）、不含
+    `root_id`（无身份的源根每次计划都会新铸 uuid——身份由事务记录与根标记承载，
+    不是计划内容的一部分）。
+    """
+    manifest = plan_doc.get("manifest") or {}
+    stable = {
+        "source_root": plan_doc.get("source_root"),
+        "target_root": plan_doc.get("target_root"),
+        "workspace": plan_doc.get("workspace"),
+        "entries": manifest.get("entries"),
+        "skipped": manifest.get("skipped"),
+        "total_bytes": manifest.get("total_bytes"),
+        "reasons": plan_doc.get("reasons"),
+    }
+    payload = json.dumps(stable, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def apply(plan_doc):

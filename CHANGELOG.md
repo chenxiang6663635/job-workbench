@@ -79,6 +79,7 @@
 
 #### Infrastructure（内部工程）
 
+- **DSH 插件发行物调研 + 宿主 Python feasibility spike（2026-10-06）**：新增 `docs/research/report_dsh_plugin_distribution.md`——两个子代理（本机 DSH 生态勘察 / 跨生态 Web 实践）与一个限时本机 spike 的合并报告。决策级结论：**宿主 Python 路线技术 PASS**（宿主自带的 Python 3.12.14 以两种工程形态完整跑通 jobws-mcp 的 MCP 握手——PYTHONPATH 组合 / 插件本地 venv，全程不写宿主 site-packages；含 pywin32 `.pth` 坑及其修正），**契约 INTERNAL-ONLY**（官方 `load_workspace_dependencies` 工具与 `DSH_PRIMARY_RUNTIME` 属模型 / 技能级机制，无第三方插件 API）——公开发行仍按 self-contained runtime 设计，宿主 Python 作「探测到即加速」的优化位；未确认项六条见报告 §6。**本批不改实现**。
 - **Electron 主进程模块化（2026-10-04，issue #204）**：`web/electron/main.js` **967 → 128 行**，收敛为装配根——日志 / 后端进程 / 偏好通道 / 诊断桥 / 提醒 / 窗口 / 导航 / 更新 / 单实例共九个模块，全部不 `require("electron")`、可在 node 下直测；新增四份纯逻辑用例并入 CI 自检步（6 → 10 条）。打包白名单守卫从「只扫 main.js」扩为**扫描全部打包模块**（含 `path.join(__dirname, "x.js")` 派生路径）——拆分后子模块漏登记 `build.files` 会「源码形态照跑、安装版启动即崩」，守卫并配了变异测试证明两类漏登记都会被拦。
 > 这些变更不改变使用方式，是内部质量改进（CI / 测试 / 水位线 / 重构 / 包化 / 脚本 / 文档校对）。
 

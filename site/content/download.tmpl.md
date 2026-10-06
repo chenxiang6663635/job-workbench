@@ -6,9 +6,9 @@ English: [Download](download.en.md)
 
 ## 主通道：GitHub Releases
 
-[下载 Windows 安装包](https://github.com/chenxiang6663635/job-workbench/releases/latest){ .md-button .md-button--primary }
+[下载 Windows 安装包（直达）](https://github.com/chenxiang6663635/job-workbench/releases/download/v{{VERSION}}/job-workbench-setup-{{VERSION}}-win64.exe){ .md-button .md-button--primary }
 
-打开发布页后，在 **Assets** 区下载 `job-workbench-setup-{{VERSION}}-win64.exe`——Windows x64 安装包，向导式安装，免 Python / Node 环境。
+链接指向的文件就是 `job-workbench-setup-{{VERSION}}-win64.exe`——Windows x64 安装包，向导式安装，免 Python / Node 环境。如果直达链接打不开（版本刚发布、CDN 未同步），可[打开发布页](https://github.com/chenxiang6663635/job-workbench/releases/latest)在 **Assets** 区选取。
 
 > 国内网络访问 GitHub 可能不畅。如果发布页打不开、或下载中途断流，请走下面的备用通道。
 

@@ -24,42 +24,38 @@ when one exists. Historical implementation records stay in
 - [x] [#4](https://github.com/chenxiang6663635/job-workbench/issues/4) — Expand privacy & anti-fabrication regression coverage as the Web surface grows — **shipped in PR #32**: portability resolution, CSV-import privacy & atomicity, and doc relative-link reachability (three previously untested surfaces)
 - [x] **Release automation** — shipped in PR #23: tag (`v*`) triggers the Windows build and attaches the installer to the Release, so the v0.1.1 asset drift is now structurally impossible; the v0.2.0 release will be its first real run
 
-## Now — single-release plan (registered 2026-09-15)
+## Now — DSH 接入件第二阶段：自包含发行物（2026-10-06 登记）
 
-**Release practice changed on 2026-09-24**: version numbers are month-granularity CalVer —
-`YY.MM.N` (`26.9.0` = first release of the month; hotfix locks the first two segments and
-bumps `N`), the same number for the tag, `package.json` and the UI, and the tag is `v<version>`
-(see [CONTRIBUTING.md](CONTRIBUTING.md), section 版本号体系). There is a **single release node**:
-every batch below lands before it, none of them ships on its own, and the whole plan goes out as
-**one timestamped release**. Each batch still lands as its own PR; items below carry a
-**2026-09-20 verified status note** (已实现 / 部分完成 / 未开始 / **暂缓**——暂缓的条目移至下方「候选池」并写明触发条件).
+> 上一轮「单一发布计划」（2026-09-15 登记）已全部完结（`v0.3.0` → `v26.10.0`，
+> 逐项见 [CHANGELOG](CHANGELOG.md)）；本段为主线的下一段。边界与不变量见
+> [`docs/decisions/first-class-delivery-surfaces.md`](docs/decisions/first-class-delivery-surfaces.md)
+> （第一等交付面 ADR，#271：单一发布线 / 运行时独立领域共享 / 依赖方向
+> `core ← CLI/Web/MCP ← DSH`）。
 
-- [x] **Versioning switch** (first) — timestamp release numbers end to end: the generator and the
-  derived tag check in `tools/release_assist.py` (`jobws release version`), the release-workflow
-  gates, the changelog / contributing rules, and an **about card in settings** showing the running
-  (machine) version and platform. **Build date was dropped**: nothing ever produced
-  `JOBWS_BUILD_DATE`, so the field could only render as empty (found in review, 2026-09-15).
-- [x] **Question bank** — **已实现（2026-09-20 核实）**：题库成为一等公民（独立 `questions.csv`）、错题本与「今日待复习」、CSV 导入/导出、**删除与撤回**（行指纹 + 工作区外整表快照）、**抽题与重练训练面板**均已落地（后两条超出原登记范围）。原描述：stops being a mirror of interview records: a first-class personal bank
-  with import/export (CSV and workspace Markdown, preview-then-apply with a one-shot token), a
-  wrong-answer book and a "due today" review; the talks table follow-ups land alongside.
-- [x] **UI visual pass** — **大部已落地（2026-09-20 核实）**：数字体系、字号连续可调、主题与字体体系、八页精修均已随 v0.2.x–09 月批次落地，中英两套截图已重拍（16 张）。原描述：background depth, typography scale, eight-page polish and number
-  rendering (tabular figures); the acceptance bar is "a screenshot diff you can point at", carried
-  over from the earlier visual-polish plan (whose token and primitive layers already shipped).
-- [x] **Agent & MCP line** — **已实现（2026-09-20 核实）**：MCP 写工具协议级确认（多轮往返 + 四类拒绝用例）、领域层独立可分发包 + CI 独立安装冒烟、工作区文件资源与提示模板均已落地（PR #156 前后）。原描述：write tools move to **protocol-level confirmation** (multi-round-trip
-  + signed request state, four rejection classes tested) and the domain layer is extracted into an
-  installable package with a standalone-install smoke in CI; then workspace files become MCP
-  resources, prompt templates ship, and the modern protocol is kept with legacy compatibility.
-- [ ] **Exams track** — **暂缓（2026-09-22 拍板）**：不实现，整条降级为候选池条目（见下方「候选池」表首行，含触发条件）。原描述：stage names become per-track configuration (defaults identical to today,
-  so an existing workspace changes in no way) so 考公 flows through the same workbench instead of
-  a parallel one; the question bank grows exam subject presets.
-- [x] **Mail structuring** — **已实现（PR #176，2026-09-23 已合并）**：日历附件优先（`.ics` 最小解析）+ 正文正则兜底抽事实——时间、会议链接、阶段、公司与岗位；建议卡**逐条确认**才写入（不确认不落盘），会议链接进邮件台账新列（缺列按空、零迁移）；引用块与签名先剥离、截断按行边界保留含链接/日期行；可选 AI 增强 BYOK、只产建议、强制低把握；**无后台路径**（无定时器 / 轮询 / 保活）。原描述：extract candidate facts from message bodies (times, meeting links,
-  stages, companies) into suggestion cards that only write after row-by-row confirmation; no
-  background workers, ever.
-- [x] **Skills & plugin distribution** — **已实现（PR #177，2026-09-23 已合并）**：8 个技能补标准元数据（`license` / `metadata.version` / 按需 `allowed-tools`）并把最长三份的大段内容拆进 `references/`（渐进披露）；校验器加字段白名单、`references/` 可达、正文 ≤500 行与**版本号一致性**四条规则；分发从「只有技能」扩到**技能 + 命令 + 子代理**三类（`skill_assets.py` 的资产表 + `--link` 实验选项），镜像比对按资产类型泛化并进 CI；零克隆通道（插件市场 / `npx skills add`）写进 README。原描述：the eight skills move onto the cross-host standard
-  distribution channel with progressive disclosure; the plugin shell grows from skills-only to
-  commands + subagents; hooks stay local, auditable and off by default. **hooks 仍保持本地、默认关闭**（决策见 [`docs/decisions/keep-hooks-local-and-off.md`](docs/decisions/keep-hooks-local-and-off.md)）。
-- [x] **System reminders, complete** — **已实现（2026-09-24 补全，候选池条目移出）**：提前 N 天（3/5/7 可配）+ 两类已过期（截止日期已过仍待投 / **下次动作日期已过**——后者此前哪个桶都不进）+ **按事项**去重（今天新出现的也报）+ 点通知展开该条。移出理由：候选池写的触发条件「错过截止日真实发生过」已被用户需求满足，且最小形态提醒已在收口批落地。
-- [x] **笔记内相对链接跳转（一期）** — **已交付（PR #231，2026-09-30 合并）**：复用 `/prep/{section}/content` 只读端点，覆盖 `03_面试准备` / `04_知识库` 两棵树内的 `.md` 互链（`lib/notesLink.ts` 解析纯函数 + 渲染接线 + e2e）；不可解析链接保持弱化降级、外链行为不变；00/01/02/05 与附件留二期（需新增「笔记侧只读文件端点」）。
+**目标**：让「只装 DSH、不装桌面端」的用户完整用上求职工作台——DSH 接入件从
+「本机 checkout 形态」（`integrations/dsh/` + 本机 venv）升级为**自包含发行物**，
+与桌面端同发布线（同 CalVer 同 tag；宿主兼容是另一维度）。
+
+- [ ] **P2-1 bundle 骨架** — `integrations/dsh/` 升级为 npm 包形态：`package.json`
+  manifest（`dsh.bundle.patch`）+ `cordis.patch.yml` + preset 打包 + **skills 随包生成**
+  （打包脚本从 `skills/` 真源同步生成并纳入 four-ends 治理——防镜像漂移）+ README 双视角。
+  待拍板：npm 包名 / scope。
+- [ ] **P2-2 runtime 落地** — 自包含发行物第一选择：PyInstaller `jobws-mcp.exe` 随平台
+  子包分发（libreoffice-kit 模板：optionalDependencies + os/cpu + prebuilds.json 哈希
+  清单）；宿主 Python 探测作加速位（**INTERNAL-ONLY**——契约未开放，触发重估 = DSH
+  提供第三方 runtime API）；Windows first。风险面：AV 误报 / SmartScreen（代码签名
+  已决策暂不采购，触发条件见 [`docs/decisions/code-signing.md`](docs/decisions/code-signing.md)）。
+- [ ] **P2-3 安装体验** — `dsh plugin --profile <p> add <npm 包>`（CLI 自动写依赖与
+  bundle 声明）→ 可选 marketplace 收录（门槛：`dsh.bundle` 声明 + 根目录
+  `cordis.patch.yml` + `dsh-plugin` topic）。
+- [ ] **P2-4 版本兼容** — `dsh.engines.dsh` 保守上限（`>=0.2.0-rc.2 <0.3` 形态）+
+  「updates.json 事后放宽不重发包」模式（Zotero 先例）；同 CalVer 同 tag。
+- [ ] **P2-5 parity 再评审** — four-ends 矩阵 71 条例外分「刻意不对称（保留+写理由）」
+  vs「真缺口（补齐）」+ 矩阵补 DSH 行 + README multi-surface 微调。
+
+**发布节点**：第二阶段整体走 `26.11.0`（换月单一发布节点）；`26.10.1` 只留给阻断类
+hotfix。**设计输入**：B spike（宿主 Python INTERNAL-ONLY）· C 报告（runtime 分发事实
+标准与反例）· D2/D4 实证（stdio 直连、工具名改名加哈希、spawn×2 探针进程）。
 
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
 is stable for daily use and the workspace format promises **backward compatibility** — new columns

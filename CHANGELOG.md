@@ -20,6 +20,12 @@
 
 - **两级制（2026-09-20 起）**：每个版本段先给「看得见的变化」（中文白话）与「Highlights (English)」摘要，原始详注收进同一段的「技术细节」小节；内部工程条目统一归 `Infrastructure`。写法细则见 docs/contributing.zh-CN.md 的「CHANGELOG 写法」节；内部术语见 [`docs/glossary.md`](docs/glossary.md)。
 
+## [Unreleased]
+
+### Infrastructure（内部工程）
+
+- **发布页呈现重构（2026-10-06）**：Release 说明改为「直链下载置顶 + 不重复版本号大标题 + English Highlights 折叠」——11 个成熟项目（VS Code / Electron / Bun / Bitwarden / Godot 等）调研后的模板，正文 ≤30 行、长内容外包到 compare 与 CHANGELOG 链接；`site` 下载页主通道同步改为版本化直链。落章惯例（26.11.0 起）：中文「看得见的变化」要点压成一行式 bullet，长描述移入技术细节折叠区。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

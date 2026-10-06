@@ -6,9 +6,9 @@
 
 ## Main channel: GitHub Releases
 
-[Download the Windows installer](https://github.com/chenxiang6663635/job-workbench/releases/latest){ .md-button .md-button--primary }
+[Download the Windows installer (direct link)](https://github.com/chenxiang6663635/job-workbench/releases/download/v{{VERSION}}/job-workbench-setup-{{VERSION}}-win64.exe){ .md-button .md-button--primary }
 
-On the release page, download `job-workbench-setup-{{VERSION}}-win64.exe` from the **Assets** section — a Windows x64 installer with wizard-style setup; no Python or Node needed.
+That link is the file itself: `job-workbench-setup-{{VERSION}}-win64.exe` — a Windows x64 installer with wizard-style setup; no Python or Node needed. If the direct link does not open (freshly published, CDN not synced yet), [open the release page](https://github.com/chenxiang6663635/job-workbench/releases/latest) and pick the file from the **Assets** section.
 
 > GitHub can be slow or unreachable from some networks. If the release page will not open, or a download keeps breaking, use the backup channel below.
 

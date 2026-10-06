@@ -15,7 +15,7 @@ for contributors and for anyone evaluating the project's health.
   section is summary-only in the English companion).
 - Every release gets a changelog entry ([CHANGELOG.md](../CHANGELOG.md)) and
   GitHub release notes.
-- **Before tagging**, run `python tools/jobws.py release check --tag v26.9.0`
+- **Before tagging**, run `python tools/jobws.py release check --tag v<VERSION>`
   locally: it validates the tag/version match (exact equality) and the CHANGELOG
   section, and prints the release notes CI will publish (same implementation).
 - Releases are cut once, at the end of a plan cycle — intermediate branches are

@@ -108,7 +108,7 @@
 - **破坏性变更**：不再由版本号承载——写进该版 CHANGELOG 的「破坏性变更」小节 + 段首「升级须知」（影响与迁移步骤）。
 - **发布纪律（2026-09-15 起）**：**单一发布节点**——中间批次不 bump / 不 tag / 不 Release / 不出安装包；全部批次做完后只发布一次。
 - **其它 version 字段（私有 / 独立包，不参与发布）**：`web/frontend/package.json` 与 `mcp/pyproject.toml` 的 `version` 是各自包的私有字段，**不得与发布号联动**；`.codebuddy-plugin/marketplace.json` 无 version 字段。**例外（派生物，不是真值源）**：领域包 `packages/jobws-core` 的版本在**构建期**由它自己的 `setup.py` 读 `web/electron/package.json` 写进 wheel 元数据，运行时从 `importlib.metadata` 读回（CI 断言三者一致，见 `jobws_core/_version.py`）。它同样**不是**真值源——改版本仍然只改 `package.json` 一处，不要去改包的 `pyproject.toml`。
-- **当代参考**：tag 序列从 `v0.1.0`（2026-09-08）到 `v0.3.2`（2026-09-14）为语义化时代，`v26.09.15.1` 时期（2026-09-15 体系，**未真正发布过 tag**）作废；**下一个版本是 `26.9.0`**（2026-09 月粒度首号），实际值一律以 `web/electron/package.json` 与 `git tag` 为准。
+- **当代参考**：tag 序列从 `v0.1.0`（2026-09-08）到 `v0.3.2`（2026-09-14）为语义化时代，`v26.09.15.1` 时期（2026-09-15 体系，**未真正发布过 tag**）作废；月粒度时代已发布 `26.9.0`（2026-09-26）与 `26.10.0`（2026-10-06），实际值一律以 `web/electron/package.json` 与 `git tag` 为准。
 
 ## CHANGELOG 写法（单文件两级制，2026-09-20 起）
 

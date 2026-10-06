@@ -25,8 +25,18 @@ import sys
 
 # 可写数据目录的环境变量覆盖（最高优先级）
 ENV_DATA_DIR = "JOBWS_DATA_DIR"
+# 默认工作区名的环境变量（legacy 保留判据要按它找旧数据；与 deps.py 同值）
+ENV_WORKSPACE = "JOBWS_WORKSPACE"
 # 便携模式标记文件：存在则允许用 exe 同级目录存数据
 PORTABLE_MARKER = "portable.txt"
+# B3 起的新装默认数据根名：`<user_data_dir>/data`（spec 决策 6——四端可共同
+# 计算，不依赖应用根；MCP 没有应用根概念，这是契约成立的前提）
+DEFAULT_DATA_DIR_NAME = "data"
+
+# 旧默认位置「已有真实工作区」的信号文件（与 dataroot_probe.SIGNALS 同源：
+# 模板工作区建 config/profile.md；老工作区至少会有追踪表）。
+_LEGACY_SIGNALS = (("config", "profile.md"), ("05_投递追踪", "tracker.csv"))
+_DEFAULT_WORKSPACE = "personal"
 
 
 def is_frozen():
@@ -134,24 +144,75 @@ def user_data_dir():
 
 
 def _writable(path):
-    """目录是否可写（不存在则检查其父目录，因为可能需先创建）。"""
+    """目录是否可写；不存在则**走到最近的已存在祖先**测它（B3 起）。
+
+    为什么不只是看一层父目录：B3 的新默认是 `<user_data_dir>/data`——全新
+    机器上 `<user_data_dir>` 本身也还不存在，只看一层父目录会得出「不可写」，
+    三态判定于是把「正常首启」误报成不可写。问题其实是「`makedirs(parents=)`
+    能不能成」，所以要走到最近的真实祖先。
+    """
     try:
-        if os.path.isdir(path):
-            return os.access(path, os.W_OK)
-        parent = os.path.dirname(path) or "."
-        return os.access(parent, os.W_OK)
+        probe = os.path.abspath(path)
+        while not os.path.isdir(probe):
+            parent = os.path.dirname(probe)
+            if parent == probe:
+                return False                     # 走到盘根都没有 → 放弃
+            probe = parent
+        return os.access(probe, os.W_OK)
     except OSError:
         return False
+
+
+def default_data_root():
+    """B3 起的**新装默认数据根**：`<user_data_dir>/data`（spec 决策 6）。
+
+    四端可共同计算——MCP 没有应用根概念，这是数据根契约成立的前提。
+    目录**不在这里创建**（解析器绝不写盘）：首启由初始化流程建工作区。
+    """
+    return os.path.join(user_data_dir(), DEFAULT_DATA_DIR_NAME)
+
+
+def _legacy_workspace_present(root):
+    """旧默认位置是否已有**真实工作区**（B3 的 legacy 保留判据，O(1) stat）。
+
+    只 stat `<root>/<工作区名>/` 下的两个信号文件（工作区名取
+    `JOBWS_WORKSPACE`，缺省 personal——旧默认位置的数据就在那里，这是历史
+    事实）。与 `dataroot_probe.has_workspace` 的宽口径（扫全部一级子目录、
+    服务歧义检测）刻意分工：本判据落在**解析热路径**上，每条命令都要走，
+    必须保持纯 stat、不做目录扫描。
+    """
+    name = (os.environ.get(ENV_WORKSPACE) or "").strip() or _DEFAULT_WORKSPACE
+    for parts in _LEGACY_SIGNALS:
+        if os.path.isfile(os.path.join(root, name, *parts)):
+            return True
+    return False
+
+
+def resolve_default_root():
+    """无应用根形态（MCP-only）的默认解析：legacy 保留 → 新默认（B3）。"""
+    legacy = user_data_dir()
+    if _legacy_workspace_present(legacy):
+        return legacy, "legacy_userdata"
+    return default_data_root(), "userdata"
 
 
 def resolve_workspace_root(root=None):
     """可写的数据根目录——即 personal/ 的**父目录**（不是 personal 本身）。
 
-    优先级：
+    优先级（B3 起，spec 决策 6 + §九目标矩阵）：
       1. 环境变量 JOBWS_DATA_DIR（显式指定，最高优先级）
-      2. 应用根可写：直接用应用根（解包=仓库根，打包=exe 同级）
-         —— personal/ 位于其下，即「数据放 exe 旁」的便携模式
-      3. 应用根不可写（如装在 Program Files）：回退系统用户数据目录
+      2. 便携标记 `<root>/portable.txt`：**显式才便携**——frozen 与非 frozen
+         同一判据。「非打包可写即便携」的旧规则就此降级：可写只是能力，
+         不是选择（NSIS 安装版落在可写目录会被误判的老缺陷，根因就是拿
+         「能力」当「意愿」）。
+      3. **legacy 保留**：旧默认位置已有真实工作区 → 原样继续，**不搬迁、
+         不静默换根**（搬家是 `jobws data-root migrate` 的事，必须经确认）：
+           - 应用根下有 → (root, "legacy_portable")；
+           - 系统用户目录下有 → (user_data_dir(), "legacy_userdata")。
+         空骨架（personal/ 在但没有信号文件）**不算**——那是未初始化，
+         该走新默认由首启引导建工作区。
+      4. 新默认：(user_data_dir()/data, "userdata")——源码形态「无配置＝
+         仓库根」的那一格就此改掉（spec §九注明这是 B3 要改的最后一格）。
 
     返回 (路径, 模式说明) 便于排障与 UI 展示。
     """
@@ -163,18 +224,14 @@ def resolve_workspace_root(root=None):
     if env_dir:
         return os.path.abspath(env_dir), "env"
 
-    # 2. 便携模式（personal/ 在应用根下）。判定分形态：
-    #    - 源码/解包形态（非 frozen）：维持历史行为——可写即便携，数据在仓库根 personal/
-    #    - 打包形态（frozen）：必须有 portable.txt 标记才便携。光可写不够——NSIS 安装版
-    #      落在 %LOCALAPPDATA%\Programs（可写），按可写性判定会让用户数据进安装目录、
-    #      卸载即被连带删除（独立审查抓出的组合缺陷）。portable.txt 仅由
-    #      build_backend_exe.ps1 生成（绿色 onedir 形态）；NSIS 安装包排除它，必走 userdata。
-    if _writable(os.path.join(root, "personal")):
-        if not is_frozen() or os.path.isfile(os.path.join(root, PORTABLE_MARKER)):
-            return root, "portable"
+    # 2. 便携标记（显式选择，两种形态同一判据）
+    if os.path.isfile(os.path.join(root, PORTABLE_MARKER)):
+        return root, "portable"
 
-    # 3. 非便携（NSIS 安装版、Program Files 等）→ 系统用户目录
-    return user_data_dir(), "userdata"
+    # 3. legacy 保留：旧默认位置已有真实工作区的，原样继续
+    if _legacy_workspace_present(root):
+        return root, "legacy_portable"
+    return resolve_default_root()
 
 
 def snapshot_root():

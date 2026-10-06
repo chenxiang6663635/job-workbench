@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 import deps  # noqa: E402
+from jobws_core import pathres  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 WS = "ws-ok"
@@ -59,27 +60,43 @@ def _paths(client):
 
 
 def test_existing_fields_unchanged(tmp_path, client):
+    """既有字段一个不少。B3 起「非打包即便携」退役：无 env 的默认是新默认
+    `<user_data_dir>/data`，mode 随之从 portable 变为 user（dataRoot ≠ 应用根）。"""
     data = _paths(client)
     assert EXISTING_FIELDS <= set(data), sorted(EXISTING_FIELDS - set(data))
-    assert data["dataRoot"] == os.path.normpath(str(tmp_path))
-    assert data["mode"] == "portable"
+    assert data["dataRoot"] == os.path.normpath(pathres.default_data_root())
+    assert data["mode"] == "user"
     assert data["telemetry"] is False
 
 
-def test_diagnostic_block_portable(tmp_path, client):
+def test_diagnostic_block_default(tmp_path, client):
+    """默认根的诊断块：新默认 + 未初始化（正常首启）。"""
     data = _paths(client)
     diag = data["dataRootDiagnostic"]
     assert set(diag) == DIAGNOSTIC_FIELDS, sorted(set(diag) ^ DIAGNOSTIC_FIELDS)
     assert diag["path"] == data["dataRoot"]
     assert diag["form"] == "source_form"          # 非打包 = 源码形态
-    assert diag["source"] == "legacy_portable"    # 值表按 spec（legacy_* 前缀）
-    assert diag["state"] == "ok"
+    assert diag["source"] == "legacy_userdata"    # 新默认记在「传统默认」层
+    assert diag["state"] == "uninitialized"       # 根可写、工作区未建
     assert diag["writable"] is True
     assert diag["root_id"] is None
     assert diag["schema_version"] is None
     assert diag["persisted_selection"] is None
     assert diag["legacy_candidates"] == []
     assert diag["migration_state"] == "idle"
+
+
+def test_diagnostic_block_portable(tmp_path, client):
+    """显式便携标记（B3：两种形态同一判据）→ 数据根回到应用根、mode=portable。"""
+    with open(os.path.join(deps.ROOT, pathres.PORTABLE_MARKER), "w",
+              encoding="utf-8") as fh:
+        fh.write("portable")
+    data = _paths(client)
+    assert data["dataRoot"] == os.path.normpath(str(tmp_path))
+    assert data["mode"] == "portable"
+    diag = data["dataRootDiagnostic"]
+    assert diag["source"] == "legacy_portable"
+    assert diag["form"] == "source_form"
 
 
 def test_diagnostic_block_env(tmp_path, client, monkeypatch):

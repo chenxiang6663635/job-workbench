@@ -12,15 +12,16 @@
 为什么不发明第二套解析：带应用根的三种形态**整体委托**
 `pathres.resolve_workspace_root(app_root)`——`pathres` 仍是唯一实现，本模块
 不复制它的判定分支；只有 `FORM_MCP_ONLY`（MCP / 任意 venv，没有应用根可传）
-按现状规则复刻（`JOBWS_DATA_DIR` → `pathres.user_data_dir()`，来源见
-`mcp/jobws_mcp/paths.py` 的 `data_root()`）。
+单独复刻（B3 起兜底 = `pathres.resolve_default_root()`：legacy 保留 → 新默认）。
 
 **A3 的行为边界**（与 A1「零变更」的差异在此列明）：
 - 优先级：`JOBWS_DATA_DIR`（非空**绝对**路径）> **持久化选择** > legacy 默认，
   四种 form 一致；相对 env 值 fail-fast（决策 1——A1/A2 版本会 `abspath()`
   静默绑 cwd，本批起拒绝）；
 - env 空串（含纯空白）仍视为未设置；
-- 无 env、无 persisted 时默认位置一律不变（「非打包即便携」的收缩是 B3）；
+- **B3 起**：默认 = `<user_data_dir>/data`（决策 6）；旧默认位置已有真实
+  工作区的**原样保留**（`legacy_*`，不搬迁）；便携降级为显式标记——判定
+  细节都在 `pathres`（唯一实现），本模块只做来源词表映射；
 - 持久化状态（选择文件 / 根标记）的读写都在 `dataroot_state`。
 锁见 `tests/test_dataroot.py` 与 `tests/test_dataroot_persisted.py`；
 四端取值矩阵见 spec §九。
@@ -60,12 +61,15 @@ STATE_UNAVAILABLE = "unavailable"
 # 判断 `<root>/<ws>` 时缺省用的工作区目录名（与 deps.py / mcp paths.py 同值）。
 DEFAULT_WORKSPACE_NAME = "personal"
 
-# pathres 的「解析原因」→ 诊断对象的 `source` 词表（spec §五）。
-# 便携与用户目录两种来源都加 `legacy_` 前缀：A3 引入持久化选择后它们都属于
-# 「旧默认」——没有前缀就分不清新旧（spec §九）。
+# pathres 的「解析原因」→ 诊断对象的 `source` 词表（spec §五）。`legacy_` 前缀
+# 区分新旧默认（spec §九）；B3 起 pathres 模式细分五种：portable=显式标记，
+# legacy_*＝旧默认位置被保留（有真实工作区），userdata=新默认
+# `<user_data_dir>/data`（矩阵仍记 `legacy_userdata`——词表只有四值）。
 _SOURCE_BY_MODE = {
     "env": "env",
     "portable": "legacy_portable",
+    "legacy_portable": "legacy_portable",
+    "legacy_userdata": "legacy_userdata",
     "userdata": "legacy_userdata",
 }
 
@@ -133,39 +137,39 @@ def _from_env_or_persisted(form, env):
 
 
 def _resolve_mcp_only(form, env):
-    """`FORM_MCP_ONLY`：env > persisted > `pathres.user_data_dir()`（A3）。
+    """`FORM_MCP_ONLY`：env > persisted > legacy 保留 / 新默认（A3 + B3）。
 
-    为什么不能委托 pathres 的便携分支：MCP 包可能装在任意 venv，没有「应用根」；
-    给它传 site-packages 就等于把用户数据写到 Python 安装目录旁边（pathres 的
-    注释正在警告这件事）。所以只认数据根链的三级，与带应用根的形态共用
-    `_from_env_or_persisted`——A3 起 persisted 参与解析：MCP 不再靠宿主配置里
-    的环境变量才知道数据在哪。空串/纯空白仍视为未设置。
+    MCP 包可能装在任意 venv，没有「应用根」——传 site-packages 等于把用户
+    数据写到 Python 安装目录旁边（pathres 的注释正在警告这件事）。所以只认
+    数据根链，与带应用根的形态共用 `_from_env_or_persisted`；B3 起兜底走
+    `pathres.resolve_default_root()`。空串/纯空白仍视为未设置。
     """
     res = _from_env_or_persisted(form, env)
     if res:
         return res
-    return DataRootResolution(pathres.user_data_dir(), form, "legacy_userdata")
+    path, mode = pathres.resolve_default_root()
+    return DataRootResolution(path, form, _SOURCE_BY_MODE[mode])
 
 
 def _writable(path):
     """数据根**自身**（不存在则其父目录）能否写入——诊断对象 `writable` 的判据。
 
-    **与 pathres 的便携判据不是同一件事、不要混用**：`resolve_workspace_root`
-    判定「便携」拷问的是 `<root>/personal` 能否写入（将来要写工作区的地方），
-    是**默认位置选择**的输入；这里回答的是另一个问题——「这个数据根本身能不能
-    落数据」，供诊断与将来换根用。二者可以不同（如根可写、`personal/` 尚未创建），
-    混用会在换根 / 迁移场景里得出错答案。
+    **与 pathres 的便携判据不是同一件事、不要混用**：那边拷问的是
+    「`<root>/personal` 能否写入」（默认位置选择的输入）；这里回答
+    「这个数据根本身能不能落数据」（诊断与换根用）——二者可以不同。
 
-    判据来源：`packages/jobws-core/src/jobws_core/pathres.py` 的 `_writable`
-    （存在则测自身写权限；不存在则测其父目录，因为可能需先创建）。本模块
-    **实现等价判断**而不是引用私有函数：A1 明确不为此改 pathres 的可见性；
-    两边语义由 `tests/test_dataroot.py` 对账。
+    判据来源：`pathres._writable`（B3 起两边同语义：走到最近的已存在祖先——
+    新默认深了一层，实质是「`makedirs(parents=)` 能不能成」）。本模块**实现
+    等价判断**而不引用私有函数（A1 纪律）；语义由 `tests/test_dataroot.py` 对账。
     """
     try:
-        if os.path.isdir(path):
-            return os.access(path, os.W_OK)
-        parent = os.path.dirname(path) or "."
-        return os.access(parent, os.W_OK)
+        probe = os.path.abspath(path)
+        while not os.path.isdir(probe):
+            parent = os.path.dirname(probe)
+            if parent == probe:
+                return False                     # 走到盘根都没有 → 放弃
+            probe = parent
+        return os.access(probe, os.W_OK)
     except OSError:
         return False
 

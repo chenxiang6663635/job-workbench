@@ -99,17 +99,21 @@ def read_migration_phase():
 
 
 def candidate_roots(app_root=None, env=os.environ, include_app_root=True):
-    """已知候选根（spec §三决策 3 的固定集合）：env → user_data_dir → 应用根（可选）。
+    """已知候选根（spec §三决策 3 的固定集合，B3 起含新默认）：
+    env → user_data_dir（旧默认）→ user_data_dir/data（新默认）→ 应用根（可选）。
 
-    去重按 normcase + normpath——同一处被两种来源指向时只算一个候选，
-    否则会「自己和自己歧义」。应用根只在源码形态参与（`include_app_root`）；
-    MCP-only 看不到它（盲区，见模块 docstring）。
+    旧默认与新默认**都**是已知位置：前者可能有老用户的数据（legacy 保留），
+    后者是新装落点——歧义检测必须两处都看，漏一处就是把「有数据但不知读
+    哪份」误判成「无歧义」。去重按 normcase + normpath——同一处被两种来源
+    指向时只算一个候选，否则会「自己和自己歧义」。应用根只在源码形态参与
+    （`include_app_root`）；MCP-only 看不到它（盲区，见模块 docstring）。
     """
     roots = []
     env_dir = (env.get(pathres.ENV_DATA_DIR) or "").strip()
     if env_dir:
         roots.append(os.path.abspath(env_dir))  # 与 pathres 同口径：abspath 绑 cwd
     roots.append(pathres.user_data_dir())
+    roots.append(pathres.default_data_root())
     if include_app_root and app_root:
         roots.append(os.path.abspath(app_root))
     out, seen = [], set()

@@ -37,8 +37,11 @@ from jobws_core import containment, dataroot, pathres  # noqa: E402
 # 都不随包发），数据根是它真正需要的那个（工作区在它下面）。领域层里靠 ROOT 找的
 # 东西（如 `jd_score` 的 `template/profiles`）在独立安装下不存在，各自有回退
 # ——`resolve_profile` 会看工作区自己的 `config/`。
-pathres.set_app_root(
-    os.environ.get("JOBWS_DATA_DIR", "").strip() or pathres.user_data_dir())
+#
+# B3 起与 `data_root()` **同一条解析链**（env > persisted > legacy 保留/新默认）：
+# 此前这里只认 env 与 user_data_dir，用户设了持久化选择后领域层 ROOT 与数据根
+# 会分叉——那正是 spec 要消灭的「同一包内两个事实源」。
+pathres.set_app_root(dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY).path)
 
 # --- 与 deps.py 对齐的常量（改动时同步两边） ---
 DEFAULT_WORKSPACE_NAME = "personal"          # deps.py:22

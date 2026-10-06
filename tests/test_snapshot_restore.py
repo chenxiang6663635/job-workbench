@@ -36,7 +36,9 @@ WS = "ws-ok"
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    monkeypatch.delenv("JOBWS_DATA_DIR", raising=False)
+    # B3 起「非打包即便携」退役：数据根不再默认等于应用根——本文件的夹具工作区
+    # 建在 tmp_path 下，用 env 显式钉住数据根（优先级最高，语义即「指定数据根」）。
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(tmp_path))
     # 默认工作区指向本用例的工作区：否则不带 ?ws= 的请求会静默落到 personal/
     # （第一版就是这么红的——所有用例都报"快照不存在"，而快照明明写下去了）
     monkeypatch.setenv("JOBWS_WORKSPACE", WS)

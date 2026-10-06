@@ -75,12 +75,15 @@ def test_api_rejects_unknown_key(client):
 
 
 def test_paths_reports_data_root_and_mode(tmp_path, client):
-    """非打包、无 JOBWS_DATA_DIR、应用根可写 → 便携模式：数据根 == 应用根。"""
+    """B3 起「非打包即便携」退役：无 env 的默认是新默认 `<user_data_dir>/data`，
+    mode 为 user（dataRoot ≠ 应用根）。便携分支由 test_system_paths_diagnostic
+    的标记用例覆盖。"""
+    from jobws_core import pathres
     res = client.get("/api/system/paths", params={"ws": WS})
     assert res.status_code == 200
     data = res.json()
-    assert data["dataRoot"] == os.path.normpath(str(tmp_path))
-    assert data["mode"] == "portable"
+    assert data["dataRoot"] == os.path.normpath(pathres.default_data_root())
+    assert data["mode"] == "user"
 
 
 def test_mode_falls_back_to_user_dir_when_env_points_elsewhere(tmp_path, client, monkeypatch):

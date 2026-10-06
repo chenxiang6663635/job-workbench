@@ -173,9 +173,12 @@ def test_ambiguous_when_two_candidates_have_workspaces(tmp_path):
     diag = dataroot.describe(dataroot.FORM_MCP_ONLY, env=env)
     assert diag["state"] == dataroot.STATE_AMBIGUOUS
     by_path = {c["path"]: c["has_workspace"] for c in diag["legacy_candidates"]}
+    # B3 起候选集含新默认（user_data_dir/data）：无工作区也如实列出（A2 的
+    # 「还查过哪些地方」是完整证据面）
     assert by_path == {
         _selection_path(env_root): True,
         _selection_path(pathres.user_data_dir()): True,
+        _selection_path(pathres.default_data_root()): False,
     }
 
 
@@ -202,14 +205,19 @@ def test_ambiguous_takes_precedence_over_uninitialized(tmp_path):
 
 
 def test_candidates_are_deduped(tmp_path):
-    """env 与 user_data 指同一处时只算一个候选——去重防「自己和自己歧义」。"""
+    """env 与 user_data 指同一处时只算一个候选——去重防「自己和自己歧义」。
+
+    B3 起候选集还含新默认（user_data_dir/data）：与 ud 不同路径、无工作区，
+    也如实列出（证据面完整）。
+    """
     ud = pathres.user_data_dir()
     _make_profile_workspace(ud, "personal")
 
     env = {pathres.ENV_DATA_DIR: ud}
     diag = dataroot.describe(dataroot.FORM_MCP_ONLY, env=env)
     assert diag["state"] != dataroot.STATE_AMBIGUOUS
-    assert [c["path"] for c in diag["legacy_candidates"]] == [_selection_path(ud)]
+    assert [c["path"] for c in diag["legacy_candidates"]] == [
+        _selection_path(ud), _selection_path(pathres.default_data_root())]
 
 
 # --- uninitialized：根在、工作区未建 -------------------------------------------

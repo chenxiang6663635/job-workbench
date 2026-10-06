@@ -54,19 +54,24 @@ def _freeze(monkeypatch, frozen):
 
 
 def _configure_form(monkeypatch, form, app_root):
-    """按 form 摆出该形态的进程环境；返回**无 env / 无 persisted** 时的预期。"""
+    """按 form 摆出该形态的进程环境；返回**无 env / 无 persisted** 时的预期。
+
+    B3 语义（spec 决策 6）：夹具的应用根只有 personal/ 空骨架（无信号文件）
+    → 默认都是 `<user_data_dir>/data`、来源 `legacy_userdata`；便携标记形态
+    例外（显式标记 → 应用根、`legacy_portable`）。
+    """
     if form == dataroot.FORM_SOURCE:
         _freeze(monkeypatch, False)
-        return (str(app_root), "legacy_portable")
+        return (pathres.default_data_root(), "legacy_userdata")
     if form == dataroot.FORM_PORTABLE:
         _freeze(monkeypatch, True)
         (app_root / pathres.PORTABLE_MARKER).write_text("portable", encoding="utf-8")
         return (str(app_root), "legacy_portable")
     if form == dataroot.FORM_PACKAGED:
-        _freeze(monkeypatch, True)   # 无 portable.txt → userdata
-        return (pathres.user_data_dir(), "legacy_userdata")
+        _freeze(monkeypatch, True)   # 无 portable.txt → 新默认
+        return (pathres.default_data_root(), "legacy_userdata")
     assert form == dataroot.FORM_MCP_ONLY
-    return (pathres.user_data_dir(), "legacy_userdata")
+    return (pathres.default_data_root(), "legacy_userdata")
 
 
 def _call(form, app_root):
@@ -100,8 +105,11 @@ def _plant_marker(root, root_id):
 # --- 优先级矩阵：四种 form × （env 有/无）×（persisted 有/无） ------------------
 
 @pytest.mark.parametrize("form", ALL_FORMS)
-def test_defaults_unchanged_without_env_and_persisted(form, app_root, monkeypatch):
-    """A3 硬约束：无 env、无 persisted 时四形态默认值一个不改（B3 才动默认）。"""
+def test_defaults_b3_without_env_and_persisted(form, app_root, monkeypatch):
+    """A3 曾锁「默认一个不改」；**B3 按 spec 决策 6 有意更新**——本测现在锁
+    B3 目标矩阵：无 env、无 persisted → 新默认 `<user_data_dir>/data`（便携
+    标记形态例外：显式标记 → 应用根）。旧默认位置的 legacy 保留见
+    `tests/test_portability.py`。"""
     expected = _configure_form(monkeypatch, form, app_root)
     res = _call(form, app_root)
     assert (res.path, res.form, res.source) == (expected[0], form, expected[1])

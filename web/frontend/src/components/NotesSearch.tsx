@@ -141,41 +141,48 @@ export default function NotesSearch({
     buttons[nextIndex]?.focus();
   };
 
+  // 状态文案（检索中 / 命中数）：渲染已挪到输入框下方——框内只留固定宽度的清除按钮
+  const statusText = loading
+    ? t("notes.searching")
+    : data
+      ? t("notes.hitCount", { count: data.total })
+      : "";
+
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card p-3">
       <div className="relative">
-        {/* 放大镜与右侧状态压在框内（与左树过滤框同款）；placeholder 不是可访问
-            名称，aria-label 必须补——axe 的 label 规则 */}
+        {/* 放大镜压在框内（与左树过滤框同款）；placeholder 不是可访问名称，
+            aria-label 必须补——axe 的 label 规则。框内右侧只留固定宽度的清除按钮
+            （pr-9 = right-2 + h-6），状态文字不再压进来——「命中 N 条」一宽就会
+            盖住输入文字（2026-10-06 实测），且与树过滤框「框内只有放大镜」的
+            形态不一致。 */}
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={keyword}
           onChange={(event) => onKeywordChange(event.target.value)}
           placeholder={t("notes.searchFullPlaceholder")}
           aria-label={t("notes.searchFullPlaceholder")}
-          className="pl-9 pr-24"
+          className="pl-9 pr-9"
         />
-        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-          {/* 常驻的 live region：读屏要听得到"检索中 → 命中 N 条"的变化——
-              live region 必须先在 DOM 里，后续变化才会被播报 */}
-          <span aria-live="polite" className="text-[0.6875rem] text-muted-foreground">
-            {loading
-              ? t("notes.searching")
-              : data
-                ? t("notes.hitCount", { count: data.total })
-                : ""}
-          </span>
-          {keyword && (
-            <Button
-              variant="ghost"
-              size="icon"
-              title={t("common.clear")}
-              onClick={() => onKeywordChange("")}
-              className="h-6 w-6"
-            >
-              <X size={13} />
-            </Button>
-          )}
-        </div>
+        {keyword && (
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t("common.clear")}
+            onClick={() => onKeywordChange("")}
+            className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2"
+          >
+            <X size={13} />
+          </Button>
+        )}
+      </div>
+      {/* 状态行（检索中 / 命中数）：挪到框外，px-2 与结果列表文字对齐；外层容器
+          常驻 DOM——live region 必须先存在，后续变化才会被播报；没的可说就不渲染
+          内层，不留空壳。 */}
+      <div aria-live="polite">
+        {statusText ? (
+          <p className="truncate px-2 text-[0.6875rem] text-muted-foreground">{statusText}</p>
+        ) : null}
       </div>
 
       {error && <ErrorBanner message={error} />}

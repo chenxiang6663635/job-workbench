@@ -22,6 +22,7 @@ from mcp.server import MCPServer
 
 from . import paths, prompts, resources, tools_readonly, tools_writable
 from . import info  # 工具注册与版本查询（2026-10-05 A2）；import 顺序在 paths 之后
+from . import annotations  # 工具注解（危险等级，2026-10-05 D1）；只依赖 mcp.types
 
 
 def build_server(workspace=None):
@@ -42,7 +43,7 @@ def build_server(workspace=None):
         version=info.server_version(),
     )
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def list_applications(stage: str = "", keyword: str = "", limit: int = 20,
                           verbose: bool = False) -> str:
         """列出投递记录（只读）。
@@ -56,7 +57,7 @@ def build_server(workspace=None):
             limit=limit, verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def list_jobs(keyword: str = "", limit: int = 20) -> str:
         """列出岗位池里的岗位（只读）。
 
@@ -66,7 +67,7 @@ def build_server(workspace=None):
             workspace, keyword=keyword or None, limit=limit)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def dashboard_summary() -> str:
         """看板摘要（只读）。
 
@@ -76,7 +77,7 @@ def build_server(workspace=None):
         data = tools_readonly.dashboard_summary(workspace)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def preview_add_application(company: str, role: str, direction: str, batch: str,
                                 stage: str = "待投", deadline: str = "",
                                 applied: str = "", next_action: str = "",
@@ -99,7 +100,7 @@ def build_server(workspace=None):
         })
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def preview_import_applications(csv_text: str) -> str:
         """预览批量导入投递记录（**不写入**）。
 
@@ -109,7 +110,7 @@ def build_server(workspace=None):
         data = tools_writable.preview_import_applications(workspace, csv_text)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def preview_update_application(app_id: str, stage: str = "",
                                    next_action: str = "", next_date: str = "",
                                    reason: str = "", score: int = -1,
@@ -134,7 +135,7 @@ def build_server(workspace=None):
         data = tools_writable.preview_update_application(workspace, app_id, changes)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.WRITE_CONFIRMED)  # 唯一写入：非只读、非幂等
     def apply_approval(token: str) -> str:
         """凭令牌执行已确认的写入（两段式的第二步）。
 
@@ -147,7 +148,7 @@ def build_server(workspace=None):
     # --- 批 4.7 主线补口：面试 / 题库 / JD 评分 -------------------------------
     # 一律**追加在末尾**：既有冒烟按注册顺序钉住工具清单，宿主侧也按前缀比对
     # 工具描述做提示缓存——顺序抖动会让缓存全灭。
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def list_interviews(app_id: str = "", result: str = "", limit: int = 20,
                         verbose: bool = False) -> str:
         """列出面试记录（只读）。
@@ -162,7 +163,7 @@ def build_server(workspace=None):
             limit=limit, verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def score_jd(job_id: str, resume_version: str = "") -> str:
         """读岗位的 JD 解析卡并给出评分与档位（只读）。
 
@@ -174,7 +175,7 @@ def build_server(workspace=None):
                                        resume_version=resume_version or None)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def list_questions(domain: str = "", subject: str = "", status: str = "",
                        keyword: str = "", limit: int = 20,
                        verbose: bool = False) -> str:
@@ -190,7 +191,7 @@ def build_server(workspace=None):
             verbose=verbose)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def preview_add_interview(app: str = "", company: str = "", role: str = "",
                               round: str = "一面", when: str = "",
                               form: str = "", link: str = "",
@@ -211,7 +212,7 @@ def build_server(workspace=None):
         })
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def preview_update_interview(interview_id: str, result: str = "",
                                  when: str = "", round: str = "",
                                  form: str = "", link: str = "",
@@ -233,7 +234,7 @@ def build_server(workspace=None):
             workspace, interview_id, changes)
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def preview_add_question(title: str, domain: str = "", subject: str = "",
                              tags: str = "", difficulty: str = "",
                              answer: str = "", origin: str = "",
@@ -251,7 +252,7 @@ def build_server(workspace=None):
         })
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=annotations.READ_ONLY)
     def preview_import_questions(module_dir: str = "") -> str:
         """预览从 03_面试准备 导入题目（**不写入**）。
 

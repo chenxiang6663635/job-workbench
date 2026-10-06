@@ -79,6 +79,20 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
                              # A2（2026-10-05）：数据根诊断（只读），同样追加在末尾
                              "jobws.info"]
 
+            # 工具注解（D1，2026-10-05）：危险等级必须**真出现在线上协议里**
+            # （宿主的确认策略读的正是这个字段；只测 Python 常量等于没测接线）。
+            by_name = {t.name: t for t in listed.tools}
+            for name, tool in by_name.items():
+                assert tool.annotations is not None, name
+                assert tool.annotations.open_world_hint is False, name  # 全本地
+            for name in set(names) - {"apply_approval"}:
+                assert by_name[name].annotations.read_only_hint is True, name
+            write_anno = by_name["apply_approval"].annotations
+            assert write_anno.read_only_hint is False
+            assert write_anno.idempotent_hint is False      # 令牌一次性
+            assert write_anno.destructive_hint is None, (
+                "apply 刻意不宣称「仅追加」——destructiveHint 留规范默认（保守）")
+
             result = await session.call_tool("dashboard_summary", {})
             text = result.content[0].text
             assert json.loads(text)["total"] == 1

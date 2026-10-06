@@ -28,6 +28,13 @@ Markdown / CSV，**服务自身不出网**（宿主拿到返回内容后可能�
 工具一律**追加在注册末尾**（顺序稳定 → 宿主的工具描述缓存不失效）；需要完整字段
 的列表用 `verbose=True`，列表类默认只给精简列。
 
+**危险等级对宿主可见（2026-10-05 D1）**：15 个工具都按 MCP 规范带注解——只读与
+`preview_*` 声明 `readOnlyHint=true`，`apply_approval` 是唯一非只读（且**不宣称**
+「仅追加」：`destructiveHint` 留规范默认，宿主按最谨慎路径处理）；全部
+`openWorldHint=false`（服务自身不出网）。等级定义与理由见
+`jobws_mcp/annotations.py`——注解是**非强制提示**，安全边界仍在服务端（越界拒绝 +
+两段式令牌），两者是「两手」。
+
 拒绝是**可程序化区分**的：`apply_approval` 失败时返回稳定 `code`——`not_found`
 （不存在 / 已用过，含重放）、`expired`、`fingerprint`（载荷被改过）、`binding`
 （工作区不符）等；宿主按 code 分支，不要解析中文文案。

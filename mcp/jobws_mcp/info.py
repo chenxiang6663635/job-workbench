@@ -61,8 +61,15 @@ def ambiguous_hint(workspace):
 
 
 def register(mcp, workspace):
-    """在 MCP server 上注册 `jobws.info`（**追加在工具注册末尾**——顺序稳定）。"""
-    @mcp.tool(name="jobws.info")
+    """在 MCP server 上注册 `jobws.info`（**追加在工具注册末尾**——顺序稳定）。
+
+    `annotations` 懒导入（D1）：本模块的 `payload()` / `ambiguous_hint()` 是纯
+    函数、**不依赖 MCP SDK**（`test_info.py` 的字段断言据此脱 SDK 跑）；只有
+    `register()` 本身在 SDK 环境里被调用。
+    """
+    from . import annotations
+
+    @mcp.tool(name="jobws.info", annotations=annotations.READ_ONLY)
     def jobws_info() -> str:
         """本机安装与数据根的诊断信息（只读，无副作用）。
 

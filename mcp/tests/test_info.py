@@ -58,14 +58,20 @@ def test_payload_carries_versions_workspace_and_diagnostic(ws, tmp_path):
 
 
 def test_register_uses_dotted_tool_name(ws):
-    """宿主看到的工具名是 `jobws.info`（探针与矩阵都按这个名字对账）。"""
+    """宿主看到的工具名是 `jobws.info`（探针与矩阵都按这个名字对账）。
+
+    `tool()` 的附加 kwargs（D1 起有 `annotations=`）由假对象**透收**——
+    注解的取值断言在 wire 层做（`test_stdio_smoke.py`），这里只钉注册名。
+    """
     class _FakeMCP(object):
         def __init__(self):
             self.names = []
+            self.kwargs = []
 
-        def tool(self, name=None):
+        def tool(self, name=None, **extra):
             def deco(fn):
                 self.names.append(name or fn.__name__)
+                self.kwargs.append(extra)
                 return fn
             return deco
 

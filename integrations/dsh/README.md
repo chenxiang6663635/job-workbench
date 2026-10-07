@@ -91,6 +91,9 @@ python tools\jobws.py skills install          # 技能有改动时重跑（拷�
   按功能描述即可。
 - **DSH 不支持 MCP 提示模板**（已实证）：四个工作流（JD 评估 / 投递包 / 面试复盘 / 今日待办）
   改由 `jwb-*` 技能与 `jobws` preset 承载；`mcp/prompts.py` 保留给支持提示模板的宿主。
+- **headless 一次性 profile 无 `agentPresets` 服务**（2026-10-06 真机实证）：`dsh headless`
+  下 `preset-jobws` 停在 pending（信息级优雅降级，非缺陷）——persona 前缀在 headless 会话里
+  不生效；两段式纪律由 MCP 工具描述自描述生效。**preset 的生效面 = 桌面会话 / 设置里切换**。
 - **MCP 看不到源码形态的应用根**（结构性盲区）：工具报「无歧义」不等于全机无歧义——
   详见 `docs/mcp-integration.md` §三。
 - `failOnStartupError`：本机自用 `true`（起不来就响亮失败）；对外发布改 `false`（不连累

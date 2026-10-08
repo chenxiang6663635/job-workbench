@@ -58,7 +58,7 @@
 - **不得自动 `git commit`**——生成提交信息交用户确认后再提交
 - **隐私约定**：工作区 `personal/` 含真实数据且已整体 gitignore（历史已清洗），**禁止提交或外泄其内容**；细则见 `docs/contributing.zh-CN.md` 的「隐私约定」节（English: `docs/contributing.en-US.md`）
 - **验证链**：`python -m pytest tests/ -q`（护栏 + 健康度）全绿 + 前端 `npm run build`；push / PR 由 GitHub Actions 跑同款门禁
-- **Web 层铁律**：后端直接复用 `tools/` 函数并显式传 `workspace`（模块级全局并发下会互相覆盖）；写操作持 `filelock`；路径过 `safe_join`；不加缓存
+- **Web 层铁律**：后端直接复用 `tools/` 函数并显式传 `workspace`（模块级全局并发下会互相覆盖）；写操作持 `filelock`；路径过 `safe_join`；不加缓存（**限本层**：core 侧 `workspace_io` 的 TTL 指纹缓存是既有正确性设计，不在此列）
 
 ## 目录约定
 

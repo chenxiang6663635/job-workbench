@@ -79,6 +79,7 @@
 | [`decisions/code-signing.md`](decisions/code-signing.md) | 代码签名：暂不采购（选项矩阵 / 触发条件 / 若触发的改造清单；2026-10-02） |
 | [`decisions/single-canonical-data-root.md`](decisions/single-canonical-data-root.md) | 单一 canonical 数据根 + 历史工作区迁移：四端同源解析、持久化选择、失效 fail-closed、迁移事务；路线 A→B→C'（2026-10-04，含替代方案与复评条件） |
 | [`decisions/first-class-delivery-surfaces.md`](decisions/first-class-delivery-surfaces.md) | 第一等交付面与集成边界：多端平级（能力等价而非实现等价）、单一发布线、运行时独立 / 领域共享、依赖方向、拆仓复评信号（2026-10-06） |
+| [`decisions/port-identity.md`](decisions/port-identity.md) | 端口身份：8765 的归属判据（结构化健康响应）、「已在跑即复用」边界与「杀进程只限开发脚本」纪律（2026-10-07） |
 
 ## 约定文件
 

@@ -26,12 +26,14 @@
 
 - **设置页可以清除已保存的凭据（2026-10-07）**：邮箱授权码与 API Key 旁新增「清除」入口——确认后凭据从系统存储（Windows 凭据管理器）与工作区配置文件里一并删除，之后需要重新输入才能使用；不必再靠手改配置文件来「忘掉」一把钥匙。
 - **DSH 接入件升级为可安装的插件包（2026-10-07）**：在 DeepSeek Harness 里装包即完成接线——MCP 工具面、9 个 `jwb-*` 技能与可选 `jobws` preset 一起到位，不再需要手改 profile 文件；安装/卸载会把依赖与 `dsh.profile.bundles` 两处一并写入/清理（第一阶段的手工接线需先自行删掉，避免双挂载）。
+- **DSH 装插件变成一条命令（2026-10-07）**：新增一键安装脚本——装包、校验与「第一阶段手工接线的自动迁移」一次完成（旧的 `mcp-jobws` / `preset-jobws` 手抄行被幂等移除并留 `.bak` 备份，不再有双挂载风险）；同时预写 pnpm 的 24h 新版本隔离放行，首发当天即可安装。
 
 ### 技术细节
 
 - **凭据「清除即删」接上设置页（2026-10-07，issue #203）**：后端新增 `DELETE /api/imap/credential` 与 `DELETE /api/provider/credential`——共用 `credential_fields.clear_credential` 接线（复用 `credentials.delete_secret`：无论删除成败 cfg 两键都清、配置文件只在存在时重写、幂等，不凭空创建文件）；前端「凭据存放位置」提示块内就地提供两段式清除（仅真的存过凭据时出现），邮箱卡与模型服务卡共用同一组件，文案中英对称。
 - **DSH bundle 骨架（#271 第二阶段 P2-1，2026-10-07）**：`integrations/dsh/` 升为 npm 包 `dsh-job-workbench`——manifest（`dsh.bundle.patch` + `dsh.engines.dsh` + `exports["./package.json"]` 供 `!!js` 自引用）+ `cordis.patch.yml`（三条 insert：`mcp-jobws` / `preset-jobws` / 独立 `skill-filesystem` provider；路径全部 `!!js` + `baseUrl` 现算、零绝对路径）+ 随包 `skills/` 镜像（生成物，入 `skill_assets.ASSETS`，由 four-ends 一致性检查兜底）+ `locale/{en,zh}.json` 展示文案 + `scripts/build_dsh_bundle.ps1`（镜像同步 + 校验 + pack 预演）；`assets_registry` 增补 bundle 版本与应用版本的一致性检查；旧 `profile.patch.yml` / `preset.yml` 收敛删除。实测（2026-10-07）：`dsh plugin add link:` 双字段写入、已装走 `dsh.profile.bundles` 自动装载（1330 行合成零警告）、headless 真调 `mcp__jobws__jobws_info_*`、9 个技能在会话可见、`remove` 双向清理。
 - **DSH 随包运行时：jobws-mcp.exe（#271 第二阶段 P2-2，2026-10-07）**：新增 `mcp/pyinstaller.spec`（onedir、不 UPX、`collect_submodules` 按导入名收集；避开 `mcp.cli` 缺可选依赖时 `sys.exit` 的枚举陷阱）+ `mcp/run_server.py`（冻结入口——直接拿 `server.py` 当入口会让相对导入全废，冒烟实证）+ `scripts/build_mcp_exe.ps1`（独立构建 venv、非 editable 领域包校验、落位 `integrations/dsh/platform/win32-x64/bin/`，`bin/` 不入库）+ `scripts/mcp_prebuilds.py`（bin/ 全量 sha256 清单）+ `scripts/smoke_mcp_exe.py`（裸 JSON-RPC 冒烟：initialize → tools/list 15 个 → 真调 `jobws.info` 断言 `dataRoot.state=ok`）。实测：exe 冒烟全绿；**无 overlay 的 headless 端到端** （6.3s）真调 `mcp__jobws__jobws_info_*` 成功——发布形态不再依赖任何本机 venv；产物 209 文件 / 41.8 MB。主包声明 `optionalDependencies`（平台子包，os/cpu 由子包限定；`link:` 安装不拉依赖，开发态不受影响）。
+- **DSH 安装体验与收录准备（#271 第二阶段 P2-3，2026-10-07）**：新增 `integrations/dsh/scripts/install.ps1`（对齐 dsh-better-sidebar 先例——`minimumReleaseAgeExclude` 幂等预写 + 官方 CLI 安装 + `dsh.profile.bundles` 校验 + 旧手工挂载行幂等移除，删除前写 `.bak-<时间戳>` 备份；错误处理不用 `exit` 而用 throw+顶层 catch——scriptblock 形态下 `exit` 会终止整个用户会话，实证后修正；`-DryRun` / `-SkipInstall` / `-Version` / `-Profile` 齐全）+ 两包去 `private` 并补 `keywords`（npm 发布准备；主包随包携带脚本）+ README 重写用户态安装并新增「维护者：npm 首发与 marketplace 收录」节（发布顺序=平台子包先、主包后；收录条目草稿与要件自检；提交时机=npm 首发之后）+ 仓库加 `dsh-plugin` topic + `cordis.patch.yml` 头注按探针实证修正（`baseUrl`=profile 目录）。实测：迁移三连（dry-run 零写入 / 实跑移除 2 块+备份+外来行保留 / 幂等复跑零变化）、缺 profile 与残留探测路径、`npm publish --dry-run` 两包可发布、`npm pack` 主包 231 文件 21.3MB；门禁（扫描器/规模/skills/assets）全绿。
 
 ### Infrastructure（内部工程）
 

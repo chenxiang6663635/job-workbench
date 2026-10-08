@@ -1,7 +1,6 @@
 {
   "name": "dsh-job-workbench-win32-x64",
   "version": "26.10.0",
-  "private": true,
   "description": "Platform prebuild for dsh-job-workbench: jobws-mcp.exe (Windows x64, PyInstaller onedir).",
   "os": [
     "win32"

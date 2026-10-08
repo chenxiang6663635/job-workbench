@@ -9,10 +9,12 @@
 #   preset-jobws            可选 agent preset（求职语境 persona + 工具集基线）
 #   skill-filesystem-jobws  独立技能 provider：只挂本包 skills/ 镜像（不碰出厂 provider）
 #
-# 路径刻意用 `!!js` + `baseUrl` 现算（官方 agent-preset 同款）：`baseUrl` 锚定本
-# patch 所在包，`createRequire(baseUrl).resolve('<包名>/package.json')` 走 Node 包
-# 自引用（因此 package.json 必须声明 `"exports": { "./package.json": ... }`）——
-# 「link 直挂 / npm 安装 / --patch 临时叠加」三种形态下都成立，不写死绝对路径。
+# 路径刻意用 `!!js` + `baseUrl` 现算（官方 agent-preset 同款）：`baseUrl` 是**当前
+# profile 目录**（不是本 patch 文件的位置——2026-10-07 探针实证），`createRequire(baseUrl)`
+# `.resolve('<包名>/package.json')` 从 profile 的 node_modules 解析本包（因此 package.json
+# 必须声明 `"exports": { "./package.json": ... }`，且要求本包已装进该 profile）；
+# 「link 直挂 / npm 安装」两种形态成立，零绝对路径。裸 `--patch` 叠加（本包未装入
+# profile）时技能行会 Cannot find module——预期行为，见 README。
 # 数据根刻意不写（数据根 spec 决策 1）：jobws-mcp 自己读工作台的持久化选择与 B3
 # 默认；写死 `JOBWS_DATA_DIR` 会制造第二个事实源。
 - insert:

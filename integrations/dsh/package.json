@@ -2,7 +2,16 @@
   "name": "dsh-job-workbench",
   "version": "26.10.0",
   "description": "Job Workbench (求职工作台) for DeepSeek Harness — local-first job-hunt workspace: MCP tools with two-phase writes, 9 jwb-* skills, optional jobws agent preset.",
-  "private": true,
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "mcp",
+    "job-hunting",
+    "job-search",
+    "resume",
+    "local-first"
+  ],
   "type": "module",
   "license": "MIT",
   "icon": "./icon.svg",
@@ -31,6 +40,7 @@
     "cordis.patch.yml",
     "skills",
     "platform",
+    "scripts/install.ps1",
     "locale/*.json",
     "icon.svg",
     "README.md"

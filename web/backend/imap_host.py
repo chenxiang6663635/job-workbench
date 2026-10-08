@@ -12,6 +12,8 @@ from __future__ import annotations
 import socket
 import unicodedata
 
+import imap_fetch
+
 from apierror import ApiError
 
 # DNS 名字的通用上限（RFC 1035：253 个字符）
@@ -71,3 +73,18 @@ def check_host_shape(host):
                        "端口请填在「端口」栏：地址里不要写成 host:port"
                        "（例如 imap.qq.com:993 应拆成两栏）")
     return host
+
+
+def resolve_host(cfg):
+    """host 留空时按邮箱域名推断；推断不出就明确让人话报错。
+
+    2026-10-07 自 `routers/imap.py` 原样搬来（形状判定与路由编排零耦合；
+    让 imap.py 在新增「清除凭据」端点后守住规模预算），行为不变。
+    """
+    host = cfg["host"] or imap_fetch.guess_server(cfg["user"])
+    if not host:
+        raise ApiError(
+            400, "imap.hostUnknown",
+            "IMAP 服务器地址为空且无法按邮箱域名推断：请在设置里手填服务器地址")
+    # 推断出来的值也走同一道形状校验：坏值的终点都一样（连接期一句"连不上"）
+    return check_host_shape(host)

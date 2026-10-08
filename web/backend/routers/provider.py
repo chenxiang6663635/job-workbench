@@ -47,12 +47,6 @@ TEST_TIMEOUT = 10
 MODEL_LIST_LIMIT = 50
 
 
-class ProviderConfig(BaseModel):
-    base_url: str = ""
-    api_key: str = ""
-    model: str = ""
-
-
 def _config_path(ws):
     """Provider 配置存工作区 config/ 下。"""
     return safe_join(ws, "config", CONFIG_FILE)
@@ -63,17 +57,13 @@ def _lock_path(ws):
     return lockctx.lock_path(ws, "provider")
 
 
-def _empty_config():
-    return {"base_url": "", "api_key": "", "api_key_ref": "", "model": ""}
-
-
 def _read_config(path):
     """读配置；坏文件按「未配置」继续，但留一条 warning。
 
     逐字段容错（类型不对的回落默认值）：**缺 `model` 的旧配置按空串读**，所以本批
     不需要任何数据迁移；`api_key_ref` 同理（缺它 = 明文形态，交给 `_resolve` 迁移）。
     """
-    cfg = _empty_config()
+    cfg = {"base_url": "", "api_key": "", "api_key_ref": "", "model": ""}
     if not os.path.isfile(path):
         return cfg
     try:
@@ -295,3 +285,12 @@ def _http_hint(code):
     if code == 404:
         return "base_url 路径可能不对，OpenAI 兼容端点应为 .../v1"
     return "请检查 base_url 与 key 是否正确"
+
+
+@router.delete("/credential")
+def clear_provider_credential(ws: str = Depends(workspace_dir)):
+    """「清除即删」（#203）：key 引用与明文一并清理，系统存储条目同步删除（幂等）。"""
+    cfg, kind = credential_fields.clear_credential(
+        path=_config_path(ws), ws=ws, ref_key="api_key_ref",
+        legacy_key="api_key", lock_name="provider", read=_read_config)
+    return _public(cfg, credentials.ResolveOutcome(None, kind, False))

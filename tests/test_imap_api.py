@@ -481,3 +481,35 @@ def test_rotation_reuses_the_same_ref(tmp_path, client, fake_store):
     second = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())["auth_ref"]
     assert second == first
     assert fake_store.stored == {first: "auth-code-5678"}, "只应有这一条凭据"
+
+
+# --- 6. 「清除即删」端点（#203 遗留，DELETE /api/imap/credential）------------------
+
+
+def test_delete_credential_clears_plaintext_and_keeps_the_rest(tmp_path, client):
+    _save(client, host="imap.changed.com")
+    res = client.delete("/api/imap/credential", params={"ws": WS})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["hasPassword"] is False and body["password"] == ""
+    stored = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())
+    assert "password" not in stored and "auth_ref" not in stored
+    assert stored["host"] == "imap.changed.com", "清除凭据不该动其它字段"
+
+
+def test_delete_credential_is_idempotent_and_never_creates_a_file(tmp_path, client):
+    res = client.delete("/api/imap/credential", params={"ws": WS})
+    assert res.status_code == 200 and res.json()["hasPassword"] is False
+    assert not _config_path(tmp_path).exists(), "清除不该凭空创建配置文件"
+    assert client.delete("/api/imap/credential", params={"ws": WS}).status_code == 200
+
+
+def test_delete_credential_removes_the_credman_entry(tmp_path, client, fake_store):
+    _save(client)
+    ref = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())["auth_ref"]
+    assert fake_store.stored[ref] == "auth-code-1234"
+    res = client.delete("/api/imap/credential", params={"ws": WS})
+    assert res.json()["hasPassword"] is False
+    assert ref not in fake_store.stored, "系统存储里的条目要一并删除"
+    stored = json.loads(io.open(str(_config_path(tmp_path)), encoding="utf-8").read())
+    assert "auth_ref" not in stored and "password" not in stored

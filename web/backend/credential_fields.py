@@ -20,6 +20,7 @@ imap 与 provider 曾各自复制一份「解析 → 迁移落盘 → strict 409
 from __future__ import annotations
 
 import json
+import os
 
 from jobws_core import credentials
 
@@ -99,3 +100,20 @@ def resolve_strict(cfg, *, path, ws, ref_key, legacy_key, prefix, lock_name,
     if isinstance(ref, str) and ref.strip() and outcome.secret is None:
         raise ApiError(409, error_code, error_message)
     return outcome
+
+
+def clear_credential(*, path, ws, ref_key, legacy_key, lock_name, read, log=None):
+    """「清除即删」的共享接线（#203）：锁内清 cfg 两个键、删系统存储条目、按需落盘。
+
+    落盘只在配置文件**存在**时做：对从没保存过凭据的工作区执行清除，不该凭空
+    造出一个空 config 文件。返回 (cfg, kind)——kind 是本次存储形态，供响应里的
+    `storage` 字段使用。
+    """
+    backing = store()
+    with locked(lock_path(ws, lock_name)):
+        cfg = read(path)
+        credentials.delete_secret(cfg, ref_key=ref_key, legacy_key=legacy_key,
+                                  store=backing, log=log)
+        if os.path.isfile(path):
+            atomic_write_text(path, json.dumps(cfg, ensure_ascii=False, indent=2))
+    return cfg, backing.kind

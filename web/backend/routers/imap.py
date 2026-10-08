@@ -36,7 +36,7 @@ import imapguard
 from apierror import ApiError
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
-from imap_host import check_host_shape
+from imap_host import check_host_shape, resolve_host
 from lockctx import lock_path, locked
 from redact import mask_secret
 
@@ -142,17 +142,6 @@ def _public(cfg, outcome):
     }
 
 
-def _resolve_host(cfg):
-    """host 留空时按邮箱域名推断；推断不出就明确让人话报错。"""
-    host = cfg["host"] or imap_fetch.guess_server(cfg["user"])
-    if not host:
-        raise ApiError(
-            400, "imap.hostUnknown",
-            "IMAP 服务器地址为空且无法按邮箱域名推断：请在设置里手填服务器地址")
-    # 推断出来的值也走同一道形状校验：坏值的终点都一样（连接期一句"连不上"）
-    return _check_host_shape(host)
-
-
 @router.get("")
 def get_imap(ws: str = Depends(workspace_dir)):
     """读当前工作区的 IMAP 配置，授权码脱敏。
@@ -227,7 +216,7 @@ def test_imap(ws: str = Depends(workspace_dir)):
     if outcome.secret is None:
         raise ApiError(400, "imap.needPassword", "请先保存 IMAP 授权码")
 
-    host = _resolve_host(cfg)
+    host = resolve_host(cfg)
     folder = cfg["folder"] or imap_fetch.DEFAULT_FOLDER
     try:
         count = imap_fetch.test_connection(
@@ -277,7 +266,7 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
     if outcome.secret is None:
         raise ApiError(400, "imap.needPassword", "请先在设置里配置 IMAP 授权码")
 
-    host = _resolve_host(cfg)
+    host = resolve_host(cfg)
     folder = (body.folder or cfg["folder"] or imap_fetch.DEFAULT_FOLDER).strip()
     since_days = body.since_days or 0
     imapguard.check_fetch_range(since_days, body.limit)  # 越界 422（见模块说明）
@@ -298,3 +287,12 @@ def fetch_imap(body: FetchRequest, ws: str = Depends(workspace_dir)):
         "dryRun": True,
         "note": "只读拉取，未改动任何数据；状态改动需要你逐条确认后才会写回。",
     }
+
+
+@router.delete("/credential")
+def clear_imap_credential(ws: str = Depends(workspace_dir)):
+    """「清除即删」（#203）：授权码引用与明文一并清理，系统存储条目同步删除（幂等）。"""
+    cfg, kind = credential_fields.clear_credential(
+        path=_config_path(ws), ws=ws, ref_key="auth_ref",
+        legacy_key="password", lock_name="imap", read=_read_config)
+    return _public(cfg, credentials.ResolveOutcome(None, kind, False))

@@ -24,6 +24,9 @@
       "dsh": ">=0.2.0-rc.2"
     }
   },
+  "optionalDependencies": {
+    "dsh-job-workbench-win32-x64": "26.10.0"
+  },
   "files": [
     "cordis.patch.yml",
     "skills",

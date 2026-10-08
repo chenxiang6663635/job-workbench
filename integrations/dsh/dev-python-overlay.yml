@@ -1,0 +1,23 @@
+# 开发态覆盖层（**不随包发布**）：把 mcp-jobws 的 command 指到本机 venv 解释器——
+# P2-2 的 jobws-mcp.exe 就位前，用它跑通完整链路（会话里真实调工具）。
+#
+# 用法（叠加在 bundle 之后，后者优先）：
+#   dsh headless --patch <本目录>/cordis.patch.yml --patch <本目录>/dev-python-overlay.yml "…"
+#   或装包后：dsh --profile <你的 profile> --patch <本文件>
+#
+# 注意：按 id 覆盖是**整段替换 config**——这里必须重述 mcp-jobws 的全部字段；
+# `command` 请按你本机的 jobws-mcp venv 路径改（默认对应当前开发机）。
+- id: mcp-jobws
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: jobws
+    transport: stdio
+    command: 'D:\tools\venvs\jobws-mcp\Scripts\python.exe'
+    args:
+      - '-m'
+      - 'jobws_mcp.server'
+      - '--workspace'
+      - 'personal'
+    # 开发态响亮失败：起不来要立刻看见（发布形态才用 false）。
+    failOnStartupError: true
+    toolCallTimeoutMs: 60000

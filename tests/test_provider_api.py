@@ -281,3 +281,69 @@ def test_test_wraps_unreachable_endpoints(client, monkeypatch, provider_module):
     res = client.post("/api/provider/test", params={"ws": WS})
     assert res.status_code == 502, res.text
     assert res.json()["error_code"] == "provider.connectUnreachable"
+
+
+# --- 5. 「清除即删」端点（#203 遗留，DELETE /api/provider/credential）--------------
+
+
+class _FakeCredStore:
+    """假凭据管理器：dict 存储（与 imap 测试各钉各的契约，不共享工具件）。"""
+
+    kind = "credman"
+
+    def __init__(self):
+        self.stored = {}
+
+    def available(self):
+        return True
+
+    def get(self, ref):
+        return self.stored.get(ref)
+
+    def set(self, ref, secret):
+        self.stored[ref] = secret
+        return True
+
+    def delete(self, ref):
+        self.stored.pop(ref, None)
+        return True
+
+
+@pytest.fixture()
+def fake_store(monkeypatch):
+    import routers.provider as provider  # noqa: E402
+
+    store = _FakeCredStore()
+    monkeypatch.setattr(provider.credentials, "select_store", lambda: store)
+    return store
+
+
+def test_delete_credential_clears_plaintext_and_keeps_the_rest(client, tmp_path):
+    _save(client, api_key="sk-keep-me", model="deepseek-chat")
+    res = client.delete("/api/provider/credential", params={"ws": WS})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["hasKey"] is False and body["api_key"] == ""
+    stored = _read_raw(tmp_path)
+    assert "api_key" not in stored and "api_key_ref" not in stored
+    assert stored["base_url"] == "https://api.example.com/v1"
+    assert stored["model"] == "deepseek-chat", "清除凭据不该动其它字段"
+
+
+def test_delete_credential_is_idempotent_and_never_creates_a_file(client, tmp_path):
+    res = client.delete("/api/provider/credential", params={"ws": WS})
+    assert res.status_code == 200 and res.json()["hasKey"] is False
+    assert not _config_path(tmp_path).exists(), "清除不该凭空创建配置文件"
+    assert client.delete("/api/provider/credential", params={"ws": WS}).status_code == 200
+
+
+def test_delete_credential_removes_the_credman_entry(client, tmp_path, fake_store):
+    _save(client, api_key="sk-secret-9876")
+    ref = _read_raw(tmp_path)["api_key_ref"]
+    assert ref.startswith("job-workbench/")
+    assert fake_store.stored[ref] == "sk-secret-9876"
+    res = client.delete("/api/provider/credential", params={"ws": WS})
+    assert res.json()["hasKey"] is False
+    assert ref not in fake_store.stored, "系统存储里的条目要一并删除"
+    stored = _read_raw(tmp_path)
+    assert "api_key_ref" not in stored and "api_key" not in stored

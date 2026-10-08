@@ -616,6 +616,13 @@ export default {
   // Credential storage notice (#203): the two `storage` states, shared by the IMAP and Provider cards.
   "settings.credStorageCredman": "Stored in Windows Credential Manager (the workspace config file only keeps a reference)",
   "settings.credStoragePlaintext": "Currently stored in plain text inside your workspace config file (the source / CLI fallback; the desktop build migrates it into Credential Manager on read)",
+  // "Clear = delete" entry point (#203 leftover): shared confirm/action, per-card button/label.
+  "settings.credClearAction": "Yes, clear",
+  "settings.credClearConfirm": "Clear it? The secret is removed from the system store and the config file; you will need to enter it again.",
+  "settings.imapCredClear": "Clear saved app password",
+  "settings.imapCredCleared": "Saved app password cleared",
+  "settings.providerCredClear": "Clear saved API key",
+  "settings.providerCredCleared": "Saved API key cleared",
 
   "settings.privacy": "Data & privacy",
   "settings.privacyDesc": "Workspace data stays on this machine, with no telemetry. Online features (AI rewrite, AI mail parsing, mail fetch, job posting fetch) send content only when you actively use them, and only to the services you enable; the desktop app also makes one update check at startup (version and platform only, to GitHub). The files are the database: open them in any editor, or export the whole bundle and leave this app for good.",

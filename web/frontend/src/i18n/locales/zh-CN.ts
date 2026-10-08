@@ -657,6 +657,13 @@ const zhCN = {
   // 凭据存放形态提示（#203）：IMAP 与 Provider 两张卡共用——后端 `storage` 字段的两态。
   "settings.credStorageCredman": "已存入 Windows 凭据管理器（工作区配置文件只保留引用）",
   "settings.credStoragePlaintext": "当前为明文保存：凭据写在你的工作区配置文件里（源码 / CLI 形态的回退；桌面版会在读取时自动迁移进凭据管理器）",
+  // 「清除即删」入口（#203 遗留）：两张卡共用确认/动作文案，按钮与结果按卡区分
+  "settings.credClearAction": "确认清除",
+  "settings.credClearConfirm": "确认清除？凭据会从系统存储与配置文件里一并删除，之后需要重新输入。",
+  "settings.imapCredClear": "清除已保存的授权码",
+  "settings.imapCredCleared": "已清除已保存的授权码",
+  "settings.providerCredClear": "清除已保存的 API Key",
+  "settings.providerCredCleared": "已清除已保存的 API Key",
 
   "settings.privacy": "数据与隐私",
   "settings.privacyDesc": "工作区数据保存在本机、无遥测。联网功能（AI 改写 / AI 邮件解析 / 邮箱拉取 / 岗位抓取）只在你主动使用时才发送对应内容、且只访问你启用的服务；桌面版启动后另有一次仅含版本与平台信息的更新检查（发往 GitHub 本仓库）。文件就是数据库——你可以随时用编辑器直接打开，也可以整包导出后彻底离开本应用。",

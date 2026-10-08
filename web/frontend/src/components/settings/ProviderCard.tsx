@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, KeyRound, PlugZap, Save } from "lucide-react";
 
+import { clearProviderCredential } from "../../lib/credentialApi";
 import { PROVIDER_REFERRAL } from "../../lib/partner";
 import {
   getProviderSettings,
@@ -170,8 +171,8 @@ export default function ProviderCard({ hidden = false }: ProviderCardProps) {
           />
         </FormField>
 
-        {/* key 存哪（#203）：只认 credman / plaintext，未识别形态不渲染 */}
-        <CredentialStorageNotice storage={settings?.storage} hasCredential={settings?.hasKey} />
+        {/* key 存哪 + 「清除即删」入口（#203）：只认 credman / plaintext，未识别形态不渲染 */}
+        <CredentialStorageNotice storage={settings?.storage} hasCredential={settings?.hasKey} surface="provider" onClear={() => clearProviderCredential().then((r) => { setSettings(r); setInfo(t("settings.providerCredCleared")); }).catch((e: Error) => setErr(e.message))} />
 
         {/* 默认模型：三处使用点（导入 / 改写 / 邮件 AI）共用，仍可就地临时改 */}
         <FormField label={t("settings.providerModel")}>

@@ -22,6 +22,14 @@
 
 ## [Unreleased]
 
+### 看得见的变化
+
+- **设置页可以清除已保存的凭据（2026-10-07）**：邮箱授权码与 API Key 旁新增「清除」入口——确认后凭据从系统存储（Windows 凭据管理器）与工作区配置文件里一并删除，之后需要重新输入才能使用；不必再靠手改配置文件来「忘掉」一把钥匙。
+
+### 技术细节
+
+- **凭据「清除即删」接上设置页（2026-10-07，issue #203）**：后端新增 `DELETE /api/imap/credential` 与 `DELETE /api/provider/credential`——共用 `credential_fields.clear_credential` 接线（复用 `credentials.delete_secret`：无论删除成败 cfg 两键都清、配置文件只在存在时重写、幂等，不凭空创建文件）；前端「凭据存放位置」提示块内就地提供两段式清除（仅真的存过凭据时出现），邮箱卡与模型服务卡共用同一组件，文案中英对称。
+
 ### Infrastructure（内部工程）
 
 - **发布页呈现重构（2026-10-06）**：Release 说明改为「直链下载置顶 + 不重复版本号大标题 + English Highlights 折叠」——11 个成熟项目（VS Code / Electron / Bun / Bitwarden / Godot 等）调研后的模板，正文 ≤30 行、长内容外包到 compare 与 CHANGELOG 链接；`site` 下载页主通道同步改为版本化直链。落章惯例（26.11.0 起）：中文「看得见的变化」要点压成一行式 bullet，长描述移入技术细节折叠区。

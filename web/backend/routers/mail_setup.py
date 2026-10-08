@@ -8,7 +8,7 @@
 两条边界与主路由一致：
 
 1. **凭证只存本地**：本模块不读也不写任何凭证文件，只复用主路由的读配置与
-   host 解析（同一套形状校验与推断口径，避免两处漂移）；
+   `imap_host` 的 host 解析（同一套形状校验与推断口径，避免两处漂移）；
 2. **无后台路径**：文件夹候选是用户点开下拉时的一次连接，连完即登出。
 """
 
@@ -21,6 +21,7 @@ from jobws_core import mail_providers
 import imap_fetch
 from apierror import ApiError
 from deps import workspace_dir
+from imap_host import resolve_host
 from routers import imap as imap_routes
 
 router = APIRouter(prefix="/api/mail")
@@ -80,7 +81,7 @@ def list_folders(ws: str = Depends(workspace_dir)):
     if outcome.secret is None:
         raise ApiError(400, "imap.needPassword", "请先保存 IMAP 授权码")
 
-    host = imap_routes._resolve_host(cfg)
+    host = resolve_host(cfg)
     try:
         folders = imap_fetch.probe_folders(
             host, cfg["user"], outcome.secret, cfg["port"])

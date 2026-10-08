@@ -121,10 +121,13 @@ def glob_field_present(root, pattern, field):
     """在 `commands/*.md`、`skills/*/SKILL.md` 这类模式匹配到的文件里找字段名。
 
     支持两层（`dir/*/file` 与 `dir/*.ext`），只做**存在性**判断——值合不合法由
-    各端自己的校验器管，这里只回答"矩阵登记的字段在不在文件里"。
+    各端自己的校验器管，这里只回答"矩阵登记的字段在不在文件里"。字段名可选带
+    引号（`"icon":`，JSON 清单文件形态；YAML frontmatter 不带）。
     """
     parts = pattern.split("/")
-    matcher = re.compile(r"^\s*%s\s*:" % re.escape(field), re.M)
+    # 字段名可选带引号：`field:`（YAML / frontmatter）与 `"field":`（JSON 清单，
+    # 如 integrations/dsh/package.json 的宿主字段——2026-10-07 P2-5 起登记 DSH）。
+    matcher = re.compile(r'^\s*"?%s"?\s*:' % re.escape(field), re.M)
 
     if len(parts) == 2 and not parts[1].startswith("*"):
         candidates = [os.path.join(root, parts[0], parts[1])]

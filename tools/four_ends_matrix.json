@@ -9,6 +9,7 @@
       "plugin": "宿主插件 commands/ 与 agents/",
       "gui": "桌面端 web/backend/routers + 前端页面"
     },
+    "hosts": "四端回答「能力在哪实现」，宿主回答「谁来用」：CodeBuddy / Claude Code 经 commands/ 与 agents/ 资产接入；DSH（DeepSeek Harness）经 npm 包 dsh-job-workbench 消费 mcp 端工具面与技能资产（integrations/dsh/；ADR docs/decisions/first-class-delivery-surfaces.md）。宿主不新增列——能力归属照旧（MCP 工具 = mcp 端；技能 = 跨宿主资产，镜像一致性由本检查器的镜像比对与 tools/skill_assets.py 兜底）。",
     "write_rule": "写入类能力的机制是「预览 -> 确认 -> 落盘」：预览返回令牌与差异，落盘走 apply；GUI 的确认形态是界面弹窗，CLI/MCP 是令牌——机制不同、语义相同。各端的如实形态：CLI 的 track 类（track add/update、interview、talk、mail、import 与 init）需显式 `--preview` 才出令牌；题库类命令（bank add/import/update/delete 等）**默认即出预览**；联系人 / Offer（contact/offer）不经令牌、直接落盘（界面同）；MCP 侧写入走 `preview_*` -> `apply_approval`。",
     "error_map_scope": "只登记跨端共用的令牌（approval）域：MCP 透出 ApprovalError.code 的稳定值，HTTP 侧对外只有 approval.tokenInvalid / approval.conflict 两个码。其余接口错误码（数量随界面迭代而变，不写死）是 GUI 内部细节，不在此登记。",
     "excluded_primitives": "MCP 的**只读资源（jobws:// 静态资源与岗位正文模板）与提示模板（review_jd 等）不在本矩阵登记**：它们是 MCP 端专属形态，其余三端没有同名概念，硬塞进「能力 × 四端」会出现没有比对对象的行。反向检查只认 @mcp.tool（见 four_ends_probe.mcp_tools），不会因此误报。"
@@ -307,9 +308,9 @@
       "stage": "题库",
       "cli": "bank delete",
       "mcp": null,
-      "plugin": null,
+      "plugin": "bank",
       "gui": "GET /api/progress/questions/preview-delete",
-      "note": "写入：删题——预览列出将删哪一行 -> 确认 -> 落盘，落盘前把整表快照写到**工作区之外**（删错可整份复制回来）。批量撤回（`--origin 导入 --today` 等条件）**只在命令行**：界面没有「选中可见的多行」这个前置，把批量删做成一次点击等于鼓励误操作；MCP 同样不提供——删是高风险动作，先只留给本人发起的两端。"
+      "note": "写入：删题——预览列出将删哪一行 -> 确认 -> 落盘，落盘前把整表快照写到**工作区之外**（删错可整份复制回来）。批量撤回（`--origin 导入 --today` 等条件）**只在命令行**：界面没有「选中可见的多行」这个前置，把批量删做成一次点击等于鼓励误操作；MCP 同样不提供——工具面刻意收敛；删除出口（命令行 / 界面 / 插件命令端）都走「预览 → 令牌 → 快照」安全链。"
     },
     {
       "id": "mail.delete",
@@ -612,7 +613,7 @@
     {
       "end": "mcp",
       "item": "question.due",
-      "reason": "复习清单是本人的每日动作，模型不代劳；需要时让用户跑 `jobws bank due`。"
+      "reason": "复习清单是本人的每日动作，模型不代劳；需要时让用户跑 `jobws bank due`，或在桌面端「准备 → 训练」开重练队列。"
     },
     {
       "end": "plugin",
@@ -622,12 +623,12 @@
     {
       "end": "mcp",
       "item": "question.wrong",
-      "reason": "错题标记是本人的复习动作；模型改题请走 preview_update_question 的既有面。"
+      "reason": "错题标记是本人的复习动作；MCP 不提供改题面（工具面只到新增 / 导入）——需要改题请让用户在题目详情或 `jobws bank update` 操作。"
     },
     {
       "end": "plugin",
       "item": "question.wrong",
-      "reason": "同上。"
+      "reason": "错题标记是本人的复习动作，命令层不代改（改题入口在题目详情或 `jobws bank update`）。"
     },
     {
       "end": "mcp",
@@ -642,12 +643,7 @@
     {
       "end": "mcp",
       "item": "question.delete",
-      "reason": "删是不可逆的高风险动作，先只留给本人发起的两端（命令行 / 界面）；模型不代删。"
-    },
-    {
-      "end": "plugin",
-      "item": "question.delete",
-      "reason": "同上。"
+      "reason": "MCP 工具面刻意收敛（题库写入只到新增 / 导入）；删除出口在命令行 / 界面 / 插件命令端，都走「预览 → 令牌 → 快照」安全链；模型不绕过确认直接删。"
     },
     {
       "end": "mcp",
@@ -717,7 +713,7 @@
     {
       "end": "mcp",
       "item": "job.delete",
-      "reason": "删是不可逆的高风险动作，只留给本人发起的两端；模型不代删（2026-09-21 批 D）。"
+      "reason": "删是不可逆的高风险动作，只留给本人发起的界面（岗位池无 CLI 命令族）；模型不代删（2026-09-21 批 D）。"
     },
     {
       "end": "plugin",
@@ -732,7 +728,7 @@
     {
       "end": "mcp",
       "item": "job.rename",
-      "reason": "改名会同时动目录与 JD 标题，只留给本人发起的两端（2026-09-21 批 D）。"
+      "reason": "改名会同时动目录与 JD 标题，只留给本人发起的界面（岗位池无 CLI 命令族）（2026-09-21 批 D）。"
     },
     {
       "end": "plugin",
@@ -772,7 +768,7 @@
     {
       "end": "mcp",
       "item": "application.history",
-      "reason": "时间线可由 list 结果推断；工具数需收敛，暂不单开。"
+      "reason": "MCP 不提供阶段变更时间线（只在界面与命令行有）；工具面刻意收敛——需要时间线请让用户在界面查看，不要自行拼演进过程。"
     },
     {
       "end": "mcp",
@@ -782,7 +778,7 @@
     {
       "end": "mcp",
       "item": "mail.record",
-      "reason": "写入面暂收敛到投递与面试；邮件台账由 GUI 或 CLI 记录。"
+      "reason": "MCP 写入面收敛到投递 / 面试 / 题库（新增与导入）；邮件台账由 GUI 或 CLI 记录。"
     },
     {
       "end": "mcp",
@@ -792,7 +788,7 @@
     {
       "end": "mcp",
       "item": "imap.suggest",
-      "reason": "邮件正文属用户私密内容：解析只在界面内本地完成，不把它喂给模型。"
+      "reason": "邮件正文属用户私密内容：解析只在界面内完成（本地规则；另有用户显式启用的 BYOK 模型增强，仅发往用户自配端点），正文不交给 MCP 宿主模型。"
     },
     {
       "end": "mcp",
@@ -847,7 +843,7 @@
     {
       "end": "plugin",
       "item": "application.history",
-      "reason": "时间线可由 track list 与 report 覆盖。"
+      "reason": "命令层不提供单条变更时间线；阶段停留 / 转化等汇总口径由 report 覆盖，逐条时间线请在界面查看。"
     },
     {
       "end": "plugin",
@@ -892,7 +888,7 @@
     {
       "end": "gui",
       "item": "application.check",
-      "reason": "schema 自检是命令行运维动作，不在界面暴露。"
+      "reason": "schema 自检的面向用户入口是命令行 `track check`；界面不设自检按钮（桌面端后端保留 `GET /api/system/check` 供冒烟 / 内部使用）。"
     },
     {
       "end": "gui",
@@ -953,6 +949,18 @@
       "field": "compatibility",
       "host": "any",
       "note": "环境声明（Python 版本、是否需仓库在侧、是否上传数据）；宿主据此判断能否挂载。"
+    },
+    {
+      "file_glob": "integrations/dsh/package.json",
+      "field": "icon",
+      "host": "dsh",
+      "note": "DSH 读取器把 icon 加载为插件卡片的图片（data URL）；其他宿主忽略。"
+    },
+    {
+      "file_glob": "integrations/dsh/package.json",
+      "field": "dsh",
+      "host": "dsh",
+      "note": "组合包清单入口：dsh.bundle.patch（接线 patch）与 dsh.engines.dsh（兼容声明——官方明说安装器 / 加载器不强制，真正准入看 peerDependencies）；npm 与其他宿主忽略。"
     }
   ]
 }

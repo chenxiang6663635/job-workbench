@@ -94,7 +94,7 @@ python tools/jobws.py skills install --target user
 #    every resume verb must survive questioning; never fabricate experience.
 ```
 
-**Rather not clone the repo?** Two channels:
+**Rather not clone the repo?** Three channels:
 
 - **Plugin marketplace (recommended — skills, commands and subagents together)** — with CodeBuddy or Claude Code, add this repo as a marketplace and install it (the plugin reads `skills/`, `commands/` and `agents/` straight from the repo; there is no second copy):
 
@@ -104,6 +104,8 @@ python tools/jobws.py skills install --target user
 ```
 
 - **Skills only**: `npx skills add chenxiang6663635/job-workbench` (installs into the current directory; `-g` for the user level — `.agents/skills/` is the cross-host convention, Claude Code reads `.claude/skills/`).
+
+- **DeepSeek Harness (DSH)**: the same workbench as one installable plugin bundle — MCP tools, the nine skills and an optional `jobws` preset in a single package (`dsh plugin --profile <p> add dsh-job-workbench`; dev-mode `link:` flow and the known boundaries live in [`integrations/dsh/README.md`](integrations/dsh/README.md)).
 
 The local script covers custom layouts and acts as the fallback: `python tools/jobws.py skills install` distributes all three asset types by each host's directory convention (skills → skills dirs; commands and subagents → `.codebuddy/`, `.claude/`), copying by default. `--link` is experimental and symlinks the host copies to the single source instead (no stale copies; on Windows it needs developer mode or admin). **In-repo project-level copies** are kept honest by `python tools/jobws.py lint four-ends` — stale or diverged copies are named, and skills additionally report extra directories (your own files under `.claude/` are not counted). User-level `~/.agents/skills/` and plugin-marketplace caches are outside the checker's view: they do not travel with the repo.
 
@@ -133,6 +135,7 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |
 | `.github/` | CI workflow, issue / PR templates, code of conduct, Copilot instructions |
 | `.codebuddy-plugin/` | CodeBuddy plugin manifest — delivers the same `skills/` plus the commands and subagents; no second copy |
+| `integrations/dsh/` | **DeepSeek Harness surface** — npm package `dsh-job-workbench`: the MCP hookup, the nine skills and an optional preset, installed with one command; that folder's README is the source of truth for install / upgrade / rollback |
 | `docs/four-ends.md` | **Four-entry capability matrix** (CLI / AI host / editor plugin / desktop UI), generated from `tools/four_ends_matrix.json` and checked by `jobws lint four-ends`. See `docs/mcp-integration.md` to plug the workbench into an AI host — the config key differs per host |
 
 ## Download

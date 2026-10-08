@@ -7,7 +7,7 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **52** 条、各端不提供的例外 **71** 条、错误标识 **9** 条、宿主专属字段 **8** 条。
+**基数（随本文件自动生成）**：登记能力 **52** 条、各端不提供的例外 **70** 条、错误标识 **9** 条、宿主专属字段 **10** 条。
 
 ## 能力矩阵
 
@@ -45,7 +45,7 @@
 | 题库 | `question.update` | `bank update` | — | — | `GET /api/progress/questions/preview-update` |
 | 题库 | `question.import` | `bank import` | `preview_import_questions` | `bank` | `GET /api/progress/questions/preview-import` |
 | 题库 | `question.drill` | `bank drill` | — | — | `GET /api/progress/questions/drill` |
-| 题库 | `question.delete` | `bank delete` | — | — | `GET /api/progress/questions/preview-delete` |
+| 题库 | `question.delete` | `bank delete` | — | `bank` | `GET /api/progress/questions/preview-delete` |
 | 跟进 | `mail.delete` | `track mail delete` | — | — | `GET /api/progress/mails/preview-delete` |
 | 面试 | `interview.delete` | `track interview delete` | — | — | `GET /api/progress/interviews/preview-delete` |
 | 跟进 | `contact.delete` | `track contact delete` | — | — | `GET /api/progress/contacts/preview-delete` |
@@ -80,14 +80,13 @@
 - **mcp** · `export.obsidian`：导出是本地文件动作（往用户指定的目录写一批 md），不由模型代劳。
 - **plugin** · `export.obsidian`：同上：导出到本地笔记库是本人发起的动作。
 - **gui** · `export.obsidian`：界面的导出是「整包 zip」（设置页，保留 CSV 原格式）；Obsidian 笔记形态只在命令行提供——形态不同，不是漏做。
-- **mcp** · `question.due`：复习清单是本人的每日动作，模型不代劳；需要时让用户跑 `jobws bank due`。
+- **mcp** · `question.due`：复习清单是本人的每日动作，模型不代劳；需要时让用户跑 `jobws bank due`，或在桌面端「准备 → 训练」开重练队列。
 - **plugin** · `question.due`：同上。
-- **mcp** · `question.wrong`：错题标记是本人的复习动作；模型改题请走 preview_update_question 的既有面。
-- **plugin** · `question.wrong`：同上。
+- **mcp** · `question.wrong`：错题标记是本人的复习动作；MCP 不提供改题面（工具面只到新增 / 导入）——需要改题请让用户在题目详情或 `jobws bank update` 操作。
+- **plugin** · `question.wrong`：错题标记是本人的复习动作，命令层不代改（改题入口在题目详情或 `jobws bank update`）。
 - **mcp** · `question.drill`：抽题是本人的训练动作，模型不代劳；要复习口径让用户跑 `jobws bank drill` 或开「准备 → 训练」。
 - **plugin** · `question.drill`：同上。
-- **mcp** · `question.delete`：删是不可逆的高风险动作，先只留给本人发起的两端（命令行 / 界面）；模型不代删。
-- **plugin** · `question.delete`：同上。
+- **mcp** · `question.delete`：MCP 工具面刻意收敛（题库写入只到新增 / 导入）；删除出口在命令行 / 界面 / 插件命令端，都走「预览 → 令牌 → 快照」安全链；模型不绕过确认直接删。
 - **mcp** · `mail.delete`：删是不可逆的高风险动作，只留给本人发起的两端（命令行 / 界面）；模型不代删（2026-09-21 批 D）。
 - **plugin** · `mail.delete`：同上。
 - **mcp** · `interview.delete`：同上（2026-09-21 批 D）。
@@ -101,10 +100,10 @@
 - **mcp** · `application.delete`：同上（2026-09-21 批 D）。
 - **plugin** · `application.delete`：同上。
 - **cli** · `job.delete`：岗位池无 CLI 命令族；在文件管理器删目录是既有退路，但该入口没有预览与留痕——需要安全网时走 GUI（2026-09-21 批 D）。
-- **mcp** · `job.delete`：删是不可逆的高风险动作，只留给本人发起的两端；模型不代删（2026-09-21 批 D）。
+- **mcp** · `job.delete`：删是不可逆的高风险动作，只留给本人发起的界面（岗位池无 CLI 命令族）；模型不代删（2026-09-21 批 D）。
 - **plugin** · `job.delete`：同上。
 - **cli** · `job.rename`：岗位池无 CLI 命令族；改名入口在 GUI（2026-09-21 批 D）。
-- **mcp** · `job.rename`：改名会同时动目录与 JD 标题，只留给本人发起的两端（2026-09-21 批 D）。
+- **mcp** · `job.rename`：改名会同时动目录与 JD 标题，只留给本人发起的界面（岗位池无 CLI 命令族）（2026-09-21 批 D）。
 - **plugin** · `job.rename`：同上。
 - **cli** · `job.list`：岗位池以解析卡路径为输入（jd 命令），没有独立的列表命令；GUI 与 MCP 侧有。
 - **cli** · `jd.fetch`：抓取需在界面粘贴链接；命令行侧由使用者自行取文本。
@@ -112,11 +111,11 @@
 - **cli** · `imap.suggest`：解析素材来自界面拉取 / 粘贴；命令行侧由既有 track 链路承担，不重复实现。
 - **mcp** · `jd.fetch`：抓取涉及出网与页面解析，不由模型代劳；模型应让用户提供 JD 文本。
 - **mcp** · `job.create`：岗位新建属界面动作（需粘贴 JD 或链接），不由模型代劳。
-- **mcp** · `application.history`：时间线可由 list 结果推断；工具数需收敛，暂不单开。
+- **mcp** · `application.history`：MCP 不提供阶段变更时间线（只在界面与命令行有）；工具面刻意收敛——需要时间线请让用户在界面查看，不要自行拼演进过程。
 - **mcp** · `application.check`：schema 自检属运维动作，由 CLI 执行。
-- **mcp** · `mail.record`：写入面暂收敛到投递与面试；邮件台账由 GUI 或 CLI 记录。
+- **mcp** · `mail.record`：MCP 写入面收敛到投递 / 面试 / 题库（新增与导入）；邮件台账由 GUI 或 CLI 记录。
 - **mcp** · `imap.fetch`：出网拉取邮箱不由模型代劳（凭证与网络都属用户环境）。
-- **mcp** · `imap.suggest`：邮件正文属用户私密内容：解析只在界面内本地完成，不把它喂给模型。
+- **mcp** · `imap.suggest`：邮件正文属用户私密内容：解析只在界面内完成（本地规则；另有用户显式启用的 BYOK 模型增强，仅发往用户自配端点），正文不交给 MCP 宿主模型。
 - **mcp** · `contact.record`：写入面暂收敛；联系人由 GUI 或 CLI 记录。
 - **mcp** · `talk.record`：写入面暂收敛；宣讲会由 GUI 或 CLI 记录。
 - **mcp** · `offer.record`：写入面暂收敛；Offer 由 GUI 或 CLI 记录。
@@ -127,7 +126,7 @@
 - **plugin** · `imap.suggest`：同上：邮件正文与拉取产物不进命令面。
 - **plugin** · `application.update`：命令侧暂不提供单条更新（走 apply-pack 的完整流程或用 CLI）。
 - **plugin** · `application.import`：CSV 批量导入是界面动作。
-- **plugin** · `application.history`：时间线可由 track list 与 report 覆盖。
+- **plugin** · `application.history`：命令层不提供单条变更时间线；阶段停留 / 转化等汇总口径由 report 覆盖，逐条时间线请在界面查看。
 - **plugin** · `application.check`：运维动作，由 CLI 执行。
 - **plugin** · `mail.record`：邮件台账由 GUI 记录。
 - **plugin** · `contact.record`：联系人由 GUI 记录。
@@ -136,7 +135,7 @@
 - **plugin** · `interview.add`：面试记录由 retro 只读汇总；写入走 CLI 或 GUI。
 - **plugin** · `interview.update`：同上。
 - **plugin** · `question.update`：做题状态由本人维护。
-- **gui** · `application.check`：schema 自检是命令行运维动作，不在界面暴露。
+- **gui** · `application.check`：schema 自检的面向用户入口是命令行 `track check`；界面不设自检按钮（桌面端后端保留 `GET /api/system/check` 供冒烟 / 内部使用）。
 - **gui** · `jd.score`：界面只展示差距（gap），评分由解析卡承载；命令行 jd 是完整的评分校验入口。
 - **plugin** · `dataRoot.diagnostic`：数据根状态是「本机环境」的排障信息，编辑器插件命令层不承接宿主环境诊断（CLI 有 doctor、MCP 有 jobws.info、界面有 /api/system/paths）。
 
@@ -166,3 +165,5 @@
 | `commands/*.md` | `allowed-tools` | codebuddy | 权限白名单。Claude Code 的命令 frontmatter 亦用同名键，但取值语法可能不同（未实证）——新增命令时以本机宿主实测为准。 |
 | `skills/*/SKILL.md` | `allowed-tools` | codebuddy | 实验性字段（Open Agent Skills 规范标注 experimental）：声明技能会用到的工具族。只给「通篇 jobws 工作流」的技能声明 `Bash(jobws:*)`，纯指引类技能不声明；宿主不支持时忽略，不影响正文纪律。 |
 | `skills/*/SKILL.md` | `compatibility` | any | 环境声明（Python 版本、是否需仓库在侧、是否上传数据）；宿主据此判断能否挂载。 |
+| `integrations/dsh/package.json` | `icon` | dsh | DSH 读取器把 icon 加载为插件卡片的图片（data URL）；其他宿主忽略。 |
+| `integrations/dsh/package.json` | `dsh` | dsh | 组合包清单入口：dsh.bundle.patch（接线 patch）与 dsh.engines.dsh（兼容声明——官方明说安装器 / 加载器不强制，真正准入看 peerDependencies）；npm 与其他宿主忽略。 |

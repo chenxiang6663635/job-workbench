@@ -115,6 +115,8 @@ dsh plugin --profile <p> remove dsh-job-workbench
    pending 属已知边界（见下）。
 6. **技能**：技能清单出现 9 个 `jwb-*`，来源 = 本包 `skills/`。（仓库内开发时项目级
    `.agents/skills` 也在发现根里，同名技能会有两个来源候选——按宿主 rank 取先者，不重复挂载。）
+7. **兼容准入**：`--dump-config` 里本包三条行都在，且 stderr 无 `skipping profile bundle`
+   ——peer 范围写坏的表现是「组合包整体跳过、三条行静默消失」（机制与反证见 §七）。
 
 ## 五、已知边界（写清楚比含糊兜住更有用）
 
@@ -188,3 +190,43 @@ description:
 topic ✓（2026-10-07 添加）、真实可用代码 ✓、仓库年龄 ≥1 天 ✓。**提交时机 = npm 首发之后**
 （列表的安装命令指向 npm 包；未发布时提交会给出一条装不上的命令）。描述里的数字必须
 与代码一致（15 工具 / 9 技能），这是被维护者核对的第一件事。
+
+## 七、版本兼容与放宽路径（2026-10-07 实现实证）
+
+**机制（读自 DSH 自带实现文档 + 本机正反两向实测，不是猜测）**：profile 导入插件与加载
+组合包前，DSH 检查其 `peerDependencies` 中对 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*` 的
+声明，与宿主运行时版本比较——**每个声明的范围都必须匹配；预发布版本参与匹配；未声明则
+不施加约束；无效范围视为不兼容**（来源：`@deepseek-ai/dsh-app-boot` README 的 admission
+段）。被拒的组合包**整体跳过**并列入 `skippedBundles`，启动时报告一次（含包名/版本/风险）：
+
+```
+dsh: skipping profile bundle "dsh-job-workbench": Error: Plugin dsh-job-workbench@26.10.0 is
+incompatible with dsh 0.2.0-rc.2: peerDependencies {"@deepseek-ai/dsh-mcp-client":"^9.0.0"}.
+```
+
+本机反证：把任一 peer 临时改成不可能范围后，`--dump-config` 从 1330 行掉到 1260 行、三条
+jobws 行全部消失——**行与技能一起退场，但宿主照常启动**（优雅降级），还原后即恢复。
+
+**`engines.dsh` 不被强制**——官方原话「兼容性仅作声明」：当前安装器与加载器都不检查它，
+也不校验其 SemVer 语法（来源：`@deepseek-ai/dsh-package-manifest` README）。保留它是给
+工具链与人的声明性元数据；**真正的准入面是 peerDependencies**。
+
+**我们的声明**：`cordis.patch.yml` 引用到的全部 13 个官方包都进了 `peerDependencies`
+（`^0.2.0-rc.2`）；`engines.dsh` = `>=0.2.0-rc.2 <0.3`。这个形态由
+`tests/test_dsh_bundle_manifest.py` 钉住（双向一致 + 预发布分支 + 保守上限），改错即红。
+
+**兼容矩阵（语义，非承诺）**：
+
+| 宿主版本 | 预期 | 依据 |
+|---|---|---|
+| 0.2.0-rc.1 | 拒绝 | 低于 `^0.2.0-rc.2` 下限 |
+| **0.2.0-rc.2（当前实证宿主）** | **通过** | 本机 profile 装载实测（1330 行合成、三条行在位） |
+| 0.2.0 / 0.2.x | 通过 | 同 0.2 元组 + 范围覆盖 |
+| 0.3.0-rc.x / 0.3.x | 拒绝（保守） | `<0.3` 上限；实测可用后再放宽 |
+
+**放宽路径（不重发包的官方通道）**：宿主升到范围外但实测可用时——① **用户侧即可先放行**：
+profile 的 `compatibility.json`（插件管理器 UI 管理：精确 `包名@版本` → 精确运行时版本
+列表；不继承、不阻塞启动、损坏不阻断）；② 我们侧在下一班常规发布里放宽范围（纯元数据
+小改，不动 exe 与技能）；③ 宿主多版本积累后，用
+`npx -y --package @deepseek-ai/dsh@<版本> dsh headless --patch <本目录>\cordis.patch.yml "…"`
+跑矩阵冒烟，把「实测可用」变成可复现证据（本地 / CI 均可）。

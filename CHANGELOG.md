@@ -25,10 +25,12 @@
 ### 看得见的变化
 
 - **设置页可以清除已保存的凭据（2026-10-07）**：邮箱授权码与 API Key 旁新增「清除」入口——确认后凭据从系统存储（Windows 凭据管理器）与工作区配置文件里一并删除，之后需要重新输入才能使用；不必再靠手改配置文件来「忘掉」一把钥匙。
+- **DSH 接入件升级为可安装的插件包（2026-10-07）**：在 DeepSeek Harness 里装包即完成接线——MCP 工具面、9 个 `jwb-*` 技能与可选 `jobws` preset 一起到位，不再需要手改 profile 文件；安装/卸载会把依赖与 `dsh.profile.bundles` 两处一并写入/清理（第一阶段的手工接线需先自行删掉，避免双挂载）。
 
 ### 技术细节
 
 - **凭据「清除即删」接上设置页（2026-10-07，issue #203）**：后端新增 `DELETE /api/imap/credential` 与 `DELETE /api/provider/credential`——共用 `credential_fields.clear_credential` 接线（复用 `credentials.delete_secret`：无论删除成败 cfg 两键都清、配置文件只在存在时重写、幂等，不凭空创建文件）；前端「凭据存放位置」提示块内就地提供两段式清除（仅真的存过凭据时出现），邮箱卡与模型服务卡共用同一组件，文案中英对称。
+- **DSH bundle 骨架（#271 第二阶段 P2-1，2026-10-07）**：`integrations/dsh/` 升为 npm 包 `dsh-job-workbench`——manifest（`dsh.bundle.patch` + `dsh.engines.dsh` + `exports["./package.json"]` 供 `!!js` 自引用）+ `cordis.patch.yml`（三条 insert：`mcp-jobws` / `preset-jobws` / 独立 `skill-filesystem` provider；路径全部 `!!js` + `baseUrl` 现算、零绝对路径）+ 随包 `skills/` 镜像（生成物，入 `skill_assets.ASSETS`，由 four-ends 一致性检查兜底）+ `locale/{en,zh}.json` 展示文案 + `scripts/build_dsh_bundle.ps1`（镜像同步 + 校验 + pack 预演）；`assets_registry` 增补 bundle 版本与应用版本的一致性检查；旧 `profile.patch.yml` / `preset.yml` 收敛删除。实测（2026-10-07）：`dsh plugin add link:` 双字段写入、已装走 `dsh.profile.bundles` 自动装载（1330 行合成零警告）、headless 真调 `mcp__jobws__jobws_info_*`、9 个技能在会话可见、`remove` 双向清理。
 
 ### Infrastructure（内部工程）
 

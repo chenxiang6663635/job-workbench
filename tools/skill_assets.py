@@ -33,6 +33,11 @@ ASSETS = [
         ("claude", "项目级 .claude/skills/", "project", ".claude/skills"),
         ("agents", "项目级 .agents/skills/", "project", ".agents/skills"),
         ("codex", "项目级 .codex/skills/", "project", ".codex/skills"),
+        # DSH bundle（#271 P2-1）的随包镜像：由 `jobws skills install --target dsh`
+        # 同步生成、随 npm 包分发；进本表后 four-ends 的镜像一致性检查（缺件 /
+        # 多出 / 内容漂移）与 --prune 一并覆盖它——防「第五份真源」漂移。
+        ("dsh", "项目级 integrations/dsh/skills/（DSH bundle 随包镜像）", "project",
+         "integrations/dsh/skills"),
     ]),
     ("commands", "commands", [
         ("codebuddy", "项目级 .codebuddy/commands/", "project", ".codebuddy/commands"),

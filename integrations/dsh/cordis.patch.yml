@@ -1,0 +1,98 @@
+# job-workbench × DeepSeek Harness（DSH）—— bundle 接线（#271 第二阶段 · P2-1）
+#
+# 本文件由 `package.json` 的 `dsh.bundle.patch` 指向：装上本包
+# （`dsh plugin --profile <p> add dsh-job-workbench`，开发态可 `add link:<仓库>/integrations/dsh`）
+# 即自动叠进目标 profile；也可 `--patch <本文件>` 一次性叠加（开发态/headless）。
+#
+# 三条 insert 各司其职（行 id 与包名一样必须唯一）：
+#   mcp-jobws               MCP 工具面（15 个工具、两段式写入）
+#   preset-jobws            可选 agent preset（求职语境 persona + 工具集基线）
+#   skill-filesystem-jobws  独立技能 provider：只挂本包 skills/ 镜像（不碰出厂 provider）
+#
+# 路径刻意用 `!!js` + `baseUrl` 现算（官方 agent-preset 同款）：`baseUrl` 锚定本
+# patch 所在包，`createRequire(baseUrl).resolve('<包名>/package.json')` 走 Node 包
+# 自引用（因此 package.json 必须声明 `"exports": { "./package.json": ... }`）——
+# 「link 直挂 / npm 安装 / --patch 临时叠加」三种形态下都成立，不写死绝对路径。
+# 数据根刻意不写（数据根 spec 决策 1）：jobws-mcp 自己读工作台的持久化选择与 B3
+# 默认；写死 `JOBWS_DATA_DIR` 会制造第二个事实源。
+- insert:
+    - id: mcp-jobws
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: jobws
+        transport: stdio
+        # 平台预构建（P2-2 产出 jobws-mcp.exe）：优先生效已安装的平台子包
+        # （dsh-job-workbench-win32-x64），缺失时回落到包内 platform/<平台>/ 目录
+        # （开发态 / 子包尚未发布的阶段）。两个位置都缺失 = 本平台暂无运行时，
+        # 行照常装载（failOnStartupError: false），技能与固定件不受影响。
+        command: !!js >-
+          (() => {
+            const mod = process.getBuiltinModule('node:module');
+            const path = process.getBuiltinModule('node:path');
+            const req = mod.createRequire(baseUrl);
+            const pkgDir = path.dirname(req.resolve('dsh-job-workbench/package.json'));
+            let dir = path.join(pkgDir, 'platform', 'win32-x64');
+            try { dir = path.dirname(req.resolve('dsh-job-workbench-win32-x64/package.json')); } catch {}
+            return path.join(dir, 'bin', 'jobws-mcp.exe');
+          })()
+        args:
+          - '--workspace'
+          - 'personal'
+        # 对外形态：起不来不连累宿主整机启动（自用调试可临时叠加覆盖为 true，
+        # 见 dev-python-overlay.yml）。
+        failOnStartupError: false
+        toolCallTimeoutMs: 60000
+    - id: preset-jobws
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: jobws
+        order: 10
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                你在协助用户使用「求职工作台」（job-workbench，本地优先：全部数据在用户
+                本机的工作区，纯文本 CSV / Markdown）。涉及投递、岗位、面试、题库的数据
+                一律用 jobws 提供的 MCP 工具读取，不要凭记忆或推测补写任何求职数据。
+                写入必须两段式：先调 preview_* 工具拿令牌并把差异展示给用户，用户确认后
+                再用同一令牌调 apply_approval——绝不跳过确认直接写。
+                工作流准则在 jwb-* 技能里（jwb-jd / jwb-apply / jwb-track / jwb-resume /
+                jwb-recruit-coach 等）：处理对应请求前先读相应技能。
+                数据「看起来不对」时，先调 jobws 的信息工具看数据根诊断（state/source），
+                不要猜测。
+              suffix: Your working directory is {{cwd}}.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+    - id: skill-filesystem-jobws
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        # 独立 provider（唯一名）只挂本包 skills/ 镜像；不 includeDefaultRoots，
+        # 与出厂 provider 各扫各的，互不覆盖。
+        providerName: jobws
+        includeDefaultRoots: false
+        customSkillDirs:
+          - !!js >-
+            process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('dsh-job-workbench/package.json')), 'skills')

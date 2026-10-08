@@ -227,6 +227,22 @@ def write_all(repo_root):
     return written
 
 
+def dsh_bundle_problems(repo_root, app_version):
+    """DSH bundle 清单的版本一致性（#271 P2-1）：`integrations/dsh/package.json` 的 version
+    必须等于应用版本（真值源同 web/electron/package.json）——落章时两处一起改，防
+    「装了插件却收不到新版本」式的静默失真；文件不存在 → 跳过，不误报。"""
+    if not os.path.isfile(path := os.path.join(repo_root, "integrations", "dsh", "package.json")):
+        return []
+    try:
+        data = json.load(io.open(path, "r", encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return ["integrations/dsh/package.json 读不出来：%s" % exc]
+    got = data.get("version") if isinstance(data, dict) else None
+    return [] if got == app_version else [
+        "integrations/dsh/package.json 的 version=%s 与应用版本 %s 不一致——"
+        "发布时一起改（真值源是 web/electron/package.json）" % (got, app_version)]
+
+
 def check_all(repo_root):
     """生成物与真源是否漂移——返回问题列表（空 = 绿，CI 用）。"""
     try:
@@ -235,6 +251,7 @@ def check_all(repo_root):
         return ["读真源失败（%s）——插件清单位置或版本真值源坏了吗？" % exc]
 
     problems = list(validate_registry(reg))
+    problems.extend(dsh_bundle_problems(repo_root, reg["version"]))
     for name, expected in sorted(_targets(reg).items()):
         path = os.path.join(repo_root, PLUGIN_DIR, name)
         try:

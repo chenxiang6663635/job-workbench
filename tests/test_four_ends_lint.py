@@ -151,6 +151,18 @@ def test_glob_field_present_flat_dir(tmp_path):
         str(tmp_path), "commands/*.md", "allowed-tools")
 
 
+def test_glob_field_present_quoted_json_keys(tmp_path):
+    """JSON 清单的带引号字段名也认（P2-5：登记 DSH 宿主的 package.json 字段）。"""
+    _write(str(tmp_path / "integrations" / "dsh" / "package.json"),
+           '{\n  "icon": "./icon.svg",\n  "dsh": {\n    "bundle": {}\n  }\n}\n')
+    assert four_ends_extras.glob_field_present(
+        str(tmp_path), "integrations/dsh/package.json", "icon")
+    assert four_ends_extras.glob_field_present(
+        str(tmp_path), "integrations/dsh/package.json", "dsh")
+    assert not four_ends_extras.glob_field_present(
+        str(tmp_path), "integrations/dsh/package.json", "engines")
+
+
 # --- 资产镜像（skills / commands / agents）-------------------------------------
 
 

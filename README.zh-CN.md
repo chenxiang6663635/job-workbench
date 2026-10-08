@@ -94,7 +94,7 @@ python tools/jobws.py skills install --target user
 #    简历动词经得起追问、永不编造经历
 ```
 
-**不想克隆仓库也能用？** 两条通道任选：
+**不想克隆仓库也能用？** 三条通道任选：
 
 - **插件市场（推荐：技能 + 命令 + 子代理一起装）**——有 CodeBuddy / Claude Code 的话，把本仓库加为市场并安装（插件直接读仓库里的 `skills/`、`commands/`、`agents/`，没有第二份副本）：
 
@@ -104,6 +104,8 @@ python tools/jobws.py skills install --target user
 ```
 
 - **只装技能**：`npx skills add chenxiang6663635/job-workbench`（默认装到当前目录，`-g` 装用户级；`.agents/skills/` 是跨宿主约定，Claude Code 读 `.claude/skills/`）。
+
+- **DeepSeek Harness（DSH）**：同一套工作台装成一个插件包——MCP 工具面、九个技能与可选 `jobws` preset 一次到位（`dsh plugin --profile <p> add dsh-job-workbench`；开发态 `link:` 形态与已知边界见 [`integrations/dsh/README.md`](integrations/dsh/README.md)）。
 
 本地脚本是兜底与自定义落点用：`python tools/jobws.py skills install` 按宿主目录约定分发三类资产（技能 → skills 目录；命令与子代理 → `.codebuddy/`、`.claude/`），默认拷贝；`--link` 是实验选项，改用符号链接指向真源（不再有副本过期问题，Windows 需开发者模式或管理员权限）。**仓库内项目级副本**的一致性由 `python tools/jobws.py lint four-ends` 兜住：副本过期、内容不一致都会被指名，技能目录还额外报「多出」（`.claude/` 等目录里你自己的文件不算）——**用户级 `~/.agents/skills/` 与插件市场装的缓存在检查器视野之外**（它们不随仓库走）。
 
@@ -134,6 +136,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | `docs/` | 使用手册、文档索引、设计文档（`docs/specs/`） |
 | `.github/` | CI 工作流、issue / PR 模板、行为准则、Copilot 指引 |
 | `.codebuddy-plugin/` | CodeBuddy 插件清单——把同一份 `skills/` 交给插件系统，不另存副本 |
+| `integrations/dsh/` | **DSH 交付面**——npm 包 `dsh-job-workbench`：MCP 接线、九个技能与可选 preset 一条命令装齐；安装 / 升级 / 回滚以该目录 README 为准 |
 
 ## 文档
 

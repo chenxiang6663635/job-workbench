@@ -1,0 +1,22 @@
+{
+  "name": "dsh-job-workbench-win32-x64",
+  "version": "26.10.0",
+  "private": true,
+  "description": "Platform prebuild for dsh-job-workbench: jobws-mcp.exe (Windows x64, PyInstaller onedir).",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chenxiang6663635/job-workbench.git",
+    "directory": "integrations/dsh/platform/win32-x64"
+  },
+  "files": [
+    "bin",
+    "prebuilds.json"
+  ]
+}

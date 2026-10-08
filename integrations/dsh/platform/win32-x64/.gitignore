@@ -1,0 +1,3 @@
+# 预构建产物不入库（体积大、按脚本重建）：bin/ 由 scripts/build_mcp_exe.ps1 产出；
+# prebuilds.json（哈希清单）入库，作为最近一次构建/发布产物的对账依据。
+bin/

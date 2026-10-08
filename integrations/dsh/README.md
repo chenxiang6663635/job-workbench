@@ -40,12 +40,15 @@ python tools\jobws.py skills install --target dsh
 #    或一条龙（含校验；-Pack 预演 npm pack 的内容清单）：
 #    powershell -ExecutionPolicy Bypass -File scripts\build_dsh_bundle.ps1 -Pack
 
-# 2) 装包（link 形态；改完源码重启 DSH 即生效）
+# 2) 构建随包运行时（PyInstaller exe → platform/win32-x64/bin/；bin/ 不入库）
+powershell -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1
+#    冒烟：python scripts\smoke_mcp_exe.py
+
+# 3) 装包（link 形态；改完源码重启 DSH 即生效）
 dsh plugin --profile <你的 profile> add link:<仓库路径>\integrations\dsh
 
-# 3) exe 未就位时，用覆盖层把命令指到本机 venv（一次性叠加，不改任何 profile）
+# 4) 只有「不想构建 exe」时，才用覆盖层把命令指到本机 venv（一次性叠加，不改任何 profile）
 dsh headless --patch <本目录>\cordis.patch.yml --patch <本目录>\dev-python-overlay.yml "你好"
-# 已装包后也可临时叠加：dsh --profile <你的 profile> --patch <本目录>\dev-python-overlay.yml
 ```
 
 `cordis.patch.yml` 里的路径全部用 `!!js` + `baseUrl` 现算（官方 agent-preset 同款：
@@ -96,8 +99,13 @@ dsh plugin --profile <p> remove dsh-job-workbench
   不生效；两段式纪律由 MCP 工具描述自描述生效。**preset 的生效面 = 桌面会话 / 设置里切换**。
 - **MCP 看不到源码形态的应用根**（结构性盲区）：工具报「无歧义」不等于全机无歧义——
   详见 `docs/mcp-integration.md` §三。
-- **Windows first**：随包运行时目前只构建 `win32-x64`（`platform/win32-x64/`）；其他平台
-  命令解析会回落到包内该路径并在启动期安静失败（`failOnStartupError: false`）——技能与
-  固定件不受影响，MCP 工具面待平台子包补齐。
+- **Windows first**：随包运行时目前只构建 `win32-x64`（`platform/win32-x64/`，
+  PyInstaller onedir，`bin/` 不入库、由 `scripts/build_mcp_exe.ps1` 产出并生成
+  `prebuilds.json` 哈希清单）；其他平台命令解析会回落到包内该路径并在启动期安静失败
+  （`failOnStartupError: false`）——技能与固定件不受影响，MCP 工具面待平台子包补齐。
+  **发布形态不依赖宿主 Python**（自包含运行时）；「探测到宿主 Python 时加速」属
+  INTERNAL-ONLY 预留位（DSH 开放第三方 runtime API 前不启用）。
+- **杀软边界**：exe 未签名（代码签名已决策暂不采购，见 `docs/decisions/code-signing.md`），
+  首次运行 Windows 可能提示 SmartScreen；onedir + 不 UPX 是已知的降误报形态。
 - **旧文件去哪了**：第一阶段的 `profile.patch.yml` / `preset.yml` 已收敛为
   `cordis.patch.yml`（内容等价，另加技能 provider 与 `!!js` 路径现算）。

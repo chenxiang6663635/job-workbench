@@ -1,0 +1,5 @@
+# 发布反包含：本目录的 .gitignore 把 bin/（PyInstaller 产物）挡在 git 之外是**有意的**，
+# 但 npm 打包必须带上它（随包运行时）。同级存在 .npmignore 时 npm 不再读同级 .gitignore——
+# 这行注释以下的规则即全部包含语义（空 = 不排除任何东西；显式 !bin 仅是防线）。
+!bin
+!bin/**

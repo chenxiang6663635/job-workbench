@@ -213,11 +213,14 @@ def _port_in_use(port):
 
 
 def _is_our_service(port):
-    """端口上的服务是否为本工作台（health 探测）。"""
+    """端口上的服务是否为本工作台：200 + JSON `{"status": "ok"}`（ADR port-identity；
+    子串匹配会放行返回 ok 字样的陌生服务——复用 = 界面接错进程）。"""
+    import json
     import urllib.request
     try:
         with urllib.request.urlopen("http://127.0.0.1:%d/api/health" % port, timeout=2) as r:
-            return b"ok" in r.read()
+            payload = json.loads(r.read().decode("utf-8", errors="replace"))
+        return isinstance(payload, dict) and payload.get("status") == "ok"
     except Exception:
         return False
 

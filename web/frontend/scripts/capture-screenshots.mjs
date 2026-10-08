@@ -193,7 +193,11 @@ async function waitForHealth(baseUrl, timeoutMs = 60_000) {
   while (Date.now() < deadline) {
     try {
       const res = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(2000) });
-      if (res.ok && (await res.text()).includes("ok")) return;
+      // 身份判据（ADR port-identity）：结构化 {status:"ok"}——子串匹配会放行陌生服务
+      if (res.ok) {
+        const body = await res.json().catch(() => null);
+        if (body && body.status === "ok") return;
+      }
     } catch (err) { /* 还没起来，继续等 */ }
     await new Promise((resolve) => setTimeout(resolve, 400));
   }

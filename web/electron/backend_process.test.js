@@ -154,21 +154,21 @@ test("findBackendExe: packaged layout only, never on source runs", () => {
   assert.equal(makeDeps().bp.findBackendExe(), null);
 });
 
-test("checkHealth: 200 + 'ok' means ready; 500 / missing 'ok' means not ready", () => {
+test("checkHealth: 200 + structured {status:'ok'} means ready; everything else is not", () => {
   const h = fakeHealthHttp();
   const { bp } = makeDeps({ http: h.http });
   const results = collect((cb) => bp.checkHealth(cb));
   assert.equal(h.state.url, bp.HEALTH_URL);
   assert.equal(h.state.opts.timeout, 1000);
-  h.respond(200, "ok");
+  h.respond(200, JSON.stringify({ status: "ok" }));
   assert.deepEqual(results, [true]);
-  // 状态码不对 / 200 但正文还没有 ok —— 都算未就绪
-  for (const [status, body] of [[500, "ok"], [200, "starting"]]) {
-    const h2 = fakeHealthHttp();
-    const b = makeDeps({ http: h2.http });
+  // 状态码不对 / 非 JSON / 只是含 ok 字样的陌生人 —— 都不算就绪（ADR: port-identity）
+  for (const [status, body] of [[500, JSON.stringify({ status: "ok" })], [200, "ok"], [200, "all ok"],
+                                [200, JSON.stringify({ status: "starting" })]]) {
+    const h2 = fakeHealthHttp(), b = makeDeps({ http: h2.http });
     const results2 = collect((cb) => b.bp.checkHealth(cb));
     h2.respond(status, body);
-    assert.deepEqual(results2, [false], `${status} + "${body}" must not count as ready`);
+    assert.deepEqual(results2, [false], `${status} + ${JSON.stringify(body)}`);
   }
 });
 
@@ -176,7 +176,7 @@ test("checkHealth: the done gate collapses racing events into one callback", () 
   const h = fakeHealthHttp();
   const { bp } = makeDeps({ http: h.http });
   const results = collect((cb) => bp.checkHealth(cb));
-  h.respond(200, "ok");
+  h.respond(200, JSON.stringify({ status: "ok" }));
   h.fire("error"); // 迟到的事件：done 门拦下，否则 waitBackendReady 双轮询 → 双窗口
   h.fire("timeout");
   assert.deepEqual(results, [true]);
@@ -193,7 +193,7 @@ test("waitBackendReady: a healthy backend flips ready and calls back", () => {
   const h = fakeHealthHttp();
   const { bp, logs } = makeDeps({ http: h.http });
   const called = collect((cb) => bp.waitBackendReady(() => cb(true)));
-  h.respond(200, "ok");
+  h.respond(200, JSON.stringify({ status: "ok" }));
   assert.deepEqual(called, [true]);
   assert.equal(bp.isReady(), true);
   assert.ok(logs.some((l) => l.includes("Backend ready")));

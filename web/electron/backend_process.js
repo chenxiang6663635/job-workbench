@@ -16,6 +16,22 @@ const HEALTH_URL = `http://127.0.0.1:${BACKEND_PORT}/api/health`;
 const HEARTBEAT_INTERVAL = 500; // ms
 const HEARTBEAT_TIMEOUT = 30000; // ms
 
+/**
+ * 健康响应的身份判定（纯函数，见 docs/decisions/port-identity.md）：200 且 JSON
+ * `{"status":"ok"}` 才算「本工作台的后端在跑」——此前的「正文含 ok」子串匹配
+ * 会连返回 ok 字样的陌生服务一起放行（复用 = 界面接上别的进程）。非 JSON /
+ * 字段不对 → 未就绪。
+ */
+function isHealthy(statusCode, body) {
+  if (statusCode !== 200) return false;
+  try {
+    const parsed = JSON.parse(body);
+    return !!parsed && parsed.status === "ok";
+  } catch {
+    return false;
+  }
+}
+
 function createBackendProcess({
   app, log, notifyUser, tFor, resolvedLang, backendDir,
   fs = require("fs"), path = require("path"), http = require("http"),
@@ -103,7 +119,7 @@ function createBackendProcess({
     const req = http.get(HEALTH_URL, { timeout: 1000 }, (res) => {
       let body = "";
       res.on("data", (d) => (body += d));
-      res.on("end", () => once(res.statusCode === 200 && body.includes("ok")));
+      res.on("end", () => once(isHealthy(res.statusCode, body)));
     });
     req.on("error", () => once(false));
     req.on("timeout", () => {
@@ -262,6 +278,7 @@ function createBackendProcess({
     detectPython,
     findOnPath,
     checkHealth,
+    isHealthy,
     waitBackendReady,
     findBackendExe,
     startBackend,

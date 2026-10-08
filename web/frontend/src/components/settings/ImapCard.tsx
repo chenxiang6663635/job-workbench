@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Inbox, PlugZap, Save } from "lucide-react";
 
 import { api, type ImapConfig, type ImapTestResult } from "../../api";
+import { clearImapCredential } from "../../lib/credentialApi";
 import { listMailFolders, listMailProviders } from "../../lib/mailSetupApi";
 import {
   MANUAL_PROVIDER_ID,
@@ -265,8 +266,8 @@ export default function ImapCard({ hidden = false }: ImapCardProps) {
         </FormField>
       </div>
 
-      {/* 授权码存哪（#203）：只认 credman / plaintext，未识别形态不渲染 */}
-      <CredentialStorageNotice storage={cfg?.storage} hasCredential={cfg?.hasPassword} />
+      {/* 授权码存哪 + 「清除即删」入口（#203）：只认 credman / plaintext，未识别形态不渲染 */}
+      <CredentialStorageNotice storage={cfg?.storage} hasCredential={cfg?.hasPassword} surface="imap" onClear={() => clearImapCredential().then((r) => { setCfg(r); setMessage(t("settings.imapCredCleared")); }).catch((e: Error) => setErr(e.message))} />
 
       <FolderCandidates
         folders={folders}

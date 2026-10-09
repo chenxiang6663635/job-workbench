@@ -36,7 +36,8 @@ DIMENSIONS = [
     ("培养与稳定性", 15),
 ]
 
-# (下界, 上界, 档位, 动作)
+# (下界, 上界, 档位, 动作)。**判定只认下界**（降序取第一行 low <= total，上界只作
+# 展示）：左闭右开 75+ / [60,75) / … / <30——分子允许小数，闭区间会留缝（见 verdict）。
 THRESHOLDS = [
     (75, 100, "强烈建议投", "立即执行 /apply 生成投递包"),
     (60, 74, "建议投", "执行 /apply 生成投递包"),
@@ -99,8 +100,11 @@ def parse_dimension(raw, name, maximum):
 
 
 def verdict(total):
-    for low, high, level, action in THRESHOLDS:
-        if low <= total <= high:
+    """总分 → (档位, 动作)。按**下界**判定——实数被唯一确定，不留缝（小数 74.5 曾
+    被闭区间兜底成「不投」，2026-10-08 审计头号项）；负分显式归末档。
+    """
+    for low, _high, level, action in THRESHOLDS:
+        if total >= low:
             return level, action
     return THRESHOLDS[-1][2], THRESHOLDS[-1][3]
 
@@ -318,33 +322,29 @@ def resolve_profile(workspace, domain=None, direction=None):
     """定位领域插件与方向文件。
 
     查找顺序：工作区 config/（用户可能有自己的副本） -> template/profiles/<domain>/
-    返回 (插件目录, 方向文件路径, 警告列表)。
+    返回 (插件目录, 方向文件路径, 警告列表)。未指定 `--domain` 时**不再猜**：工作区
+    有档案就用它，没有则显式失败——此前按字母序取第一个模板插件拿错词典不报错
+    （2026-10-08 审计 1.1-2）。
     """
     warnings = []
 
-    # 确定 domain
-    if not domain:
-        ws_domain = os.path.join(workspace, "config", "profile.md")
-        if os.path.isfile(ws_domain):
-            candidates = [os.path.basename(os.path.dirname(workspace))]
-        else:
-            candidates = sorted(d for d in os.listdir(PROFILES)
-                                if os.path.isdir(os.path.join(PROFILES, d))) \
-                if os.path.isdir(PROFILES) else []
-        if not candidates:
-            warnings.append("未找到任何领域插件，评分缺少词典依据")
-            return None, None, warnings
-        domain = candidates[0]
-        warnings.append("未指定 --domain，回退使用第一个插件 `%s`" % domain)
-
-    # 插件目录：工作区优先，其次 template
+    # 插件目录：工作区优先，其次 template/profiles/<domain>
     ws_profile = os.path.join(workspace, "config")
-    profile_dir = ws_profile if os.path.isfile(
-        os.path.join(ws_profile, "profile.md")) else os.path.join(PROFILES, domain)
-
-    if not os.path.isdir(profile_dir):
-        warnings.append("找不到领域插件 `%s`（已查找 %s 与 %s）"
-                        % (domain, ws_profile, os.path.join(PROFILES, domain)))
+    if os.path.isfile(os.path.join(ws_profile, "profile.md")):
+        profile_dir = ws_profile
+        label = "工作区档案"      # 消息用标签：不再拿工作区父目录名冒充插件名
+    elif domain:
+        profile_dir = os.path.join(PROFILES, domain)
+        label = domain
+        if not os.path.isdir(profile_dir):
+            warnings.append("找不到领域插件 `%s`（已查找 %s 与 %s）"
+                            % (domain, ws_profile, profile_dir))
+            return None, None, warnings
+    else:
+        warnings.append("无法确定领域插件：工作区没有 %s，且未指定 --domain。"
+                        "请先 `jobws init --domain <插件>`（或把插件文件复制到 "
+                        "config/），或显式传 --domain <插件>。"
+                        % os.path.join(ws_profile, "profile.md"))
         return None, None, warnings
 
     # 方向文件
@@ -353,7 +353,7 @@ def resolve_profile(workspace, domain=None, direction=None):
         path = os.path.join(dir_dir, "%s.md" % direction)
         if os.path.isfile(path):
             return profile_dir, path, warnings
-        warnings.append("方向 `%s` 不存在于插件 `%s`" % (direction, domain))
+        warnings.append("方向 `%s` 不存在于插件 `%s`" % (direction, label))
 
     if os.path.isdir(dir_dir):
         available = sorted(f for f in os.listdir(dir_dir) if f.endswith(".md"))
@@ -363,7 +363,7 @@ def resolve_profile(workspace, domain=None, direction=None):
                 warnings.append("回退使用方向 `%s`，结论仅供参考" % fallback)
             return profile_dir, os.path.join(dir_dir, available[0]), warnings
 
-    warnings.append("插件 `%s` 下没有找到任何方向配置" % domain)
+    warnings.append("插件 `%s` 下没有找到任何方向配置" % label)
     return profile_dir, None, warnings
 
 

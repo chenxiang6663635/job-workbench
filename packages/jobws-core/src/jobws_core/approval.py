@@ -9,8 +9,8 @@
 
 1. **预览不落盘**：preview 阶段一个字节都不写工作区——令牌存在系统临时目录里，
    不进工作区（预览连一个目录都不该在工作区里建）；
-2. **令牌一次性**：apply 时**先把令牌取走（删除）再执行**——重放与并发都在取走
-   那一步被挡下，一份令牌只可能有一个赢家；
+2. **令牌一次性**：apply 时**先把令牌取走（原子重命名）再执行**——重放与并发都在
+   取走那一步被挡下；唯一例外是锁等待超时（一个字节未写，令牌放回让重试成立）；
 3. **令牌有过期时间且绑定目标**：默认 10 分钟；令牌里记着工作区绝对路径与载荷
    指纹，跨工作区、或与预览时不一致的载荷，一律拒绝。
 
@@ -49,6 +49,8 @@ import re
 import tempfile
 import time
 import uuid
+
+from . import approval_store
 
 # 令牌有效期（秒）：够用户读完一份差异表，又不至于让"很久以前的那次预览"被当成
 # 刚做的事。过期的代价只是重新预览一次，所以宁可短一些。
@@ -151,8 +153,7 @@ def preview(operation, workspace, payload, summary, diff, targets,
         "summary": summary,
         "targets": list(targets),
     }
-    with open(_token_path(token), "w", encoding="utf-8") as handle:
-        json.dump(record, handle, ensure_ascii=False, indent=2, sort_keys=True)
+    approval_store.write_record(_token_path(token), record)
     return {
         "token": token,
         "operation": operation,
@@ -161,6 +162,25 @@ def preview(operation, workspace, payload, summary, diff, targets,
         "targets": list(targets),
         "expires_at": record["expires_at"],
     }
+
+
+def _run_handler(claimed, path, handler, payload, workspace, conflict_type):
+    """执行落盘函数并翻译异常；无论成败都处置取走的令牌。锁超时＝一个字节未写：
+    放回令牌让「稍后重试」字面成立；ConflictError 译成 ApprovalConflict；其余原样抛。
+    """
+    try:
+        return handler(payload, workspace)
+    except Exception as exc:
+        if isinstance(exc, TimeoutError):
+            approval_store.restore(claimed, path)
+            raise ApprovalError(
+                "工作区正被另一处写入（等待文件锁超时）——稍后重试；本次没有写入任何内容。",
+                code="lock_timeout")
+        if conflict_type is not None and isinstance(exc, conflict_type):
+            raise ApprovalConflict(str(exc), code="conflict")
+        raise
+    finally:
+        approval_store.discard(claimed)
 
 
 def apply(token, workspace=None):
@@ -181,16 +201,16 @@ def apply(token, workspace=None):
             "（比如另一个用户的会话）。请重新预览。",
             code="not_found")
     try:
-        with open(path, encoding="utf-8") as handle:
-            record = json.load(handle)
+        record = approval_store.read_record(path)
     except (OSError, ValueError) as exc:
         raise ApprovalError("令牌文件读不出来（%s）——请重新预览。" % exc,
                             code="unreadable")
 
     # 先取走再执行：重放与并发都挡在这一步。取走失败说明另一个进程正拿着它，
-    # 此时**不能**继续——否则同一份确认会被执行两次。
+    # 此时**不能**继续——否则同一份确认会被执行两次。取走 = 原子重命名（不是
+    # 删除）：锁等待超时才可能把令牌放回去（见下面的 TimeoutError 分支）。
     try:
-        os.remove(path)
+        claimed = approval_store.claim(path)
     except OSError as exc:
         raise ApprovalError("令牌取走失败（%s）——请重新预览。" % exc,
                             code="lost")
@@ -222,22 +242,7 @@ def apply(token, workspace=None):
                             code="unknown_operation")
     conflict_type = _CONFLICT_TYPES.get(record.get("operation"))
 
-    try:
-        result = handler(payload, workspace)
-    except Exception as exc:
-        # 锁等待超时：另一处（界面 / CLI / 后端）正持有 tracker.lock。它**不是**缺陷、
-        # 也不是"数据变了"——用户要的信息是"再试一次就行"。此前它会一路冒泡成
-        # 界面 500 / CLI 裸栈（2026-09-23 二轮审计），与"两段式落盘也要走同一套
-        # 锁语义"的承诺相反。放在冲突判定之前：TimeoutError 不属于任何冲突类型。
-        if isinstance(exc, TimeoutError):
-            raise ApprovalError(
-                "工作区正被另一处写入（等待文件锁超时）——稍后重试；本次没有写入任何内容。",
-                code="lock_timeout")
-        # 领域层发现"预览时的判断已不成立"——转译成协议层的冲突语义，
-        # 调用方只需认 ApprovalError / ApprovalConflict 两种（不必认识领域异常）。
-        if conflict_type is not None and isinstance(exc, conflict_type):
-            raise ApprovalConflict(str(exc), code="conflict")
-        raise
+    result = _run_handler(claimed, path, handler, payload, workspace, conflict_type)
     result = dict(result or {})
     result.setdefault("operation", record.get("operation"))
     result.setdefault("summary", record.get("summary"))

@@ -116,6 +116,35 @@ def test_expired_token_is_rejected(tokens, workspace, fake_op):
     assert "找不到这个令牌" in str(ei.value)
 
 
+def test_lock_timeout_keeps_token_for_retry(tokens, workspace, monkeypatch):
+    """锁等待超时不烧令牌——「稍后重试」必须字面成立（2026-10-09 审计 1.1-4）。
+
+    修复前：apply 先 os.remove 令牌再执行，TimeoutError 时令牌已焚——用户按提示
+    「稍后重试」只会拿到「找不到这个令牌」，提示失真、必须重新预览。
+    修复后：取走=原子重命名，锁超时把它放回去；重试同一令牌直接成功。
+    """
+    calls = []
+
+    def flaky(payload, ws):
+        calls.append(ws)
+        if len(calls) == 1:
+            raise TimeoutError("另一处正持锁")
+        return {"summary": "ok"}
+
+    monkeypatch.setitem(approval._OPERATIONS, "test.flaky", flaky)
+    result = approval.preview(
+        "test.flaky", str(workspace), {"a": 1},
+        summary="s", diff=["d"], targets=["t"])
+
+    with pytest.raises(approval.ApprovalError) as ei:
+        approval.apply(result["token"])
+    assert ei.value.code == "lock_timeout"
+
+    again = approval.apply(result["token"])      # 同一令牌重试：可用
+    assert again["summary"] == "ok"
+    assert len(calls) == 2
+
+
 def test_token_is_bound_to_its_workspace(tokens, workspace, fake_op, tmp_path):
     """令牌是发给"这个工作区"的确认书，不能拿去给别的工作区用。"""
     result = _preview(workspace)

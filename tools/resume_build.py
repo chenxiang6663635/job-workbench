@@ -23,8 +23,7 @@ ATS 校验三项，全部通过才算成功：
     3. 若 config/ats_required_facts.txt 存在，逐行检查其关键词是否出现在文本中
        该文件不存在时跳过第三项并提示，不视为失败
 
-render 子命令额外校验 mediabox 为 A4：数据模板必须显式声明 @page size:A4，
-否则 Chrome 默认 Letter(612×792) 会破坏一页判定（实测无 @page = Letter）。
+render 子命令额外校验 mediabox 为 A4（模板须显式声明 @page size:A4，免用 Chrome 默认纸型破坏一页判定）。
 
 退出码：0 成功，1 失败。
 """
@@ -38,6 +37,7 @@ import os
 import re
 import subprocess
 import sys
+from jobws_core.workspace_io import TMP_PREFIX  # 暂存名统一前缀（残留会被导出/快照跳过）
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -287,7 +287,7 @@ def discover_source_json(source_dir):
     for name in sorted(os.listdir(source_dir)):
         if name.startswith("resume_") and name.endswith(".json"):
             stem = name[len("resume_"):-len(".json")]
-            jobs.append(("__std_%s.html" % stem, "简历_%s.pdf" % stem, stem))
+            jobs.append((TMP_PREFIX + "std_%s.html" % stem, "简历_%s.pdf" % stem, stem))
     return jobs
 
 

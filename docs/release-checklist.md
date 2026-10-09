@@ -54,6 +54,7 @@
 - [x] **双开**：第二个实例应直接退出并聚焦已有窗口 — v26.10.0：真机通过（dry-run 产物）
 - [x] **离线启动**：断网启动应安静（更新检查失败只进日志，不弹窗） — v26.10.0：真机通过（dry-run 产物）
 - [x] 人眼验收四项：八个页面各操作一遍 / 深浅主题各看一遍 / 设置页搜索与单项还原 / 中英切换 — v26.10.0：真机通过（dry-run 产物）
+- [ ] **截图新鲜度**：界面有可见改动时重拍（`npm.cmd run capture`，8 页 × 中英），并确认 `docs/screenshots/` 与当前 UI 一致 — v26.10.0：本版改动（笔记搜索状态行）不在截图页范围，未重拍；下一节点含 UI 改动时一并重拍
 - [x] **DSH preset boot**（D4 遗留，v26.10.0 起纳入）：带 `preset.yml` 的真实 boot——`--dump-config` 零启动合成零警告 + headless 实跑 exit 0；已知边界：headless 无 `agentPresets` 服务，preset 停 pending 属宿主形态（详见 `integrations/dsh/README.md` 待补条）
 
 **发布**：

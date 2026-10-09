@@ -14,9 +14,9 @@ That link is the file itself: `job-workbench-setup-{{VERSION}}-win64.exe` — a 
 
 ## Backup channel
 
-Leave a message in [Issues](https://github.com/chenxiang6663635/job-workbench/issues) telling us which version you need, or contact the author via the [repository](https://github.com/chenxiang6663635/job-workbench) — we will reply with a working backup download link.
+Leave a message in the [Gitee mirror's Issues](https://gitee.com/Chenxiang663635/job-workbench/issues) telling us which version you need — Gitee is reachable from mainland networks without opening GitHub first; we will reply with a working backup download link. (The [main repository's Issues](https://github.com/chenxiang6663635/job-workbench/issues) work too when GitHub is reachable.)
 
-To be precise: backup links are uploaded and maintained manually and may lag behind the official release; please use the main channel whenever GitHub is reachable for you.
+To be precise: the installer is 130+ MB, **above Gitee's 100 MB attachment limit**, so the backup channel can only hand out links (cloud storage etc.), never host the file on Gitee itself; backup links are maintained manually and may lag behind the official release. Please use the main channel whenever GitHub is reachable for you.
 
 ## Unsigned installer and SmartScreen
 

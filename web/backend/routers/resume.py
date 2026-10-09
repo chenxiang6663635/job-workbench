@@ -30,6 +30,7 @@ import tls_http
 from apierror import ApiError
 import resume_import
 from deps import DIR_RESUME, safe_join, workspace_dir
+from jobws_core.workspace_io import TMP_PREFIX  # 预览暂存名统一前缀（防残留混入产物）
 from iocaps import ensure_within, read_bytes_capped, read_response, read_text_capped
 import lockctx
 from lockctx import locked
@@ -469,7 +470,7 @@ def build_resume(version: str, template: str = "", accent: str = "",
         if not os.path.isdir(pdf_dir):
             os.makedirs(pdf_dir)
         pdf_path = os.path.join(pdf_dir, "简历_%s.pdf" % version)
-        tmp_html = os.path.join(pdf_dir, "__preview_%s.html" % version)
+        tmp_html = os.path.join(pdf_dir, TMP_PREFIX + "preview_%s.html" % version)
 
         try:
             with io.open(tmp_html, "w", encoding="utf-8") as f:

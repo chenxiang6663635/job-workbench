@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 from ._core import (TERMINAL_STAGES, _quarantine, _read_csv_checked, csv_path, parse_iso_date, resolve_ws)
+from ._history import read_history_rows
 from ._schema import (BATCHES, CONTACT_FILE, HISTORY_FILE, INTERVIEW_FILE, INTERVIEW_FORMS, INTERVIEW_RESULTS, INTERVIEW_ROUNDS, MAIL_DIRECTIONS, MAIL_FILE, MAIL_TAGS, OFFER_FILE, QUESTION_DIFFICULTY, QUESTION_FILE, QUESTION_ORIGINS, QUESTION_STATUS, SCHEMA_FILE, SOURCES, STAGES, TALK_ATTEND, TALK_FILE, TALK_FORMS, TRACKING_SCHEMA_VERSION)
 
 
@@ -139,8 +140,14 @@ def _inspect_tracking_file(fname, tracking, ws, files, quarantined, fk_ids,
         files.append({"file": fname, "ok": True, "issues": [], "note": "尚未创建"})
         return
     issues = []
+    dropped = 0
     try:
-        rows = _read_csv_checked(path)
+        if fname == HISTORY_FILE:
+            # 时间线走尾部容错读（唯一非原子写的表：崩溃只坏最后一条）——
+            # 残缺尾记录丢弃并如实报告，而不是把整份审计日志送 quarantine。
+            rows, dropped = read_history_rows(path)
+        else:
+            rows = _read_csv_checked(path)
     except (ValueError, csv.Error, UnicodeDecodeError, OSError) as exc:
         dest = _quarantine(path, ws)
         quarantined.append({
@@ -150,6 +157,8 @@ def _inspect_tracking_file(fname, tracking, ws, files, quarantined, fk_ids,
         files.append({"file": fname, "ok": False,
                       "issues": ["文件无法解析，已隔离到 quarantine/"], "note": ""})
         return
+    if dropped:
+        issues.append("%d 条残缺记录已忽略（追加被中断的残留；其余记录完好）" % dropped)
     _check_file_rows(fname, rows, path, required, dates, enums,
                      fk_ids if with_fk else None, issues)
     files.append({"file": fname, "ok": not issues, "issues": issues, "note": ""})

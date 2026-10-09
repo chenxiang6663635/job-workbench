@@ -24,44 +24,43 @@ when one exists. Historical implementation records stay in
 - [x] [#4](https://github.com/chenxiang6663635/job-workbench/issues/4) — Expand privacy & anti-fabrication regression coverage as the Web surface grows — **shipped in PR #32**: portability resolution, CSV-import privacy & atomicity, and doc relative-link reachability (three previously untested surfaces)
 - [x] **Release automation** — shipped in PR #23: tag (`v*`) triggers the Windows build and attaches the installer to the Release, so the v0.1.1 asset drift is now structurally impossible; the v0.2.0 release will be its first real run
 
-## Now — DSH 接入件第二阶段：自包含发行物（2026-10-06 登记）
+## Now — 不发布积累期：三桶推进（2026-10-09 登记）
 
-> 上一轮「单一发布计划」（2026-09-15 登记）已全部完结（`v0.3.0` → `v26.10.0`，
-> 逐项见 [CHANGELOG](CHANGELOG.md)）；本段为主线的下一段。边界与不变量见
-> [`docs/decisions/first-class-delivery-surfaces.md`](docs/decisions/first-class-delivery-surfaces.md)
-> （第一等交付面 ADR，#271：单一发布线 / 运行时独立领域共享 / 依赖方向
-> `core ← CLI/Web/MCP ← DSH`）。
+> 上一段「DSH 接入件第二阶段：自包含发行物」已全部完结（P2-1…P2-5 + 文档收口，
+> PR #281–#286；逐项见 [CHANGELOG](CHANGELOG.md)），`v26.10.0` 已于 2026-10-06 发布。
+> 用户拍板**暂不发布**：发布节点维持 `26.11.0`（十一月换月）。候选清单来自
+> 2026-10-08 积累期审计（四路并行侦察 + 外部对照），报告归档
+> [`docs/research/2026-10-08-accumulate-backlog-audit.md`](docs/research/2026-10-08-accumulate-backlog-audit.md)。
 
-**目标**：让「只装 DSH、不装桌面端」的用户完整用上求职工作台——DSH 接入件从
-「本机 checkout 形态」（`integrations/dsh/` + 本机 venv）升级为**自包含发行物**，
-与桌面端同发布线（同 CalVer 同 tag；宿主兼容是另一维度）。
+**三桶推进**（桶一 → 桶二 → 桶三；桶三只登记、不主动开工）：
 
-- [ ] **P2-1 bundle 骨架** — `integrations/dsh/` 升级为 npm 包形态：`package.json`
-  manifest（`dsh.bundle.patch`）+ `cordis.patch.yml` + preset 打包 + **skills 随包生成**
-  （打包脚本从 `skills/` 真源同步生成并纳入 four-ends 治理——防镜像漂移）+ README 双视角。
-  待拍板：npm 包名 / scope。
-- [ ] **P2-2 runtime 落地** — 自包含发行物第一选择：PyInstaller `jobws-mcp.exe` 随平台
-  子包分发（libreoffice-kit 模板：optionalDependencies + os/cpu + prebuilds.json 哈希
-  清单）；宿主 Python 探测作加速位（**INTERNAL-ONLY**——契约未开放，触发重估 = DSH
-  提供第三方 runtime API）；Windows first。风险面：AV 误报 / SmartScreen（代码签名
-  已决策暂不采购，触发条件见 [`docs/decisions/code-signing.md`](docs/decisions/code-signing.md)）。
-- [ ] **P2-3 安装体验** — `dsh plugin --profile <p> add <npm 包>`（CLI 自动写依赖与
-  bundle 声明）→ 可选 marketplace 收录（门槛：`dsh.bundle` 声明 + 根目录
-  `cordis.patch.yml` + `dsh-plugin` topic）。
-- [ ] **P2-4 版本兼容** — `dsh.engines.dsh` 保守上限（`>=0.2.0-rc.2 <0.3` 形态）+
-  「updates.json 事后放宽不重发包」模式（Zotero 先例）；同 CalVer 同 tag。
-- [ ] **P2-5 parity 再评审** — four-ends 矩阵 71 条例外分「刻意不对称（保留+写理由）」
-  vs「真缺口（补齐）」+ 矩阵补 DSH 行 + README multi-surface 微调。
+- [x] **桶一：取号前小修批**（一个 PR，2026-10-09）— 正确性六项（评分档位小数缝隙、
+  插件解析字母序兜底、CLI 默认工作区零校验、令牌簿记三连、渲染临时文件前缀、
+  `history.csv` 双保险）+ `jd_score` 纯函数测试群 + 登记漂移回填 + 站点口径收口 +
+  治理四项（远端已合并分支清理、#204/#259 核对、审计报告归档）。
+- [ ] **桶二：积累期主线**（按周推进，十一月初取号前收口）— 测试盲区（JD↔简历差距
+  链路 / MCP 只读工具 / `mail_dates` / 硬门槛判定）、读放大优化（先 `--durations`
+  观测再上 xdist）、重复实现收编（越界判定三处 / ISO 解析两份 / CSV 读取两份，收编后
+  `cross_end_audit` 复核）、贴线文件拆 1~2、前端体验（路由懒加载 / 长表虚拟化 /
+  数据根设置页入口 / 笔记图片端点）、双语与 a11y、CodeQL 评估、**DSH `jobws://`
+  只读资源真机核验**（三个技能把它当 JD 正文唯一读法，结构性盲区）。
+- [ ] **桶三：触发条件驱动**（不主动开工）— 390 整站、托盘、ICS RRULE、Outlook
+  OAuth2、Electron 主版本升级、代码签名、winget、国内直链、macOS、marketplace 收录
+  （**必须在 npm 首发之后**）。凡涉发布物形态与元数据者：取号前落定或顺延。
 
-**发布节点**：第二阶段整体走 `26.11.0`（换月单一发布节点）；`26.10.1` 只留给阻断类
-hotfix。**设计输入**：B spike（宿主 Python INTERNAL-ONLY）· C 报告（runtime 分发事实
-标准与反例）· D2/D4 实证（stdio 直连、工具名改名加哈希、spawn×2 探针进程）。
+**发布节点**：`26.11.0`（十一月发车，单一发布节点）；`26.10.1` 只留给四类阻断
+hotfix（安全 / 数据损坏 / 安装·启动阻断 / 更新链失效）。
 
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
 is stable for daily use and the workspace format promises **backward compatibility** — new columns
 and tables are read as empty when missing and written with unified headers, so no user-side
 conversion is ever required. **判据已成文（2026-09-22）**：四条可核的条件、支持策略与数据兼容条款见
 [`docs/support-and-compatibility.md`](docs/support-and-compatibility.md)。
+
+**毕业判定（2026-10-09）**：四条判据全部满足——① 连续 14 天自用无阻断（dev 栈，9-26 起）；
+② 主流程冒烟全绿（八页 + CLI + CI 全 job，`v26.10.0` 上）；③ 无未决 P0/MAJOR（开放
+issue 仅 minor/跟踪类）；④ 兼容条款经 `v26.10.0` 升级真机复装验证（旧工作区直接打开）。
+判定证据见 [`docs/releases/26.10.0-verification.md`](docs/releases/26.10.0-verification.md)。
 
 ## Later
 
@@ -91,3 +90,7 @@ conversion is ever required. **判据已成文（2026-09-22）**：四条可核�
 | 文档英文润色（超出 i18n 范围） | README 与文档的英文由人过一遍（术语一致但语感生硬） | 有英文母语使用者开始用时 |
 | 托盘常驻 + 开机自启 | 关窗后退到托盘、继续发到点提醒（带总开关）。现在**关窗即停**——刻意的轻量取舍（工具类惯例：VS Code / Obsidian 也是关窗即退；驻留托盘属"持续通知职责"类应用） | 提醒成为日常依赖（真实发生过"关着窗口错过截止"），或用户明确要求后台常驻 |
 | 区域可拖拽组合布局（桌面端） | 面板 / 分栏可拖放重组（候选库：dockview / flexlayout-react）；需要新的布局容器模型、持久化与每页迁移，8 页响应式基线要重写 | 多屏 / 宽屏成为主要使用方式，或面板重排成为日常诉求（先看 UI 线 A / B 落地后的真实使用） |
+| offer / 薪酬差比较（2026-10-08 外部对照） | 多 offer 条款与薪酬差本地分析——敏感数据恰是「本地优先」的优势场景 | 同时持有两个以上真实 offer，且比较需要表格化 |
+| 按 JD 定向模拟面试出题 | 题库→按 JD 生成定向题组 + 复盘链路（已有 `bank drill` 与复盘卡，增量小；中英信息源近一年共同热点） | 真实面试邀约给出 JD 后想练定向题 |
+| 简历「AI 味」自检 | 面向反 AI 筛查的生成度 / 个性化检查，输出改写建议而非代写（与本仓诚实红线天然契合） | 出现因「AI 味」被筛的真实反馈 |
+| 浏览器扩展一键收职位 | 招聘页一键书签进看板（Teal 式形态） | 技术债「本地 API token」先行，且手动录入成为日常负担 |

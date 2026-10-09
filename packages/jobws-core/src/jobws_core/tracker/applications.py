@@ -22,6 +22,7 @@ from ..csv_cells import csv_cell
 from ._core import (TERMINAL_STAGES, _atomic_write_csv, csv_path, parse_iso_date, resolve_ws)
 from ._schema import (FIELDS, HEALTH_LEVELS, HISTORY_FIELDS, HISTORY_FILE, HISTORY_TRACKED, STALE_DAYS, URGENT_DAYS)
 from ..csv_cells import restore_row
+from ._history import read_history_rows  # 时间线容错读（见 _history）
 
 
 
@@ -31,12 +32,12 @@ def history_path(workspace=None):
 
 
 def read_history(workspace=None, app_id=None):
-    """读取时间线。按写入顺序（时间升序）返回，app_id 非空时只返回该记录。"""
-    path = history_path(workspace)
-    if not os.path.isfile(path):
-        return []
-    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        rows = [restore_row(dict(row)) for row in csv.DictReader(f)]
+    """读取时间线。按写入顺序（时间升序）返回，app_id 非空时只返回该记录。
+
+    容错读在 `._history`：残缺记录（崩溃写了一半）逐条丢弃、如实计数——此前
+    坏半行会导致 `track check` 把整份时间线送 quarantine（2026-10-08 审计 1.1-6）。
+    """
+    rows, _dropped = read_history_rows(history_path(workspace))
     if app_id:
         rows = [r for r in rows if (r.get("id") or "").strip() == app_id]
     return rows
@@ -64,10 +65,12 @@ def append_history(entries, workspace=None):
     已有文件改用 utf-8 追加——utf-8-sig 每次 open 都会写 BOM，
     在追加场景下会把 BOM 插进文件中间。
 
-    追加无法原子化（必须打开已有文件续写），故只保证 fsync 落盘：
-    时间线是审计日志，丢一条尚可追溯，主表损坏才是灾难——原子性预算
-    花在 write_rows 上。若需原子追加，正解是改批量重写，但时间线写入频繁，
-    全量重写代价过高，不划算。
+    追加无法整体原子化（必须打开已有文件续写），故只保证 fsync 落盘 + **崩溃
+    一致性**（2026-10-08 审计 1.1-6 的写侧）：上次追加若被中断，残缺记录会与
+    本次追加**粘成一行**——先把它"封口"成独立一行（未闭合引号补引号、缺换行
+    补换行），损失止步于"最后一条记录"，由读侧 `read_history_rows` 逐行丢弃。
+    改批量重写能做到完全原子，但时间线写入频繁、全量重写代价过高，不划算
+    （原取舍保留；每追加多一次整文件读，相对 fsync 可忽略）。
     """
     if not entries:
         return 0
@@ -77,6 +80,19 @@ def append_history(entries, workspace=None):
         os.makedirs(directory)
 
     is_new = not os.path.isfile(path) or os.path.getsize(path) == 0
+    if not is_new:
+        # 崩溃一致性修复：把残缺尾记录**封口**成独立一行——未闭合的引号先补引号，
+        # 缺的换行再补上。不封口的话，未闭合引号会把**下一次追加**吞进同一个字段
+        # （csv 允许字段内换行），读侧的逐行容错连"该丢哪一行"都无从判断。
+        with io.open(path, "rb") as probe:
+            raw_bytes = probe.read()
+        tail = raw_bytes[raw_bytes.rfind(b"\n") + 1:]
+        repair = b'"' if tail.count(b'"') % 2 else b""
+        if not raw_bytes.endswith(b"\n"):
+            repair += b"\n"
+        if repair:
+            with io.open(path, "ab") as fix:
+                fix.write(repair)
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     with io.open(path, "w" if is_new else "a",
                  encoding="utf-8-sig" if is_new else "utf-8", newline="") as f:

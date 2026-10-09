@@ -108,12 +108,80 @@ def test_expired_token_is_rejected(tokens, workspace, fake_op):
     assert "过期" in str(ei.value)
     assert not fake_op
 
-    # 过期检查在"取走令牌"之后——令牌被烧掉是**有意**的（先取走才防得住重放），
-    # 所以第二次拿到的是"找不到"而不是"过期"。这条语义钉死：将来若有人为了
-    # "不浪费令牌"把删除挪到过期检查之后，这里会红（独立审查 M3）。
+    # 语义（2026-10-09 独立审查 MAJOR 后收紧）：**纯校验**（过期/绑定/指纹/操作
+    # 登记）全部前置到"取走令牌"之前——校验失败不烧牌，第二次拿到的仍是"过期"。
+    # 不变量没有松动：**执行 handler 之前令牌必已被原子取走**（重放与并发依旧
+    # 只有一个赢家），只是"不执行 handler 的纯失败路径"不再焚牌——旧实现先
+    # os.remove 再校验，会留下含明文载荷的 .running 孤儿（rename 迁移的漏项）。
     with pytest.raises(approval.ApprovalError) as ei:
         approval.apply(result["token"])
-    assert "找不到这个令牌" in str(ei.value)
+    assert "过期" in str(ei.value)
+
+
+def test_failed_validation_leaves_no_running_orphan(tokens, workspace, fake_op):
+    """claim 后的早退分支曾是孤儿源头：校验前置后不许再出现 .running（独立审查 MAJOR）。
+
+    三条失败路径各来一次：过期 / 未知操作 / 指纹被改——每次失败后令牌目录里
+    都不得残留 `.running`（含明文业务载荷）。
+    """
+    # ① 过期
+    expired = _preview(workspace, ttl=-1)
+    with pytest.raises(approval.ApprovalError):
+        approval.apply(expired["token"])
+
+    # ② 未知操作（改令牌记录里的 operation）
+    data = _preview(workspace)
+    path = approval._token_path(data["token"])
+    with open(path, encoding="utf-8") as fh:
+        record = json.load(fh)
+    record["operation"] = "no.such.op"
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(record, fh)
+    with pytest.raises(approval.ApprovalError):
+        approval.apply(data["token"])
+
+    # ③ 指纹被改（载荷与记录里的指纹对不上）
+    data2 = _preview(workspace)
+    path2 = approval._token_path(data2["token"])
+    with open(path2, encoding="utf-8") as fh:
+        record2 = json.load(fh)
+    record2["payload"] = {"fields": {"公司": "被改过"}}
+    with open(path2, "w", encoding="utf-8") as fh:
+        json.dump(record2, fh)
+    with pytest.raises(approval.ApprovalError):
+        approval.apply(data2["token"])
+
+    leftovers = [p.name for p in tokens.iterdir() if p.name.endswith(".running")]
+    assert leftovers == [], "失败路径留下孤儿：%s" % leftovers
+
+
+def test_lock_timeout_keeps_token_for_retry(tokens, workspace, monkeypatch):
+    """锁等待超时不烧令牌——「稍后重试」必须字面成立（2026-10-09 审计 1.1-4）。
+
+    修复前：apply 先 os.remove 令牌再执行，TimeoutError 时令牌已焚——用户按提示
+    「稍后重试」只会拿到「找不到这个令牌」，提示失真、必须重新预览。
+    修复后：取走=原子重命名，锁超时把它放回去；重试同一令牌直接成功。
+    """
+    calls = []
+
+    def flaky(payload, ws):
+        calls.append(ws)
+        if len(calls) == 1:
+            raise TimeoutError("另一处正持锁")
+        return {"summary": "ok"}
+
+    monkeypatch.setitem(approval._OPERATIONS, "test.flaky", flaky)
+    result = approval.preview(
+        "test.flaky", str(workspace), {"a": 1},
+        summary="s", diff=["d"], targets=["t"])
+
+    with pytest.raises(approval.ApprovalError) as ei:
+        approval.apply(result["token"])
+    assert ei.value.code == "lock_timeout"
+
+    again = approval.apply(result["token"])      # 同一令牌重试：可用
+    assert again["summary"] == "ok"
+    assert len(calls) == 2
 
 
 def test_token_is_bound_to_its_workspace(tokens, workspace, fake_op, tmp_path):

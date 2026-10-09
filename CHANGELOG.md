@@ -22,11 +22,23 @@
 
 ## [Unreleased]
 
+### Highlights (English)
+
+- **Score bands no longer misjudge decimal totals** — a weighted total of 74.5 used to land in the gap between the integer bands and get silently bucketed as "don't apply"; bands are now half-open, and a plugin is never guessed alphabetically when `--domain` is missing (the CLI fails with a clear instruction instead).
+- **CLI workspace values are validated like every other surface** — a `JOBWS_WORKSPACE` that escapes the data root (`..`, absolute, drive-relative) is refused with exit code 2 and a fix hint, matching the web 400 `ws.outOfRange` and the MCP containment guard.
+- **"Retry shortly" is now true** — a lock timeout puts the two-phase token back (it used to be burned, forcing a full re-preview); token files are written atomically, and expired ones are purged from the TEMP store on the next preview.
+- **The activity timeline survives a torn append** — a half-written `history.csv` record no longer sends the whole timeline to `quarantine/`: the bad record is dropped and counted (`track check` reports it), and the next append seals the torn line so records can never merge.
+
 ### 看得见的变化
 
 - **设置页可以清除已保存的凭据（2026-10-07）**：邮箱授权码与 API Key 旁新增「清除」入口——确认后凭据从系统存储（Windows 凭据管理器）与工作区配置文件里一并删除，之后需要重新输入才能使用；不必再靠手改配置文件来「忘掉」一把钥匙。
 - **DSH 接入件升级为可安装的插件包（2026-10-07）**：在 DeepSeek Harness 里装包即完成接线——MCP 工具面、9 个 `jwb-*` 技能与可选 `jobws` preset 一起到位，不再需要手改 profile 文件；安装/卸载会把依赖与 `dsh.profile.bundles` 两处一并写入/清理（第一阶段的手工接线需先自行删掉，避免双挂载）。
 - **DSH 装插件变成一条命令（2026-10-07）**：新增一键安装脚本——装包、校验与「第一阶段手工接线的自动迁移」一次完成（旧的 `mcp-jobws` / `preset-jobws` 手抄行被幂等移除并留 `.bak` 备份，不再有双挂载风险）；同时预写 pnpm 的 24h 新版本隔离放行，首发当天即可安装。
+
+- **评分档位不再错判小数总分（2026-10-09）**：加权总分 74.5 此前落进整数档位之间的缝、被静默判成「不投」；现在档位按下界半开——74.5 属「建议投」、59.5 属「斟酌」。未指定 `--domain` 时也不再按字母序猜插件（此前会拿 `hvac-cooling` 的词典给软开岗位打分），改为明确失败并给出修法；看板分布同步修正。
+- **命令行的工作区取值与其它端同一道闸（2026-10-09）**：`JOBWS_WORKSPACE` 写成 `..` 段 / 绝对路径 / 盘符相对会直接报错（退出码 2 + 修法提示），不再静默读写数据根之外的目录——与 Web 的 400 `ws.outOfRange`、MCP 的 containment 兜底对齐。
+- **「稍后重试」现在是真的（2026-10-09）**：两段式写入在锁等待超时时会把令牌放回去（此前令牌已焚，重试只能重新预览）；纯校验失败（过期 / 绑定 / 指纹 / 未知操作）也改为**不烧牌**并前置到取走之前（不再留下含明文载荷的临时残片）；令牌文件改为原子写，过期令牌在下次预览时顺手清理（不再在系统临时目录里堆明文载荷）。
+- **时间线不再被半行拖垮（2026-10-09）**：`history.csv` 被中断的追加（缺列 / 半字符）只丢那一条、`track check` 如实报出条数，不再把整份时间线送 `quarantine/`；写侧追加前先把残缺尾行封口（补引号 + 补换行），记录之间永远不粘连。
 
 ### 技术细节
 
@@ -43,6 +55,8 @@
 - **发布页呈现重构（2026-10-06）**：Release 说明改为「直链下载置顶 + 不重复版本号大标题 + English Highlights 折叠」——11 个成熟项目（VS Code / Electron / Bun / Bitwarden / Godot 等）调研后的模板，正文 ≤30 行、长内容外包到 compare 与 CHANGELOG 链接；`site` 下载页主通道同步改为版本化直链。落章惯例（26.11.0 起）：中文「看得见的变化」要点压成一行式 bullet，长描述移入技术细节折叠区。
 - **端口身份判据收紧 + ADR（2026-10-07）**：新增 `docs/decisions/port-identity.md`——「谁在 8765 上」的判据收敛为 `/api/health` 的结构化响应（200 + JSON `status == "ok"`），桌面端、后端自启与截图管线三处统一（原「正文含 ok」的子串匹配退役）；「已在跑即复用」只认通过判据的实例，自动杀进程只限开发脚本。
 - **发布页安装说明脚注标题降级（2026-10-07）**：`release.yml` 追加的「安装说明 / 校验和」两节从 `##` 降为 `###`（与 v26.10.0 手改后的版面一致），并新增一行「H2 残留」自检输出——dry-run 日志即可核对发布页面板规则。
+
+- **积累期审计与三桶推进（2026-10-09）**：审计报告归档 `docs/research/2026-10-08-accumulate-backlog-audit.md`（配套计划 `2026-10-07-accumulate-backlog-plan.md`）；ROADMAP「Now」换段登记三桶（桶一取号前小修批 / 桶二积累期主线 / 桶三触发条件驱动），并落**毕业判定（2026-10-09：四条判据全部满足）**。桶一另含：渲染临时文件守 `TMP_PREFIX`、登记漂移回填（站点实施计划状态与 `Task 7` 勾选、ROADMAP Now 换段）、站点口径收口（Gitee 为仓库镜像的如实描述、下载备用通道改国内可达的 Gitee Issues、EdgeOne 双通道活性复核：`job-workbench.edgeone.cool` 401 待处理）、截图新鲜度列入发版清单、#204 与 #259 逐项核对后关单。
 
 ## [26.10.0] - 2026-10-06
 

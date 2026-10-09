@@ -158,7 +158,7 @@ def _inspect_tracking_file(fname, tracking, ws, files, quarantined, fk_ids,
                       "issues": ["文件无法解析，已隔离到 quarantine/"], "note": ""})
         return
     if dropped:
-        issues.append("尾部 %d 条残缺记录已忽略（追加被中断的残留；前面的记录完好）" % dropped)
+        issues.append("%d 条残缺记录已忽略（追加被中断的残留；其余记录完好）" % dropped)
     _check_file_rows(fname, rows, path, required, dates, enums,
                      fk_ids if with_fk else None, issues)
     files.append({"file": fname, "ok": not issues, "issues": issues, "note": ""})

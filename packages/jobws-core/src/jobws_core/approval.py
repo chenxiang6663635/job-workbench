@@ -172,9 +172,11 @@ def _run_handler(claimed, path, handler, payload, workspace, conflict_type):
         return handler(payload, workspace)
     except Exception as exc:
         if isinstance(exc, TimeoutError):
-            approval_store.restore(claimed, path)
+            # 一个字节都没写：放回令牌让「稍后重试」成立；放回失败如实要求重新预览
+            restored = approval_store.restore(claimed, path)
             raise ApprovalError(
-                "工作区正被另一处写入（等待文件锁超时）——稍后重试；本次没有写入任何内容。",
+                "工作区正被另一处写入（等待文件锁超时）——本次没有写入任何内容；"
+                + ("稍后重试。" if restored else "令牌未能放回，请重新预览。"),
                 code="lock_timeout")
         if conflict_type is not None and isinstance(exc, conflict_type):
             raise ApprovalConflict(str(exc), code="conflict")
@@ -206,15 +208,7 @@ def apply(token, workspace=None):
         raise ApprovalError("令牌文件读不出来（%s）——请重新预览。" % exc,
                             code="unreadable")
 
-    # 先取走再执行：重放与并发都挡在这一步。取走失败说明另一个进程正拿着它，
-    # 此时**不能**继续——否则同一份确认会被执行两次。取走 = 原子重命名（不是
-    # 删除）：锁等待超时才可能把令牌放回去（见下面的 TimeoutError 分支）。
-    try:
-        claimed = approval_store.claim(path)
-    except OSError as exc:
-        raise ApprovalError("令牌取走失败（%s）——请重新预览。" % exc,
-                            code="lost")
-
+    # 纯校验前置到"取走"之前——失败不烧牌，也不留 .running 孤儿（独立审查 MAJOR）
     if time.time() > float(record.get("expires_at") or 0):
         raise ApprovalError(
             "令牌已过期（有效期 %d 秒）。请重新预览——数据可能已经变了。"
@@ -241,6 +235,13 @@ def apply(token, workspace=None):
                             "——请重新预览。" % record.get("operation"),
                             code="unknown_operation")
     conflict_type = _CONFLICT_TYPES.get(record.get("operation"))
+
+    # 先取走再执行：执行前令牌必已被原子取走（赢家只有一个）；取走失败不能继续
+    try:
+        claimed = approval_store.claim(path)
+    except OSError as exc:
+        raise ApprovalError("令牌取走失败（%s）——请重新预览。" % exc,
+                            code="lost")
 
     result = _run_handler(claimed, path, handler, payload, workspace, conflict_type)
     result = dict(result or {})

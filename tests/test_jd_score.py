@@ -9,8 +9,7 @@
 - `resolve_profile`：未指定 `--domain` 时按字母序取第一个模板插件
   （`hvac-cooling` 排在 `software-backend` 前）——拿错词典不报错。
 
-本文件在修复前应有两组失败：`test_verdict_accepts_decimal_total_in_the_gap`
-与 `test_resolve_profile_prefers_workspace_copy_*`。修复后全绿并成为回归网。
+本文件在修复前应红 **7 条**（verdict 小数缝隙 4 条 + resolve_profile 3 条）。修复后全绿并成为回归网。
 """
 import os
 import sys

@@ -40,6 +40,8 @@ def read_history_rows(path):
         return [], 0
     with io.open(path, "rb") as handle:
         raw = handle.read()
+    if not raw:
+        return [], 0          # 0 字节 = 无数据（与 append_history 的空文件口径一致）
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:

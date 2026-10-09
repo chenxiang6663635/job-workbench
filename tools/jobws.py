@@ -228,9 +228,8 @@ def _data_root_guard(group):
 
 
 def main(argv=None):
-    # Windows 控制台默认 GBK；输出被 PowerShell 管道接走（`| Select-Object` 等）
-    # 时按 locale 编码，中文会变乱码。与 scripts/review.py、scripts/smoke_backend_exe.py
-    # 同款处理：显式改 UTF-8（CI 的 Linux 环境本就是 UTF-8，无行为变化）。
+    # Windows 控制台默认 GBK，经管道接走时中文会乱码——与 scripts/review.py 同款
+    # 显式改 UTF-8（CI 的 Linux 本就是 UTF-8，无行为变化）。
     if sys.stdout is not None and getattr(sys.stdout, "encoding", None):
         if sys.stdout.encoding.lower() != "utf-8":
             try:
@@ -240,10 +239,8 @@ def main(argv=None):
                       file=sys.stderr)
 
     parser = build_parser()
-    # parse_known_args 而不是 REMAINDER：subparser 里用 REMAINDER 收集剩余参数时，
-    # `--help` 会被当成未识别选项回传到顶层（argparse 的已知组合坑），结果
-    # `jobws track --help` 报 unrecognized arguments。改成"认识多少解析多少、
-    # 剩下的原样转发"之后，--help 与所有子命令参数都进 rest。
+    # parse_known_args 而不是 REMAINDER：后者会把 `--help` 当未识别选项回传顶层
+    # （argparse 已知组合坑，`jobws track --help` 报 unrecognized arguments）。
     args, rest = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
 
     if not getattr(args, "group", None):
@@ -285,6 +282,10 @@ def main(argv=None):
         # argparse 的 --help(0) 与用法错误(2) 都走这里：必须原样透出，
         # 否则 `jobws track --help` 会被误报成失败
         return _exit_code(exc)
+    except pathres.WorkspaceOutOfRange as exc:
+        # 坏配置（JOBWS_WORKSPACE 越界）译成退出码 2 + 可读文案，不抛裸栈
+        print("错误：%s" % exc)
+        return 2
     except TimeoutError:
         # 写类操作拿不到 tracker.lock（另一处正在写：桌面端常驻后端 / 另一个命令）。
         # 这不是缺陷、也不是"数据坏了"，用户要的是"再试一次就行"——此前它会直接

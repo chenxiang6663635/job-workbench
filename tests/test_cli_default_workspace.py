@@ -55,5 +55,39 @@ def test_track_parser_default_matches_data_root(tmp_path, monkeypatch):
     assert os.path.dirname(args.workspace) == os.path.abspath(str(tmp_path))
 
 
+@pytest.mark.parametrize("bad", ["..", "..\\evil", "a/../b", "C:foo", "D:\\abs", "/abs/path"])
+def test_default_workspace_rejects_escapes(tmp_path, monkeypatch, bad):
+    """JOBWS_WORKSPACE 越界写法必须 fail-closed（2026-10-08 审计 1.1-3）。
+
+    此前 CLI 是唯一静默口：`../x` 或绝对路径会让默认工作区静默读写数据根之外
+    的目录；Web 已 400 `ws.outOfRange`、MCP 由 `within_any` 兜住——现在同一道闸。
+    """
+    monkeypatch.setenv(pathres.ENV_DATA_DIR, str(tmp_path))
+    monkeypatch.setenv(pathres.ENV_WORKSPACE, bad)
+    with pytest.raises(pathres.WorkspaceOutOfRange) as excinfo:
+        pathres.default_workspace()
+    message = str(excinfo.value)
+    assert "JOBWS_WORKSPACE" in message and "数据根" in message, message
+
+
+def test_default_workspace_still_allows_nested_name(tmp_path, monkeypatch):
+    """根内的嵌套相对名（a/b）不算越界——拒绝的是越界写法，不是子目录。"""
+    monkeypatch.setenv(pathres.ENV_DATA_DIR, str(tmp_path))
+    monkeypatch.setenv(pathres.ENV_WORKSPACE, "side/inner")
+    assert pathres.default_workspace() == os.path.join(str(tmp_path), "side", "inner")
+
+
+def test_cli_maps_escaped_workspace_env_to_exit_2(tmp_path, monkeypatch, capsys):
+    """端到端：坏配置由入口译成退出码 2 + 可读文案，而不是抛裸栈。"""
+    monkeypatch.setenv(pathres.ENV_DATA_DIR, str(tmp_path))
+    monkeypatch.setenv(pathres.ENV_WORKSPACE, "../evil")
+    import jobws  # tools/jobws.py：唯一 CLI 入口
+
+    code = jobws.main(["track", "list"])
+    captured = capsys.readouterr()
+    assert code == 2, (code, captured)
+    assert "JOBWS_WORKSPACE" in captured.out + captured.err
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

@@ -23,6 +23,8 @@ from __future__ import annotations
 import os
 import sys
 
+from . import containment  # 越界判定唯一原语（escape_reason / is_within）
+
 # 可写数据目录的环境变量覆盖（最高优先级）
 ENV_DATA_DIR = "JOBWS_DATA_DIR"
 # 默认工作区名的环境变量（legacy 保留判据要按它找旧数据；与 deps.py 同值）
@@ -196,6 +198,14 @@ def resolve_default_root():
     return default_data_root(), "userdata"
 
 
+class WorkspaceOutOfRange(ValueError):
+    """`JOBWS_WORKSPACE` 越出数据根（默认工作区解析的唯一失败形态）。
+
+    与 Web `deps.resolve_default_workspace` 的 400 `ws.outOfRange`、MCP 的
+    containment 兜底同口径：坏配置 fail-closed，不退化成"用别的目录继续"。
+    """
+
+
 def default_workspace(root=None):
     """默认工作区绝对路径 = `<数据根>/<工作区名>`（B4 整改 A：与 API/MCP 同源）。
 
@@ -205,12 +215,25 @@ def default_workspace(root=None):
     `personal`），与 `deps.resolve_default_workspace` / MCP 的
     `resolve_default_workspace` 口径一致。
 
+    **越界必须拒绝**（2026-10-09 审计 1.1-3）：CLI 此前是唯一静默口——环境变量
+    写成 `..` 段 / 绝对路径 / 盘符相对会让默认工作区落到数据根之外；Web 已
+    fail-closed、MCP 由 `within_any` 兜住。现在同一道闸（`escape_reason` +
+    `is_within`，含经链接读穿），违规抛 `WorkspaceOutOfRange`（入口层映射为
+    退出码 2）。
+
     **调用时求值**（不缓存）：解析链依赖环境变量，模块级常量会在测试与长驻
     进程里静默过期。
     """
     data_root, _mode = resolve_workspace_root(root)
     name = (os.environ.get(ENV_WORKSPACE) or "").strip() or _DEFAULT_WORKSPACE
-    return os.path.normpath(os.path.join(data_root, name))
+    reason = containment.escape_reason(name)
+    full = os.path.normpath(os.path.join(data_root, name))
+    if reason or not containment.is_within(full, data_root):
+        raise WorkspaceOutOfRange(
+            "默认工作区越出数据根（%s）：JOBWS_WORKSPACE=%s —— 请改成数据根内的"
+            "相对目录名（如 personal），或清掉该配置使用默认值。"
+            % (reason or "经链接指向界外", name))
+    return full
 
 
 def resolve_workspace_root(root=None):

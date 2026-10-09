@@ -14,9 +14,9 @@ English: [Download](download.en.md)
 
 ## 备用通道（国内网络）
 
-在 [Issues](https://github.com/chenxiang6663635/job-workbench/issues) 留言（写清需要的版本号），或通过[仓库主页](https://github.com/chenxiang6663635/job-workbench)联系作者——我们会回复一个当时的备用下载链接。
+在 [Gitee 镜像仓库的 Issues](https://gitee.com/Chenxiang663635/job-workbench/issues) 留言（写清需要的版本号）——Gitee 国内可直达，不必先打开 GitHub；我们会回复一个当时的备用下载链接。（GitHub 能直连时也可以用[主仓库 Issues](https://github.com/chenxiang6663635/job-workbench/issues)。）
 
-如实说明：备用链接由人工上传与维护，可能滞后于正式 Releases；能直连 GitHub 时请优先使用主通道。
+如实说明：安装包 130+ MB，**超过 Gitee 附件的 100 MB 上限**，所以备用通道只能提供链接（网盘等），不能在 Gitee 上直接挂附件；备用链接由人工维护，可能滞后于正式 Releases。能直连 GitHub 时请优先使用主通道。
 
 ## 未签名说明（SmartScreen）
 

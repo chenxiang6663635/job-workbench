@@ -140,7 +140,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 ## 文档
 
-- [在线文档站](https://chenxiang6663635.github.io/job-workbench/)——项目介绍、使用手册与下载页的网页版（中英双语、可搜索；GitHub 打不开时用 [Gitee 镜像](https://gitee.com/Chenxiang663635/job-workbench)，国内直达）
+- [在线文档站](https://chenxiang6663635.github.io/job-workbench/)——项目介绍、使用手册与下载页的网页版（中英双语、可搜索；**站点托管在 GitHub**，国内网络打不开时用 [Gitee 仓库镜像](https://gitee.com/Chenxiang663635/job-workbench)：代码与文档源文件（Markdown 可直接阅读）、Issues 反馈通道国内可直达）
 - [Roadmap](ROADMAP.md)——Now / Later 与已完成批次日志；有跟踪 issue 的项会挂链接
 - [文档索引](docs/README.md)——每份文档的状态（现行 / 已废弃）
 - [使用手册](docs/usage-guide.zh-CN.md)——启动、八页面详解、AI 工作流、CLI 命令速查、常见问题（英文主版：[usage-guide.md](docs/usage-guide.md)）

@@ -10,6 +10,11 @@
 
 **Spec:** `docs/specs/2026-09-28-project-site-design.md`
 
+**状态（2026-10-09 回填）**：**Task 1–6 全部完成**——站点已上线（GitHub Pages，源 =
+`site-dist` 分支，`site.yml` 在 main push 后自动重建；首页 / 手册 / 下载 / 隐私 / 兼容
+五页可达，2026-10-09 实测首页与下载页显示 `26.10.0`）。Task 7 各步状态见该节勾选；
+其中 **Step 4（无代理受众实测）仍未完成**，需要用户侧 1–2 位无代理受众验证。
+
 ## Global Constraints
 
 - 一切走 PR（分支 `docs/site`），Conventional 提交且 subject 含中文；squash 合并。
@@ -115,9 +120,9 @@ docs/screenshots/*.png, zh-CN/*.png → assets/screenshots/（保子目录）
 
 ### Task 7: 合并后——site-dist 上线 + EdgeOne 接入 + 域名验证
 
-- [ ] Step 1: main push 后确认 `site-dist` 分支生成且内容 = 产物（`gh api repos/chenxiang6663635/job-workbench/branches/site-dist`）
-- [ ] Step 2: **[用户]** 注册 EdgeOne 国际版（edgeone.ai，邮箱）→ 连接 GitHub 仓库 → 选 `site-dist`、输出目录 `/`、无构建命令 → 部署 → 取默认域名
-- [ ] Step 3: 域名打开站点（本机 + 用户侧）；若 Git 集成不支持「监控分支零构建」→ 备选：CI 内 EdgeOne CLI 上传（token 入 Secrets）
-- [ ] Step 4: **[用户]** 把域名发给 1-2 个无代理受众实测可达性 → 结论决定是否走 C（域名 + 备案）
-- [ ] Step 5: README「Docs」节加官网链接；应用内「打开使用手册」改指在线入口（**单独小 PR**，走产品流程；2026-09-29 落实：按钮先指 Gitee 手册页保国内可达，站点域名落地后再评估回切）
-- [ ] Step 6: 记忆落档（上线结果 + 实测结论）
+- [x] Step 1: main push 后确认 `site-dist` 分支生成且内容 = 产物（`gh api repos/chenxiang6663635/job-workbench/branches/site-dist`）
+- [x] Step 2: **[用户]** 注册 EdgeOne 国际版（edgeone.ai，邮箱）→ 连接 GitHub 仓库 → 选 `site-dist`、输出目录 `/`、无构建命令 → 部署 → 取默认域名 — **2026-10-09 复核：默认域名 `job-workbench.edgeone.cool` 返回 401（Access Restricted / Authentication Expired），作为备用通道保留，待用户在 EdgeOne 控制台处理；长期公开入口的结论不变（Makers 默认域名不可作长期网址，唯一长期方案 = 自定义域名）**
+- [x] Step 3: 域名打开站点（本机 + 用户侧）；若 Git 集成不支持「监控分支零构建」→ 备选：CI 内 EdgeOne CLI 上传（token 入 Secrets） — 2026-09-28 部署成功（当时域名可开）；现态见 Step 2
+- [ ] Step 4: **[用户]** 把域名发给 1-2 个无代理受众实测可达性 → 结论决定是否走 C（域名 + 备案） — **仍未完成**（唯一待办项，需要用户侧受众）
+- [x] Step 5: README「Docs」节加官网链接；应用内「打开使用手册」改指在线入口（**单独小 PR**，走产品流程；2026-09-29 落实：按钮先指 Gitee 手册页保国内可达，站点域名落地后再评估回切） — README 中英已加官网链接；**回切评估结论（2026-10-09）**：站点域名未落地（见 Step 2），应用内手册保持指向 [Gitee 手册页](https://gitee.com/Chenxiang663635/job-workbench/blob/main/docs/usage-guide.md)（国内可直达）
+- [x] Step 6: 记忆落档（上线结果 + 实测结论）

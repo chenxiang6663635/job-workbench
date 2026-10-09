@@ -19,7 +19,7 @@
 （`main` / `cmd_*` …），那是给 shim 合并门面用的，在本包里不可达属预期。
 """
 
-_HOME = ("_core", "_schema", "_check", "applications", "interviews", "talks",
+_HOME = ("_core", "_schema", "_check", "_history", "applications", "interviews", "talks",
          "mails", "contacts", "offers", "importing", "deletes",
          "application_delete", "preview_app",
          "preview_interview", "preview_update")

@@ -15,6 +15,7 @@ import {
   type NotesSectionKey,
 } from "../lib/notes";
 import { resolveNoteLink } from "../lib/notesLink";
+import { makeNoteImageResolver } from "../lib/notesImage";
 import { captureNotesPos, readNotesPos, restoreNotesPos } from "../lib/notesView";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesMarkdown from "./NotesMarkdown";
@@ -96,6 +97,8 @@ export default function NotesReader({
     () => (fileRel ? (href: string) => resolveNoteLink(href, { section, rel: fileRel }) : undefined),
     [section, fileRel]
   );
+  // 内嵌图片（图片端点批）：同归一化 + 同越界判定，出口是只读字节 URL
+  const resolveImage = useMemo(() => makeNoteImageResolver(section, fileRel), [section, fileRel]);
 
   // 搜索命中后的定位：命中行 → 它所属的块（起始行 ≤ 它的最后一个块）→ 滚过去并
   // 标记。**用 DOM 不用 hash 跳转**：App 是 hash 路由，原生 #hash 会被判无效并
@@ -255,6 +258,7 @@ export default function NotesReader({
               queuedLines={batchMode ? pending : undefined}
               locked={locked}
               resolveNote={resolveNote}
+              resolveImage={resolveImage}
               onOpenNote={onOpenNote}
             />
             {content.truncated && (

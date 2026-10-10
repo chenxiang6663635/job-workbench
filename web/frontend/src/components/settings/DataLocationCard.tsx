@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Skeleton } from "../ui/skeleton";
 import { cn } from "../../lib/utils";
+import DataRootFix from "./DataRootFix";
 import MigrateFlow from "./MigrateFlow";
 
 /**
@@ -116,6 +117,12 @@ export default function DataLocationCard({
               </p>
             ) : null;
           })()}
+          {/* 失效 / 歧义态给「重选 / 清除」的明路（前端体验批 2026-10-09）：
+              状态提示的文案一直承诺"恢复该路径、重新选择，或清除选择"，但此前
+              只有迁移一条通道——而源根不可用时迁移根本起不来，承诺是空的。 */}
+          {(diag.state === "unavailable" || diag.state === "ambiguous") && (
+            <DataRootFix onError={onError} onReload={onReload} />
+          )}
           {diag.state === "ambiguous" && diag.legacy_candidates.length > 0 && (
             <ul className="space-y-0.5">
               {diag.legacy_candidates.map((candidate) => (

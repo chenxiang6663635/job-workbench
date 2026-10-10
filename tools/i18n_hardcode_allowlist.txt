@@ -108,7 +108,9 @@ components/TalkForm.tsx = 线下|待定|公司|时间|形式|地点或链接|关
 components/HistoryTimeline.tsx = 当前阶段|创建|字段|时间|原值
 
 # 邮件表字段名与枚举默认值 + 展示串拼接（列名/枚举/接口键与 mails.csv 同源）
-components/MailList.tsx = · ${r.发件人}|· ${r.方向}|其他|关联记录|会议链接|发件人|日期|方向|标签|消息|收|邮件|主题|链接
+components/MailList.tsx = 其他|关联记录|会议链接|发件人|日期|方向|标签|消息|收|邮件|主题|链接
+# 邮件行画布（2026-10-09 前端体验批从 MailList 搬出）：接口中文字段名与行内拼接
+components/MailRows.tsx = · ${r.发件人}|· ${r.方向}|主题
 
 # 邮件表字段名（追踪表展开区的关联邮件只读块：取数 m.主题，非界面文案）
 components/RecordMails.tsx = 主题

@@ -16,6 +16,7 @@ import { useMissingNext } from "../hooks/useMissingNext";
 import { domainLabel } from "../lib/domainLabels";
 import ApplicationFilters from "../components/ApplicationFilters";
 import ApplicationsTable from "../components/ApplicationsTable";
+import { useRowWindow } from "../hooks/useRowWindow";
 import DirectionSelect from "../components/DirectionSelect";
 import ImportApplicationsDialog from "../components/ImportApplicationsDialog";
 import ImapFetchDialog from "../components/ImapFetchDialog";
@@ -69,6 +70,9 @@ export default function Applications() {
   });
   const { showMissingOnly, setShowMissingOnly, missingNext, visibleItems } =
     useMissingNext(items);
+  // 长表窗口化（前端体验批）：一眼只渲染一屏多一点，其余按需追加——后端列表
+  // 没有上限（本地单用户可能攒到几百行），全量渲染是白付的 DOM 成本。
+  const { visible, remaining, showMore } = useRowWindow(visibleItems);
 
   // 输入框的值与真正去取数的值**分开**（同 Jobs 的 FC-8 口径）：每敲一个字就把
   // filter 换成新对象会立刻触发一次列表请求（每条记录都要读磁盘），键入变成一串 IO。
@@ -420,17 +424,26 @@ export default function Applications() {
           </div>
         )
       ) : (
-        <ApplicationsTable
-          items={visibleItems}
-          sort={sort}
-          onSortChange={setSort}
-          expanded={expanded}
-          timelines={timelines}
-          onToggleTimeline={toggleTimeline}
-          onPatch={patch}
-          onReload={load}
-          jobDirs={jobDirs}
-        />
+        <>
+          <ApplicationsTable
+            items={visible}
+            sort={sort}
+            onSortChange={setSort}
+            expanded={expanded}
+            timelines={timelines}
+            onToggleTimeline={toggleTimeline}
+            onPatch={patch}
+            onReload={load}
+            jobDirs={jobDirs}
+          />
+          {remaining > 0 && (
+            <div className="mt-3 flex justify-center">
+              <Button variant="outline" size="sm" onClick={showMore}>
+                {t("common.showMoreRows", { rest: remaining })}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

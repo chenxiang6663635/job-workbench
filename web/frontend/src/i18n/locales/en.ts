@@ -35,6 +35,7 @@ export default {
   "error.forceReload": "Hard reload (clear cache)",
 
   "common.retry": "Retry",
+  "common.showMoreRows": "Show more ({{rest}} remaining)",
   "common.close": "Dismiss message",
   "common.clear": "Clear",
   "common.cancel": "Cancel",
@@ -48,6 +49,7 @@ export default {
   "common.back": "Back to list",
   "common.notRecorded": "(not recorded)",
   "loading.workspace": "Locating workspace…",
+  "loading.page": "Loading page…",
 
   "lang.switch": "Language",
 
@@ -718,6 +720,11 @@ export default {
   "settings.dataLocStateUninitialized": "Not initialized",
   "settings.dataLocStateAmbiguousHint": "Several candidate roots on this machine all look like real workspaces — destructive actions are refused; confirm which root to use first.",
   "settings.dataLocStateUnavailableHint": "The data location you picked does not exist or is not writable — restore it, pick a new one, or clear the choice.",
+  "settings.dataRootFixHint": "Enter an absolute path and remember it — or clear the saved choice (back to the default location).",
+  "settings.dataRootFixPlaceholder": "e.g. D:\\jobws-data",
+  "settings.dataRootFixApply": "Remember this location",
+  "settings.dataRootFixClear": "Clear saved choice",
+  "settings.dataRootFixDone": "Remembered: {{path}}",
   "settings.dataLocStateUninitializedHint": "No workspace exists in this data root yet — normal on first start; just start using it.",
   "settings.dataLocMigrationBanner": "Migration in progress (phase: {{phase}})",
   "settings.dataLocMigrateLegend": "Move to a new location",
@@ -1037,6 +1044,7 @@ export default {
   "err.prep.unknownSection": "Unknown notes section: {{section}}",
   "err.prep.fileNotFound": "File not found: {{rel}}",
   "err.prep.notMarkdown": "Only Markdown files can be opened: {{rel}}",
+  "err.prep.notImage": "Only images can be served here (png/jpg/jpeg/gif/webp/bmp): {{rel}}",
   "err.prep.readFailed": "Could not read the file: {{rel}}",
   // Checkbox write-back: preview-stage failures — structured codes (C-5), each a full
   // sentence per language; params mirror the domain layer's _err keys.

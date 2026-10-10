@@ -1,14 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Check,
-  Copy,
-  CornerDownRight,
-  Mail as MailIcon,
-  Pencil,
-  Plus,
-  X,
-} from "lucide-react";
+import { Mail as MailIcon, Plus, X } from "lucide-react";
 import {
   api,
   MAIL_DIRECTIONS,
@@ -16,10 +8,10 @@ import {
   type Application,
   type Mail,
 } from "../api";
-import { previewDeleteRecord } from "../lib/records";
 import { useSeq } from "../hooks/useSeq";
+import { useRowWindow } from "../hooks/useRowWindow";
 import { drillToApplication } from "../lib/pageDrill";
-import MailMeetingLink from "./MailMeetingLink";
+import MailRows from "./MailRows";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -33,7 +25,6 @@ import {
 import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 import { ErrorBanner } from "./ErrorBanner";
-import DeleteRecordButton from "./DeleteRecordButton";
 import { ApplicationSelect } from "./ApplicationSelect";
 import { FormField } from "./FormField";
 import {
@@ -291,6 +282,9 @@ export default function MailList() {
   useEffect(reload, []);
 
   // 行内改标签：改完即存（与宣讲会的「是否参加」同款）
+  // 长表窗口化（前端体验批）：只渲染窗口内的行，其余按「显示更多」追加
+  const { visible, remaining, showMore } = useRowWindow(rows);
+
   const setTag = (id: string, v: string) => {
     api
       .updateMail(id, { 标签: v })
@@ -354,98 +348,23 @@ export default function MailList() {
         </Card>
       ) : null}
 
-      {rows.map((r) => (
-        <Card key={r.邮件id} className="rounded-lg p-3.5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-foreground" title={r.主题}>
-                {r.主题 || "—"}
-              </h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {r.日期 || t("mail.dateTbd")}
-                {r.发件人 && ` · ${r.发件人}`}
-                {` · ${r.方向}`}
-              </p>
-              {/* 关联记录可跳转（2026-09-17 收尾批）：台账 ↔ 追踪表互相可见——
-                  点击回到那条投递并自动展开（复用看板 focusId 下钻） */}
-              {r.关联记录 && (
-                <button
-                  type="button"
-                  onClick={() => jumpToRecord(r.关联记录)}
-                  title={t("mail.jumpToRecord")}
-                  className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <CornerDownRight size={12} />
-                  {t("interview.related", { value: r.关联记录 })}
-                </button>
-              )}
-              {/* 会议链接（批 9）：解析建议卡写进来的入会地址——台账里也能打开 / 复制 */}
-              {r.会议链接 && <MailMeetingLink link={r.会议链接} />}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Select value={r.标签} onValueChange={(v) => setTag(r.邮件id, v)}>
-                <SelectTrigger
-                  className="h-7 w-24 shrink-0 text-xs"
-                  aria-label={t("mail.tagAria", { subject: r.主题 })}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MAIL_TAGS.map((o) => (
-                    <SelectItem key={o} value={o} className="text-xs">
-                      {o}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {/* 编辑（详情）与删除（批 D 改造：预览 → 确认弹窗 → 凭令牌落盘；
-                  旧版「点两次直删」已撤——删除与全站其余写操作同走两段式） */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                title={t("mail.editTitle")}
-                aria-label={t("common.edit")}
-                onClick={() => setEditing(r)}
-              >
-                <Pencil size={13} />
-              </Button>
-              <DeleteRecordButton
-                preview={() => previewDeleteRecord("mails", r.邮件id)}
-                onDeleted={reload}
-              />
-            </div>
-          </div>
+      <MailRows
+        rows={visible}
+        copied={copied}
+        onEdit={setEditing}
+        onTagChange={setTag}
+        onCopySubject={copySubject}
+        onJumpToRecord={jumpToRecord}
+        onReload={reload}
+      />
 
-          {/* 打开原邮件：custom/gmail 给真链接；none 诚实降级为「复制主题搜索」 */}
-          <div className="mt-1.5 flex items-center gap-3">
-            {r._openLink?.url ? (
-              <a
-                href={r._openLink.url}
-                target="_blank"
-                rel="noreferrer"
-                title={r._openLink.kind === "gmail" ? t("mail.gmailHint") : t("mail.openTitle")}
-                className="inline-block text-xs text-primary hover:underline"
-              >
-                {t("mail.open")}
-              </a>
-            ) : (
-              <>
-                <span className="text-xs text-muted-foreground">{t("mail.noLinkHint")}</span>
-                <button
-                  type="button"
-                  onClick={() => copySubject(r)}
-                  title={t("mail.copySubjectTitle")}
-                  className="inline-flex cursor-pointer items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  {copied === r.邮件id ? <Check size={12} /> : <Copy size={12} />}
-                  {copied === r.邮件id ? t("mail.copied") : t("mail.copySubject")}
-                </button>
-              </>
-            )}
-          </div>
-        </Card>
-      ))}
+      {remaining > 0 && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" onClick={showMore}>
+            {t("common.showMoreRows", { rest: remaining })}
+          </Button>
+        </div>
+      )}
 
       {showForm && (
         <MailForm

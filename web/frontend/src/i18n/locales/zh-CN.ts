@@ -32,6 +32,7 @@ const zhCN = {
   "error.forceReload": "强制刷新（清除缓存）",
 
   "common.retry": "重试",
+  "common.showMoreRows": "显示更多（还有 {{rest}} 条）",
   "common.close": "关闭提示",
   "common.clear": "清空",
   "common.cancel": "取消",
@@ -45,6 +46,7 @@ const zhCN = {
   "common.back": "返回列表",
   "common.notRecorded": "（未记录）",
   "loading.workspace": "正在定位工作区…",
+  "loading.page": "正在加载页面…",
 
   "lang.switch": "界面语言",
 
@@ -759,6 +761,11 @@ const zhCN = {
   "settings.dataLocStateUninitialized": "尚未初始化",
   "settings.dataLocStateAmbiguousHint": "机器上有多个像真实工作区的数据根——破坏性操作会被拒绝；先确认要用的目标根再操作。",
   "settings.dataLocStateUnavailableHint": "你选择的数据位置不存在或不可写——恢复该路径、重新选择，或清除选择。",
+  "settings.dataRootFixHint": "填入一个绝对路径后「记住」；或清除已保存的选择（回到默认位置）。",
+  "settings.dataRootFixPlaceholder": "例如 D:\\jobws-data",
+  "settings.dataRootFixApply": "记住这个位置",
+  "settings.dataRootFixClear": "清除已保存的选择",
+  "settings.dataRootFixDone": "已记住：{{path}}",
   "settings.dataLocStateUninitializedHint": "数据根里还没建工作区——属于正常首启，直接开始使用即可。",
   "settings.dataLocMigrationBanner": "迁移在途（相位：{{phase}}）",
   "settings.dataLocMigrateLegend": "搬到新位置",
@@ -1090,6 +1097,7 @@ const zhCN = {
   "err.prep.unknownSection": "未知笔记分类：{{section}}",
   "err.prep.fileNotFound": "文件不存在：{{rel}}",
   "err.prep.notMarkdown": "只能打开 Markdown 文件：{{rel}}",
+  "err.prep.notImage": "只支持图片（png/jpg/jpeg/gif/webp/bmp）：{{rel}}",
   "err.prep.readFailed": "文件读取失败：{{rel}}",
   // 勾选写回：预览期失败——每个失败给**结构化错误码**（2026-09-21 批次 C-5），
   // 中英各自成句（不再出现"英文前缀 + 中文原因"）；params 与领域层 _err 同名

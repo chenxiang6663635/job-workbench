@@ -108,6 +108,22 @@ def _match_keyword(row, keyword):
 
 
 
+def _overdue_rows(rows, today):
+    """逾期筛选：待投且已过截止日（同一行只解析一次日期——2026-10-09 读放大批）。
+
+    与看板 `remind.overdue_pending` 同口径（待投 + 截止已过）；那边用
+    `report.parse_date` 产出条目，这里只做行过滤、保持严格 ISO 解析。
+    """
+    out = []
+    for row in rows:
+        if row.get("当前阶段") != "待投":
+            continue
+        due = tracker.parse_iso_date(row.get("截止日期"))
+        if due and due < today:
+            out.append(row)
+    return out
+
+
 def _validate_dates(app: NewApplication):
     for value, label in ((app.截止日期, "截止日期"), (app.投递日期, "投递日期"),
                          (app.下次动作日期, "下次动作日期")):
@@ -163,11 +179,7 @@ def list_applications(
     if active and active.lower() in ("1", "true"):
         rows = [r for r in rows if r.get("当前阶段") not in TERMINAL]
     if overdue and overdue.lower() in ("1", "true"):
-        today = date.today()
-        rows = [r for r in rows
-                if r.get("当前阶段") == "待投"
-                and tracker.parse_iso_date(r.get("截止日期"))
-                and tracker.parse_iso_date(r.get("截止日期")) < today]
+        rows = _overdue_rows(rows, date.today())
     if due_within is not None:
         # 取值范围必须显式拒绝两种值：负数是「语义相反且无声」（此前 `>= 0` 的判定
         # 让 -3 退化成「不过滤」，调用方要「最近到期」却拿到全量）；过大的天数会让

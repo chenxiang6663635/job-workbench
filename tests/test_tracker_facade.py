@@ -58,14 +58,19 @@ def test_facade_exposes_every_contract_name():
     assert missing == [], "门面缺名（拆分时漏导？）：%s" % missing
 
 
-def test_workspace_follows_set_workspace():
-    """PEP 562 转发的意义：set_workspace 后 tracker.WORKSPACE 必须跟随。"""
-    original = tracker.WORKSPACE
+def test_workspace_follows_set_workspace(tmp_path):
+    """PEP 562 转发的意义：set_workspace 后 tracker.WORKSPACE 必须跟随。
+
+    自包含（2026-10-09 并行化批）：旧版把「调用前的值」当还原目标——单跑时
+    它是未初始化的 None，收尾 `set_workspace(None)` 直接 TypeError；xdist 的
+    任意分发顺序下同病。先落一个确定值，再验转发。
+    """
+    tracker.set_workspace(str(tmp_path))
     try:
         tracker.set_workspace("/tmp/facade-check")
         followed = tracker.WORKSPACE.replace("\\", "/").endswith("tmp/facade-check")
     finally:
-        tracker.set_workspace(original)
+        tracker.set_workspace(str(tmp_path))
     assert followed, "tracker.WORKSPACE 未跟随 set_workspace——门面写成了值快照？"
 
 

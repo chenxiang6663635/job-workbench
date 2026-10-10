@@ -18,8 +18,9 @@
 import io
 import os
 import re
-from datetime import date, timedelta
+from datetime import date
 
+from . import dashboard_sections
 from . import paths
 from .limits import limit_rows
 from .paths import DIR_JOBS, DIR_TRACKING
@@ -225,74 +226,7 @@ def dashboard_summary(workspace, today=None, stale_days=None):
     by_direction = [{"key": k, "count": v} for k, v in report.count_by(rows, "方向")]
     active = sum(1 for r in rows if (r.get("当前阶段") or "").strip() not in terminal)
 
-    limit = today + timedelta(days=7)
-    upcoming = []
-    for row in rows:
-        if (row.get("当前阶段") or "").strip() in terminal:
-            continue
-        for field, reason in (("下次动作日期", "下次动作"), ("截止日期", "截止")):
-            when = tracker.parse_iso_date(row.get(field))
-            if when and today <= when <= limit:
-                upcoming.append({
-                    "id": (row.get("id") or "").strip(),
-                    "公司": (row.get("公司") or "").strip(),
-                    "岗位": (row.get("岗位") or "").strip(),
-                    "date": when.isoformat(), "reason": reason,
-                    "说明": (row.get("下次动作") or "").strip(),
-                })
-                break
-    upcoming.sort(key=lambda x: x["date"])
-
-    overdue = []
-    for row in rows:
-        if (row.get("当前阶段") or "").strip() != "待投":
-            continue
-        dl = tracker.parse_iso_date(row.get("截止日期"))
-        if dl and dl < today:
-            overdue.append({
-                "id": (row.get("id") or "").strip(),
-                "公司": (row.get("公司") or "").strip(),
-                "岗位": (row.get("岗位") or "").strip(),
-                "截止日期": dl.isoformat(),
-            })
-    overdue.sort(key=lambda x: x["截止日期"])
-
-    stale = []
-    for row in rows:
-        if (row.get("当前阶段") or "").strip() in terminal:
-            continue
-        own = by_id.get((row.get("id") or "").strip(), [])
-        days = tracker.stale_days(row, own, today)
-        if days is None or days < stale_days:
-            continue
-        base = tracker.stage_base_date(row, own)
-        stale.append({
-            "id": (row.get("id") or "").strip(),
-            "公司": (row.get("公司") or "").strip(),
-            "岗位": (row.get("岗位") or "").strip(),
-            "当前阶段": (row.get("当前阶段") or "").strip(),
-            "days": days, "since": base.isoformat() if base else "",
-            "说明": (row.get("下次动作") or "").strip(),
-        })
-    stale.sort(key=lambda x: -x["days"])
-
-    pending = []
-    for row in rows:
-        own = by_id.get((row.get("id") or "").strip(), [])
-        health = tracker.health_score(row, own, today)
-        if health["level"] in (None, "ok"):
-            continue
-        pending.append({
-            "id": (row.get("id") or "").strip(),
-            "公司": (row.get("公司") or "").strip(),
-            "岗位": (row.get("岗位") or "").strip(),
-            "当前阶段": (row.get("当前阶段") or "").strip(),
-            "level": health["level"], "reasons": health["reasons"],
-            # hints 与 reasons 一一对应，是英文宿主拼句用的结构化形态（后端同款）
-            "hints": health.get("hints", []),
-        })
-    pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
-
+    # 四个逐行筛选段在 dashboard_sections（2026-10-09 拆分；只搬不改行为）
     retro = report.retrospective(rows, history, today, workspace)
 
     return {
@@ -303,10 +237,10 @@ def dashboard_summary(workspace, today=None, stale_days=None):
         "active": active,
         "funnel": funnel,
         "byDirection": by_direction,
-        "upcoming": upcoming,
-        "overdue": overdue,
-        "stale": stale,
-        "pending": pending,
+        "upcoming": dashboard_sections.upcoming(rows, today),
+        "overdue": dashboard_sections.overdue(rows, today),
+        "stale": dashboard_sections.stale(rows, by_id, today, stale_days),
+        "pending": dashboard_sections.pending(rows, by_id, today),
         "conversion": retro.get("conversion", []),
         "failure": retro.get("failure"),
         "declined": retro.get("declined"),

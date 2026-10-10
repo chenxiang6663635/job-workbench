@@ -40,6 +40,9 @@ SECTION_DIRS = {"interview": DIR_PREP, "knowledge": DIR_KB}
 # 其他文件（图片等）不在"笔记浏览"的语义内——是设计决策而非错误，列表里不出现。
 TEXT_EXT = {".md"}
 
+# 插图（图片字节直出）在 `routers/prep_files.py`：与正文的超限口径不同
+# （正文截断、插图 413 拒绝），且那片是 prep.py 贴着 300 行闸门时按职责拆出的。
+
 
 def _resolve_section(section):
     """section 白名单 → 写死的目录常量（不认识就 404，不猜也不拼路径）。"""

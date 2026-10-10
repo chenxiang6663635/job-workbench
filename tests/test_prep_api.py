@@ -204,3 +204,90 @@ def test_content_rejects_non_utf8(client, tmp_path):
     body = res.json()
     assert body["error_code"] == "prep.readFailed"
     assert body["error_params"]["rel"] == "坏编码.md"
+
+
+# --- 文件（图片字节直出，2026-10-09 图片端点批）----------------------------------
+#
+# 笔记正文里的插图此前一律渲染成占位（SPA 里的相对路径必然 404）——本批给它们
+# 一条**只读字节**通道。三条纪律：
+# ① 与 content 同款三层防护（safe_join → realpath 归属 → 扩展名白名单）；
+# ② 白名单**不含 SVG**（可内嵌脚本，直出等于给 XSS 开门）；
+# ③ 超限走 iocaps 的 413 **不截断**（截断的图是坏图，不如不显示）。
+
+
+def test_file_returns_image_bytes_with_media_type(client, tmp_path):
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 32
+    _write(tmp_path, "图/示意.png", png)
+
+    res = client.get("/api/prep/interview/file",
+                     params={"ws": WS, "rel": "图/示意.png"})
+
+    assert res.status_code == 200, res.text
+    assert res.content == png
+    assert res.headers["content-type"].startswith("image/png")
+
+
+def test_file_rejects_traversal(client, tmp_path):
+    for bad in ("../config/profile.md", "/etc/passwd"):
+        res = client.get("/api/prep/interview/file",
+                         params={"ws": WS, "rel": bad})
+        assert res.status_code == 400, bad
+        assert res.json()["error_code"] == "path.illegalSegment", bad
+
+
+def test_file_rejects_non_image_ext_including_svg(client, tmp_path):
+    """只认位图：`.md` 走 content 端点，`.svg` 可内嵌脚本——都不在本通道。"""
+    _write(tmp_path, "笔记.md", "# x")
+    _write(tmp_path, "图标.svg", b"<svg onload=alert(1)/>")
+
+    for rel in ("笔记.md", "图标.svg"):
+        res = client.get("/api/prep/interview/file",
+                         params={"ws": WS, "rel": rel})
+        assert res.status_code == 400, rel
+        body = res.json()
+        assert body["error_code"] == "prep.notImage", rel
+        assert body["error_params"]["rel"] == rel
+
+
+def test_file_missing_is_404(client, tmp_path):
+    res = client.get("/api/prep/interview/file",
+                     params={"ws": WS, "rel": "没有这个.png"})
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "prep.fileNotFound"
+
+
+def test_file_unknown_section_is_404(client, tmp_path):
+    res = client.get("/api/prep/nope/file", params={"ws": WS, "rel": "x.png"})
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "prep.unknownSection"
+
+
+def test_file_too_large_is_413_not_truncated(client, tmp_path):
+    """超限**拒绝**而非截断——半张图比不显示更困惑（iocaps 口径）。"""
+    path = _write(tmp_path, "大图.png", b"\x89PNG\r\n\x1a\n")
+    with open(str(path), "r+b") as handle:
+        handle.truncate(25 * 1024 * 1024 + 1)      # 稀疏放大：瞬间完成，不写 25MB
+
+    res = client.get("/api/prep/interview/file",
+                     params={"ws": WS, "rel": "大图.png"})
+
+    assert res.status_code == 413
+    body = res.json()
+    assert body["error_code"] == "file.tooLarge"
+    assert body["error_params"]["rel"] == "大图.png"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="符号链接场景仅在 POSIX 上验证")
+def test_file_rejects_symlink_escape(client, tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    base = tmp_path / WS / PREP_DIR
+    base.mkdir(parents=True, exist_ok=True)
+    os.symlink(str(outside), str(base / "link"))
+
+    res = client.get("/api/prep/interview/file",
+                     params={"ws": WS, "rel": "link/secret.png"})
+
+    assert res.status_code == 400
+    assert res.json()["error_code"] == "path.escape"

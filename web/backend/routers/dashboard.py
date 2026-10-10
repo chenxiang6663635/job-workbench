@@ -57,14 +57,14 @@ def tier_of(score):
     return jd_score.verdict(score)[0]
 
 
-def job_pool_overview(ws):
+def job_pool_overview(ws, rows=None):
     """岗位池视角的两组统计：高分未投清单 + 评分档位 × 投递状态分布。
 
     匹配键（目录名）与终态口径全部复用 jobs_router——看板与岗位池对同一个岗位
     必须给出同一个结论，各写一套判据迟早会互相矛盾。
 
     未评分的岗位**不参与**分布图：「还没评」不等于最低档，塞进「不投」那一档
-    是在替用户下结论。
+    是在替用户下结论。rows 传已读行时索引不再重读追踪表（看板同请求单读）。
     """
     base = safe_join(ws, DIR_JOBS)
     names = []
@@ -73,13 +73,14 @@ def job_pool_overview(ws):
                  if n and not n.startswith("_")
                  and os.path.isdir(os.path.join(base, n))]
 
-    index = job_dirs.applications_by_key(ws) if names else {}
+    index = job_dirs.applications_by_key(ws, rows) if names else {}
     dist = {tier: {"unapplied": 0, "active": 0, "terminal": 0}
             for _lo, _hi, tier, _a in jd_score.THRESHOLDS}
     unapplied_high = []
 
     for name in names:
-        card = jobs_router._parse_card(ws, os.path.join(DIR_JOBS, name))
+        text = jobs_router._read_in_workspace(ws, DIR_JOBS, name, jobs_router.CARD_FILE)
+        card = jobs_router._parse_card(ws, os.path.join(DIR_JOBS, name), text)
         if not (card and card.get("consistent") and card.get("total") is not None):
             continue
         company, role = job_dirs.split_dir_name(name)
@@ -87,7 +88,7 @@ def job_pool_overview(ws):
         tier = tier_of(card["total"])
         dist[tier][_STATE_KEY[state]] += 1
         if state == "未投递" and card["total"] >= HIGH_SCORE_FLOOR:
-            display_company, display_role = jobs_router._job_company_role(ws, name)
+            display_company, display_role = jobs_router._job_company_role(ws, name, text)
             unapplied_high.append({
                 "dir": name,
                 "company": display_company,
@@ -188,7 +189,7 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
     by_batch = [{"key": k, "count": v} for k, v in count_by(rows, "批次")]
     active = sum(1 for r in rows if r.get("当前阶段") not in TERMINAL)
 
-    pool = job_pool_overview(ws)
+    pool = job_pool_overview(ws, rows)
 
     return {
         "total": len(rows),

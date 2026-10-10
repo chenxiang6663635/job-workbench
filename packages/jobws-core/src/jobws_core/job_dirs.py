@@ -146,17 +146,18 @@ def match_keyword(item, keyword, fields=("company", "role", "dir")):
     return False
 
 
-def applications_by_key(workspace=None):
+def applications_by_key(workspace=None, rows=None):
     """`{dedup_key: row}` 索引，供岗位池按 (公司, 岗位) 查出投递状态。
 
     同键多行是合法数据（挂了再投一次）：保留仍在流程中的那行——状态展示要回答
     「这一岗现在走到哪了」，历史终态行不该盖住它。追踪表还不存在时返回空字典。
+    rows 可传已读的追踪表行（看板同请求单读，2026-10-09 读放大批）。
     """
     ws = tracker.resolve_ws(workspace)
     if not os.path.isdir(os.path.join(ws, "05_投递追踪")):
         return {}
     index = {}
-    for row in tracker.read_rows(ws):
+    for row in (rows if rows is not None else tracker.read_rows(ws)):
         key = tracker.dedup_key(row.get("公司"), row.get("岗位"))
         if not (key[0] and key[1]):
             continue

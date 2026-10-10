@@ -88,15 +88,15 @@ def _read_in_workspace(workspace, *parts):
     return _read(full)
 
 
-def _parse_card(workspace: str, job_dir: str):
+def _parse_card(workspace: str, job_dir: str, text: str = None):
     """解析解析卡的评分小节、硬门槛与分维度明细。
 
     缺失或格式错误时返回空结构而非报错——卡片是渐进填写的。返回结构：
     - dimensions/total/level/action/consistent：四维加权评分（原有）
     - hardGates：资格硬门槛（前置差异化），含 items/conclusion/reason/details
-    - dimensionsDetail：每维的词典命中（含证据标签）与逐条说明 raw
+    - dimensionsDetail：每维的词典命中（含证据标签）与逐条说明 raw；text 传已读原文即复用
     """
-    card = _read_in_workspace(workspace, job_dir, CARD_FILE)
+    card = text if text is not None else _read_in_workspace(workspace, job_dir, CARD_FILE)
     if card is None:
         return None
     fields = jd_score.parse_score_section(card)
@@ -137,12 +137,12 @@ def _parse_card(workspace: str, job_dir: str):
     }
 
 
-def _card_basic_info(workspace: str, job_dir: str):
+def _card_basic_info(workspace: str, job_dir: str, text: str = None):
     """读解析卡「基本信息」段的公司/岗位；没填、缺文件或缺该段时返回 None。
 
-    解析卡是渐进填写的（可能只写到硬门槛就停了），所以「读不到」是常态而非异常。
+    解析卡是渐进填写的（可能只写到硬门槛就停了），所以「读不到」是常态而非异常；text 传已读原文即复用。
     """
-    card = _read_in_workspace(workspace, job_dir, CARD_FILE)
+    card = text if text is not None else _read_in_workspace(workspace, job_dir, CARD_FILE)
     if not card:
         return None
     seg = re.search(r"^##\s*基本信息\s*$(.*?)(?=^##\s|\Z)", card, re.M | re.S)
@@ -157,17 +157,17 @@ def _card_basic_info(workspace: str, job_dir: str):
     return values["公司"], values["岗位"]
 
 
-def _job_company_role(workspace: str, name: str):
+def _job_company_role(workspace: str, name: str, text: str = None):
     """(公司, 岗位) 的**展示名**：解析卡「基本信息」优先，读不到回退目录名拆分。
 
     只用于展示。关联键一律用目录名（见 `_link_fields`）——卡片里填的常是
     给人看的详细描述（如「示例集团（空调事业部＝…）」），当键会与追踪表系统性失配。
     """
-    return (_card_basic_info(workspace, os.path.join(DIR_JOBS, name))
+    return (_card_basic_info(workspace, os.path.join(DIR_JOBS, name), text)
             or job_dirs.split_dir_name(name))
 
 
-def _link_fields(workspace: str, name: str, app_index: dict = None):
+def _link_fields(workspace: str, name: str, app_index: dict = None, text: str = None):
     """岗位与追踪表记录的关联字段——列表与详情共用，保证两处口径一致。
 
     **匹配键只取目录名拆分**（`job_dirs.split_dir_name`）：追踪表里的 (公司, 岗位) 是按
@@ -176,7 +176,7 @@ def _link_fields(workspace: str, name: str, app_index: dict = None):
 
     没有记录时后三个字段全为空，前端据此显示「未投递」。
     """
-    company, role = _job_company_role(workspace, name)   # 展示名：卡片优先
+    company, role = _job_company_role(workspace, name, text)   # 展示名：卡片优先
     match_company, match_role = job_dirs.split_dir_name(name)  # 匹配键：目录名口径
     if app_index is None:
         app_index = job_dirs.applications_by_key(workspace)
@@ -197,8 +197,9 @@ def _summary(workspace: str, name: str, app_index: dict = None):
     （新建、抓取 JD）不传时就地建一次——避免调用方忘传后静默滑成「未投递」。
     """
     d = safe_join(workspace, DIR_JOBS, name)
+    text = _read_in_workspace(workspace, DIR_JOBS, name, CARD_FILE)   # 单读一次：解析与展示名共用
     # 与 job_detail 同款调用（带 DIR_JOBS 前缀）；以解析成功为基准而非文件存在
-    card = _parse_card(workspace, os.path.join(DIR_JOBS, name))
+    card = _parse_card(workspace, os.path.join(DIR_JOBS, name), text)
     has_card = card is not None and card.get("consistent") and card.get("total") is not None
     # 读穿防护也覆盖「存在与否 / mtime」：junction 指向工作区外时泄漏量只是布尔与时间戳
     inside_ws = inside(workspace, d) and os.path.isdir(d)
@@ -209,7 +210,7 @@ def _summary(workspace: str, name: str, app_index: dict = None):
         "score": card["total"] if has_card else None,
         "level": card["level"] if card else None,
         "mtime": int(os.path.getmtime(d)) if inside_ws else None,
-    }, **_link_fields(workspace, name, app_index))
+    }, **_link_fields(workspace, name, app_index, text))
 
 
 class NewJob(BaseModel):
@@ -458,14 +459,14 @@ def job_detail(job_id: str, ws: str = Depends(workspace_dir)):
 
     jd = _read_in_workspace(ws, DIR_JOBS, job_id, JD_FILE)
     card_raw = _read_in_workspace(ws, DIR_JOBS, job_id, CARD_FILE)
-    card = _parse_card(ws, os.path.join(DIR_JOBS, job_id))
+    card = _parse_card(ws, os.path.join(DIR_JOBS, job_id), card_raw)
     # 详情也带上列表同款字段（含投递状态）：详情与列表不说两套话
     return dict({
         "dir": job_id,
         "jd": jd,
         "cardRaw": card_raw,
         "card": card,
-    }, **_link_fields(ws, job_id))
+    }, **_link_fields(ws, job_id, text=card_raw))
 
 
 @router.get("/{job_id}/gap")

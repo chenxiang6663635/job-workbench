@@ -5,8 +5,6 @@
 re-export，引用方无需改动。）
 """
 
-import csv
-import io
 import logging
 import os
 import re
@@ -22,7 +20,7 @@ logger = logging.getLogger(__name__)
 from ._core import (ConflictError, _atomic_write_csv, _lock_path, check_when, resolve_ws)
 from ._schema import (MAIL_DIRECTIONS, MAIL_FIELDS, MAIL_FILE, MAIL_TAGS)
 from .applications import (read_rows)
-from ..csv_cells import restore_row
+from ..csv_cells import read_rows as read_csv_rows
 
 
 
@@ -36,8 +34,7 @@ def read_mails(workspace=None, app_id=None):
     path = mail_path(workspace)
     if not os.path.isfile(path):
         return []
-    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        rows = [restore_row(dict(row)) for row in csv.DictReader(f)]
+    rows = read_csv_rows(path)
     if app_id:
         rows = [r for r in rows if (r.get("关联记录") or "").strip() == app_id]
     return rows

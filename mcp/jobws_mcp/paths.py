@@ -144,6 +144,15 @@ def resolve_workspace(name=None, must_exist=False):
     return real
 
 
+# 越界原因（`containment.escape_reason` 的返回值）→ 工具层文案：三类各自的说明
+# 不同，措辞是既有对外形态（`mcp/tests` 钉住「盘符」等关键词）。
+_ESCAPE_MESSAGES = {
+    "是绝对路径": "%s 必须是工作区内的相对路径（不能是绝对路径）：%s",
+    "含 .. 段": "%s 不能包含 .. 段：%s",
+    "含盘符": "%s 不能包含盘符（`C:foo` 这类盘符相对路径会让 join 重置到盘根）：%s",
+}
+
+
 def resolve_within_workspace(workspace, value, label="目录"):
     """校验「必须是工作区内相对路径」的工具入参，返回 (规范化绝对路径, 相对路径, 错误)。
 
@@ -159,19 +168,18 @@ def resolve_within_workspace(workspace, value, label="目录"):
     （统一正斜杠、去掉空段与 `.`），供领域层按相对语义继续使用。
     """
     raw = (value or "").strip()
-    if not raw:
-        return None, None, "%s 不能为空" % label
+    # 三类越界写法（绝对 / `..` 段 / 盘符相对）的判据来自 `containment.escape_reason`
+    # ——唯一实现（2026-10-09 收编批）；文案映射留在这边，措辞是既有的对外形态。
+    reason = containment.escape_reason(raw)
+    if reason and reason != "为空":
+        template = _ESCAPE_MESSAGES.get(reason)
+        if template:
+            return None, None, template % (label, raw)
+        return None, None, "%s 含越界写法（%s）：%s" % (label, reason, raw)
     normalized = raw.replace("\\", "/")
-    if os.path.isabs(raw) or os.path.isabs(normalized):
-        return None, None, "%s 必须是工作区内的相对路径（不能是绝对路径）：%s" % (label, raw)
     segments = [seg for seg in normalized.split("/") if seg not in ("", ".")]
     if not segments:
         return None, None, "%s 不能为空" % label
-    if any(seg == ".." for seg in segments):
-        return None, None, "%s 不能包含 .. 段：%s" % (label, raw)
-    if any(":" in seg for seg in segments):
-        return None, None, ("%s 不能包含盘符（`C:foo` 这类盘符相对路径会让 join 重置到"
-                             "盘根）：%s") % (label, raw)
     ws_real = containment.real(workspace)
     real = containment.real(os.path.join(ws_real, *segments))
     if not containment.is_within_or_equal(real, ws_real):

@@ -158,8 +158,13 @@ def _resolve_relative_workspace(ws: str) -> str:
     相同（data_root() == ROOT），行为与历史完全一致。
 
     越界判定逐候选进行（fail-closed）：越界候选即使物理存在也不采用；
-    两候选全越界 → 400，界内候选不存在 → 404。
+    两候选全越界 → 400，界内候选不存在 → 404；名称的越界写法同 CLI/MCP 先拒。
     """
+    reason = containment.escape_reason(ws)
+    if reason:
+        raise ApiError(
+            400, "ws.outOfRange",
+            "工作区名含越界写法（%s）：%s —— 只接受允许根内的相对目录名。" % (reason, ws))
     seen = set()
     candidates = []
     for cand_root in (data_root(), ROOT):
@@ -279,7 +284,12 @@ def safe_join(workspace: str, *parts: str) -> str:
     判定与返回分离，调用方看到的路径形态不变。
     """
     for p in parts:
-        if os.path.isabs(p) or ".." in p.split(os.sep) + p.split("/"):
+        # 盘符相对（`C:foo`）：`isabs()` 为 False、join 时却把根重置到盘根——此前
+        # 漏检（落到归属判定，分类成 path.escape；CWD 恰在工作区内时还会放行）。
+        # 用平台原生判定：posix 上 `C:foo` 是普通文件名，跨平台严格版在 MCP 侧
+        # （`containment.escape_reason`），两处差异有意保留（test_dedup_parity 钉住）。
+        if (os.path.isabs(p) or ".." in p.split(os.sep) + p.split("/")
+                or os.path.splitdrive(p)[0]):
             raise ApiError(400, "path.illegalSegment", "非法路径片段: %r" % p, part=p)
 
     full = os.path.normpath(os.path.join(workspace, *parts))

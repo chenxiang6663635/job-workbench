@@ -317,3 +317,17 @@ def test_data_root_itself_is_not_a_workspace(client_data_inside_root):
     assert resp.status_code == 400
     ok = client_data_inside_root.get("/api/system/paths", params={"ws": "ws-in"})
     assert ok.status_code == 200
+
+
+def test_ws_param_rejects_dotdot_segments(client, tmp_path):
+    """`?ws=a/../b`：归一化后确实落在允许根内，但不能据此就服务。
+
+    CLI / MCP 的名称入口都判「含 .. 段」拒绝（`containment.escape_reason`），
+    Web 此前只靠归属判定放行——三端分类分叉（四端一致性复核 ②，2026-10-09）。
+    """
+    (tmp_path / "b").mkdir()          # 归一化后指向它：修复前这条会 200
+
+    resp = client.get("/api/system/paths", params={"ws": "a/../b"})
+
+    assert resp.status_code == 400
+    assert resp.json()["error_code"] == "ws.outOfRange"

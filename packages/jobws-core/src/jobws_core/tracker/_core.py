@@ -6,8 +6,6 @@
 引用方无需改动。）
 """
 
-import csv
-import io
 import logging
 import os
 import re
@@ -16,7 +14,7 @@ from datetime import date, datetime
 
 
 from jobws_core import pathres  # noqa: E402  （ROOT 由入口注入，见 pathres._APP_ROOT）
-from jobws_core.csv_cells import restore_row  # noqa: E402
+from jobws_core.csv_cells import read_rows as read_csv_rows  # noqa: E402
 from jobws_core.filelock import file_lock  # noqa: E402  （写类操作的互斥原语）
 from jobws_core import workspace_io  # noqa: E402  （批 8：原子写与锁名收敛到共享原语）
 
@@ -128,11 +126,10 @@ def _quarantine(path, workspace=None):
 def _read_csv_checked(path):
     """读 CSV；解析失败抛 ValueError（由调用方决定是否隔离）。
 
-    `restore_row`：把写入侧为 Excel 中和掉的单引号还原，保证"写进去什么、读出来
-    什么"（否则备注里会永远多一个引号，并被下一次写回继续带走）。
+    读取模式（BOM 剥离 + `restore_row` 还原中和引号）的唯一实现在 `csv_cells`——
+    "写进去什么、读出来什么"（别名导入：门面热名 `read_rows` 归 applications）。
     """
-    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        return [restore_row(dict(row)) for row in csv.DictReader(f)]
+    return read_csv_rows(path)
 
 
 

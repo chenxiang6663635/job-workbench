@@ -406,8 +406,8 @@ export default function Resume() {
                 type="button"
                 role="radio"
                 aria-checked={accent === name}
-                aria-label={name}
-                title={name}
+                aria-label={t(`resume.accent.${name}` as never, { defaultValue: name })}
+                title={t(`resume.accent.${name}` as never, { defaultValue: name })}
                 onClick={() => setAccent(name)}
                 style={{ background: color }}
                 className={cn(

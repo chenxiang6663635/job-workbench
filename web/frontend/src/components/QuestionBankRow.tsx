@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
-import type { BankRow } from "../lib/bank";
+import { statusLabel, type BankRow } from "../lib/bank";
 import { tagsOf, WRONG_TAG } from "../lib/drill";
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
 
-// 状态三态：值就是工作区里的真实取值，不翻译（与 QuestionBank.tsx 顶部的
-// 「数据值 → 样式」约定同源）——动它等于给数据改名。
+// 状态三态：值就是工作区里的真实取值（负载 / 筛选不翻）——**显示**走 statusLabel；
+// 「数据值 → 样式」映射与 QuestionBank.tsx 顶部同源，改名等于改数据。
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "success"> = {
   未看: "secondary",
   看过: "default",
@@ -40,7 +40,7 @@ export function QuestionBankRow({ row, onOpen }: { row: BankRow; onOpen: () => v
           variant={STATUS_VARIANT[row.状态] ?? "secondary"}
           className="rounded px-1.5 py-0.5 text-xs"
         >
-          {row.状态 || "未看"}
+          {statusLabel(row.状态 || "未看", t)}
         </Badge>
         {/* 待复习 / 错题（2026-09-21 批次 B-3）：due 来自后端（复用 due_from_rows
             的原因，见 title 悬停）；错题按标签判定（与训练面板 WRONG_TAG 同源） */}

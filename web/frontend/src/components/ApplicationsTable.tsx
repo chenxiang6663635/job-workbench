@@ -45,6 +45,7 @@ export default function ApplicationsTable({
             : "text-muted-foreground hover:text-foreground"
         }`}
         title={t("app.sortByHint", { name: t(SORT_LABELS[key]) })}
+        aria-label={t("app.sortByHint", { name: t(SORT_LABELS[key]) })}
       >
         {t(SORT_LABELS[key])}
         <ChevronsUpDown size={12} className={active ? "opacity-100" : "opacity-40"} />

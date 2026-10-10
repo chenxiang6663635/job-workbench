@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
-import { previewQuestionUpdate, type BankRow } from "../lib/bank";
+import { previewQuestionUpdate, statusLabel, type BankRow } from "../lib/bank";
 import {
   fetchDrill,
   previewMarkWrong,
@@ -239,7 +239,7 @@ export default function ReviewQueue() {
             <span>
               {current.领域 || "—"} / {current.科目 || "—"}
             </span>
-            <span>{current.状态 || "未看"}</span>
+            <span>{statusLabel(current.状态 || "未看", t)}</span>
             {/* 为什么在队列里（B-3）：抽题规则不写在界面上，用户不用猜"为什么是这道" */}
             {current.reason && <span>{current.reason}</span>}
           </div>

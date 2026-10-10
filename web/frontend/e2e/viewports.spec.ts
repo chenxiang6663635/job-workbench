@@ -12,14 +12,20 @@ test.beforeEach(async ({ page }) => {
 });
 
 const MOBILE_PAGES = [
-  // 每页的允许溢出余量 = 2026-09-21 实测现状（dashboard 306 / progress 126，
-  // 其余 0）+ 4px 字体渲染余量。整站 390px 完整适配属于尚未实施的批次
-  // （顶栏与看板网格在窄屏本就有溢出），这里钉的是「不继续变坏」：
-  // 溢出突然增大（> 余量）就是新回归。
+  // 每页的允许溢出余量 = 实测现状（dashboard 306 / progress 126，其余 0）+
+  // 4px 字体渲染余量。整站 390px 完整适配属于尚未实施的批次（顶栏与看板网格在
+  // 窄屏本就有溢出），这里钉的是「不继续变坏」：溢出突然增大（> 余量）就是新回归。
+  // 2026-10-10 长尾批补 prepare / resume / library 三页，余量为 CI 实测回填
+  // （prepare 36：主要是英文页签行；resume 478：A4 预览区——两者同属整站 390
+  // 适配批的候选；library 实测 ≤4 故记 0）。prepare 另有 prepare-tabs.spec.ts 的
+  // 面板级断言（范围=面板自身、跑在抽题后的内容态），与本组整页口径互不替代。
   { key: "dashboard", over: 306 },
   { key: "applications", over: 0 },
   { key: "jobs", over: 0 },
+  { key: "prepare", over: 36 },
   { key: "progress", over: 126 },
+  { key: "resume", over: 478 },
+  { key: "library", over: 0 },
   { key: "settings", over: 0 },
 ] as const;
 

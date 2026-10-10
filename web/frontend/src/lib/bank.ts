@@ -4,7 +4,9 @@
 // 写通道全站只有一条，不在这里另开。
 //
 // HTTP 封装用 lib/http.ts 的单一实现（H-1 批：四处副本合一，不再自带）。
+import type { TFunction } from "i18next";
 import type { BankQuestion } from "../api";
+import type { TranslationKey } from "../i18n/locales/zh-CN";
 import { requestJson } from "./http";
 
 export type BankPreview = {
@@ -72,4 +74,32 @@ export function previewQuestionAdd(fields: {
   return requestJson<BankPreview>(
     `/progress/questions/preview-add?${params.toString()}`
   );
+}
+
+// 状态三态 / 难度档位的显示层（2026-10-10 i18n 长尾批）：值不翻、显示翻——三态复用
+// 训练侧同一族文案（drill.grade*），难度新增 bank.difficulty*；未登记的值原样返回
+// （显示退化为现状，绝不漏 key 名）。动作负载与筛选比较仍用原始数据值（见 drillKeys.ts）。
+const STATUS_LABELS: Record<string, TranslationKey> = {
+  未看: "drill.gradeTodo",
+  看过: "drill.gradeSeen",
+  会了: "drill.gradeKnown",
+};
+
+const DIFFICULTY_LABELS: Record<string, TranslationKey> = {
+  易: "bank.difficultyEasy",
+  中: "bank.difficultyMedium",
+  难: "bank.difficultyHard",
+};
+
+function labelOf(labels: Record<string, TranslationKey>, raw: string, t: TFunction): string {
+  const key = labels[raw];
+  return key ? (t(key) as string) : raw;
+}
+
+export function statusLabel(raw: string, t: TFunction): string {
+  return labelOf(STATUS_LABELS, raw, t);
+}
+
+export function difficultyLabel(raw: string, t: TFunction): string {
+  return labelOf(DIFFICULTY_LABELS, raw, t);
 }

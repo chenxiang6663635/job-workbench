@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { api, type BankQuestion } from "../api";
-import { previewQuestionUpdate } from "../lib/bank";
+import { difficultyLabel, previewQuestionUpdate, statusLabel } from "../lib/bank";
 import { BankPreviewCard } from "./BankPreviewCard";
 import { QuestionDeleteButton } from "./QuestionDeleteButton";
 import { Button } from "./ui/button";
@@ -20,7 +20,8 @@ import { FormField } from "./FormField";
 import { Segmented } from "./ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
-// 状态三态与难度档位：取值即工作区真实数据，不翻译（同列表徽章的约定）
+// 状态三态与难度档位：取值即工作区真实数据（负载 / 筛选不翻）——**显示**走
+// statusLabel / difficultyLabel（同列表徽章的口径，2026-10-10 收齐）
 const STATUSES = ["未看", "看过", "会了"];
 const DIFFICULTIES = ["易", "中", "难"];
 // 「未标」在 Radix Select 里不能再用空串（item 的 value 必须非空）；出参仍还原成 ""
@@ -44,9 +45,9 @@ function ReadOnlyPanel({ item }: { item: BankQuestion }) {
         <Field label={t("bank.fieldDomain")} value={item.领域} />
         <Field label={t("bank.fieldSubject")} value={item.科目} />
         <Field label={t("bank.fieldTags")} value={item.标签} />
-        <Field label={t("bank.fieldDifficulty")} value={item.难度} />
+        <Field label={t("bank.fieldDifficulty")} value={difficultyLabel(item.难度, t)} />
         <Field label={t("bank.fieldOrigin")} value={item.来源} />
-        <Field label={t("bank.fieldStatus")} value={item.状态 || "未看"} />
+        <Field label={t("bank.fieldStatus")} value={statusLabel(item.状态 || "未看", t)} />
         <Field label={t("bank.fieldCreated")} value={item.创建日期} />
         <Field label={t("bank.fieldReviewed")} value={item.最近复习} />
         <Field
@@ -147,7 +148,7 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
             value={status}
             onChange={setStatus}
             ariaLabel={t("bank.fieldStatus")}
-            options={STATUSES.map((value) => ({ value, label: value }))}
+            options={STATUSES.map((value) => ({ value, label: statusLabel(value, t) }))}
           />
         </div>
         <div>
@@ -166,7 +167,7 @@ function EditPanel({ item, onSaved }: { item: BankQuestion; onSaved: () => void 
               )}
               {DIFFICULTIES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {value}
+                  {difficultyLabel(value, t)}
                 </SelectItem>
               ))}
             </SelectContent>

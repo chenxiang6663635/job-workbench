@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next";
+import { statusLabel } from "../lib/bank";
 import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import { Num } from "./ui/number";
 
-// 状态三态：值就是工作区里的真实取值，不翻译（与列表徽章 / 筛选器同一套约定）
-// ——动它等于给数据改名（CSV 里的列值与判定都读它）。
+// 状态三态：值就是工作区里的真实取值——动作负载与筛选仍用它（改名等于改数据，
+// CSV 里的列值与判定都读它）；**显示**走 statusLabel（与训练侧同一套文案）。
 const ORDER = ["未看", "看过", "会了"] as const;
 const VARIANT: Record<string, "secondary" | "default" | "success"> = {
   未看: "secondary",
@@ -26,13 +28,14 @@ export function BankCounts({
   counts: Record<string, number>;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const shown = ORDER.filter((key) => (counts[key] ?? 0) > 0);
   if (!shown.length) return null;
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
       {shown.map((key) => (
         <Badge key={key} variant={VARIANT[key]} className="rounded px-1.5 py-0.5 text-[0.6875rem]">
-          {key}
+          {statusLabel(key, t)}
           <Num className="text-[0.6875rem]">{counts[key]}</Num>
         </Badge>
       ))}

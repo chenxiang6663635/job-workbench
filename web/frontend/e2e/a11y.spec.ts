@@ -111,3 +111,15 @@ for (const key of PAGES) {
     expect(unexpected.length, `\n${detail}`).toBe(0);
   });
 }
+
+// 跳转主内容（2026-10-10 i18n/a11y 长尾批）：此前 href 与 target 的对应关系没有
+// 任何门禁——改名 / 布局拆分会让它静默漂移；axe 也不校验 skip-link 是否存在。
+test("跳转链接：Tab 首站可见，Enter 后焦点落到主内容", async ({ page }) => {
+  await openPage(page, "dashboard");
+  await page.keyboard.press("Tab");
+  const skip = page.locator('a[href="#main-content"]');
+  await expect(skip).toBeFocused();
+  await expect(skip).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#main-content")).toBeFocused();
+});

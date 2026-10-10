@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 
 import { api } from "../api";
-import { previewQuestionAdd } from "../lib/bank";
+import { difficultyLabel, previewQuestionAdd } from "../lib/bank";
 import { BankPreviewCard } from "./BankPreviewCard";
 import { Button } from "./ui/button";
 import { Input, Textarea } from "./ui/input";
@@ -19,7 +19,7 @@ import { ErrorBanner } from "./ErrorBanner";
 import { FormField } from "./FormField";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
-// 难度档位取值即工作区真实数据，不翻译（与详情弹窗、列表徽章同一套约定）
+// 难度档位取值即工作区真实数据（负载不翻）——**显示**走 difficultyLabel（同列表徽章）
 const DIFFICULTIES = ["易", "中", "难"];
 // 「未标」在 Radix Select 里不能再用空串（item 的 value 必须非空）；出参仍还原成 ""
 const DIFFICULTY_NONE = "__none__";
@@ -133,7 +133,7 @@ export function QuestionForm({
                   <SelectItem value={DIFFICULTY_NONE}>{t("bank.difficultyNone")}</SelectItem>
                   {DIFFICULTIES.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {value}
+                      {difficultyLabel(value, t)}
                     </SelectItem>
                   ))}
                 </SelectContent>

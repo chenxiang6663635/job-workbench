@@ -3,7 +3,7 @@ import { BookOpen, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api } from "../api";
-import type { BankRow } from "../lib/bank";
+import { statusLabel, type BankRow } from "../lib/bank";
 import { AskedBefore } from "./AskedBefore";
 import { BankCounts } from "./BankCounts";
 import { BankImportButton } from "./BankImportButton";
@@ -96,7 +96,7 @@ function MyBank() {
             <SelectItem value={ALL_STATUS}>{t("bank.allStatus")}</SelectItem>
             {BANK_STATUS.map((s) => (
               <SelectItem key={s} value={s}>
-                {s}
+                {statusLabel(s, t)}
               </SelectItem>
             ))}
           </SelectContent>

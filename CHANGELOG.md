@@ -62,6 +62,8 @@
 
 - **读放大与测试耗时批（2026-10-09）**：同请求内的重复读取收口——岗位列表、详情（此前的解析卡读 3 次）、看板各自改为「一份原文读一次，评分解析与展示名共用」；看板 `tracker.csv` 整表由两次读降到一次（`applications_by_key` 支持复用已读行）；逾期筛选同一行不再解析两次日期。耗时侧：`--durations` 观测（基线 43.9s，最大头是模板 PDF 单测 5.5s）后给 githooks 接入 `pytest-xdist`（有则 `-n 4`、无则自动串行），本机全量 **≈45s → ≈19s**（并行三跑与串行计数一致：1836 通过 + 18 跳过）；`test_tracker_facade` 的顺序依赖用例改自包含（并行前置）。
 
+- **重复实现收编与拆分（2026-10-09）**：越界写法的判据收成一层——Web `safe_join` 补上盘符相对（`C:foo`：`isabs()` 为 False、`join` 却把根重置到盘根；此前会分类成 `path.escape`，进程 CWD 恰在工作区内时还会静默放行），平台语义有意保留（posix 上 `\` 是普通字符，跨平台严格版在 MCP 侧）；MCP `resolve_within_workspace` 的三类手写拒绝改调 `containment.escape_reason`（唯一实现，文案映射保留）；Web `?ws=` 名称入口补同一道判据（`a/../b` 与 CLI/MCP 同口径拒绝）。**CSV 读取模式**（BOM 剥离 + 引号还原）从八处（主表 / 时间线 / 题库 / 五张附属表）收进 `csv_cells.read_rows` 一处；严格 ISO 日期删掉 `question_review` 的私有正则副本，统一到 `tracker.parse_iso_date`。`tools_readonly.py` 拆分：`dashboard_summary` 的四段逐行筛选搬进新模块 `dashboard_sections.py`（429→363，登记水位随实测下调）。收编后经四端一致性复核（无 MAJOR；另两条既有缺口记入后续：CLI 显式 `--workspace` 被坏的 `JOBWS_WORKSPACE` 拦截、`export_csv` 未走 `csv_cell` 的公式防护）。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

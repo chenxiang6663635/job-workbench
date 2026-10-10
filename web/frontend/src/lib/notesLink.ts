@@ -20,7 +20,7 @@ const SECTION_BY_DIR = new Map<string, NotesSectionKey>(
   NOTES_SECTIONS.map((s) => [s.dir as string, s.key])
 );
 
-/** 位图白名单：与 `web/backend/routers/prep.py` 的 `IMAGE_EXT` 同名同集——
+/** 位图白名单：与 `web/backend/routers/prep_files.py` 的 `IMAGE_EXT` 同名同集——
  *  前端只决定「是否升级成 <img>」，真正的校验仍在服务端（三层防护）。
  *  刻意**不含 SVG**：它是可执行脚本载体。 */
 export const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]);

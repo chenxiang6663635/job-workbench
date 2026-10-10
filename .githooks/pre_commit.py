@@ -253,9 +253,15 @@ def check_tests() -> str | None:
     # 并行（2026-10-09 耗时批）：CONTRIBUTING 的动手阈值（钩子体感 > 30s）已到点。
     # 先探针再拼参：xdist 缺席时塞 `-n` 会让 pytest 以退出码 4 结束，而下方把
     # rc=4 归入「环境问题」降级成 SKIP——那等于静默跳过整份回归网。
+    # 探针自身也带超时并兜底串行（独立审查 MINOR）：探针挂死不该把提交永远卡住。
+    try:
+        probe = subprocess.run([python, "-c", "import xdist"],
+                               capture_output=True, timeout=30)
+        has_xdist = probe.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        has_xdist = False
     cmd = [python, "-m", "pytest", "tests", "-q", "--no-header"]
-    if subprocess.run([python, "-c", "import xdist"],
-                      capture_output=True).returncode == 0:
+    if has_xdist:
         cmd += ["-n", "4"]        # 文档明示：32 核机器别 auto
     started = time.monotonic()
     try:

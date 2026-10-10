@@ -94,6 +94,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* 跳到主内容（2026-10-10 a11y 长尾批）：键盘 / 读屏用户免于逐页穿过顶栏的
+          11+ 个控件；未聚焦时不可见，聚焦时浮在导航之上（z-60 > nav 的 z-50）。 */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:border focus:border-border focus:bg-surface-2 focus:px-3 focus:py-2 focus:text-sm focus:text-foreground"
+      >
+        {t("a11y.skipToContent")}
+      </a>
+
       <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-hero-glow" />
 
       <nav className="fixed inset-x-0 top-0 z-50 border-b border-region-nav-border bg-region-nav/90 backdrop-blur-xl">
@@ -221,7 +230,7 @@ export default function App() {
       {/* UX-6：全站唯一的成功播报区（错误侧由 ErrorBanner 的 role="alert" 管） */}
       <LiveRegion />
 
-      <main className={`relative mx-auto ${CONTENT_MAX_W} px-6 pb-16 pt-24`}>
+      <main id="main-content" tabIndex={-1} className={`relative mx-auto ${CONTENT_MAX_W} px-6 pb-16 pt-24`}>
         {/* 到点提醒条（提醒条批，PR #221）：常驻在内容区顶部。key 绑工作区是双保险
             ——切工作区实际走整页 reload（useBackendBoot），组件必然重挂；留着 key
             是为了将来换掉 reload 实现时也不会串工作区数据 */}

@@ -82,7 +82,7 @@ components/UpcomingTalks.tsx = 时间|是否参加
 
 # 题库窄模块（2026-09-21 批次 B-1/B-2）：改题预览的中文字段键——与后端
 # `_UPDATE_FIELD_PARAMS` 的映射同源（CSV 列名，不翻译；从 api.ts 迁来）
-lib/bank.ts = 答案要点|难度|备注|标签|状态
+lib/bank.ts = 未看|看过|会了|易|中|难|答案要点|难度|备注|标签|状态
 
 # 导入预览差异表的解析（2026-09-21 批次 C-3）：表头与末列的分类值都是领域层
 # 生成的数据（question_bank.preview_import 的 diff 行），归类后徽章文案走 i18n

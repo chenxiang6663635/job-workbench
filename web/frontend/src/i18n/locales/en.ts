@@ -23,6 +23,7 @@ export default {
   "nav.workspaceDefaultSuffix": " (default)",
   "nav.switchWorkspaceTitle": "Switch workspace",
   "nav.refresh": "Refresh data (external changes sync automatically)",
+  "a11y.skipToContent": "Skip to content",
 
   "status.connecting": "Connecting",
   // 顶栏只有一格宽：短标签 + 完整语义放 title（见 status.localDataHint）
@@ -160,6 +161,9 @@ export default {
   "bank.writing": "Writing…",
   "bank.noChange": "No changes yet",
   "bank.difficultyNone": "Not set",
+  "bank.difficultyEasy": "Easy",
+  "bank.difficultyMedium": "Medium",
+  "bank.difficultyHard": "Hard",
   // 训练（抽题 → 盲答 → 自评，2026-09-20）：答案默认折叠——先答再看
   "drill.mode": "Mode",
   "drill.mode.due": "Review queue",
@@ -781,6 +785,10 @@ export default {
   "resume.layoutCompact": "Compact",
   "resume.layoutAccent": "Accent",
   "resume.accentLabel": "Accent color",
+  "resume.accent.石墨灰": "Graphite",
+  "resume.accent.商务蓝": "Business Blue",
+  "resume.accent.深墨绿": "Deep Green",
+  "resume.accent.酒红": "Wine",
   "resume.buildPdf": "Build PDF",
   "resume.building": "Building…",
   "resume.buildTitle": "Build the PDF and validate it",

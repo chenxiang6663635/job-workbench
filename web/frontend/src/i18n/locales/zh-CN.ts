@@ -20,6 +20,7 @@ const zhCN = {
   "nav.workspaceDefaultSuffix": "（默认）",
   "nav.switchWorkspaceTitle": "切换工作区",
   "nav.refresh": "刷新数据（外部改动会自动同步）",
+  "a11y.skipToContent": "跳到主内容",
 
   "status.connecting": "连接中",
   "status.online": "已连接",
@@ -163,6 +164,9 @@ const zhCN = {
   "bank.writing": "写入中…",
   "bank.noChange": "还没有改动",
   "bank.difficultyNone": "未标",
+  "bank.difficultyEasy": "易",
+  "bank.difficultyMedium": "中",
+  "bank.difficultyHard": "难",
   // 训练（抽题 → 盲答 → 自评，2026-09-20）：答案默认折叠——先答再看
   "drill.mode": "模式",
   "drill.mode.due": "重练队列",
@@ -823,6 +827,10 @@ const zhCN = {
   "resume.layoutCompact": "紧凑",
   "resume.layoutAccent": "强调",
   "resume.accentLabel": "强调色",
+  "resume.accent.石墨灰": "石墨灰",
+  "resume.accent.商务蓝": "商务蓝",
+  "resume.accent.深墨绿": "深墨绿",
+  "resume.accent.酒红": "酒红",
   "resume.buildPdf": "生成 PDF",
   "resume.building": "生成中…",
   "resume.buildTitle": "生成 PDF 并校验",

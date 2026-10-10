@@ -99,6 +99,12 @@ research_*.md
 /tmp-*
 # 若手动用 --basetemp=.pytest-tmp 跑测试（临时目录落在仓库内）时的产物
 /.pytest-tmp/
+# 临时根被解析到仓库根时的产物（2026-10-09 实例：pytest-of-cx / jobws-approvals /
+# tmp<随机> 落到仓库根，成因是那几轮运行的 TEMP 指向了仓库根——pytest.ini 里有说明）。
+# `/tmp*/` 连无分隔符的 `tmpXXXX` 一并覆盖（上面两条 `/tmp_*`、`/tmp-*` 只管分隔符形态）。
+/pytest-of-*/
+/jobws-approvals/
+/tmp*/
 
 # Playwright 运行产物（UI 冒烟的失败截图 / trace / 报告）
 # 尾随 * 是必须的：显式传 --output=test-results-<x> 时会产生带后缀的同族目录，

@@ -189,6 +189,69 @@ def test_score_jd_rejects_symlink_escape(tmp_path):
     assert "越出工作区" in data["errors"][0]
 
 
+# --- score_jd：差距分支（2026-10-09 盲区批）-----------------------------------
+
+
+def _seed_gap_inputs(ws, resume=True, jd=True):
+    """给差距分析铺三份输入：JD 原文 / 工作区词典 / 简历 JSON。"""
+    job = os.path.join(ws, "01_岗位池", "云帆_后端")
+    os.makedirs(job, exist_ok=True)
+    if jd:
+        with io.open(os.path.join(job, "JD原文.md"), "w", encoding="utf-8") as fh:
+            fh.write("# 云帆 后端\n\n要求 Python、Kubernetes 经验。\n")
+    cfg = os.path.join(ws, "config")
+    os.makedirs(os.path.join(cfg, "directions"), exist_ok=True)
+    with io.open(os.path.join(cfg, "profile.md"), "w", encoding="utf-8") as fh:
+        fh.write("# 档案\n")
+    with io.open(os.path.join(cfg, "lexicon.md"), "w", encoding="utf-8") as fh:
+        fh.write("## Primary（3 分/项）\n\nPython、Kubernetes\n")
+    with io.open(os.path.join(cfg, "directions", "datacenter.md"), "w",
+                 encoding="utf-8") as fh:
+        fh.write("# 方向：数据中心\n")
+    src = os.path.join(ws, "02_简历工坊", "source")
+    os.makedirs(src, exist_ok=True)
+    if resume:
+        # 真实简历 JSON 的形态（英文键 + 嵌套；`_resume_text` 递归取值，键名无关）
+        with io.open(os.path.join(src, "resume_hvac.json"), "w", encoding="utf-8") as fh:
+            fh.write('{"skills": [{"items": "Python"}]}')
+
+
+def test_score_jd_gap_is_unpacked_dict(tmp_path):
+    """给了 resume_version：差距必须是**解包后的字典**——直接赋元组会让宿主收到
+    `差距: [null, [...]]`（2026-09-19 审查 MINOR 抓过的形状）。"""
+    ws = _make_ws(tmp_path)
+    _seed_gap_inputs(ws)
+
+    data = tools_readonly.score_jd(ws, "云帆_后端", resume_version="hvac")
+
+    assert data["ok"] is True
+    assert isinstance(data["差距"], dict)
+    assert [m["term"] for m in data["差距"]["matched"]] == ["Python"]
+    assert data["差距"]["missing"] == ["Kubernetes"]
+    assert "差距错误" not in data
+
+
+def test_score_jd_gap_errors_are_surfaced_not_swallowed(tmp_path):
+    """输入不全时差距为 None、原因进「差距错误」——不静默。"""
+    ws = _make_ws(tmp_path)
+    _seed_gap_inputs(ws, resume=False)
+
+    data = tools_readonly.score_jd(ws, "云帆_后端", resume_version="hvac")
+
+    assert data["ok"] is True and data["差距"] is None
+    assert any("简历数据" in e for e in data["差距错误"])
+
+
+def test_score_jd_without_resume_version_has_no_gap_key(tmp_path):
+    """不给 resume_version：不做差距分析，键都不出现（宿主按缺失判断）。"""
+    ws = _make_ws(tmp_path)
+    _seed_gap_inputs(ws)
+
+    data = tools_readonly.score_jd(ws, "云帆_后端")
+
+    assert "差距" not in data and "差距错误" not in data
+
+
 # --- 写入：题库两段式（不落盘）--------------------------------------------------
 
 

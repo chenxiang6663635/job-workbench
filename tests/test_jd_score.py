@@ -148,3 +148,36 @@ def test_resolve_profile_workspace_direction_missing_warns_with_real_label(tmp_p
     assert profile_dir == os.path.join(str(ws), "config")
     assert any("not-a-direction" in w for w in warns), warns
     assert not any(os.path.basename(str(tmp_path)) in w for w in warns), warns
+
+
+# ---------------------------------------------------------------------------
+# parse_dimension：小数分子（半开档位判定的输入侧）
+# ---------------------------------------------------------------------------
+
+def test_parse_dimension_accepts_decimal_numerator():
+    """维度分子允许小数（`24.5/30`）——74.5 这样的小数总分正是从这里来的。"""
+    num, errors = jd_score.parse_dimension("24.5/30", "技术匹配", 30)
+    assert num == 24.5 and errors == []
+
+
+@pytest.mark.parametrize("raw,num,expect", [
+    ("", None, "未填写"),
+    ("24", None, "格式错误"),
+    ("24/25", 24.0, "分母应为 30"),
+    ("31/30", 31.0, "超过满分"),
+])
+def test_parse_dimension_error_forms(raw, num, expect):
+    got_num, errors = jd_score.parse_dimension(raw, "技术匹配", 30)
+    assert got_num == num, (raw, got_num)
+    assert any(expect in e for e in errors), (raw, errors)
+
+
+def test_parse_score_section_extracts_kv_and_stops_at_next_h2():
+    """`## 评分` 小节的行进 dict、下一个二级标题即出界；无该小节时空 dict。"""
+    card = ("## 评分\n"
+            "技术匹配: 24.5/30\n"
+            "总分: 74.5\n"
+            "## 硬门槛\n"
+            "学历: 本科\n")
+    assert jd_score.parse_score_section(card) == {"技术匹配": "24.5/30", "总分": "74.5"}
+    assert jd_score.parse_score_section("## 硬门槛\n学历: 本科\n") == {}

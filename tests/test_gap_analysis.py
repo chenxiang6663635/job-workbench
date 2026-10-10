@@ -53,8 +53,12 @@ def _mk_ws(tmp_path, jd=True, resume=True, lexicon=True, master=True, profile=Tr
     src = ws / "02_简历工坊" / "source"
     src.mkdir(parents=True)
     if resume:
+        # 真实简历 JSON 的形态（英文键 + 嵌套结构）——`_resume_text` 递归取值，
+        # 只要值在树上就会被比对到（键名无关；独立审查 2026-10-09 的保真建议）
         (src / "resume_hvac.json").write_text(
-            json.dumps({"技能": ["Python"], "项目": [{"描述": "微服务"}]},
+            json.dumps({"basics": {"name": "示例"},
+                        "skills": [{"items": "Python"}],
+                        "projects": [{"points": ["微服务"]}]},
                        ensure_ascii=False), encoding="utf-8")
     if master:
         (ws / "02_简历工坊" / "简历_主版_v1.0.md").write_text(
@@ -110,7 +114,7 @@ def test_gap_english_terms_are_case_insensitive(tmp_path):
         fh.write("## Primary（3 分/项）\n\nEnergyPlus\n")
     with open(os.path.join(ws, "02_简历工坊", "source", "resume_hvac.json"),
               "w", encoding="utf-8") as fh:
-        fh.write(json.dumps({"技能": ["ENERGYPLUS"]}, ensure_ascii=False))
+        fh.write(json.dumps({"skills": [{"items": "ENERGYPLUS"}]}, ensure_ascii=False))
 
     result, errors = _analyze(ws, job_dir)
 
@@ -184,10 +188,12 @@ def _seed_endpoint_ws(tmp_path):
     (cfg / "directions" / "datacenter.md").write_text("# 方向：数据中心\n", encoding="utf-8")
     src = ws / "02_简历工坊" / "source"
     src.mkdir(parents=True)
-    (src / "resume_a.json").write_text(json.dumps({"技能": ["Python"]},
-                                                  ensure_ascii=False), encoding="utf-8")
-    (src / "resume_b.json").write_text(json.dumps({"技能": ["Python", "Kubernetes"]},
-                                                  ensure_ascii=False), encoding="utf-8")
+    (src / "resume_a.json").write_text(
+        json.dumps({"skills": [{"items": "Python"}]}, ensure_ascii=False),
+        encoding="utf-8")
+    (src / "resume_b.json").write_text(
+        json.dumps({"skills": [{"items": "Python、Kubernetes"}]}, ensure_ascii=False),
+        encoding="utf-8")
 
 
 def test_gap_endpoint_defaults_to_last_resume_version(client, tmp_path):

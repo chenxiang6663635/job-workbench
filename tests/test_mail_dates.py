@@ -12,7 +12,6 @@
 不跳法定节假日。
 """
 import os
-import re
 import sys
 from datetime import date, datetime
 
@@ -20,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "packages", "jobws-core", "src"))
 
 from jobws_core import mail_dates  # noqa: E402
+from jobws_core.mail_facts import _DURATION_RE  # noqa: E402  （生产侧真实正则，见 _token）
 
 REF = date(2026, 10, 9)          # 周五
 
@@ -101,9 +101,9 @@ def test_find_absolute_empty_when_nothing_found():
 # --- duration_date：基准是邮件发出那天（反向结论陷阱的正面战场）-------------
 
 def _token(text):
-    """与 `mail_facts._DURATION_RE` 同形（含「个」量词；group(2) 是单位）。"""
-    match = re.search(r"(\d{1,3})\s*(?:个)?\s*(工作日|自然日|天|日|小时)\s*(?:内|以内|之内)",
-                      text)
+    """用**生产侧的 `_DURATION_RE`** 取 token——复制副本会漂移（2026-10-09 独立
+    审查：副本曾漏掉 `(?<!月)` 负向断言），让时长用例始终走在「唯一真实入口」上。"""
+    match = _DURATION_RE.search(text)
     assert match, text
     return match
 

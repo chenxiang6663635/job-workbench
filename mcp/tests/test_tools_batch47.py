@@ -211,8 +211,9 @@ def _seed_gap_inputs(ws, resume=True, jd=True):
     src = os.path.join(ws, "02_简历工坊", "source")
     os.makedirs(src, exist_ok=True)
     if resume:
+        # 真实简历 JSON 的形态（英文键 + 嵌套；`_resume_text` 递归取值，键名无关）
         with io.open(os.path.join(src, "resume_hvac.json"), "w", encoding="utf-8") as fh:
-            fh.write('{"技能": ["Python"]}')
+            fh.write('{"skills": [{"items": "Python"}]}')
 
 
 def test_score_jd_gap_is_unpacked_dict(tmp_path):

@@ -75,3 +75,40 @@ def test_parse_hard_gates_docstring_states_four_outcomes():
     """parse_hard_gates 的结论取值集合包含「待补档案」（消费方按此渲染）。"""
     doc = jd_score.parse_hard_gates.__doc__ or ""
     assert "待补档案" in doc
+
+
+# --- 解析器边界（2026-10-09 盲区批补网）--------------------------------------
+
+
+def test_gate_items_and_details_are_parsed():
+    """字段行进 items、`### 逐条依据` 列表项进 details——卡片是渐进填写的。"""
+    card = ("## 硬门槛\n"
+            "学历: 本科\n"
+            "专业: 制冷及低温工程\n"
+            "门槛结论: 通过\n"
+            "\n### 逐条依据\n"
+            "- 学历满足（本科起）\n"
+            "- 专业相符\n")
+    gates = jd_score.parse_hard_gates(card)
+    assert {it["key"]: it["value"] for it in gates["items"]} == {
+        "学历": "本科", "专业": "制冷及低温工程"}
+    assert gates["details"] == ["学历满足（本科起）", "专业相符"]
+    assert gates["conclusion"] == "通过"
+
+
+def test_gate_section_stops_at_next_h2():
+    """下一个 `##` 二级标题即出界——否则「评分」小节的行会混进硬门槛字段。"""
+    card = ("## 硬门槛\n"
+            "门槛结论: 通过\n"
+            "## 评分\n"
+            "技术匹配: 24/30\n")
+    gates = jd_score.parse_hard_gates(card)
+    assert gates["conclusion"] == "通过"
+    assert gates["items"] == []
+
+
+def test_gate_items_parsed_without_conclusion():
+    """写了一半的卡片（只有字段、还没写结论）：items 照收、conclusion 为空。"""
+    gates = jd_score.parse_hard_gates("## 硬门槛\n学历: 本科\n")
+    assert gates["conclusion"] is None
+    assert gates["items"] == [{"key": "学历", "value": "本科"}]

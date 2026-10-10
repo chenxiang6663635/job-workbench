@@ -58,6 +58,8 @@
 
 - **积累期审计与三桶推进（2026-10-09）**：审计报告归档 `docs/research/2026-10-08-accumulate-backlog-audit.md`（配套计划 `2026-10-07-accumulate-backlog-plan.md`）；ROADMAP「Now」换段登记三桶（桶一取号前小修批 / 桶二积累期主线 / 桶三触发条件驱动），并落**毕业判定（2026-10-09：四条判据全部满足）**。桶一另含：渲染临时文件守 `TMP_PREFIX`、登记漂移回填（站点实施计划状态与 `Task 7` 勾选、ROADMAP Now 换段）、站点口径收口（Gitee 为仓库镜像的如实描述、下载备用通道改国内可达的 Gitee Issues、EdgeOne 双通道活性复核：`job-workbench.edgeone.cool` 401 待处理）、截图新鲜度列入发版清单、#204 与 #259 逐项核对后关单。
 
+- **测试盲区批（2026-10-09）**：`mail_dates` 直测（RFC 5322 邮件日期是时长基准的唯一真实入口、相对日 / 工作日换算、两条刻意的已知边界）；JD↔简历差距链路补网——核心 `gap_analysis` 的三分组证据判据 / 词典去重 / 大小写不敏感 / 错误口径，`GET /api/jobs/{id}/gap` 的缺省与显式简历版本、404/422 拒绝码，MCP `score_jd` 差距分支（解包形状与错误透传）；`parse_dimension` 小数分子与硬门槛解析器边界。**审计更正**：硬门槛判定并非零测试（`tests/test_jd_score_gate.py` 自 2026-09-24 起覆盖四态）。`.gitignore` 补 `/pytest-of-*/`、`/jobws-approvals/`、`/tmp*/` 三条临时目录护栏（2026-10-09 实例）。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

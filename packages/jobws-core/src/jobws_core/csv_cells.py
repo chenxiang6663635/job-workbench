@@ -9,7 +9,13 @@
 
 为什么不内联在 `workspace_io` 里：那里已经是 300 行规模闸门的上限，而这个
 函数是「策略」不是「写入原语」——它还要被另一个写入点（追加路径）引用。
+
+读侧同理（2026-10-09 收编批）：`read_rows` 是「读一份表」的唯一模式——主表 /
+时间线 / 题库三处此前各自重复三行，编码与还原口径容易漂。
 """
+
+import csv
+import io
 
 # `= + - @` 是公式前缀；Tab 与 CR 在部分解析器里有特殊含义，一并中和
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
@@ -52,3 +58,14 @@ def csv_read_cell(value):
 def restore_row(row):
     """整行还原（读取侧统一入口）。"""
     return dict((key, csv_read_cell(value)) for key, value in row.items())
+
+
+def read_rows(path):
+    """读整表 CSV：utf-8-sig（自动去 BOM）+ `restore_row`（还原写入侧的中和引号）。
+
+    「读一份表」的唯一模式（2026-10-09 收编批）：主表 / 时间线 / 题库三处此前
+    各自重复这三行。解析异常原样抛出，由调用方决定按损坏处理（隔离 / 报错 /
+    容错读各自有更上层的手感）。
+    """
+    with io.open(path, "r", encoding="utf-8-sig", newline="") as handle:
+        return [restore_row(dict(row)) for row in csv.DictReader(handle)]

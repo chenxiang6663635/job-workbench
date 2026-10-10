@@ -19,23 +19,10 @@ import datetime
 import re
 
 from . import question_bank
+from .tracker import parse_iso_date  # 严格 ISO 日期的唯一实现（收编批 2026-10-09）
 
 # 复习间隔（天）：按状态给下一次复习的时间点。保守默认、不做个性化（见 docstring）。
 REVIEW_INTERVALS = {"看过": 3, "会了": 14}
-
-_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
-
-
-def _parse_date(text):
-    """严格 ISO 日期（YYYY-MM-DD）→ date；空 / 脏 → None（保守策略交给调用方）。"""
-    match = _DATE_RE.match((text or "").strip())
-    if not match:
-        return None
-    try:
-        return datetime.date(int(match.group(1)), int(match.group(2)),
-                             int(match.group(3)))
-    except ValueError:
-        return None
 
 
 def due_from_rows(rows, today=None):
@@ -47,13 +34,13 @@ def due_from_rows(rows, today=None):
     """
     day = today or datetime.date.today()
     if isinstance(day, str):
-        day = _parse_date(day) or datetime.date.today()
+        day = parse_iso_date(day) or datetime.date.today()
 
     result = []
     for row in rows:
         status = (row.get("状态") or "").strip() or "未看"
         raw_last = (row.get("最近复习") or "").strip()
-        last = _parse_date(raw_last)
+        last = parse_iso_date(raw_last)
         if status == "未看":
             result.append((row, "还没学（未看）"))
             continue

@@ -25,7 +25,7 @@ import sys
 
 from . import tracker  # noqa: E402  （工作区解析、原子写、锁与 ConflictError）
 from . import workspace_io  # noqa: E402
-from .csv_cells import restore_row  # noqa: E402  （读回时还原写入侧的中和引号）
+from .csv_cells import read_rows as read_csv_rows  # noqa: E402  （读取模式唯一实现）
 
 # 字段常量**只在 tracker.py 定义一处**（与 TALK_* / INTERVIEW_* 同区），这里导入
 # 复用——同一张表的列名若在两处各写一遍，改了一边就会静默失配（自检、CSV 表头、
@@ -61,8 +61,7 @@ def read_questions(workspace=None, domain=None, subject=None, status=None,
     path = question_path(workspace)
     if not os.path.isfile(path):
         return []
-    with io.open(path, "r", encoding="utf-8-sig", newline="") as f:
-        rows = [restore_row(dict(row)) for row in csv.DictReader(f)]
+    rows = read_csv_rows(path)
 
     def _match(row, field, value):
         return not value or (row.get(field) or "").strip() == value

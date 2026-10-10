@@ -1,12 +1,11 @@
 import { memo, useMemo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
-import { ImageOff } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
-import i18n from "../i18n";
 import type { NotesActive } from "../lib/notes";
 import { cn } from "../lib/utils";
+import NoteImage from "./NoteImage";
 import { TaskCheckbox } from "./NotesTaskCheckbox";
 import { TaskLineContext } from "./notesTaskLine";
 
@@ -161,24 +160,6 @@ const baseComponents: Components = {
   hr: ({ node, ...props }) => (
     <hr {...lineAttr(node)} className="my-6 border-t border-border" {...props} />
   ),
-  // 图片一律渲染成明确占位（2026-09-21 批次 C-4）：相对路径在 SPA 里必然 404、
-  // 外链要联网（与本应用"本地优先"相抵）——统一兜底，不做"加载一半失败"
-  // （比不加载更困惑）。真支持需新增笔记侧只读文件端点（复用 ro_files 的
-  // realpath 二次确认写法）。这里用 i18n.t 而非 hook：baseComponents 是模块级常量
-  // （与 lib/bank.ts 的错误本地化同款）。
-  img: ({ node, src, alt, ...props }) => (
-    <span
-      className="my-1 inline-flex max-w-full items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1 align-middle text-[0.6875rem] text-muted-foreground"
-      title={i18n.t("notes.imageSkippedHint")}
-      {...props}
-    >
-      <ImageOff size={12} className="shrink-0" />
-      <span className="shrink-0">{i18n.t("notes.imageSkipped")}</span>
-      <span className="truncate font-mono" title={src}>
-        {alt || src}
-      </span>
-    </span>
-  ),
 };
 
 function NotesMarkdown({
@@ -189,6 +170,7 @@ function NotesMarkdown({
   locked = false,
   resolveNote,
   onOpenNote,
+  resolveImage,
 }: {
   content: string;
   onToggleTask?: (line: number) => void;
@@ -200,6 +182,8 @@ function NotesMarkdown({
   resolveNote?: (href: string) => NotesActive | null;
   /** 打开解析到的目标笔记（上层负责切换文件与状态收尾） */
   onOpenNote?: (target: NotesActive) => void;
+  /** 内嵌图片解析（纯函数；返回 null = 回落占位）。外链 / 越界 / 非位图都不升级 */
+  resolveImage?: (src: string) => string | null;
 }) {
   const components = useMemo<Components>(
     () => ({
@@ -260,6 +244,12 @@ function NotesMarkdown({
           </span>
         );
       },
+      // 图片（图片端点批）：解析出树内的安全 URL 才升级成 <img>，外链 / 越界 /
+      // 非位图 / 加载失败一律回落占位（NoteImage 自带 onError）。与 a 同款：
+      // 需要回调，不能放模块级 baseComponents。
+      img: ({ node, ...props }) => (
+        <NoteImage url={props.src ? resolveImage?.(props.src) ?? null : null} {...props} />
+      ),
       input: ({ node, checked, ...props }) => (
         <TaskCheckbox
           checked={checked}
@@ -271,7 +261,7 @@ function NotesMarkdown({
         />
       ),
     }),
-    [onToggleTask, pendingLine, queuedLines, locked, resolveNote, onOpenNote]
+    [onToggleTask, pendingLine, queuedLines, locked, resolveNote, resolveImage, onOpenNote]
   );
 
   return (

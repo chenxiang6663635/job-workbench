@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Briefcase, FileText, FolderOpen, LayoutDashboard, Library as LibraryIcon, Megaphone, RefreshCw, Settings as SettingsIcon, TrendingUp } from "lucide-react";
 import { useWorkspaceSync } from "./hooks/useWorkspaceSync";
-import Dashboard from "./pages/Dashboard";
-import Applications from "./pages/Applications";
-import Jobs from "./pages/Jobs";
-import Library from "./pages/Library";
-import Prepare from "./pages/Prepare";
-import Progress from "./pages/Progress";
-import Resume from "./pages/Resume";
-import Settings from "./pages/Settings";
+// 路由级懒加载（前端体验批 2026-10-09）：八个页面由同步 import 改为按需加载——
+// 首屏只下载看板，其余页面在切 tab 时才拉（生产构建里各自成 chunk）。懒加载
+// 组件在下方 <Suspense> 里渲染；e2e 的自动等待覆盖这段异步就绪。
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Applications = lazy(() => import("./pages/Applications"));
+const Jobs = lazy(() => import("./pages/Jobs"));
+const Library = lazy(() => import("./pages/Library"));
+const Prepare = lazy(() => import("./pages/Prepare"));
+const Progress = lazy(() => import("./pages/Progress"));
+const Resume = lazy(() => import("./pages/Resume"));
+const Settings = lazy(() => import("./pages/Settings"));
 import { useBackendBoot } from "./hooks/useBackendBoot";
 import { drillToApplication } from "./lib/pageDrill";
 import { onReminderFocus } from "./lib/prefs";
@@ -245,22 +248,32 @@ export default function App() {
           // 工作区尚未激活（listWorkspaces 返回前）：避免首屏用空 ws 拉默认数据，
           // 否则切到非默认工作区 reload 后会先渲染一次默认工作区数据，产生闪烁
           <div className="text-sm text-muted-foreground">{t("loading.workspace")}</div>
-        ) : tab === "dashboard" ? (
-          <Dashboard key={currentWs} />
-        ) : tab === "applications" ? (
-          <Applications key={currentWs} />
-        ) : tab === "jobs" ? (
-          <Jobs key={currentWs} />
-        ) : tab === "resume" ? (
-          <Resume key={currentWs} />
-        ) : tab === "prepare" ? (
-          <Prepare key={currentWs} />
-        ) : tab === "progress" ? (
-          <Progress key={currentWs} />
-        ) : tab === "library" ? (
-          <Library key={currentWs} />
         ) : (
-          <Settings key={currentWs} />
+          // 懒加载边界只包页面本体：顶栏 / 提醒条 / 离线屏都在外面，切 tab 时
+          // 它们不闪。fallback 用一行文字——比骨架屏更不容易在窄屏上跳动。
+          <Suspense
+            fallback={
+              <div className="text-sm text-muted-foreground">{t("loading.page")}</div>
+            }
+          >
+            {tab === "dashboard" ? (
+              <Dashboard key={currentWs} />
+            ) : tab === "applications" ? (
+              <Applications key={currentWs} />
+            ) : tab === "jobs" ? (
+              <Jobs key={currentWs} />
+            ) : tab === "resume" ? (
+              <Resume key={currentWs} />
+            ) : tab === "prepare" ? (
+              <Prepare key={currentWs} />
+            ) : tab === "progress" ? (
+              <Progress key={currentWs} />
+            ) : tab === "library" ? (
+              <Library key={currentWs} />
+            ) : (
+              <Settings key={currentWs} />
+            )}
+          </Suspense>
         )}
       </main>
     </div>

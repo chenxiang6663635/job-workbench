@@ -28,6 +28,7 @@ from routers import (
     library,
     mail_setup,
     prep,
+    prep_files,
     progress,
     provider,
     reminders,
@@ -60,6 +61,7 @@ MODULES = (
     reminders,  # 到点提醒的轻端点（笔 5；同上）
     sync,  # 批 8：工作区版本指纹（GUI 端同步用）
     prep,  # 笔记：03_面试准备 / 04_知识库 只读浏览
+    prep_files,  # 笔记插图字节直出（图片端点批；prep.py 水位只许降故单开）
 )
 
 

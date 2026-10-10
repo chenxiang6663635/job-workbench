@@ -8,7 +8,40 @@ import {
   findAnchorLine,
   stripHtmlComments,
 } from "../../src/lib/notes";
-import { resolveNoteLink } from "../../src/lib/notesLink";
+import { resolveNoteImage, resolveNoteLink } from "../../src/lib/notesLink";
+
+describe("resolveNoteImage（正文相对图片 → 可直出的树内位置）", () => {
+  const from = { section: "interview" as const, rel: "技术面/甲.md" };
+
+  it("同目录相对图片", () => {
+    expect(resolveNoteImage("图/示意.png", from)).toEqual({
+      section: "interview",
+      rel: "技术面/图/示意.png",
+    });
+  });
+
+  it("跨 section 与百分号编码", () => {
+    expect(resolveNoteImage("../../04_知识库/图/%E7%A4%BA%E6%84%8F.jpg", from)).toEqual({
+      section: "knowledge",
+      rel: "图/示意.jpg",
+    });
+  });
+
+  it("只认位图白名单：svg / md / 未知扩展名都不升级", () => {
+    expect(resolveNoteImage("图标.svg", from)).toBeNull();
+    expect(resolveNoteImage("笔记.md", from)).toBeNull();
+    expect(resolveNoteImage("压缩包.zip", from)).toBeNull();
+  });
+
+  it("越界 / 外链 / 空值不解析", () => {
+    expect(resolveNoteImage("../../../etc/x.png", from)).toBeNull();
+    expect(resolveNoteImage("//cdn.example.com/x.png", from)).toBeNull();
+    expect(resolveNoteImage("https://e.com/x.png", from)).toBeNull();
+    expect(resolveNoteImage("C:\\图\\x.png", from)).toBeNull();
+    expect(resolveNoteImage("", from)).toBeNull();
+    expect(resolveNoteImage(undefined, from)).toBeNull();
+  });
+});
 
 describe("resolveNoteLink（正文相对链接 → 可打开笔记）", () => {
   const from = { section: "interview" as const, rel: "技术面/甲.md" };

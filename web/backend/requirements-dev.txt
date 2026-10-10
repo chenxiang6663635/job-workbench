@@ -1,6 +1,9 @@
 # 开发/测试依赖：CI 与本地跑测试用（运行时依赖见 requirements.txt）
 -r requirements.txt
 pytest
+# 全量并行（githooks 的 60s 阈值治理，2026-10-09）：钩子检测到即以 -n 4 跑，
+# 缺失时自动退回串行；前置与并行安全说明见 CONTRIBUTING「测试规模与阈值」。
+pytest-xdist
 # httpx 是 fastapi.testclient 的必需依赖。此前测试只覆盖纯函数模块，故未装；
 # tests/test_ws_param_guard.py 起的是真实 HTTP 客户端，缺它会在 CI 直接 ImportError。
 httpx<0.28

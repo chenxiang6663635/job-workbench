@@ -191,3 +191,63 @@ def test_ci_mode_treats_empty_base_as_missing(tmp_path, monkeypatch, capsys):
 
     assert hook.main(["--privacy-ci", ""]) == 1
     assert "origin/main" in capsys.readouterr().out
+
+
+# --- check_tests 的并行接线（2026-10-09 桶二·耗时批）----------------------------
+
+
+class _FakeCompleted:
+    def __init__(self, returncode):
+        self.returncode = returncode
+        self.stdout = ""
+        self.stderr = ""
+
+
+def _fake_subprocess(xdist_ok):
+    """subprocess 替身：`-c "import xdist"` 探针按 xdist_ok 返回，pytest 调用恒 0。"""
+    calls = []
+
+    class _Fake:
+        @staticmethod
+        def run(cmd, **kwargs):
+            calls.append(list(cmd))
+            if "-c" in cmd:
+                return _FakeCompleted(0 if xdist_ok else 1)
+            return _FakeCompleted(0)
+
+    return _Fake, calls
+
+
+def _hook_with_fake_subprocess(monkeypatch, xdist_ok):
+    hook = _load_hook()
+    monkeypatch.setattr(hook, "resolve_interpreter", lambda: "py-test")
+    monkeypatch.setattr(hook, "interpreter_version", lambda _python: (3, 12))
+    fake, calls = _fake_subprocess(xdist_ok)
+    monkeypatch.setattr(hook, "subprocess", fake)
+    return hook, calls
+
+
+def test_check_tests_uses_xdist_when_available(monkeypatch):
+    """有 xdist：全量 pytest 带 `-n 4`——CONTRIBUTING 明示「32 核别 auto」。
+
+    先探针再拼参：xdist 缺席时塞 `-n` 会让 pytest 以退出码 4 结束，而钩子把
+    rc=4 归入「环境问题」降级成 SKIP——那等于静默跳过整份回归网。
+    """
+    hook, calls = _hook_with_fake_subprocess(monkeypatch, xdist_ok=True)
+
+    assert hook.check_tests() is None
+
+    assert calls[0][1:] == ["-c", "import xdist"], calls[0]
+    pytest_cmd = calls[1]
+    assert "-n" in pytest_cmd, pytest_cmd
+    assert pytest_cmd[pytest_cmd.index("-n") + 1] == "4", pytest_cmd
+
+
+def test_check_tests_stays_serial_without_xdist(monkeypatch):
+    """没有 xdist：照旧串行（探针失败后不得出现 `-n`）。"""
+    hook, calls = _hook_with_fake_subprocess(monkeypatch, xdist_ok=False)
+
+    assert hook.check_tests() is None
+
+    pytest_cmd = calls[1]
+    assert "-n" not in pytest_cmd, pytest_cmd

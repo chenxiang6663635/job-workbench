@@ -16,9 +16,9 @@ Checks:
      （tools/check_size.py）——存量已登记（水位线只许变小），不误伤既有提交
   4. quick regression - pytest -q tests (skipped gracefully if env lacks pytest
      or its interpreter is below the 3.12 baseline)
-     快速回归：全量 pytest（2026-09-20 实测 ≈25s / 934 条用例；随套件增长，耗时
-     超过 TEST_SLOW_WARN_SECONDS 会在输出里点名阈值——见 CONTRIBUTING「测试规模
-     与阈值」）；环境缺 pytest、或解释器低于基线（3.12）时降级为提示，不阻塞
+     快速回归：全量 pytest（有 xdist 时 -n 4 并行；随套件增长，耗时超过
+     TEST_SLOW_WARN_SECONDS 会在输出里点名阈值——见 CONTRIBUTING「测试规模与
+     阈值」）；环境缺 pytest、或解释器低于基线（3.12）时降级为提示，不阻塞
      ——那种情况下结论本就不可信，CI 兜底
 
 Emergency bypass / 紧急跳过: git commit --no-verify
@@ -238,7 +238,7 @@ def interpreter_version(python: str) -> tuple[int, ...] | None:
 
 
 def check_tests() -> str | None:
-    """全量 pytest（当前 ≈25s；阈值提示见 TEST_SLOW_WARN_SECONDS）。
+    """全量 pytest（有 xdist 时 -n 4 并行；阈值提示见 TEST_SLOW_WARN_SECONDS）。
 
     环境缺 pytest/依赖时降级提示，CI 兜底。
     """
@@ -250,10 +250,17 @@ def check_tests() -> str | None:
         print("  设 JOBWS_PYTHON=<3.12 的 python> 可让钩子跑快检"
               "（维护者环境见 CONTRIBUTING「解释器基线」）；CI 会兜底。")
         return None
+    # 并行（2026-10-09 耗时批）：CONTRIBUTING 的动手阈值（钩子体感 > 30s）已到点。
+    # 先探针再拼参：xdist 缺席时塞 `-n` 会让 pytest 以退出码 4 结束，而下方把
+    # rc=4 归入「环境问题」降级成 SKIP——那等于静默跳过整份回归网。
+    cmd = [python, "-m", "pytest", "tests", "-q", "--no-header"]
+    if subprocess.run([python, "-c", "import xdist"],
+                      capture_output=True).returncode == 0:
+        cmd += ["-n", "4"]        # 文档明示：32 核机器别 auto
     started = time.monotonic()
     try:
         result = subprocess.run(
-            [python, "-m", "pytest", "tests", "-q", "--no-header"],
+            cmd,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -270,8 +277,9 @@ def check_tests() -> str | None:
     if result.returncode == 0:
         print("pytest: PASS (%s, %.1fs)" % (python, elapsed))
         if elapsed >= TEST_SLOW_WARN_SECONDS:
-            print("  注意：全量已 %.0fs（阈值 %ds）——按 CONTRIBUTING「测试规模与阈值」"
-                  "处理（先上 xdist，覆盖率不降）。" % (elapsed, TEST_SLOW_WARN_SECONDS))
+            print("  注意：全量已 %.0fs（阈值 %ds）——xdist 已接线（-n 4），下一步看"
+                  " --durations 的 top-N 拆慢夹具；见 CONTRIBUTING「测试规模与阈值」。"
+                  % (elapsed, TEST_SLOW_WARN_SECONDS))
         return None
     # 4 = 用法/路径错误，5 = 收集到 0 项，2 = 被中断（如解释器护栏拦下）：
     # 都是环境问题而非测试失败，降级提示（CI 兜底）

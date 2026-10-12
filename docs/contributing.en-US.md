@@ -410,6 +410,13 @@ layout and serious/critical a11y; the full suite runs in the `e2e-full` job afte
 `main`); **manually clicking through a page with Playwright while developing** is not
 covered by that rule and is not restricted.
 
+Static security analysis has the same shape: `CodeQL` (Python + JavaScript, the `security`
+query suite, landed 2026-10-12 as the follow-up registered in #207) runs on pushes to
+`main`, on PRs and on a weekly schedule — docs-only changes are skipped. It is **visible on
+PRs but not a required check** (same "does not block merging" positioning as `e2e-full`);
+findings are triaged in the Security tab, and every disposition is either a code fix or a
+dismissal with a written reason.
+
 ## Four-end consistency (must be synced when adding a capability)
 
 The same capability working in **four entrances — command line / AI host (MCP) / editor

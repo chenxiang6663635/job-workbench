@@ -1,0 +1,64 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # 每周一次全量：security 查询套件随 CodeQL bundle 更新——新规则命中旧代码只有
+    # 定时跑才能发现，PR 触发只覆盖「这次改动碰到的那几行」。
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+# 与 ci.yml 同款：同一 ref 的新推送作废上一次运行（CodeQL 单次要好几分钟，
+# 排队跑一份已被替换的 diff 没有意义）。
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# 纯文档 / 站点文案改动不触发：没有可分析代码，白跑几分钟没有意义。
+# 注意 paths-ignore 只过滤**触发**，不改分析范围（分析范围由 codeql-config.yml 定）。
+paths-ignore:
+  - "**/*.md"
+  - "docs/**"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL 分析（python + javascript）
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # security-events: write 是上传扫描结果的最小权限（#207 依赖审计只读锁文件，
+      # 本 job 要写 code scanning）；actions: read 供 analyze 读运行上下文。
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # codeql-action v3.38.3（2026-10-08；同日还有 v4.38.3，两者发布内容一致，
+      # v3 是长期稳定主线——升 v4 属独立评估项，dependabot 提 PR 时按变更说明逐条核）。
+      # 版本策略与仓库其他 action 一致：按提交 SHA 固定 + 行尾注释版本号。
+      - name: 初始化 CodeQL
+        uses: github/codeql-action/init@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3
+        with:
+          # 语言按仓库实际代码面取（#207 登记的 follow-up 原文即「Python + JS/TS」）：
+          # python = tools/ packages/ mcp/ web/backend/ scripts/ site/；
+          # javascript = web/frontend/ web/electron/ site/（TS/TSX 由 js 提取器覆盖）。
+          languages: python, javascript
+          # 首跑刻意用安全套件而非 security-and-quality：质量类查询的存量噪音
+          # （未用变量、样式建议）会淹没真正的安全发现；等安全面清零后再评估升档。
+          queries: security
+          # 分析范围与排除项见 .github/codeql/codeql-config.yml
+          config-file: ./.github/codeql/codeql-config.yml
+
+      # 刻意不装依赖、不构建：python 与 javascript（build-mode 默认 none）都是
+      # 源码级提取——本机那套 venv / npm ci 对分析没有增益，只会让每次扫描多等
+      # 两分钟。这不是疏漏，别「修复」它。
+      - name: 执行分析并上传
+        uses: github/codeql-action/analyze@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3

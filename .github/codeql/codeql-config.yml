@@ -1,0 +1,19 @@
+# CodeQL 分析范围——仓库的第三道安全量具（前两道：依赖 audit #207、本地八扫描器）。
+#
+# 刻意**不写 paths:**：默认即全仓库，新增代码目录自动进入分析面；写死白名单等于
+# 制造「新目录没人管」的漂移（与 tools/check_size.py 的 SCAN_DIRS 同款教训）。
+# 这里只排不该进分析的：
+paths-ignore:
+  # PyInstaller onedir 产物（integrations/dsh 的平台子包，bin/_internal 120MB+）：
+  # 没有源码可分析，还会把 JS 提取器拖进几千个无关文件。
+  - integrations/dsh/platform/**
+  # 构建输出（三者都在 .gitignore 里，列在这里是防本地 / CI 残留目录被误扫）
+  - "**/dist/**"
+  - "**/build/**"
+  - demo/**
+  # 缓存与本地状态（.codebuddy 下可能有巨型生成物与审计快照）
+  - "**/__pycache__/**"
+  - .codebuddy/**
+  # 个人工作区永远不进分析——隐私护栏（pre_commit --privacy-ci）管的是「不进 git」，
+  # 这里管的是「本地 checkout 里万一有，也不许被上传到 code scanning」。
+  - personal/**

@@ -123,6 +123,11 @@ This is a single-maintainer, unpaid project: the target for a first response is
   (`certmgr.msc` troubleshooting). There is no exception left for any single path.
 - Auto-update is opt-in, asks twice, and only fetches from this repository's
   GitHub Releases.
+- Static analysis runs in CI on every push to `main`, every PR and weekly:
+  CodeQL over Python and JavaScript with the default (security-class) query set,
+  plus dependency audit (`npm audit` / `pip-audit`, issue #207). CodeQL findings
+  are triaged in the repository's Security tab; the check is visible on PRs but is
+  not a merge gate.
 
 ## Disclosure
 

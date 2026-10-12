@@ -21,8 +21,9 @@ jobs:
     steps:
       # fetch-depth: 0 —— 隐私护栏的 CI 闸要拿 `git diff <base>...HEAD`，而 checkout
       # 默认是浅克隆（depth=1）：base 对象不在本地，diff 直接退出 128（2026-09-23
-      # 批末独立审查发现"这道闸在 PR 上必然红"）。只有这一个 job 需要完整历史，
-      # 其余 job 保持默认浅克隆。
+      # 批末独立审查发现"这道闸在 PR 上必然红"）。需要完整历史的是**两个** job：
+      # 本 job 与 CodeQL（analyze 在 PR 事件下同样要基提交界定告警行），其余 job
+      # 保持默认浅克隆。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
@@ -425,7 +426,9 @@ jobs:
   # Python 侧是**运行时**依赖（打进 exe），一律阻断。
   #
   # 已知边界：npm audit 的告警面依赖 npm 的 advisory 库（与 GitHub Advisory 同源
-  # 但收录节奏可能不同）；pip-audit 每次扫描时查 OSV；codeql 属后续（#207 登记）。
+  # 但收录节奏可能不同）；pip-audit 每次扫描时查 OSV。静态代码扫描另立 workflow：
+  # `.github/workflows/codeql.yml`（2026-10-12 落地 #207 登记的 follow-up——python +
+  # javascript 默认查询集（安全类），push main / PR / 每周一定时；PR 上可见但非必需检查）。
   security:
     name: 安全扫描（依赖 audit）
     runs-on: ubuntu-latest

@@ -4,13 +4,20 @@
 # 制造「新目录没人管」的漂移（与 tools/check_size.py 的 SCAN_DIRS 同款教训）。
 # 这里只排不该进分析的：
 paths-ignore:
-  # PyInstaller onedir 产物（integrations/dsh 的平台子包，bin/_internal 120MB+）：
-  # 没有源码可分析，还会把 JS 提取器拖进几千个无关文件。
+  # PyInstaller onedir 产物（integrations/dsh 的平台子包）：_internal 里是 vendored
+  # **Python** 包（cryptography / httpx2 / jsonschema / click…）——会拖住的是 Python
+  # 提取器；且其中含一份 jobws_core 的源码副本（构建时拷贝），不排除会让 CodeQL
+  # 看到同代码两份、告警指向陈旧副本。bin/ 本就不入库，这条防的是本地 CLI 跑分析。
   - integrations/dsh/platform/**
   # 构建输出（三者都在 .gitignore 里，列在这里是防本地 / CI 残留目录被误扫）
   - "**/dist/**"
   - "**/build/**"
-  - demo/**
+  # 前导斜杠锚定仓库根：`demo/**` 会连带匹配 template/demo/**（glob 语义），
+  # 与 .gitignore 的同款教训一致——将来 template/demo/ 混入代码时不许静默漏扫。
+  - /demo/**
+  # 本地虚拟环境（contributing 实测 ≈98MB）：CI checkout 里不存在，防的是有人
+  # 本机跑 codeql database create 时把整个 site-packages 拖进提取器。
+  - .venv/**
   # 缓存与本地状态（.codebuddy 下可能有巨型生成物与审计快照）
   - "**/__pycache__/**"
   - .codebuddy/**

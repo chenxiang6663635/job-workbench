@@ -3,7 +3,16 @@ name: CodeQL
 on:
   push:
     branches: [main]
+    # 纯文档 / 站点文案改动不触发：没有可分析代码，白跑几分钟没有意义。
+    # paths-ignore 必须在 on.<event> **内部**——放在 workflow 顶层是无效键，
+    # 整个 run 会挂在 schema 校验上（2026-10-12 首跑实证：run 失败且零 job）。
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   schedule:
     # 每周一次全量：security 查询套件随 CodeQL bundle 更新——新规则命中旧代码只有
     # 定时跑才能发现，PR 触发只覆盖「这次改动碰到的那几行」。
@@ -15,12 +24,6 @@ on:
 concurrency:
   group: codeql-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
-# 纯文档 / 站点文案改动不触发：没有可分析代码，白跑几分钟没有意义。
-# 注意 paths-ignore 只过滤**触发**，不改分析范围（分析范围由 codeql-config.yml 定）。
-paths-ignore:
-  - "**/*.md"
-  - "docs/**"
 
 permissions:
   contents: read
@@ -40,9 +43,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # fetch-depth: 0 —— pull_request 事件下 analyze 需要**基提交**在本地，
+          # 才能界定「哪些告警落在本次改动的行上」；默认浅克隆（depth=1）缺基对象，
+          # 正是 codeql-action 的已知失败模式。与 ci.yml backend job 同款先例
+          # （那处注释记着「只有这一个 job 需要完整历史」——本 job 落地后已过时，
+          #  同批改为两个 job）。
+          fetch-depth: 0
 
       # codeql-action v3.38.3（2026-10-08；同日还有 v4.38.3，两者发布内容一致，
-      # v3 是长期稳定主线——升 v4 属独立评估项，dependabot 提 PR 时按变更说明逐条核）。
+      # v3 是长期稳定主线——升 v4 属独立评估项，dependabot 会提 PR，届时按变更说明逐条核）。
       # 版本策略与仓库其他 action 一致：按提交 SHA 固定 + 行尾注释版本号。
       - name: 初始化 CodeQL
         uses: github/codeql-action/init@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3
@@ -51,6 +60,8 @@ jobs:
           # python = tools/ packages/ mcp/ web/backend/ scripts/ site/；
           # javascript = web/frontend/ web/electron/ site/（TS/TSX 由 js 提取器覆盖）。
           languages: python, javascript
+          # 查询套件的**唯一声明处**就在这里：init 的 queries 输入优先于 config-file
+          # （本仓库的 config-file 只写排除项、不含 queries 字段），改套件只改这一处。
           # 首跑刻意用安全套件而非 security-and-quality：质量类查询的存量噪音
           # （未用变量、样式建议）会淹没真正的安全发现；等安全面清零后再评估升档。
           queries: security

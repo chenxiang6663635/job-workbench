@@ -31,6 +31,9 @@ when one exists. Historical implementation records stay in
 > 用户拍板**暂不发布**：发布节点维持 `26.11.0`（十一月换月）。候选清单来自
 > 2026-10-08 积累期审计（四路并行侦察 + 外部对照），报告归档
 > [`docs/research/2026-10-08-accumulate-backlog-audit.md`](docs/research/2026-10-08-accumulate-backlog-audit.md)。
+>
+> **2026-10-12**：桶一 / 桶二已收口（各站见 CHANGELOG 的 `[Unreleased]`）。余下只有
+> 桶三（触发条件驱动，不主动开工）；发布节点不变（`26.11.0`，十一月换月）。
 
 **三桶推进**（桶一 → 桶二 → 桶三；桶三只登记、不主动开工）：
 
@@ -38,12 +41,14 @@ when one exists. Historical implementation records stay in
   插件解析字母序兜底、CLI 默认工作区零校验、令牌簿记三连、渲染临时文件前缀、
   `history.csv` 双保险）+ `jd_score` 纯函数测试群 + 登记漂移回填 + 站点口径收口 +
   治理四项（远端已合并分支清理、#204/#259 核对、审计报告归档）。
-- [ ] **桶二：积累期主线**（按周推进，十一月初取号前收口）— 测试盲区（JD↔简历差距
-  链路 / MCP 只读工具 / `mail_dates` / 硬门槛判定）、读放大优化（先 `--durations`
-  观测再上 xdist）、重复实现收编（越界判定三处 / ISO 解析两份 / CSV 读取两份，收编后
-  `cross_end_audit` 复核）、贴线文件拆 1~2、前端体验（路由懒加载 / 长表虚拟化 /
-  数据根设置页入口 / 笔记图片端点）、双语与 a11y、CodeQL 评估、**DSH `jobws://`
-  只读资源真机核验**（三个技能把它当 JD 正文唯一读法，结构性盲区）。
+- [x] **桶二：积累期主线**（2026-10-12 收口；各站逐项见 [CHANGELOG](CHANGELOG.md) 的
+  `[Unreleased]`）— 测试盲区（JD↔简历差距链路 / `mail_dates` / 硬门槛判定复核）、
+  读放大优化（`--durations` 观测后接 xdist：45s → 19s）、重复实现收编（越界判据 /
+  CSV 读取 / ISO 日期，收编后 `cross_end_audit` 复核）、贴线文件拆（`tools_readonly` /
+  `prep` 等）、前端体验（路由懒加载 / 长表虚拟化 / 数据根设置页入口 / 笔记图片端点）、
+  双语（术语表 / 文档索引 / 用户可见模板的英文对照版）与 a11y（显示层收齐 / skip-link /
+  390 三页基线）、CodeQL 静态扫描接入（#207 follow-up）、**DSH `jobws://` 只读资源核验**
+  （结论：DSH 不桥接 MCP 资源 → 新增 `read_job_text` 工具入口、三个技能改走工具）。
 - [ ] **桶三：触发条件驱动**（不主动开工）— 390 整站、托盘、ICS RRULE、Outlook
   OAuth2、Electron 主版本升级、代码签名、winget、国内直链、macOS、marketplace 收录
   （**必须在 npm 首发之后**）。凡涉发布物形态与元数据者：取号前落定或顺延。

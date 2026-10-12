@@ -12,7 +12,7 @@
     "hosts": "四端回答「能力在哪实现」，宿主回答「谁来用」：CodeBuddy / Claude Code 经 commands/ 与 agents/ 资产接入；DSH（DeepSeek Harness）经 npm 包 dsh-job-workbench 消费 mcp 端工具面与技能资产（integrations/dsh/；ADR docs/decisions/first-class-delivery-surfaces.md）。宿主不新增列——能力归属照旧（MCP 工具 = mcp 端；技能 = 跨宿主资产，镜像一致性由本检查器的镜像比对与 tools/skill_assets.py 兜底）。",
     "write_rule": "写入类能力的机制是「预览 -> 确认 -> 落盘」：预览返回令牌与差异，落盘走 apply；GUI 的确认形态是界面弹窗，CLI/MCP 是令牌——机制不同、语义相同。各端的如实形态：CLI 的 track 类（track add/update、interview、talk、mail、import 与 init）需显式 `--preview` 才出令牌；题库类命令（bank add/import/update/delete 等）**默认即出预览**；联系人 / Offer（contact/offer）不经令牌、直接落盘（界面同）；MCP 侧写入走 `preview_*` -> `apply_approval`。",
     "error_map_scope": "只登记跨端共用的令牌（approval）域：MCP 透出 ApprovalError.code 的稳定值，HTTP 侧对外只有 approval.tokenInvalid / approval.conflict 两个码。其余接口错误码（数量随界面迭代而变，不写死）是 GUI 内部细节，不在此登记。",
-    "excluded_primitives": "MCP 的**只读资源（jobws:// 静态资源与岗位正文模板）与提示模板（review_jd 等）不在本矩阵登记**：它们是 MCP 端专属形态，其余三端没有同名概念，硬塞进「能力 × 四端」会出现没有比对对象的行。反向检查只认 @mcp.tool（见 four_ends_probe.mcp_tools），不会因此误报。"
+    "excluded_primitives": "MCP 的**只读资源（jobws:// 静态资源与岗位正文模板）与提示模板（review_jd 等）不在本矩阵登记**：它们是 MCP 端专属形态，其余三端没有同名概念，硬塞进「能力 × 四端」会出现没有比对对象的行。反向检查只认 @mcp.tool（见 four_ends_probe.mcp_tools），不会因此误报。**2026-10-12 补**：岗位正文除资源外另有**工具**入口 `read_job_text`（DSH 宿主不桥接 MCP 资源，技能改走工具）——工具按常规登记为 `job.readText` 能力行，不属于本排除项。"
   },
   "capabilities": [
     {
@@ -59,6 +59,15 @@
       "plugin": "resume-jd-gap",
       "gui": "GET /api/jobs",
       "note": "只读。CLI 侧无岗位池列表命令（岗位池以解析卡路径为输入）。"
+    },
+    {
+      "id": "job.readText",
+      "stage": "岗位池",
+      "cli": null,
+      "mcp": "read_job_text",
+      "plugin": null,
+      "gui": "GET /api/jobs/{job_id}",
+      "note": "只读：读岗位正文（JD 原文 / 解析卡 Markdown）。MCP 侧 2026-10-12 补工具入口——DSH 宿主不桥接 MCP 只读资源（官方 mcp-client 只桥 Tools），技能此前把 jobws:// 当正文唯一读法、在该宿主上读不到正文；资源形态保留给支持 resources 的宿主。"
     },
     {
       "id": "job.create",
@@ -550,6 +559,16 @@
     }
   ],
   "exceptions": [
+    {
+      "end": "cli",
+      "item": "job.readText",
+      "reason": "岗位正文以工作区文件存在（`01_岗位池/<目录>/JD原文.md` / `解析卡.md`），CLI 直接读文件即可；`jd` 命令族做评分，不提供独立的「读正文」命令。"
+    },
+    {
+      "end": "plugin",
+      "item": "job.readText",
+      "reason": "插件命令层不直读正文（评分 / 差距分析各自读解析卡）；JD 原文由技能经 MCP 工具读，或用户直接提供。"
+    },
     {
       "end": "cli",
       "item": "prep.toggle",

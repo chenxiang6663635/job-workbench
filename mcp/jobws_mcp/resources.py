@@ -136,3 +136,76 @@ def read_job_text(workspace, job_name, kind):
         text = (raw[:JD_TEXT_MAX_BYTES].decode("utf-8", "ignore")
                 + "\n\n…（已截断，完整内容见工作区 %s）" % rel)
     return text, None
+
+
+# --- 注册（2026-10-12 从 server.py 移入：原文件撞规模水位，按能力归位）--------
+
+
+def register(mcp, workspace):
+    """把只读资源注册到 mcp：三个静态资源 + 两个岗位正文模板。
+
+    handler 用工厂闭包闭合 uri / kind——顺带避开循环里闭包晚绑定的坑；固定 URI
+    的 handler 必须**无参**（SDK 校验签名与 URI 模板变量一致）。
+    """
+    def _make_reader(uri):
+        def _read():
+            text, error = read_resource(workspace, uri)
+            if text is not None:
+                return text
+            return json.dumps({"ok": False, "errors": [error]}, ensure_ascii=False)
+
+        return _read
+
+    for _item in list_resources(workspace):
+        mcp.resource(_item["uri"], name=_item["name"],
+                     description=_item["description"],
+                     mime_type=_item["mimeType"])(_make_reader(_item["uri"]))
+
+    # 岗位正文模板：URI 里带 `{job_name}` 时 SDK 注册成 template（不是静态资源），
+    # handler 的**参数名必须与模板变量一致**。`job_name` 只接受**单个目录名**
+    # （不含斜杠）——目录解析复用 `tools_readonly._job_dir` 的同一份判据。
+    def _make_job_reader(kind):
+        def _read(job_name: str) -> str:
+            text, error = read_job_text(workspace, job_name, kind)
+            if text is not None:
+                return text
+            return json.dumps({"ok": False, "errors": [error]},
+                              ensure_ascii=False)
+
+        return _read
+
+    mcp.resource("jobws://job/{job_name}/jd", name="JD 原文",
+                 description="某岗位的 JD 原文正文（Markdown；超长会截断并给出文件路径）",
+                 mime_type="text/markdown")(_make_job_reader("jd"))
+    mcp.resource("jobws://job/{job_name}/card", name="解析卡正文",
+                 description="某岗位的解析卡正文（Markdown；超长会截断并给出文件路径）",
+                 mime_type="text/markdown")(_make_job_reader("card"))
+
+
+def register_text_tool(mcp, workspace):
+    """注册岗位正文的**工具形态**入口 `read_job_text`（2026-10-12）。
+
+    为什么要有工具形态：DSH 宿主**不桥接 MCP 资源**——官方 `dsh-mcp-client` 的
+    README 明写「Tools are the only bridged MCP capability — Resources and Prompts
+    have no harness consumption surface and are deferred」，实现里 resource block
+    直接丢弃；而三个技能此前把 `jobws://` 当正文唯一读法，那份技能在 DSH 上读不到
+    内容。工具形态跨宿主可用。实现**复用** `read_job_text()`：越界拒绝 / 截断注明 /
+    明确错误口径只有一份。
+    """
+    # 懒导入（D1 同款）：本模块其余部分是纯函数、脱 SDK 可测（见
+    # mcp/tests/test_resources_prompts.py），只有 register* 跑在 SDK 环境里。
+    from . import annotations
+
+    @mcp.tool(name="read_job_text", annotations=annotations.READ_ONLY)
+    def read_job_text_tool(job_name: str, kind: str = "jd") -> str:
+        """读岗位正文（JD 原文 / 解析卡，只读）。
+
+        job_name 是岗位池里的**单个目录名**（如 云帆_后端，不含斜杠）；
+        kind = jd（JD 原文，默认）或 card（解析卡正文）。超过 20 KB 会截断
+        并注明完整内容的相对路径；读不到给**明确错误**（ok=false 与理由），
+        **不要凭岗位名推断正文**——让用户提供或核对工作区。
+        """
+        text, error = read_job_text(workspace, job_name, kind)
+        if text is not None:
+            return text
+        return json.dumps({"ok": False, "errors": [error]}, ensure_ascii=False)

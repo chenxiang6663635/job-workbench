@@ -103,7 +103,7 @@ def today_todos(workspace, days=7):
     del workspace
     return (
         "整理今天的求职待办（**只读，不要写任何文件**）。\n"
-        "1) 读看板摘要（资源：jobws://workspace/dashboard），重点看\n"
+        "1) 读看板摘要（`dashboard_summary()` 工具，或资源 jobws://workspace/dashboard），重点看\n"
         "   待办 / 逾期未投 / 静默提醒 三块（请求窗口 %d 天；\n"
         "   **MCP 侧看板固定覆盖近 7 天**——不要声称看到了更宽的窗口）\n"
         "2) 需要某条记录的详情时用 list_applications(keyword=..., verbose=True)\n"
@@ -112,3 +112,34 @@ def today_todos(workspace, days=7):
         "输出：一份可直接执行的清单（最多 5 条），不要复述无关统计。"
         % int(days)
     )
+
+
+def register(mcp, workspace):
+    """把四个提示模板注册到 mcp（2026-10-12 从 server.py 移入）。
+
+    这里**只做注册**：组装逻辑在上文同名的纯函数里（脱 SDK 可测）。注册名显式给
+    `name=`，内部函数名加 `_prompt` 后缀以免遮蔽模块级的组装函数。
+    """
+    @mcp.prompt(name="review_jd",
+                description="评估岗位 JD：资格门槛 → 四维评分 → 投递建议")
+    def review_jd_prompt(job_dir: str = "") -> str:
+        """评估一个岗位的 JD（只读）。job_dir 留空时先让用户选岗位。"""
+        return review_jd(workspace, job_dir)
+
+    @mcp.prompt(name="generate_application_pack",
+                description="生成投递包：按 JD 改简历 → 归档 → 记入追踪表（写入走确认）")
+    def generate_application_pack_prompt(job_dir: str = "") -> str:
+        """生成投递包。所有写入必须走两段式（preview → 用户确认 → apply）。"""
+        return generate_application_pack(workspace, job_dir)
+
+    @mcp.prompt(name="interview_review",
+                description="面试复盘：汇总面试记录 → 表现要点与改进项")
+    def interview_review_prompt(app_id: str = "") -> str:
+        """做一次面试复盘（只读）。app_id 留空时先让用户选一条记录。"""
+        return interview_review(workspace, app_id)
+
+    @mcp.prompt(name="today_todos",
+                description="今日待办：从看板摘要挑出今天该做的事")
+    def today_todos_prompt(days: int = 7) -> str:
+        """整理今天的求职待办（只读）。days 是待办窗口天数（默认 7）。"""
+        return today_todos(workspace, days)

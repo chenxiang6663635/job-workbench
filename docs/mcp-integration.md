@@ -125,7 +125,8 @@ DSH 走**插件包**通道，不需要手写 MCP 配置：装 `dsh-job-workbench
 
 ## 四、AI 能做什么
 
-**只读**：投递记录列表、岗位池与解析卡评分、看板摘要（漏斗 / 待办 / 逾期 / 静默 /
+**只读**：投递记录列表、岗位池与解析卡评分、**岗位正文**（JD 原文 / 解析卡，
+`read_job_text`）、看板摘要（漏斗 / 待办 / 逾期 / 静默 /
 转化率）、面试记录、题库、JD 解析卡评分与差距，以及**本机诊断**——`jobws.info`
 （服务 / 领域包版本、当前工作区、数据根三态与候选清单，2026-10-05 A2）。
 
@@ -145,7 +146,7 @@ AI 侧的正确用法是三步，工具的说明文字里也写了：
 为什么要在协议上留痕而不是靠提示词：宿主把工具当手用，模型看一遍摘要就调落盘的
 成本几乎为零——"给用户看过"必须是协议的一部分。
 
-**危险等级对宿主可见（2026-10-05 D1）**：15 个工具都按 MCP 规范带注解——只读与
+**危险等级对宿主可见（2026-10-05 D1）**：16 个工具都按 MCP 规范带注解——只读与
 `preview_*` 声明 `readOnlyHint=true`，唯一的写入 `apply_approval` 声明
 `readOnlyHint=false` 且**不宣称**「仅追加」（`destructiveHint` 留规范默认，宿主按
 最谨慎路径处理）；全部 `openWorldHint=false`（服务自身不出网）。注解只是**提示**，
@@ -185,10 +186,13 @@ AI 侧的正确用法是三步，工具的说明文字里也写了：
 **MCP 面没有的能力（如阶段时间线）提示会明说「请在界面查看」，不诱导模型编造**。
 需要完整字段的列表（如面试复盘的问题记录 / 回答要点）用 `verbose=True` 参数。
 
-> **宿主支持面提示（2026-10-07）**：**DSH 对只读资源的支持尚未真机核验**（是否暴露
-> `list_resources` / `read_resource` 待验证）。`jwb-*` 技能把 `jobws://job/<目录>/jd`
-> 作为 JD 正文的读法；若在 DSH 上不可用，请让用户直接提供 JD 文本作为回退（不要
-> 凭记忆补写）。其余宿主（CodeBuddy / Claude Code 等）的资源与提示模板按本页为准。
+> **宿主支持面（2026-10-12 核验完成）**：**DSH 不桥接 MCP 资源与提示模板**——宿主
+> `@deepseek-ai/dsh-mcp-client` 的 README「Known Limitations」明写「Tools are the only
+> bridged MCP capability — Resources and Prompts have no harness consumption surface and
+> are deferred」，实现里 resource block 也被丢弃为占位符。因此：**正文一律走工具**
+> `read_job_text`（`jwb-*` 技能自 2026-10-12 起按此写），`dashboard_summary` 等列表
+> 工具同理；`jobws://` 资源与 `review_jd` 等提示模板只对**支持 resources / prompts 的
+> 宿主**（CodeBuddy / Claude Code 等）可用，本页其余描述以那些宿主为准。
 
 ## 六、故障排查
 

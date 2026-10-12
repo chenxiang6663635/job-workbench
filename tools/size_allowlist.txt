@@ -54,7 +54,9 @@ web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导�
 # --- MCP 包与 scripts/：2026-09-23 二轮审计把这两处纳入扫描范围后暴露的存量 ---
 # （此前 `SCAN_DIRS` 不含它们，MCP 包能无限膨胀而闸门一直报 OK——同一条理由当初
 #  也适用于 packages/，那边早就纳入了。这几行是"现状存档"，只许变小。）
-mcp/jobws_mcp/server.py = 354  # 工具注册表 + 参数模型；注册块按能力分组，拆分列入后续重构（2026-10-05 D1 起含注解接线，水位随之下调 358→354）
+# MCP 侧 server.py 原 354 行登记：2026-10-12 把只读资源 / 提示模板 / 正文工具的注册
+# 分别搬进 resources.register / prompts.register / resources.register_text_tool
+# （新增工具后 378 → 拆后 300，跌破 300 阈值）→ 按自洁规则删掉这一行。
 mcp/jobws_mcp/tools_readonly.py = 363  # 六个只读工具；2026-10-09 拆分批：dashboard_summary 的四段逐行筛选搬去 dashboard_sections（429→363，水位随实测下调）
 scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；main() 97 行（步骤线性，拆分列入后续重构）
 #

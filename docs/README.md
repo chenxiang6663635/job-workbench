@@ -123,7 +123,7 @@
 |---|---|
 | [`../web/README.md`](../web/README.md) | Web 界面层：八个页面、与 CLI 的关系、目录结构、已知边界 |
 | [`../web/frontend/README.md`](../web/frontend/README.md) | 前端工程说明（构建链与运行方式） |
-| [`../mcp/README.md`](../mcp/README.md) | MCP 服务：15 个工具（7 只读 + 7 个两段式预览 + `apply_approval`；只读含数据根诊断 `jobws.info`）、安装与宿主配置、工作区解析 |
+| [`../mcp/README.md`](../mcp/README.md) | MCP 服务：16 个工具（8 只读 + 7 个两段式预览 + `apply_approval`；只读含数据根诊断 `jobws.info` 与岗位正文 `read_job_text`）、安装与宿主配置、工作区解析 |
 | [`mcp-integration.md`](mcp-integration.md) | MCP 接入专篇：安装、宿主配置（四种形态，键名各异）、工作区解析、两段式用法与故障排查 |
 
 ## 已归档代码

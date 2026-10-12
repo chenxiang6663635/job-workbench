@@ -249,7 +249,7 @@ by "written for humans to read":
   size budget / refactors / packaging / docs proofreading). Criterion = **whether it changes
   the user-visible behaviour of the distributed software**.
 - **No naked terminology**: a newly introduced internal term is explained on the spot or
-  added to [glossary.md](glossary.md) and linked.
+  added to [glossary.en-US.md](glossary.en-US.md) and linked.
 - **Version sections must be self-consistent**: reverse-chronological, compare references
   filled in (pointing at real tags); `[Unreleased]` is the accumulation area and becomes the
   release number + ISO date at release time.

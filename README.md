@@ -41,7 +41,7 @@ The workbench turns all of that into queryable, traceable files.
 
 - **AI judges, scripts verify.** Scores come from your AI CLI reading the JD against your profile; Python only validates totals, applies thresholds, generates PDFs, reads/writes the tracker — and makes explainable deterministic calls (application health in four states, CSV import diffs, failure clustering — all with reasons). Changing scoring rules means editing Markdown profiles, not code.
 - **Four-layer one-way dependency**: skills (domain knowledge) → scripts (IO & validation) → data (Markdown + CSV) → git (versions). The `tools/` tree is a layered package — one CLI entry point (`jobws`) plus domain modules and gate scripts; module dependencies stay acyclic (domain code never imports the web/protocol layer), so each module stays independently testable.
-- **Three-layer separation**: tooling (`tools/` + `skills/`, domain-agnostic) · domain profiles (`template/profiles/`, pluggable) · user workspace (`personal/`, your real data). A three-tier lexicon judges skills by *"can you survive follow-up questions"*, not *"have you heard of it"* — see [`template/AGENTS.example.md`](template/AGENTS.example.md).
+- **Three-layer separation**: tooling (`tools/` + `skills/`, domain-agnostic) · domain profiles (`template/profiles/`, pluggable) · user workspace (`personal/`, your real data). A three-tier lexicon judges skills by *"can you survive follow-up questions"*, not *"have you heard of it"* — see [`template/AGENTS.example.en-US.md`](template/AGENTS.example.en-US.md).
 
 ## Features at a glance
 
@@ -92,6 +92,8 @@ python tools/jobws.py skills install --target user
 #    into "awaiting profile facts" (not scored, not killed) until you fill them;
 #    the gate never guesses. The file also carries two honesty red lines:
 #    every resume verb must survive questioning; never fabricate experience.
+#    Not a Chinese reader? template/AGENTS.example.en-US.md is the English
+#    version — use its content for AGENTS.md.
 ```
 
 **Rather not clone the repo?** Three channels:
@@ -166,12 +168,12 @@ signature (integrity is checked against the hash in `latest.yml`).
 
 - [Online docs site](https://chenxiang6663635.github.io/job-workbench/) — project intro, usage guide and downloads as a website (bilingual, searchable). The site is GitHub-hosted: if GitHub is unreachable from your network, the [Gitee mirror](https://gitee.com/Chenxiang663635/job-workbench) carries the repository — docs sources render as Markdown there, and its Issues are the mainland-reachable feedback channel
 - [Roadmap](ROADMAP.md) — Now / Later plus a shipped-batch log; items link to a tracking issue when one exists
-- [Doc index](docs/README.md) — status of every document (current / deprecated)
+- [Doc index](docs/README.en-US.md) — status of every document (current / deprecated)
 - [Usage guide](docs/usage-guide.md) — startup, the eight pages, AI workflows, CLI reference, FAQ
 - [Support & compatibility](docs/support-and-compatibility.md) — when this counts as a stable release, what is supported, and why upgrades never require converting your data
 - [Design documents](docs/specs/) — architecture, Web contract, productization, open-source release
 - [Changelog](CHANGELOG.md)
-- [Glossary](docs/glossary.md) — the internal terms used across these docs and the changelog, defined once
+- [Glossary](docs/glossary.en-US.md) — the internal terms used across these docs and the changelog, defined once (terms stay Chinese; the English companion explains them)
 
 ## Contributing
 

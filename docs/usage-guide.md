@@ -58,7 +58,7 @@ That also lays down a full set of placeholder data (8 applications / 3 interview
 
 ### Fill in your profile: AGENTS.md (the prerequisite for scoring)
 
-After init, `AGENTS.md` appears at the workspace root (template and per-item notes in `template/AGENTS.example.md`). **Section 3, "Hard-gate facts", must be filled** — degree / major / graduation year / English / city; it is the **single source of facts** for the eligibility gate:
+After init, `AGENTS.md` appears at the workspace root (template and per-item notes in `template/AGENTS.example.md`; English version: `template/AGENTS.example.en-US.md`). **Section 3, "Hard-gate facts", must be filled** — degree / major / graduation year / English / city; it is the **single source of facts** for the eligibility gate:
 
 - **If left unfilled**: jobs whose fields stay `[待填]` are classified "awaiting profile facts" — not scored, not terminated, but with no verdict either;
 - **Once filled**: the gate judges on facts, and only a definite mismatch terminates;

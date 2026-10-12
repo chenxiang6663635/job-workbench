@@ -2,6 +2,8 @@
 
 CHANGELOG 与各文档里出现的**内部术语**集中在这里定义一次；正文里再遇到，直接回查本表。
 
+英文对照版：[`glossary.en-US.md`](glossary.en-US.md)
+
 | 术语 | 含义 | 出处 / 延伸 |
 |---|---|---|
 | **两段式（写入）** | 任何写入先出「预览 + 差异 + 令牌」，确认后再凭令牌落盘——全站唯一写通道 | contributing.zh-CN.md、`docs/four-ends.md` |

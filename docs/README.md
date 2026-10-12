@@ -2,6 +2,8 @@
 
 按阅读顺序排列。不确定先看哪份时，从第一份开始。
 
+英文对照版：[`README.en-US.md`](README.en-US.md)
+
 ## 先读这几份
 
 | 文档 | 说明 |
@@ -9,6 +11,7 @@
 | [`usage-guide.md`](usage-guide.md) | **使用手册（英文主版）**：环境准备、一键启动、八个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
 | [`usage-guide.zh-CN.md`](usage-guide.zh-CN.md) | 上述手册的**简体中文同步版**（内容与主版一致，互链在各自开头） |
 | [`../README.md`](../README.md) | 项目主入口：定位、三层架构、快速开始、目录说明 |
+| [`README.en-US.md`](README.en-US.md) | 本索引的**英文对照版**（结构同构、链接目标相同） |
 | [`data-flow-matrix.md`](data-flow-matrix.md) | **数据流矩阵**：什么数据、什么时候、去哪里——隐私承诺的权威底稿（界面文案与它冲突时以它为准） |
 
 ## 设计文档
@@ -57,6 +60,7 @@
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 变更记录（单文件两级制：白话「看得见的变化」+ 英文摘要 + 「技术细节」；格式基于 Keep a Changelog）；版本号唯一来源为 `web/electron/package.json` |
 | [`four-ends.md`](four-ends.md) | 四端能力对照与例外清单（`jobws lint four-ends` 的说明页，由 `tools/four_ends_matrix.json` 生成，勿手改） |
 | [`glossary.md`](glossary.md) | 术语表：文档与 CHANGELOG 里出现的内部术语集中定义一次 |
+| [`glossary.en-US.md`](glossary.en-US.md) | 上述术语表的**英文对照版**（术语保持中文，释义为英文） |
 | [`maintenance.md`](maintenance.md) | 仓库维护说明（英文）：发布节奏、版本号纪律与项目健康度的对外交代 |
 | [`support-and-compatibility.md`](support-and-compatibility.md) | **毕业条件、支持策略与数据兼容承诺**：什么时候算正式版（四条判据）、支持哪些环境、升级为什么不需要转换数据 |
 | [`release-checklist.md`](release-checklist.md) | **发布检查清单**：CI 自动项（三道闸 / 安装卸载冒烟 / SHA256 / SmartScreen 公告）与人工必做项（真机通知实测 / 人眼验收 / 落章与演练）、发布后 72 小时与回滚 RUNBOOK |
@@ -87,7 +91,9 @@
 |---|---|
 | [`../AGENTS.md`](../AGENTS.md) | AI 工作约定：三层架构铁律、通用/个人边界、工程约束、目录约定 |
 | [`../template/AGENTS.example.md`](../template/AGENTS.example.md) | 候选人档案模板，含逐项填写说明与真实样例 |
+| [`../template/AGENTS.example.en-US.md`](../template/AGENTS.example.en-US.md) | 档案模板的**英文对照版**（标题保留中文、解释英文；偏好英文时替换 AGENTS.md 内容） |
 | [`../template/workspace/README.md`](../template/workspace/README.md) | 六个模块的用途、填写顺序、关键纪律 |
+| [`../template/workspace/README.en-US.md`](../template/workspace/README.en-US.md) | 工作区骨架说明的**英文对照版** |
 
 ## 领域插件
 
@@ -118,7 +124,7 @@
 | [`../web/README.md`](../web/README.md) | Web 界面层：八个页面、与 CLI 的关系、目录结构、已知边界 |
 | [`../web/frontend/README.md`](../web/frontend/README.md) | 前端工程说明（构建链与运行方式） |
 | [`../mcp/README.md`](../mcp/README.md) | MCP 服务：15 个工具（7 只读 + 7 个两段式预览 + `apply_approval`；只读含数据根诊断 `jobws.info`）、安装与宿主配置、工作区解析 |
-| [`mcp-integration.md`](mcp-integration.md) | MCP 接入专篇：安装、宿主配置（三种形态，键名各异）、工作区解析、两段式用法与故障排查 |
+| [`mcp-integration.md`](mcp-integration.md) | MCP 接入专篇：安装、宿主配置（四种形态，键名各异）、工作区解析、两段式用法与故障排查 |
 
 ## 已归档代码
 

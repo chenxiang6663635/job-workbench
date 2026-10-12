@@ -123,7 +123,7 @@ These are both skills the AI can load and the specification of each workflow —
 |---|---|
 | [`../web/README.md`](../web/README.md) | Web UI layer: the eight pages, its relationship to the CLI, directory structure, known boundaries |
 | [`../web/frontend/README.md`](../web/frontend/README.md) | Frontend engineering notes (build chain and how to run it) |
-| [`../mcp/README.md`](../mcp/README.md) | MCP service: 15 tools (7 read-only + 7 two-phase previews + `apply_approval`; read-only includes the data-root diagnostic `jobws.info`), installation & host configuration, workspace resolution |
+| [`../mcp/README.md`](../mcp/README.md) | MCP service: 16 tools (8 read-only + 7 two-phase previews + `apply_approval`; read-only includes the data-root diagnostic `jobws.info` and the job-text reader `read_job_text`), installation & host configuration, workspace resolution |
 | [`mcp-integration.md`](mcp-integration.md) | MCP integration deep-dive: installation, host configuration (four forms, different key names), workspace resolution, two-phase usage and troubleshooting |
 
 ## Archived code

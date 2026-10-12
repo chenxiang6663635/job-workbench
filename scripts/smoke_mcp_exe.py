@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""jobws-mcp.exe 冒烟：起 exe → stdio 握手 → tools/list → 真调一个只读工具（#271 P2-2）。
+"""jobws-mcp.exe 冒烟：起 exe → stdio 握手 → tools/list → 真调只读工具 → 资源注册（#271 P2-2）。
+
+2026-10-12 补资源探针：DSH 宿主不桥接 MCP 资源（技能改走 `read_job_text` 工具），
+但**服务侧**仍要能证明资源与模板在冻结论产物里注册成功——frozen 的导入与序列化
+与源码态可能不同，这正是本脚本存在的理由（构建成功 ≠ 能启动 ≠ 能用）。
 
 为什么单独一个冒烟（与 scripts/smoke_backend_exe.py 同款理由）：**构建成功 ≠ 能启动，
 也 ≠ 能用**。这个 exe 会随 npm 包发给「没装过 Python 的机器」，而 CI 只构建不运行产物——
@@ -87,6 +91,29 @@ def main():
         if state != "ok":
             _fail("jobws.info 的 dataRoot.state = %r（期望 ok）" % state)
         print("tools/call OK：jobws.info dataRoot.state=%s" % state)
+
+        # 资源注册（2026-10-12）：只验**注册面**（静态 3 + 模板 2），不读内容——
+        # 内容读取依赖具体工作区的数据，属 CI 的 stdio 冒烟职责（那边有夹具）。
+        send(proc, {"jsonrpc": "2.0", "id": 4, "method": "resources/list", "params": {}})
+        listed = read_message(proc, 4, deadline)
+        if listed is None or "result" not in listed:
+            _fail("resources/list 没有结果：%s" % listed)
+        uris = [item["uri"] for item in listed["result"]["resources"]]
+        expected = ["jobws://workspace/applications", "jobws://workspace/jobs",
+                    "jobws://workspace/dashboard"]
+        if uris != expected:
+            _fail("静态资源清单不符：%s" % uris)
+        print("resources/list OK：%d 个静态资源" % len(uris))
+
+        send(proc, {"jsonrpc": "2.0", "id": 5,
+                    "method": "resources/templates/list", "params": {}})
+        templates = read_message(proc, 5, deadline)
+        if templates is None or "result" not in templates:
+            _fail("resources/templates/list 没有结果：%s" % templates)
+        count = len(templates["result"]["resourceTemplates"])
+        if count != 2:
+            _fail("模板资源数不符（期望 2）：%s" % templates["result"]["resourceTemplates"])
+        print("resources/templates/list OK：%d 个模板" % count)
 
         proc.stdin.close()
         try:

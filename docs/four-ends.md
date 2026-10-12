@@ -7,7 +7,7 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **52** 条、各端不提供的例外 **70** 条、错误标识 **9** 条、宿主专属字段 **10** 条。
+**基数（随本文件自动生成）**：登记能力 **53** 条、各端不提供的例外 **72** 条、错误标识 **9** 条、宿主专属字段 **10** 条。
 
 ## 能力矩阵
 
@@ -18,6 +18,7 @@
 | JD 解析 | `jd.fetch` | — | — | — | `POST /api/jobs/fetch-jd` |
 | 通用 | `direction.list` | — | — | — | `GET /api/workspaces/directions` |
 | 岗位池 | `job.list` | — | `list_jobs` | `resume-jd-gap` | `GET /api/jobs` |
+| 岗位池 | `job.readText` | — | `read_job_text` | — | `GET /api/jobs/{job_id}` |
 | 岗位池 | `job.create` | — | — | — | `POST /api/jobs` |
 | 投递 | `application.list` | `track list` | `list_applications` | `today` | `GET /api/applications` |
 | 投递 | `application.add` | `track add` | `preview_add_application` | `apply-pack` | `POST /api/applications` |
@@ -68,6 +69,8 @@
 
 ## 各端不提供的能力（含原因）
 
+- **cli** · `job.readText`：岗位正文以工作区文件存在（`01_岗位池/<目录>/JD原文.md` / `解析卡.md`），CLI 直接读文件即可；`jd` 命令族做评分，不提供独立的「读正文」命令。
+- **plugin** · `job.readText`：插件命令层不直读正文（评分 / 差距分析各自读解析卡）；JD 原文由技能经 MCP 工具读，或用户直接提供。
 - **cli** · `prep.toggle`：打勾是界面里的学习打卡动作；命令行侧直接编辑 Markdown 即可，不代劳。
 - **mcp** · `prep.toggle`：学习进度由本人维护——勾选不由模型代劳。
 - **plugin** · `prep.toggle`：同上：勾选项是本人的学习打卡动作。

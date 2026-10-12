@@ -77,7 +77,9 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
                              "preview_add_interview", "preview_update_interview",
                              "preview_add_question", "preview_import_questions",
                              # A2（2026-10-05）：数据根诊断（只读），同样追加在末尾
-                             "jobws.info"]
+                             "jobws.info",
+                             # 2026-10-12：岗位正文工具（DSH 不桥接资源，技能改走它）
+                             "read_job_text"]
 
             # 工具注解（D1，2026-10-05）：危险等级必须**真出现在线上协议里**
             # （宿主的确认策略读的正是这个字段；只测 Python 常量等于没测接线）。
@@ -178,6 +180,25 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
             assert len(templates.resource_templates) == 2, templates.resource_templates
             jd_resource = await session.read_resource("jobws://job/探针_岗位/jd")
             assert "探针岗位的 JD" in jd_resource.contents[0].text
+
+            # 2026-10-12：正文工具与资源**同一实现**——DSH 宿主不桥接 MCP 资源
+            # （官方 mcp-client「Tools are the only bridged MCP capability」），
+            # 三个技能改走这个工具；三条错误口径（缺文件 / 未知 kind / 越界目录名）
+            # 都要如实返回 ok=false，而不是空成功。
+            jd_tool = await session.call_tool("read_job_text", {"job_name": "探针_岗位"})
+            assert "探针岗位的 JD" in jd_tool.content[0].text
+
+            no_card = await session.call_tool(
+                "read_job_text", {"job_name": "探针_岗位", "kind": "card"})
+            assert json.loads(no_card.content[0].text)["ok"] is False, "没有解析卡应给明确错误"
+
+            bad_kind = await session.call_tool(
+                "read_job_text", {"job_name": "探针_岗位", "kind": "pdf"})
+            assert json.loads(bad_kind.content[0].text)["ok"] is False, "未知 kind 应被拒"
+
+            escaped_job = await session.call_tool(
+                "read_job_text", {"job_name": "../config"})
+            assert json.loads(escaped_job.content[0].text)["ok"] is False, "越界目录名应被拒"
 
             listed_prompts = await session.list_prompts()
             prompt_names = sorted(item.name for item in listed_prompts.prompts)

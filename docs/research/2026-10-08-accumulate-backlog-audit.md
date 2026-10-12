@@ -60,7 +60,7 @@
 
 ### 1.5 治理与登记
 
-远端 8 个已合并分支未删（本地已清）；DSH 对 MCP 只读资源 `jobws://` 的支持待真机核验（三个技能把它当 JD 正文唯一读法，结构性盲区）；CodeQL 属 #207 登记的 follow-up；出网能力「先更新矩阵再改代码」尚无 CI 自动校验（`docs/data-flow-matrix.md:40-42`）；`tools/legacy_imports_allowlist.txt:29-34` 的 tracker/approval 水位 9 待归零删 shim；#204 在 CHANGELOG 26.10.0 段有交付记录但 issue 仍开放，需人工核对剩余范围后关单或继续。
+远端 8 个已合并分支未删（本地已清）；DSH 对 MCP 只读资源 `jobws://` 的支持待真机核验（三个技能把它当 JD 正文唯一读法，结构性盲区）〔**2026-10-12 已核验收口**：DSH 不桥接 MCP 资源（官方 `dsh-mcp-client` 只桥 Tools）→ 新增只读工具 `read_job_text`、三个技能改走工具，见 CHANGELOG〕；CodeQL 属 #207 登记的 follow-up；出网能力「先更新矩阵再改代码」尚无 CI 自动校验（`docs/data-flow-matrix.md:40-42`）；`tools/legacy_imports_allowlist.txt:29-34` 的 tracker/approval 水位 9 待归零删 shim；#204 在 CHANGELOG 26.10.0 段有交付记录但 issue 仍开放，需人工核对剩余范围后关单或继续。
 
 ## 二、新增功能候选
 

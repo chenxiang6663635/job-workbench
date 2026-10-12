@@ -8,7 +8,7 @@ CLI（`jobws.py` 命令组守卫）都会拒绝。本中间件补上 MCP 侧的�
 
 实现走**官方拦截点**：`MCPServer(middleware=[...])`（`ServerMiddleware`，
 `(ctx, call_next)`，在参数校验前包裹每条入站消息）——单一具位点，不需要在
-15 个工具入口各加一行。
+每个工具入口各加一行（工具数会增长，这里刻意不写死数字）。
 
 细节：
 - 判据与 API 同源：`dataroot.persisted_unavailable()`（O(1)：一个文件读取 +

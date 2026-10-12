@@ -89,7 +89,8 @@ def _check_capabilities(caps, actual, gui_list):
                                   % (cid, cap["cli"], group, " / ".join(available)))
         if cap.get("mcp"):
             if mcp is not None and cap["mcp"] not in mcp_set:
-                issues.append("能力 %s：MCP 工具 `%s` 未注册（server.py 里没有）"
+                issues.append("能力 %s：MCP 工具 `%s` 未注册（server.py / "
+                              "tool_registry.py 里没有）"
                               % (cid, cap["mcp"]))
             if "预览" in note and not _WRITE_TOOL_RE.match(cap["mcp"]):
                 issues.append("能力 %s：写入类 MCP 工具名 `%s` 不符合 preview_<动作>_<资源>"

@@ -24,11 +24,12 @@ Markdown / CSV，**服务自身不出网**（宿主拿到返回内容后可能�
 | `preview_add_question` | 预览新增一道题库题目（**不写入**） |
 | `preview_import_questions` | 预览从 `03_面试准备` 导入题目（**不写入**） |
 | `jobws.info` | 安装与数据根诊断（只读；服务 / 领域包版本、当前工作区、数据根三态 `state` / `source` / `form` / `writable` 与候选清单。2026-10-05 A2） |
+| `read_job_text` | 读岗位正文（只读；JD 原文 / 解析卡 Markdown，`kind` 取 `jd` / `card`；越界目录名拒绝、超 20 KB 截断并注明完整路径。2026-10-12——DSH 宿主不桥接只读资源，技能改走本工具） |
 
 工具一律**追加在注册末尾**（顺序稳定 → 宿主的工具描述缓存不失效）；需要完整字段
 的列表用 `verbose=True`，列表类默认只给精简列。
 
-**危险等级对宿主可见（2026-10-05 D1）**：15 个工具都按 MCP 规范带注解——只读与
+**危险等级对宿主可见（2026-10-05 D1）**：16 个工具都按 MCP 规范带注解——只读与
 `preview_*` 声明 `readOnlyHint=true`，`apply_approval` 是唯一非只读（且**不宣称**
 「仅追加」：`destructiveHint` 留规范默认，宿主按最谨慎路径处理）；全部
 `openWorldHint=false`（服务自身不出网）。等级定义与理由见
@@ -53,6 +54,12 @@ Markdown / CSV，**服务自身不出网**（宿主拿到返回内容后可能�
   准则在 `skills/jwb-*` 里，不在这里复制第二份。提示里提到的数据都指向上面真能
   读到的资源或工具（需要完整字段的列表用 `verbose=True`）；MCP 面没有的能力
   （如阶段时间线）提示会明说"请在界面查看"，不诱导模型编造。
+
+> **宿主支持面（2026-10-12 核验）**：**DSH 不桥接 MCP 资源与提示模板**（宿主
+> `dsh-mcp-client` 官方说明只桥 Tools）→ **岗位正文一律走 `read_job_text` 工具**
+> （`jwb-*` 技能已按此写）；资源与提示模板只对支持它们的宿主（CodeBuddy /
+> Claude Code 等）可用。详见 [`docs/mcp-integration.md`](../docs/mcp-integration.md)
+> 的「五、资源与提示模板」。
 
 口径与 CLI / 网页端**同源**：终态、待办（下次动作日期优先于截止日期）、逾期（只看
 「待投」）、静默（`tracker.stale_days`）、健康度（`tracker.health_score`）照搬后端看板；

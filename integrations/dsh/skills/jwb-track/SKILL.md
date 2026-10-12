@@ -83,7 +83,7 @@ jobws report --stdout                   # 只打印不写文件
   「问题记录 / 我的回答要点 / 复盘与改进」三个字段；字段为空就写「未填写」，**不要代填**。
   **MCP 不提供阶段时间线**（界面与命令行才有）——需要时间线请让用户在界面查看，
   不要自己拼一条演进过程。
-- **今日待办**：读资源 `jobws://workspace/dashboard`（**固定近 7 天窗口**，不要声称更宽）；
+- **今日待办**：`dashboard_summary()` 工具（**固定近 7 天窗口**，不要声称更宽）；
   某条记录要详情用 `list_applications(keyword=..., verbose=True)`；看板里没有的就是没有，
   **不要补推测出来的待办**。输出 ≤5 条：动作 + 对象 + 时限。
 - **更新进展**仍走两段式：`preview_update_application` / `preview_update_interview`

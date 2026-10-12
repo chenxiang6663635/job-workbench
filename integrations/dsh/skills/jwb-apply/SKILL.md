@@ -99,7 +99,8 @@ jobws track --workspace <工作区> add \
 
 宿主未接仓库（`jobws` CLI 不可用，如装进 DSH 的形态）时：
 
-- JD 内容：资源 `jobws://job/<目录名>/jd`；读不到就让用户提供，**不要自己补写岗位要求**。
+- JD 内容：只读工具 `read_job_text(job_name)`（`kind` 默认 `jd`，解析卡用 `kind="card"`）；
+  读不到就让用户提供，**不要自己补写岗位要求**。
 - 追踪记录写入**必须两段式**：`preview_add_application` / `preview_update_application`
   拿 token → 把 diff 展示给用户 → 用户确认后 `apply_approval` 落盘。预览阶段**零落盘**，
   不得跳过展示这一步。

@@ -5,7 +5,7 @@
 # 即自动叠进目标 profile；也可 `--patch <本文件>` 一次性叠加（开发态/headless）。
 #
 # 三条 insert 各司其职（行 id 与包名一样必须唯一）：
-#   mcp-jobws               MCP 工具面（15 个工具、两段式写入）
+#   mcp-jobws               MCP 工具面（16 个工具、两段式写入；岗位正文走 read_job_text）
 #   preset-jobws            可选 agent preset（求职语境 persona + 工具集基线）
 #   skill-filesystem-jobws  独立技能 provider：只挂本包 skills/ 镜像（不碰出厂 provider）
 #

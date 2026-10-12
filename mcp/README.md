@@ -55,6 +55,12 @@ Markdown / CSV，**服务自身不出网**（宿主拿到返回内容后可能�
   读到的资源或工具（需要完整字段的列表用 `verbose=True`）；MCP 面没有的能力
   （如阶段时间线）提示会明说"请在界面查看"，不诱导模型编造。
 
+> **宿主支持面（2026-10-12 核验）**：**DSH 不桥接 MCP 资源与提示模板**（宿主
+> `dsh-mcp-client` 官方说明只桥 Tools）→ **岗位正文一律走 `read_job_text` 工具**
+> （`jwb-*` 技能已按此写）；资源与提示模板只对支持它们的宿主（CodeBuddy /
+> Claude Code 等）可用。详见 [`docs/mcp-integration.md`](../docs/mcp-integration.md)
+> 的「五、资源与提示模板」。
+
 口径与 CLI / 网页端**同源**：终态、待办（下次动作日期优先于截止日期）、逾期（只看
 「待投」）、静默（`tracker.stale_days`）、健康度（`tracker.health_score`）照搬后端看板；
 评分照搬 `jd_score`（含「四维之和必须等于总分」的自洽校验）；排序照搬 `tracker.sort_key`；

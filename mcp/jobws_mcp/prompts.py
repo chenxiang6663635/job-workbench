@@ -37,15 +37,17 @@ def review_jd(workspace, job_dir=""):
     name = _job_name(job_dir) if job_dir else ""
     if name:
         target = ("目标岗位目录：%s\n"
-                  "   正文资源：jobws://job/%s/jd（JD 原文）、jobws://job/%s/card（解析卡）"
-                  % (job_dir, name, name))
+                  "   正文：工具 `read_job_text(job_name=\"%s\", kind=\"jd\"|\"card\")`（宿主无关）；"
+                  "   支持 resources 的宿主也可读 jobws://job/%s/jd、jobws://job/%s/card"
+                  % (job_dir, name, name, name))
     else:
         target = ("目标未指定：先调 list_jobs（或读资源 jobws://workspace/jobs）让用户\n"
-                  "   选一个岗位；选定后用正文资源 jobws://job/<目录名>/jd 与 /card 读它")
+                  "   选一个岗位；选定后正文用 `read_job_text` 读（支持 resources 的宿主也可\n"
+                  "   用 jobws://job/<目录名>/jd 与 /card）")
     return (
         "按求职教练的评分框架评估一个岗位 JD（**只读，不要写任何文件**）。\n"
         "1) %s\n"
-        "2) 读该岗位的正文。**资源只给 Markdown 正文**，超长会截断并给出文件路径。\n"
+        "2) 读该岗位的正文（`read_job_text`；**只给 Markdown 正文**，超长会截断并给出文件路径）。\n"
         "   读不到（岗位目录下没有 JD原文.md / 解析卡.md）就是没有——此时请让用户\n"
         "   从界面或工作区文件提供内容，**绝不凭岗位名推断 JD 写了什么**。\n"
         "3) 用技能 jwb-jd 的口径给出：资格门槛判定 → 四维加权评分 → 投递建议\n"
@@ -60,11 +62,13 @@ def generate_application_pack(workspace, job_dir=""):
     name = _job_name(job_dir) if job_dir else ""
     if name:
         target = ("目标岗位目录：%s\n"
-                  "   需要 JD 内容时读 jobws://job/%s/jd；解析卡在 jobws://job/%s/card"
-                  % (job_dir, name, name))
+                  "   需要 JD 内容时用 `read_job_text(job_name=\"%s\", kind=\"jd\"|\"card\")`；"
+                  "   支持 resources 的宿主也可读 jobws://job/%s/jd、jobws://job/%s/card"
+                  % (job_dir, name, name, name))
     else:
         target = ("目标未指定：先调 list_jobs 让用户选一个岗位"
-                  "（选定后 JD 正文在 jobws://job/<目录名>/jd）")
+                  "（选定后正文用 `read_job_text` 读；支持 resources 的宿主也可\n"
+                  "   用 jobws://job/<目录名>/jd）")
     return (
         "为指定岗位生成投递包。\n"
         "1) %s\n"

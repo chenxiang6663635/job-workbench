@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """工具注解（MCP 规范 hints，2026-10-05 D1）：把「危险等级」声明给宿主看。
 
-为什么单独一个模块：`server.py` 贴着规模水位线（只许变小），而注解是**一处
-定义、十五处引用**；集中在这里也让「等级表」可被测试与文档单点对账。
+为什么单独一个模块：注解是**一处定义、十六处引用**（工具数还会增长），集中在这里
+也让「等级表」可被测试与文档单点对账。2026-10-12 起 `server.py` 已拆到 86 行、工具
+注册表在 `tool_registry.py`——本模块不再承担「给 server.py 省行数」的职责。
 
 等级（对齐数据根 spec 决策 7 的「注解 + 宿主强制两手」）：
 
-- `READ_ONLY`：6 个领域只读 + 7 个 `preview_*` + `jobws.info`。preview 不改环境
+- `READ_ONLY`：7 个领域只读（含 2026-10-12 新增的 `read_job_text`）+ 7 个 `preview_*`
+  + `jobws.info`。preview 不改环境
   （只渲染 diff 与铸一次性令牌），按规范可以声明只读——**两段式纪律不靠注解**，
   靠令牌机制（`apply_approval` 才是唯一写入）。
 - `WRITE_CONFIRMED`：`apply_approval` 一个。`destructiveHint` 刻意**不声明**

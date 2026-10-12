@@ -40,7 +40,7 @@ npm install
 python tools/jobws.py init --target personal --domain hvac-cooling
 ```
 
-> Swap in your own domain: see the "Domain profiles" table in [`docs/README.md`](README.md) (with target audiences) for valid `--domain` values.
+> Swap in your own domain: see the "Domain profiles" table in [`docs/README.en-US.md`](README.en-US.md) (with target audiences) for valid `--domain` values.
 
 **Distribute the AI workflows to your AI CLI (desktop-installer users need this once too)** — the scoring / application / tracking skills are delivered by this step; without it the web UI works but the AI side has no workflows:
 
@@ -431,7 +431,7 @@ A `.ps1` containing Chinese must be saved as **UTF-8 with BOM**. Save it without
 | AI workflow definitions | The nine SKILL.md files under `skills/` (five job-hunting + one setup/extension + three maintainer-facing; each keeps the main file lean and puts details in its own `references/`. `tools/jobws.py skills install` distributes all three asset types — skills, commands, subagents) |
 | Support & compatibility | `docs/support-and-compatibility.md` (what counts as a stable release, what is supported, why upgrades never require converting data) |
 | Key decisions (why it is built this way) | the short records under `docs/decisions/` (human-confirmed writes, single release node, data compatibility, hooks off by default) |
-| Documentation index | `docs/README.md` |
+| Documentation index | `docs/README.en-US.md` |
 
 ---
 

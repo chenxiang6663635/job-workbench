@@ -121,7 +121,7 @@ full text (and the decision history) is the Chinese handbook.
 | **What data leaves your machine** (the privacy promise) | [docs/data-flow-matrix.md](docs/data-flow-matrix.md) |
 | Graduation criteria, support, data compatibility | [docs/support-and-compatibility.md](docs/support-and-compatibility.md) |
 | Data layering, the honesty red lines | [AGENTS.md](AGENTS.md) |
-| Architecture, data and API contracts | [docs/README.md](docs/README.md) |
+| Architecture, data and API contracts | [docs/README.en-US.md](docs/README.en-US.md) |
 
 ## Pace, conduct, security
 

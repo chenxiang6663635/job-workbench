@@ -2,6 +2,8 @@
 
 本目录是空的工作区骨架。运行 `python tools/jobws.py init --target <目录> --domain <插件>`（如 `--domain hvac-cooling`，可选值见 `docs/README.md` 的「领域插件」表）会把本目录复制到你的工作区，然后你在那里填自己的内容。
 
+英文对照版（仓库内）：`template/workspace/README.en-US.md`。
+
 ## 六个模块
 
 | 模块 | 放什么 | 入口文件 |

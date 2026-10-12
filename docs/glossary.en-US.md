@@ -16,7 +16,7 @@ Terms stay in Chinese on purpose (they are quoted verbatim in the changelog and 
 | **硬闸（闸门）** | A checkpoint that refuses to continue unless its condition holds (CI gates; historically the MCP "repo must sit beside the workspace" gate) | CHANGELOG |
 | **壳层** | The outer layer of the MCP service: translates protocol calls into domain-layer calls and adds protocol-level test cases | CHANGELOG、`mcp/` |
 | **shim（转发层）** | A compatibility file for an old import name: `sys.modules` forwarding + a deprecation warning, so old paths migrate smoothly | contributing.zh-CN.md、CHANGELOG |
-| **领域层包化** | Moving the domain modules into the standalone `jobws-core` package (`jobws_core`), leaving only forwarding in the repo | Package README、CHANGELOG |
+| **领域层包化** | Moving the domain modules into the standalone `packages/jobws-core` package (`jobws_core`), leaving only forwarding in the repo | Package README、CHANGELOG |
 | **旧名水位** | The cap on how many old import names may remain: may only go down, and the shim is deleted at zero | `tools/legacy_imports_allowlist.txt` |
 | **规模水位线** | The registered line-count cap for an oversized file: may only shrink; once below the threshold the entry must be removed (self-cleaning) | `tools/size_allowlist.txt`、contributing.zh-CN.md |
 | **自洁强制** | When a watermark drops below its threshold the checker fails until the entry is deleted — keeps allowlists from rotting | contributing.zh-CN.md「代码卫生」 |

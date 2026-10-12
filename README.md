@@ -79,7 +79,7 @@ All pages below run on generated demo data (`jobws init --demo`); companies, rol
 python tools/jobws.py init --target demo --demo
 
 # 1. Initialize a workspace (six modules + profile templates + a domain plugin)
-#    Swap --domain for your own field — see the "Domain profiles" table in docs/README.md
+#    Swap --domain for your own field — see the "Domain profiles" table in docs/README.en-US.md
 #    ("personal" is the CLI's default workspace name; any directory name works.)
 python tools/jobws.py init --target personal --domain hvac-cooling
 

@@ -52,6 +52,10 @@ jobs:
 
       # codeql-action v3.38.3（2026-10-08；同日还有 v4.38.3，两者发布内容一致，
       # v3 是长期稳定主线——升 v4 属独立评估项，dependabot 会提 PR，届时按变更说明逐条核）。
+      # **时限**：run 日志已明示「CodeQL Action v3 will be deprecated in December
+      # 2026」——26.11.0（十一月发车）落地后不久就会撞上弃用窗口，v4 升级评估是
+      # 发布链前置项之一（dependabot 月度 PR 会提：变更说明逐条核 + PR 实测），
+      # 别等弃用当天再动。
       # 版本策略与仓库其他 action 一致：按提交 SHA 固定 + 行尾注释版本号。
       - name: 初始化 CodeQL
         uses: github/codeql-action/init@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3

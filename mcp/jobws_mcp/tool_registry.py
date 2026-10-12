@@ -14,6 +14,9 @@
 注册顺序即 `tools/list` 的输出顺序；宿主按前缀比对工具描述做提示缓存，顺序抖动
 会让缓存整段失效。`mcp/tests/test_stdio_smoke.py` 钉住了这张清单——**改顺序即红**，
 新增工具一律追加在末尾（见最下方 `register_all` 的注释）。
+
+**例外**：`read_job_text` 与岗位正文资源同源，其注册随 `resources.register_text_tool`
+在 `server.py` 末尾调用——不进本模块。
 """
 
 import json

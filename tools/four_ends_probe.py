@@ -45,11 +45,11 @@ def cli_capabilities(root):
 def mcp_tools(root):
     """MCP 工具名（按注册顺序）：ast 解析 jobws_mcp 包，抓 @mcp.tool 的注册名。
 
-    2026-10-05 A2 起注册不再限定在 server.py——`jobws.info` 的注册随实现落在
-    `info.py`（server.py 贴着规模水位线，只留一行接入）。扫描顺序：server.py 的
-    源码顺序在前（主注册表），其余模块按文件名字典序在后——与「工具一律追加在
-    注册末尾」的纪律一致；**真实注册顺序**由 test_stdio_smoke 的清单断言钉，
-    本探针保证的是能力集合完整（正向 / 反向对账都不漏）。
+    2026-10-12 起工具注册集中在 `tool_registry.py`（`server.py` 只留装配与入口），
+    另有 `jobws.info` 随 `info.py`、`read_job_text` 随 `resources.py` 注册。扫描顺序：
+    server.py 在前、其余模块按文件名字典序在后——**真实注册顺序**由 test_stdio_smoke
+    的清单断言钉（顺序纪律见 `tool_registry` 的注释）；本探针保证的是能力集合完整
+    （正向 / 反向对账都不漏），不依赖扫描次序。
     """
     # ast.unparse 是 3.9+ 才有的：拿不到它就读不出装饰器原文。这里**显式报错**而不是
     # 返回空表——空表会被上层读成「一个工具都没注册」，在低版本解释器上刷出一屏假缺陷

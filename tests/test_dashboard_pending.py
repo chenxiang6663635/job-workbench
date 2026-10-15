@@ -68,3 +68,22 @@ def test_pending_orders_by_health_level_then_id():
     # 空值行进得来、字段是空串而不是 KeyError
     empty = items[0]
     assert empty["公司"] == "" and empty["岗位"] == ""
+
+
+def test_pending_tie_break_strips_id_like_mcp_side():
+    """tie-break 的 id 归一化与 MCP 侧同口径（strip 后比较）。
+
+    手改过的 CSV 里 id 可能带空白（" 3"）：排序键若用原值，两端会再次给出不同
+    次序——那正是本文件要钉住的东西。payload 的 id 仍保留原值（既有展示行为）。
+    """
+    rows = [
+        _row(id=" 3", 公司="带空白", 岗位="后端开发", 当前阶段="待投",
+             截止日期=TODAY.isoformat()),
+        _row(id="2", 公司="正常值", 岗位="前端开发", 当前阶段="待投",
+             截止日期=TODAY.isoformat()),
+    ]
+
+    items = _pending(rows)
+
+    # 次序按 strip 后比较（2 < 3）；若按原值则 " 3" < "2"（空格小于 '2'）会反过来
+    assert [i["id"] for i in items] == ["2", " 3"]

@@ -159,7 +159,11 @@ def _pending_health(rows, history, today):
         })
     # 同档文序与 CLI `tracker.sort_key` 同口径（id 升序）：只按档位 sort 时，
     # 同档多条的次序取决于 sort 稳定性 + 读表原序——三端各给一个「谁排前面」。
-    pending.sort(key=lambda x: (tracker.HEALTH_LEVELS.index(x["level"]), x["id"]))
+    # 排序键的 id 取 strip 后的值，与 MCP 侧 `dashboard_sections.pending` 同口径
+    # （手改 CSV 里 id 带空白时两端才给出同一次序）；payload 的 id 保留原值（既有
+    # 行为，界面展示用，不在此改）。
+    pending.sort(key=lambda x: (tracker.HEALTH_LEVELS.index(x["level"]),
+                                (x["id"] or "").strip()))
     return pending
 
 

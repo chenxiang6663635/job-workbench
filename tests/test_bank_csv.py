@@ -82,6 +82,71 @@ def test_export_writes_full_header_and_rows(ws, tmp_path):
     assert out.read_bytes().startswith(b"\xef\xbb\xbf")  # utf-8-sig：Excel 双击不乱码
 
 
+@pytest.mark.parametrize("danger", ["=SUM(A1:A9)", "+HYPERLINK(\"http://x\")",
+                                    "-2+3", "@SUM(A1:A9)", "\t制表符开头",
+                                    "\r回车开头"])
+def test_export_neutralizes_formula_prefixes(ws, tmp_path, danger):
+    """题库导出与其它 CSV 出口同一道闸（其余路径走 `atomic_write_csv` → `csv_cell`）。
+
+    导出曾是**全仓唯一**不过公式防护的 CSV 写出路径：答案要点 / 备注是用户粘贴的
+    邮件原文，原样落盘等于把「打开导出文件」变成「执行一段不受控的表达式」。
+    """
+    row = _question("Q001", "缓存雪崩")
+    row["答案要点"] = danger
+    row["备注"] = danger
+    _seed(ws, [row])
+    out = tmp_path / "out.csv"
+
+    question_bank.export_csv(str(ws), str(out))
+
+    with io.open(str(out), "r", encoding="utf-8-sig", newline="") as handle:
+        exported = list(csv.DictReader(handle))
+    assert exported[0]["题目"] == "缓存雪崩"    # 无危险前缀的字段一个字符都不动
+    for field in ("答案要点", "备注"):
+        assert exported[0][field] == "'" + danger, field
+
+
+def test_export_import_roundtrip_restores_danger_without_accumulation(ws, tmp_path):
+    """闭环反转用例：导出中和 → 导入还原 → 再导出不得引号累积。
+
+    只修写侧会制造新漂移：读侧（`_read_import_csv`）若只 strip 不还原，
+    「'=X」导出后导入得「'=X」、再过写侧变「''=X」——题库里永久多一个引号，
+    而判重键（题目+领域+科目）不含该列，既有往返幂等用例照旧绿，问题被藏住。
+    """
+    danger = "=SUM(A1:A9)"
+    row = _question("Q001", "缓存雪崩")
+    row["答案要点"] = danger
+    row["备注"] = "- 二面待定"    # 用户真正想留的前导连字符：也要原样往返
+    _seed(ws, [row])
+    out = tmp_path / "out.csv"
+    question_bank.export_csv(str(ws), str(out))
+
+    with io.open(str(out), "r", encoding="utf-8-sig", newline="") as handle:
+        assert list(csv.DictReader(handle))[0]["答案要点"] == "'" + danger
+
+    # 读侧：导入拿回的是原始危险字符串（引号被还原，不是被 strip 掉）
+    target = tmp_path / "ws2"
+    (target / "05_投递追踪").mkdir(parents=True)
+    errors, plan = question_bank.preview_import_csv(str(out), str(target))
+    assert errors == []
+    item = plan["payload"]["items"][0]
+    assert item["答案要点"] == danger
+    assert item["备注"] == "- 二面待定"
+
+    _apply_plan(plan, target)
+    stored = question_bank.read_questions(str(target))
+    assert stored[0]["答案要点"] == danger
+    assert stored[0]["备注"] == "- 二面待定"
+
+    # 再导出：中和引号只有一个，不累积（不是 ''=SUM…）
+    out2 = tmp_path / "out2.csv"
+    question_bank.export_csv(str(target), str(out2))
+    with io.open(str(out2), "r", encoding="utf-8-sig", newline="") as handle:
+        again = list(csv.DictReader(handle))
+    assert again[0]["答案要点"] == "'" + danger
+    assert again[0]["备注"] == "'- 二面待定"
+
+
 def test_export_refuses_to_overwrite_and_cli_exits_one(ws, tmp_path, capsys):
     _seed(ws, [_question("Q001", "缓存雪崩")])
     out = tmp_path / "out.csv"

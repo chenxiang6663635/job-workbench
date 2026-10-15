@@ -25,7 +25,7 @@ import sys
 
 from . import tracker  # noqa: E402  （工作区解析、原子写、锁与 ConflictError）
 from . import workspace_io  # noqa: E402
-from .csv_cells import read_rows as read_csv_rows  # noqa: E402  （读取模式唯一实现）
+from .csv_cells import csv_cell, read_rows as read_csv_rows, restore_row  # noqa: E402  （写/读两侧唯一实现）
 
 # 字段常量**只在 tracker.py 定义一处**（与 TALK_* / INTERVIEW_* 同区），这里导入
 # 复用——同一张表的列名若在两处各写一遍，改了一边就会静默失配（自检、CSV 表头、
@@ -472,7 +472,7 @@ def _read_import_csv(csv_path):
 
     `题目id` 列一律忽略、记录里置空：身份由题库分配（导出的 CSV 再导入回来
     因此**幂等**——判重键是「题目+领域+科目」，结果是"已存在，跳过"，
-    不会制造一题两号）。未知列忽略但把列名带回去，让预览能说清。
+    不会制造一题两号）。未知列忽略但把列名带回去，让预览能说清。读侧过 `restore_row` 还原导出时为 Excel 中和的引号：只 strip 不还原会让「'=X」导入后仍是「'=X」，下次写盘再过 `csv_cell` 变「''=X」（判重键不含该列，会被幂等用例藏住）。
     """
     if not os.path.isfile(csv_path):
         return None, None, "文件不存在：%s" % csv_path
@@ -484,7 +484,7 @@ def _read_import_csv(csv_path):
                 return None, None, "CSV 表头缺少「题目」列：%s" % csv_path
             unknown = [c for c in columns if c not in QUESTION_FIELDS]
             records = []
-            for row in reader:
+            for row in map(restore_row, reader):
                 record = dict((f, (row.get(f) or "").strip())
                               for f in QUESTION_FIELDS if f != "题目id")
                 record["题目id"] = ""
@@ -567,7 +567,7 @@ def export_csv(workspace=None, target_path=None):
 
     表头与工作区 CSV 一字不差（`QUESTION_FIELDS`）；utf-8-sig 让 Excel 双击
     不乱码。**不覆盖已存在的文件**——静默覆盖别人的数据文件是数据丢失
-    （与 `jobws export --obsidian` 同一条纪律）。
+    （与 `jobws export --obsidian` 同一条纪律）。单元格过 `csv_cell()`：与 `atomic_write_csv` / 时间线追加同一道公式防护闸（导出曾是全仓唯一不过防护的 CSV 写出路径）；读侧闭环在 `_read_import_csv` 的 `restore_row`。
     """
     ws = tracker.resolve_ws(workspace)
     target_path = (target_path or "").strip()
@@ -580,7 +580,7 @@ def export_csv(workspace=None, target_path=None):
     writer = csv.DictWriter(buf, fieldnames=QUESTION_FIELDS)
     writer.writeheader()
     for row in rows:
-        writer.writerow(dict((f, row.get(f) or "") for f in QUESTION_FIELDS))
+        writer.writerow(dict((f, csv_cell(row.get(f))) for f in QUESTION_FIELDS))
     workspace_io.atomic_write_text(target_path, buf.getvalue(),
                                    encoding="utf-8-sig")
     return len(rows)

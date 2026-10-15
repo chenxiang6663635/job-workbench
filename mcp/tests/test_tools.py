@@ -23,7 +23,7 @@ MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if MCP_DIR not in sys.path:
     sys.path.insert(0, MCP_DIR)
 
-from jobws_mcp import paths, tools_readonly  # noqa: E402
+from jobws_mcp import dashboard_sections, paths, tools_readonly  # noqa: E402
 from jobws_core import tracker  # noqa: E402
 
 TODAY = date(2026, 9, 14)
@@ -209,6 +209,67 @@ def test_dashboard_summary_reads_history_once_and_passes_own_entries(seeded, mon
     assert any(ids for _, ids in seen), "夹具没造出时间线条目——捕获网没验到东西"
     for row_id, entry_ids in seen:
         assert all(eid == row_id for eid in entry_ids), (row_id, entry_ids)
+
+
+# --- pending 健康度排序 -------------------------------------------------------
+
+
+def test_pending_orders_by_health_level():
+    """待推进段：健康度降序 + 同档 id 升序（与 CLI `sort_key` 同口径）。
+
+    `health_score` 只定档、不排序；两端看板此前只按档位 sort，同档多条的文序
+    靠 sort 稳定性 + 读表原序——和 CLI（id 升序）不是同一个口径。这条把
+    同档次序、三档全貌、空值、跨天边界与终态豁免一次钉住。
+    """
+    today = TODAY
+    rows = [
+        # urgent 同档三条：文件里 id 乱序 + 一个空 id → 出去必须 id 升序
+        _row(id="7", 公司="云帆智算", 岗位="数据平台", 当前阶段="待投",
+             截止日期=(today - timedelta(days=1)).isoformat()),
+        _row(id="", 公司="", 岗位="", 当前阶段="待投",
+             截止日期=today.isoformat()),
+        _row(id="3", 公司="星海智能", 岗位="算法工程师", 当前阶段="待投",
+             截止日期=(today - timedelta(days=4)).isoformat()),
+        # overdue：下次动作昨天（今天是边界——今天不算逾期，见 id=6）
+        _row(id="5", 公司="示例科技", 岗位="后端开发", 当前阶段="已投",
+             投递日期=(today - timedelta(days=2)).isoformat(),
+             下次动作="跟进 HR", 下次动作日期=(today - timedelta(days=1)).isoformat()),
+        # stale：停留 20 天（无时间线条目时基准取投递日期）
+        _row(id="9", 公司="旧识网络", 岗位="前端工程师", 当前阶段="一面",
+             投递日期=(today - timedelta(days=20)).isoformat()),
+        # 不入列：下次动作是今天（未逾期）→ ok
+        _row(id="6", 公司="边界公司", 岗位="测试工程师", 当前阶段="已投",
+             投递日期=(today - timedelta(days=2)).isoformat(),
+             下次动作="今天跟进", 下次动作日期=today.isoformat()),
+        # 不入列：截止还远 → ok
+        _row(id="4", 公司="从容公司", 岗位="运维工程师", 当前阶段="待投",
+             截止日期=(today + timedelta(days=10)).isoformat()),
+        # 不入列：终态（level=None）
+        _row(id="8", 公司="终结公司", 岗位="产品经理", 当前阶段="已挂"),
+    ]
+
+    items = dashboard_sections.pending(rows, {}, today)
+
+    assert [i["id"] for i in items] == ["", "3", "7", "5", "9"]
+    assert [i["level"] for i in items] == ["urgent", "urgent", "urgent",
+                                           "overdue", "stale"]
+    # 空值行进得来、字段是空串而不是 KeyError
+    empty = items[0]
+    assert empty["公司"] == "" and empty["岗位"] == ""
+
+
+def test_dashboard_summary_pending_tie_break_is_id_ascending(ws):
+    """同档多条的端到端文序：id 升序（与 CLI sort_key 同口径），不是文件行序。"""
+    _write_tracker(ws, [
+        _row(id="2", 公司="云帆智算", 岗位="数据平台开发", 当前阶段="待投",
+             截止日期=(TODAY - timedelta(days=1)).isoformat()),
+        _row(id="1", 公司="示例科技", 岗位="后端开发", 当前阶段="待投",
+             截止日期=(TODAY - timedelta(days=1)).isoformat()),
+    ])
+
+    data = tools_readonly.dashboard_summary(ws, today=TODAY)
+
+    assert [p["id"] for p in data["pending"]] == ["1", "2"]
 
 
 # --- 工作区解析（安全边界） --------------------------------------------------

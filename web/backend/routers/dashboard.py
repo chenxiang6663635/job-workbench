@@ -157,7 +157,9 @@ def _pending_health(rows, history, today):
             "level": health["level"], "reasons": health["reasons"],
             "hints": health.get("hints", []),
         })
-    pending.sort(key=lambda x: tracker.HEALTH_LEVELS.index(x["level"]))
+    # 同档文序与 CLI `tracker.sort_key` 同口径（id 升序）：只按档位 sort 时，
+    # 同档多条的次序取决于 sort 稳定性 + 读表原序——三端各给一个「谁排前面」。
+    pending.sort(key=lambda x: (tracker.HEALTH_LEVELS.index(x["level"]), x["id"]))
     return pending
 
 

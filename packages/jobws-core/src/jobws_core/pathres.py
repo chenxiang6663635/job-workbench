@@ -236,6 +236,16 @@ def default_workspace(root=None):
     return full
 
 
+def resolve_workspace_arg(value):
+    """CLI `--workspace` 缺省解析：显式优先、缺省按数据根现算（调用时求值）。
+
+    坏 env 会把显式传参与 `--help` 一起拦掉（2026-10-15 修）；详见测试模块 docstring。
+    """
+    if value and str(value).strip():
+        return value
+    return default_workspace()
+
+
 def resolve_workspace_root(root=None):
     """可写的数据根目录——即 personal/ 的**父目录**（不是 personal 本身）。
 

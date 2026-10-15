@@ -41,6 +41,11 @@ def default_workspace():
     return pathres.default_workspace()
 
 
+def resolve_workspace_arg(value=None):
+    """CLI `--workspace` 缺省解析——转发 pathres 唯一实现（与 default_workspace 同款）。"""
+    return pathres.resolve_workspace_arg(value)
+
+
 # 由 main() 在解析 --workspace 后赋值；None = 尚未解析——读侧现算
 # `default_workspace()`（report.py 等导入方不经过 main 时的兜底）。
 WORKSPACE = None

@@ -3,9 +3,15 @@
 
 cross_end_audit 缺陷 A：CLI 的默认工作区锚在应用根——B3 把数据根默认切到
 `<user_data_dir>/data` 后，新装场景 CLI 与 API / MCP 默认分叉。修复后
-`pathres.default_workspace()` 是唯一实现，各 CLI parser 的 `--workspace`
-默认值都从它取（**构建 parser 时调用**，不是模块常量——常量会在测试与长驻
-进程里过期）。
+`pathres.default_workspace()` 是唯一实现，各 CLI 的 `--workspace` 缺省值都从
+它取（**调用时求值**，不是模块常量——常量会在测试与长驻进程里过期）。
+
+2026-10-15 欠账修复：缺省值的解析时机从「构建 parser 时」移到「parse 之后」
+（`pathres.resolve_workspace_arg`）。原因是 argparse 的 `default=` 在**构建
+parser 时**求值——`JOBWS_WORKSPACE` 越界时 `build_parser()` 自己就抛
+`WorkspaceOutOfRange`，用户的显式 `--workspace` 与 `--help` 一起被拦掉（连帮助
+都拿不到）。本文件因此同时钉两件事：缺省值仍与数据根同源；坏 env 不再拦显式传参
+与帮助（没有显式值时仍旧 fail-closed，入口译成退出码 2）。
 """
 
 import os
@@ -45,14 +51,56 @@ def test_default_workspace_follows_workspace_env(tmp_path, monkeypatch):
     assert pathres.default_workspace() == os.path.join(str(tmp_path), "side")
 
 
-def test_track_parser_default_matches_data_root(tmp_path, monkeypatch):
-    """`jobws track` 的 --workspace 默认值 = 数据根推导（不再是仓库根）。"""
+def test_track_workspace_default_matches_data_root(tmp_path, monkeypatch):
+    """`jobws track` 的 --workspace 缺省值 = 数据根推导（不再是仓库根）。
+
+    2026-10-15 起 parser 只认显式值（`default=None`），缺省由
+    `pathres.resolve_workspace_arg` 在 parse 之后现算——理由见模块 docstring。
+    """
     monkeypatch.setenv(pathres.ENV_DATA_DIR, str(tmp_path))
     import importlib
     misc = importlib.import_module("tracker._cli_misc")
     args = misc.build_parser().parse_args([])
-    assert args.workspace == pathres.default_workspace()
-    assert os.path.dirname(args.workspace) == os.path.abspath(str(tmp_path))
+    assert args.workspace is None, "parser 不再在构建时求值缺省工作区"
+    resolved = pathres.resolve_workspace_arg(args.workspace)
+    assert resolved == pathres.default_workspace()
+    assert os.path.dirname(resolved) == os.path.abspath(str(tmp_path))
+
+
+def test_resolve_workspace_arg_prefers_explicit_over_env(tmp_path, monkeypatch):
+    """显式值优先（空串 / 纯空白回落缺省），缺省按数据根现算。"""
+    monkeypatch.setenv(pathres.ENV_DATA_DIR, str(tmp_path))
+    assert pathres.resolve_workspace_arg(os.path.join(str(tmp_path), "side")) \
+        == os.path.join(str(tmp_path), "side")
+    for blank in (None, "", "   "):
+        assert pathres.resolve_workspace_arg(blank) == pathres.default_workspace()
+
+
+@pytest.mark.parametrize("bad", ["..", "..\\evil", "a/../b", "C:foo", "D:\\abs", "/abs/path"])
+def test_bad_workspace_env_does_not_block_explicit_value(tmp_path, monkeypatch, bad):
+    """坏 env 不再拦显式 --workspace（2026-10-15 修复点，三组命令同修）。"""
+    monkeypatch.setenv(pathres.ENV_DATA_DIR, str(tmp_path))
+    monkeypatch.setenv(pathres.ENV_WORKSPACE, bad)
+    import importlib
+    explicit = os.path.join(str(tmp_path), "side")
+    misc = importlib.import_module("tracker._cli_misc")
+    assert misc.build_parser().parse_args(
+        ["--workspace", explicit, "list"]).workspace == explicit
+    for module_name in ("_cli_resume", "_cli_jd_score"):
+        parser = importlib.import_module(module_name)._build_parser()
+        assert parser.parse_args(["--workspace", explicit]).workspace == explicit
+
+
+def test_bad_workspace_env_does_not_block_help(tmp_path, monkeypatch, capsys):
+    """坏 env 下 --help 仍出帮助：构建 parser 不再求值缺省工作区。"""
+    monkeypatch.setenv(pathres.ENV_DATA_DIR, str(tmp_path))
+    monkeypatch.setenv(pathres.ENV_WORKSPACE, "../evil")
+    import importlib
+    misc = importlib.import_module("tracker._cli_misc")
+    with pytest.raises(SystemExit) as excinfo:
+        misc.build_parser().parse_args(["--help"])
+    assert excinfo.value.code == 0
+    assert "--workspace" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("bad", ["..", "..\\evil", "a/../b", "C:foo", "D:\\abs", "/abs/path"])

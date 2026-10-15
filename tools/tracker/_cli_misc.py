@@ -27,7 +27,7 @@ from ._cli_interview import (cmd_interview)
 from ._cli_mail import (cmd_mail)
 from ._cli_offer import (cmd_offer)
 from ._cli_talk import (cmd_talk)
-from ._core import (WORKSPACE, default_workspace)
+from ._core import (WORKSPACE, resolve_workspace_arg)
 from ._schema import (BATCHES, INTERVIEW_FORMS, INTERVIEW_RESULTS, INTERVIEW_ROUNDS, MAIL_DIRECTIONS, MAIL_TAGS, SOURCES, TALK_ATTEND, TALK_FORMS)
 from .importing import (cmd_import)
 
@@ -220,7 +220,9 @@ def _add_misc_parsers(sub):
 def build_parser():
     """组装 argparse 解析器：按域拆成小 helper（各自 ≤80 行）。"""
     parser = argparse.ArgumentParser(description="投递追踪表增删查改")
-    parser.add_argument("--workspace", default=default_workspace(),
+    # default=None：缺省在 parse 之后由 resolve_workspace_arg 现算——在构建时求值
+    # 会让坏 JOBWS_WORKSPACE 把 build_parser() 自己拦掉（显式传参与 --help 全废）
+    parser.add_argument("--workspace", default=None,
                         help="工作区目录，默认数据根下的 personal/")
     sub = parser.add_subparsers(dest="cmd")
     _add_app_parsers(sub)
@@ -237,6 +239,7 @@ def build_parser():
 def main():
     parser = build_parser()
     args = parser.parse_args()
+    args.workspace = resolve_workspace_arg(args.workspace)
 
     _core.WORKSPACE = os.path.abspath(args.workspace)
     if not os.path.isdir(_core.WORKSPACE):

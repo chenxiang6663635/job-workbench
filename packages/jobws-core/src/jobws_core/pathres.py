@@ -239,7 +239,7 @@ def default_workspace(root=None):
 def resolve_workspace_arg(value):
     """CLI `--workspace` 缺省解析：显式优先、缺省按数据根现算（调用时求值）。
 
-    坏 env 会把显式传参与 `--help` 一起拦掉（2026-10-15 修）；详见测试模块 docstring。
+    坏 env 会把显式传参与 `--help` 一起拦掉（2026-10-15 修）；空/纯空白显式按缺省处理。
     """
     if value and str(value).strip():
         return value

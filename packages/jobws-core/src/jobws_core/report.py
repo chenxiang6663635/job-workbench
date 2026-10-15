@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
-"""由投递追踪表生成 Markdown 漏斗看板。
+"""由投递追踪表生成 Markdown 漏斗看板（入口：`jobws report`）。
 
-用法：
-    python tools/report.py
-    python tools/report.py --out 05_投递追踪/看板.md
-    python tools/report.py --stdout          # 只打印，不写文件
-
-看板包含六部分：投递漏斗、按方向统计、按批次统计、近 7 天待办、已过截止日提醒、周期复盘（转化率 / 停留 / 失败归因与聚类）。
-
-退出码：0 成功，1 失败。
+看板六部分：投递漏斗、按方向统计、按批次统计、近 7 天待办、已过截止提醒、
+周期复盘（转化率 / 停留 / 失败归因与聚类）。退出码：0 成功，1 失败。
 """
 
 from __future__ import print_function
@@ -23,7 +17,8 @@ from datetime import date, timedelta
 
 from .tracker import (
     FAIL_STAGES, ROOT, STAGES, TERMINAL_STAGES, csv_path, default_workspace,
-    parse_iso_date, read_history, read_rows, set_workspace,
+    parse_iso_date, read_history, read_rows, resolve_workspace_arg,
+    set_workspace,
 )
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # 时间线时间戳的日期部分（YYYY-MM-DD HH:MM）
@@ -489,12 +484,15 @@ def build_report(rows, today, workspace=None):
 
 
 def main():
+    # --workspace 只认显式值：缺省在 parse 之后由 resolve_workspace_arg 现算——
+    # 构建时求值会让坏 JOBWS_WORKSPACE 把显式传参与 --help 一起拦掉（2026-10-15 修）。
     parser = argparse.ArgumentParser(description="生成投递漏斗看板")
-    parser.add_argument("--workspace", default=default_workspace(),
+    parser.add_argument("--workspace", default=None,
                         help="工作区目录，默认数据根下的 personal/")
     parser.add_argument("--out", help="输出文件路径，默认工作区下 05_投递追踪/看板.md")
     parser.add_argument("--stdout", action="store_true", help="只打印到标准输出，不写文件")
     args = parser.parse_args()
+    args.workspace = resolve_workspace_arg(args.workspace)
 
     workspace = os.path.abspath(args.workspace)
     if not os.path.isdir(workspace):

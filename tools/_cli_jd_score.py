@@ -28,7 +28,7 @@ def _build_parser():
     parser = argparse.ArgumentParser(description="校验 JD 解析卡评分并输出结论档位")
     # --show-profile 只查插件路径，不需要解析卡，故设为可选
     parser.add_argument("card", nargs="?", help="解析卡路径")
-    parser.add_argument("--workspace", default=pathres.default_workspace(),
+    parser.add_argument("--workspace", default=None,
                         help="工作区目录，默认数据根下的 personal/")
     parser.add_argument("--domain", help="领域插件 ID，如 hvac-cooling")
     parser.add_argument("--direction", help="方向 ID，如 datacenter / hvac")
@@ -136,6 +136,7 @@ def _print_verdict(values, total):
 def main():
     parser = _build_parser()
     args = parser.parse_args()
+    args.workspace = pathres.resolve_workspace_arg(args.workspace)
 
     workspace = os.path.abspath(args.workspace)
 

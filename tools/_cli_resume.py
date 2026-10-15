@@ -46,7 +46,7 @@ def _build_parser():
                     "无子命令时打手写 HTML（高级模板）。")
     parser.add_argument("command", nargs="?", default=None,
                         help="render：数据驱动标准版式；省略走手写 HTML")
-    parser.add_argument("--workspace", default=pathres.default_workspace(),
+    parser.add_argument("--workspace", default=None,
                         help="工作区目录，默认数据根下的 personal/")
     parser.add_argument("--version", default="all",
                         help="只生成指定版本（手写 resume_<版本>.html / 数据 resume_<版本>.json），默认全部")
@@ -162,6 +162,7 @@ def _lock_busy():
 
 def main():
     args = _build_parser().parse_args()
+    args.workspace = pathres.resolve_workspace_arg(args.workspace)
 
     workspace = os.path.abspath(args.workspace)
     if not os.path.isdir(workspace):

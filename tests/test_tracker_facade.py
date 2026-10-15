@@ -49,6 +49,8 @@ CONTRACT_NAMES = [
     # `from tracker import (...)` 名单 + question_bank 的 tracker.file_lock）
     "ROOT", "default_workspace", "FAIL_STAGES", "csv_path", "file_lock",
     "QUESTION_STATUS", "QUESTION_ORIGINS", "QUESTION_DIFFICULTY",
+    # 2026-10-15：report.py 的 --workspace 惰性缺省（与 default_workspace 同族）
+    "resolve_workspace_arg",
 ]
 
 

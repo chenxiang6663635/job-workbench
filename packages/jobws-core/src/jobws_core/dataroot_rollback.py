@@ -12,10 +12,15 @@ CLI、API 与将来的宿主入口都只经 `dataroot_migrate.rollback()` 走这
 1. `completed`：事务记录写了 `completed_at`——迁移完成，目标根生效过；
 2. `selection_on_target`：当前持久化选择指向 `target_root`（用 `state.same_root`
    同源比较，不做字符串直比）——选择文件就是「现在读哪个根」的真值；
-3. `switch_landed_unfinished`：相位是 `idle`、事务记录既没完成位也没回滚位、而切换的
-   物理证据在（暂存已不在、目标工作区在）——这正是**已切换、完成记录未落盘**的崩溃
-   窗口指纹（能把相位写成 `idle` 的事务动作只有最后那一步生效写，见 `_switch_phase`）。
-   只查 `completed_at` 会漏掉它；
+3. `switch_landed_unfinished`：相位是 `idle`、**选择已指向目标根**、事务记录既没完成位
+   也没回滚位、而切换的物理证据在（暂存已不在、目标工作区在）——这正是**已切换、完成
+   记录未落盘**的崩溃窗口指纹。只查 `completed_at` 会漏掉它。**「选择已指向目标」这一条
+   是必需的**（2026-10-16 独立审查 M3）：相位归 `idle` 的写入点不止 `_switch_phase`
+   一处（`rollback` 自身与 `data-root set` 也会），而 `rollback` 的写序是「先翻选择、
+   再写 `rolled_back_at`」——崩在这两写之间会留下「相位 idle + 选择已翻回源根 + 无完成
+   位 + 无回滚位 + 物理证据在」的现场，与真正的崩溃窗口**逐位同形**。加上本条件后两者
+   可分辨：真崩溃窗口的选择必然指向**目标**，回滚半成品的选择指向**源**（后者应允许继续
+   把回滚做完，而不是拒绝）；
 4. `identity_on_target`（**佐证，不单独触发拒绝**）：事务的 `root_id` 同时出现在选择
    文档与目标根标记上——「同一份数据身份已经落在目标根」。它不单独触发，因为唯一能让
    它单独成立的在途现场是 `switching`（数据已 rename 上位、根标记已钉、指针还没翻）：
@@ -75,7 +80,7 @@ def signals(journal, phase, doc, marker, landed):
     completed = bool(journal.get("completed_at"))
     on_target = state.same_root(doc.get("data_root"), journal["target_root"])
     unfinished_switch = (phase == probe.MIGRATION_IDLE and not completed
-                         and not journal.get("rolled_back_at") and landed)
+                         and not journal.get("rolled_back_at") and landed and on_target)
     identity = (doc.get("root_id") == journal["root_id"]
                 and (marker or {}).get("root_id") == journal["root_id"])
     return [

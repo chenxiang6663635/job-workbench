@@ -50,6 +50,30 @@ def _hits(journal, **over):
     return {item["name"]: item["hit"] for item in _found(journal, **over)}
 
 
+def test_signal_switch_landed_needs_the_selection_on_target():
+    """信号③必须与「选择已指向目标」合用（2026-10-16 独立审查 M3）。
+
+    相位归 `idle` 的写入点**不止** `_switch_phase`：`rollback` 自身也写（写序是「先翻
+    选择、再写 `rolled_back_at`」）。崩在这两写之间会留下「相位 idle + 选择已翻回源根 +
+    无完成位 + 无回滚位 + 物理证据在」——与真崩溃窗口**逐位同形**。分辨靠「选择指向哪边」：
+    真窗口指向**目标**（拒绝并提示 `--resume` 收尾），回滚半成品指向**源**（应允许把回滚
+    做完，而不是把用户锁死）。
+    """
+    # 真崩溃窗口：选择已指向目标 → 信号②③都命中
+    crash = _hits(_journal(), phase="idle", landed=True,
+                  doc={"data_root": TARGET, "root_id": ROOT_ID})
+    assert crash["selection_on_target"] is True
+    assert crash["switch_landed_unfinished"] is True
+
+    # 回滚半成品：选择已翻回源根、rolled_back_at 未落盘 → 不得被拒
+    halfline = _hits(_journal(), phase="idle", landed=True,
+                     doc={"data_root": SOURCE, "root_id": ROOT_ID})
+    assert halfline["switch_landed_unfinished"] is False
+    assert guard.refused_by(_found(_journal(), phase="idle", landed=True,
+                                   doc={"data_root": SOURCE,
+                                        "root_id": ROOT_ID})) == []
+
+
 def test_signal_vocabulary_is_fixed_and_ordered():
     """四个信号的词表与顺序：跨端复用同一份判据，改词表就是改契约。"""
     assert [item["name"] for item in _found(_journal())] == [

@@ -1305,6 +1305,9 @@ export default {
   "notes.hitLine": "Line {{line}}",
   "notes.hitInName": "matched in name",
   "notes.backToTree": "Back to file tree",
+  // 返回栈（三期）：栈空时入口不渲染，故文案只在真的有上一份时出现（title 给出目标）
+  "notes.backPrevious": "Back to previous note",
+  "notes.backPreviousTitle": "Back to {{name}}",
   "notes.imageSkipped": "Image not loaded",
   "notes.imageSkippedHint":
     "Images are not loaded in the app — relative paths 404 here and external links would need the network; open the file in your editor to view them",

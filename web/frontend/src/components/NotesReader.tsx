@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
-import { BookOpen, FileText } from "lucide-react";
+import { ArrowLeft, BookOpen, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { PrepContent } from "../api";
-import { cn } from "../lib/utils";
 import {
   extractOutline,
   findAnchorLine,
@@ -19,13 +18,12 @@ import { makeNoteImageResolver } from "../lib/notesImage";
 import { captureNotesPos, readNotesPos, restoreNotesPos } from "../lib/notesView";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesMarkdown from "./NotesMarkdown";
+import NotesOutlineNav from "./NotesOutlineNav";
 import { Button } from "./ui/button";
 import { EmptyState } from "./ui/empty";
 import { Skeleton } from "./ui/skeleton";
 
-// 右栏阅读区：面包屑 + 渲染正文 + 本页大纲（xl 以上显示）。
-// 大纲锚点用 onClick + scrollIntoView，**不能用原生 #hash 跳转**——App 是 hash
-// 路由，未知 hash 会被 tabFromHash 判为无效并跳回看板（不是"跳过去但不动"）。
+// 右栏阅读区：路径行（含「返回上一篇」）+ 渲染正文 + 本页大纲（见 NotesOutlineNav）。
 
 // 命中块的视觉标记（token 类）：搜索点进来之后，滚过去就能看清是哪一处。
 const HIT_CLASS = ["rounded", "bg-primary/10", "ring-1", "ring-primary/30"];
@@ -57,6 +55,14 @@ export interface NotesReaderProps {
   onBackToTree?: () => void;
   /** 点正文里的笔记互链（一期：03/04 两棵树内的 .md）：上层负责切换目标文件 */
   onOpenNote?: (target: NotesActive) => void;
+  /**
+   * 「返回上一篇」（三期，issue #274）：栈里上一份的 rel。
+   * 与 onBackPrevious **同时**给出才渲染——栈空时宁可没有入口，也不要一个
+   * 点不动的死按钮（路径行是元信息行，永久的空控件比"用到才出现"更费解；
+   * 同一行的目录段也只在搜索态才从文本变成可点，同一条约定）。
+   */
+  previousRel?: string | null;
+  onBackPrevious?: () => void;
 }
 
 export default function NotesReader({
@@ -78,6 +84,8 @@ export default function NotesReader({
   focusNonce,
   onBackToTree,
   onOpenNote,
+  previousRel,
+  onBackPrevious,
 }: NotesReaderProps) {
   const { t } = useTranslation();
   const dir = NOTES_SECTIONS.find((s) => s.key === section)?.dir ?? "";
@@ -169,15 +177,26 @@ export default function NotesReader({
   const parts = file.rel.split("/");
   const name = parts[parts.length - 1];
   const subPath = parts.slice(0, -1).join(" / ");
-  const jump = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   return (
     <section className="min-w-0 flex-1 rounded-lg bg-card-gradient p-6 shadow-card ring-1 ring-highlight/5 lg:p-8">
       {/* 路径行（B-6）：搜索态下首段（目录名）可点 = 回目录树——「我在哪、怎么回去」
           在正文区也答得上，不用回左栏找入口 */}
       <div className="mb-3 flex flex-wrap items-baseline gap-x-1 font-mono text-[0.6875rem] text-muted-foreground">
+        {/* 返回上一篇（三期）：跟着"我在哪"这一行放——跳转之后要答的正是
+            "这是哪一篇、怎么回去"，入口不该散在别处 */}
+        {onBackPrevious && previousRel && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mr-1 shrink-0"
+            onClick={onBackPrevious}
+            title={t("notes.backPreviousTitle", { name: previousRel })}
+          >
+            <ArrowLeft size={13} className="mr-1" />
+            {t("notes.backPrevious")}
+          </Button>
+        )}
         {onBackToTree ? (
           <button
             type="button"
@@ -267,32 +286,7 @@ export default function NotesReader({
               </p>
             )}
           </div>
-          {outline.length > 0 && (
-            <nav
-              className="sticky top-6 hidden w-40 shrink-0 self-start xl:block"
-              aria-label={t("notes.outline")}
-            >
-              <p className="mb-2 text-[0.6875rem] font-medium text-muted-foreground">
-                {t("notes.outline")}
-              </p>
-              <ul>
-                {outline.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => jump(item.id)}
-                      className={cn(
-                        "block w-full cursor-pointer border-l-2 border-transparent py-0.5 text-left text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground",
-                        item.level === 3 ? "pl-5" : "pl-2.5"
-                      )}
-                    >
-                      {item.text}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          )}
+          <NotesOutlineNav outline={outline} />
         </div>
       ) : null}
     </section>

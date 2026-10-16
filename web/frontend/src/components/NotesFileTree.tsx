@@ -6,6 +6,7 @@ import { cn } from "../lib/utils";
 import {
   filterNotes,
   NOTES_SECTIONS,
+  relAncestors,
   type NotesNode,
   type NotesSectionKey,
 } from "../lib/notes";
@@ -81,9 +82,39 @@ export default function NotesFileTree({
   // 当前项滚入视野（B-7）：切文件 / 点搜索结果后，树里那一条可能已经在滚动区外——
   // 不滚的话"当前选中的是哪一个"每次都要自己找（block: nearest 只滚最小距离，
   // 已经可见时不动，不会打扰浏览）
+  //
+  // 三期补一层（issue #274）：落点可能落在**收起的目录**里（从 03 跳到 04 的深层
+  // 文件时很常见）——折叠的祖先让目标文件根本不在 DOM 里，那样既没有高亮、也没有
+  // 可滚的节点，"我在哪"就断在这里。所以先把祖先目录展开，等下一轮重渲染再滚。
+  // 展开走 toggleDir 同一条写回（writeCollapsed）：偏好里存的就是眼前看到的，
+  // 否则切一次页签重新挂载，展开态消失、高亮又不见了。
+  const revealedFor = useRef<string | null>(null);
   useEffect(() => {
+    if (!active) return;
+    // 每换一篇只做一次：否则用户手动折叠"当前文件所在的目录"会被立刻弹开
+    //（用户刚做的动作该赢——B-7 的折叠是显式意图）
+    const key = `${active.section}/${active.rel}`;
+    if (revealedFor.current === key) return;
+    const hidden = filtering
+      ? []
+      : relAncestors(active.rel).filter((rel) => collapsed.has(rel));
+    if (hidden.length) {
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        for (const rel of hidden) next.delete(rel);
+        writeCollapsed(next);
+        return next;
+      });
+      return;
+    }
+    // **过滤态不认领**（2026-10-16 独立审查 M1）：过滤时目录被强制全展，落点"看起来
+    // 已经展开"了——若此时就置位，清掉过滤后按偏好重新收起，树里就没有可高亮节点、
+    // 高亮凭空消失（且不会自愈）。滚仍要滚（可见性当前成立），但"已展开"这件事得等
+    // 过滤结束后按**真实折叠态**再判一次。关键词搜索照不出这个洞：它会整体卸载本组件
+    // （ref 随之归零）。
+    if (!filtering) revealedFor.current = key;
     activeRef.current?.scrollIntoView({ block: "nearest" });
-  }, [active?.section, active?.rel]);
+  }, [active, collapsed, filtering]);
 
   const toggleDir = (rel: string) => {
     // 过滤态目录是**强制全展**（不然命中藏在收起目录里、看着像没搜到）——
@@ -136,6 +167,9 @@ export default function NotesFileTree({
           <button
             type="button"
             ref={isActive ? activeRef : undefined}
+            // 「当前项」对读屏也是语义而非只有颜色/底纹：aria-current 让"我在哪"
+            // 在无视觉通道下同样成立（跳转跨 section 后尤其要紧）
+            aria-current={isActive ? "true" : undefined}
             onClick={() => onSelect(section, node)}
             className={cn(
               "flex w-full cursor-pointer items-center gap-2 rounded-md border-l-2 border-transparent py-1.5 pr-2 text-left text-[0.8125rem] text-foreground transition-colors hover:bg-secondary",
@@ -183,7 +217,7 @@ export default function NotesFileTree({
       <div className="max-h-[50vh] overflow-auto lg:max-h-[calc(100dvh-26rem)]">
         {hits.map(({ section, nodes }) =>
           nodes.length === 0 ? null : (
-            <div key={section.key} className="mb-1">
+            <div key={section.key} className="mb-1" data-section={section.key}>
               <p className="px-2 pb-0.5 pt-2 text-xs font-medium text-muted-foreground">
                 {t(GROUP_LABEL[section.key])}
               </p>

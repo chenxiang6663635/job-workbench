@@ -6,6 +6,7 @@ import {
   extractOutline,
   filterNotes,
   findAnchorLine,
+  relAncestors,
   stripHtmlComments,
 } from "../../src/lib/notes";
 import { resolveNoteImage, resolveNoteLink } from "../../src/lib/notesLink";
@@ -174,6 +175,27 @@ describe("buildNotesTree（平铺 rel → 树）", () => {
     ]);
     expect(out.interview).toEqual([]);
     expect(out.knowledge.map((n) => n.name)).toEqual(["Redis 速查卡"]);
+  });
+});
+
+describe("relAncestors（rel 的祖先目录：跳转落点要展开哪些折叠目录）", () => {
+  it("深层文件给出从根到直接父级的全部前缀", () => {
+    expect(relAncestors("行为面/子/甲.md")).toEqual(["行为面", "行为面/子"]);
+  });
+
+  it("一级目录 / 根级文件", () => {
+    expect(relAncestors("行为面/甲.md")).toEqual(["行为面"]);
+    expect(relAncestors("README.md")).toEqual([]);
+  });
+
+  it("前缀与树的目录 rel 同形（展开时按它删 collapsed 键）", () => {
+    const tree = buildNotesTree([
+      { key: "interview", items: [file("行为面/子/甲.md")] },
+    ]).interview;
+    const dirRels = tree
+      .filter((n) => n.kind === "dir")
+      .flatMap((n) => [n.rel, ...(n.children ?? []).map((c) => c.rel)]);
+    expect(relAncestors("行为面/子/甲.md")).toEqual(dirRels);
   });
 });
 

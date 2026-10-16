@@ -16,6 +16,7 @@ import {
   type NotesSectionKey,
 } from "../lib/notes";
 import { readNotesUi, writeNotesUi } from "../lib/notesView";
+import { useNotesBackStack } from "../hooks/useNotesBackStack";
 import { useNotesToggle } from "../hooks/useNotesToggle";
 import { ErrorBanner } from "./ErrorBanner";
 import NotesFileTree from "./NotesFileTree";
@@ -59,6 +60,8 @@ export default function NotesBrowser() {
   const [focusNonce, setFocusNonce] = useState(0);
   // 上一次加载的文件（section/rel）：只有换文件才撤正文，写回重拉时保留（A-2）
   const loadedKey = useRef<string | null>(null);
+  // 会话内返回栈（三期，#274）：进入即入栈、出栈即「返回上一篇」（见 hooks/useNotesBackStack）
+  const { previous, remember, backTo } = useNotesBackStack(ws, active);
 
   // 勾选写回：预览 → 确认 → 落盘的状态机在 hooks/useNotesToggle（含跨切页签 /
   // 刷新的待确认恢复）。落盘成功后重拉正文——写后的真值在文件里，本地不做乐观翻转。
@@ -161,46 +164,52 @@ export default function NotesBrowser() {
     };
   }, [active, refreshTick]);
 
-  const onSelect = useCallback(
-    (section: NotesSectionKey, node: NotesNode) => {
-      const next = { section, rel: node.rel };
-      // 换文件时清掉上一份写回的残留：错误横幅指向的是上一个文件，不该挂在新文件上
+  // 换文件的统一落地（三条进入路径与「返回上一篇」共用）：清上一份写回的残留、
+  // 清搜索定位、切 active、更新「上次打开」——收尾分头写正是"退回跳错"的温床。
+  const switchTo = useCallback(
+    (target: NotesActive, line: number | null = null) => {
       onCancelToggle();
       clearToggleError();
-      setFocusLine(null);
-      setActive(next);
-      writeLastOpened(ws, next);
-    },
-    [ws, onCancelToggle, clearToggleError]
-  );
-
-  // 点搜索结果：打开该文件并记下要定位的行（真定位在 NotesReader——那里才拿得到
-  // 渲染后的块级行号）
-  const onPickHit = useCallback(
-    (section: NotesSectionKey, rel: string, line: number) => {
-      const next = { section, rel };
-      onCancelToggle();
-      clearToggleError();
-      setActive(next);
       setFocusLine(line);
-      setFocusNonce((value) => value + 1);
-      writeLastOpened(ws, next);
-    },
-    [ws, onCancelToggle, clearToggleError]
-  );
-
-  // 点正文里的笔记互链：切到目标文件——收尾与 onSelect / onPickHit 同款
-  // （清写回残留与错误、清定位、更新"上次打开"记忆）。
-  const onOpenNote = useCallback(
-    (target: NotesActive) => {
-      onCancelToggle();
-      clearToggleError();
-      setFocusLine(null);
       setActive(target);
       writeLastOpened(ws, target);
     },
     [ws, onCancelToggle, clearToggleError]
   );
+
+  // 目录树选择：记住来处再切（统一入栈）
+  const onSelect = useCallback(
+    (section: NotesSectionKey, node: NotesNode) => {
+      remember({ section, rel: node.rel });
+      switchTo({ section, rel: node.rel });
+    },
+    [remember, switchTo]
+  );
+
+  // 点搜索结果：行号交给 NotesReader 定位（只有那边拿得到块级行号）；nonce 逼它
+  // 同一行重复点击时也重新定位。
+  const onPickHit = useCallback(
+    (section: NotesSectionKey, rel: string, line: number) => {
+      remember({ section, rel });
+      switchTo({ section, rel }, line);
+      setFocusNonce((value) => value + 1);
+    },
+    [remember, switchTo]
+  );
+
+  // 点正文里的笔记互链（一期）：目标可以是另一棵树里的文件
+  const onOpenNote = useCallback(
+    (target: NotesActive) => {
+      remember(target);
+      switchTo(target);
+    },
+    [remember, switchTo]
+  );
+
+  // 「返回上一篇」：出栈即回退，**不压栈**——返回是回看走过的路，不是又走一步新的，
+  // 否则"返回 → 再返回"会在最后两篇之间来回弹。落点由 switchTo 落地，跨 section
+  // 时 active.section 跟着换，面包屑与左栏高亮随即跟上（#274 点名的共性要求）。
+  const onBackPrevious = useCallback(() => backTo(switchTo), [backTo, switchTo]);
 
   if (listError) {
     return <ErrorBanner message={t("notes.loadFailed", { reason: listError })} />;
@@ -272,6 +281,8 @@ export default function NotesBrowser() {
         focusLine={focusLine}
         focusNonce={focusNonce}
         onOpenNote={onOpenNote}
+        previousRel={previous?.rel ?? null}
+        onBackPrevious={previous ? onBackPrevious : undefined}
         onBackToTree={
           keyword.trim()
             ? () => {

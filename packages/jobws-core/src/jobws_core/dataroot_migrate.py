@@ -444,7 +444,8 @@ def rollback(apply=False):
     """回滚：把持久化选择指回旧根。**不删、不回搬**（源未删，目标原样留着）。
 
     **迁移已生效则拒绝**（`status="refused"`，dry-run 与 apply 同形）：判别、人话
-    理由与拒绝形态都在 `dataroot_rollback`（四个信号，任一成立即拒绝）；这里只把
+    理由与拒绝形态都在 `dataroot_rollback`（**前三个**信号任一成立即拒绝；第四个
+    `root_id` 佐证不单独触发——它在 `switching` 相位单独成立时回滚是合法的）；这里只把
     本模块的两个写口（唯一写实现）注入进去，规则本身不在这里。
     """
     journal = read_journal()

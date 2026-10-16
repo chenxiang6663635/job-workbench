@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""看板摘要的四个「逐行筛选」段（2026-10-09 从 `tools_readonly` 搬出）。
+"""看板摘要（2026-10-09 / 2026-10-16 两次从 `tools_readonly` 搬出）。
 
 为什么独立成模块：`tools_readonly.py` 是登记过的水位文件（只许变小），而
 `dashboard_summary()` 曾是 109 行的「编排 + 组装」（登记注释已点名拆分）。
@@ -8,10 +8,18 @@
 口径：与 `web/backend/remind.py` 同源（upcoming / overdue 的中立判据），
 静默用 `tracker.stale_days`、待推进用 `tracker.health_score`——**只搬不改行为**；
 四个函数都是「行集 + 日期进、条目列表出」的纯函数（不读全局、不碰 IO）。
-"""
-from datetime import timedelta
 
-from jobws_core import tracker
+2026-10-16 #307：编排函数也整体搬过来（读点转译占位 + 水位只许变小），
+`tools_readonly` 留一行 re-export——调用方（tool_registry / resources / 测试）
+零改动。读主表与时间线经 `paths.read_tracker_rows` / `read_tracker_history`
+（归属判据 + 转译，见 paths.py）。
+"""
+
+from datetime import date, timedelta
+
+from jobws_core import report, tracker
+
+from . import paths
 
 
 def upcoming(rows, today):
@@ -98,3 +106,54 @@ def pending(rows, by_id, today):
     # 同档多条的次序取决于 sort 稳定性 + 读表原序——三端各给一个「谁排前面」。
     items.sort(key=lambda x: (tracker.HEALTH_LEVELS.index(x["level"]), x["id"]))
     return items
+
+
+def dashboard_summary(workspace, today=None, stale_days=None):
+    """看板摘要（只读）：漏斗、近 7 天待办、已过截止、静默提醒、待推进与转化率。
+
+    口径照抄 `web/backend/remind.py`（upcoming/overdue 的中立判据，2026-09-26 自
+    `routers/dashboard.py` 搬出）与 `report.retrospective`：待办取「下次动作日期」优先于
+    「截止日期」且只取一条；逾期只看「待投」；静默用 `tracker.stale_days`；健康度用
+    `tracker.health_score`；转化率用「到达过」而非当前存量（否则早期阶段被高估）。
+
+    `05_投递追踪` / `tracker.csv` / `history.csv` 经符号链接指向工作区外时返回
+    ok=false + 可读理由（#307）——显式拒绝，不返回空摘要（那会把「读不到」误判成
+    「没投过」）。与 `tools_readonly.list_applications` 同一条转译链。
+    """
+    rows, error = paths.read_tracker_rows(workspace)
+    if error:
+        return {"ok": False, "errors": [error]}
+    history, error = paths.read_tracker_history(workspace)
+    if error:
+        return {"ok": False, "errors": [error]}
+    # 索引一次：stale_days / health_score 逐行只收「该 id 的条目」——P 批治理，
+    # 与后端 applications / dashboard 同款（此前每行各自全量遍历时间线）
+    by_id = tracker.history_by_id(history)
+    today = today or date.today()
+    if stale_days is None:
+        stale_days = tracker.STALE_DAYS
+    terminal = tracker.TERMINAL_STAGES
+
+    funnel = [{"stage": k, "count": v}
+              for k, v in report.count_by(rows, "当前阶段", report.FUNNEL_ORDER)]
+    by_direction = [{"key": k, "count": v} for k, v in report.count_by(rows, "方向")]
+    active = sum(1 for r in rows if (r.get("当前阶段") or "").strip() not in terminal)
+
+    retro = report.retrospective(rows, history, today, workspace)
+
+    return {
+        "workspace": workspace,
+        "asOf": today.isoformat(),
+        "initialized": paths.workspace_profile(workspace),
+        "total": len(rows),
+        "active": active,
+        "funnel": funnel,
+        "byDirection": by_direction,
+        "upcoming": upcoming(rows, today),
+        "overdue": overdue(rows, today),
+        "stale": stale(rows, by_id, today, stale_days),
+        "pending": pending(rows, by_id, today),
+        "conversion": retro.get("conversion", []),
+        "failure": retro.get("failure"),
+        "declined": retro.get("declined"),
+    }

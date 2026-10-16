@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 from ..csv_cells import csv_cell
+from ..workspace_read import assert_within
 from ._core import (TERMINAL_STAGES, _atomic_write_csv, csv_path, parse_iso_date, resolve_ws)
 from ._schema import (FIELDS, HEALTH_LEVELS, HISTORY_FIELDS, HISTORY_FILE, HISTORY_TRACKED, STALE_DAYS, URGENT_DAYS)
 from ..csv_cells import read_rows as read_csv_rows
@@ -36,7 +37,9 @@ def read_history(workspace=None, app_id=None):
 
     容错读在 `._history`：残缺记录（崩溃写了一半）逐条丢弃、如实计数——此前
     坏半行会导致 `track check` 把整份时间线送 quarantine（2026-10-08 审计 1.1-6）。
+    归属先判（#307）：链接读穿显式拒绝（协议层转译），不返空时间线。
     """
+    assert_within(resolve_ws(workspace), history_path(workspace))   # #307 归属先判
     rows, _dropped = read_history_rows(history_path(workspace))
     if app_id:
         rows = [r for r in rows if (r.get("id") or "").strip() == app_id]
@@ -75,6 +78,9 @@ def append_history(entries, workspace=None):
     if not entries:
         return 0
     path = history_path(workspace)
+    # #307 归属先判：`"a"` 模式**跟随链接写穿**——判据放在一切写动作（含崩溃
+    # 一致性的探针读）之前，拒绝时一个字节都不该动。
+    assert_within(resolve_ws(workspace), path)
     directory = os.path.dirname(path)
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -254,6 +260,8 @@ def health_score(row, entries, today=None):
 
 def read_rows(workspace=None):
     path = csv_path(workspace)
+    # #307 归属先判：isfile 正判定会跟随链接读穿（junction / 文件级链接到区外）
+    assert_within(resolve_ws(workspace), path)
     if not os.path.isfile(path):
         return []
     # 读取模式（BOM 剥离 + `restore_row` 还原中和引号）的唯一实现在 `csv_cells`；
@@ -267,8 +275,14 @@ def write_rows(rows, workspace=None):
 
     原子写（tmp + os.replace）：主表是用户唯一的数据源，写到一半被中断会
     留下半截 CSV。改名在同目录内是原子操作，故临时文件与目标同目录。
+
+    归属先判（#307）：同一个「链接」在写侧有**两种后果**——`append_history`
+    的 `"a"` 模式跟随链接**写穿目标**，本函数的 `os.replace` 替换的是**链接
+    本身**（重写后它仍是区外链接、内容照旧读穿）。两种后果都归 `assert_within`
+    挡，不按链接形态分叉（代价大于收益、且是新不一致源）。
     """
     path = csv_path(workspace)
+    assert_within(resolve_ws(workspace), path)
     _atomic_write_csv(path, rows, FIELDS, "utf-8-sig")
 
 

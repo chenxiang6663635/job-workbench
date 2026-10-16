@@ -25,11 +25,11 @@ import atomicio
 from jobws_core import job_dirs
 from jobws_core import job_rename
 from jobws_core import jd_score
+from jobws_core import workspace_read
 import tls_http
 from jobws_core import tracker
 from apierror import ApiError
 from deps import DIR_JOBS, safe_join, workspace_dir
-from iocaps import read_text_capped
 import lockctx
 from lockctx import locked
 from ro_files import inside
@@ -66,26 +66,21 @@ def _dir_name(company: str, role: str) -> str:
     return name
 
 
-def _read(path):
-    if not os.path.isfile(path):
-        return None
-    # 带上限：列表接口对每条记录都要读一次，无上限的 read() 会变成一次全盘读
-    text, _truncated = read_text_capped(path)
-    return text
-
-
 def _read_in_workspace(workspace, *parts):
-    """读工作区内的文本：realpath 二次确认（读穿防护）+ 上限，越界/读不到返回 None。
+    """读工作区内的文本：归属（realpath 展开）+ 字节上限；越界 / 超限 / 读不到
+    一律 None（fail-closed，不截断——截断出的半截卡片会被解析成半真半假的分档）。
 
-    `safe_join` 只做字符串归一化、**不解析符号链接**：Windows 上 `01_岗位池/某岗位`
-    若是指向外部的 junction，`GET /api/jobs/<名>` 就能把工作区外的文件正文当 JD /
-    解析卡回传。素材库与笔记（先修）早就补了 `inside()` 这一道，岗位池这两条读路径
-    一直缺（2026-09-23 二轮审计）。
+    实现是领域层原语的薄包装（#307，三端同源）：此前这里私有一套「safe_join →
+    inside → read_text_capped」。safe_join 保留——它兼做「部件须是合法相对段」
+    的第一道拒绝（绝对 / `..` / 盘符相对 → 400 path.illegalSegment，与全局错误
+    面一致）；归属与有界读下沉 `workspace_read.read_in_workspace`（判据同一份，
+    换行归一并进原语）。上限 2 MiB：与 MCP 的 `limits.MAX_CARD_BYTES` 同口径
+    ——解析卡 / JD 都是几 KB 的 Markdown，两个数量级的余量只防「被构造的超大
+    文件把列表接口一次读爆」，超限按「读不到」给（评分 None）。
     """
     full = safe_join(workspace, *parts)
-    if not inside(workspace, full):
-        return None
-    return _read(full)
+    return workspace_read.read_in_workspace(
+        workspace, full, max_bytes=2 * 1024 * 1024)
 
 
 def _parse_card(workspace: str, job_dir: str, text: str = None):

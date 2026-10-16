@@ -50,6 +50,7 @@ from routers.system import app_version  # noqa: E402
 # 这里 re-export 函数名，测试（main.interpreter_verdict / main.is_loopback_host）
 # 与调用方照旧可用；preflight 只含纯函数，import 无副作用。
 from preflight import enforce_interpreter, interpreter_verdict, is_loopback_host  # noqa: E402,F401
+from boundary import register as _register_boundary  # noqa: E402  （#307：WorkspaceBoundaryError → 400 path.escape）
 
 logger = logging.getLogger("jobworkbench")
 
@@ -60,6 +61,7 @@ enforce_interpreter()
 # 没有独立的 API schema 版本概念）；来源为空时标 0.0.0-dev——不编造版本
 # （与 routers/system 的「未知」口径同源）。
 app = FastAPI(title="求职工作台", version=app_version() or "0.0.0-dev")
+_register_boundary(app)   # #307：归属越界的读 / 写拒绝走 400 path.escape（见 boundary.py）
 
 
 @app.exception_handler(ApiError)

@@ -20,7 +20,7 @@ import io
 import json
 import os
 
-from jobws_core import containment  # 路径包含判定唯一原语（realpath + commonpath）
+from jobws_core import containment, workspace_read  # 路径包含判定与读取原语（各只有一份）
 
 from . import tools_readonly
 
@@ -138,10 +138,12 @@ def read_job_text(workspace, job_name, kind):
         # 可读性（非截断路径用 "replace"——乱码要看得见，不能假装干净）。
         raw = raw[:JD_TEXT_MAX_BYTES]
     text = raw.decode("utf-8", "ignore" if truncated else "replace")
-    # 换行归一：与 Web `iocaps.read_text_capped` 的文本模式（universal newlines）同源——
-    # 二进制读**不做**这层翻译，缺了它同一份 CRLF 正文在 MCP 与 Web 会给出不同文本
-    # （2026-10-16 独立审查指出：本批的立意就是两端同源，不能在此引入新分歧）。
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    # 换行归一：与 Web `iocaps.read_text_capped` 的文本模式（universal newlines）同源。
+    # 2026-10-16 #307：实现收进 `workspace_read.normalise_newlines`（领域层原语，
+    # 二进制读本身不做这层翻译）——这里从「自己 replace 一遍」改为调原语，两端
+    # 同一份口径；本函数保留二进制有界读 + 截断注明（原语超限是拒绝不是截断，
+    # JD 正文要的是「截断并注明」）。
+    text = workspace_read.normalise_newlines(text)
     if truncated:
         text += "\n\n…（已截断，完整内容见工作区 %s）" % rel
     return text, None

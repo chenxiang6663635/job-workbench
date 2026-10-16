@@ -25,7 +25,7 @@ from . import paths  # noqa: F401
 # 它自己登记的十一个操作（track.* / talk.add / mail.add / interview.* / question.*）
 # 独立安装下也能用；仓库侧的 `prep.toggle` / `init` 不在其中——调它们会得到
 # `unknown_operation`（稳定 code，显式的「这个操作需要仓库在侧」）。
-from jobws_core import approval, question_bank, tracker
+from jobws_core import approval, question_bank, tracker, workspace_read
 
 # 落盘后给宿主的一句话指引：让模型知道"刚才发生了什么、下一步是什么"。
 _NEXT_STEP = ("把 summary 与 diff 展示给用户；用户确认之后，用同一个 token 调用 "
@@ -189,6 +189,10 @@ def apply_approval(workspace, token):
 
     令牌不可用（过期 / 已用过 / 绑定别的工作区 / 载荷被改过）时返回 ok=False，
     不抛异常——宿主拿到的是可读的拒绝理由，而不是栈。
+
+    #307：写入目标经符号链接指向工作区外时（`tracker.csv` / `history.csv` 一族），
+    领域层抛 `WorkspaceBoundaryError`（显式拒绝，一个字节都不写）——这里同样
+    译成 ok=false + `code=path.escape`，与 Protocol 层的既有范式一致。
     """
     try:
         result = approval.apply(token, workspace=workspace)
@@ -197,6 +201,8 @@ def apply_approval(workspace, token):
         # 指纹不符（fingerprint）/ 绑定不符（binding）等——不要解析中文文案。
         return {"ok": False, "errors": [str(exc)],
                 "code": getattr(exc, "code", "invalid")}
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return {"ok": False, "errors": [str(exc)], "code": "path.escape"}
     return {
         "ok": True,
         "summary": result.get("summary"),

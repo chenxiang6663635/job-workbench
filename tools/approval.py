@@ -23,6 +23,7 @@ import argparse
 import sys
 
 from jobws_core import approval as _shell
+from jobws_core import workspace_read  # noqa: E402  （#307：写入目标归属越界的转译）
 
 # ---- 转发协议外壳（存量 import 的公开面，一字不改）----
 ApprovalError = _shell.ApprovalError
@@ -85,6 +86,12 @@ def main(argv=None):
         print("冲突：%s" % exc)
         return 1
     except ApprovalError as exc:
+        print("拒绝：%s" % exc)
+        return 1
+    except workspace_read.WorkspaceBoundaryError as exc:
+        # #307：写入目标（tracker.csv / history.csv 一族）经符号链接指向工作区外
+        # ——领域层显式拒绝、一个字节都没写。退出码 1（应用时拒绝）：用户该做的
+        # 是修工作区拓扑（移除链接 / 把数据搬回来），不是原样重试。
         print("拒绝：%s" % exc)
         return 1
 

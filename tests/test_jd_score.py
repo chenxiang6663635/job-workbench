@@ -20,7 +20,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-from jobws_core import jd_score  # noqa: E402
+from jobws_core import jd_gap, jd_score  # noqa: E402  （jd_gap = resolve_profile 的实现所在，#307）
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +97,7 @@ def test_resolve_profile_prefers_workspace_copy_without_fake_warning(tmp_path, m
     修复前：domain 被赋成工作区的**父目录名**（与领域毫无关系），并附一条
     「未指定 --domain，回退使用第一个插件 `…`」。
     """
-    monkeypatch.setattr(jd_score, "PROFILES",
+    monkeypatch.setattr(jd_gap, "PROFILES",
                         str(_mk_template(tmp_path, ["hvac-cooling", "software-backend"])))
     ws = _mk_workspace(tmp_path, "personal", with_profile=True)
 
@@ -110,7 +110,7 @@ def test_resolve_profile_prefers_workspace_copy_without_fake_warning(tmp_path, m
 
 def test_resolve_profile_missing_workspace_profile_fails_explicitly(tmp_path, monkeypatch):
     """工作区没有档案、又未传 --domain：显式失败，不许按字母序拿第一个插件。"""
-    monkeypatch.setattr(jd_score, "PROFILES",
+    monkeypatch.setattr(jd_gap, "PROFILES",
                         str(_mk_template(tmp_path, ["hvac-cooling", "software-backend"])))
     ws = _mk_workspace(tmp_path, "fresh", with_profile=False)
 
@@ -125,7 +125,7 @@ def test_resolve_profile_missing_workspace_profile_fails_explicitly(tmp_path, mo
 def test_resolve_profile_explicit_domain_reads_template(tmp_path, monkeypatch):
     """显式 --domain：从模板目录读——这是无工作区档案时的正路。"""
     tpl = _mk_template(tmp_path, ["hvac-cooling", "software-backend"])
-    monkeypatch.setattr(jd_score, "PROFILES", str(tpl))
+    monkeypatch.setattr(jd_gap, "PROFILES", str(tpl))
     ws = _mk_workspace(tmp_path, "fresh", with_profile=False)
 
     profile_dir, direction_file, warns = jd_score.resolve_profile(
@@ -138,7 +138,7 @@ def test_resolve_profile_explicit_domain_reads_template(tmp_path, monkeypatch):
 
 def test_resolve_profile_workspace_direction_missing_warns_with_real_label(tmp_path, monkeypatch):
     """工作区档案下方向不存在：警告里的插件名不能是父目录名（修复前的怪相）。"""
-    monkeypatch.setattr(jd_score, "PROFILES",
+    monkeypatch.setattr(jd_gap, "PROFILES",
                         str(_mk_template(tmp_path, ["hvac-cooling", "software-backend"])))
     ws = _mk_workspace(tmp_path, "personal", with_profile=True)
 

@@ -16,17 +16,22 @@
 """
 
 import os
-from datetime import date
 
-from . import dashboard_sections
 from . import job_files
 from . import paths
 from .limits import limit_rows
-from .paths import DIR_JOBS, DIR_TRACKING
+from .paths import DIR_JOBS
 
 # 全部走领域包（2026-09-19 PR-B）：原先这里靠 `paths.py` 把 tools/ 加进 sys.path，
 # 那段硬闸已删——本包现在装在哪都能用。
-from jobws_core import containment, jd_score, question_bank, report, tracker  # noqa: E402
+from jobws_core import containment, jd_score, question_bank, tracker  # noqa: E402
+
+# `dashboard_summary`（#307 搬去 dashboard_sections，本模块 re-export）。
+# **必须排在 paths / job_files 之后**：它内部经 `report` 展开的领域链在导入期
+# 求值 ROOT——先导本模块（不经 server / paths，如宿主自建脚本与
+# `mcp/tests/test_no_repo_required.py`）时，这一手保证注入已发生。
+# job_files 内 `from . import paths`、paths 顶层即 `set_app_root`——注入的真身。
+from .dashboard_sections import dashboard_summary  # noqa: E402,F401
 
 # 列表默认精简：全字段（17 列）对宿主是噪声，verbose=True 才给全量
 CORE_FIELDS = ["id", "公司", "岗位", "方向", "批次", "截止日期", "投递日期",
@@ -58,8 +63,13 @@ def list_applications(workspace, stage=None, keyword=None, limit=20, verbose=Fal
     stage 精确匹配「当前阶段」；keyword 对公司+岗位做子串包含（大小写不敏感）。
     排序用 `tracker.sort_key`（终态沉底 → 下次动作日期升序 → id），
     与 CLI 的 list、Web 的追踪表同一顺序。
+
+    `05_投递追踪` / `tracker.csv` 经符号链接指向工作区外时返回 ok=false + 可读
+    理由（#307）——显式拒绝，不返回空列表（那会把「读不到」误判成「没投过」）。
     """
-    rows = tracker.read_rows(workspace)
+    rows, error = paths.read_tracker_rows(workspace)
+    if error:
+        return {"ok": False, "errors": [error]}
     if stage:
         stage = stage.strip()
         rows = [r for r in rows if (r.get("当前阶段") or "").strip() == stage]
@@ -88,16 +98,16 @@ def _apply_state(row):
     return "已终态" if stage in tracker.TERMINAL_STAGES else "流程中"
 
 
-def _applications_by_key(workspace):
+def _applications_by_key(rows):
     """{dedup_key: row} 索引，照抄 jobs.py:164 的 `_applications_by_key`。
 
     跳过空键；同键多行是合法数据（挂了再投一次），保留**仍在流程中**的那行——
-    状态要回答「这一岗现在走到哪了」，历史终态行不该盖住它。
+    状态要回答「这一岗现在走到哪了」，历史终态行不该盖住它。入参由调用方读好：
+    读 + 归属转译在 `paths.read_tracker_rows`（#307），越界在 `list_jobs` 显式
+    拒绝——不再自读（自读就不会有转译那一层）。
     """
-    if not os.path.isdir(os.path.join(workspace, DIR_TRACKING)):
-        return {}
     index = {}
-    for row in tracker.read_rows(workspace):
+    for row in rows:
         key = tracker.dedup_key(row.get("公司"), row.get("岗位"))
         if not (key[0] and key[1]):
             continue
@@ -122,7 +132,13 @@ def list_jobs(workspace, keyword=None, limit=20):
     if not paths.is_in_workspace(workspace, DIR_JOBS) or not os.path.isdir(base):
         return {"workspace": workspace, "total": 0, "returned": 0, "items": []}
 
-    applied = _applications_by_key(workspace)
+    # 主表先读（#307：读 + 归属转译在 `paths.read_tracker_rows`）：越界显式拒绝，
+    # 不静默回退「全部未投递」——那会把读不到误判成没投过
+    rows, error = paths.read_tracker_rows(workspace)
+    if error:
+        return {"ok": False, "errors": [error]}
+
+    applied = _applications_by_key(rows)
     items = []
     for name in sorted(os.listdir(base)):
         full = os.path.join(base, name)
@@ -147,50 +163,6 @@ def list_jobs(workspace, keyword=None, limit=20):
     total = len(items)
     items = limit_rows(items, limit)
     return {"workspace": workspace, "total": total, "returned": len(items), "items": items}
-
-
-def dashboard_summary(workspace, today=None, stale_days=None):
-    """看板摘要（只读）：漏斗、近 7 天待办、已过截止、静默提醒、待推进与转化率。
-
-    口径照抄 `web/backend/remind.py`（upcoming/overdue 的中立判据，2026-09-26 自
-    `routers/dashboard.py` 搬出）与 `report.retrospective`：待办取「下次动作日期」优先于
-    「截止日期」且只取一条；逾期只看「待投」；静默用 `tracker.stale_days`；健康度用
-    `tracker.health_score`；转化率用「到达过」而非当前存量（否则早期阶段被高估）。
-    """
-    rows = tracker.read_rows(workspace)
-    history = tracker.read_history(workspace)
-    # 索引一次：stale_days / health_score 逐行只收「该 id 的条目」——P 批治理，
-    # 与后端 applications / dashboard 同款（此前每行各自全量遍历时间线）
-    by_id = tracker.history_by_id(history)
-    today = today or date.today()
-    if stale_days is None:
-        stale_days = tracker.STALE_DAYS
-    terminal = tracker.TERMINAL_STAGES
-
-    funnel = [{"stage": k, "count": v}
-              for k, v in report.count_by(rows, "当前阶段", report.FUNNEL_ORDER)]
-    by_direction = [{"key": k, "count": v} for k, v in report.count_by(rows, "方向")]
-    active = sum(1 for r in rows if (r.get("当前阶段") or "").strip() not in terminal)
-
-    # 四个逐行筛选段在 dashboard_sections（2026-10-09 拆分；只搬不改行为）
-    retro = report.retrospective(rows, history, today, workspace)
-
-    return {
-        "workspace": workspace,
-        "asOf": today.isoformat(),
-        "initialized": paths.workspace_profile(workspace),
-        "total": len(rows),
-        "active": active,
-        "funnel": funnel,
-        "byDirection": by_direction,
-        "upcoming": dashboard_sections.upcoming(rows, today),
-        "overdue": dashboard_sections.overdue(rows, today),
-        "stale": dashboard_sections.stale(rows, by_id, today, stale_days),
-        "pending": dashboard_sections.pending(rows, by_id, today),
-        "conversion": retro.get("conversion", []),
-        "failure": retro.get("failure"),
-        "declined": retro.get("declined"),
-    }
 
 
 # --- 批 4.7 主线补口：面试 / 题库 / JD 评分 -----------------------------------

@@ -32,7 +32,8 @@ rename 之后）→ 只补最后一步；其余（`planned` / `copying` / `verif
 
 **回滚**（`rollback`）= 把持久化选择指回旧根（源未删、目标原样留着）：本批**不做**
 自动删除与自动回搬——观察期里两份历史根都在磁盘上是设计接受的状态（spec §七 风险 6），
-清理由人裁决。
+清理由人裁决。**已生效的迁移不再允许指针式回滚**（P1-B 方案①）：判别、人话理由与
+拒绝形态都在 `dataroot_rollback`——CLI / API / 未来宿主入口共用这一条规则。
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ import uuid
 
 from . import dataroot_manifest as manifest_mod
 from . import dataroot_probe as probe
+from . import dataroot_rollback as rollback_rules
 from . import dataroot_semantics as semantics
 from . import dataroot_state as state
 from . import pathres
@@ -396,15 +398,13 @@ def _drop_empty_staging(directory):
 
 # --- resume / rollback ----------------------------------------------------------
 
-def _switch_pending(journal):
-    """数据已上位、只差生效写？（硬杀在 rename 之后、写选择之前的现场）"""
-    return (not os.path.isdir(journal["staging"])
-            and os.path.isdir(os.path.join(journal["target_root"], journal["workspace"])))
-
-
 def _steps_for(journal, phase):
-    """从当前相位接着跑哪几步（`switching` 只补最后一步；其余从头补差量）。"""
-    if phase == "switching" or _switch_pending(journal):
+    """从当前相位接着跑哪几步（`switching` 只补最后一步；其余从头补差量）。
+
+    「数据已上位、只差生效写」这个事实（硬杀在 rename 之后、写选择之前的现场）
+    与回滚判据共用同一处实现：`dataroot_rollback.switch_landed`。
+    """
+    if phase == "switching" or rollback_rules.switch_landed(journal):
         return ["switch"]
     return list(ALL_STEPS)
 
@@ -441,22 +441,15 @@ def resume(apply=False):
 
 
 def rollback(apply=False):
-    """回滚：把持久化选择指回旧根。**不删、不回搬**（源未删，目标原样留着）。"""
+    """回滚：把持久化选择指回旧根。**不删、不回搬**（源未删，目标原样留着）。
+
+    **迁移已生效则拒绝**（`status="refused"`，dry-run 与 apply 同形）：判别、人话
+    理由与拒绝形态都在 `dataroot_rollback`（**前三个**信号任一成立即拒绝；第四个
+    `root_id` 佐证不单独触发——它在 `switching` 相位单独成立时回滚是合法的）；这里只把
+    本模块的两个写口（唯一写实现）注入进去，规则本身不在这里。
+    """
     journal = read_journal()
     if journal is None:
         return {"status": "nothing"}
-    source_root = journal["source_root"]
-    if not apply:
-        return {"status": "dry-run", "to": source_root,
-                "from": (probe.read_selection_document() or {}).get("data_root"),
-                "target_root": journal["target_root"]}
-    already = state.same_root(
-        (probe.read_selection_document() or {}).get("data_root"), source_root)
-    _write_selection(source_root, probe.MIGRATION_IDLE, journal["root_id"])
-    journal["rolled_back_at"] = state.now_iso()
-    _write_journal(journal)
-    return {"status": "noop" if already else "rolled-back", "source_root": source_root,
-            "target_root": journal["target_root"],
-            "target_kept": os.path.isdir(os.path.join(journal["target_root"],
-                                                      journal["workspace"])),
-            "staging_kept": os.path.isdir(journal["staging"])}
+    return rollback_rules.rollback(journal, apply=apply, write_selection=_write_selection,
+                                  write_journal=_write_journal)

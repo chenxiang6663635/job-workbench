@@ -164,7 +164,11 @@ def migrate_resume(body: MigrateActionBody):
 
 @router.post("/data-root/migrate/rollback")
 def migrate_rollback(body: MigrateActionBody):
-    """把持久化选择指回旧根（不删、不回搬；apply=false 是演练）。"""
+    """把持久化选择指回旧根（不删、不回搬；apply=false 是演练）。
+
+    迁移**已生效**则拒绝（200 + `status: "refused"` + 理由——判别与拒绝形态见
+    `dataroot_rollback`，与 CLI 同一处规则）；拒绝时不写选择、不改事务记录。
+    """
     try:
         return migrate.rollback(apply=body.apply)
     except OSError as exc:

@@ -35,7 +35,6 @@
 - **设置页可以清除已保存的凭据（2026-10-07）**：邮箱授权码与 API Key 旁新增「清除」入口——确认后凭据从系统存储（Windows 凭据管理器）与工作区配置文件里一并删除，之后需要重新输入才能使用；不必再靠手改配置文件来「忘掉」一把钥匙。
 - **DSH 接入件升级为可安装的插件包（2026-10-07）**：在 DeepSeek Harness 里装包即完成接线——MCP 工具面、9 个 `jwb-*` 技能与可选 `jobws` preset 一起到位，不再需要手改 profile 文件；安装/卸载会把依赖与 `dsh.profile.bundles` 两处一并写入/清理（第一阶段的手工接线需先自行删掉，避免双挂载）。
 - **DSH 装插件变成一条命令（2026-10-07）**：新增一键安装脚本——装包、校验与「第一阶段手工接线的自动迁移」一次完成（旧的 `mcp-jobws` / `preset-jobws` 手抄行被幂等移除并留 `.bak` 备份，不再有双挂载风险）；同时预写 pnpm 的 24h 新版本隔离放行，首发当天即可安装。
-
 - **评分档位不再错判小数总分（2026-10-09）**：加权总分 74.5 此前落进整数档位之间的缝、被静默判成「不投」；现在档位按下界半开——74.5 属「建议投」、59.5 属「斟酌」。未指定 `--domain` 时也不再按字母序猜插件（此前会拿 `hvac-cooling` 的词典给软开岗位打分），改为明确失败并给出修法；看板分布同步修正。
 - **命令行的工作区取值与其它端同一道闸（2026-10-09）**：`JOBWS_WORKSPACE` 写成 `..` 段 / 绝对路径 / 盘符相对会直接报错（退出码 2 + 修法提示），不再静默读写数据根之外的目录——与 Web 的 400 `ws.outOfRange`、MCP 的 containment 兜底对齐。
 - **「稍后重试」现在是真的（2026-10-09）**：两段式写入在锁等待超时时会把令牌放回去（此前令牌已焚，重试只能重新预览）；纯校验失败（过期 / 绑定 / 指纹 / 未知操作）也改为**不烧牌**并前置到取走之前（不再留下含明文载荷的临时残片）；令牌文件改为原子写，过期令牌在下次预览时顺手清理（不再在系统临时目录里堆明文载荷）。
@@ -82,6 +81,9 @@
 
 - **MCP 只读面补三级归属防护与字节有界读（2026-10-16，外部审计 P1-A / P2-A）**：岗位读取此前与 Web **不同源**——Web 早在 2026-09-23 二轮审计就补了 `_read_in_workspace`（safe_join → inside → 有界读），MCP 侧三处缺口仍在：① 岗位池**根**目录若是指向工作区外的 junction，`os.listdir` 一次就把**外部目录的条目名**列出来；② 岗位**子目录**与 `解析卡.md` / `JD原文.md` **文件级**链接被 `_read_text` / `os.path.isfile` 跟随，读穿出去；③ 字段 `有解析卡` / `有JD原文` 用 `isfile` **正判定**，把「工作区外存在某文件」透给宿主（布尔本身也是泄漏）。修法：归属原语收进 `paths.py`（`is_in_workspace` / `exists_in_workspace` / `read_in_workspace`——realpath 归属 + 可选字节上限，越界一律 fail-closed 返回 None）；解析卡读取与两个解析器搬进新模块 `job_files.py`（顺带把「展示名与评分各读一次」的读放大收成**一次读**；`tools_readonly.py` 363→318，登记水位随实测下调）；两个字段改为**归属通过之后**才算存在（越界按不存在给 False，payload 形状与字段位置不变）；`score_jd` 在调 `gap_analysis` **之前**先判解析卡与同目录 JD 原文的归属——领域层内部还会读同目录 `JD原文.md`（`jd_score._read_text` 不走本侧闸；该函数另有简历 JSON / 词典 / 母版与事实库三处读取，本批未加闸 → follow-up），越界就不把已判越界的 path 递过去（改为 `差距错误: 差距分析已跳过…`）；`resources.read_job_text` 改**二进制**有界读（文本模式的 `read(n)` 数的是**字符**，纯中文时 20K 字符 ≈ 60K 字节；此前更是无界 `read()` 全读回来再截断），截断提示文案与相对路径形态逐字不变。**反向约束**：工作区内的链接（岗位池根 / 子目录 / 文件级，目标仍在工作区内）保持既有可读行为。`jd_score._read_text`（Web / MCP 共用、无归属无界）与「Web 的 `_read_in_workspace` 下沉共用」记为 follow-up。实测：新增 `mcp/tests/test_read_boundary.py` 15 条（6 条文件级链接用例在 Windows 无建链特权时跳过、CI ubuntu 跑真实行为），MCP 91 passed / 7 skipped、主套件 1883 passed / 20 skipped、八扫描器全绿。
 - **tracker 批量导入补 CSV 读侧还原（2026-10-16，#298）**：`parse_import_csv` 此前用裸 `csv.reader`，只 strip 不还原——与题库侧（#297 的 `_read_import_csv`）是同一处同构缺口，只是那次只修了题库。落盘/导出时单元格被 `csv_cell` 中和（`=X` → `'=X`），读回来不还原等于给用户加一个他没写过的撇号，下次写盘再中和一次变 `''=X`——每往返一轮多一层；而判重键是「公司+岗位」，不含备注这类自由文本列，既有的往返幂等用例照旧全绿、漂移被藏住。修法照抄题库口径：每格先过 `csv_read_cell`（含 `_needs_escape` 递归支，用户真想留的 `'Hello` 不被误剥）、**再** strip，顺序不可颠倒——strip 先跑会把「空格 + 撇号」重新判成中和形态，把用户那一格吃掉。Web `POST /api/applications/import`、MCP `preview_import_applications`、CLI `jobws track import` 三入口共用本函数，所以修在解析层一处三处同获。实测：新增 `tests/test_tracker_import_restore.py`（含两代往返的**盘上原文**断言：撇号不累积）+ Web / MCP 各一条真路径，主套件 1896 passed / 20 skipped、MCP 93 passed / 7 skipped、八扫描器全绿。
+
+- **依赖审计两条命令都真正执行（2026-10-16，假绿修复）**：GitHub Actions 的 `run:` 默认以 `bash -e` 执行——前端完整扫描有 9 条告警（exit 1，3 moderate / 6 high，全在开发工具链）时 shell **立刻退出**，**Electron 那条根本没执行**，而 `continue-on-error` 让整个 job 依旧显示绿色（不能把它读成「Electron 已审查通过」）。改法：生产扫描改为状态累加器（两条都跑、任一失败才红），完整扫描拆成前端 / Electron **各一步**、两步都加 `if: always()`。**Electron 的生产扫描此前从未真正跑过**——现在两端 `--omit=dev --audit-level=high` 均为 0 漏洞（前端那 9 条全在开发链，正是既有 `--omit=dev` 的理由，不动它）。同族的 Electron 主进程自检（10 条 node）一并改累加器：`check_packaging.js`（打包白名单守卫）排第 9 位，前面的失败原本会让它静默缺席。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

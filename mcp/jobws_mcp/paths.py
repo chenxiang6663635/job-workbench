@@ -22,6 +22,7 @@ MCP 是宿主里的可选组件、不需要 fastapi，主干也不需要 MCP SDK
 给宿主的受控通道，不该放开任意目录。
 """
 
+import io
 import os
 import sys
 
@@ -185,6 +186,65 @@ def resolve_within_workspace(workspace, value, label="目录"):
     if not containment.is_within_or_equal(real, ws_real):
         return None, None, "%s 越出工作区：%s" % (label, raw)
     return real, "/".join(segments), None
+
+
+# --- 工作区内读取：归属 + 有界（2026-10-16，外部审计 P1-A / P2-A）-------------
+#
+# 为什么在这一层：本模块是 MCP 的**受控通道**（工作区解析、入参越界判定都在这里），
+# 而岗位读取此前各写各的——`tools_readonly._read_text` 直读不管归属、字段用
+# `os.path.isfile` 正判定（**跟随链接**、把工作区外文件的存在性透给宿主）。
+# Web 端早在 2026-09-23 就有同款三层（`routers/jobs.py:77` 的 `_read_in_workspace`：
+# safe_join → inside → 有界读），MCP 侧补上同一强度，两个端不再给互相矛盾的结论。
+
+
+def is_in_workspace(workspace, *parts):
+    """`workspace/parts...` 的归属校验（realpath 展开）；**不要求路径存在**。
+
+    判据统一在 `containment.is_within_or_equal`（与 `resolve_within_workspace` 同款，
+    原语义含「等于工作区」）。两点刻意的取舍：
+    - **不要求存在**：差距分析要用它判「将要读的解析卡与 JD 原文」的归属，还没读、
+      文件甚至可能不在；
+    - **链接目标仍在工作区内时不做限制**：用户把工作区分片放在同步盘再链进来是
+      合法用法（`resolve_workspace` 同样只对「读穿到外面」动手）。
+    """
+    return containment.is_within_or_equal(os.path.join(workspace, *parts), workspace)
+
+
+def exists_in_workspace(workspace, *parts):
+    """工作区内的**普通文件**是否存在：归属校验通过之后才算存在。
+
+    不能直接用 `os.path.isfile`：它**跟随链接**——岗位目录是 junction 时，
+    `有解析卡` / `有JD原文` 会正判定出一个工作区外的文件，而这个布尔本身就是泄漏
+    （宿主据此能探测工作区外有没有某个文件）。越界一律按「不存在」给（False）。
+    """
+    return (is_in_workspace(workspace, *parts)
+            and os.path.isfile(os.path.join(workspace, *parts)))
+
+
+def read_in_workspace(workspace, *parts, max_bytes=None):
+    """读工作区内的文本：realpath 归属校验（+可选字节上限）；越界 / 读不到返回 None。
+
+    fail-closed：越界、不是普通文件、打不开、读不了**一律 None**，不抛错——工具层
+    要的是「给不出正文」这一件事，把文件系统的异常类别透给宿主只是噪声。
+    链接跳转照旧：归属判的是**链接目标**，目标在工作区内就照读。
+
+    `max_bytes` 给定时是**二进制**有界读：文本模式的 `read(n)` 数的是**字符**，
+    纯中文时 n 个字符 ≈ 3n 字节（`resources.read_job_text` 的同类缺口 2026-10-12
+    已修）。给定上限且文件超过它时**返回 None（拒绝）而不是截断**——截断后的正文会
+    被解析成「半真半假」的结果（评分段落可能正好被切掉），比明确的「读不到」更坏。
+    需要「截断并注明」的调用方自己读（见 `resources.read_job_text`）。
+    """
+    full = os.path.join(workspace, *parts)
+    if not containment.is_within_or_equal(full, workspace):
+        return None
+    try:
+        with io.open(full, "rb") as handle:
+            raw = handle.read() if max_bytes is None else handle.read(max_bytes + 1)
+    except (OSError, ValueError):
+        return None
+    if max_bytes is not None and len(raw) > max_bytes:
+        return None
+    return raw.decode("utf-8", "replace")
 
 
 def workspace_profile(workspace):

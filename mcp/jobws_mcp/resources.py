@@ -124,17 +124,22 @@ def read_job_text(workspace, job_name, kind):
     if not os.path.isfile(real):
         return None, ("岗位「%s」下没有%s（文件名应为 %s）" % (job_name, label, filename))
 
-    with io.open(real, "r", encoding="utf-8", errors="replace") as handle:
-        text = handle.read()
-    # **按字节**截断（独立审查 MINOR-1）：先 encode 再切再 decode——`str` 切片按
-    # code point，纯中文时 20K 字符 ≈ 60K 字节，会把"20KB 上限"放大三倍。
-    # decode(errors="ignore") 处理恰好切在多字节字符中间的情形（丢半个字符，
-    # 不影响可读性）。
-    raw = text.encode("utf-8")
-    if len(raw) > JD_TEXT_MAX_BYTES:
+    # **二进制有界读**（2026-10-16，外部审计 P2-A）：此前是文本模式 `read()` 全读
+    # 回来再按字节切——`handle.read(n)` 在文本模式下数的是**字符**，而且无上限的
+    # `read()` 会把整份文件先读进内存（一个被构造的超大 JD 就能拖垮宿主）。
+    # 多读 1 字节是为判断「后面还有内容」——只看 `len(raw) >= 上限` 会把**恰好**
+    # 等于上限的文件误报成截断。
+    with io.open(real, "rb") as handle:
+        raw = handle.read(JD_TEXT_MAX_BYTES + 1)
+    truncated = len(raw) > JD_TEXT_MAX_BYTES
+    if truncated:
         rel = os.path.relpath(real, workspace).replace("\\", "/")
-        text = (raw[:JD_TEXT_MAX_BYTES].decode("utf-8", "ignore")
-                + "\n\n…（已截断，完整内容见工作区 %s）" % rel)
+        # 切点可能落在多字节字符中间：decode(errors="ignore") 丢半个字符，不影响
+        # 可读性（非截断路径用 "replace"——乱码要看得见，不能假装干净）。
+        raw = raw[:JD_TEXT_MAX_BYTES]
+    text = raw.decode("utf-8", "ignore" if truncated else "replace")
+    if truncated:
+        text += "\n\n…（已截断，完整内容见工作区 %s）" % rel
     return text, None
 
 

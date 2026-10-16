@@ -1378,6 +1378,9 @@ const zhCN = {
   "notes.hitLine": "第 {{line}} 行",
   "notes.hitInName": "名称命中",
   "notes.backToTree": "返回目录树",
+  // 返回栈（三期）：栈空时入口不渲染，故文案只在真的有上一份时出现（title 给出目标）
+  "notes.backPrevious": "返回上一篇",
+  "notes.backPreviousTitle": "回到 {{name}}",
   "notes.imageSkipped": "图片未加载",
   "notes.imageSkippedHint":
     "应用内不加载图片——相对路径在界面里会 404，外链要联网（与本应用的本地优先相抵）；请在自己的编辑器里查看原文",

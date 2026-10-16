@@ -146,6 +146,14 @@ export function extractOutline(markdown: string): NotesOutlineItem[] {
   return out;
 }
 
+/** rel 的祖先目录前缀（`行为面/子/甲.md` → `["行为面", "行为面/子"]`）：跳转落点若在
+ * 收起的目录里，树里根本没有可高亮的节点——按这些前缀删掉折叠键即可把落点露出来。
+ * 前缀与 buildNotesTree 给目录节点的 `rel` 同形（同一套拼接规则），可直接当键用。 */
+export function relAncestors(rel: string): string[] {
+  const parts = rel.split("/");
+  return parts.slice(1).map((_, index) => parts.slice(0, index + 1).join("/"));
+}
+
 /**
  * 命中行 → 该滚到哪个块：取"起始行 ≤ target 的最后一个块"。
  *

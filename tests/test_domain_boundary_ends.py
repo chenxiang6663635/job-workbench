@@ -27,10 +27,9 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-import approval  # noqa: E402
 import deps  # noqa: E402
 import jobws  # noqa: E402
-import tracker  # noqa: E402
+from jobws_core import approval, tracker  # noqa: E402  （正名：旧名 import 点只许减）
 from fastapi.testclient import TestClient  # noqa: E402
 from jobws_core.tracker._schema import HISTORY_FIELDS  # noqa: E402
 
@@ -42,7 +41,7 @@ TRACKING = "05_投递追踪"
 def tokens(tmp_path, monkeypatch):
     store = tmp_path / "tokens"
     store.mkdir()
-    monkeypatch.setattr(approval._shell, "_store_dir", lambda: str(store))
+    monkeypatch.setattr(approval, "_store_dir", lambda: str(store))
     return store
 
 

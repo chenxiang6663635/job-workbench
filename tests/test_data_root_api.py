@@ -245,7 +245,8 @@ def test_migrate_resume_and_rollback_without_transaction(mig_client):
     assert res.json()["status"] == "nothing", res.text
 
 
-def test_migrate_rollback_after_apply_points_back(mig_client, tmp_path):
+def test_migrate_rollback_after_apply_is_refused(mig_client, tmp_path):
+    """已生效的迁移不再支持指针式回滚（P1-B 方案①）：200 + 结构化拒绝，状态不变。"""
     client = mig_client
     _mk_ws(deps.ROOT)
     target = tmp_path / "out"
@@ -255,9 +256,14 @@ def test_migrate_rollback_after_apply_points_back(mig_client, tmp_path):
 
     res = client.post("/api/system/data-root/migrate/rollback", json={"apply": True})
     assert res.status_code == 200, res.text
-    assert res.json()["status"] == "rolled-back", res.text
-    assert _get(client)["path"] == str(deps.ROOT)
-    assert os.path.isdir(os.path.join(str(target), "personal")), "回滚不删目标"
+    body = res.json()
+    assert body["status"] == "refused", body
+    assert body["source_root"] == str(deps.ROOT) and body["target_root"] == str(target)
+    assert body["target_kept"] is True and body["staging_kept"] is False, body
+    assert "completed" in body["signals"], body
+    assert "没有被删除" in body["reason"], body
+    assert _get(client)["path"] == str(target), "拒绝时不许改指针"
+    assert os.path.isdir(os.path.join(str(target), "personal")), "目标数据未删除"
 
 
 def test_migrate_works_while_unavailable(mig_client, tmp_path):

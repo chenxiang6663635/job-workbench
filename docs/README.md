@@ -18,7 +18,7 @@
 
 | 文档 | 状态 | 说明 |
 |---|---|---|
-| [`specs/2026-10-04-single-canonical-data-root.md`](specs/2026-10-04-single-canonical-data-root.md) | **现行** | 单一 canonical 数据根与历史工作区迁移：四端解析收敛为唯一解析器、三态守卫（歧义/失效/未初始化）、持久化数据根选择、迁移事务（copy→verify→switch，可续跑可回滚）与跨端契约矩阵 |
+| [`specs/2026-10-04-single-canonical-data-root.md`](specs/2026-10-04-single-canonical-data-root.md) | **现行** | 单一 canonical 数据根与历史工作区迁移：四端解析收敛为唯一解析器、三态守卫（歧义/失效/未初始化）、持久化数据根选择、迁移事务（copy→verify→switch，**在途**可续跑可回滚；生效后拒绝指针式回滚，见决策 5 的 2026-10-16 修订注）与跨端契约矩阵 |
 | [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射。**注意**：文中「tools/ 下共 6 个脚本」等清单是 2026-08 的当时记录——脚本已归并为 `tools/jobws.py` 唯一入口，现状见 `contributing.zh-CN.md` |
 | [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | 历史（部分章节已被取代） | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录。**注意**：依赖版本与 Python 基线等章节是 2026-08 的当时记录（3.8 时代），现状以 `contributing.zh-CN.md` 与 `web/backend/requirements.txt` 为准 |
 | [`specs/2026-08-31-job-workbench-productization.md`](specs/2026-08-31-job-workbench-productization.md) | **现行** | 产品化三期路线（差异化点/架构/桌面壳/扩展）+ 一期与 P0+P1 完成记录 |

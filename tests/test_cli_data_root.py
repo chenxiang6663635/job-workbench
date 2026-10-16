@@ -255,5 +255,29 @@ def test_migrate_resume_and_rollback_without_transaction_are_noops(monkeypatch, 
     assert "没有在途事务" in out, out
 
 
+def test_migrate_rollback_after_apply_is_refused_with_exit_one(monkeypatch, capsys, tmp_path):
+    """迁移已生效后 `--rollback` 被拒（P1-B 方案①）：退出码 1（动作失败），
+    演练与执行两条路径都如实报，并明说数据都还在、指针一个字都没动。"""
+    source = _source_root()
+    _mk_ws_file(source)
+    target = str(tmp_path / "out")
+    assert _run(monkeypatch, capsys, ["data-root", "migrate", target, "--apply"])[0] == 0
+
+    code, out = _run(monkeypatch, capsys, ["data-root", "migrate", "--rollback"])
+    assert code == 1, out
+    assert "拒绝回滚" in out and "没有被删除" in out, out
+
+    code, out = _run(monkeypatch, capsys,
+                     ["data-root", "migrate", "--rollback", "--apply", "--json"])
+    assert code == 1, out
+    result = json.loads(out)
+    assert result["status"] == "refused", result
+    assert result["source_root"] == source and result["target_root"] == target
+    assert result["target_kept"] is True, result
+
+    code, out = _run(monkeypatch, capsys, ["data-root", "show", "--json"])
+    assert json.loads(out)["path"] == target, "拒绝时不许改指针"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

@@ -13,7 +13,9 @@
   （`_write_selection` 注入 KeyboardInterrupt）两条路径都能续；
 - **幂等**：`root_id` / 选择已是目标即跳过；
 - **失败语义**：任何阶段失败都不影响源目录可用，`state=failed` + 原因；
-- **回滚**：把持久化选择指回旧根（两份目录都留着，不做自动删除 / 回搬）。
+- **回滚**：把持久化选择指回旧根（两份目录都留着，不做自动删除 / 回搬）——**仅限
+  在途 / 未生效**；迁移已生效（含「切换写成功、完成记录未落盘」的崩溃窗口）后拒绝
+  指针式回滚，判别见 `dataroot_rollback`（P1-B 方案①）。
 
 夹具全部落在 `tmp_path`，`APPDATA` 也隔离——**不碰真实 `personal/`**。
 """
@@ -322,33 +324,84 @@ def test_resume_after_completion_is_a_noop(roots):
     assert migrate.resume(apply=True) == {"status": "nothing"}
 
 
-# --- 回滚：指回旧根，两份都留着 --------------------------------------------------
+# --- 回滚：在途可用；已生效则拒绝（P1-B 方案①） ----------------------------------------
 
-def test_rollback_points_the_selection_back_and_keeps_both_trees(roots):
+def test_rollback_after_completion_is_refused(roots):
+    """迁移完成（目标根已生效）→ 拒绝：不写选择、不改事务记录，并说清数据都在。"""
     source, target = roots
     migrate.apply(migrate.plan(str(target), str(source)))
-    before_source = _fingerprint(str(source))
-    before_target = _fingerprint(os.path.join(str(target), WS))
+    selection_before = _read_selection()
+    journal_before = migrate.read_journal()
 
-    dry = migrate.rollback()
-    assert dry["status"] == "dry-run"
-    assert dry["to"] == str(source)
-    assert _read_selection()["data_root"] == str(target), "演练不改任何东西"
+    dry = migrate.rollback()                   # 演练也要如实预告，不给假希望
+    assert dry["status"] == "refused", dry
+    assert dry["source_root"] == str(source) and dry["target_root"] == str(target)
+    assert dry["target_kept"] is True and dry["staging_kept"] is False
+    assert "completed" in dry["signals"]
 
     result = migrate.rollback(apply=True)
-    assert result["status"] == "rolled-back"
-    selection = _read_selection()
-    assert selection["data_root"] == str(source)
-    assert selection["migration_state"] == "idle"
-    assert dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY).path == str(source)
+    assert result["status"] == "refused", result
+    assert "没有被删除" in result["reason"] and "旧根" in result["reason"]
+    assert "data-root migrate" in result["reason"], "要搬回时给的路必须是受控迁移"
+    assert _read_selection() == selection_before, "拒绝时一个字节都不该写"
+    assert migrate.read_journal() == journal_before
+    assert dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY).path == str(target)
 
-    # 不删、不回搬：两边都还在，且逐字节一致（观察期由人裁决）
-    assert _fingerprint(str(source)) == before_source
-    assert _fingerprint(os.path.join(str(target), WS)) == before_target
-    assert migrate.read_journal()["rolled_back_at"]
+
+def test_rollback_is_refused_in_the_switch_crash_window(roots, monkeypatch):
+    """**切换生效写已发生、完成记录未落盘**（崩在两者之间）也不许指针式回滚。"""
+    source, target = roots
+    real_write = migrate._write_journal
+
+    def die_before_completion(journal):
+        if journal.get("completed_at"):
+            raise OSError("模拟硬杀：完成记录没来得及落盘")
+        return real_write(journal)
+
+    monkeypatch.setattr(migrate, "_write_journal", die_before_completion)
+    with pytest.raises(OSError):
+        migrate.apply(migrate.plan(str(target), str(source)))
+
+    # 现场：选择已指向目标、相位回到 idle、事务记录里没有完成位
+    assert _read_selection()["data_root"] == str(target)
+    assert _read_selection()["migration_state"] == "idle"
+    assert migrate.read_journal()["completed_at"] is None
+    assert os.path.isdir(os.path.join(str(target), WS))
+
+    result = migrate.rollback(apply=True)
+    assert result["status"] == "refused", result
+    assert "switch_landed_unfinished" in result["signals"]
+    assert _read_selection()["data_root"] == str(target), "拒绝时不许动指针"
+
+
+def test_rollback_refusal_is_idempotent(roots):
+    """重复回滚：第二次仍然拒绝，且两次都不碰盘上的任何状态。"""
+    source, target = roots
+    migrate.apply(migrate.plan(str(target), str(source)))
+
+    first = migrate.rollback(apply=True)
+    snapshot = (_read_selection(), migrate.read_journal())
+    second = migrate.rollback(apply=True)
+    assert first["status"] == second["status"] == "refused"
+    assert (_read_selection(), migrate.read_journal()) == snapshot
+    assert migrate.resume(apply=True)["status"] == "nothing", "被拒 ≠ 事务又在途了"
+
+
+def test_rollback_refuses_after_new_records_land_in_the_target(roots):
+    """成功迁移后在目标根新增了记录再回滚：拒绝——否则那些记录看起来凭空消失。"""
+    source, target = roots
+    migrate.apply(migrate.plan(str(target), str(source)))
+    record = _write(target, "%s/05_投递追踪/tracker.csv" % WS, "id,公司\n9,迁移后的新记录\n")
+
+    result = migrate.rollback(apply=True)
+    assert result["status"] == "refused", result
+    with io.open(record, "r", encoding="utf-8") as handle:
+        assert "迁移后的新记录" in handle.read()
+    assert dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY).path == str(target)
 
 
 def test_rollback_before_the_switch_only_abandons_the_transaction(roots, monkeypatch):
+    """在途 / 失败的事务照旧可以回滚：选择本就指着旧根，回滚是幂等收尾。"""
     source, target = roots
 
     def boom(src, dst):
@@ -357,10 +410,46 @@ def test_rollback_before_the_switch_only_abandons_the_transaction(roots, monkeyp
     monkeypatch.setattr(migrate, "_copy_file", boom)
     assert migrate.apply(migrate.plan(str(target), str(source)))["status"] == "failed"
 
+    dry = migrate.rollback()
+    assert dry["status"] == "dry-run"
+    assert dry["to"] == str(source)
+    assert dry["target_root"] == str(target)
+    assert _read_selection()["migration_state"] == "failed", "演练不改任何东西"
+
     result = migrate.rollback(apply=True)
     assert result["status"] == "noop"
     assert _read_selection()["data_root"] == str(source)
     assert _read_selection()["migration_state"] == "idle"
+    assert migrate.read_journal()["rolled_back_at"]
+
+
+def test_rollback_after_a_hard_kill_at_the_switch_is_still_allowed(roots, monkeypatch):
+    """硬杀在 switch 里（数据已上位、指针还没翻）仍是**在途**——不许误拒。
+
+    这是判据里 `identity_on_target`（本事务的 `root_id` 已钉在目标根上）唯一能
+    单独成立的现场：它只作佐证、不作拒绝依据，否则「中断后回滚」这条通道就没了。
+    """
+    source, target = roots
+    real_write = migrate._write_selection
+
+    def kill_at_switch(root, phase, root_id=None):
+        if os.path.normcase(root) == os.path.normcase(str(target)):
+            raise KeyboardInterrupt("模拟硬杀（不落任何状态）")
+        return real_write(root, phase, root_id)
+
+    monkeypatch.setattr(migrate, "_write_selection", kill_at_switch)
+    with pytest.raises(KeyboardInterrupt):
+        migrate.apply(migrate.plan(str(target), str(source)))
+
+    before_source = _fingerprint(os.path.join(str(source), WS))
+    before_target = _fingerprint(os.path.join(str(target), WS))
+    result = migrate.rollback(apply=True)      # 现场：相位 switching、选择仍指向源
+    assert result["status"] == "noop", result
+    assert _read_selection()["data_root"] == str(source)
+    # 不删、不回搬：两份目录都原样留着（允许的回滚也只动选择文件与事务记录）
+    assert _fingerprint(os.path.join(str(source), WS)) == before_source
+    assert _fingerprint(os.path.join(str(target), WS)) == before_target
+    assert result["target_kept"] is True and result["staging_kept"] is False
 
 
 # --- 与诊断面 / 隐私的接口 -------------------------------------------------------

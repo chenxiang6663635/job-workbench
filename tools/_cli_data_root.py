@@ -8,11 +8,12 @@
 
 B1 起 `migrate` 加入本组（spec 决策 5）：**默认 dry-run**（只出计划，一个字节
 不写），`--apply` 才执行迁移事务；`--resume` 续跑在途事务、`--rollback` 把
-选择指回旧根。状态机与三条纪律见 `jobws_core.dataroot_migrate` 的模块说明。
+选择指回旧根（**仅限在途 / 未生效**：已生效后拒绝，见 `jobws_core.dataroot_rollback`）。
+状态机与三条纪律见 `jobws_core.dataroot_migrate` 的模块说明。
 
 退出码：0 成功（含 dry-run / 幂等跳过 / 无在途事务）；1 动作失败（预检
-blocked、迁移 failed、在途事务状态不明）；2 用法错误（相对路径、标志冲突、
-未知子命令）。
+blocked、迁移 failed、在途事务状态不明、回滚被拒）；2 用法错误（相对路径、
+标志冲突、未知子命令）。
 
 用法：
     python tools/jobws.py data-root show [--json]
@@ -168,6 +169,11 @@ def _emit_action(result, use_json, label):
                  result.get("staged") or 0, result.get("remaining") or 0,
                  result.get("source_root"), result.get("target_root")))
         return 0
+    if status == "refused":
+        # 迁移已生效（P1-B 方案①）：理由与出路都在 result["reason"] 里，别另写一份。
+        if not use_json:
+            print("错误：%s" % result.get("reason"), file=sys.stderr)
+        return 1
     if status in ("rolled-back", "noop"):
         if not use_json:
             print("%s完成：选择已指回 %s；目标根与暂存原样保留（%s / %s）——"
@@ -272,7 +278,7 @@ def main():
     mp.add_argument("--resume", action="store_true",
                     help="续跑在途事务（按清单 / 哈希差量，不重拷已落位文件）")
     mp.add_argument("--rollback", action="store_true",
-                    help="把持久化选择指回旧根（不删、不回搬）")
+                    help="把持久化选择指回旧根（不删、不回搬；迁移已生效后拒绝）")
     mp.add_argument("--json", action="store_true", help="输出结果的 JSON")
     args = parser.parse_args()
 

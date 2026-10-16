@@ -124,6 +124,27 @@ def test_preview_import_then_apply(ws):
     assert applied["written"] == 1
 
 
+def test_preview_import_restores_escaped_cells(ws):
+    """读侧闭环（#298）：`parse_import_csv` 的还原对 MCP 一侧同样生效。
+
+    预览的返回值里没有原始行（只有 diff 与计数），所以这里断言**落盘原文**：
+    中和撇号恰好一个——`''=SUM…` 就是"每往返一轮多一层"的现场（导出 → 导入 →
+    再导出时写侧会再中和一遍）。
+    """
+    danger = "=SUM(A1:A9)"
+    csv_text = ("公司,岗位,方向,批次,当前阶段,备注\n"
+                "示例公司甲,示例岗位乙,backend,正式批,待投,'%s\n" % danger)
+
+    data = tools_writable.preview_import_applications(ws, csv_text)
+    assert data["ok"] is True, data
+
+    applied = tools_writable.apply_approval(ws, data["token"])
+    assert applied["ok"] is True, applied
+    stored = _csv_bytes(ws).decode("utf-8-sig")
+    assert "'" + danger in stored
+    assert "''" + danger not in stored, "撇号每往返一轮累积一层"
+
+
 def test_preview_import_with_error_rows_gives_no_token(ws):
     csv_text = ("公司,岗位,方向,批次,当前阶段\n"
                 ",示例岗位乙,backend,正式批,待投\n")   # 公司为空 → 错误行

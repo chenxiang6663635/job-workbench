@@ -15,6 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+from ..csv_cells import csv_read_cell
 from . import _core
 from ._core import (TERMINAL_STAGES, _tracking_targets, check_direction, check_reason_required, dedup_key, find_duplicate, next_id, parse_iso_date, resolve_ws)
 from ._schema import (BATCHES, FIELDS, IMPORT_REQUIRED, SOURCES, STAGES)
@@ -27,6 +28,12 @@ def parse_import_csv(text):
 
     允许缺列（缺的留空）、未知列忽略；「公司」「岗位」缺一不可。
     返回 (rows, unknown_columns)。解析失败抛 ValueError（人话，可直接展示）。
+
+    **读侧闭环**（#298）：每格先过 `csv_read_cell` 还原、再 strip（顺序不可颠倒，
+    与题库 `question_bank._read_import_csv` 同一口径）。导出/落盘时单元格被
+    `csv_cell` 中和（`=X` → `'=X`），读回来不还原就等于给用户加了一个他没写过的
+    撇号，下次写盘再中和一次变 `''=X`——每往返一轮多一层。Web / MCP / CLI 都调
+    本函数，所以这道闭环修在这里三处同获。
     """
     raw = (text or "").lstrip("\ufeff")
     if not raw.strip():
@@ -46,7 +53,9 @@ def parse_import_csv(text):
         row = {f: "" for f in known}
         for name, value in zip(header, line):
             if name in row:
-                row[name] = (value or "").strip()
+                # 先还原（在**读到的原文**上判定）、后 strip：strip 先跑会把
+                # 「空格 + 撇号」重新判成中和形态，把用户的那一格吃掉
+                row[name] = csv_read_cell(value or "").strip()
         rows.append(row)
     return rows, unknown
 

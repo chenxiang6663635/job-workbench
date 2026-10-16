@@ -60,12 +60,13 @@ if _TOOLS_DIR not in sys.path:
 # site-packages 的上层（论证见 tests/test_domain_root.py）。
 _REPO_ROOT = os.path.dirname(_TOOLS_DIR)
 try:
-    from jobws_core import pathres  # noqa: E402
+    # workspace_read（#307）：只依赖 os + containment，与 lint pr-title 的零依赖 CI 路径无冲突
+    from jobws_core import pathres, workspace_read  # noqa: E402
 except ImportError:
     _PKG_SRC = os.path.join(_REPO_ROOT, "packages", "jobws-core", "src")
     if os.path.isdir(_PKG_SRC) and _PKG_SRC not in sys.path:
         sys.path.insert(0, _PKG_SRC)
-    from jobws_core import pathres  # noqa: E402
+    from jobws_core import pathres, workspace_read  # noqa: E402
 pathres.set_app_root(_REPO_ROOT)
 
 import approval  # noqa: E402
@@ -282,9 +283,8 @@ def main(argv=None):
         # argparse 的 --help(0) 与用法错误(2) 都走这里：必须原样透出，
         # 否则 `jobws track --help` 会被误报成失败
         return _exit_code(exc)
-    except pathres.WorkspaceOutOfRange as exc:
-        # 坏配置（JOBWS_WORKSPACE 越界）译成退出码 2 + 可读文案，不抛裸栈
-        print("错误：%s" % exc)
+    except (pathres.WorkspaceOutOfRange, workspace_read.WorkspaceBoundaryError) as exc:
+        print("错误：%s" % exc)  # 坏配置与链接读穿（#307）都译成退出码 2，不抛裸栈
         return 2
     except TimeoutError:
         # 写类操作拿不到 tracker.lock（另一处正在写：桌面端常驻后端 / 另一个命令）。

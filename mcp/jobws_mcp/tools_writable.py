@@ -25,16 +25,30 @@ from . import paths  # noqa: F401
 # 它自己登记的十一个操作（track.* / talk.add / mail.add / interview.* / question.*）
 # 独立安装下也能用；仓库侧的 `prep.toggle` / `init` 不在其中——调它们会得到
 # `unknown_operation`（稳定 code，显式的「这个操作需要仓库在侧」）。
-from jobws_core import approval, question_bank, tracker
+from jobws_core import approval, question_bank, tracker, workspace_read
 
 # 落盘后给宿主的一句话指引：让模型知道"刚才发生了什么、下一步是什么"。
 _NEXT_STEP = ("把 summary 与 diff 展示给用户；用户确认之后，用同一个 token 调用 "
               "apply_approval 落盘。令牌一次性、10 分钟内有效。")
 
 
+def _boundary_refused(exc):
+    """#307：数据文件（tracker.csv / history.csv 一族）经链接指向工作区外的统一拒绝。
+
+    **预览也要读主表**（新增去重 / 更新定位 / 导入对账 / 面试关联）——拓扑已坏时
+    领域层在预览阶段就抛 `WorkspaceBoundaryError`。这里译成与 `apply_approval`
+    同款的 ok=false + `code=path.escape`，不把异常裸抛给宿主（2026-10-16 独立审查
+    M1：apply 收了、preview 漏了，三端里只有 MCP 会把栈抛出去）。
+    """
+    return {"ok": False, "errors": [str(exc)], "code": "path.escape"}
+
+
 def preview_add_application(workspace, **fields):
     """预览新增一条投递记录（**不写入**），返回令牌与将要写入的字段。"""
-    errors, plan = tracker.preview_add_fields(fields, workspace)
+    try:
+        errors, plan = tracker.preview_add_fields(fields, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     result = approval.preview("track.add", workspace, plan["payload"],
@@ -57,7 +71,10 @@ def preview_import_applications(workspace, csv_text):
     except ValueError as exc:
         return {"ok": False, "errors": [str(exc)]}
 
-    preview = tracker.preview_import(csv_rows, workspace=workspace)
+    try:
+        preview = tracker.preview_import(csv_rows, workspace=workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if preview["error"]:
         return {
             "ok": False,
@@ -92,8 +109,11 @@ def preview_update_application(workspace, app_id, changes):
     载荷校验与差异表由 tracker.preview_update_fields 统一构造（CLI / 网页端同源，
     避免三处各拼一份之后「预览说 X、落盘写 Y」）。
     """
-    errors, plan = tracker.preview_update_fields(
-        {"id": app_id, "changes": dict(changes or {})}, workspace)
+    try:
+        errors, plan = tracker.preview_update_fields(
+            {"id": app_id, "changes": dict(changes or {})}, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     result = approval.preview("track.update", workspace, plan["payload"],
@@ -135,7 +155,10 @@ def preview_add_interview(workspace, **fields):
     面试官 / 问题记录 / 我的回答要点 / 复盘与改进 / 结果）。给了关联记录时，
     公司与岗位从主表带出（与 CLI 同口径）。
     """
-    errors, plan = tracker.preview_interview_add_fields(fields, workspace)
+    try:
+        errors, plan = tracker.preview_interview_add_fields(fields, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     return _preview("interview.add", workspace, plan)
@@ -147,8 +170,11 @@ def preview_update_interview(workspace, interview_id, changes):
     只列**要改**的字段（changes 里没有的不动）；面试 id / 关联记录 / 公司 不在
     可更新集合里——改归属要另建一条，避免把时间线接错。
     """
-    errors, plan = tracker.preview_interview_update_fields(
-        {"id": interview_id, "changes": dict(changes or {})}, workspace)
+    try:
+        errors, plan = tracker.preview_interview_update_fields(
+            {"id": interview_id, "changes": dict(changes or {})}, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     return _preview("interview.update", workspace, plan)
@@ -189,6 +215,10 @@ def apply_approval(workspace, token):
 
     令牌不可用（过期 / 已用过 / 绑定别的工作区 / 载荷被改过）时返回 ok=False，
     不抛异常——宿主拿到的是可读的拒绝理由，而不是栈。
+
+    #307：写入目标经符号链接指向工作区外时（`tracker.csv` / `history.csv` 一族），
+    领域层抛 `WorkspaceBoundaryError`（显式拒绝，一个字节都不写）——这里同样
+    译成 ok=false + `code=path.escape`，与 Protocol 层的既有范式一致。
     """
     try:
         result = approval.apply(token, workspace=workspace)
@@ -197,6 +227,8 @@ def apply_approval(workspace, token):
         # 指纹不符（fingerprint）/ 绑定不符（binding）等——不要解析中文文案。
         return {"ok": False, "errors": [str(exc)],
                 "code": getattr(exc, "code", "invalid")}
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return {"ok": False, "errors": [str(exc)], "code": "path.escape"}
     return {
         "ok": True,
         "summary": result.get("summary"),

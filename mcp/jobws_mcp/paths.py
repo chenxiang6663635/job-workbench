@@ -22,14 +22,22 @@ MCP 是宿主里的可选组件、不需要 fastapi，主干也不需要 MCP SDK
 给宿主的受控通道，不该放开任意目录。
 """
 
-import io
 import os
 import sys
 
 # 硬闸已删（2026-09-19 PR-B）：下面一行是**唯一**的领域层依赖，且它只依赖 os/sys。
 # 缺了它就是装错了（`mcp/pyproject.toml` 已声明 jobws-core），导入期直接报错最清楚。
 # 2026-09-25 收口批：归属判定收口到同包的 `containment`（路径包含原语，Web 同源）。
-from jobws_core import containment, dataroot, pathres  # noqa: E402
+# 2026-10-16 #307 收口批：工作区内读取（归属 + 有界 + 换行归一）收口到
+# `workspace_read`——本模块的 `*_in_workspace` 三函数改为薄转发，实现只有一份
+# （领域层；CLI / Web / MCP 同源），修口径不必再三个端各改一遍。`workspace_read`
+# 只依赖 containment（零副作用、不碰 ROOT），故与上面的 import 同段无顺序问题。
+from jobws_core import (  # noqa: E402
+    containment,
+    dataroot,
+    pathres,
+    workspace_read,
+)
 
 # 给 pathres 一个「应用根」＝**数据根**，且**必须在此刻**——领域层（`tracker/_core`、
 # `jd_score`）在**导入期**就求值 `ROOT`，晚一步下面的 import 直接 RuntimeError。
@@ -190,68 +198,78 @@ def resolve_within_workspace(workspace, value, label="目录"):
 
 # --- 工作区内读取：归属 + 有界（2026-10-16，外部审计 P1-A / P2-A）-------------
 #
-# 为什么在这一层：本模块是 MCP 的**受控通道**（工作区解析、入参越界判定都在这里），
-# 而岗位读取此前各写各的——`tools_readonly._read_text` 直读不管归属、字段用
-# `os.path.isfile` 正判定（**跟随链接**、把工作区外文件的存在性透给宿主）。
-# Web 端早在 2026-09-23 就有同款三层（`routers/jobs.py:77` 的 `_read_in_workspace`：
-# safe_join → inside → 有界读），MCP 侧补上同一强度，两个端不再给互相矛盾的结论。
+# 2026-10-16 #307 收口批：实现已下沉领域层 `jobws_core.workspace_read`（tracker 读 /
+# jd_score 预检 / append_history 判据都走它；CLI 与 Web 同源）。本模块保留函数名
+# 与签名**逐字不动**——这里是 MCP 的受控通道（job_files、tools_readonly、resources
+# 都经这四个名字读工作区），转发后它们零改动。
+#
+# 判据与口径不再在这里维护：realpath 归属（含「等于工作区」）、越界 fail-closed、
+# 字节上限（数的是字节、超限拒绝）、换行归一——全部只有领域层一份。
 
 
 def is_in_workspace(workspace, *parts):
     """`workspace/parts...` 的归属校验（realpath 展开）；**不要求路径存在**。
 
-    判据统一在 `containment.is_within_or_equal`（与 `resolve_within_workspace` 同款，
-    原语义含「等于工作区」）。两点刻意的取舍：
-    - **不要求存在**：差距分析要用它判「将要读的解析卡与 JD 原文」的归属，还没读、
-      文件甚至可能不在；
-    - **链接目标仍在工作区内时不做限制**：用户把工作区分片放在同步盘再链进来是
-      合法用法（`resolve_workspace` 同样只对「读穿到外面」动手）。
-
-    契约：**部件须是单段相对名**（与 `resolve_within_workspace` 的入参纪律一致）。
-    传入绝对路径 / `..` 段时 `os.path.join` 会重置根——本函数**不显式拒绝**，靠归属
-    判据兜住（重置后必然越界 → False）；这是刻意的 fail-closed，不是漏判。
+    判据 = `containment.is_within_or_equal`（原语义含「等于工作区」）。链接目标
+    仍在工作区内时**不做限制**：用户把工作区分片放在同步盘再链进来是合法用法
+    （`resolve_workspace` 同样只对「读穿到外面」动手）。契约：部件须是单段
+    相对名（拼绝对路径 / `..` 段会重置根，判据 fail-closed 兜住）。
     """
-    return containment.is_within_or_equal(os.path.join(workspace, *parts), workspace)
+    return workspace_read.is_in_workspace(workspace, *parts)
 
 
 def exists_in_workspace(workspace, *parts):
     """工作区内是否存在该文件：**归属校验通过之后**才算存在。
 
-    不能直接用 `os.path.isfile`：它**跟随链接**——岗位目录是 junction 时，
-    `有解析卡` / `有JD原文` 会正判定出一个工作区外的文件，而这个布尔本身就是泄漏
-    （宿主据此能探测工作区外有没有某个文件）。越界一律按「不存在」给（False）；
-    指向**工作区内**的链接照旧为 True（目标在区内，不是泄漏面）。
+    不能直接用 `os.path.isfile`：它**跟随链接**——数据目录是 junction 时，
+    「有 tracker.csv」 / 「有解析卡」会正判定出一个工作区外文件，而这个布尔
+    本身就是泄漏（宿主据此能探测工作区外有没有某个文件）。越界一律按「不存在」
+    给（False）；指向**工作区内**的链接照旧为 True（目标在区内，不是泄漏面）。
     """
-    return (is_in_workspace(workspace, *parts)
-            and os.path.isfile(os.path.join(workspace, *parts)))
+    return workspace_read.exists_in_workspace(workspace, *parts)
 
 
 def read_in_workspace(workspace, *parts, max_bytes=None):
     """读工作区内的文本：realpath 归属校验（+可选字节上限）；越界 / 读不到返回 None。
 
-    fail-closed：越界、不是普通文件、打不开、读不了**一律 None**，不抛错——工具层
-    要的是「给不出正文」这一件事，把文件系统的异常类别透给宿主只是噪声。
-    链接跳转照旧：归属判的是**链接目标**，目标在工作区内就照读。
+    fail-closed：越界、不是普通文件、打不开、读不了**一律 None**，不抛错。链接
+    跳转照旧：归属判的是**链接目标**，目标在工作区内就照读（换行归一并进原语）。
 
-    `max_bytes` 给定时是**二进制**有界读：文本模式的 `read(n)` 数的是**字符**，
-    纯中文时 n 个字符 ≈ 3n 字节（`resources.read_job_text` 的同类缺口 2026-10-12
-    已修）。给定上限且文件超过它时**返回 None（拒绝）而不是截断**——截断后的正文会
-    被解析成「半真半假」的结果（评分段落可能正好被切掉），比明确的「读不到」更坏。
-    需要「截断并注明」的调用方自己读（见 `resources.read_job_text`）。
-    **`max_bytes=None` 是无界全读**——只在确定文件体量可控时才省略（本模块当前唯一
-    的无上限调用方是岗位卡片之外的小文件；大文件一律给上限）。
+    `max_bytes` 是**二进制**有界读：文本模式的 `read(n)` 数的是**字符**，纯中文时
+    n 个字符 ≈ 3n 字节。超限**拒绝（None）而不是截断**——截断后的正文会被解析成
+    「半真半假」的结果，比明确的「读不到」更坏。**无上限只给体量可控的小文件**。
     """
-    full = os.path.join(workspace, *parts)
-    if not containment.is_within_or_equal(full, workspace):
-        return None
+    return workspace_read.read_in_workspace(workspace, *parts, max_bytes=max_bytes)
+
+
+# --- tracker 读取的协议层转译（#307）---------------------------------------------
+#
+# 领域层 `tracker.read_rows` / `read_history` 现在先过归属判据，越界抛
+# `WorkspaceBoundaryError`（显式拒绝，不返空列表）。MCP 的既有范式是「返回结构、
+# 不抛栈」，故转译放在**这几个读点上**：
+
+
+def read_tracker_rows(workspace):
+    """主表读取 + 转译：返回 (行, None)；越界返回 (None, 可读错误)。
+
+    为什么不放 `tools_readonly`：那是登记过的水位文件（只许变小）；本模块是
+    MCP 的受控通道，「工作区解析 + 归属 + 有界读」都住这里，转译跟着判据走。
+    惰性 import `tracker`：它导入期求值 `ROOT`，必须排在本模块注入应用根之后。
+    """
+    from jobws_core import tracker  # noqa: E402  （导入期求值 ROOT，晚于上方注入）
     try:
-        with io.open(full, "rb") as handle:
-            raw = handle.read() if max_bytes is None else handle.read(max_bytes + 1)
-    except (OSError, ValueError):
-        return None
-    if max_bytes is not None and len(raw) > max_bytes:
-        return None
-    return raw.decode("utf-8", "replace")
+        return tracker.read_rows(workspace), None
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return None, str(exc)
+
+
+def read_tracker_history(workspace):
+    """时间线读取 + 转译：同上（`05_投递追踪` / `history.csv` 经链接指向工作区外时）。"""
+    from jobws_core import tracker  # noqa: E402
+    try:
+        return tracker.read_history(workspace), None
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return None, str(exc)
 
 
 def workspace_profile(workspace):

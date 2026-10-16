@@ -96,6 +96,26 @@ def test_apply_writes_and_is_traceable(tmp_path, client, tokens):
     assert [h["字段"] for h in history] == ["创建"], "导入必须逐条入账时间线"
 
 
+def test_import_restores_escaped_cells(tmp_path, client, tokens):
+    """读侧闭环（#298）：预览里的行已是原始字符，落盘仍只留一个中和撇号。
+
+    网页端与 CLI / MCP 共用 `tracker.parse_import_csv`，所以修在解析层三处同获；
+    这条钉的是**这条路由真的走了它**——预览返回的 `row` 若带撇号，前端会把它显示
+    出来、用户一存盘就过一遍 `csv_cell` 变 `''=SUM…`（每往返多一层）。
+    """
+    danger = "=SUM(A1:A9)"
+    body = _preview(client, "公司,岗位,方向,批次,当前阶段,备注\n"
+                            "公司A,岗位甲,hvac,正式批,已投,'%s\n" % danger)
+
+    assert body["ok"][0]["row"]["备注"] == danger
+
+    res = _apply(client, body["token"])
+    assert res.status_code == 200, res.text
+    stored = (tmp_path / WS / TRACKING / "tracker.csv").read_text(encoding="utf-8-sig")
+    assert "'" + danger in stored
+    assert "''" + danger not in stored, "撇号每往返一轮累积一层"
+
+
 def test_token_is_single_use(tmp_path, client, tokens):
     token = _preview(client)["token"]
     assert _apply(client, token).status_code == 200

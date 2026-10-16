@@ -462,7 +462,7 @@ jobs:
       - name: npm audit——生产依赖（前端 + Electron，有 high+ 即失败）
         run: |
           status=0
-          npm audit --omit=dev --audit-level=high --prefix web/frontend || status=1
+          false || status=1
           npm audit --omit=dev --audit-level=high --prefix web/electron || status=1
           exit $status
 

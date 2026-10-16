@@ -28,7 +28,7 @@
 - **CLI workspace values are validated like every other surface** — a `JOBWS_WORKSPACE` that escapes the data root (`..`, absolute, drive-relative) is refused with exit code 2 and a fix hint, matching the web 400 `ws.outOfRange` and the MCP containment guard.
 - **"Retry shortly" is now true** — a lock timeout puts the two-phase token back (it used to be burned, forcing a full re-preview); token files are written atomically, and expired ones are purged from the TEMP store on the next preview.
 - **The activity timeline survives a torn append** — a half-written `history.csv` record no longer sends the whole timeline to `quarantine/`: the bad record is dropped and counted (`track check` reports it), and the next append seals the torn line so records can never merge.
-- **A completed data-root move can no longer be rolled back by flipping the pointer (2026-10-16)** — once the migration has taken effect (including the crash window where the switch was written but the completion record never landed), `migrate --rollback`, the settings card and the API refuse with one shared explanation instead of silently pointing back: the target root keeps its data, the old root is still on disk, and moving back means running a fresh, content-checked migration. Interrupted or failed runs stay resumable and can still be rolled back.
+- **A completed data-root move can no longer be rolled back by flipping the pointer (2026-10-16)** — once the migration has taken effect (including the crash window where the switch was written but the completion record never landed), `migrate --rollback`, the settings card and the API refuse with one shared explanation instead of silently pointing back: the target root keeps its data, the old root is still on disk, and **moving back is not supported by the tool yet** — the old root still carries the same `root_id`, so `migrate <old path>` is misread as "already current" and the data never moves (a controlled reverse-migration protocol is #304). Interrupted or failed runs stay resumable and can still be rolled back.
 
 ### 看得见的变化
 
@@ -43,7 +43,7 @@
 - **英文界面的题库与简历不再直出中文（2026-10-10）**：题库三态徽章、状态筛选与题目详情里的状态 / 难度改走翻译（Not learned / Seen / Known、Easy / Medium / Hard），简历强调色的读屏与悬停名同步（Graphite / Business Blue…），与训练侧按钮同一套文案；键盘用户新增「跳到主内容」跳转，免于逐页穿过顶栏 11+ 个控件。数据值与动作负载不变。
 - **DSH 里的 AI 现在读得到 JD 正文（2026-10-12）**：真机核验证实 DSH 宿主不桥接 MCP 只读资源，而三个技能此前把 `jobws://` 当 JD 正文唯一读法——那份技能在 DSH 上读不到正文。现在新增只读工具 `read_job_text` 并把技能改走工具（宿主无关）；读不到时仍如实说没有、请用户提供，**不凭岗位名编造**。
 - **坏的环境变量不再挡住显式指定的工作区（2026-10-15）**：`JOBWS_WORKSPACE` 写成越界值（`..` 段 / 绝对路径 / 盘符相对）时，命令行以前**连 `--help` 都打不开**、显式 `--workspace` 也一起失效；现在显式指定优先，只有在没指定时才按坏配置报错（退出码 2 + 修法提示）。
-- **数据根搬完家后不再支持「一键回滚」（2026-10-16，外部审计 P1-B）**：迁移**已完成并生效**后再回滚（`data-root migrate --rollback`、设置页、API）会被明确拒绝——那条路只改选择文件里那一行、不核对两边内容，生效后会让搬到新位置以来新增的记录看起来凭空消失。**在途 / 未生效**（中断、失败、还没切换）照旧可续跑可回滚；确实要搬回旧位置，请用 `jobws data-root migrate <旧位置>` 重新发起一次受控迁移（先出清单与预检、逐字节校验通过才切换）。被拒时会把话说明白：目标根的数据没有被删除，旧根也仍然在磁盘上。
+- **数据根搬完家后不再支持「一键回滚」（2026-10-16，外部审计 P1-B）**：迁移**已完成并生效**后再回滚（`data-root migrate --rollback`、设置页、API）会被明确拒绝——那条路只改选择文件里那一行、不核对两边内容，生效后会让搬到新位置以来新增的记录看起来凭空消失。**在途 / 未生效**（中断、失败、还没切换）照旧可续跑可回滚；**但「搬回旧位置」当前版本做不到**：`root_id` 随数据一起搬走，旧根仍带着同一个身份，把旧位置当迁移目标会被误判成「已经是当前数据」（数据一动不动）、或者被目标非空预检拦下；受控反向迁移协议见 #304。被拒时会把话说明白：目标根的数据没有被删除，旧根也仍然在磁盘上。
 - **笔记互链跳转后可以回到上一篇了（2026-10-16，issue #274）**：正文互链、搜索结果与左栏目录选择都会记一步，阅读区路径行旁出现「← 返回上一篇」——连跳几层也能一层层退回去；跳进另一个分组（03 ↔ 04）时左栏高亮跟着切换，切页签 / 刷新后这条回头路仍在（本会话内）。
 
 ### 技术细节

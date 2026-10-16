@@ -773,7 +773,7 @@ const zhCN = {
   "settings.dataLocStateUninitializedHint": "数据根里还没建工作区——属于正常首启，直接开始使用即可。",
   "settings.dataLocMigrationBanner": "迁移在途（相位：{{phase}}）",
   "settings.dataLocMigrateLegend": "搬到新位置",
-  "settings.dataLocMigrateDesc": "搬家是两段式：先预览（纯读清单与预检，不写任何东西），确认后才执行；中断可续跑，完成后可回滚——旧目录不会被删除。",
+  "settings.dataLocMigrateDesc": "搬家是两段式：先预览（纯读清单与预检，不写任何东西），确认后才执行；在途可续跑、可回滚，完成后不再支持一键回滚（反向搬迁当前不可行，见 #304）——旧目录不会被删除。",
   "settings.dataLocTargetLabel": "新位置（数据根目录）",
   "settings.dataLocTargetPlaceholder": "例如 D:\\job-data",
   "settings.dataLocPreviewBtn": "预览迁移",

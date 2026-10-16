@@ -135,6 +135,28 @@ def test_plan_skips_when_selection_already_points_at_the_target(roots):
         migrate.apply(plan)
 
 
+def test_reverse_migration_is_misread_as_already_current(roots):
+    """**特征化测试**（#304）——钉的是现状，不是期望行为。
+
+    A→B 完成后，`_already_current()` 的第二分支（「目标已带**同一个** `root_id`」）
+    必然命中：`root_id` 随数据一起搬走（spec 决策 2，另见
+    `test_apply_keeps_root_id_across_the_move`），旧根 A 仍带着同一个身份。于是
+    `jobws data-root migrate A` 会打印「已经是当前数据，无需迁移」并**一个字节都不动**，
+    用户以为搬回去了，实际活动根仍是 B。这正是 #304 要修的东西；在此钉住现状，
+    是为了防止它在没有协议的情况下悄悄变成别的行为（或修好之后没人知道它曾经是这样）。
+    """
+    source, target = roots
+    # 真实场景的前提：A 曾是活动数据根，本来就带着根标记（`data-root set` 或上一次
+    # 迁移写的）；迁移不会碰旧根，所以搬家后 A 的标记与 B 的标记带着**同一个** root_id。
+    # 少这一步，A 根本没有标记、`_already_current` 的第二分支无从命中（我第一版就漏了）。
+    dataroot.write_persisted_selection(str(source))
+
+    migrate.apply(migrate.plan(str(target), str(source)))      # 完成一次 A→B 搬家
+
+    assert migrate._already_current(str(source)) is True, \
+        "反向迁移当前被误判为幂等（#304）：这条断言钉的是**现状**，#304 落地后应改为 False"
+
+
 # --- apply：完整事务 ------------------------------------------------------------
 
 def test_apply_completes_and_switches_only_at_the_end(roots, monkeypatch):
@@ -342,7 +364,8 @@ def test_rollback_after_completion_is_refused(roots):
     result = migrate.rollback(apply=True)
     assert result["status"] == "refused", result
     assert "没有被删除" in result["reason"] and "旧根" in result["reason"]
-    assert "data-root migrate" in result["reason"], "要搬回时给的路必须是受控迁移"
+    assert "不支持反向迁移" in result["reason"], \
+        "搬回旧位置当前不可行：提示必须如实说明（#304），而不是指一条走不通的路"
     assert _read_selection() == selection_before, "拒绝时一个字节都不该写"
     assert migrate.read_journal() == journal_before
     assert dataroot.resolve_data_root(dataroot.FORM_MCP_ONLY).path == str(target)

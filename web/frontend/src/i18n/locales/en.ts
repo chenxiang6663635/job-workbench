@@ -732,7 +732,7 @@ export default {
   "settings.dataLocStateUninitializedHint": "No workspace exists in this data root yet — normal on first start; just start using it.",
   "settings.dataLocMigrationBanner": "Migration in progress (phase: {{phase}})",
   "settings.dataLocMigrateLegend": "Move to a new location",
-  "settings.dataLocMigrateDesc": "Moving is two-phase: preview first (a read-only manifest and preflight, writes nothing), then confirm; an interrupted run can resume, a finished one can roll back — the old folder is never deleted.",
+  "settings.dataLocMigrateDesc": "Moving is two-phase: preview first (a read-only manifest and preflight, writes nothing), then confirm; an in-flight run can resume or roll back, a completed one can no longer be rolled back (moving back is not supported yet — see #304) — the old folder is never deleted.",
   "settings.dataLocTargetLabel": "New location (data root folder)",
   "settings.dataLocTargetPlaceholder": "e.g. D:\\job-data",
   "settings.dataLocPreviewBtn": "Preview move",

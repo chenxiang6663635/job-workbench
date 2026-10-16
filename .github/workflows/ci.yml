@@ -191,17 +191,23 @@ jobs:
         # url_guard.test.js 是 P0-2（导航 origin 严格比对 / 外链 scheme 白名单）的
         # 回归网——批末审查发现它当时只在有人手工 `node` 时才跑（测试文件里却写着
         # "CI 也跑这一步"）。护栏没进 CI 等于没有护栏。
+        # 与上面 audit 同一个坑：`bash -e` 下第一条 node 用例失败，后面 9 条**静默
+        # 跳过**——`check_packaging.js`（打包白名单守卫）排第 9 位、url_guard 第 10
+        # 位，前面的失败会让它们缺席（守卫没跑等于没守）。改成状态累加器：全部跑完
+        # 再按累计结果退出，任一失败仍红。
         run: |
-          node web/electron/zoom.test.js
-          node web/electron/window_state.test.js
-          node web/electron/reminders.test.js
-          node web/electron/diagnostics.test.js
-          node web/electron/backend_process.test.js
-          node web/electron/prefs.test.js
-          node web/electron/notifications.test.js
-          node web/electron/navigation.test.js
-          node web/electron/check_packaging.js
-          node web/electron/url_guard.test.js
+          status=0
+          node web/electron/zoom.test.js || status=1
+          node web/electron/window_state.test.js || status=1
+          node web/electron/reminders.test.js || status=1
+          node web/electron/diagnostics.test.js || status=1
+          node web/electron/backend_process.test.js || status=1
+          node web/electron/prefs.test.js || status=1
+          node web/electron/notifications.test.js || status=1
+          node web/electron/navigation.test.js || status=1
+          node web/electron/check_packaging.js || status=1
+          node web/electron/url_guard.test.js || status=1
+          exit $status
 
       - name: 构建
         working-directory: web/frontend
@@ -464,6 +470,7 @@ jobs:
       # 修复、要么需 major 升级（独立工程）。两个包**各一步**以便分别留存结果；
       # `if: always()` 保证前端那步红了，Electron 这步照样跑（否则又是静默缺席）。
       - name: npm audit——完整依赖：前端（报告，不阻断）
+        if: always()
         continue-on-error: true
         run: npm audit --audit-level=high --prefix web/frontend
 

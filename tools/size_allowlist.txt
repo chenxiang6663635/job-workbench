@@ -59,7 +59,7 @@ web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导�
 #   搬进 resources.register / prompts.register / resources.register_text_tool（→300）；
 # ③ 删豁免后暴露 `build_server()` 254 行 > 函数 80 行上限，工具注册表再拆进
 #   tool_registry → server.py 87 / tool_registry 265 / resources 211 / prompts 149。
-mcp/jobws_mcp/tools_readonly.py = 363  # 六个只读工具；2026-10-09 拆分批：dashboard_summary 的四段逐行筛选搬去 dashboard_sections（429→363，水位随实测下调）
+mcp/jobws_mcp/tools_readonly.py = 318  # 六个只读工具；2026-10-09 拆分批：dashboard_summary 的四段逐行筛选搬去 dashboard_sections（429→363）；2026-10-16 只读面归属批：解析卡读取与两个解析器搬去 job_files（363→318 水位随实测下调）
 scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；main() 97 行（步骤线性，拆分列入后续重构）
 #
 # --- Electron 主进程：2026-09-25 发布前收口批把它与 .js/.mjs 纳入扫描 ---

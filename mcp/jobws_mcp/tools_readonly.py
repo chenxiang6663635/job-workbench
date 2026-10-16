@@ -15,12 +15,11 @@
 这样它们能脱离 MCP SDK 单测。
 """
 
-import io
 import os
-import re
 from datetime import date
 
 from . import dashboard_sections
+from . import job_files
 from . import paths
 from .limits import limit_rows
 from .paths import DIR_JOBS, DIR_TRACKING
@@ -33,15 +32,9 @@ from jobws_core import containment, jd_score, question_bank, report, tracker  # 
 CORE_FIELDS = ["id", "公司", "岗位", "方向", "批次", "截止日期", "投递日期",
                "当前阶段", "下次动作", "下次动作日期", "评分"]
 
-CARD_FILE = "解析卡.md"
-JD_FILE = "JD原文.md"
-
-
-def _read_text(path):
-    if not os.path.isfile(path):
-        return None
-    with io.open(path, "r", encoding="utf-8") as f:
-        return f.read()
+# 文件名与 `job_files` 同源（`resources.read_job_text` 用的就是这两个名字）
+CARD_FILE = job_files.CARD_FILE
+JD_FILE = job_files.JD_FILE
 
 
 def _split_dir(name):
@@ -49,56 +42,6 @@ def _split_dir(name):
     （公司名带下划线时还原偏左，是刻意选的可预测口径）。"""
     company, _, role = (name or "").partition("_")
     return company.strip(), role.strip()
-
-
-def _card_basic_info(card_path):
-    """读解析卡「基本信息」段的公司/岗位；读不到返回 None。与 jobs.py:134 同口径。"""
-    card = _read_text(card_path)
-    if not card:
-        return None
-    seg = re.search(r"^##\s*基本信息\s*$(.*?)(?=^##\s|\Z)", card, re.M | re.S)
-    if not seg:
-        return None
-    values = {}
-    for key in ("公司", "岗位"):
-        m = re.search(r"^%s\s*[:：]\s*(.*)$" % key, seg.group(1), re.M)
-        values[key] = (m.group(1).strip() if m else "")
-    if not values["公司"] or not values["岗位"]:
-        return None
-    return values["公司"], values["岗位"]
-
-
-def _card_score(card_path):
-    """读解析卡的总分与结论，与 jobs.py 的 `_parse_card` 同口径。
-
-    关键一致点：**四维之和必须等于总分**才给档位（level / action）——解析卡是
-    渐进填写的，填到一半时给一个算错的分档比不给更糟。总分照常返回，由
-    `consistent` 标明是否自洽（后端同样处理）。
-    """
-    card = _read_text(card_path)
-    if not card:
-        return None
-    fields = jd_score.parse_score_section(card)
-    if not fields:
-        return None
-    dims, ok = [], True
-    for name, maximum in jd_score.DIMENSIONS:
-        num, errs = jd_score.parse_dimension(fields.get(name, ""), name, maximum)
-        if errs or num is None:
-            ok = False
-            break
-        dims.append(num)
-    try:
-        total = float((fields.get("总分") or "").strip())
-    except (TypeError, ValueError):
-        total = None
-        ok = False
-    level = action = None
-    if ok and total is not None and abs(sum(dims) - total) < 1e-6:
-        level, action = jd_score.verdict(total)
-    else:
-        ok = False
-    return {"total": total, "level": level, "action": action, "consistent": ok}
 
 
 def _slim(row, verbose=False):
@@ -173,7 +116,10 @@ def list_jobs(workspace, keyword=None, limit=20):
     系统性失配，把已投岗位判成「未投递」（jobs.py:196-209 的明确要求）。
     """
     base = os.path.join(workspace, DIR_JOBS)
-    if not os.path.isdir(base):
+    # 归属先判（2026-10-16 审计 P1-A）：`01_岗位池` 本身若是指向工作区外的
+    # junction，`os.listdir` 一次就把**外部目录的条目名**列出来。越界按「没有
+    # 岗位池」给——与目录不存在同一形态，不透露外面有东西。
+    if not paths.is_in_workspace(workspace, DIR_JOBS) or not os.path.isdir(base):
         return {"workspace": workspace, "total": 0, "returned": 0, "items": []}
 
     applied = _applications_by_key(workspace)
@@ -182,16 +128,16 @@ def list_jobs(workspace, keyword=None, limit=20):
         full = os.path.join(base, name)
         if name.startswith("_") or not os.path.isdir(full):
             continue
-        card_path = os.path.join(full, CARD_FILE)
-        company, role = _card_basic_info(card_path) or _split_dir(name)   # 展示名
+        card = job_files.read(workspace, name)                            # 只读一次
+        company, role = job_files.basic_info(card) or _split_dir(name)     # 展示名
         match_company, match_role = _split_dir(name)                      # 匹配键
         row = applied.get(tracker.dedup_key(match_company, match_role))
         items.append({
             "目录": name, "公司": company, "岗位": role,
             "状态": _apply_state(row), "阶段": (row or {}).get("当前阶段", "").strip(),
-            "评分": _card_score(card_path),
-            "有JD原文": os.path.isfile(os.path.join(full, JD_FILE)),
-            "有解析卡": os.path.isfile(card_path),
+            "评分": job_files.score(card),
+            "有JD原文": job_files.has_jd(workspace, name),
+            "有解析卡": job_files.has_card(workspace, name),
         })
 
     if keyword:
@@ -340,8 +286,8 @@ def score_jd(workspace, job_id, resume_version=None):
     if error:
         return {"ok": False, "errors": [error]}
 
-    card_path = os.path.join(job_dir, CARD_FILE)
-    basic = _card_basic_info(card_path)
+    card = job_files.read(workspace, job_id)                             # 只读一次
+    basic = job_files.basic_info(card)
     company, role = basic if basic else _split_dir(job_id)
     data = {
         "ok": True,
@@ -349,15 +295,24 @@ def score_jd(workspace, job_id, resume_version=None):
         "目录": job_id,
         "公司": company,
         "岗位": role,
-        "评分": _card_score(card_path),
-        "有解析卡": os.path.isfile(card_path),
-        "有JD原文": os.path.isfile(os.path.join(job_dir, JD_FILE)),
+        "评分": job_files.score(card),
+        "有解析卡": job_files.has_card(workspace, job_id),
+        "有JD原文": job_files.has_jd(workspace, job_id),
     }
     if resume_version:
         # `gap_analysis` 返回 (result, errors)——与后端同款解包（routers/jobs.py）。
         # 直接赋元组会让宿主收到 `差距: [null, [...]]`（2026-09-19 审查 MINOR 抓到）。
-        gap, gap_errors = jd_score.gap_analysis(workspace, card_path, resume_version)
-        data["差距"] = gap
-        if gap_errors:
-            data["差距错误"] = gap_errors
+        # 它内部会读同目录 `JD原文.md`（`jd_score._read_text` 不走本侧闸），另会读简历
+        # JSON / 词典 / 母版与事实库——后几项本批未加闸（follow-up）。解析卡是防御性一并
+        # 判：卡越界时评分已为 None，差距分析没有可比对象。
+        inputs = (CARD_FILE, JD_FILE)
+        if all(paths.is_in_workspace(workspace, DIR_JOBS, job_id, f) for f in inputs):
+            gap, gap_errors = jd_score.gap_analysis(
+                workspace, os.path.join(job_dir, CARD_FILE), resume_version)
+            data["差距"] = gap
+            if gap_errors:
+                data["差距错误"] = gap_errors
+        else:
+            data["差距"] = None
+            data["差距错误"] = ["差距分析已跳过：解析卡或 JD 原文越出工作区"]
     return data

@@ -447,18 +447,30 @@ jobs:
 
       # 生产依赖（阻断）：不含 devDependencies——正是打包进产物的那棵树。
       # npm audit 只读 package-lock.json，不需要 npm ci。
-      - name: npm audit——生产依赖（有 high+ 即失败）
+      # 两条 audit **必须都跑**：GitHub Actions 的 `run:` 默认以 `bash -e` 执行——
+      # 第一条返回非零时 shell 立刻退出，第二条**静默缺席**。2026-10-16 审计实证：
+      # 前端完整扫描有 9 条告警（exit 1）→ Electron 那条根本没执行，而
+      # continue-on-error 让整个 job 仍是绿的（**假绿**：不能把它读成 Electron
+      # 已审查通过）。故用状态累加器，而不是把两条分行罗列（本地实验坐实：
+      # `bash -e -c "false; echo second"` 不会打印 second）。
+      - name: npm audit——生产依赖（前端 + Electron，有 high+ 即失败）
         run: |
-          npm audit --omit=dev --audit-level=high --prefix web/frontend
-          npm audit --omit=dev --audit-level=high --prefix web/electron
+          status=0
+          npm audit --omit=dev --audit-level=high --prefix web/frontend || status=1
+          npm audit --omit=dev --audit-level=high --prefix web/electron || status=1
+          exit $status
 
       # 完整依赖（报告）：开发工具链的告警可见，但不挡 PR——剩余项要么等上游
-      # 修复、要么需 major 升级（独立工程）。continue-on-error 让红不传播。
-      - name: npm audit——完整依赖（报告，不阻断）
+      # 修复、要么需 major 升级（独立工程）。两个包**各一步**以便分别留存结果；
+      # `if: always()` 保证前端那步红了，Electron 这步照样跑（否则又是静默缺席）。
+      - name: npm audit——完整依赖：前端（报告，不阻断）
         continue-on-error: true
-        run: |
-          npm audit --audit-level=high --prefix web/frontend
-          npm audit --audit-level=high --prefix web/electron
+        run: npm audit --audit-level=high --prefix web/frontend
+
+      - name: npm audit——完整依赖：Electron（报告，不阻断）
+        if: always()
+        continue-on-error: true
+        run: npm audit --audit-level=high --prefix web/electron
 
       - name: 安装 Python 3.12
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0

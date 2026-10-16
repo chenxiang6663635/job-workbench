@@ -274,9 +274,10 @@ def score_jd(workspace, job_id, resume_version=None):
     if resume_version:
         # `gap_analysis` 返回 (result, errors)——与后端同款解包（routers/jobs.py）。
         # 直接赋元组会让宿主收到 `差距: [null, [...]]`（2026-09-19 审查 MINOR 抓到）。
-        # 它内部会读同目录 `JD原文.md`（`jd_score._read_text` 不走本侧闸），另会读简历
-        # JSON / 词典 / 母版与事实库——后几项本批未加闸（follow-up）。解析卡是防御性一并
-        # 判：卡越界时评分已为 None，差距分析没有可比对象。
+        # 它内部读的全部输入（JD / 简历 JSON / 词典 / 母版 / 事实库）已由 #307 在
+        # `jd_gap.gap_analysis` 入口做锚点预检（`_input_anchor_errors`），越界进
+        # `errors` 而不是抛给宿主。此处对卡与 JD 的预判是防御性的：卡越界时评分
+        # 已为 None，差距分析没有可比对象。
         inputs = (CARD_FILE, JD_FILE)
         if all(paths.is_in_workspace(workspace, DIR_JOBS, job_id, f) for f in inputs):
             gap, gap_errors = jd_score.gap_analysis(

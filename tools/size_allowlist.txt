@@ -61,7 +61,7 @@ web/frontend/src/lib/theme.ts = 317  # 主题注册表 + 自定义主题 + 导�
 #   tool_registry → server.py 87 / tool_registry 265 / resources 211 / prompts 149。
 # MCP 侧 `tools_readonly.py` 原 318 行登记：2026-10-16（#307 读取与追加边界收口）
 # dashboard_summary 整体搬去 dashboard_sections（编排与四段同模块）、三个读点加
-# 归属转译，实测 294 行——跌破 300 阈值后按自洁规则删掉本行。
+# 归属转译，实测 290 行——跌破 300 阈值后按自洁规则删掉本行。
 scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；main() 97 行（步骤线性，拆分列入后续重构）
 #
 # --- Electron 主进程：2026-09-25 发布前收口批把它与 .js/.mjs 纳入扫描 ---

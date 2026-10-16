@@ -55,5 +55,7 @@ def apply_approval(body: ApprovalApplyBody):
     except workspace_read.WorkspaceBoundaryError as exc:
         # #307：写入目标（tracker.csv / history.csv 一族）经符号链接指向工作区外
         # ——领域层显式拒绝、一个字节都没写。与 safe_join 的越界分支同一个码。
+        # 与 boundary.register 的全局映射产出完全同形（2026-10-16 审查 m4）：就近
+        # 显式保留是为了让 apply 端点的转译自明；改口径时两处须一起改。
         raise ApiError(400, "path.escape", str(exc))
     return {"ok": True, **result}

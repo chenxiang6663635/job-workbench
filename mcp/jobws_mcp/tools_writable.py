@@ -32,9 +32,23 @@ _NEXT_STEP = ("把 summary 与 diff 展示给用户；用户确认之后，用�
               "apply_approval 落盘。令牌一次性、10 分钟内有效。")
 
 
+def _boundary_refused(exc):
+    """#307：数据文件（tracker.csv / history.csv 一族）经链接指向工作区外的统一拒绝。
+
+    **预览也要读主表**（新增去重 / 更新定位 / 导入对账 / 面试关联）——拓扑已坏时
+    领域层在预览阶段就抛 `WorkspaceBoundaryError`。这里译成与 `apply_approval`
+    同款的 ok=false + `code=path.escape`，不把异常裸抛给宿主（2026-10-16 独立审查
+    M1：apply 收了、preview 漏了，三端里只有 MCP 会把栈抛出去）。
+    """
+    return {"ok": False, "errors": [str(exc)], "code": "path.escape"}
+
+
 def preview_add_application(workspace, **fields):
     """预览新增一条投递记录（**不写入**），返回令牌与将要写入的字段。"""
-    errors, plan = tracker.preview_add_fields(fields, workspace)
+    try:
+        errors, plan = tracker.preview_add_fields(fields, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     result = approval.preview("track.add", workspace, plan["payload"],
@@ -57,7 +71,10 @@ def preview_import_applications(workspace, csv_text):
     except ValueError as exc:
         return {"ok": False, "errors": [str(exc)]}
 
-    preview = tracker.preview_import(csv_rows, workspace=workspace)
+    try:
+        preview = tracker.preview_import(csv_rows, workspace=workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if preview["error"]:
         return {
             "ok": False,
@@ -92,8 +109,11 @@ def preview_update_application(workspace, app_id, changes):
     载荷校验与差异表由 tracker.preview_update_fields 统一构造（CLI / 网页端同源，
     避免三处各拼一份之后「预览说 X、落盘写 Y」）。
     """
-    errors, plan = tracker.preview_update_fields(
-        {"id": app_id, "changes": dict(changes or {})}, workspace)
+    try:
+        errors, plan = tracker.preview_update_fields(
+            {"id": app_id, "changes": dict(changes or {})}, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     result = approval.preview("track.update", workspace, plan["payload"],
@@ -135,7 +155,10 @@ def preview_add_interview(workspace, **fields):
     面试官 / 问题记录 / 我的回答要点 / 复盘与改进 / 结果）。给了关联记录时，
     公司与岗位从主表带出（与 CLI 同口径）。
     """
-    errors, plan = tracker.preview_interview_add_fields(fields, workspace)
+    try:
+        errors, plan = tracker.preview_interview_add_fields(fields, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     return _preview("interview.add", workspace, plan)
@@ -147,8 +170,11 @@ def preview_update_interview(workspace, interview_id, changes):
     只列**要改**的字段（changes 里没有的不动）；面试 id / 关联记录 / 公司 不在
     可更新集合里——改归属要另建一条，避免把时间线接错。
     """
-    errors, plan = tracker.preview_interview_update_fields(
-        {"id": interview_id, "changes": dict(changes or {})}, workspace)
+    try:
+        errors, plan = tracker.preview_interview_update_fields(
+            {"id": interview_id, "changes": dict(changes or {})}, workspace)
+    except workspace_read.WorkspaceBoundaryError as exc:
+        return _boundary_refused(exc)
     if errors:
         return {"ok": False, "errors": errors}
     return _preview("interview.update", workspace, plan)

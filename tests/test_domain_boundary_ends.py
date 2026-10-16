@@ -211,6 +211,46 @@ def test_cli_track_list_refuses_escaped_tracking_dir(tmp_path, capsys):
     assert "外部来客" not in out.out, "错误消息不夹带外部数据"
 
 
+# --- T4 反向约束：区内链接照常（同步盘分片是合法用法） -----------------------------
+
+def test_web_applications_reads_internal_link(tmp_path, client):
+    """T4（Web）：追踪目录链接到**工作区内**另一份真身——照常读到，不误伤。
+
+    真身必须落在工作区**里面**（ws/分片/），落在旁边就成了 T1——这正是 2026-10-16
+    自审时第一版写错的地方。
+    """
+    ws_dir = _ws_dir(tmp_path)
+    _seed_tracking(ws_dir)          # 先建出 ws 目录（原主表随换链被移走）
+    inside_real = os.path.join(ws_dir, "分片", "追踪真身")
+    os.makedirs(inside_real)
+    _write(os.path.join(inside_real, "tracker.csv"),
+           ",".join(tracker.FIELDS) + "\nA001,云帆,后端开发,,,,,,,待投,,,,,,\n",
+           encoding="utf-8-sig")
+    _replace_dir_with_link_or_skip(os.path.join(ws_dir, TRACKING), inside_real)
+
+    res = client.get("/api/applications", params={"ws": WS})
+
+    assert res.status_code == 200, res.text
+    assert "云帆" in res.text, "区内链接的数据必须照常返回"
+
+
+def test_cli_track_list_reads_internal_link(tmp_path, capsys):
+    """T4（CLI）：同一条反向约束的 CLI 半边——判据改严时这里必须红。"""
+    ws_dir = _ws_dir(tmp_path)
+    _seed_tracking(ws_dir)
+    inside_real = os.path.join(ws_dir, "分片", "追踪真身")
+    os.makedirs(inside_real)
+    _write(os.path.join(inside_real, "tracker.csv"),
+           ",".join(tracker.FIELDS) + "\nA001,云帆,后端开发,,,,,,,待投,,,,,,\n",
+           encoding="utf-8-sig")
+    _replace_dir_with_link_or_skip(os.path.join(ws_dir, TRACKING), inside_real)
+
+    code = jobws.main(["track", "--workspace", ws_dir, "list"])
+
+    assert code == 0
+    assert "云帆" in capsys.readouterr().out, "区内链接的数据必须照常列出"
+
+
 def test_cli_apply_refuses_escaped_tracking_dir_without_touching_a_byte(
         tmp_path, tokens, capsys):
     """T1（CLI apply）：退出码 **1**（blocked，与 `ApprovalConflict` 同族），不是 2。

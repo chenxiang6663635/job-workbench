@@ -126,6 +126,25 @@ def test_dashboard_summary_refuses_escaped_tracking_dir(tmp_path):
     assert any("越出工作区" in e for e in data["errors"])
 
 
+def test_preview_add_refuses_escaped_tracking_dir_structured(tmp_path):
+    """T1 + 预览（2026-10-16 独立审查 M1）：**预览也要读主表**（新增去重）——
+
+    拓扑已坏时必须结构化拒绝（ok=false + code=path.escape），不能把异常栈抛给宿主。
+    apply 的转译先做了、preview 漏了，三端里只有 MCP 会裸抛——这条钉住补上的那半。
+    """
+    ws = _ws(tmp_path)
+    _replace_dir_with_link_or_skip(os.path.join(ws, TRACKING), _outside_tracking(tmp_path))
+
+    data = tools_writable.preview_add_application(
+        ws, 公司="示例公司甲", 岗位="示例岗位乙", 方向="backend",
+        批次="正式批", 当前阶段="待投")
+
+    assert data["ok"] is False, "结构化拒绝，不是异常栈"
+    assert data["code"] == "path.escape"
+    assert any("越出工作区" in e for e in data["errors"])
+    assert "外部来客" not in str(data), "外部数据一个字都不许透给宿主"
+
+
 # --- T3：history.csv 文件级链接到区外 —— 读侧与写侧都拒绝 ------------------------
 
 def test_dashboard_summary_refuses_escaped_history_file(tmp_path):

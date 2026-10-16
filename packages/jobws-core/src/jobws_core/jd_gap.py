@@ -141,7 +141,7 @@ def _input_anchor_errors(workspace, card_path, resume_version):
     锚点是「将要读的文件」而非读到的内容——判据**不要求文件存在**（缺输入的
     既有错误口径在 `gap_analysis` 里照旧报）。词典锚点只在与 `resolve_profile`
     同一条件下列（有 config/profile.md 才走工作区分支）：没有它时不误报，有它
-    而 config 经链接指向外部时判据照样展开真实目标。
+    而链接指向外部时判据照样展开真实目标。方向目录也在列（listdir 泄漏口径同 #300）。
     """
     anchors = [
         ("JD 原文", os.path.join(os.path.dirname(os.path.abspath(card_path)),
@@ -151,6 +151,8 @@ def _input_anchor_errors(workspace, card_path, resume_version):
     ]
     if os.path.isfile(os.path.join(workspace, "config", "profile.md")):
         anchors.append(("词典", os.path.join(workspace, "config", "lexicon.md")))
+        anchors.append(("方向目录",  # 同闸（审查 m2）：listdir 泄漏口径同 #300 岗位池根
+                        os.path.join(workspace, "config", "directions")))
     anchors += [("母版", os.path.join(workspace, RESUME_DIR, name))
                 for name in MASTER_FILES]
     fact_dir = os.path.join(workspace, FACT_DIR)

@@ -206,16 +206,21 @@ def is_in_workspace(workspace, *parts):
       文件甚至可能不在；
     - **链接目标仍在工作区内时不做限制**：用户把工作区分片放在同步盘再链进来是
       合法用法（`resolve_workspace` 同样只对「读穿到外面」动手）。
+
+    契约：**部件须是单段相对名**（与 `resolve_within_workspace` 的入参纪律一致）。
+    传入绝对路径 / `..` 段时 `os.path.join` 会重置根——本函数**不显式拒绝**，靠归属
+    判据兜住（重置后必然越界 → False）；这是刻意的 fail-closed，不是漏判。
     """
     return containment.is_within_or_equal(os.path.join(workspace, *parts), workspace)
 
 
 def exists_in_workspace(workspace, *parts):
-    """工作区内的**普通文件**是否存在：归属校验通过之后才算存在。
+    """工作区内是否存在该文件：**归属校验通过之后**才算存在。
 
     不能直接用 `os.path.isfile`：它**跟随链接**——岗位目录是 junction 时，
     `有解析卡` / `有JD原文` 会正判定出一个工作区外的文件，而这个布尔本身就是泄漏
-    （宿主据此能探测工作区外有没有某个文件）。越界一律按「不存在」给（False）。
+    （宿主据此能探测工作区外有没有某个文件）。越界一律按「不存在」给（False）；
+    指向**工作区内**的链接照旧为 True（目标在区内，不是泄漏面）。
     """
     return (is_in_workspace(workspace, *parts)
             and os.path.isfile(os.path.join(workspace, *parts)))
@@ -233,6 +238,8 @@ def read_in_workspace(workspace, *parts, max_bytes=None):
     已修）。给定上限且文件超过它时**返回 None（拒绝）而不是截断**——截断后的正文会
     被解析成「半真半假」的结果（评分段落可能正好被切掉），比明确的「读不到」更坏。
     需要「截断并注明」的调用方自己读（见 `resources.read_job_text`）。
+    **`max_bytes=None` 是无界全读**——只在确定文件体量可控时才省略（本模块当前唯一
+    的无上限调用方是岗位卡片之外的小文件；大文件一律给上限）。
     """
     full = os.path.join(workspace, *parts)
     if not containment.is_within_or_equal(full, workspace):

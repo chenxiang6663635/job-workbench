@@ -413,3 +413,26 @@ def test_read_job_text_stops_reading_at_the_byte_cap(tmp_path, monkeypatch):
     assert text.endswith("…（已截断，完整内容见工作区 %s/%s/%s）"
                          % (POOL, "云帆_后端", tools_readonly.JD_FILE))
     assert len(text.encode("utf-8")) < cap + 300, "返回体也不许超上限"
+
+
+# --- 换行归一：与 Web 的文本模式读取同源 -----------------------------------------
+
+def test_read_job_text_normalises_crlf_like_web(tmp_path):
+    """CRLF 正文读出来是 LF——与 Web 同源，不是新分歧。
+
+    Web 侧 `iocaps.read_text_capped` 走**文本模式**（universal newlines：CRLF 归成
+    LF），而二进制有界读本身不做这层翻译。缺了归一，同一份 CRLF 文件在 Web 与 MCP
+    会给出不同正文（2026-10-16 独立审查指出：本批的立意正是两端同源，不能在此引入
+    新分歧）。
+    """
+    ws = _make_ws(tmp_path)
+    job = os.path.join(ws, POOL, "云帆_后端")
+    _write_job(job)
+    with io.open(os.path.join(job, tools_readonly.JD_FILE), "wb") as handle:
+        handle.write("第一行\r\n第二行\r\n\r\n末行".encode("utf-8"))
+
+    text, error = resources.read_job_text(ws, "云帆_后端", "jd")
+
+    assert error is None, error
+    assert "\r" not in text, "CRLF 必须归成 LF（与 Web 的文本模式同源）"
+    assert text == "第一行\n第二行\n\n末行"

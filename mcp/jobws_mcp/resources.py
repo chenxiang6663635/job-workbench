@@ -138,6 +138,10 @@ def read_job_text(workspace, job_name, kind):
         # 可读性（非截断路径用 "replace"——乱码要看得见，不能假装干净）。
         raw = raw[:JD_TEXT_MAX_BYTES]
     text = raw.decode("utf-8", "ignore" if truncated else "replace")
+    # 换行归一：与 Web `iocaps.read_text_capped` 的文本模式（universal newlines）同源——
+    # 二进制读**不做**这层翻译，缺了它同一份 CRLF 正文在 MCP 与 Web 会给出不同文本
+    # （2026-10-16 独立审查指出：本批的立意就是两端同源，不能在此引入新分歧）。
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     if truncated:
         text += "\n\n…（已截断，完整内容见工作区 %s）" % rel
     return text, None

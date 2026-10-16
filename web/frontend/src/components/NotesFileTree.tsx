@@ -107,7 +107,12 @@ export default function NotesFileTree({
       });
       return;
     }
-    revealedFor.current = key;
+    // **过滤态不认领**（2026-10-16 独立审查 M1）：过滤时目录被强制全展，落点"看起来
+    // 已经展开"了——若此时就置位，清掉过滤后按偏好重新收起，树里就没有可高亮节点、
+    // 高亮凭空消失（且不会自愈）。滚仍要滚（可见性当前成立），但"已展开"这件事得等
+    // 过滤结束后按**真实折叠态**再判一次。关键词搜索照不出这个洞：它会整体卸载本组件
+    // （ref 随之归零）。
+    if (!filtering) revealedFor.current = key;
     activeRef.current?.scrollIntoView({ block: "nearest" });
   }, [active, collapsed, filtering]);
 
@@ -212,7 +217,7 @@ export default function NotesFileTree({
       <div className="max-h-[50vh] overflow-auto lg:max-h-[calc(100dvh-26rem)]">
         {hits.map(({ section, nodes }) =>
           nodes.length === 0 ? null : (
-            <div key={section.key} className="mb-1">
+            <div key={section.key} className="mb-1" data-section={section.key}>
               <p className="px-2 pb-0.5 pt-2 text-xs font-medium text-muted-foreground">
                 {t(GROUP_LABEL[section.key])}
               </p>

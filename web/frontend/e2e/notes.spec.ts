@@ -270,16 +270,15 @@ test("笔记：搜索命中入栈；跨 section 跳转后左栏高亮跟随到�
   await page.getByRole("button", { name: "Back to file tree" }).click();
 
   // 左栏跟随：高亮（aria-current）落在 **04 那一组**里——两个 section 同时在树上，
-  // 光看"有一个高亮"不够，要证明它在目标 section 的分组下（组标题是它前面最后一个 <p>）
-  const groupLabel = await page.locator("aside").evaluate((el) => {
+  // 光看"有一个高亮"不够，要证明它在目标 section 的分组下。
+  // 用分组容器上的 `data-section` 锚点，**不靠 DOM 次序猜组名**（2026-10-16 独立审查
+  // m1：原先取"排在 active 之后的最后一个 <p>"，aside 里多一个 <p> 就会取错组名，
+  // 假绿或假红）。
+  const groupSection = await page.locator("aside").evaluate((el) => {
     const active = el.querySelector("button[aria-current='true']");
-    if (!active) return null;
-    const labels = Array.from(el.querySelectorAll("p")).filter(
-      (p) => p.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING
-    );
-    return labels.length ? labels[labels.length - 1].textContent : null;
+    return active?.closest("[data-section]")?.getAttribute("data-section") ?? null;
   });
-  expect(groupLabel).toBe("Knowledge base (04_知识库)");
+  expect(groupSection).toBe("knowledge");
 
   // 搜索命中是**统一入栈**的三条路径之一：返回要回到进来之前那一篇（03 目录说明）
   await page.getByRole("button", { name: "Back to previous note" }).click();
@@ -305,6 +304,38 @@ test("笔记：落点在折叠目录里时左栏展开并高亮（高亮不能�
   await expect(dir).toHaveAttribute("aria-expanded", "true");
 });
 
+test("笔记：树内过滤命中折叠目录 → 清掉过滤后高亮不能消失", async ({ page }) => {
+  // 2026-10-16 独立审查 M1 的回归：过滤态下目录被**强制全展**，落点"看起来已经展开"——
+  // 若此时就认领"本文件已展开"，清掉过滤后按偏好重新收起，树里就没有可高亮节点，
+  // 高亮凭空消失且不会自愈。这条走的正是被关键词搜索掩盖的那条路径：
+  // 关键词搜索（Search file names and text…）会整体**卸载**目录树，ref 随之归零。
+  await openPage(page, "prepare");
+  await page.getByRole("tab", { name: "Notes" }).click();
+
+  // 先折叠 行为面：此后树里没有它的子项
+  const dir = page.getByRole("button", { name: "行为面" });
+  await dir.click();
+  await expect(dir).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: "_模板_行为故事" })).toHaveCount(0);
+
+  // 用**树内过滤框**（Filter files…）命中该目录里的文件——过滤态强制全展，命中可见可点
+  const filter = page.getByRole("textbox", { name: "Filter files…" });
+  await filter.fill("行为故事");
+  await page.getByRole("button", { name: "_模板_行为故事" }).first().click();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "为什么用故事库而不是题库" })
+  ).toBeVisible();
+
+  // 清掉过滤：目录按偏好重新收起 —— 高亮必须仍在**且看得见**（本批的核心承诺）
+  await filter.fill("");
+  const active = page
+    .locator("aside")
+    .locator("button[aria-current='true']");
+  await expect(active).toHaveText("_模板_行为故事");
+  await expect(active).toBeInViewport();
+  await expect(dir).toHaveAttribute("aria-expanded", "true");
+});
+
 test("笔记：390 窄屏下返回入口不挤爆面板、不遮正文", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openPage(page, "prepare");
@@ -312,10 +343,25 @@ test("笔记：390 窄屏下返回入口不挤爆面板、不遮正文", async (
 
   // 先做一次跳转，让返回入口真的出现（入口是条件渲染的）
   await page.getByRole("button", { name: "_模板_行为故事" }).click();
-  await expect(page.getByRole("button", { name: "Back to previous note" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "为什么用故事库而不是题库" })
-  ).toBeVisible();
+  const back = page.getByRole("button", { name: "Back to previous note" });
+  await expect(back).toBeVisible();
+  // 2026-10-16 独立审查 m3：只断言"面板不横向溢出"不够——窄屏下路径行会 flex-wrap，
+  // 入口本身可能被挤出视口或与正文压在一起。补两条：在视口内、且与正文标题矩形不相交。
+  await expect(back).toBeInViewport();
+  const heading = page.getByRole("heading", {
+    level: 2,
+    name: "为什么用故事库而不是题库",
+  });
+  await expect(heading).toBeVisible();
+  const backBox = await back.boundingBox();
+  const headBox = await heading.boundingBox();
+  if (!backBox || !headBox) throw new Error("拿不到 boundingBox");
+  const overlap =
+    backBox.x < headBox.x + headBox.width &&
+    headBox.x < backBox.x + backBox.width &&
+    backBox.y < headBox.y + headBox.height &&
+    headBox.y < backBox.y + backBox.height;
+  expect(overlap, "返回入口与正文标题重叠（会遮正文）").toBe(false);
 
   // 断言**面板自身**不横向溢出（整站 390 适配属另一批：顶栏在 390 本来就溢出）
   const overflow = await page.evaluate(() => {

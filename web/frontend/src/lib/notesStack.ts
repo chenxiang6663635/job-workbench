@@ -99,8 +99,10 @@ export function rememberFrom(
 /**
  * 入栈（纯函数）：追加一条，超上限丢最旧。
  *
- * 与栈顶同一篇时**不动**——点了同一条互链两次、或在同一篇的正文里反复点，
- * "返回"不该原地踏步（栈顶就是当前这一篇，压进去只会让返回变成空操作）。
+ * 与栈顶同一篇时**不动**——这是"栈"这个结构自持的不变式（不出现连续重复项）。
+ * 实际接线里几乎不会走到：入栈值恒为"离开前那一篇"，而 `rememberFrom` 已经保证落点 ≠
+ * 当前篇，故相邻两次入栈必然不同（真正挡住"点同一条互链两次"的是 `rememberFrom`，
+ * 不是这里，2026-10-16 独立审查 n1 订正措辞）。保留这层是因为不变式本身该被单测钉住。
  */
 export function pushStack(entries: NotesActive[], entry: NotesActive): NotesActive[] {
   const top = entries[entries.length - 1];

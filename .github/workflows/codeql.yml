@@ -3,16 +3,14 @@ name: CodeQL
 on:
   push:
     branches: [main]
-    # 纯文档 / 站点文案改动不触发：没有可分析代码，白跑几分钟没有意义。
-    # paths-ignore 必须在 on.<event> **内部**——放在 workflow 顶层是无效键，
-    # 整个 run 会挂在 schema 校验上（2026-10-12 首跑实证：run 失败且零 job）。
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
   pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
+    # **不再按路径跳过**（2026-10-16 #317 实证）：ruleset
+    # `codeql-merge-protection` 的 code_scanning 规则要求每次 PR 都有 code scanning
+    # 结果；而纯文档 PR（只改 `**/*.md` / `docs/**`）不触发本 workflow 时，
+    # 该规则无结果可验 → PR 永久 BLOCKED（审计预警的"工作流未触发"陷阱）。
+    # 代价是文档 PR 也多跑一两分钟——正确性优先于省这几分钟。
+    # （历史：paths-ignore 必须在 on.<event> **内部**，放 workflow 顶层是无效键，
+    # 整个 run 会挂在 schema 校验上——2026-10-12 首跑实证。）
   schedule:
     # 每周一次全量：security 查询套件随 CodeQL bundle 更新——新规则命中旧代码只有
     # 定时跑才能发现，PR 触发只覆盖「这次改动碰到的那几行」。

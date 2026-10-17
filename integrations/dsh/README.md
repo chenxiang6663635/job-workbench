@@ -1,6 +1,6 @@
 # job-workbench × DeepSeek Harness（DSH）
 
-把求职工作台接进 DSH 宿主：**MCP 工具面**（16 个工具，两段式写入；岗位正文走 `read_job_text`——DSH 不桥接只读资源）+ **9 个 `jwb-*` 技能** +
+把求职工作台接进 DSH 宿主：**MCP 工具面**（17 个工具，两段式写入；岗位正文走 `read_job_text`——DSH 不桥接只读资源；筛选校准走 `score_calibration`）+ **9 个 `jwb-*` 技能** +
 可选 **`jobws` agent preset**。本目录同时是 npm 包 **`dsh-job-workbench`** 的源码
 （`package.json` 的 `dsh.bundle.patch` 指向 `cordis.patch.yml`）——**装包即接线，不需要手改任何
 profile 文件**（与第一阶段「把 insert 块抄进 profile」的本质区别）。

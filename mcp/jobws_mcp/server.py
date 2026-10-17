@@ -61,6 +61,12 @@ def build_server(workspace=None):
     # 顺序：`read_job_text` 是**工具**，按批 4.7 的顺序纪律追加在注册末尾（宿主的
     # 工具描述缓存不失效）；资源与提示是独立命名空间，注册次序不构成缓存面。
     resources.register_text_tool(mcp, workspace)
+
+    # --- E 批（2026-10-16）：筛选校准（只读）-----------------------------------
+    # 排在 `read_job_text` 之后：协议顺序的真实末尾在这，塞进 register_all 会把
+    # 它插到 jobws.info / read_job_text 前面（批 4.7 纪律要防的正是这个）。
+    tool_registry.register_calibration_tools(mcp, workspace)
+
     resources.register(mcp, workspace)
     prompts.register(mcp, workspace)
 

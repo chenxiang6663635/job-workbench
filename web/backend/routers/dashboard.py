@@ -18,6 +18,8 @@ from fastapi import APIRouter, Depends
 
 from jobws_core import jd_score
 from jobws_core import job_dirs
+from jobws_core import job_pool
+from jobws_core import score_calibration
 from jobws_core import tracker
 from deps import DIR_JOBS, safe_join, workspace_dir
 from jobws_core.report import count_by, retrospective  # noqa: E402 - report 与 tracker 同目录
@@ -57,15 +59,19 @@ def tier_of(score):
     return jd_score.verdict(score)[0]
 
 
-def job_pool_overview(ws, rows=None):
+def job_pool_overview(ws, rows=None, pool=None):
     """岗位池视角的两组统计：高分未投清单 + 评分档位 × 投递状态分布。
 
     匹配键（目录名）与终态口径全部复用 jobs_router——看板与岗位池对同一个岗位
     必须给出同一个结论，各写一套判据迟早会互相矛盾。
 
     未评分的岗位**不参与**分布图：「还没评」不等于最低档，塞进「不投」那一档
-    是在替用户下结论。rows 传已读行时索引不再重读追踪表（看板同请求单读）。
+    是在替用户下结论。rows 传已读行时索引不再重读追踪表（看板同请求单读）；
+    **pool 传 `score_calibration.load_job_pool` 的快照时不再重读解析卡**
+    （看板同一次请求里筛选校准也要用，两份消费一份读取）。
     """
+    if pool is None:
+        pool = score_calibration.load_job_pool(ws, rows)
     base = safe_join(ws, DIR_JOBS)
     names = []
     if os.path.isdir(base):
@@ -78,23 +84,20 @@ def job_pool_overview(ws, rows=None):
             for _lo, _hi, tier, _a in jd_score.THRESHOLDS}
     unapplied_high = []
 
-    for name in names:
-        text = jobs_router._read_in_workspace(ws, DIR_JOBS, name, jobs_router.CARD_FILE)
-        card = jobs_router._parse_card(ws, os.path.join(DIR_JOBS, name), text)
-        if not (card and card.get("consistent") and card.get("total") is not None):
+    for item in pool:
+        score = item["score"]
+        if score is None:
             continue
-        company, role = job_dirs.split_dir_name(name)
-        state = job_dirs.apply_state(index.get(tracker.dedup_key(company, role)))
-        tier = tier_of(card["total"])
-        dist[tier][_STATE_KEY[state]] += 1
-        if state == "未投递" and card["total"] >= HIGH_SCORE_FLOOR:
-            display_company, display_role = jobs_router._job_company_role(ws, name, text)
+        tier = tier_of(score)
+        # 三态口径与岗位池列表同源（apply_state：流程中 / 已终态 / 未投递）
+        dist[tier][_STATE_KEY[item["state"]]] += 1
+        if item["state"] == "未投递" and score >= HIGH_SCORE_FLOOR:
             unapplied_high.append({
-                "dir": name,
-                "company": display_company,
-                "role": display_role,
-                "score": card["total"],
-                "level": card.get("level"),
+                "dir": item["dir"],
+                "company": item["displayCompany"],
+                "role": item["displayRole"],
+                "score": score,
+                "level": item["level"],
             })
 
     unapplied_high.sort(key=lambda x: -x["score"])
@@ -195,7 +198,13 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
     by_batch = [{"key": k, "count": v} for k, v in count_by(rows, "批次")]
     active = sum(1 for r in rows if r.get("当前阶段") not in TERMINAL)
 
-    pool = job_pool_overview(ws, rows)
+    # 岗位池快照**只读一次**：job_pool_overview 与筛选校准两处消费
+    # （test_read_amplification 的「每张卡只读一次」由这条保证）
+    pool_snapshot = job_pool.load_job_pool(ws, rows)
+    pool = job_pool_overview(ws, rows, pool=pool_snapshot)
+    # 筛选校准（E 批，2026-10-16）：① 档位转化（分母=投过）② 未投递记账 ③ 一句结论。
+    # 纯只读——不写配置、不写 tracker、不生成投递动作（设计文档 §四 反目标）
+    calibration = score_calibration.calibrate(rows, pool_snapshot, history, today, ws)
 
     return {
         "total": len(rows),
@@ -218,5 +227,7 @@ def dashboard(ws: str = Depends(workspace_dir), stale_days: int = tracker.STALE_
         "unappliedHigh": pool["items"],
         "unappliedHighTotal": pool["total"],
         "scoreByState": pool["scoreByState"],
+        # 筛选校准（E 批）：把「先评分再投」与后验结局接起来
+        "calibration": calibration,
         "recentActivity": _recent_activity(history, rows),
     }

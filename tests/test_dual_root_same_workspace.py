@@ -21,6 +21,7 @@ tmp、`monkeypatch.setattr(deps, "ROOT", ...)` 之后再导入 main）；B 的�
 
 import csv
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -232,3 +233,49 @@ def test_cleared_selection_falls_back_to_legacy_portable_with_honest_source(dual
     res = dual.client.get("/api/applications", params={"ws": WS})
     assert res.status_code == 200, res.text
     assert [r["公司"] for r in res.json()["items"]] == [TAG_A], res.text
+
+
+# --- 不变量 5：**显式根不可用**时仍须 fail closed（2026-10-16 复核指令 2）--------
+#
+# 复核指出一个可能的漏口：`_root_source()` 返回的是解析**结果属性**。若显式选择指向
+# 一个不存在的根，`source` 仍是 `env` / `persisted`（解析成功、根不可用），Web 走单根
+# → 404/503，**不会**回退应用根——但这条路径此前没有负向测试钉住（改夹具时那条
+# `unavailable` 用例反而去掉了 `ws`）。这里补上：读、写都必须拒绝，且 A 一字节不动。
+
+
+def _patch(dual, aid, body):
+    return dual.client.patch("/api/applications/%s" % aid, json=body,
+                             params={"ws": WS})
+
+
+def test_env_root_missing_fails_closed_without_touching_app_root(dual, tmp_path,
+                                                                 monkeypatch):
+    """env 指向**不存在**的根，应用根里却有同名 personal + 旧数据。"""
+    gone = tmp_path / "gone-root"
+    monkeypatch.setenv("JOBWS_DATA_DIR", str(gone))
+    before_a = _bytes(_tracker(dual.a))
+
+    read = dual.client.get("/api/applications", params={"ws": WS})
+    write = _patch(dual, TAG_A + "001", {"备注": "污染"})
+
+    assert read.status_code in (404, 503), read.text
+    assert write.status_code in (404, 503), write.text
+    assert _bytes(_tracker(dual.a)) == before_a, "失效的显式根把读写放行到了应用根 A"
+
+
+def test_persisted_root_missing_fails_closed_without_touching_app_root(dual, tmp_path):
+    """persisted 指向**不存在**的根（模拟选择文件残留 / 目录被删）。"""
+    gone = tmp_path / "gone-persisted"
+    # 直接写选择文件：控制面端点会拒绝对不存在的路径做选择（那是另一条契约）
+    state = os.path.join(str(dual.tmp / "appdata"), "job-workbench", "state")
+    os.makedirs(state, exist_ok=True)
+    with io.open(os.path.join(state, "data-root.json"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"data_root": str(gone)}))
+    before_a = _bytes(_tracker(dual.a))
+
+    read = dual.client.get("/api/applications", params={"ws": WS})
+    write = _patch(dual, TAG_A + "001", {"备注": "污染"})
+
+    assert read.status_code in (404, 503), read.text
+    assert write.status_code in (404, 503), write.text
+    assert _bytes(_tracker(dual.a)) == before_a, "失效的持久化根把读写放行到了应用根 A"

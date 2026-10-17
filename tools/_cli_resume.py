@@ -24,7 +24,8 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-from jobws_core import pathres  # noqa: E402  （默认工作区：数据根推导，唯一实现）
+from jobws_core import pathres  # noqa: E402  （应用根/路径原语）
+from jobws_core.tracker import resolve_workspace_arg  # noqa: E402  （#313：现役数据根）
 from resume_build import (DEFAULT_TEMPLATE, MIN_TEXT_LENGTH,  # noqa: E402
                           RESUME_ACCENTS, build_pdf, cmd_render, discover_jobs,
                           find_browser, list_templates, verify_pdf)
@@ -162,7 +163,7 @@ def _lock_busy():
 
 def main():
     args = _build_parser().parse_args()
-    args.workspace = pathres.resolve_workspace_arg(args.workspace)
+    args.workspace = resolve_workspace_arg(args.workspace)
 
     workspace = os.path.abspath(args.workspace)
     if not os.path.isdir(workspace):

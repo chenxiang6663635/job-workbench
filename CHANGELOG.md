@@ -87,6 +87,8 @@
 
 - **双数据根收口（2026-10-16，[#311](https://github.com/chenxiang6663635/job-workbench/issues/311)，外部复核 P2）**：`allowed_roots()` 从「应用根 + 数据根」改为按**是否显式选择**分流——`JOBWS_DATA_DIR` 或持久化选择生效时只有数据根，列表 / `?ws=` 解析 / `isDefault` 共用这一个真源；从未选择（legacy 推导）时保留应用根旧布局兼容。修掉三类实测缺陷：当前根缺同名工作区时**静默回退应用根旧副本**（读旧数据、写也落在旧副本上）、`/api/workspaces` 的 `isDefault` 因两套扫描/解析顺序**没有落点**、显式 `JOBWS_DATA_DIR` 指向无该工作区的根时**不报错**。**行为变更**：上述场景现在一律 404（`ws.notFound`）——遗留候选由 `/api/system/paths` 的 `legacy_candidates` 报告，设置页引导迁移（反向迁移协议 #304 仍排后续）。`deps.py` 撞 300 行闸门后，参数名防线（`WS_NEAR_MISS` / `reject_bad_param_name`）拆到 `web/backend/request_guard.py`（基线 239；拆出后 deps.py 293 行、`request_guard.py` 53 行）。
 
+- **CLI 数据根跟随持久化选择（2026-10-16，[#313](https://github.com/chenxiang6663635/job-workbench/issues/313)）**：CLI 的默认工作区与 `--workspace` 缺省值此前走 `pathres.resolve_workspace_root`（env → portable → legacy → 默认，**不含 persisted**）——设置页 / 控制面记住的数据根 CLI 不认，两个根有同名工作区时会静默读写另一个根。现在按分层收敛：**根决策只由 `dataroot`（env > persisted > legacy）决定**，`pathres` 新增 `workspace_under(data_root)` 只负责「在给定根内解析工作区名 + 越界校验」，CLI 侧三个函数搬进 `tracker/_workspace.py`（`_core` 297 行、新文件 36）；四个 CLI 入口统一走 `tracker.resolve_workspace_arg`。**行为变更**：CLI 缺省工作区现在跟随记住的数据根。另补 #312 的**失效根负向契约**：`env` / `persisted` 指向不存在的根时，带 `ws` 的读与写一律 404/503，且不触碰应用根旧副本（2 条新测试，实测通过——不存在 `source` 枚举回退到旧根的口子）。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

@@ -13,6 +13,8 @@
 import os
 import sys
 
+import pytest
+
 MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if MCP_DIR not in sys.path:
     sys.path.insert(0, MCP_DIR)
@@ -45,6 +47,19 @@ def test_resolve_within_workspace_still_rejects_empty_and_dot():
     for value in (".", "   ", ""):
         real, rel, err = paths.resolve_within_workspace("ws", value, "目录")
         assert real is None and "不能为空" in err, (value, err)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="UNC 只在 Windows 上是绝对路径")
+def test_resolve_within_workspace_rejects_unc_on_windows():
+    r"""`\\server\share\x`：Windows 上 UNC 就是绝对路径，join 时同样重置根。
+
+    S2 边界矩阵第五类（2026-10-16 补覆盖）：此前四类都有用例、UNC 零覆盖——
+    判据层其实早就拒（`escape_reason` → 是绝对路径），缺的只是这颗钉子。
+    """
+    for value in (r"\\server\share\x", "//server/share/x"):
+        real, rel, err = paths.resolve_within_workspace("ws", value, "目录")
+        assert real is None and rel is None, value
+        assert "绝对路径" in err, (value, err)
 
 
 def test_resolve_within_workspace_accepts_normal_names():

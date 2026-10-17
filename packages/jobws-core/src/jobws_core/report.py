@@ -468,8 +468,12 @@ def _append_section_retro(lines, rows, today, workspace):
         lines.append("")
 
 
-def build_report(rows, today, workspace=None):
-    """六节看板：编排只做节序与汇总（各节细节见 _append_section_*）。"""
+def build_report(rows, today, workspace=None, calibration=False):
+    """六节看板：编排只做节序与汇总（各节细节见 _append_section_*）。
+
+    `calibration=True` 时追加第七节「筛选校准」（E 批，2026-10-16）——
+    默认不追加：看板是既有产物，加一节会改变所有既有使用方的输出。
+    """
     lines = _report_header(rows, today)
     if not rows:
         return "\n".join(lines) + "\n"
@@ -480,7 +484,20 @@ def build_report(rows, today, workspace=None):
     _append_section_todo(lines, rows, today)
     _append_section_overdue(lines, rows, today)
     _append_section_retro(lines, rows, today, workspace)
+    if calibration:
+        lines.extend(_calibration_section(rows, today, workspace))
     return "\n".join(lines)
+
+
+def _calibration_section(rows, today, workspace):
+    """七、筛选校准（E 批，2026-10-16）：取数、校准与渲染都在 score_calibration。
+
+    本函数只转一手——**不在这边算数、不在这边拼表格**，否则 CLI 与 MCP / API
+    会各有一份口径（四端同源，设计文档 §八.5）。
+    """
+    from jobws_core import score_calibration
+
+    return score_calibration.calibration_section(rows, today, workspace)
 
 
 def main():
@@ -491,6 +508,9 @@ def main():
                         help="工作区目录，默认数据根下的 personal/")
     parser.add_argument("--out", help="输出文件路径，默认工作区下 05_投递追踪/看板.md")
     parser.add_argument("--stdout", action="store_true", help="只打印到标准输出，不写文件")
+    parser.add_argument("--calibration", action="store_true",
+                        help="追加「筛选校准」一节：按评分档位的转化率（分母=投过）、"
+                             "未投递记账与一句结论（只读，不写任何数据）")
     args = parser.parse_args()
     args.workspace = resolve_workspace_arg(args.workspace)
 
@@ -507,7 +527,7 @@ def main():
         return 0
 
     rows = read_rows()
-    content = build_report(rows, date.today(), workspace)
+    content = build_report(rows, date.today(), workspace, calibration=args.calibration)
 
     if args.stdout:
         print(content)

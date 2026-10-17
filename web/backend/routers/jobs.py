@@ -23,6 +23,7 @@ from pydantic import BaseModel
 
 import atomicio
 from jobws_core import job_dirs
+from jobws_core import job_pool
 from jobws_core import job_rename
 from jobws_core import jd_score
 from jobws_core import workspace_read
@@ -87,49 +88,22 @@ def _parse_card(workspace: str, job_dir: str, text: str = None):
     """解析解析卡的评分小节、硬门槛与分维度明细。
 
     缺失或格式错误时返回空结构而非报错——卡片是渐进填写的。返回结构：
-    - dimensions/total/level/action/consistent：四维加权评分（原有）
-    - hardGates：资格硬门槛（前置差异化），含 items/conclusion/reason/details
-    - dimensionsDetail：每维的词典命中（含证据标签）与逐条说明 raw；text 传已读原文即复用
+    - dimensions/total/level/action/consistent/hardGates：**委托
+      `jobws_core.job_pool.parse_card`**（合成只有一份：Web / CLI / MCP
+      三端必须对同一张卡给出同一个数，2026-10-16 E 批收口）；
+    - dimensionsDetail：每维的词典命中（含证据标签）与逐条说明 raw——仅本模块
+      （岗位详情页）需要，故留在这里。
     """
-    card = text if text is not None else _read_in_workspace(workspace, job_dir, CARD_FILE)
-    if card is None:
+    card_text = text if text is not None else _read_in_workspace(workspace, job_dir, CARD_FILE)
+    if card_text is None:
         return None
-    fields = jd_score.parse_score_section(card)
-    if not fields:
+    parsed = job_pool.parse_card(card_text)
+    if parsed is None:
         return None
 
-    dims, ok = [], True
-    for name, maximum in jd_score.DIMENSIONS:
-        num, errs = jd_score.parse_dimension(fields.get(name, ""), name, maximum)
-        if errs or num is None:
-            ok = False
-            break
-        dims.append({"name": name, "score": num, "max": maximum})
-
-    total_raw = fields.get("总分", "")
-    try:
-        total = float(total_raw)
-    except (TypeError, ValueError):
-        ok = False
-        total = None
-
-    level = action = None
-    if ok and total is not None and abs(sum(d["score"] for d in dims) - total) < 1e-6:
-        level, action = jd_score.verdict(total)
-        ok = True
-    else:
-        ok = False
-
-    hard_gates = jd_score.parse_hard_gates(card)
     dim_names = [n for n, _ in jd_score.DIMENSIONS]
-    dim_detail = jd_score.parse_dimension_detail(card, dim_names)
-
-    return {
-        "dimensions": dims, "total": total, "level": level,
-        "action": action, "consistent": ok,
-        "hardGates": hard_gates,
-        "dimensionsDetail": dim_detail,
-    }
+    parsed["dimensionsDetail"] = jd_score.parse_dimension_detail(card_text, dim_names)
+    return parsed
 
 
 def _card_basic_info(workspace: str, job_dir: str, text: str = None):

@@ -20,6 +20,12 @@
 """
 
 import json
+from datetime import date
+
+from jobws_core import tracker
+# 别名是**必须的**：下方嵌套的工具函数就叫 `score_calibration`，若模块级 import
+# 不改名，函数体里查这个名字会命中嵌套函数自己（闭包查找顺序）而不是 core 模块。
+from jobws_core import score_calibration as score_calibration_core
 
 from . import annotations, tools_readonly, tools_writable
 
@@ -253,11 +259,39 @@ def _register_review_writes(mcp, workspace):
         return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+def register_calibration_tools(mcp, workspace):
+    """筛选校准的只读工具（E 批 2026-10-16）——**由 server.py 在末尾调用**。
+
+    为什么不进 `register_all`：协议顺序的真实末尾在 `read_job_text` 之后
+    （`resources.register_text_tool` 由 server.py 在 register_all 之后调用），
+    塞进 register_all 会把它插到 jobws.info / read_job_text 前面——那正是
+    批 4.7 顺序纪律要防的缓存失效。故本函数公开，由 server.py 排在最后。
+
+    只读：不改任何阈值、不写任何配置、不生成投递动作（设计文档 §四 反目标）
+    ——因此不需要 `preview_` 前缀。数字全部来自 `jobws_core.score_calibration`
+    （领域层唯一实现）：CLI 看板与 API 看板调用的是同一些函数。
+    """
+    @mcp.tool(annotations=annotations.READ_ONLY)
+    def score_calibration() -> str:
+        """筛选校准：按评分档位的转化率、未投递记账与一句结论（只读）。
+
+        回答一个问题：*我按评分筛的这一套，测出来的结果支持它吗？*
+        分母 = 该档位里**投过**的岗位数（没投的不算，由未投递记账单独回答）；
+        样本不足的档位不展示百分比（宁可不说，也不拿噪声当趋势）。
+        结论一律「数据显示 + 可能」——本工具不替用户决定放宽阈值。
+        """
+        rows = tracker.read_rows(workspace)
+        data = score_calibration_core.calibration_data(rows, date.today(), workspace)
+        return json.dumps(data, ensure_ascii=False, indent=2)
+
+
 def register_all(mcp, workspace):
     """按**固定顺序**注册全部工具（顺序即 `tools/list` 的输出顺序）。
 
     新增工具一律**追加在末尾**（在最后一个 helper 里加，或新 helper 排在最后
     调用）——宿主的工具描述缓存按前缀比对，中间插入会让缓存整段失效（批 4.7）。
+    真正的协议末尾在 server.py 的 `read_job_text` 之后：晚到的工具走
+    `register_calibration_tools`（由 server.py 排在最后调用）。
     """
     _register_application_tools(mcp, workspace)      # 投递只读
     _register_application_writes(mcp, workspace)     # 投递写入（预览 + apply）

@@ -77,9 +77,11 @@ async def test_stdio_lists_and_calls_tools(tmp_path, monkeypatch):
                              "preview_add_interview", "preview_update_interview",
                              "preview_add_question", "preview_import_questions",
                              # A2（2026-10-05）：数据根诊断（只读），同样追加在末尾
-                             "jobws.info",
-                             # 2026-10-12：岗位正文工具（DSH 不桥接资源，技能改走它）
-                             "read_job_text"]
+                                              "jobws.info",
+                                              # 2026-10-12：岗位正文工具（DSH 不桥接资源，技能改走它）
+                                              "read_job_text",
+                                              # E 批（2026-10-16）：筛选校准（只读），同样追加在末尾
+                                              "score_calibration"]
 
             # 工具注解（D1，2026-10-05）：危险等级必须**真出现在线上协议里**
             # （宿主的确认策略读的正是这个字段；只测 Python 常量等于没测接线）。

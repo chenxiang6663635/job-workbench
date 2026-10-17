@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 import deps  # noqa: E402
 from jobws_core import jd_score  # noqa: E402
 from jobws_core import tracker  # noqa: E402
+from jobws_core import workspace_read  # noqa: E402
 from routers import jobs as jobs_router  # noqa: E402
 
 WS = "ws-ok"
@@ -70,15 +71,25 @@ def _seed_job(root, name=JOB):
 
 
 def _count_card_reads(monkeypatch):
-    """接住 `_read_in_workspace` 的每次调用（相对路径清单）。"""
+    """接住每次解析卡读取（`workspace_read.read_in_workspace`——四端唯一入口）。
+
+    2026-10-16 E 批起，看板的岗位池统计与筛选校准都走 core 的
+    `score_calibration.load_job_pool`，读取点是 core 原语而不是 web 的
+    `_read_in_workspace`（后者只是前者的薄包装）。盯核心那一个咽喉点，
+    web / core 两条路径都漏不掉。记录的路径取末两段（`<岗位目录>/<卡片名>`）：
+    两条调用链传参形态不同（web 传绝对路径、core 传目录 + 文件名），
+    归一之后才可比。
+    """
     seen = []
-    real = jobs_router._read_in_workspace
+    real = workspace_read.read_in_workspace
 
-    def counting(workspace, *parts):
-        seen.append("/".join(parts))
-        return real(workspace, *parts)
+    def counting(ws, *parts, **kwargs):
+        segs = [s for s in "/".join(str(p) for p in parts)
+                .replace("\\", "/").split("/") if s]
+        seen.append("/".join(segs[-2:]))
+        return real(ws, *parts, **kwargs)
 
-    monkeypatch.setattr(jobs_router, "_read_in_workspace", counting)
+    monkeypatch.setattr(workspace_read, "read_in_workspace", counting)
     return seen
 
 
@@ -87,7 +98,7 @@ def _card_calls(seen):
 
 
 def _expected_card_call():
-    return "01_岗位池/%s/%s" % (JOB, jobs_router.CARD_FILE)
+    return "%s/%s" % (JOB, jobs_router.CARD_FILE)
 
 
 # --- 1. 岗位列表 / 详情：解析卡读一次 ------------------------------------------

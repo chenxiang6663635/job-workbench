@@ -14,6 +14,11 @@ from datetime import date, datetime
 
 
 from jobws_core import pathres  # noqa: E402  （ROOT 由入口注入，见 pathres._APP_ROOT）
+from ._workspace import (  # noqa: E402  （#313：根决策在 dataroot，见该模块）
+    default_workspace,
+    resolve_workspace_arg,
+    resolved_data_root,
+)
 from jobws_core.csv_cells import read_rows as read_csv_rows  # noqa: E402
 from jobws_core.filelock import file_lock  # noqa: E402  （写类操作的互斥原语）
 from jobws_core import workspace_io  # noqa: E402  （批 8：原子写与锁名收敛到共享原语）
@@ -32,18 +37,10 @@ logger = logging.getLogger(__name__)
 ROOT = pathres.resolve_root()
 
 
-def default_workspace():
-    """默认工作区 = `<数据根>/<工作区名>`（B4 整改 A：收口到唯一实现）。
-
-    旧锚是应用根（`<repo>/personal`）——B3 后新装场景与 API/MCP 分叉；且
-    刻意**不用模块级常量**（解析链依赖 env，常量会静默过期）。
-    """
-    return pathres.default_workspace()
 
 
-def resolve_workspace_arg(value=None):
-    """CLI `--workspace` 缺省解析——转发 pathres 唯一实现（与 default_workspace 同款）。"""
-    return pathres.resolve_workspace_arg(value)
+
+
 
 
 # 由 main() 在解析 --workspace 后赋值；None = 尚未解析——读侧现算

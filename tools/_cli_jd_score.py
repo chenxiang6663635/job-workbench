@@ -18,7 +18,8 @@ _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
-from jobws_core import pathres  # noqa: E402  （默认工作区：数据根推导，唯一实现）
+from jobws_core import pathres  # noqa: E402  （应用根/路径原语）
+from jobws_core.tracker import resolve_workspace_arg  # noqa: E402  （#313：现役数据根）
 from jobws_core.jd_score import (DIMENSIONS, TOTAL_MAX,  # noqa: E402
                                  gap_analysis, parse_dimension,
                                  parse_score_section, resolve_profile, verdict)
@@ -136,7 +137,7 @@ def _print_verdict(values, total):
 def main():
     parser = _build_parser()
     args = parser.parse_args()
-    args.workspace = pathres.resolve_workspace_arg(args.workspace)
+    args.workspace = resolve_workspace_arg(args.workspace)
 
     workspace = os.path.abspath(args.workspace)
 

@@ -206,25 +206,19 @@ class WorkspaceOutOfRange(ValueError):
     """
 
 
-def default_workspace(root=None):
+def default_workspace(root=None, data_root=None):
     """默认工作区绝对路径 = `<数据根>/<工作区名>`（B4 整改 A：与 API/MCP 同源）。
 
-    2026-10-05 前 CLI 的默认工作区锚在**应用根**（`<repo>/personal`），B3 把
-    数据根默认切到 `<user_data_dir>/data` 后，新装场景 CLI 与 API/MCP 默认分叉
-    ——本函数把 CLI 侧收口到同一条链（数据根 + `JOBWS_WORKSPACE`，缺省
-    `personal`），与 `deps.resolve_default_workspace` / MCP 的
-    `resolve_default_workspace` 口径一致。
+    `data_root` 给了就**不再自行选根**——根决策归 `jobws_core.dataroot`
+    （`env > persisted > legacy`）；本函数只负责「在给定根内解析工作区名 +
+    越界校验」（2026-10-16 #313 的分层）。不给仍走旧链，供 legacy 调用方兼容。
 
-    **越界必须拒绝**（2026-10-09 审计 1.1-3）：CLI 此前是唯一静默口——环境变量
-    写成 `..` 段 / 绝对路径 / 盘符相对会让默认工作区落到数据根之外；Web 已
-    fail-closed、MCP 由 `within_any` 兜住。现在同一道闸（`escape_reason` +
-    `is_within`，含经链接读穿），违规抛 `WorkspaceOutOfRange`（入口层映射为
-    退出码 2）。
-
-    **调用时求值**（不缓存）：解析链依赖环境变量，模块级常量会在测试与长驻
-    进程里静默过期。
+    越界 fail-closed（`escape_reason` + `is_within`，含经链接读穿），违规抛
+    `WorkspaceOutOfRange`（入口层映射为退出码 2）；**调用时求值**（解析链依赖
+    env，模块级常量会静默过期）。
     """
-    data_root, _mode = resolve_workspace_root(root)
+    if data_root is None:
+        data_root, _mode = resolve_workspace_root(root)
     name = (os.environ.get(ENV_WORKSPACE) or "").strip() or _DEFAULT_WORKSPACE
     reason = containment.escape_reason(name)
     full = os.path.normpath(os.path.join(data_root, name))

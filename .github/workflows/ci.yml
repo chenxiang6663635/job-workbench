@@ -434,7 +434,10 @@ jobs:
   # 已知边界：npm audit 的告警面依赖 npm 的 advisory 库（与 GitHub Advisory 同源
   # 但收录节奏可能不同）；pip-audit 每次扫描时查 OSV。静态代码扫描另立 workflow：
   # `.github/workflows/codeql.yml`（2026-10-12 落地 #207 登记的 follow-up——python +
-  # javascript 默认查询集（安全类），push main / PR / 每周一定时；PR 上可见但非必需检查）。
+  # javascript 默认查询集（安全类），push main / PR / 每周一定时）。
+  # 2026-10-16 S4：本 job 已是**必需检查**（required_status_checks）；
+  # CodeQL 的合并保护另由 ruleset `codeql-merge-protection` 承担，见
+  # docs/handover/2026-10-16-s4-gates.md。
   security:
     name: 安全扫描（依赖 audit）
     runs-on: ubuntu-latest

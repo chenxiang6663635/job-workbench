@@ -89,6 +89,8 @@ def test_paths_reports_data_root_and_mode(tmp_path, client):
 def test_mode_falls_back_to_user_dir_when_env_points_elsewhere(tmp_path, client, monkeypatch):
     alt = tmp_path / "alt-root"
     monkeypatch.setenv("JOBWS_DATA_DIR", str(alt))
+    # 显式选择生效时工作区只从数据根解析（2026-10-16 双根收口）：把 ws 放进 alt
+    (alt / WS).mkdir(parents=True)
     res = client.get("/api/system/paths", params={"ws": WS})
     assert res.status_code == 200
     data = res.json()

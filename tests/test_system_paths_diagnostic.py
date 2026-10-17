@@ -102,6 +102,8 @@ def test_diagnostic_block_portable(tmp_path, client):
 def test_diagnostic_block_env(tmp_path, client, monkeypatch):
     alt = tmp_path / "alt-root"
     monkeypatch.setenv("JOBWS_DATA_DIR", str(alt))
+    # 显式选择生效时工作区只从数据根解析（2026-10-16 双根收口）
+    (alt / WS).mkdir(parents=True)
     data = _paths(client)
     assert data["mode"] == "user"                 # 既有语义不变：此时不再等于应用根
     diag = data["dataRootDiagnostic"]

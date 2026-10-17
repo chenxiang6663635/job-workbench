@@ -16,6 +16,7 @@ from fastapi import Query, Request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jobws_core import containment, dataroot, pathres  # noqa: E402
 from apierror import ApiError  # noqa: E402
+from request_guard import reject_bad_param_name  # noqa: E402  （参数名防线，见该模块）
 
 # 应用根（只读资源）。打包后 exe 同级，解包为仓库根。
 ROOT = pathres.resolve_root()
@@ -35,11 +36,8 @@ ENV_WORKSPACE = "JOBWS_WORKSPACE"
 # 单一真值源在此处，main.py 的中间件与 CORS 白名单都引用它，避免字符串写两遍分叉。
 WORKSPACE_HEADER = "X-Jobws-Workspace"
 
-# `ws` 的近名错拼（issue #22）。FastAPI **默认忽略未知查询参数**：客户端把 `ws` 写成
-# `workspace` 时参数被直接丢掉 → ws=None → 回退默认工作区（personal/，真实数据）→ 200。
-# 只认这几个已知近名，不做全局参数白名单——那要手工维护每个端点的全部参数，
-# 脆弱且容易误伤。
-WS_NEAR_MISS = ("workspace", "ws_", "wks", "workspaces")
+# 参数名防线（近名错拼 / 大小写变体）已拆到 `request_guard.py`：本文件撞 300 行
+# 规模闸门时按职责归位，issue #22 的回归防线随之搬走（行为不变）。
 
 
 def data_root():
@@ -54,15 +52,37 @@ def data_root():
     return dataroot.resolve_data_root(dataroot.form_for_process(), ROOT).path
 
 
+def _root_source():
+    """当前数据根的解析来源（`env | persisted | legacy_portable | legacy_userdata`）。
+
+    直接取 `dataroot.resolve_data_root` 的 `source` 字段——**不另写一份** env /
+    持久化判断（那正是「两个真源」的老毛病）。
+    """
+    return dataroot.resolve_data_root(dataroot.form_for_process(), ROOT).source
+
+
 def allowed_roots():
-    """允许作为工作区父目录的根：应用根 + 可写数据根（去重）。"""
-    roots = [ROOT, data_root()]
-    out = []
-    for r in roots:
-        r = os.path.normpath(r)
-        if r not in out:
-            out.append(r)
-    return out
+    """允许作为工作区父目录的根（2026-10-16 双根收口）。
+
+    两条分支，按「是否**显式选择**过数据根」区分：
+
+    - `JOBWS_DATA_DIR` 或持久化选择生效 → **只有数据根**。此前这里还带应用根，
+      于是「哪个根」有两个真源：列表按 `[应用根, 数据根]` 扫描并「同名只留
+      第一个」，解析却按「数据根优先」；当前数据根里没有该名字时更会**静默
+      回退到应用根的同名旧副本**（读旧数据、写也落在旧副本上——外部复核 P2
+      的取证见 `tests/test_dual_root_same_workspace.py`）。
+    - 从未选择（legacy 推导）→ 保留 `[应用根, 数据根]`：此时声明的数据根可能
+      还不存在，应用根里的旧布局是唯一可能的位置（源码形态的老仓库就是这种）。
+      **这不是跨根兜底**：没有第二份同名数据可混淆。
+
+    MCP 侧结构上只有数据根（`mcp/jobws_mcp/paths.py` 模块 docstring 有理由）；
+    能力边界见上：显式选择时四端对「工作区在哪」只有一个答案。
+    """
+    root = os.path.normpath(data_root())
+    if _root_source() in ("env", "persisted"):
+        return [root]
+    app = os.path.normpath(ROOT)
+    return [app] if app == root else [app, root]
 
 
 def _inside_allowed_roots(full):
@@ -114,60 +134,33 @@ def resolve_default_workspace(root=None):
     return full
 
 
-def _reject_bad_param_name(request: Request) -> None:
-    """近名错拼 / 大小写变体的参数名检查（issue #22 回归防线）。
-
-    放在这里（而不是中间件里）是**刻意的**：中间件是后注册的在最外层，
-    在里面直接 return 会绕过 CORSMiddleware，浏览器读不到那个 400 的正文，
-    只会看到网络错误。走 HTTPException 才是正常错误路径。
-
-    大小写不敏感地比对近名：查询参数名大小写敏感（HTTP 语义），
-    `?Workspace=` 不在小写清单里就会被当未知参数丢掉——复现与 #22 一字不差
-    的静默回退。大小写变体（PascalCase 脚本、Swagger 生成代码）与复数形式
-    是同等常见的错拼来源；lower → 原始名，报错时能指出用户实际写的是什么。
-    """
-    lower_keys = {}
-    for key in request.query_params.keys():
-        lower_keys.setdefault(key.lower(), key)
-
-    for bad in WS_NEAR_MISS:
-        if bad in lower_keys:
-            raise ApiError(
-                400, "ws.unknownParam",
-                "未知参数 `%s`；工作区参数名是 `ws`（例如 ?ws=personal）" % lower_keys[bad],
-                name=lower_keys[bad],
-            )
-
-    # 合法名 `ws` 的大小写变体（`WS` / `Ws`）单独处理：不能把它放进近名清单
-    # （归一化后就是 `ws`，会与合法请求混淆），但它同样会被 FastAPI 静默忽略。
-    if "ws" in lower_keys and lower_keys["ws"] != "ws":
-        raise ApiError(
-            400, "ws.unknownParamCase",
-            "未知参数 `%s`；工作区参数名是**小写的** `ws`" % lower_keys["ws"],
-            name=lower_keys["ws"],
-        )
-
-
 def _resolve_relative_workspace(ws: str) -> str:
-    """相对工作区名 → 绝对路径：**数据根优先**、应用根兜底（去重后逐个探测）。
+    """相对工作区名 → 绝对路径：**只在当前数据根内**解析（2026-10-16 收口）。
 
-    为什么不是只按 ROOT 拼：打包形态（NSIS 装到 Program Files 等不可写位置）
-    数据根是系统用户目录——那才是工作区真正所在，按安装目录拼只会指向一个
-    空壳（mcp/jobws_mcp/paths.py 同款结论）；而前端选中工作区后**必带 ws**，
-    这条路径一旦拼错，桌面版多工作区切换直接 404。开发/便携形态下两候选
-    相同（data_root() == ROOT），行为与历史完全一致。
+    为什么不再兜底应用根：打包形态下数据根在系统用户目录，那才是工作区真正
+    所在（按安装目录拼只会指向空壳，审计 M-1）；而「数据根没命中就回退应用根」
+    会让两个根里同名的旧副本被静默服务——读旧数据、写落在旧副本上（外部复核
+    P2，取证见 `tests/test_dual_root_same_workspace.py`）。找不到就是 404；
+    应用根里的遗留候选由 `/api/system/paths` 的诊断对象（`legacy_candidates`）
+    列出，设置页据此引导迁移，不靠"读的时候顺手兜底"。
+    开发/便携形态下 `data_root() == ROOT`，行为与历史完全一致。
 
-    越界判定逐候选进行（fail-closed）：越界候选即使物理存在也不采用；
-    两候选全越界 → 400，界内候选不存在 → 404；名称的越界写法同 CLI/MCP 先拒。
+    候选顺序 = **数据根优先**，其余允许根随后：显式选择时允许根只有一个，
+    legacy 时才可能轮到应用根（见 `allowed_roots` 的两条分支）。
+
+    越界判定沿候选进行（fail-closed）：越界候选即使物理存在也不采用；
+    全部候选越界 → 400，界内候选不存在 → 404；名称的越界写法同 CLI/MCP 先拒。
     """
     reason = containment.escape_reason(ws)
     if reason:
         raise ApiError(
             400, "ws.outOfRange",
             "工作区名含越界写法（%s）：%s —— 只接受允许根内的相对目录名。" % (reason, ws))
+    primary = os.path.normpath(data_root())
+    roots = [primary] + [r for r in allowed_roots() if r != primary]
     seen = set()
     candidates = []
-    for cand_root in (data_root(), ROOT):
+    for cand_root in roots:
         cand = os.path.normpath(os.path.join(cand_root, ws))
         key = os.path.normcase(cand)
         if key not in seen:
@@ -248,9 +241,10 @@ def _resolve_workspace(request: Request, ws: str) -> str:
     之下的目录。解析结果写入 `request.state.workspace`，由 main.py 的中间件以
     X-Jobws-Workspace 回显（issue #22）：让「实际服务的是哪个工作区」从不可见
     变为调用方一读就能察觉——静默返回别的工作区数据比报错危险得多。细节分别在
-    `_reject_bad_param_name`（参数名）与 `_resolve_relative_workspace`（相对名）。
+    `reject_bad_param_name`（参数名，在 request_guard.py）与
+    `_resolve_relative_workspace`（相对名）。
     """
-    _reject_bad_param_name(request)
+    reject_bad_param_name(request)
 
     # 显式的空值（`?ws=`）多半来自拼模板串的第三方脚本：静默回退默认工作区
     # 与「静默回退即危险」的立场冲突，明确拒绝。前端只在选中工作区时才拼 ws，

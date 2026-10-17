@@ -72,6 +72,18 @@ def test_safe_join_and_escape_reason_agree_on_the_shared_classes():
             deps.safe_join(os.getcwd(), bad)
 
 
+@pytest.mark.skipif(os.name != "nt", reason="UNC 只在 Windows 上重置 join 的根")
+def test_safe_join_rejects_unc_on_windows(tmp_path):
+    r"""`\\server\share\x`：Windows 上 UNC 即绝对路径，join 会把根重置到共享位置。
+
+    S2 边界矩阵第五类（2026-10-16 补覆盖）：此前 posix 绝对路径与盘符相对都有用例、
+    UNC 一类零覆盖——判据层早就拒（`escape_reason` → 是绝对路径），缺的只是钉子。
+    """
+    with pytest.raises(ApiError) as ei:
+        deps.safe_join(str(tmp_path), r"\\server\share\x")
+    assert ei.value.code == "path.illegalSegment"
+
+
 # --- 2. CSV 读取：唯一模式 -----------------------------------------------------
 
 def test_table_readers_no_longer_carry_their_own_copy():

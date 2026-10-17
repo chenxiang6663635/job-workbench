@@ -89,6 +89,8 @@
 
 - **CLI 数据根跟随持久化选择（2026-10-16，[#313](https://github.com/chenxiang6663635/job-workbench/issues/313)）**：CLI 的默认工作区与 `--workspace` 缺省值此前走 `pathres.resolve_workspace_root`（env → portable → legacy → 默认，**不含 persisted**）——设置页 / 控制面记住的数据根 CLI 不认，两个根有同名工作区时会静默读写另一个根。现在按分层收敛：**根决策只由 `dataroot`（env > persisted > legacy）决定**，`pathres` 新增 `workspace_under(data_root)` 只负责「在给定根内解析工作区名 + 越界校验」，CLI 侧三个函数搬进 `tracker/_workspace.py`（`_core` 297 行、新文件 36）；四个 CLI 入口统一走 `tracker.resolve_workspace_arg`。**行为变更**：CLI 缺省工作区现在跟随记住的数据根。另补 #312 的**失效根负向契约**：`env` / `persisted` 指向不存在的根时，带 `ws` 的读与写一律 404/503，且不触碰应用根旧副本（2 条新测试，实测通过——不存在 `source` 枚举回退到旧根的口子）。
 
+- **S2 边界矩阵闭环（2026-10-16）**：五类路径越界写法（UNC / 绝对 / 混合分隔符 / URL 编码 / junction·symlink）全部有判据 + 用例——其中 **UNC 一类此前零覆盖**，本轮在 Web（`test_safe_join_rejects_unc_on_windows`）与 MCP（`test_resolve_within_workspace_rejects_unc_on_windows`）两侧补上（判据层早已拒，缺的只是钉子）。TOCTOU 按威胁模型写成**如实说明 + 已知限制**（本地单用户 + 材料不可信，不假装消除判定与使用之间的窗口）。覆盖矩阵与理由：`docs/handover/2026-10-16-s2-boundary-matrix.md`。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

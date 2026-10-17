@@ -51,6 +51,27 @@ def read_message(proc, want_id, deadline):
     return None
 
 
+# 随包 exe 的工具契约（2026-10-16 E 批）：加工具时这里必须一起改。
+# 为什么钉总数与末位而不是只打印：随包 exe 曾长期落后源码（`read_job_text` 与
+# `score_calibration` 都是后加的），只打印数量的冒烟看不出"少了一个工具"。
+EXPECTED_TOOL_COUNT = 17
+# 协议层名保持点号：`jobws.info`（宿主侧才会被规范化成 mcp__jobws__jobws_info_*）
+REQUIRED_TOOLS = ("jobws.info",)
+
+
+def check_tools(names):
+    """工具清单契约：数量、必需项、末位（新工具一律追加在协议末尾）。"""
+    if len(names) != EXPECTED_TOOL_COUNT:
+        _fail("工具数量不符：期望 %d，实际 %d：%s"
+              % (EXPECTED_TOOL_COUNT, len(names), names))
+    for name in REQUIRED_TOOLS:
+        if name not in names:
+            _fail("工具清单里没有 %s：%s" % (name, names))
+    if names[-1] != "score_calibration":
+        _fail("末位工具应为 score_calibration（新工具一律追加在协议末尾）：%s"
+              % names[-3:])
+
+
 def main():
     if not os.path.isfile(EXE):
         _fail("找不到 %s（先跑 scripts\\build_mcp_exe.ps1）" % EXE)
@@ -77,9 +98,7 @@ def main():
             _fail("tools/list 没有结果")
         names = [t["name"] for t in tools["result"]["tools"]]
         print("tools/list OK：%d 个工具" % len(names))
-        # 协议层名保持点号：`jobws.info`（宿主侧才会被规范化成 mcp__jobws__jobws_info_*）
-        if "jobws.info" not in names:
-            _fail("工具清单里没有 jobws.info：%s" % names)
+        check_tools(names)
 
         send(proc, {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                     "params": {"name": "jobws.info", "arguments": {}}})

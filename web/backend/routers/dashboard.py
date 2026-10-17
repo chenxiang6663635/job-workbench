@@ -11,17 +11,15 @@ report 侧另有对应的 section helper（_append_section_todo / _append_sectio
 
 from __future__ import annotations
 
-import os
 from datetime import date
 
 from fastapi import APIRouter, Depends
 
 from jobws_core import jd_score
-from jobws_core import job_dirs
 from jobws_core import job_pool
 from jobws_core import score_calibration
 from jobws_core import tracker
-from deps import DIR_JOBS, safe_join, workspace_dir
+from deps import workspace_dir
 from jobws_core.report import count_by, retrospective  # noqa: E402 - report 与 tracker 同目录
 from routers import jobs as jobs_router  # noqa: E402 - 关联口径复用，不写第二份
 from remind import overdue_pending, upcoming_talks, upcoming_todos  # noqa: E402 - 判据中立模块（见其 docstring）
@@ -67,19 +65,11 @@ def job_pool_overview(ws, rows=None, pool=None):
 
     未评分的岗位**不参与**分布图：「还没评」不等于最低档，塞进「不投」那一档
     是在替用户下结论。rows 传已读行时索引不再重读追踪表（看板同请求单读）；
-    **pool 传 `score_calibration.load_job_pool` 的快照时不再重读解析卡**
+    **pool 传 `job_pool.load_job_pool` 的快照时不再重读解析卡**
     （看板同一次请求里筛选校准也要用，两份消费一份读取）。
     """
     if pool is None:
-        pool = score_calibration.load_job_pool(ws, rows)
-    base = safe_join(ws, DIR_JOBS)
-    names = []
-    if os.path.isdir(base):
-        names = [n for n in sorted(os.listdir(base))
-                 if n and not n.startswith("_")
-                 and os.path.isdir(os.path.join(base, n))]
-
-    index = job_dirs.applications_by_key(ws, rows) if names else {}
+        pool = job_pool.load_job_pool(ws, rows)
     dist = {tier: {"unapplied": 0, "active": 0, "terminal": 0}
             for _lo, _hi, tier, _a in jd_score.THRESHOLDS}
     unapplied_high = []

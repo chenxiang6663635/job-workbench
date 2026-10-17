@@ -95,7 +95,6 @@ def client(tmp_path, monkeypatch):
 
 def _core(ws):
     rows = tracker.read_rows(str(ws))
-    pool = job_pool.load_job_pool(str(ws), rows)
     # today 必须给真值：report.retrospective 用它算停留天数（None 会炸）
     return score_calibration.calibration_data(rows, date.today(), str(ws))
 

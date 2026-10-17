@@ -93,13 +93,14 @@ def test_unscored_jobs_join_no_tier_but_are_counted_in_unapplied():
     """未评分 = 空评分列。它不该被塞进任何档（「还没评」不等于最低档），
     但在 ② 的构成里必须露面——否则「窄」的代价被藏起来。"""
     rows = [_row("A%03d" % i, "已投科技%d" % i, 80) for i in range(MIN)]
+    rows.append(_row("U001", "未评分科技", None, stage="已投"))   # 空评分的 tracker 行
     pool = ([_pool_entry("已投科技%d_后端" % i, 80, "通过", True)
              for i in range(MIN)]
             + [_pool_entry("没评分_后端", None, "通过", False)])
 
     out = score_calibration.calibrate(rows, pool, [], None, WS)
 
-    # ① 的总人口 = 投过的行数；未评分/没投的行不占任何档位
+    # ① 的总人口 = 投过且已评分的行数；未评分行（tracker 或岗位池）不占任何档位
     assert sum(t["applied"] for t in out["tiers"]) == MIN, "未评分行进档了"
     assert _tiers(out)[TIER_HIGH]["applied"] == MIN
     assert out["unapplied"]["unscored"] == 1

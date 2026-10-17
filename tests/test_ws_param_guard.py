@@ -277,11 +277,16 @@ def test_default_workspace_also_lives_in_data_root(client_two_roots):
     assert resp.headers.get(HEADER) == "personal"
 
 
-def test_ws_falls_back_to_app_root(client_two_roots):
-    """应用根下的工作区仍可达（数据根没命中时回退应用根，两形态兼容）。"""
+def test_ws_does_not_fall_back_to_app_root(client_two_roots):
+    """**不**回退应用根（2026-10-16 双根收口；此前这里钉的是"仍可达"）。
+
+    数据根没命中就 404：静默回退会让应用根里的同名旧副本被服务（读旧数据、
+    写落到旧副本），外部复核 P2 的双根取证已实测。遗留候选由
+    `/api/system/paths` 的 `legacy_candidates` 报告，设置页引导迁移。
+    """
     resp = client_two_roots.get("/api/system/paths", params={"ws": "ws-app"})
-    assert resp.status_code == 200, resp.text
-    assert resp.headers.get(HEADER) == "ws-app"
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["error_code"] == "ws.notFound"
 
 
 def test_ws_missing_in_both_roots_still_404(client_two_roots):

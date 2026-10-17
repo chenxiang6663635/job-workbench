@@ -87,7 +87,10 @@ def test_paths_endpoint_still_reachable_when_unavailable(client, tmp_path):
     """诊断端点不能一起被闸住：否则用户看不到「为什么失败」（补救的入口）。"""
     _plant_selection(json.dumps({"data_root": str(tmp_path / "gone")}))
 
-    res = client.get("/api/system/paths", params={"ws": WS})
+    # 不带 ws：显式选择生效时工作区只从数据根解析（2026-10-16 双根收口），
+    # 而 ws-ok 建在应用根——那条路径已按契约 404；本用例要验的是**诊断端点
+    # 不被闸住**，与工作区解析无关。
+    res = client.get("/api/system/paths")
 
     assert res.status_code == 200, res.text
     assert res.json()["dataRootDiagnostic"]["state"] == "unavailable"

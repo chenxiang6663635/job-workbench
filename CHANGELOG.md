@@ -91,6 +91,8 @@
 
 - **S2 边界矩阵闭环（2026-10-16）**：五类路径越界写法（UNC / 绝对 / 混合分隔符 / URL 编码 / junction·symlink）全部有判据 + 用例——其中 **UNC 一类此前零覆盖**，本轮在 Web（`test_safe_join_rejects_unc_on_windows`）与 MCP（`test_resolve_within_workspace_rejects_unc_on_windows`）两侧补上（判据层早已拒，缺的只是钉子）。TOCTOU 按威胁模型写成**如实说明 + 已知限制**（本地单用户 + 材料不可信，不假装消除判定与使用之间的窗口）。覆盖矩阵与理由：`docs/handover/2026-10-16-s2-boundary-matrix.md`。
 
+- **筛选校准（E 批，2026-10-16）**：把先验的评分筛法与后验的投递结局接起来——按评分档位给出转化率（**分母 = 该档位里投过的岗位数**，没投的由未投递记账单独回答）、未投递岗位的数量与构成（硬门槛合格但没投 / 不合格 / 待确认 / 未评分）、一句「数据显示 + 可能」的结论。**纯只读**：不写配置、不写 tracker、不生成投递动作，样本不足的档位不展示百分比（宁可不说，不拿噪声当趋势）。四端同源：CLI 新增 `report --calibration`（看板第七节）、MCP 新增第 17 个只读工具 `score_calibration`（追加在协议末尾，`tools/list` 顺序不变）、Web 看板 `GET /api/dashboard` 新增 `calibration` 字段（岗位池快照单次读取、两处消费）、插件 `today` / `jd` 各加一段。判据与呈现的实现集中在领域层 `jobws_core.score_calibration`（计算）与 `job_pool`（读取）；解析卡 → 评分/档位/硬门槛的合成从 web 收编为 `job_pool.parse_card`（三端同一份，web 侧只补它需要的分维度明细）。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

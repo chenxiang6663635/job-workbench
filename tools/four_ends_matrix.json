@@ -268,6 +268,15 @@
       "note": "只读：转化率 / 停留时长 / 失败归因 / 待办与逾期。CLI 是唯一能把看板落盘成 Markdown 的一端（--out）。"
     },
     {
+      "id": "report.scoreCalibration",
+      "stage": "复盘",
+      "cli": "report --calibration",
+      "mcp": "score_calibration",
+      "plugin": "today",
+      "gui": "GET /api/dashboard",
+      "note": "只读（E 批 2026-10-16）：按评分档位的转化率（分母=该档投过数）、未投递岗位记账与一句结论。数字全部来自 jobws_core.score_calibration——CLI 的 Markdown 节（report 第七节）与 API 的 calibration 字段是同一份计算结果（四端同源）。插件侧在既有 today 与 jd 两个命令里各加一段（不新增 commands 文件，避免 plugin.json 双向核对）；GUI 侧是 /api/dashboard 的新增字段 + 看板一张卡。不写任何配置 / tracker / 投递动作（设计文档 §四 反目标），故 MCP 侧不需要 preview_ 前缀。"
+    },
+    {
       "id": "question.list",
       "stage": "题库",
       "cli": "bank list",

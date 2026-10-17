@@ -7,7 +7,7 @@
 
 写入类能力的机制是「预览 → 确认 → 落盘」：命令行与 AI 宿主凭令牌，界面靠弹窗确认——机制不同、语义相同。各端的具体形态并不完全相同：CLI 的 track 类需显式 `--preview`，题库类命令（bank）默认即出预览，联系人 / Offer 直接落盘——逐项见下方矩阵、措辞真源见矩阵源的 `_meta.write_rule`。
 
-**基数（随本文件自动生成）**：登记能力 **53** 条、各端不提供的例外 **72** 条、错误标识 **9** 条、宿主专属字段 **10** 条。
+**基数（随本文件自动生成）**：登记能力 **54** 条、各端不提供的例外 **72** 条、错误标识 **9** 条、宿主专属字段 **10** 条。
 
 ## 能力矩阵
 
@@ -41,6 +41,7 @@
 | 面试 | `interview.add` | `track interview` | `preview_add_interview` | — | `POST /api/progress/interviews` |
 | 面试 | `interview.update` | `track interview` | `preview_update_interview` | — | `PATCH /api/progress/interviews/{interview_id}` |
 | 复盘 | `report.summary` | `report` | `dashboard_summary` | `today` | `GET /api/dashboard` |
+| 复盘 | `report.scoreCalibration` | `report --calibration` | `score_calibration` | `today` | `GET /api/dashboard` |
 | 题库 | `question.list` | `bank list` | `list_questions` | `bank` | `GET /api/progress/questions` |
 | 题库 | `question.add` | `bank add` | `preview_add_question` | `bank` | `GET /api/progress/questions/preview-add` |
 | 题库 | `question.update` | `bank update` | — | — | `GET /api/progress/questions/preview-update` |

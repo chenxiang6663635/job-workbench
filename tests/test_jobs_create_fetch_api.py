@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
 import deps  # noqa: E402
 import tls_http  # noqa: E402
+from jobws_core import outbound  # noqa: E402
 
 WS = "ws-ok"
 
@@ -58,12 +59,19 @@ class _Resp:
 
 
 def _stub_fetch(monkeypatch, resp=None, boom=None):
-    def _fake(req, timeout=None, purpose=None):
+    """打桩出网：`**kwargs` 接住 `public_only=True`（2026-10-16 SSRF 守卫起传真）。
+
+    同时把守卫的 DNS 打桩成公网地址——`fetch_jd` 在出网前会先过
+    `outbound.assert_public_url`，不打桩就要真解析（CI 无网时红）。
+    """
+    def _fake(req, timeout=None, purpose=None, **kwargs):
         if boom is not None:
             raise boom
         return resp
 
     monkeypatch.setattr(tls_http, "open_url", _fake)
+    monkeypatch.setattr(outbound.socket, "getaddrinfo", lambda *a, **kw: [
+        (2, 1, 6, "", ("93.184.216.34", 443))])
 
 
 LONG_HTML = ("<html><body><h1>热管理工程师</h1><p>"

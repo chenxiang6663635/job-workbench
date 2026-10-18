@@ -25,7 +25,7 @@ packages/jobws-core/src/jobws_core/status_parse.py = 329  # 阶段同义词映�
 # --- 单域 router：端点 + 校验 + pydantic 模型 ---
 web/backend/routers/applications.py = 572  # 时间线索引化（P 批 2026-09-21，+4）：history_by_id 建索引一次、逐行传子集
 web/backend/routers/resume.py = 614  # 版式/风格清单 + 预览/Word/生成三处渲染
-web/backend/routers/jobs.py = 502  # 2026-09-25 收口批：create_job 改原子写（+3，四端复核跟进；原水位 499）
+web/backend/routers/jobs.py = 488  # 2026-09-25 收口批：create_job 改原子写；2026-10-16 SSRF 守卫接线（净 +1：拒绝映射抽到 apierror.outbound_blocked，原水位 502）
 # imap.py 原 304 行登记：2026-10-04（#203 收口批）host 形状校验拆去 imap_host.py、
 # 凭据接线改为与 provider 共用的 credential_fields.py（368→300，回到阈值内）——
 # 按自洁规则删掉这一行。

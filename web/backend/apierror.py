@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
+from jobws_core import outbound
+
 
 class ApiError(HTTPException):
     """带语义 code 的 HTTPException。
@@ -37,3 +39,23 @@ class ApiError(HTTPException):
         super().__init__(status_code=status_code, detail=detail)
         self.code = code
         self.params = params
+
+
+def outbound_blocked(exc, invalid_code, blocked_code):
+    """`jobws_core.outbound.OutboundBlocked` → 用户可读的 422。
+
+    为什么收在这里而不是各路由里写：**同一份拒绝会在两处抛出**——入口检查
+    （`fetch_jd` 自己查一次）与「重定向阶段复检」（`tls_http` 逐跳复检）。
+    两处必须给出同一份契约（状态码 / code / 参数集），各写一遍迟早漂移；
+    `test_error_code_params` 只核对参数集，保证不了状态码与文案口径。
+    """
+    if exc.reason == outbound.REASON_URL:
+        # 畸形 URL（`:abc` / 越界端口 / 方括号没闭合）：链接写得不对，不是指向内网。
+        # 该 code **不带参数**（与其它抛出点一致，见 `test_error_code_params`）。
+        return ApiError(422, invalid_code,
+                        "链接格式不对（端口或方括号），请填写完整的 http(s) 链接")
+    return ApiError(
+        422, blocked_code,
+        "无法抓取这个链接（%s）：它指向本机或内网地址，或解析不到公网地址。"
+        "请换成公网可访问的岗位页面。" % (exc.host or "未知主机"),
+        host=exc.host or "")

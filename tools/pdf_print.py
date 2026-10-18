@@ -90,11 +90,19 @@ def build_pdf(browser, html_path, pdf_path):
         # 而 HTML 改名为固定名，命令行里就不含任何用户可控字符串。
         # 注意**不能**排掉 TMP_PREFIX：待打印的 HTML 本身就叫 `.jobws_tmp_*.html`
         #（2026-10-16 实测踩到：排掉后源文件不存在，渲染直接失败）。
-        shutil.copytree(source_dir, work, dirs_exist_ok=True,
+        #
+        # 行内抑制 `py/path-injection` 的理由（下方四行）：这里读/写的是**用户自己
+        # 的**路径（`--workspace` 里那份 HTML 与 `--out` 指定的 PDF 落点），本地单
+        # 用户工具里没有权限边界可越——「把 PDF 写到用户选的位置」就是这个功能的
+        # 定义。命令行的 argv 已由 `allowlisted_browser()` + 固定名约束（#194 的修法），
+        # 所以真正的风险面（把用户值变成命令）已经关掉；剩下的文件系统读写按行抑制，
+        # 而不是整仓 dismiss（行内抑制会跟着代码走、在 review 里看得见）。
+        shutil.copytree(source_dir, work, dirs_exist_ok=True,  # codeql[py/path-injection]
                         ignore=shutil.ignore_patterns("*.pdf"))
         staged_html = os.path.join(work, _STAGED_HTML)
         staged_pdf = os.path.join(work, _STAGED_PDF)
-        shutil.copyfile(os.path.join(work, os.path.basename(html_path)), staged_html)
+        shutil.copyfile(os.path.join(work, os.path.basename(html_path)),  # codeql[py/path-injection]
+                        staged_html)
         cmd = [
             exe,
             "--headless",
@@ -114,7 +122,7 @@ def build_pdf(browser, html_path, pdf_path):
             return False
         if not os.path.isfile(staged_pdf):
             return False
-        shutil.move(staged_pdf, pdf_path)
-        return os.path.isfile(pdf_path)
+        shutil.move(staged_pdf, pdf_path)          # codeql[py/path-injection]
+        return os.path.isfile(pdf_path)            # codeql[py/path-injection]
     finally:
         shutil.rmtree(work, ignore_errors=True)

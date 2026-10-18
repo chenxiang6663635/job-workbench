@@ -29,9 +29,25 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from jobws_core import outbound
 from jobws_core import tls_policy
 
 from apierror import ApiError
+
+
+def public_only_redirect_handler():
+    """只放行**公网**目标的重定向处理器（每一跳都复检，见 `outbound`）。
+
+    为什么必须逐跳：`urlopen` 默认自动跟随 302，只在入口查一次等于给了
+    "公网域名 → 302 到 169.254.169.254" 的旁路（CodeQL `py/full-ssrf` #2）。
+    """
+    class _PublicOnlyRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            outbound.assert_public_url(newurl)
+            return urllib.request.HTTPRedirectHandler.redirect_request(
+                self, req, fp, code, msg, headers, newurl)
+
+    return _PublicOnlyRedirect()
 
 
 def _host_of(req):
@@ -55,17 +71,23 @@ def _untrusted(req):
         host=host)
 
 
-def open_url(req, timeout, purpose):
+def open_url(req, timeout, purpose, public_only=False):
     """按统一策略打开出网请求，返回 urlopen 的响应对象（可直接 `with`）。
 
     Args:
         req: `urllib.request.Request`
         timeout: 秒
         purpose: 人话的功能名，进"证书库不可用"的用户文案（用户要知道是哪一步失败）
+        public_only: **目标完全由用户提供**时置 True（当前只有 JD 抓取）——
+            入口先过 `outbound.assert_public_url`，之后每一跳重定向再复检。
+            LLM / 邮件增强这几个调用点**不要**开：它们可能合法指向本机
+            （本地 Ollama、内网网关），那是用户自己配置的端点。
 
     Raises:
         ApiError: `sys.certStoreUnavailable`（本机证书库加载失败且未显式降级）
             或 `sys.certUntrusted`（对端证书不被信任）。
+        jobws_core.outbound.OutboundBlocked: `public_only=True` 且目标落在
+            本机/内网/保留段（由调用点翻译成用户文案）。
         urllib.error.URLError: 其它连接问题**原样抛出**，由调用点按既有文案处理。
     """
     try:
@@ -75,8 +97,20 @@ def open_url(req, timeout, purpose):
         # detail 原样带上；前端另有一份按 code 渲染的文案，两者口径一致。
         raise ApiError(502, "sys.certStoreUnavailable", str(exc))
 
+    if public_only:
+        outbound.assert_public_url(req.full_url)
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=ctx),
+            public_only_redirect_handler())
+
+        def _open():
+            return opener.open(req, timeout=timeout)
+    else:
+        def _open():
+            return urllib.request.urlopen(req, timeout=timeout, context=ctx)
+
     try:
-        return urllib.request.urlopen(req, timeout=timeout, context=ctx)
+        return _open()
     except ssl.SSLCertVerificationError:
         # 少数路径不包 URLError（直接抛）——若只认 URLError，这类失败会掉进
         # 调用点的泛化兜底，用户拿不到"证书不被信任、不要关校验"这句判断。

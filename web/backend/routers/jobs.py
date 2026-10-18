@@ -24,6 +24,7 @@ from pydantic import BaseModel
 import atomicio
 from jobws_core import job_dirs
 from jobws_core import job_pool
+from jobws_core import outbound
 from jobws_core import job_rename
 from jobws_core import jd_score
 from jobws_core import workspace_read
@@ -338,6 +339,17 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
         raise ApiError(422, "job.companyRoleRequired", "公司与岗位不能为空")
     if not (url.startswith("http://") or url.startswith("https://")):
         raise ApiError(422, "job.urlInvalid", "请填写 http(s) 开头的完整链接")
+    # 目标完全由用户给：出网前先过守卫（CodeQL py/full-ssrf #2）——
+    # `http://169.254.169.254/`（云元数据）与 `http://127.0.0.1:<port>/`（本机 API）
+    # 都不能被当成"JD 链接"取回来。tls_http 侧还会对每一跳重定向复检。
+    try:
+        outbound.assert_public_url(url)
+    except outbound.OutboundBlocked as exc:
+        raise ApiError(
+            422, "job.urlBlocked",
+            "无法抓取这个链接（%s）：它指向本机或内网地址，或解析不到公网地址。"
+            "请换成公网可访问的岗位页面。" % (exc.host or "未知主机"),
+            host=exc.host or "", reason=exc.reason)
 
     req = urllib.request.Request(url, headers={
         # 部分站点对默认 UA 直接返回 403，伪装成普通浏览器
@@ -348,7 +360,7 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
     try:
         # 出网统一走 tls_http（策略唯一实现在 jobws_core.tls_policy，见 issue #59）
         with tls_http.open_url(req, timeout=FETCH_TIMEOUT,
-                               purpose="抓取 JD 链接") as resp:
+                               purpose="抓取 JD 链接", public_only=True) as resp:
             content_type = resp.headers.get("Content-Type", "")
             raw = resp.read(FETCH_MAX_BYTES)
     except ApiError:

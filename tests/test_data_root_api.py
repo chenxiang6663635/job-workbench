@@ -282,3 +282,31 @@ def test_migrate_works_while_unavailable(mig_client, tmp_path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+def test_journal_io_failure_returns_a_reason_not_the_exception(client, monkeypatch):
+    """#186/#187：迁移事务写失败只回「可操作的原因」，异常原文（含路径）不得进响应体。
+
+    原有实现是 `"…：%s" % exc` + `error=str(exc)`——`str(OSError)` 会带绝对路径与
+    英文 errno 文本，既可能泄漏本地目录结构，也不比「磁盘空间不足」更有用。
+    原文只进日志（`logger.warning`）。
+    """
+    import errno as _errno
+
+    from routers import data_root as dr
+
+    monkeypatch.setattr(dr.migrate, "plan", lambda *a, **kw: {"ok": True, "items": []})
+    monkeypatch.setattr(dr.migrate, "plan_fingerprint", lambda plan: "TOKEN")
+
+    def _boom(plan):
+        raise OSError(_errno.ENOSPC, "No space left on device", "/very/secret/path")
+
+    monkeypatch.setattr(dr.migrate, "apply", _boom)
+
+    res = client.post("/api/system/data-root/migrate/apply",
+                      json={"target": "/tmp/target", "plan_token": "TOKEN"})
+
+    assert res.status_code == 500, res.text
+    body = res.text
+    assert "磁盘空间不足" in body, body
+    assert "very/secret" not in body, "异常里的绝对路径回传了：%s" % body
+    assert "No space left" not in body, "异常原文回传了：%s" % body

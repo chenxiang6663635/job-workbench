@@ -347,3 +347,21 @@ def test_delete_credential_removes_the_credman_entry(client, tmp_path, fake_stor
     assert ref not in fake_store.stored, "系统存储里的条目要一并删除"
     stored = _read_raw(tmp_path)
     assert "api_key_ref" not in stored and "api_key" not in stored
+
+def test_hint_ignores_the_domain_appearing_in_path_or_query():
+    """#195：提示判定必须是**主机名**相等，不能是子串包含。
+
+    否则 `https://gateway.example.com/?u=dashscope.aliyuncs.com` 会被误判成
+    通义千问地址——子串出现在任意位置，正是 CodeQL 报的那个形状。
+    """
+    from routers import provider as provider_router
+
+    assert provider_router.base_url_hint(
+        "https://gateway.example.com/?u=dashscope.aliyuncs.com") is None
+    assert provider_router.base_url_hint(
+        "https://dashscope.aliyuncs.com.evil.example/api/v1") is None
+    # 真·主机仍要提示（不能为了消警把功能砍掉）
+    assert provider_router.base_url_hint(
+        "https://dashscope.aliyuncs.com/api/v1") == "provider.hintDashscope"
+    assert provider_router.base_url_hint(
+        "https://dashscope.aliyuncs.com/compatible-mode/v1") is None

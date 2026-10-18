@@ -97,6 +97,8 @@
 
 - **JD 抓取只允许公网目标（CodeQL `py/full-ssrf` 告警 #2）**：`POST /api/jobs/fetch-jd` 收用户粘贴的链接、由服务端去取，此前只校验 `http(s)://` 前缀——`http://169.254.169.254/latest/meta-data/`（云元数据）与 `http://127.0.0.1:<port>/`（本机 API）都能被当成「JD 链接」取回来。现在出网前先过守卫（新增领域层 `jobws_core.outbound`）：非 http(s) 协议、带 userinfo 的 URL、字面量或**解析结果**落在回环 / 私网 / 链路本地（含 169.254/16）/ 保留 / 运营商级 NAT（100.64/10）/ IPv6 唯一本地等段的目标一律拒绝（多 A 记录里**任一**命中即拒），并在 `tls_http` 对**每一跳重定向**复检（只在入口查一次等于给 302 旁路）。拒绝发生在出网之前，错误码 `job.urlBlocked`（中文/英文文案同批补齐）；LLM / 邮件增强三个调用点**不开**该守卫——它们可能合法指向本机 Ollama，那是用户自己配置的端点。已知边界：解析与连接之间仍有 DNS rebinding 窗口（与 S2 的 TOCTOU 同口径，如实说明不假装修掉）。
 
+- **三类非路径型 CodeQL 告警的根因修复（2026-10-18）**：① **ReDoS**（`py/polynomial-redos` ×3）：邮件「N 天内 / N 个工作日内」的时长正则原为 `\s*(?:个)?\s*`——相邻两个空白量词让引擎把同一段空白拆成前/后两份，**平方级回溯**（实测 2k 空白 0.036s、20k 空白 **3.78s**，而邮件正文的长空白段并不罕见）。改为 `\s*(?:个\s*)?`（空白只出现一次），20k 空白降到 **0.11s**，常用写法全部保留；② **stack-trace 泄漏**（`py/stack-trace-exposure` ×3）：数据根的控制面 IO 失败把 `str(OSError)` 直接回给前端（含绝对路径与英文 errno），现改为**errno → 可动手的一句话**（磁盘空间不足 / 没有写入权限 / 只读位置…），原文只进日志；③ **URL 子串判定**（`py/js/incomplete-url-substring-sanitization` ×2）：通义千问地址提示原用 `"dashscope.aliyuncs.com" in url`，`?u=dashscope.aliyuncs.com` 这种只出现在查询串的同名串会被误判；改为**主机名相等**，判定收进 `jobws_core.outbound.host_is`（与出网守卫同一处 URL 解析）。新增 4 条回归用例（含 20k 空白的性能断言，防止量词形状被改回去）。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

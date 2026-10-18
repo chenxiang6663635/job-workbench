@@ -84,6 +84,19 @@ def _parse_ip(text):
         return None
 
 
+def host_is(url, host):
+    """URL 的**主机名**是否恰为 host（CodeQL `py/incomplete-url-substring-*`）。
+
+    为什么不能写 `host in url`：子串可以出现在路径或查询里，于是
+    `https://gateway.example.com/?u=dashscope.aliyuncs.com` 会被判成"就是那台主机"。
+    判定要按**主机名字段相等**，与 `assert_public_url` 用同一个 `urlsplit`。
+    """
+    try:
+        return (urllib.parse.urlsplit(url or "").hostname or "").lower() == host.lower()
+    except ValueError:
+        return False
+
+
 def assert_public_url(url, resolve=True):
     """`url` 指向公网 http(s) 就放行并返回主机名，否则抛 `OutboundBlocked`。
 

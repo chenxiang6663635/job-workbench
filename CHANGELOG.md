@@ -99,6 +99,8 @@
 
 - **三类非路径型 CodeQL 告警的根因修复（2026-10-18）**：① **ReDoS**（`py/polynomial-redos` ×3）：邮件「N 天内 / N 个工作日内」的时长正则原为 `\s*(?:个)?\s*`——相邻两个空白量词让引擎把同一段空白拆成前/后两份，**平方级回溯**（实测 2k 空白 0.036s、20k 空白 **3.78s**，而邮件正文的长空白段并不罕见）。改为 `\s*(?:个\s*)?`（空白只出现一次），20k 空白降到 **0.11s**，常用写法全部保留；② **stack-trace 泄漏**（`py/stack-trace-exposure` ×3）：数据根的控制面 IO 失败把 `str(OSError)` 直接回给前端（含绝对路径与英文 errno），现改为**errno → 可动手的一句话**（磁盘空间不足 / 没有写入权限 / 只读位置…），原文只进日志；③ **URL 子串判定**（`py/js/incomplete-url-substring-sanitization` ×2）：通义千问地址提示原用 `"dashscope.aliyuncs.com" in url`，`?u=dashscope.aliyuncs.com` 这种只出现在查询串的同名串会被误判；改为**主机名相等**，判定收进 `jobws_core.outbound.host_is`（与出网守卫同一处 URL 解析）。新增 4 条回归用例（含 20k 空白的性能断言，防止量词形状被改回去）。
 
+- **错误明细不再回传异常原文（2026-10-18，CodeQL `py/stack-trace-exposure` 余下 3 条）**：`prep` 搜索的 `skipped.reason` 与 PDF 校验明细都会进响应体，此前直接把 `str(exc)` 拼进去——那是**绝对路径 + 英文 errno + 第三方库内部措辞**的三合一，既可能泄漏本地目录结构，对用户也不比一句可动手的话有用。现改为：errno → 「磁盘空间不足 / 没有权限 / 被占用 / 只读位置」（`apierror.os_error_reason`，与数据根控制面**共用一份**，不再各写一张表）；PDF 解析失败只带**异常类型名**（`PdfReadError` = 文件坏、`FileNotFoundError` = 路径没了，足以定位方向）。异常原文进日志。新增 3 条回归用例（含「异常里塞绝对路径」的构造，确保真的不泄漏）。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

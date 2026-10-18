@@ -23,9 +23,28 @@ job / progress / resume / imap / provider / lib / sys / approval）。同一个�
 
 from __future__ import annotations
 
+import errno
+
 from fastapi import HTTPException
 
 from jobws_core import outbound
+
+# OSError 的 errno → **用户能动手**的一句话。**不要回传异常原文**
+# （CodeQL `py/stack-trace-exposure` #186-190）：`str(OSError)` 带绝对路径与英文
+# errno 文本，既可能泄漏本地目录结构，也不比这句话更有用。原文进日志给维护者。
+_OS_ERROR_HINTS = {
+    errno.ENOSPC: "磁盘空间不足",
+    errno.EACCES: "没有写入权限（可能被杀毒软件或权限设置拦住）",
+    errno.EPERM: "没有权限",
+    errno.EROFS: "目标在只读位置（写保护？）",
+    errno.ENAMETOOLONG: "路径太长",
+    errno.EBUSY: "目标正被其他程序占用",
+}
+
+
+def os_error_reason(exc):
+    """异常 → 可渲染的原因串（稳定、不含路径）；查不到就给「详见应用日志」。"""
+    return _OS_ERROR_HINTS.get(getattr(exc, "errno", None), "详见应用日志")
 
 
 class ApiError(HTTPException):

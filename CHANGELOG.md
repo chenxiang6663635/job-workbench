@@ -95,7 +95,7 @@
 
 - **DSH 随包 MCP exe 重建（2026-10-16）**：随包的 `jobws-mcp.exe` 由 **2026-10-07** 的构建产出（其清单随 #282 于 10-08 提交），**落后源码**（缺 `read_job_text` 与 `score_calibration`）。本次用独立构建 venv（wheel 安装、非 editable）重新打包，工具数 **15 → 17**，`prebuilds.json` 全量 sha256 清单重生（211 个文件、逐文件复核 0 不符）；冒烟脚本补上**工具数量 + 末位顺序**契约（只打印数量的旧冒烟看不出"少了一个工具"，这正是随包 exe 长期落后的原因）。版本号仍为 `26.10.0`（取号在 GA 落章时进行，届时元数据变更后成品须重建重验）。
 
-- **PDF 打印的命令行不再携带用户可控路径（CodeQL `py/command-line-injection` #194）**：浏览器调用从 `resume_build.py` 拆到 `tools/pdf_print.py`，并把三条纪律写死——① 可执行文件**只能映射回候选表里的字面量**（`allowlisted_browser()`，表外一律拒绝且不起子进程）；② 输入/输出先落到 `tempfile.mkdtemp()` 的**固定名**（`resume.html` / `resume.pdf`），生成后再搬到调用方路径——用户可控的路径（`--out`、工作区、版本名）只走文件系统 API，**不进 argv**；③ `shell=False` + argv 列表不变。新增 4 条契约测试钉住上述行为（含"表外浏览器一个子进程都不起"）。`resume_build.py` 538→531（水位随实测下调），对外签名与调用面不变（re-export）。
+- **PDF 打印的命令行不再携带用户可控路径（CodeQL `py/command-line-injection` #194）**：浏览器调用从 `resume_build.py` 拆到 `tools/pdf_print.py`，并把三条纪律写死——① 可执行文件**只能映射回候选表里的字面量**（`allowlisted_browser()`，表外一律拒绝且不起子进程）；② 输入/输出先落到 `tempfile.mkdtemp()` 的**固定名**（`resume.html` / `resume.pdf`），生成后再搬到调用方路径——用户可控的路径（`--out`、工作区、版本名）只走文件系统 API，**不进 argv**；③ `shell=False` + argv 列表不变。新增 4 条契约测试钉住上述行为（含"表外浏览器一个子进程都不起"）。`resume_build.py` 558→531（水位随实测下调），对外签名与调用面不变（re-export）。
 
 ## [26.10.0] - 2026-10-06
 

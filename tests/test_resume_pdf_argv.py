@@ -15,6 +15,7 @@
 """
 import os
 import sys
+import tempfile
 
 import pytest
 
@@ -57,7 +58,7 @@ def test_non_allowlisted_browser_never_spawns_a_process(tmp_path, monkeypatch):
 
 def test_argv_contains_only_constants_and_temp_paths(tmp_path, monkeypatch,
                                                      fake_browser):
-    """argv[0] 是候选表字面量；其余路径都在临时目录里，用户目录不出现。"""
+    """argv[0] 是候选表字面量；其余参数是裸文件名 + 常量开关，目录只经 cwd。"""
     user_dir = tmp_path / "用户选的输出目录"
     user_dir.mkdir()
     html_path = _html(tmp_path)
@@ -66,6 +67,7 @@ def test_argv_contains_only_constants_and_temp_paths(tmp_path, monkeypatch,
 
     def fake_run(cmd, **kwargs):
         seen["cmd"] = cmd
+        seen["kwargs"] = kwargs
         out = [c for c in cmd if c.startswith("--print-to-pdf=")][0]
         with open(out.split("=", 1)[1], "wb") as fh:
             fh.write(b"%PDF-1.4 fake")
@@ -77,12 +79,19 @@ def test_argv_contains_only_constants_and_temp_paths(tmp_path, monkeypatch,
 
     cmd = seen["cmd"]
     assert cmd[0] == fake_browser, "argv[0] 必须是候选表里的字面量"
-    # 用户可控的两个**目录**（HTML 所在目录、输出目录）一个字符都不该出现在 argv 里。
-    # argv[0] 是候选表常量、跳过（测试用的假浏览器恰好也在 tmp 下）。
-    user_dirs = (os.path.dirname(html_path), str(user_dir))
+    # 除 argv[0] 外，路径参数必须都在**临时目录**里（`tempfile.mkdtemp` 产出的
+    # 非用户值），用户目录一个字符都不出现。
+    temp_root = os.path.normcase(tempfile.gettempdir())
     for arg in cmd[1:]:
-        for bad in user_dirs:
-            assert bad not in arg, "用户路径进了命令行：%s" % arg
+        if os.path.isabs(arg):
+            assert os.path.normcase(arg).startswith(temp_root), \
+                "argv 里出现了临时目录之外的绝对路径：%s" % arg
+    # argv[0] 是候选表常量，不参与"用户路径"扫描（测试用的假浏览器恰好也在 tmp 下）
+    joined = os.path.normcase(" ".join(cmd[1:]))
+    for bad in (os.path.normcase(os.path.dirname(html_path)),
+                os.path.normcase(str(user_dir)),
+                os.path.normcase(pdf_path)):
+        assert bad not in joined, "用户路径进了命令行：%s" % bad
     # 临时固定名
     joined = " ".join(cmd)
     assert "resume.html" in joined and "resume.pdf" in joined
@@ -107,7 +116,7 @@ def test_result_is_moved_to_the_requested_path(tmp_path, monkeypatch, fake_brows
 
 
 def test_temp_dir_is_cleaned_up(tmp_path, monkeypatch, fake_browser):
-    """无论成败，临时目录都不留（残留靠 TMP_PREFIX 可识别，这里断的是"没有残留"）。"""
+    """无论成败，临时目录都不留（残留会以 TMP_PREFIX 前缀落在系统临时区）。"""
     created = []
     real_mkdtemp = pdf_print.tempfile.mkdtemp
 
@@ -123,3 +132,31 @@ def test_temp_dir_is_cleaned_up(tmp_path, monkeypatch, fake_browser):
 
     assert created, "没建临时目录？"
     assert not any(os.path.exists(p) for p in created), "临时目录没清干净"
+
+
+def test_sibling_assets_are_mirrored_into_the_temp_dir(tmp_path, monkeypatch,
+                                                       fake_browser):
+    """相对资源必须跟着过去——手写简历用 `<img src="photo.jpg">` 引同目录照片。
+
+    这条是 2026-10-16 的回归网：只搬 HTML 时实测照片从 200×300 退化成 14×16
+    占位图标（Chrome 只接受绝对路径，故必须走「镜像目录 + 固定名」）。
+    """
+    html_path = _html(tmp_path)
+    (tmp_path / "photo.jpg").write_bytes(b"\xff\xd8\xff\xd9")
+    (tmp_path / "旧版本.pdf").write_bytes(b"%PDF-1.4 should-not-be-copied")
+    seen = {}
+
+    def fake_run(cmd, **kwargs):
+        staged = [c for c in cmd if c.endswith(os.sep + "resume.html")][0]
+        work = os.path.dirname(staged)
+        seen["staged_exists"] = os.path.isfile(staged)
+        seen["has_photo"] = os.path.isfile(os.path.join(work, "photo.jpg"))
+        seen["copied_pdf"] = os.path.isfile(os.path.join(work, "旧版本.pdf"))
+
+    monkeypatch.setattr(pdf_print.subprocess, "run", fake_run)
+
+    pdf_print.build_pdf(fake_browser, html_path, str(tmp_path / "x.pdf"))
+
+    assert seen["staged_exists"], "暂存 HTML 没写出来"
+    assert seen["has_photo"], "同目录资源没镜像过去，相对路径会失效"
+    assert not seen["copied_pdf"], "既有 PDF 不该被复制进临时目录"

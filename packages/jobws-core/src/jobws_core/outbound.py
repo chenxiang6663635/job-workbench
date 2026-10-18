@@ -29,6 +29,7 @@ ALLOWED_SCHEMES = ("http", "https")
 
 # 拒绝原因（稳定标识，供前端/日志分类；不要改成会变的中文）
 REASON_SCHEME = "scheme"          # 非 http(s)
+REASON_URL = "url"                # URL 本身畸形（端口非数字/越界、方括号未闭合）
 REASON_HOST = "host"              # 取不到主机名
 REASON_CREDENTIALS = "credentials"  # 带 userinfo（可伪造 hostname 的观感）
 REASON_ADDRESS = "address"        # 解析结果落在内网/本机/保留段
@@ -92,14 +93,16 @@ def assert_public_url(url, resolve=True):
     """
     try:
         parts = urllib.parse.urlsplit((url or "").strip())
+        # `.hostname` / `.port` 是**惰性求值**的：畸形方括号与 `:abc` / 越界端口
+        # 在这一步才抛 ValueError（第一版守卫踩过：`http://a.com:abc/` 直接 500）。
+        scheme = (parts.scheme or "").lower()
+        host = (parts.hostname or "").strip()
+        port = parts.port
     except ValueError:
-        raise OutboundBlocked(REASON_SCHEME, url=url)
+        raise OutboundBlocked(REASON_URL, url=url)
 
-    scheme = (parts.scheme or "").lower()
     if scheme not in ALLOWED_SCHEMES:
         raise OutboundBlocked(REASON_SCHEME, url=url)
-
-    host = (parts.hostname or "").strip()
     if not host:
         raise OutboundBlocked(REASON_HOST, url=url)
     # `http://example.com@127.0.0.1/`：userinfo 让真实目标看起来像前面的域名
@@ -121,7 +124,7 @@ def assert_public_url(url, resolve=True):
     if not resolve:
         return host
 
-    port = parts.port or DEFAULT_PORTS[scheme]
+    port = port or DEFAULT_PORTS[scheme]
     try:
         infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
     except (socket.gaierror, UnicodeError, OSError):

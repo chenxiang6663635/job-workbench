@@ -93,6 +93,23 @@ def test_accepts_public_host(monkeypatch):
     assert host == "jobs.example.com"
 
 
+@pytest.mark.parametrize("url", [
+    "http://a.com:abc/x",      # 端口不是数字
+    "http://a.com:99999/x",    # 端口越界
+    "http://[::1/x",           # 方括号没闭合
+])
+def test_malformed_url_is_blocked_not_crashing(url, monkeypatch):
+    """畸形 URL 必须走"拒绝"，不能抛 ValueError（那会变成 500 而不是可读的 422）。
+
+    `urlsplit(...).port` 对 `:abc` 与越界端口抛 ValueError；生产路径（resolve=True）
+    一定会摸到它——第一版守卫正是踩在这里（自查发现：`http://a.com:abc/` 直接 500）。
+    """
+    _fake_resolve(monkeypatch, "93.184.216.34")
+    with pytest.raises(outbound.OutboundBlocked) as ei:
+        outbound.assert_public_url(url)
+    assert ei.value.reason == "url"
+
+
 def test_blocked_carries_host_for_the_user_facing_message(monkeypatch):
     """拒绝要能渲染成人话：带 host 与 reason（前端 `err.job.urlBlocked` 用）。"""
     _fake_resolve(monkeypatch, "169.254.169.254")

@@ -345,6 +345,11 @@ def fetch_jd(item: FetchJdRequest, ws: str = Depends(workspace_dir)):
     try:
         outbound.assert_public_url(url)
     except outbound.OutboundBlocked as exc:
+        if exc.reason == outbound.REASON_URL:
+            # 畸形 URL（`:abc` / 越界端口 / 方括号没闭合）是"链接写得不对"，
+            # 不是"指向内网"——复用既有 code 且**不带参数**（另一处抛出点也没参数，
+            # `test_error_code_params` 会核对两侧参数集一致）。
+            raise ApiError(422, "job.urlInvalid", "请填写 http(s) 开头的完整链接")
         raise ApiError(
             422, "job.urlBlocked",
             "无法抓取这个链接（%s）：它指向本机或内网地址，或解析不到公网地址。"

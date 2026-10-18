@@ -77,6 +77,25 @@ def test_private_target_rejected_without_touching_the_network(client, monkeypatc
     assert res.json()["detail"], "detail 是既有契约，不能只剩 code"
 
 
+def test_malformed_port_reports_url_invalid(client, monkeypatch):
+    """畸形端口（`:abc` / 越界）是"链接写得不对"，不是"指向内网"——文案不能串。
+
+    走 `job.urlInvalid`（既有 code，且**不带参数**——与另一处抛出点的参数集一致，
+    `test_error_code_params` 会核对）。
+    """
+    def boom(*a, **kw):
+        raise AssertionError("畸形 URL 不该出网")
+
+    monkeypatch.setattr(tls_http, "open_url", boom)
+
+    res = client.post("/api/jobs/fetch-jd",
+                      params={"ws": WS},
+                      json={"url": "http://a.com:abc/x", "公司": "某公司", "岗位": "后端"})
+
+    assert res.status_code == 422, res.text
+    assert res.json()["error_code"] == "job.urlInvalid"
+
+
 def test_public_target_passes_public_only_flag(client, monkeypatch):
     """公网地址才放行，且必须让 tls_http 逐跳复检（`public_only=True`）。"""
     seen = {}

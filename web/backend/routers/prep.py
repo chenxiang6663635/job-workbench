@@ -26,7 +26,7 @@ import os
 import re
 
 from fastapi import APIRouter, Depends
-from apierror import ApiError
+from apierror import ApiError, os_error_reason
 from deps import DIR_KB, DIR_PREP, safe_join, workspace_dir
 from ro_files import TextDecodeError, inside, read_text_limited, walk_files
 
@@ -91,7 +91,10 @@ def _search_section(ws, section, keyword):
     except OSError as exc:
         # 遍历期失败（目录被外部换掉 / 权限 / 保存竞态）也不该让整次搜索 500——
         # 那会让**全部**结果消失，正是本端点承诺要防的"静默少给"的极端形态。
-        skipped.append({"rel": base_rel, "reason": "目录读不到（%s）" % exc})
+        # 不回传异常原文（CodeQL py/stack-trace-exposure #188）：reason 会进响应体，
+        # `str(OSError)` 带绝对路径与英文 errno 文本。errno → 可动手的一句话。
+        skipped.append({"rel": base_rel,
+                        "reason": "目录读不到（%s）" % os_error_reason(exc)})
         return hits, total, skipped
     for item in entries:
         rel = item["rel"]
@@ -108,7 +111,8 @@ def _search_section(ws, section, keyword):
             skipped.append({"rel": rel, "reason": "不是 UTF-8 编码的文本"})
             continue
         except OSError as exc:
-            skipped.append({"rel": rel, "reason": "读不到（%s）" % exc})
+            skipped.append({"rel": rel,
+                            "reason": "读不到（%s）" % os_error_reason(exc)})
             continue
         if truncated:
             skipped.append({"rel": rel, "reason": "文件超过 256 KB，只搜了前 256 KB"})

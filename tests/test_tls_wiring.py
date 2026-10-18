@@ -22,6 +22,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
+from jobws_core import outbound  # noqa: E402
 from jobws_core import tls_policy  # noqa: E402
 from routers import jobs as jobs_router  # noqa: E402
 from routers import provider as provider_router  # noqa: E402
@@ -67,6 +68,30 @@ def _capture_urlopen(monkeypatch, resp):
     return captured
 
 
+def _capture_opener(monkeypatch, resp):
+    """接住 `build_opener` 那条路（`public_only=True` 时走它）。
+
+    2026-10-16 SSRF 守卫起，JD 抓取改用「自定义 opener + 重定向逐跳复检」，
+    证书上下文从 `urlopen(context=)` 变成 `HTTPSHandler(context=)`——接线形状变了，
+    判据不变：**策略的产物必须到网络调用**。
+    """
+    captured = {}
+
+    class _Opener:
+        def open(self, req, timeout=None):
+            captured["timeout"] = timeout
+            return resp
+
+    def _fake_build_opener(*handlers):
+        for handler in handlers:
+            if isinstance(handler, urllib.request.HTTPSHandler):
+                captured["context"] = handler._context
+        return _Opener()
+
+    monkeypatch.setattr(urllib.request, "build_opener", _fake_build_opener)
+    return captured
+
+
 def test_provider_test_connection_passes_policy_context(monkeypatch, sentinel_ctx):
     """Provider 连通性测试：策略的上下文必须到 urlopen（key 就挂在这个请求上）。"""
     monkeypatch.setattr(
@@ -101,7 +126,11 @@ def test_jobs_fetch_jd_passes_policy_context(monkeypatch, sentinel_ctx, tmp_path
     html = ("<html><body><h1>热管理工程师</h1><p>"
             + "岗位职责与任职要求，负责热管理系统设计。" * 20
             + "</p></body></html>")
-    captured = _capture_urlopen(monkeypatch, _Resp(html.encode("utf-8")))
+    captured = _capture_opener(monkeypatch, _Resp(html.encode("utf-8")))
+    # 出网守卫会解析域名；本用例只问 TLS 上下文，故把 DNS 钉成公网地址
+    # （这台机器的 DNS 把 example.com 解到内网——守卫会正确地拒，那不是本用例的事）
+    monkeypatch.setattr(outbound.socket, "getaddrinfo", lambda *a, **kw: [
+        (2, 1, 6, "", ("93.184.216.34", 443))])
 
     jobs_router.fetch_jd(
         jobs_router.FetchJdRequest(url="https://example.com/jd/1",

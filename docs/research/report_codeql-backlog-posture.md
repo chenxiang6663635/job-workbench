@@ -40,35 +40,42 @@
 | **data extension / model pack 声明 sanitizer** | ❌ **Python 不支持** | `github/codeql` 的 `python/ql/lib/ext/` 只有一个 `default-threat-models-fixup.model.yml`——没有 Java 那种 MaD（source/sink/summary/barrier）扩展面 |
 | **行内抑制 `# codeql[py/…]`** | ❌ **对 Python 无效** | #325 实测（2026-10-17）：把注释写在被标记的 4 行**同一行**上并推送，CodeQL 仍报同样的 4 条（`tools/pdf_print.py:100/104/125/126`） |
 | **自定义 QL 查询包（覆写 `PathInjectionCustomizations.qll`）** | ✅ 技术上可行，但**本机无法验证** | Python 确实有 `PathInjectionCustomizations.qll` / `ServerSideRequestForgeryCustomizations.qll` 钩子；但本机无 CodeQL CLI，需下载约 500MB bundle 才能编译与迭代，否则只能靠 CI 反复试 |
+| **dismiss（PR 上的新告警）** | ❌ **机制上做不到** | #325 实测（2026-10-18）：那 4 条**不在仓库告警列表里**（`?ref=refs/pull/325/head` 与 `refs/heads/fix/command-line-injection` 均返回 0 条，全仓搜 `pdf_print` 也没有）——PR 分析结果没有告警编号，**没有可 dismiss 的对象**。dismiss 只对已落在分支/默认分支上的告警有效 |
+| **`query-filters` 按路径排除** | ❌ **不支持** | `query-filters` 只匹配**查询元数据**（id / tags / severity / precision），`paths` 不是元数据；官方文档的替代方案只有 `paths-ignore`（作用于**全部**查询） |
 
 > 另注：`py/path-injection` 的 sink 只要"写/读用户选的路径"就存在，**无法靠重构归零**。
 > 例如 PDF 渲染里"把 PDF 写到 `--out`"就是功能定义，最多把 4 个 sink 压到 1~2 个，仍然会被判"新增"。
+>
+> **Python 的扩展点也不是 `Sanitizer` 类**：`PathInjectionCustomizations.qll` 的注释明写
+> *"we do not expose a Sanitizer class, and instead you should extend `Path::PathNormalization::Range`
+> and `Path::SafeAccessCheck::Range` from `semmle.python.Concepts`"* —— 那是带状态机的概念建模，
+> 不是"加一个类名"就能收的活。
 
-## 四、三条可选路径（需要决策）
+## 四、剩下的路径（都带代价，需要决策）
 
 | 路径 | 做法 | 成本 | 风险 | 可逆 |
 |---|---|---|---|---|
-| **A. 带理由 dismiss**（推荐用于 #325 的 4 条 + #2） | `PATCH /code-scanning/alerts/{n}`，reason=`won't fix` + 评论文本写明威胁模型 | 分钟级 | 首次 dismissal 立政策先例；**记录可见可审** | ✅ 可 reopen |
-| **B. 自定义 QL 包** | 下载 CodeQL bundle → 写 override pack → `--additional-packs` 接进 `codeql.yml` → 本地验证后推 CI | 数小时 + 500MB | 若 hook 路径/类名不符会反复红 CI（只影响该 PR，不污染 main） | ✅ 删包即回退 |
-| **C. 按文件排除规则**（`query-filters` exclude） | 在 codeql 配置里排除指定文件 | 分钟级 | **最差**：会连带隐藏该文件未来真正的漏洞 | ✅ 但错误会被静默吞掉 |
+| **B. 自定义 QL 包（扩展 `Path::SafeAccessCheck::Range`）** | 下载 CodeQL bundle（实测 **666 MB**、可下载，D 盘余量充足）→ 写 concept 扩展包 → 接进 `codeql.yml` → 本地 `database create/analyze` 验证 | 数小时 | QL 状态机写对不易；但**只影响该 PR**，可反复试 | ✅ 删包即回退 |
+| **C′. `paths-ignore: tools/pdf_print.py`** | 在 codeql 配置里把**该文件**排除出分析 | 分钟级 | **会把这一个文件的全部规则一起关掉**——包括刚修好的命令行注入规则。而它正是曾出过 #194 的那个文件 | ✅ 删一行即回退 |
+| ~~A. dismiss~~ | —— | —— | —— | **机制不允许（见 §三）** |
 
-**建议**：先 A（把 #325 与 #2 的 2+4 条显式接受、留痕、解锁），把 B 作为独立课题
-（它能一次性收掉"确实防住了"的一大批，并让未来的 PR 不再因为碰这几个文件被拦）；
-C 不建议。
+**建议**：#194 的代码修复已经**验证有效**（PR 分析里命令行注入 0 条），而它当前**不可利用**
+（argv 只剩常量）——所以**不值得为了"合并"去关掉一个文件的全部扫描**（C′）。
+本 PR 保持打开、绿色但被门禁拦，等 B 落地后自然解锁；**C′ 不建议**。
 
 ## 五、当前状态
 
 | 项 | 状态 |
 |---|---|
-| #194 命令行注入 | 代码已结构性修复（`tools/pdf_print.py`，argv 只剩常量）；**告警 open**，卡在 #325（4 条新 path-injection） |
+| #194 命令行注入 | 代码已结构性修复（`tools/pdf_print.py`，argv 只剩常量），**PR 分析里该规则已 0 条**；但 #325 因 4 条新 path-injection 被门禁拦，**未合并** |
 | #2 SSRF | 已修复并合并（#326）；**告警 open**（CodeQL 不认 `assert_public_url` 为 sanitizer） |
 | 其余 182 + 10 条 | 未分诊；其中至少 `routers/system.py` 的 `open_folder` 已核实为**安全范式**（预设键白名单 + 字面量可执行文件），属"静态分析看不到白名单"的典型 |
-| 门禁影响 | S4 只拦新增：**碰这些文件的 PR 会被拦**（#325 已两次撞上） |
+| 门禁影响 | S4 只拦新增：**碰这些文件的 PR 会被拦**（#325 已两次撞上：一次是新文件、一次是断言漂移） |
 
 ## 六、下一步（待决策）
 
-1. **A 或 B**（见 §四）——需要明确选择；
+1. **B 或 C′**（见 §四）——A 已被机制否掉；
 2. 若选 B，先做一件事：**逐类核对 182 条里哪些真的防住了**（按 §二 的四条原语分类），
-   否则 QL 包的 sanitizer 声明会连真缺口一起掩盖；
+   否则 concept 扩展会连真缺口一起掩盖；
 3. `stack-trace-exposure` 的 5 条（medium）与 redos 3 条可以走正常修复路径，不需要决策
    ——它们是"改代码就行"的那一类，可另开一批 20 分钟收掉。

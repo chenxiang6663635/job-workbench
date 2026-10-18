@@ -115,11 +115,19 @@ def assert_public_url(url, resolve=True):
             raise OutboundBlocked(REASON_ADDRESS, host=host, url=url)
         return host
 
-    # 名字必须是 ASCII(IDNA)：非 ASCII 会走另一套解析路径，容易被仿冒
+    # 卫生检查：空白 / 控制字符不该出现在主机名里，也不该被带进解析器
+    if any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in host):
+        raise OutboundBlocked(REASON_URL, host=host, url=url)
+
+    # 归一成 IDNA（ASCII）形式，**并用这个结果去解析**。
+    # 这里不假装"非 ASCII 更安全"：解析器本来就会把 `ａpple.com` 折成 `apple.com`；
+    # 我们能做的是让**守卫与解析器看同一份结果**，而不是 encode 一下就把原文丢掉。
     try:
-        host.encode("idna")
-    except UnicodeError:
+        host = host.encode("idna").decode("ascii")
+    except (UnicodeError, UnicodeDecodeError):
         raise OutboundBlocked(REASON_HOST, host=host, url=url)
+    if not host:
+        raise OutboundBlocked(REASON_HOST, url=url)
 
     if not resolve:
         return host

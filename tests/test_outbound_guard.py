@@ -87,6 +87,46 @@ def test_rejects_userinfo_that_hides_the_real_host():
     assert ei.value.reason == "credentials"
 
 
+@pytest.mark.parametrize("url", [
+    "http://exa mple.com/",     # 空格
+    "http://exa\x00mple.com/",  # NUL
+])
+def test_host_with_whitespace_or_control_chars_is_rejected(url):
+    """空白/控制字符不该出现在主机名里，也不该被带进解析器（卫生问题）。"""
+    with pytest.raises(outbound.OutboundBlocked) as ei:
+        outbound.assert_public_url(url, resolve=False)
+    assert ei.value.reason == "url"
+
+
+def test_tab_and_newlines_are_stripped_by_the_url_parser():
+    """`urlsplit` 会**剥掉** tab / CR / LF（WHATWG 行为，与浏览器一致）。
+
+    这不是漏洞——实际连接的就是剥离后的主机，但值得钉住，否则"空白字符被拒"
+    会被误读成"含制表符的 URL 会被拒"（第一版测试正是这么以为的）。
+    """
+    assert outbound.assert_public_url("http://exa\tmple.com/",
+                                      resolve=False) == "example.com"
+
+
+def test_fullwidth_host_is_resolved_via_its_ascii_form(monkeypatch):
+    """全角/IDN 主机：**用归一后的 ASCII 形式去解析**，而不是只 encode 一下丢掉。
+
+    审查指出第一版注释宣称"非 ASCII 容易被仿冒"却没有落地——现在解析器与守卫
+    看的是同一个归一结果（`ａpple.com` → `apple.com`），过闸的就是真正要连接的地址。
+    """
+    seen = {}
+
+    def fake_resolve(host, port, **kwargs):
+        seen["host"] = host
+        return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(outbound.socket, "getaddrinfo", fake_resolve)
+
+    outbound.assert_public_url("http://\uff41pple.com/jd")
+
+    assert seen["host"] == "apple.com", "解析用的是原始全角形式：%r" % (seen["host"],)
+
+
 def test_accepts_public_host(monkeypatch):
     _fake_resolve(monkeypatch, "93.184.216.34")
     host = outbound.assert_public_url("https://jobs.example.com/p/1")

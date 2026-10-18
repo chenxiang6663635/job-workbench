@@ -77,23 +77,85 @@ def test_private_target_rejected_without_touching_the_network(client, monkeypatc
     assert res.json()["detail"], "detail 是既有契约，不能只剩 code"
 
 
-def test_malformed_port_reports_url_invalid(client, monkeypatch):
-    """畸形端口（`:abc` / 越界）是"链接写得不对"，不是"指向内网"——文案不能串。
+@pytest.mark.parametrize("url", [
+    "http://a.com:abc/x",      # 端口非数字
+    "http://a.com:99999/x",    # 端口越界
+    "http://[::1/x",           # 方括号未闭合
+])
+def test_malformed_url_reports_url_invalid(client, monkeypatch, url):
+    """畸形 URL 是"链接写得不对"，不是"指向内网"——文案不能串。
 
     走 `job.urlInvalid`（既有 code，且**不带参数**——与另一处抛出点的参数集一致，
     `test_error_code_params` 会核对）。
     """
     def boom(*a, **kw):
-        raise AssertionError("畸形 URL 不该出网")
+        raise AssertionError("畸形 URL 不该出网：%r" % (url,))
 
     monkeypatch.setattr(tls_http, "open_url", boom)
 
     res = client.post("/api/jobs/fetch-jd",
                       params={"ws": WS},
-                      json={"url": "http://a.com:abc/x", "公司": "某公司", "岗位": "后端"})
+                      json={"url": url, "公司": "某公司", "岗位": "后端"})
 
     assert res.status_code == 422, res.text
     assert res.json()["error_code"] == "job.urlInvalid"
+
+
+def test_redirect_phase_block_maps_to_the_same_contract(client, monkeypatch):
+    """**重定向阶段**被拦也必须是 422 + `job.urlBlocked`（带 `{{host}}`）。
+
+    守卫生效有两处：入口（`fetch_jd` 自己查一次）与 `open_url` 的每一跳复检。
+    后者抛出的 `OutboundBlocked` 曾经掉进 `except Exception` 兜底 → 502
+    `job.fetchFailed` + 英文 reason + 缺 host 参数（独立审查 MAJOR）。
+    这里桩住 `open_url` 抛出重定向阶段的拒绝，钉同一份对外契约。
+    """
+    def blocked_at_hop(req, timeout=None, purpose=None, **kwargs):
+        raise outbound.OutboundBlocked("address", host="169.254.169.254")
+
+    monkeypatch.setattr(tls_http, "open_url", blocked_at_hop)
+    monkeypatch.setattr(outbound.socket, "getaddrinfo", lambda *a, **kw: [
+        (2, 1, 6, "", ("93.184.216.34", 443))])
+
+    res = client.post("/api/jobs/fetch-jd",
+                      params={"ws": WS},
+                      json={"url": "https://ok.example.com/jd", "公司": "某公司",
+                            "岗位": "后端"})
+
+    assert res.status_code == 422, res.text
+    body = res.json()
+    assert body["error_code"] == "job.urlBlocked"
+    assert body["error_params"]["host"] == "169.254.169.254"
+    assert "job.fetchFailed" not in res.text, "掉进兜底了：%s" % res.text
+
+
+def test_public_only_installs_the_redirect_guard(monkeypatch):
+    """`public_only=True` 必须**真的装上**重定向复检 handler（接线断言）。
+
+    之前只有"kwargs 里有 public_only"与"handler 单独能拦"两条，中间那一环
+    （参数 → 装 handler）没有测试——审查指出这正是 MAJOR 藏身之处。
+    """
+    import urllib.request
+
+    captured = {}
+
+    class _Opener:
+        def open(self, req, timeout=None):
+            return _Resp()
+
+    def fake_build_opener(*handlers):
+        captured["handlers"] = handlers
+        return _Opener()
+
+    monkeypatch.setattr(urllib.request, "build_opener", fake_build_opener)
+    monkeypatch.setattr(outbound.socket, "getaddrinfo", lambda *a, **kw: [
+        (2, 1, 6, "", ("93.184.216.34", 443))])
+
+    tls_http.open_url(urllib.request.Request("https://jobs.example.com/p/1"),
+                      timeout=5, purpose="测试", public_only=True)
+
+    handlers = captured["handlers"]
+    assert any(isinstance(h, urllib.request.HTTPRedirectHandler) for h in handlers), \
+        "没装重定向复检 handler：%r" % (handlers,)
 
 
 def test_public_target_passes_public_only_flag(client, monkeypatch):

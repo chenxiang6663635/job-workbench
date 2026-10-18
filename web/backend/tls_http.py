@@ -82,6 +82,9 @@ def open_url(req, timeout, purpose, public_only=False):
             入口先过 `outbound.assert_public_url`，之后每一跳重定向再复检。
             LLM / 邮件增强这几个调用点**不要**开：它们可能合法指向本机
             （本地 Ollama、内网网关），那是用户自己配置的端点。
+            附带说明：那几处把用户配置的 `base_url` 直接信任（且带凭据发出），
+            属于"共享/导入工作区时凭据可能外发"的信任边界问题，不是 SSRF——
+            正确的加固是提示用户核对来源，不是在本层禁本机地址。
 
     Raises:
         ApiError: `sys.certStoreUnavailable`（本机证书库加载失败且未显式降级）

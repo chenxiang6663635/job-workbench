@@ -42,9 +42,15 @@ _OS_ERROR_HINTS = {
 }
 
 
-def os_error_reason(exc):
-    """异常 → 可渲染的原因串（稳定、不含路径）；查不到就给「详见应用日志」。"""
-    return _OS_ERROR_HINTS.get(getattr(exc, "errno", None), "详见应用日志")
+def os_error_reason(errno_value):
+    """errno（**int，不是异常对象**）→ 用户能动手的一句话；查不到给「详见应用日志」。
+
+    为什么收 int 而不是异常：函数一旦拿到异常对象，返回值就带着污点——CodeQL
+    认不出我们这张映射表是 sanitizer（与 #2 SSRF / #194 同类：自定义校验器不被
+    识别）。在**调用点**把 `exc` 折成 `exc.errno`（一个 int），污点就断在那里。
+    调用形如：os_error_reason(getattr(exc, "errno", None))
+    """
+    return _OS_ERROR_HINTS.get(errno_value, "详见应用日志")
 
 
 class ApiError(HTTPException):

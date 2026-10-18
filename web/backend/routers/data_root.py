@@ -114,7 +114,7 @@ def set_data_root(body: DataRootBody):
         raise ApiError(400, "sys.dataRootInvalidPath", str(exc), path=body.path)
     except OSError as exc:
         logger.warning("写入数据根选择失败：%s", exc)
-        reason = os_error_reason(exc)
+        reason = os_error_reason(getattr(exc, "errno", None))
         raise ApiError(500, "sys.dataRootWriteFailed",
                        "写入持久化选择失败：%s" % reason, error=reason)
     return _diagnose()
@@ -153,7 +153,7 @@ def migrate_apply(body: MigrateApplyBody):
         return migrate.apply(plan)
     except OSError as exc:
         logger.warning("迁移事务记录写入失败：%s", exc)
-        reason = os_error_reason(exc)
+        reason = os_error_reason(getattr(exc, "errno", None))
         raise ApiError(500, "sys.dataRootMigrateFailed",
                        "迁移事务记录写入失败：%s（源目录未受影响）" % reason,
                        error=reason)
@@ -166,7 +166,7 @@ def migrate_resume(body: MigrateActionBody):
         return migrate.resume(apply=body.apply)
     except OSError as exc:
         logger.warning("迁移事务记录写入失败：%s", exc)
-        reason = os_error_reason(exc)
+        reason = os_error_reason(getattr(exc, "errno", None))
         raise ApiError(500, "sys.dataRootMigrateFailed",
                        "迁移事务记录写入失败：%s（源目录未受影响）" % reason,
                        error=reason)
@@ -183,7 +183,7 @@ def migrate_rollback(body: MigrateActionBody):
         return migrate.rollback(apply=body.apply)
     except OSError as exc:
         logger.warning("迁移事务记录写入失败：%s", exc)
-        reason = os_error_reason(exc)
+        reason = os_error_reason(getattr(exc, "errno", None))
         raise ApiError(500, "sys.dataRootMigrateFailed",
                        "迁移事务记录写入失败：%s（源目录未受影响）" % reason,
                        error=reason)

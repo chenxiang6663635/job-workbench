@@ -31,6 +31,8 @@ A3 既有；B2 新增 `sys.dataRootPlanStale` / `sys.dataRootMigrateBlocked`（4
 
 from __future__ import annotations
 
+import errno
+import logging
 import os
 
 from fastapi import APIRouter
@@ -40,6 +42,23 @@ from jobws_core import dataroot, dataroot_migrate as migrate
 from apierror import ApiError
 
 router = APIRouter(prefix="/api/system")
+logger = logging.getLogger(__name__)
+
+# OSError 的 errno → **用户能动手**的一句话。不回传异常原文（CodeQL
+# `py/stack-trace-exposure` #186/#187）：`str(OSError)` 带绝对路径与英文 errno 文本，
+# 既可能泄漏本地目录结构，也不比这句话更有用。原文进日志给维护者。
+_OS_ERROR_HINTS = {
+    errno.ENOSPC: "磁盘空间不足",
+    errno.EACCES: "没有写入权限（可能被杀毒软件或权限设置拦住）",
+    errno.EPERM: "没有写入权限",
+    errno.EROFS: "目标在只读位置（写保护？）",
+    errno.ENAMETOOLONG: "路径太长",
+}
+
+
+def _os_error_reason(exc):
+    """异常 → 可渲染的原因串（稳定、不含路径）；查不到就给「详见应用日志」。"""
+    return _OS_ERROR_HINTS.get(getattr(exc, "errno", None), "详见应用日志")
 
 
 class DataRootBody(BaseModel):
@@ -111,8 +130,10 @@ def set_data_root(body: DataRootBody):
     except ValueError as exc:
         raise ApiError(400, "sys.dataRootInvalidPath", str(exc), path=body.path)
     except OSError as exc:
+        logger.warning("写入数据根选择失败：%s", exc)
+        reason = _os_error_reason(exc)
         raise ApiError(500, "sys.dataRootWriteFailed",
-                       "写入持久化选择失败：%s" % exc, error=str(exc))
+                       "写入持久化选择失败：%s" % reason, error=reason)
     return _diagnose()
 
 
@@ -148,8 +169,11 @@ def migrate_apply(body: MigrateApplyBody):
     try:
         return migrate.apply(plan)
     except OSError as exc:
+        logger.warning("迁移事务记录写入失败：%s", exc)
+        reason = _os_error_reason(exc)
         raise ApiError(500, "sys.dataRootMigrateFailed",
-                       "迁移事务记录写入失败：%s（源目录未受影响）" % exc, error=str(exc))
+                       "迁移事务记录写入失败：%s（源目录未受影响）" % reason,
+                       error=reason)
 
 
 @router.post("/data-root/migrate/resume")
@@ -158,8 +182,11 @@ def migrate_resume(body: MigrateActionBody):
     try:
         return migrate.resume(apply=body.apply)
     except OSError as exc:
+        logger.warning("迁移事务记录写入失败：%s", exc)
+        reason = _os_error_reason(exc)
         raise ApiError(500, "sys.dataRootMigrateFailed",
-                       "迁移事务记录写入失败：%s（源目录未受影响）" % exc, error=str(exc))
+                       "迁移事务记录写入失败：%s（源目录未受影响）" % reason,
+                       error=reason)
 
 
 @router.post("/data-root/migrate/rollback")
@@ -172,5 +199,8 @@ def migrate_rollback(body: MigrateActionBody):
     try:
         return migrate.rollback(apply=body.apply)
     except OSError as exc:
+        logger.warning("迁移事务记录写入失败：%s", exc)
+        reason = _os_error_reason(exc)
         raise ApiError(500, "sys.dataRootMigrateFailed",
-                       "迁移事务记录写入失败：%s（源目录未受影响）" % exc, error=str(exc))
+                       "迁移事务记录写入失败：%s（源目录未受影响）" % reason,
+                       error=reason)

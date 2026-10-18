@@ -31,6 +31,7 @@ from iocaps import read_response
 from atomicio import atomic_write_text
 from deps import safe_join, workspace_dir
 from jobws_core import credentials
+from jobws_core import outbound
 import lockctx
 from lockctx import locked
 from redact import mask_secret
@@ -149,7 +150,9 @@ def base_url_hint(base_url):
         # config/provider.json 的存量值——两处 key 不一致时，前端"本地提示优先"的
         # 合并会静默吞掉一边
         return "provider.hintNeedScheme"
-    if "dashscope.aliyuncs.com" in url and "compatible-mode" not in url:
+    # 主机名相等而非子串包含（CodeQL #195）：`?u=dashscope.aliyuncs.com` 这种
+    # 只出现在路径/查询里的同名串，不该被当成通义千问地址。
+    if outbound.host_is(url, "dashscope.aliyuncs.com") and "compatible-mode" not in url:
         # 通义千问：必须用兼容模式地址，原生 dashscope 路径会一直连不上
         return "provider.hintDashscope"
     if "/chat/completions" in url:

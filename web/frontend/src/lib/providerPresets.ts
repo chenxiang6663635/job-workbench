@@ -86,9 +86,21 @@ export function validateBaseUrl(baseUrl: string): string | null {
   if (!raw) return null;
   const url = raw.toLowerCase();
   if (!url.includes("://")) return "provider.hintNeedScheme";
-  if (url.includes("dashscope.aliyuncs.com") && !url.includes("compatible-mode")) {
+  // 主机名相等，而不是子串包含（CodeQL js/incomplete-url-substring-sanitization）：
+  // `https://gateway.example.com/?u=dashscope.aliyuncs.com` 里域名只出现在查询串，
+  // 用 includes 会误判成通义千问地址。与后端 `provider._host_is` 同一口径。
+  if (hostOf(raw) === "dashscope.aliyuncs.com" && !url.includes("compatible-mode")) {
     return "provider.hintDashscope";
   }
   if (url.includes("/chat/completions")) return "provider.hintEndpointNotBase";
   return null;
+}
+
+/** URL 的主机名（拿不到就空串——提示函数不该因为畸形输入抛错）。 */
+function hostOf(raw: string): string {
+  try {
+    return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
 }

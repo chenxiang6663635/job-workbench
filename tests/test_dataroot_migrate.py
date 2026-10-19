@@ -217,7 +217,7 @@ def test_apply_refuses_a_plan_that_did_not_pass_preflight(roots):
 
 # --- 失败语义：源不受影响、相位如实 ----------------------------------------------
 
-def test_copy_failure_keeps_source_and_marks_failed(roots, monkeypatch):
+def test_copy_failure_keeps_source_and_marks_failed(roots, monkeypatch, caplog):
     source, target = roots
     before = _fingerprint(str(source))
     real_copy = migrate._copy_file
@@ -233,7 +233,12 @@ def test_copy_failure_keeps_source_and_marks_failed(roots, monkeypatch):
     result = migrate.apply(migrate.plan(str(target), str(source)))
 
     assert result["status"] == "failed"
-    assert "磁盘已满" in result["reason"]
+    # 原文进日志、不进返回值（CodeQL #222/#223）：summary 会**原样回到 HTTP 响应**。
+    # 这条从"reason 里必须有原文"改成了"reason 不许有原文"——旧断言正是泄漏本身。
+    assert "磁盘已满" not in result["reason"], "异常原文进了返回值：%s" % result["reason"]
+    assert result["reason"].startswith("IO 失败"), result["reason"]
+    assert any("磁盘已满" in rec.getMessage() for rec in caplog.records), \
+        "原文应进日志（否则排障只剩一句空话）"
     assert _read_selection()["migration_state"] == "failed"
     assert _read_selection()["data_root"] == str(source), "失败时选择仍指向源"
     assert _fingerprint(str(source)) == before, "任何阶段失败都不影响源目录"

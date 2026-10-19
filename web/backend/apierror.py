@@ -26,6 +26,9 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from jobws_core import outbound
+# errno → 文案的映射在**领域层**（`jobws_core.os_errors`）：CLI / MCP / Web 三端都要用，
+# 放 web 层会让 core 反向依赖。这里只是转发，别在这边再抄一份表。
+from jobws_core.os_errors import os_error_reason  # noqa: F401  (re-export)
 
 
 class ApiError(HTTPException):

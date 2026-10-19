@@ -14,7 +14,11 @@ concurrency:
 jobs:
   backend:
     name: 后端测试（pytest）
-    runs-on: ubuntu-latest
+    # 2026-10-18：`ubuntu-latest` 将于 2026-10-19 迁到 Ubuntu 26 镜像。本仓 CI 未在
+    # 新镜像上验证过（最脆的是 Playwright `--with-deps` 的系统库列表），而发布窗口在即、
+    # S4 门禁要求 CodeQL 检查每个 PR 都过——故按「action 按 SHA 钉死」的同款纪律显式
+    # 钉 24.04。后续项：26.11.0 发车后单独评估迁 26（记录见 G1 冻结提案）。
+    runs-on: ubuntu-24.04
     # 没有 timeout 的 job 在卡住时会一直占着队列而不报错（runner 抽风、`pip` 挂起
     # 都会表现为无限等待）。上限给得比实测宽松，是为了让它只在真的卡死时才动手。
     timeout-minutes: 30
@@ -123,7 +127,7 @@ jobs:
   # 另开独立 job，别动这个名字，也别用 matrix。
   mcp:
     name: MCP 包（3.12）
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -153,7 +157,7 @@ jobs:
 
   frontend:
     name: 前端构建（lint + tsc + vite）
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -161,7 +165,9 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          # Node 22 LTS（2026-10-18 由 20 升）：20 已于 2026-04 EOL。
+          # vite ^6.4 / playwright ^1.63 官方支持 18/20/22+；24 留作后续单独评估。
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -221,7 +227,7 @@ jobs:
   # 全量改在 push main 后跑（下面的 e2e-full job，不阻塞 PR、合并后即回归）。
   ui-smoke:
     name: UI 冒烟（布局 + a11y）
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -247,7 +253,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -282,7 +288,7 @@ jobs:
   e2e-full:
     name: E2E 全量（main push）
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -305,7 +311,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -340,7 +346,7 @@ jobs:
   # 命中源码树，冒烟就白跑了）。
   install-smoke:
     name: 领域包独立安装冒烟
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -399,7 +405,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -440,7 +446,7 @@ jobs:
   # docs/handover/2026-10-16-s4-gates.md。
   security:
     name: 安全扫描（依赖 audit）
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -452,7 +458,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
 
       # 生产依赖（阻断）：不含 devDependencies——正是打包进产物的那棵树。
       # npm audit 只读 package-lock.json，不需要 npm ci。

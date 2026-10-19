@@ -492,8 +492,8 @@ def verify_pdf(pdf_path, min_text_length=MIN_TEXT_LENGTH, facts_file=None):
 
     try:
         reader = PdfReader(pdf_path)
-    except Exception as exc:  # noqa: BLE001 - 向用户报告具体错误比崩溃更有用
-        return False, ["PDF 解析失败：%s" % exc]
+    except Exception as exc:  # noqa: BLE001 - 只带类型名：明细会进 /build 的 checks（CodeQL #189/#190）
+        return False, ["PDF 解析失败（%s）——文件可能损坏或不完整" % type(exc).__name__]
 
     pages = len(reader.pages)
     ok_pages = pages == 1

@@ -171,7 +171,9 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          # Node 22 LTS（2026-10-18 由 20 升）：20 已于 2026-04 EOL。
+          # vite ^6.4 / playwright ^1.63 官方支持 18/20/22+；24 留作后续单独评估。
+          node-version: "22"
 
       # 记录工具链实际版本，便于日后复现或对比
       - name: 记录工具链版本
@@ -470,7 +472,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
 
       # 只装前端依赖：E2E 不打包桌面壳，electron 链的 npm ci（~15s）省下
       - name: 安装前端依赖

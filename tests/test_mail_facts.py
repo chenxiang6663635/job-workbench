@@ -432,3 +432,26 @@ def test_promise_sentence_is_not_a_deadline():
         "感谢投递，我们会在 3 个工作日内与您联系。", today=TODAY, mail_date=MAIL_DATE)
     assert _facts_by_kind(facts, "截止") == []
     assert _facts_by_kind(facts, "时间") == []
+
+def test_duration_regex_does_not_backtrack_on_long_whitespace_runs():
+    """ReDoS 回归网（CodeQL #191-193）：20k 空白的行必须毫秒级判完。
+
+    2026-10-18 实测：原式是**相邻两个空白量词**（`\s*(?:个)?\s*`），引擎会在每个
+    起点把同一段空白拆成前/后两份 → 平方级增长：2k 空白 0.036s、20k 空白 **3.78s**。
+    邮件正文里长空白段（引述缩进、HTML 转文本）并不罕见，单行就能卡住 worker 数秒。
+    """
+    import time
+
+    line = "1" + " " * 20000 + "x"
+    started = time.perf_counter()
+    mail_facts._DURATION_RE.search(line)
+    mail_facts._DURATION_LOOSE_RE.search(line)
+    elapsed = time.perf_counter() - started
+    assert elapsed < 0.2, "时长正则退化了：20k 空白耗时 %.2fs" % elapsed
+
+
+def test_duration_forms_still_match_after_the_rewrite():
+    """收紧正则不能丢常用写法——含「1 个 工作日」这种中间带空格的。"""
+    for text in ("请在 3 天内完成", "3个工作日内回复", "1 个 工作日内", "2 小时以内"):
+        assert mail_facts._DURATION_RE.search(text), text
+    assert mail_facts._DURATION_LOOSE_RE.search("链接有效期：7天")

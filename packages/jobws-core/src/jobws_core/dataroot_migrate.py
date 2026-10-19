@@ -51,6 +51,7 @@ from . import dataroot_probe as probe
 from . import dataroot_rollback as rollback_rules
 from . import dataroot_semantics as semantics
 from . import dataroot_state as state
+from . import os_errors
 from . import pathres
 
 logger = logging.getLogger(__name__)
@@ -265,7 +266,11 @@ def _run(journal, steps):
             else:
                 _switch_phase(journal)
     except OSError as exc:
-        return _fail(journal, summary, "IO 失败（%s）：%s" % (type(exc).__name__, exc))
+        # 原文进日志；reason 只带 errno 翻出来的一句话——summary 会**原样回到 HTTP
+        # 响应**（CodeQL py/stack-trace-exposure #222/#223 的真正源头在这里，不在路由层）。
+        logger.warning("迁移 IO 失败：%s", exc)
+        return _fail(journal, summary, "IO 失败（%s）"
+                     % os_errors.os_error_reason(getattr(exc, "errno", None)))
     journal["completed_at"] = state.now_iso()
     _write_journal(journal)
     return summary
@@ -279,7 +284,9 @@ def _fail(journal, summary, reason):
         _write_journal(journal)
     except OSError as exc:
         # 写不出状态不等于没失败：至少让原因跟着本次调用的返回值出去（不静默）。
-        journal["reason"] = "%s（另外：写失败相位也失败：%s）" % (reason, exc)
+        # 第二个异常的原文只进日志——journal["reason"] 经 summary 回到 HTTP 响应。
+        logger.warning("写失败相位也失败：%s", exc)
+        journal["reason"] = "%s（另外：写失败相位也失败）" % reason
     summary["status"] = "failed"
     summary["reason"] = journal["reason"]
     return summary

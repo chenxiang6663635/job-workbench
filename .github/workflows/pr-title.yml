@@ -25,7 +25,11 @@ jobs:
     # 旧名字就再也不会被上报，main 上所有 PR 会卡在「Expected — Waiting」而无法合并。
     # 要改就同一天把分支保护里的必需检查一起改。
     name: PR 标题（Conventional + 中文）
-    runs-on: ubuntu-latest
+    # 2026-10-18：`ubuntu-latest` 将于 2026-10-19 迁到 Ubuntu 26 镜像。本仓 CI 未在
+    # 新镜像上验证过（最脆的是 Playwright `--with-deps` 的系统库列表），而发布窗口在即、
+    # S4 门禁要求 CodeQL 检查每个 PR 都过——故按「action 按 SHA 钉死」的同款纪律显式
+    # 钉 24.04。后续项：26.11.0 发车后单独评估迁 26（记录见 G1 冻结提案）。
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

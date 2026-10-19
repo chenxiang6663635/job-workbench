@@ -76,3 +76,4 @@ scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；m
 packages/jobws-core/src/jobws_core/mail_facts.py = 317
 packages/jobws-core/src/jobws_core/dataroot_migrate.py = 462  # B1 迁移事务状态机（相位/唯一写口/续跑/回滚，spec 决策 5）；字节层与语义项已各自成模块（manifest/semantics），journal 与 resume 的进一步拆分列入后续观察；B2 加计划指纹（预览→确认协议的凭据）
 packages/jobws-core/src/jobws_core/dataroot_manifest.py = 330  # B1 清单 + 目标侧预检（判定原件集合，逐条独立可钉）；再长优先拆「名字禁忌 / 保留名」一段
+packages/jobws-core/src/jobws_core/jd_gap.py = 315  # 差距分析本体 + resolve_profile（插件定位）。2026-10-18 外部审计修 domain/direction 可穿越：判据收进 containment.segment_reason、两处显式拒绝（300→315）。**不按职责拆分的实证理由**：拆出新文件会让 CodeQL 把搬过去的 os.path.join 判成 4 条新 high（PR #339 实测 BLOCKED——既有告警只在同文件内被重新匹配，换文件即算新增）； 真正拆分需与 CodeQL 模型/QL 包同批做。

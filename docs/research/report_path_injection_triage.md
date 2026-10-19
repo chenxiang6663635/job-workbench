@@ -88,6 +88,9 @@ S2 边界矩阵已核实：`_open_target` 只接受**预设键**（workspace/sna
 
 **待人工核 145 条**（口径不变）。
 
+> **2026-10-19 追加**：本文的「37 条」是**混合口径**（函数级判定 + 人工判断），不是可机械复核的集合。逐条编号映射见 [`path_injection_candidates.md`](path_injection_candidates.md)：机械判据下**函数内可见校验器 25 条**（jobs 14 + jd_gap 8 + resume 3），**建议进入首批 dismissal 的只有 22 条**（jobs 14 + jd_gap 8）。另更正一处：`jd_gap.py` 是 **8/13** 而非「13 条全部上游已防」——旧的判断只对 Web 路径成立，CLI / MCP 是另外的入口（`#339` 已补掉 `domain`/`direction` 那 4 条）。
+
+
 > #339 已把 `jd_gap.py` 从「上游已防」里划掉：外部审计质疑「不能仅凭模板目录位于应用根下就把 `domain` 视为可信」，探针实证 `domain="../../x"` 与 `direction="../../../../x"` 都能读到 `template/profiles` 之外且**零警告**——即该处上游防护此前并不存在。这是「补证据」的第一批实际产出。
 
 ## 六、建议的推进方式（须批准后执行）

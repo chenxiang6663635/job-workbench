@@ -23,34 +23,12 @@ job / progress / resume / imap / provider / lib / sys / approval）。同一个�
 
 from __future__ import annotations
 
-import errno
-
 from fastapi import HTTPException
 
 from jobws_core import outbound
-
-# OSError 的 errno → **用户能动手**的一句话。**不要回传异常原文**
-# （CodeQL `py/stack-trace-exposure` #186-190）：`str(OSError)` 带绝对路径与英文
-# errno 文本，既可能泄漏本地目录结构，也不比这句话更有用。原文进日志给维护者。
-_OS_ERROR_HINTS = {
-    errno.ENOSPC: "磁盘空间不足",
-    errno.EACCES: "没有写入权限（可能被杀毒软件或权限设置拦住）",
-    errno.EPERM: "没有权限",
-    errno.EROFS: "目标在只读位置（写保护？）",
-    errno.ENAMETOOLONG: "路径太长",
-    errno.EBUSY: "目标正被其他程序占用",
-}
-
-
-def os_error_reason(errno_value):
-    """errno（**int，不是异常对象**）→ 用户能动手的一句话；查不到给「详见应用日志」。
-
-    为什么收 int 而不是异常：函数一旦拿到异常对象，返回值就带着污点——CodeQL
-    认不出我们这张映射表是 sanitizer（与 #2 SSRF / #194 同类：自定义校验器不被
-    识别）。在**调用点**把 `exc` 折成 `exc.errno`（一个 int），污点就断在那里。
-    调用形如：os_error_reason(getattr(exc, "errno", None))
-    """
-    return _OS_ERROR_HINTS.get(errno_value, "详见应用日志")
+# errno → 文案的映射在**领域层**（`jobws_core.os_errors`）：CLI / MCP / Web 三端都要用，
+# 放 web 层会让 core 反向依赖。这里只是转发，别在这边再抄一份表。
+from jobws_core.os_errors import os_error_reason  # noqa: F401  (re-export)
 
 
 class ApiError(HTTPException):

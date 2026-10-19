@@ -182,14 +182,15 @@ url: https://github.com/chenxiang6663635/job-workbench
 name: chenxiang6663635/job-workbench
 category: workflow
 description:
-  en: Local-first job-hunt workbench: 15 MCP tools with two-phase writes, nine jwb-* skills, and an optional jobws agent preset.
-  zh: 本地优先的求职工作台：15 个两段式写入的 MCP 工具、9 个 jwb-* 技能与可选的 jobws agent preset。
+  en: Local-first job-hunt workbench: 17 MCP tools (every write is two-phase confirmed), nine jwb-* skills, and an optional jobws agent preset.
+  zh: 本地优先的求职工作台：17 个 MCP 工具（写操作一律两段式确认）、9 个 jwb-* 技能与可选的 jobws agent preset。
 ```
 
 收录要件自检：`dsh.bundle` 声明 ✓、包根 `cordis.patch.yml` ✓、仓库带 `dsh-plugin`
 topic ✓（2026-10-07 添加）、真实可用代码 ✓、仓库年龄 ≥1 天 ✓。**提交时机 = npm 首发之后**
 （列表的安装命令指向 npm 包；未发布时提交会给出一条装不上的命令）。描述里的数字必须
-与代码一致（15 工具 / 9 技能），这是被维护者核对的第一件事。
+与代码一致（**17 工具 / 9 技能**，2026-10-19 订正：原写 15/9，工具面在 #324 扩到 17 后
+此处漏改），这是被维护者核对的第一件事。
 
 ## 七、版本兼容与放宽路径（2026-10-07 实现实证）
 

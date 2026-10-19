@@ -45,6 +45,7 @@
 **版本落章**：
 
 - [x] `python tools/jobws.py release version` 取号 → bump `web/electron/package.json`（同一号） — v26.10.0：#272 已落章（package.json / 技能 ×9 metadata / plugin.json 由 `assets_registry --write` 重生成 / CHANGELOG 段名，四处同步）
+- [ ] **DSH 两包同号**：`integrations/dsh/package.json` 与 `integrations/dsh/platform/win32-x64/package.json` 一起改成同一个号（2026-10-19 补：原文只写「四处同步」，照单落章会漏掉这两处。闸是有的但分两段——`assets_registry --check` 只校验**主包** vs 应用版本，子包 vs 主包由 `scripts/build_mcp_exe.ps1` 校验（不一致即 exit 1），所以**先落章、再构建**才拿得到全链验证）
 - [x] CHANGELOG `[Unreleased]` 改为 `[版本号] - ISO 日期` → `release check --tag v<号>` 绿 — v26.10.0：`## [26.10.0] - 2026-10-06`；`release check` exit 0
 - [x] dry_run 演练：`gh workflow run release.yml -f dry_run=true -f tag=v<号>` → 下载 artifact 里的安装包 — v26.10.0：`37434793050` success（产物已下载并**四重核验**：artifact digest / 解压六件 / exe sha256 / exe sha512 对照 `latest.yml`）
 

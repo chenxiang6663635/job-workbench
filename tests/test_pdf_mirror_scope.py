@@ -153,15 +153,19 @@ def test_symlink_to_outside_is_not_followed(tmp_path, monkeypatch, fake_browser)
         pytest.skip("本平台不支持创建符号链接（需管理员/开发者模式）")
 
     seen = _capture_mirror(monkeypatch)
-    pdf_print.build_pdf(fake_browser, str(html), str(tmp_path / "out.pdf"))
+    ok = pdf_print.build_pdf(fake_browser, str(html), str(tmp_path / "out.pdf"))
 
-    staged_link = os.path.join(seen["work"], "sneaky.txt")
-    if os.path.exists(staged_link):
-        # 链接被复制为链接：它指向的仍是工作区外的 sentinel，但**内容没被读进来**
-        assert not os.path.isfile(staged_link) or \
-            open(staged_link, encoding="utf-8", errors="replace").read() \
-            != "SENTINEL-OUTSIDE-CONTENT", "跟随了符号链接，外部内容被复制进来"
-    assert "secret.txt" not in seen["names"], "链接目标文件被复制进了临时目录"
+    # 优先级 1：含链接的目录**直接拒绝渲染**（`unsafe_links` 在 copytree 之前拦）
+    assert ok is False, "源目录含符号链接却仍然渲染了"
+    # 优先级 2：即便将来放宽成「复制但不读内容」，外部 sentinel 的内容也不能进临时目录。
+    # 守卫拒绝时 subprocess 根本没跑，`seen` 里不会有 work —— 所以用 in 判，不要下标。
+    if "work" in seen:
+        staged_link = os.path.join(seen["work"], "sneaky.txt")
+        if os.path.exists(staged_link):
+            assert not os.path.isfile(staged_link) or \
+                open(staged_link, encoding="utf-8", errors="replace").read() \
+                != "SENTINEL-OUTSIDE-CONTENT", "跟随了符号链接，外部内容被复制进来"
+        assert "secret.txt" not in seen["names"], "链接目标文件被复制进了临时目录"
 
 
 def test_large_directory_is_bounded(tmp_path, monkeypatch, fake_browser):

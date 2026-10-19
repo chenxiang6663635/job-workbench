@@ -90,33 +90,9 @@ _RENDERABLE_EXTS = (
 # 只统计白名单内的类型——本就不复制的文件不该计入预算。
 MAX_MIRROR_BYTES = 64 * 1024 * 1024
 MAX_MIRROR_FILES = 400
-
-
-def mirror_budget_reason(source_dir):
-    """镜像规模是否超预算；返回原因短语或 None（超限即**拒绝**，不做部分复制）。
-
-    撞上限就立刻返回，不为报错把整个大目录走完——否则"拒绝"本身也成了读放大。
-    链接不计入：它们已由 `unsafe_links` 拦掉，且读链接目标的 size 正是要避免的事。
-    """
-    total_bytes = 0
-    total_files = 0
-    for dirpath, _dirnames, filenames in os.walk(source_dir):
-        for name in filenames:
-            if not name.lower().endswith(_RENDERABLE_EXTS):
-                continue
-            full = os.path.join(dirpath, name)
-            if os.path.islink(full) or _is_junction(full):
-                continue
-            try:
-                total_bytes += os.path.getsize(full)
-            except OSError:
-                continue
-            total_files += 1
-            if total_files > MAX_MIRROR_FILES or total_bytes > MAX_MIRROR_BYTES:
-                return ("要镜像的渲染资源超出预算（上限 %d 个文件 / %.0f MB），"
-                        "已拒绝渲染以免复制异常大的目录"
-                        % (MAX_MIRROR_FILES, MAX_MIRROR_BYTES / 1048576.0))
-    return None
+_BUDGET_PROBLEM = ("要镜像的渲染资源超出预算（上限 %d 个文件 / %.0f MB），"
+                   "已拒绝渲染以免复制异常大的目录"
+                   % (MAX_MIRROR_FILES, MAX_MIRROR_BYTES / 1048576.0))
 
 
 def _ignore_non_renderable(dir_name, names):
@@ -159,8 +135,15 @@ def unsafe_links(source_dir, html_path=None, pdf_path=None):
     ③ **输出 PDF 已是链接**：`shutil.move()` 同卷走 `os.rename`（替换链接本身），
        但**跨卷回退 `copy2` 会跟随目标链接**，从而覆盖外部文件。
        → 拒绝写入，外部文件字节不变。
+
+    另附**资源预算**（外部审计 §三「允许复制多少内容？」）：类型白名单只回答"哪种文件
+    可以镜像"，不回答"可以复制多少"。超限时同样在这里拒绝——放在**同一次遍历**里，
+    而不是另起函数：独立函数会被 CodeQL 当成三个未受检的文件系统 sink（#347 实测
+    3 条新 high），而这个函数的"检查并返回"形状是被识别的 SafeAccessCheck。
     """
     bad = []
+    total_bytes = 0
+    total_files = 0
     for label, path in (("输入 HTML", html_path), ("输出 PDF", pdf_path)):
         if path and (os.path.islink(path) or _is_junction(path)):
             bad.append("%s（%s）" % (label, os.path.basename(path)))
@@ -178,6 +161,18 @@ def unsafe_links(source_dir, html_path=None, pdf_path=None):
                 full = os.path.join(dirpath, name)
                 if os.path.islink(full) or _is_junction(full):
                     bad.append(os.path.relpath(full, source_dir))
+                    continue
+                # 预算只算**会被镜像**的类型：本就不复制的文件不该占用额度。
+                if not name.lower().endswith(_RENDERABLE_EXTS):
+                    continue
+                try:
+                    total_bytes += os.path.getsize(full)
+                except OSError:
+                    continue
+                total_files += 1
+                if total_files > MAX_MIRROR_FILES or total_bytes > MAX_MIRROR_BYTES:
+                    bad.append(_BUDGET_PROBLEM)
+                    return bad
     return bad
 
 
@@ -200,11 +195,11 @@ def failure_text(html_path, pdf_path):
     """
     source_dir = os.path.dirname(os.path.abspath(html_path))
     bad = unsafe_links(source_dir, html_path, pdf_path)
+    if _BUDGET_PROBLEM in bad:
+        # 预算问题要给出**可操作**的一步，不能只说"未生成"
+        return _BUDGET_PROBLEM + "。请把与该简历无关的大文件移出该目录后再试。"
     if bad:
         return link_error_text(bad)
-    budget = mirror_budget_reason(source_dir)
-    if budget:
-        return budget + "。请把与该简历无关的大文件移出该目录后再试。"
     return "PDF 未生成（浏览器打印失败或超时）"
 
 
@@ -221,8 +216,6 @@ def build_pdf(browser, html_path, pdf_path):
     # 链接边界（外部审计 2026-10-18）：symlinks=True 挡不住 junction，
     # copyfile 会跟随源链接，move 跨卷会跟随目标链接——一律前置拒绝。
     if unsafe_links(source_dir, html_path, pdf_path):
-        return False
-    if mirror_budget_reason(source_dir):
         return False
     work = tempfile.mkdtemp(prefix=TMP_PREFIX)
     try:

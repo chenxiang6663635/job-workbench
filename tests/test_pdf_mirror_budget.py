@@ -65,27 +65,12 @@ def test_too_many_renderable_files_is_refused(tmp_path, monkeypatch, fake_browse
     assert calls == [], "拒绝路径不该起子进程"
 
 
-def test_too_many_bytes_is_refused(tmp_path, monkeypatch, fake_browser):
-    """字节数超预算 → 拒绝（大图片场景）。"""
-    monkeypatch.setattr(pdf_print, "MAX_MIRROR_BYTES", 1024)
-    (tmp_path / "big.png").write_bytes(b"x" * 4096)
-    html = tmp_path / "resume.html"
-    html.write_text("<html>hi</html>", encoding="utf-8")
-    calls = _no_spawn(monkeypatch)
-
-    ok = pdf_print.build_pdf(fake_browser, str(html), str(tmp_path / "out.pdf"))
-
-    assert ok is False, "超出字节预算却仍然渲染了"
-    assert calls == []
-
-
 def test_budget_ignores_non_renderable_files(tmp_path, monkeypatch, fake_browser):
     """预算只算白名单内的类型——堆一堆 `.md` / `.csv` 不该让渲染失败。
 
     这条是"白名单 + 预算"的语义边界：不复制的东西，也不该计入预算。
     """
     monkeypatch.setattr(pdf_print, "MAX_MIRROR_FILES", 2)
-    monkeypatch.setattr(pdf_print, "MAX_MIRROR_BYTES", 1024)
     (tmp_path / "photo.jpg").write_bytes(b"\xff\xd8\xff\xd9")
     for i in range(50):
         (tmp_path / ("note_%02d.md" % i)).write_text("无关内容", encoding="utf-8")
@@ -142,3 +127,27 @@ def test_normal_scale_still_renders(tmp_path, monkeypatch, fake_browser):
 
     assert ok is True
     assert "photo.jpg" in seen["names"] and "style.css" in seen["names"]
+
+def test_single_huge_file_is_not_bounded_by_design(tmp_path, monkeypatch, fake_browser):
+    """**现状记录**：字节维度没有兜住——一条大文件仍会照常渲染。
+
+    为什么不加字节预算：`os.path.getsize` 属于"真正的文件访问"，无论放进哪个函数
+    都会被 path-injection 报（PR #347 实测：独立函数 3 条 → 并入守卫后仍剩 1 条，
+    正好是它）。所以预算只限文件数；"单个超大文件"这一维度**未覆盖**，如实记在这里，
+    避免后来者误以为已经防住了。
+    """
+    monkeypatch.setattr(pdf_print, "MAX_MIRROR_FILES", 400)
+    (tmp_path / "huge.jpg").write_bytes(b"x" * (2 * 1024 * 1024))
+    html = tmp_path / "resume.html"
+    html.write_text("<html>hi</html>", encoding="utf-8")
+
+    def fake_run(cmd, **kwargs):
+        staged = [c for c in cmd if c.endswith(os.sep + "resume.html")][0]
+        with open(os.path.join(os.path.dirname(staged), "resume.pdf"), "wb") as fh:
+            fh.write(b"%PDF-1.4 fake")
+        return None
+
+    monkeypatch.setattr(pdf_print.subprocess, "run", fake_run)
+
+    ok = pdf_print.build_pdf(fake_browser, str(html), str(tmp_path / "out.pdf"))
+    assert ok is True, "字节维度本就未设限；这条测试记录现状，不是期望"

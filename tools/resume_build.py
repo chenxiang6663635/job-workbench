@@ -35,20 +35,18 @@ import io
 import json
 import os
 import re
-import subprocess
 import sys
 from jobws_core.workspace_io import TMP_PREFIX  # 暂存名统一前缀（残留会被导出/快照跳过）
+# 浏览器探测与命令行在 `pdf_print.py`（全仓唯一 subprocess 落点，argv 只含常量与
+# 临时固定名——CodeQL py/command-line-injection #194）。此处 re-export：既有调用面
+#（`_cli_resume` / `web/backend/routers/resume.py` / 测试）一律按本模块取，不换路径。
+from pdf_print import BROWSER_CANDIDATES, build_pdf, failure_text, find_browser  # noqa: E402,F401
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # B4 整改 A：无 DEFAULT_WORKSPACE 副本——默认工作区经 pathres.default_workspace()。
 
-BROWSER_CANDIDATES = [
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-]
+# 浏览器候选表已移到 `pdf_print.py`（与 find_browser / build_pdf 同处）。
 
 # 可提取文本的字符数下限。
 #
@@ -354,7 +352,7 @@ def _render_one(job, ctx):
 
     print("生成（数据驱动）：%s" % pdf_name)
     if not build_pdf(ctx["browser"], tmp_html, pdf_path):
-        print("  失败：PDF 未生成")
+        print("  失败：%s" % failure_text(tmp_html, pdf_path))
         return False
 
     print("  已生成（%.1f KB）" % (os.path.getsize(pdf_path) / 1024.0))
@@ -447,32 +445,7 @@ def cmd_render(args, browser, verify_facts):
     return 0
 
 
-def find_browser():
-    for path in BROWSER_CANDIDATES:
-        if os.path.isfile(path):
-            return path
-    return None
 
-
-def build_pdf(browser, html_path, pdf_path):
-    cmd = [
-        browser,
-        "--headless",
-        "--disable-gpu",
-        "--no-pdf-header-footer",
-        "--virtual-time-budget=4000",
-        "--print-to-pdf=%s" % pdf_path,
-        html_path,
-    ]
-    try:
-        # Chrome 会向 stderr 输出无关噪音，丢弃而非捕获——Windows 下读它的
-        # stdout/stderr 会用 locale 编码(GBK)解码，Chrome 的非 GBK 输出会导致
-        # 后台线程 UnicodeDecodeError。只以 PDF 是否生成判成败。
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=120)
-    except subprocess.TimeoutExpired:
-        return False
-    return os.path.isfile(pdf_path)
 
 
 def discover_jobs(pdf_dir):

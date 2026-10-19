@@ -93,6 +93,81 @@ def _ignore_non_renderable(dir_name, names):
     return [n for n in names if not n.lower().endswith(_RENDERABLE_EXTS)]
 
 
+def _is_junction(path):
+    """Windows junction 检测——`os.path.islink()` 对它返回 **False**，必须单独判。
+
+    2026-10-18 本机实证：`mklink /J`（不需要管理员）建出的目录，
+    `os.path.isjunction()` 为 True 而 `islink()` 为 False；且
+    `copytree(symlinks=True)` 会把它原样搬过去并**仍指向外部**——
+    所以只靠 symlinks=True 挡不住 junction。
+    """
+    is_junction = getattr(os.path, "isjunction", None)
+    if is_junction is None:
+        return False
+    try:
+        return bool(is_junction(path))
+    except OSError:
+        return False
+
+
+def unsafe_links(source_dir, html_path=None, pdf_path=None):
+    """返回「不该出现的链接」清单（空 = 干净）；调用方据此给出可理解的错误。
+
+    三类各自独立，对应外部审计（2026-10-18）指出的三个环节：
+
+    ① **源目录里的链接**：`copytree(symlinks=True)` 只保证「复制阶段不展开链接
+       内容」，对 junction 甚至无效（见 `_is_junction`）；而保留下来的链接会被
+       Chrome 渲染时跟随。→ 一律拒绝，不依赖浏览器是否跟随。
+    ② **HTML 本身是链接**：`shutil.copyfile()` 默认**跟随**源链接，会把外部
+       HTML 内容读进临时目录——这条 copytree 的白名单根本管不到。
+    ③ **输出 PDF 已是链接**：`shutil.move()` 同卷走 `os.rename`（替换链接本身），
+       但**跨卷回退 `copy2` 会跟随目标链接**，从而覆盖外部文件。
+       → 拒绝写入，外部文件字节不变。
+    """
+    bad = []
+    for label, path in (("输入 HTML", html_path), ("输出 PDF", pdf_path)):
+        if path and (os.path.islink(path) or _is_junction(path)):
+            bad.append("%s（%s）" % (label, os.path.basename(path)))
+
+    if source_dir and os.path.isdir(source_dir):
+        for dirpath, dirnames, filenames in os.walk(source_dir, followlinks=False):
+            # junction 在 islink() 下是 False，os.walk 会把它当普通目录**走进去**；
+            # 命中即从 dirnames 移除，不递归到外部。
+            for name in list(dirnames):
+                full = os.path.join(dirpath, name)
+                if os.path.islink(full) or _is_junction(full):
+                    bad.append(os.path.relpath(full, source_dir))
+                    dirnames.remove(name)
+            for name in filenames:
+                full = os.path.join(dirpath, name)
+                if os.path.islink(full) or _is_junction(full):
+                    bad.append(os.path.relpath(full, source_dir))
+    return bad
+
+
+def link_error_text(bad):
+    """把 `unsafe_links` 的结果拼成用户**能动手**的一句。
+
+    只说"PDF 未生成"用户会去查浏览器；这里要点明是链接，并告诉正确做法
+    （把资源直接放进来，不要用链接/junction）。
+    """
+    return ("渲染目录里含有符号链接或 junction：%s——为避免读取或覆盖工作区外的文件，"
+            "已拒绝渲染。请把照片等资源直接复制进该目录（不要用链接）。"
+            % "、".join(bad[:5]))
+
+
+def failure_text(html_path, pdf_path):
+    """`build_pdf` 返回 False 时给一句**用户能动手**的原因（链接优先，否则通用）。
+
+    调用方只管把它塞进既有的失败文案里——这样 CLI 与 Web 都不用为此多铺几行
+    （两个文件都登记过规模水位，只许变小）。
+    """
+    bad = unsafe_links(os.path.dirname(os.path.abspath(html_path)), html_path, pdf_path)
+    if bad:
+        return link_error_text(bad)
+    return "PDF 未生成（浏览器打印失败或超时）"
+
+
 def build_pdf(browser, html_path, pdf_path):
     """用浏览器把 `html_path` 打成 `pdf_path`；成功返回 True。
 
@@ -103,6 +178,10 @@ def build_pdf(browser, html_path, pdf_path):
     if exe is None:
         return False
     source_dir = os.path.dirname(os.path.abspath(html_path))
+    # 链接边界（外部审计 2026-10-18）：symlinks=True 挡不住 junction，
+    # copyfile 会跟随源链接，move 跨卷会跟随目标链接——一律前置拒绝。
+    if unsafe_links(source_dir, html_path, pdf_path):
+        return False
     work = tempfile.mkdtemp(prefix=TMP_PREFIX)
     try:
         # 镜像同目录（只排掉 PDF——它们大且与渲染无关）——相对资源跟着过去，

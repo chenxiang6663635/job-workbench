@@ -318,7 +318,7 @@ def build_template(version: str, ws: str = Depends(workspace_dir)):
         pdf_path = os.path.join(pdf_dir, "简历_%s.pdf" % version)
         ok = resume_build.build_pdf(browser, html_path, pdf_path)
         if not ok:
-            raise ApiError(500, "resume.pdfFailed", "PDF 未生成（浏览器打印失败或超时）")
+            raise ApiError(500, "resume.pdfFailed", resume_build.failure_text(html_path, pdf_path))
 
         a4_ok, a4_msg = resume_build.check_a4_mediabox(pdf_path)
         facts_file = os.path.join(ws, "config", "ats_required_facts.txt")

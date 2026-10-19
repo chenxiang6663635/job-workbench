@@ -40,7 +40,7 @@ from jobws_core.workspace_io import TMP_PREFIX  # 暂存名统一前缀（残留
 # 浏览器探测与命令行在 `pdf_print.py`（全仓唯一 subprocess 落点，argv 只含常量与
 # 临时固定名——CodeQL py/command-line-injection #194）。此处 re-export：既有调用面
 #（`_cli_resume` / `web/backend/routers/resume.py` / 测试）一律按本模块取，不换路径。
-from pdf_print import BROWSER_CANDIDATES, build_pdf, find_browser  # noqa: E402,F401
+from pdf_print import BROWSER_CANDIDATES, build_pdf, failure_text, find_browser  # noqa: E402,F401
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -352,7 +352,7 @@ def _render_one(job, ctx):
 
     print("生成（数据驱动）：%s" % pdf_name)
     if not build_pdf(ctx["browser"], tmp_html, pdf_path):
-        print("  失败：PDF 未生成")
+        print("  失败：%s" % failure_text(tmp_html, pdf_path))
         return False
 
     print("  已生成（%.1f KB）" % (os.path.getsize(pdf_path) / 1024.0))

@@ -22,58 +22,10 @@ import io
 import json
 import os
 
+from jobws_core import containment
 from jobws_core import pathres
 from jobws_core.workspace_read import is_in_workspace
 
-ROOT = pathres.resolve_root()          # 随 resolve_profile 搬来：同函数求值，幂等
-PROFILES = os.path.join(ROOT, "template", "profiles")
-
-
-def resolve_profile(workspace, domain=None, direction=None):
-    """定位领域插件与方向文件。
-
-    查找顺序：工作区 config/（用户可能有自己的副本） -> template/profiles/<domain>/
-    返回 (插件目录, 方向文件路径, 警告列表)。未指定 `--domain` 时**不再猜**：没有
-    档案则显式失败——此前按字母序取第一个模板插件拿错词典不报错（2026-10-08 审计）。
-    """
-    warnings = []
-
-    ws_profile = os.path.join(workspace, "config")
-    if os.path.isfile(os.path.join(ws_profile, "profile.md")):
-        profile_dir = ws_profile
-        label = "工作区档案"      # 消息用标签：不再拿工作区父目录名冒充插件名
-    elif domain:
-        profile_dir = os.path.join(PROFILES, domain)
-        label = domain
-        if not os.path.isdir(profile_dir):
-            warnings.append("找不到领域插件 `%s`（已查找 %s 与 %s）"
-                            % (domain, ws_profile, profile_dir))
-            return None, None, warnings
-    else:
-        warnings.append("无法确定领域插件：工作区没有 %s，且未指定 --domain。"
-                        "请先 `jobws init --domain <插件>`（或把插件文件复制到 "
-                        "config/），或显式传 --domain <插件>。"
-                        % os.path.join(ws_profile, "profile.md"))
-        return None, None, warnings
-
-    # 方向文件
-    dir_dir = os.path.join(profile_dir, "directions")
-    if direction:
-        path = os.path.join(dir_dir, "%s.md" % direction)
-        if os.path.isfile(path):
-            return profile_dir, path, warnings
-        warnings.append("方向 `%s` 不存在于插件 `%s`" % (direction, label))
-
-    if os.path.isdir(dir_dir):
-        available = sorted(f for f in os.listdir(dir_dir) if f.endswith(".md"))
-        if available:
-            fallback = available[0][:-3]
-            if direction:
-                warnings.append("回退使用方向 `%s`，结论仅供参考" % fallback)
-            return profile_dir, os.path.join(dir_dir, available[0]), warnings
-
-    warnings.append("插件 `%s` 下没有找到任何方向配置" % label)
-    return profile_dir, None, warnings
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +44,69 @@ RESUME_DIR = "02_简历工坊"
 SOURCE_DIR = "source"
 JD_FILENAME = "JD原文.md"
 
+
+
+ROOT = pathres.resolve_root()          # 同函数求值，幂等
+PROFILES = os.path.join(ROOT, "template", "profiles")
+
+
+def resolve_profile(workspace, domain=None, direction=None):
+    """定位领域插件与方向文件。
+
+    查找顺序：工作区 config/（用户可能有自己的副本） -> template/profiles/<domain>/
+    返回 (插件目录, 方向文件路径, 警告列表)。未指定 `--domain` 时**不再猜**：没有
+    档案则显式失败——此前按字母序取第一个模板插件拿错词典不报错（2026-10-08 审计）。
+    """
+    warnings = []
+
+    ws_profile = os.path.join(workspace, "config")
+    if os.path.isfile(os.path.join(ws_profile, "profile.md")):
+        profile_dir = ws_profile
+        label = "工作区档案"      # 消息用标签：不再拿工作区父目录名冒充插件名
+    elif domain:
+        reason = containment.segment_reason(domain)
+        if reason:
+            # 不静默：越界写法显式拒绝，并说明"只接受单个目录名"
+            warnings.append("领域插件名不合法（%s）：只接受单个目录名"
+                            "（如 backend），不接受路径" % reason)
+            return None, None, warnings
+        profile_dir = os.path.join(PROFILES, domain)
+        label = domain
+        if not os.path.isdir(profile_dir):
+            warnings.append("找不到领域插件 `%s`（已查找 %s 与 %s）"
+                            % (domain, ws_profile, profile_dir))
+            return None, None, warnings
+    else:
+        warnings.append("无法确定领域插件：工作区没有 %s，且未指定 --domain。"
+                        "请先 `jobws init --domain <插件>`（或把插件文件复制到 "
+                        "config/），或显式传 --domain <插件>。"
+                        % os.path.join(ws_profile, "profile.md"))
+        return None, None, warnings
+
+    # 方向文件
+    dir_dir = os.path.join(profile_dir, "directions")
+    if direction:
+        reason = containment.segment_reason(direction)
+        if reason:
+            # 同上：方向名也只接受单个文件名（调用方传的是不含 .md 的 stem）
+            warnings.append("方向名不合法（%s）：只接受单个文件名（不含 .md），"
+                            "不接受路径" % reason)
+            return None, None, warnings
+        path = os.path.join(dir_dir, "%s.md" % direction)
+        if os.path.isfile(path):
+            return profile_dir, path, warnings
+        warnings.append("方向 `%s` 不存在于插件 `%s`" % (direction, label))
+
+    if os.path.isdir(dir_dir):
+        available = sorted(f for f in os.listdir(dir_dir) if f.endswith(".md"))
+        if available:
+            fallback = available[0][:-3]
+            if direction:
+                warnings.append("回退使用方向 `%s`，结论仅供参考" % fallback)
+            return profile_dir, os.path.join(dir_dir, available[0]), warnings
+
+    warnings.append("插件 `%s` 下没有找到任何方向配置" % label)
+    return profile_dir, None, warnings
 
 def parse_lexicon(path):
     """解析词典，返回 [(词条, 分层)]：`## Primary（3 分/项）` 之下的每行是用

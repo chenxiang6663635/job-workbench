@@ -48,7 +48,7 @@
 |---|---|---|
 | `26.10.1` hotfix | **不做** | 风险矩阵裁决：四条风险共同前提都是非默认布局、无实际事故；证据落在第二档（tag 树实测完成、安装包未复核），签署条件已写 4 条 |
 | E-03「放掉记账」写入口 | 顺延 | 本批只读；写入口需单独立项（设计文档 §四 反目标） |
-| CodeQL 存量（184 条） | 12 条非路径告警已根因修复；182 条 path-injection 已分诊、不逐条改 | #331–#335 修完 ReDoS / URL 判定 / stack-trace（194→184，实测关闭）；#338 分诊；#339 实测发现 `resolve_profile` 的 domain 可穿越并修掉 |
+| CodeQL 存量（**基线读数 2026-10-18**：184 条） | 12 条非路径告警已根因修复；182 条 path-injection 已分诊、不逐条改 | #331–#335 修完 ReDoS / URL 判定 / stack-trace（194→184，实测关闭）；#338 分诊；#339 实测发现 `resolve_profile` 的 domain 可穿越并修掉 |
 | #325（#194 修复） | **已合并**（`60a366d`，2026-10-19；#194 告警自动转 `fixed`） | 已补三处链接边界负向测试；CodeQL 对该 PR 报 **0 new alerts**（`unsafe_links` 被识别为 SafeAccessCheck），不再需要 dismissal 或 QL 包 |
 | P1-B ②③（反向迁移） | 不做，如实说明 | #305：技术上当前不可行，写在文档里而不是假装有 |
 | 全站 WCAG AA 专项 | 延后 | 按审计建议：避免 a11y 收口无限扩张（最小键盘可达性已闭环） |
@@ -65,7 +65,7 @@
 | 随包 exe | `prebuilds.json` **211 条**，逐文件 sha256 复核 0 不符 / 0 多余 |
 | npm 预检（2026-10-19，`npm pack --dry-run`） | 子包 **213 文件 / 解包 41.9 MB / tarball 20.3 MB**（含 `prebuilds.json` + `bin/jobws-mcp.exe`）；主包 **233 文件 / 42.0 MB / 20.34 MB**（含 `cordis.patch.yml`、9 个技能目录、`scripts/install.ps1`、`locale/*.json`、`platform/**` 含 exe、`README.md`、`icon.svg`）；两包 `repository` 均指回本仓库、`license=MIT`、未设 `private` |
 | 门禁 | S1–S4 生效中；本区间 **0 次直接推送 main**（67 个提交全部以 `(#N)` 结尾） |
-| code scanning | open **183**（`py/path-injection` 182 + `py/full-ssrf` 1）——明细与处置策略见 §六之二 |
+| code scanning | open **183**（`py/path-injection` 182 + `py/full-ssrf` 1）——**这是本文的权威读数**（测得 2026-10-19，`4dd5364` 之后含 #347 的 `#239`）；其余段落里的 184 / 182 是**更早时点**的历史读数，已逐个标时点 |
 
 ## 五、冻结后要你执行的四件事（G2/G3，须在场）
 
@@ -92,7 +92,7 @@
 
 | 项 | 状态 |
 |---|---|
-| open 告警总数 | **184**（基线 194；12 条非路径告警已根因修复并实测关闭） |
+| open 告警总数 | **184**（**#325 合并前**读数；基线 194，12 条非路径告警已根因修复并实测关闭）——最新值看 §一 的 183 |
 | `py/stack-trace-exposure` | **0**（5 条全收，#332–#335；三级源头：路由层 / `dataroot_migrate` / `dataroot_semantics`） |
 | `py/polynomial-redos` | **0**（3 条；20k 空白 3.78s → 0.11s，性能用例钉住） |
 | URL 子串判定（py+js） | **0**（2 条；改主机名相等，收进 `outbound.host_is`） |
@@ -107,7 +107,7 @@
 概念，把它识别成合法 barrier。为排除"分析没覆盖到"的假阴性，特意**碰了一次该文件**
 强制重新分析：仍是 `0 new alerts`。这是结构性修复被识别，不是抑制。
 
-**合并后核对（已完成）**：open 告警 184 → **182**（`py/path-injection` 182→181、`py/command-line-injection` 1→0）；main 上 `tools/pdf_print.py` **0 条新告警**。
+**合并后核对（#325 合并当时，2026-10-19）**：open 告警 184 → **182**（`py/path-injection` 182→181、`py/command-line-injection` 1→0）；main 上 `tools/pdf_print.py` **0 条新告警**。
 
 ## 七、复现命令（任何人接手都能重跑）
 

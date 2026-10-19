@@ -49,6 +49,61 @@
 - [x] CHANGELOG `[Unreleased]` 改为 `[版本号] - ISO 日期` → `release check --tag v<号>` 绿 — v26.10.0：`## [26.10.0] - 2026-10-06`；`release check` exit 0
 - [x] dry_run 演练：`gh workflow run release.yml -f dry_run=true -f tag=v<号>` → 下载 artifact 里的安装包 — v26.10.0：`37434793050` success（产物已下载并**四重核验**：artifact digest / 解压六件 / exe sha256 / exe sha512 对照 `latest.yml`）
 
+### 落章执行单（逐条命令 + 校验点，2026-10-19 补）
+
+> **时机硬约束**：号是**日期的函数**（同月 N 递增、换月重置）。2026-10-19 实测
+> `release version` 输出 `26.10.1`——**要到 11 月才输出 `26.11.0`**。提前落章 =
+> 发的是十月 hotfix 号，不是本版目标。
+
+**0. 前置**：G1 已批准；`main` 干净；`gh pr list --state open` 为空。
+
+**1. 取号**（确认输出就是目标号再往下）
+
+```powershell
+python tools\jobws.py release version
+```
+
+**2. 六处同号**（改完才算落章；**只有第 5 处是生成的，其余都手改**）
+
+| # | 位置 | 怎么改 |
+|---|---|---|
+| 1 | `web/electron/package.json` | 手改 `version`（**唯一真值源**） |
+| 2 | `integrations/dsh/package.json` | 手改（`assets_registry --check` 校验它 == 应用版本） |
+| 3 | `integrations/dsh/platform/win32-x64/package.json` | 手改（`build_mcp_exe.ps1` 校验它 == 主包） |
+| 4 | `skills/*/SKILL.md` ×9 的 `metadata.version` | **手改 9 处**——`assets_registry --write` **不碰技能**；`jobws skills check` 校验 == 应用版本 |
+| 5 | `.codebuddy-plugin/plugin.json` + `marketplace.json` | `python tools\assets_registry.py --write` 生成（手改会被覆盖） |
+| 6 | `CHANGELOG.md`：`## [Unreleased]` → `## [26.11.0] - 2026-11-XX` | 手改段名（内容不动） |
+
+**3. 校验（三道闸，顺序不能反）**
+
+```powershell
+python tools\jobws.py skills check          # 技能 metadata 与插件壳/应用版本三向对齐（9 个）
+python tools\assets_registry.py --check     # plugin.json / marketplace.json 与真源一致
+powershell -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1
+                                            # 子包版本 == 主包（不等 exit 1）；产出 bin/ 与 prebuilds.json
+                                            # 需**非 editable 的构建 venv**（脚本默认探测
+                                            # D:\tools\venvs\jobws-mcp-build；别用开发用的 jobws-mcp venv）
+python scripts\smoke_mcp_exe.py             # 17 工具 + 数量/末位/真调两个后补工具
+python tools\jobws.py release check --tag v26.11.0
+                                            # 段名 + tag 与版本一致；不通过会给具体原因
+```
+
+**4. 产物预检（npm 两包）**
+
+```powershell
+cd integrations\dsh\platform\win32-x64; npm pack --dry-run    # 期望含 bin/jobws-mcp.exe + prebuilds.json
+cd ..\..; npm pack --dry-run                                   # 期望含 cordis.patch.yml / skills / platform
+```
+
+**5. 之后**：dry_run 演练（`gh workflow run release.yml -f dry_run=true -f tag=v26.11.0`）
+→ 下载产物核验 → tag（`git tag -a v26.11.0 -m "..."` 并推送，**有外部副作用**）
+→ npm 首发（**子包先、主包后**）→ 收录 PR。
+
+**中途的"预期红"（不要误判成坏）**：只改了第 1 处时，`jobws skills check` 会报
+「skills/*/SKILL.md 的 metadata.version 与应用版本不一致」、`assets_registry --check`
+会报 plugin.json/marketplace.json 漂移——都是正常中间态。**`--write` 只治后两者**，
+技能那 9 处仍要手改，改完两道闸才一起绿。
+
 **真机冒烟**（自己的 Windows 真机，CI 没有桌面会话）：
 
 - [x] **通知实测**：造一条今天到期的待办 → 确认 toast 真的弹出（CI 测不了通知） — v26.10.0：真机通过（dry-run 产物）

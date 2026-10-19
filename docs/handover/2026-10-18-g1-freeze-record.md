@@ -1,7 +1,8 @@
-# G1 冻结记录（候选 `b301687`，2026-10-19 第二次刷新）
+# G1 冻结记录（**已批准生效**，钉死 `4dd5364`，2026-10-19）
 
-> **性质**：**提案**。G1「冻结」= ①停止向 `main` 合并功能改动 ②钉死候选 SHA
-> ③转入 G2/G3 真机验收。本文件供用户批准后生效；未批准前不算冻结。
+> **性质**：**已批准生效**（用户于 2026-10-19 批准）。G1「冻结」= ①停止向 `main`
+> 合并功能改动 ②钉死候选 SHA ③转入 G2/G3 真机验收。
+> **生效后纪律**：`main` 只接 G2/G3 暴露的**阻断类**修复；其余改动排队到下一个 `N`。
 >
 > 冻结的意义不是"做完了一切"，而是**"凡是要进这一版的，都已经在了"**——
 > 之后只允许修复 G2/G3 暴露的阻断问题。
@@ -10,9 +11,9 @@
 
 | 项 | 值 |
 |---|---|
-| 候选 SHA | `b301687`（本记录合并后 `main` 会再前进一格；差异**仅本文件**，代码零改动）→ **批准时以当时的 `main` 为正式钉死点** |
+| **钉死 SHA** | **`4dd536497cc7974983d63ff304f5dbcecb3632f9`**（`main`，批准当日实测）——本记录自身的合并提交**不在**范围内，差异仅本文件 |
 | 基线 | `v26.10.0`（2026-10-06） |
-| 区间提交数 | **60**，**全部来自 PR**（直接推送 0 个——可复核：`git log --pretty=%s v26.10.0..HEAD` 每条都以 `(#N)` 结尾） |
+| 区间提交数 | **67**，**全部来自 PR**（直接推送 0 个——可复核：`git log --pretty=%s v26.10.0..HEAD` 每条都以 `(#N)` 结尾） |
 | 版本号 | 仍 `26.10.0`（取号在 G3 落章时做，届时元数据变更后成品须重建重验） |
 
 ## 二、本版并入（按主题分组）
@@ -56,15 +57,17 @@
 
 | 项 | 读数 |
 |---|---|
-| 主套件 | **2031 passed / 37 skipped**（20.0s，`-n 4`；+4 skip 是本机 Windows 建不了文件符号链接，CI ubuntu 上真实执行，那边读到 **2055 passed / 12 skipped**） |
-| MCP 套件 | **101 passed / 10 skipped**（7.5s，MCP venv） |
-| 扫描器 7 项 | i18n / size / four-ends / legacy-imports / ui-tokens / themes / domains **全部通过** |
+| 主套件（本地） | **2036 passed / 37 skipped**（17.1s，`-n 4`）——37 skip 是本机 Windows 建不了文件符号链接；这些用例在 CI 上真实执行 |
+| CI（`main` @ 钉死 SHA） | **pytest 2061 passed / 12 skipped**（22.2s）；前端 **228 passed / 26 文件**；E2E 冒烟 **68 passed** |
+| MCP 套件 | **101 passed / 10 skipped**（4.7s，MCP venv） |
+| 扫描器 | i18n / size / four-ends / legacy-imports / ui-tokens / themes（10 套）/ domains（2 个）**全部通过**；另 `skills check` 9/0、`assets_registry --check` OK |
 | MCP 工具面 | **17 个**（冒烟钉住数量 + 末位 `score_calibration` + 真调两个后补工具） |
 | 随包 exe | `prebuilds.json` **211 条**，逐文件 sha256 复核 0 不符 / 0 多余 |
 | npm 预检（2026-10-19，`npm pack --dry-run`） | 子包 **213 文件 / 解包 41.9 MB / tarball 20.3 MB**（含 `prebuilds.json` + `bin/jobws-mcp.exe`）；主包 **233 文件 / 42.0 MB / 20.34 MB**（含 `cordis.patch.yml`、9 个技能目录、`scripts/install.ps1`、`locale/*.json`、`platform/**` 含 exe、`README.md`、`icon.svg`）；两包 `repository` 均指回本仓库、`license=MIT`、未设 `private` |
-| 门禁 | S1–S4 生效中；本区间 0 次直接推送 main |
+| 门禁 | S1–S4 生效中；本区间 **0 次直接推送 main**（67 个提交全部以 `(#N)` 结尾） |
+| code scanning | open **183**（`py/path-injection` 182 + `py/full-ssrf` 1）——明细与处置策略见 §六之二 |
 
-## 五、冻结后要你执行的三件事（G2/G3，须在场）
+## 五、冻结后要你执行的四件事（G2/G3，须在场）
 
 1. **干净环境构建**（从候选 SHA 全新构建后端/前端/桌面端，确认无本地残留依赖）；
 2. **Windows 真机安装 / 卸载 / 升级**（本机两次被 UAC 交互阻断，无法无交互完成）；
@@ -95,7 +98,8 @@
 | URL 子串判定（py+js） | **0**（2 条；改主机名相等，收进 `outbound.host_is`） |
 | `py/full-ssrf` #2 | 代码已修并合并（#326）；告警 open（不认自定义校验器） |
 | `py/command-line-injection` #194 | **已关闭（`fixed`）**——#325 于 2026-10-19 合并后自动置 fixed |
-| `py/path-injection` | 182 条存量；已分诊（`report_path_injection_triage.md`），按策略不逐条改 |
+| `py/path-injection` | **182** 条：181 条存量 + **1 条新（`#239`，`tools/pdf_print.py:164`）**；存量已分诊（`report_path_injection_triage.md`），按策略不逐条改 |
+| `#239`（本次唯一新增） | 2026-10-19 07:57 由 **#347** 引入。落点是 `os.path.islink()`——**一个检查，不是文件读写**；同一调用在 #325 里未被报，是 #347 改动了那个循环体后被重新归因。**如实记账，不当作已豁免**：G2/G3 之后若要清零，手段是把这个 `islink` 调用合并回单一遍历（去掉重复调用点），不是 dismiss |
 
 **#325 为什么从 BLOCKED 变成 CLEAR**（实测确认，非偶然）：新增的
 `pdf_print.unsafe_links()` 在**任何文件操作之前**逐个检查输入路径（`islink` / `isjunction` /

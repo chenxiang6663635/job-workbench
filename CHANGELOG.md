@@ -24,6 +24,7 @@
 
 ### Highlights (English)
 
+- **Domain plugin names and direction names are single segments only (2026-10-18)** — `--domain ../../x` and `--direction ../../../../x` used to be resolved outside `template/profiles` with **no warning at all** (a probe confirmed it). Both values are external parameters, so they are now checked against `containment.segment_reason` and refused with a message that says what to pass instead.
 - **Score bands no longer misjudge decimal totals** — a weighted total of 74.5 used to land in the gap between the integer bands and get silently bucketed as "don't apply"; bands are now half-open, and a plugin is never guessed alphabetically when `--domain` is missing (the CLI fails with a clear instruction instead).
 - **CLI workspace values are validated like every other surface** — a `JOBWS_WORKSPACE` that escapes the data root (`..`, absolute, drive-relative) is refused with exit code 2 and a fix hint, matching the web 400 `ws.outOfRange` and the MCP containment guard.
 - **"Retry shortly" is now true** — a lock timeout puts the two-phase token back (it used to be burned, forcing a full re-preview); token files are written atomically, and expired ones are purged from the TEMP store on the next preview.
@@ -32,6 +33,7 @@
 
 ### 看得见的变化
 
+- **领域插件名 / 方向名只接受单段（2026-10-18）**——`--domain ../../x` 与 `--direction ../../../../x` 此前会被解析到 `template/profiles` 之外，且**一句警告都没有**（先用探针实证再修）。两个值都是外部参数，现在都过 `containment.segment_reason` 判定，越界即拒绝并说明该传什么。
 - **设置页可以清除已保存的凭据（2026-10-07）**：邮箱授权码与 API Key 旁新增「清除」入口——确认后凭据从系统存储（Windows 凭据管理器）与工作区配置文件里一并删除，之后需要重新输入才能使用；不必再靠手改配置文件来「忘掉」一把钥匙。
 - **DSH 接入件升级为可安装的插件包（2026-10-07）**：在 DeepSeek Harness 里装包即完成接线——MCP 工具面、9 个 `jwb-*` 技能与可选 `jobws` preset 一起到位，不再需要手改 profile 文件；安装/卸载会把依赖与 `dsh.profile.bundles` 两处一并写入/清理（第一阶段的手工接线需先自行删掉，避免双挂载）。
 - **DSH 装插件变成一条命令（2026-10-07）**：新增一键安装脚本——装包、校验与「第一阶段手工接线的自动迁移」一次完成（旧的 `mcp-jobws` / `preset-jobws` 手抄行被幂等移除并留 `.bak` 备份，不再有双挂载风险）；同时预写 pnpm 的 24h 新版本隔离放行，首发当天即可安装。

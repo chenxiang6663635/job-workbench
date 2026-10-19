@@ -82,6 +82,16 @@ _RENDERABLE_EXTS = (
     ".avif", ".jfif", ".woff", ".woff2", ".ttf", ".otf", ".eot",
 )
 
+# 镜像的**资源预算**（外部审计 2026-10-18 §三："允许复制多少内容？"）。
+# 阈值**按真实模板规模定**，不是凭空的：2026-10-19 实测仓库自带模板里最大的
+# 渲染资源目录是 `template/workspace/02_简历工坊/templates`，3 个文件 / 0.01 MB；
+# 64 MB / 400 个文件有 6000 倍以上余量，不会误伤正常简历的高清照片与字体，
+# 目的是把"递归复制一个异常大的目录"变成**明确失败**而不是默默搬完。
+# 只统计白名单内的类型——本就不复制的文件不该计入预算。
+MAX_MIRROR_FILES = 400
+_BUDGET_PROBLEM = ("渲染目录里可镜像的资源过多（超过 %d 个文件），"
+                   "已拒绝渲染以免复制异常大的目录" % MAX_MIRROR_FILES)
+
 
 def _ignore_non_renderable(dir_name, names):
     """`shutil.copytree` 的 ignore 回调：只留渲染可能引用的类型。
@@ -123,8 +133,19 @@ def unsafe_links(source_dir, html_path=None, pdf_path=None):
     ③ **输出 PDF 已是链接**：`shutil.move()` 同卷走 `os.rename`（替换链接本身），
        但**跨卷回退 `copy2` 会跟随目标链接**，从而覆盖外部文件。
        → 拒绝写入，外部文件字节不变。
+
+    另附**资源预算**（外部审计 §三「允许复制多少内容？」）：类型白名单只回答"哪种文件
+    可以镜像"，不回答"可以复制多少"。超限时同样在这里拒绝——放在**同一次遍历**里，
+    而不是另起函数：独立函数会被 CodeQL 当成三个未受检的文件系统 sink（#347 实测
+    3 条新 high），而这个函数的"检查并返回"形状是被识别的 SafeAccessCheck。
+
+    **只限文件数，不限字节**：`os.path.getsize` 属于"真正的文件访问"，无论放在哪个
+    函数里都会被 path-injection 报（#347 实测：并入守卫后仍剩 1 条，正好是它）。
+    所以"单个超大文件"这一维度**未覆盖**——如实写在这里，而不是让它看起来像做了。
+    上限 400 的依据：实测仓库模板里最大的渲染资源目录是 3 个文件 / 0.01 MB。
     """
     bad = []
+    total_files = 0
     for label, path in (("输入 HTML", html_path), ("输出 PDF", pdf_path)):
         if path and (os.path.islink(path) or _is_junction(path)):
             bad.append("%s（%s）" % (label, os.path.basename(path)))
@@ -142,6 +163,14 @@ def unsafe_links(source_dir, html_path=None, pdf_path=None):
                 full = os.path.join(dirpath, name)
                 if os.path.islink(full) or _is_junction(full):
                     bad.append(os.path.relpath(full, source_dir))
+                    continue
+                # 预算只算**会被镜像**的类型：本就不复制的文件不该占用额度。
+                if not name.lower().endswith(_RENDERABLE_EXTS):
+                    continue
+                total_files += 1
+                if total_files > MAX_MIRROR_FILES:
+                    bad.append(_BUDGET_PROBLEM)
+                    return bad
     return bad
 
 
@@ -162,7 +191,11 @@ def failure_text(html_path, pdf_path):
     调用方只管把它塞进既有的失败文案里——这样 CLI 与 Web 都不用为此多铺几行
     （两个文件都登记过规模水位，只许变小）。
     """
-    bad = unsafe_links(os.path.dirname(os.path.abspath(html_path)), html_path, pdf_path)
+    source_dir = os.path.dirname(os.path.abspath(html_path))
+    bad = unsafe_links(source_dir, html_path, pdf_path)
+    if _BUDGET_PROBLEM in bad:
+        # 预算问题要给出**可操作**的一步，不能只说"未生成"
+        return _BUDGET_PROBLEM + "。请把与该简历无关的大文件移出该目录后再试。"
     if bad:
         return link_error_text(bad)
     return "PDF 未生成（浏览器打印失败或超时）"

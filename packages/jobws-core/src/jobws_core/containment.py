@@ -106,3 +106,25 @@ def escape_reason(name):
     if any(":" in seg for seg in segments):
         return "含盘符"
     return None
+
+
+def segment_reason(name):
+    """`name` 是否是**单个**目录/文件名；返回原因短语或 None。
+
+    比 `escape_reason` 多一条「含路径分隔符」：`a/b` 这种子目录写法 `escape_reason`
+    不拦（它只防翻出根），但"插件名 / 方向名"这类参数语义上就该是单段。
+
+    2026-10-18 外部审计的起点：`jd_gap.resolve_profile` 把外部传入的 `domain` /
+    `direction` 直接 `os.path.join`，`isdir/isfile` 通过即采用——实测
+    `domain="../../x"` 与 `direction="../../../../x"` 都能读到 `template/profiles`
+    之外，且**无任何警告**（静默走错）。判据收敛到这里，调用方只拼文案。
+    """
+    raw = (name or "").strip()
+    if not raw:
+        return "为空"
+    reason = escape_reason(raw)
+    if reason:
+        return reason
+    if "/" in raw or "\\" in raw:
+        return "含路径分隔符"
+    return None

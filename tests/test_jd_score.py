@@ -20,7 +20,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT_DIR, "web", "backend"))
 sys.path.insert(0, os.path.join(ROOT_DIR, "tools"))
 
-from jobws_core import jd_gap, jd_score  # noqa: E402  （jd_gap = resolve_profile 的实现所在，#307）
+from jobws_core import jd_gap, jd_score  # noqa: E402  （jd_profile = resolve_profile 的实现所在，#307→10-18 拆件）
 
 
 # ---------------------------------------------------------------------------

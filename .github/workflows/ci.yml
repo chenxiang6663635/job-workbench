@@ -165,7 +165,9 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          # Node 22 LTS（2026-10-18 由 20 升）：20 已于 2026-04 EOL。
+          # vite ^6.4 / playwright ^1.63 官方支持 18/20/22+；24 留作后续单独评估。
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -251,7 +253,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -309,7 +311,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -403,7 +405,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/frontend/package-lock.json
 
@@ -456,7 +458,7 @@ jobs:
       - name: 安装 Node 20
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
 
       # 生产依赖（阻断）：不含 devDependencies——正是打包进产物的那棵树。
       # npm audit 只读 package-lock.json，不需要 npm ci。

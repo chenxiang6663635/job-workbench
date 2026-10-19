@@ -101,6 +101,8 @@
 
 - **错误明细不再回传异常原文（2026-10-18，CodeQL `py/stack-trace-exposure` 5 条全收）**：`str(exc)` 拼进响应体会把**绝对路径 + 英文 errno + 第三方库内部措辞**一起送回前端。现改为：errno → 「磁盘空间不足 / 没有权限 / 被占用 / 只读位置 / 路径太长」（映射下沉到领域层 `jobws_core.os_errors`，CLI / MCP / Web 共用一份）；PDF 解析失败与迁移 IO 失败只带**异常类型名**（`PdfReadError`=文件坏、`OSError`=IO 失败）。**关键约束**：`os_error_reason` 只收 `int`（调用点传 `getattr(exc, "errno", None)`）——让它拿到异常对象，返回值就带着污点被 CodeQL 继续追到响应（自定义映射不被当作 sanitizer，与 #2 SSRF / #194 同类）；把异常折成标量，污点就断在调用点。**真正源头在领域层**：`dataroot_migrate` 把异常拼进 `summary["reason"]`，而 summary 经 `migrate.apply()` **原样回到 HTTP 响应**——告警钉在 `return migrate.apply(...)`那一行，不在路由层（第一轮只在路由层改，告警换个编号又回来了）。新增 3 条回归用例（故意在异常消息里塞绝对路径，验证真的不泄漏）。
 
+- **PDF 渲染的目录镜像范围收窄（2026-10-18，外部审计推动）**：手写简历 HTML 用相对路径引同目录照片，渲染时会把该目录镜像进临时目录——此前是「除 PDF 外全拷」，意味着同目录的面试笔记 / 投递记录 CSV / 其它版本简历都会被复制出工作区（崩溃时还会以 \.jobws_tmp_*\ 前缀留在系统临时区）。现改为只镜像**渲染可能引用的类型**（HTML/CSS/图片/字体），方向 fail-closed；同时 \copytree(symlinks=True)\ 不再跟随符号链接读取外部目标内容。另修掉一个真实崩溃：HTML 文件名恰好叫 esume.html\（暂存名）时\copyfile\ 同文件抛 \SameFileError\。新增 5 条镜像范围测试（含「外部 sentinel 不被复制」与「照片/CSS 仍被镜像」两条不回归）。
+
 ## [26.10.0] - 2026-10-06
 
 ### Highlights (English)

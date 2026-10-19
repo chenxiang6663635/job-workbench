@@ -110,7 +110,6 @@ def _is_junction(path):
         return False
 
 
-# 2026-10-19 探针：此注释仅用于强制 CodeQL 重新分析本文件（验证门禁是否稳定）。
 def unsafe_links(source_dir, html_path=None, pdf_path=None):
     """返回「不该出现的链接」清单（空 = 干净）；调用方据此给出可理解的错误。
 

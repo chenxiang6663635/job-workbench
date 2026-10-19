@@ -37,6 +37,36 @@ def test_os_error_reason_maps_common_errnos():
     assert os_error_reason(OSError(errno.ENOSPC, "x", "/secret")) == "详见应用日志"
 
 
+def test_credential_warning_has_no_raw_exception(monkeypatch, tmp_path):
+    """凭据引用校验失败的告警也不能带异常原文——它经 `plan()` → summary 回响应。
+
+    这是 stack-trace #222/#223 的**第三处**源头（前两处修完告警仍 open，定位到
+    `dataroot_semantics.credential_warnings` 把 `%s % exc` 拼进了 warnings）。
+    """
+    from jobws_core import dataroot_semantics
+
+    class _BoomStore:
+        kind = "windows"
+        name = "windows"
+
+        def get(self, ref):
+            raise RuntimeError("cannot read %s\\%s.cred" % (str(tmp_path), ref))
+
+    monkeypatch.setattr(dataroot_semantics.credentials, "select_store",
+                        lambda: _BoomStore())
+    monkeypatch.setattr(dataroot_semantics, "credential_refs",
+                        lambda ws: [{"file": "config/provider.json",
+                                     "ref": "imap:default"}])
+
+    warnings = dataroot_semantics.credential_warnings(str(tmp_path))
+
+    joined = " | ".join(warnings)
+    assert joined, "校验失败必须留一条告警（不静默）"
+    assert str(tmp_path) not in joined, "异常里的绝对路径回传了：%s" % joined
+    assert "cannot read" not in joined, "异常原文回传了：%s" % joined
+    assert "重新保存" in joined, joined
+
+
 def test_prep_search_skipped_reason_has_no_raw_exception(monkeypatch, tmp_path):
     """目录遍历失败时，`skipped.reason` 只能是可动手的说法，不能带路径/errno 原文。"""
     secret = os.path.join(str(tmp_path), "secret-workspace")

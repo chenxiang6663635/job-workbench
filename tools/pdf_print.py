@@ -82,6 +82,42 @@ _RENDERABLE_EXTS = (
     ".avif", ".jfif", ".woff", ".woff2", ".ttf", ".otf", ".eot",
 )
 
+# 镜像的**资源预算**（外部审计 2026-10-18 §三："允许复制多少内容？"）。
+# 阈值**按真实模板规模定**，不是凭空的：2026-10-19 实测仓库自带模板里最大的
+# 渲染资源目录是 `template/workspace/02_简历工坊/templates`，3 个文件 / 0.01 MB；
+# 64 MB / 400 个文件有 6000 倍以上余量，不会误伤正常简历的高清照片与字体，
+# 目的是把"递归复制一个异常大的目录"变成**明确失败**而不是默默搬完。
+# 只统计白名单内的类型——本就不复制的文件不该计入预算。
+MAX_MIRROR_BYTES = 64 * 1024 * 1024
+MAX_MIRROR_FILES = 400
+
+
+def mirror_budget_reason(source_dir):
+    """镜像规模是否超预算；返回原因短语或 None（超限即**拒绝**，不做部分复制）。
+
+    撞上限就立刻返回，不为报错把整个大目录走完——否则"拒绝"本身也成了读放大。
+    链接不计入：它们已由 `unsafe_links` 拦掉，且读链接目标的 size 正是要避免的事。
+    """
+    total_bytes = 0
+    total_files = 0
+    for dirpath, _dirnames, filenames in os.walk(source_dir):
+        for name in filenames:
+            if not name.lower().endswith(_RENDERABLE_EXTS):
+                continue
+            full = os.path.join(dirpath, name)
+            if os.path.islink(full) or _is_junction(full):
+                continue
+            try:
+                total_bytes += os.path.getsize(full)
+            except OSError:
+                continue
+            total_files += 1
+            if total_files > MAX_MIRROR_FILES or total_bytes > MAX_MIRROR_BYTES:
+                return ("要镜像的渲染资源超出预算（上限 %d 个文件 / %.0f MB），"
+                        "已拒绝渲染以免复制异常大的目录"
+                        % (MAX_MIRROR_FILES, MAX_MIRROR_BYTES / 1048576.0))
+    return None
+
 
 def _ignore_non_renderable(dir_name, names):
     """`shutil.copytree` 的 ignore 回调：只留渲染可能引用的类型。
@@ -162,9 +198,13 @@ def failure_text(html_path, pdf_path):
     调用方只管把它塞进既有的失败文案里——这样 CLI 与 Web 都不用为此多铺几行
     （两个文件都登记过规模水位，只许变小）。
     """
-    bad = unsafe_links(os.path.dirname(os.path.abspath(html_path)), html_path, pdf_path)
+    source_dir = os.path.dirname(os.path.abspath(html_path))
+    bad = unsafe_links(source_dir, html_path, pdf_path)
     if bad:
         return link_error_text(bad)
+    budget = mirror_budget_reason(source_dir)
+    if budget:
+        return budget + "。请把与该简历无关的大文件移出该目录后再试。"
     return "PDF 未生成（浏览器打印失败或超时）"
 
 
@@ -181,6 +221,8 @@ def build_pdf(browser, html_path, pdf_path):
     # 链接边界（外部审计 2026-10-18）：symlinks=True 挡不住 junction，
     # copyfile 会跟随源链接，move 跨卷会跟随目标链接——一律前置拒绝。
     if unsafe_links(source_dir, html_path, pdf_path):
+        return False
+    if mirror_budget_reason(source_dir):
         return False
     work = tempfile.mkdtemp(prefix=TMP_PREFIX)
     try:

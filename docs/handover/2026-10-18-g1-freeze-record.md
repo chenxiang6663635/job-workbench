@@ -61,6 +61,7 @@
 | 扫描器 7 项 | i18n / size / four-ends / legacy-imports / ui-tokens / themes / domains **全部通过** |
 | MCP 工具面 | **17 个**（冒烟钉住数量 + 末位 `score_calibration` + 真调两个后补工具） |
 | 随包 exe | `prebuilds.json` **211 条**，逐文件 sha256 复核 0 不符 / 0 多余 |
+| npm 预检（2026-10-19，`npm pack --dry-run`） | 子包 **213 文件 / 解包 41.9 MB / tarball 20.3 MB**（含 `prebuilds.json` + `bin/jobws-mcp.exe`）；主包 **233 文件 / 42.0 MB / 20.34 MB**（含 `cordis.patch.yml`、9 个技能目录、`scripts/install.ps1`、`locale/*.json`、`platform/**` 含 exe、`README.md`、`icon.svg`）；两包 `repository` 均指回本仓库、`license=MIT`、未设 `private` |
 | 门禁 | S1–S4 生效中；本区间 0 次直接推送 main |
 
 ## 五、冻结后要你执行的三件事（G2/G3，须在场）

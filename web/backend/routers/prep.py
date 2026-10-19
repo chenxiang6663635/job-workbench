@@ -94,7 +94,7 @@ def _search_section(ws, section, keyword):
         # 不回传异常原文（CodeQL py/stack-trace-exposure #188）：reason 会进响应体，
         # `str(OSError)` 带绝对路径与英文 errno 文本。errno → 可动手的一句话。
         skipped.append({"rel": base_rel,
-                        "reason": "目录读不到（%s）" % os_error_reason(exc)})
+                        "reason": "目录读不到（%s）" % os_error_reason(getattr(exc, "errno", None))})
         return hits, total, skipped
     for item in entries:
         rel = item["rel"]
@@ -112,7 +112,7 @@ def _search_section(ws, section, keyword):
             continue
         except OSError as exc:
             skipped.append({"rel": rel,
-                            "reason": "读不到（%s）" % os_error_reason(exc)})
+                            "reason": "读不到（%s）" % os_error_reason(getattr(exc, "errno", None))})
             continue
         if truncated:
             skipped.append({"rel": rel, "reason": "文件超过 256 KB，只搜了前 256 KB"})

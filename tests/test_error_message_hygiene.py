@@ -13,8 +13,6 @@ import errno
 import os
 import sys
 
-import pytest
-
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for _p in (os.path.join(ROOT_DIR, "tools"), os.path.join(ROOT_DIR, "web", "backend")):
     if _p not in sys.path:
@@ -26,11 +24,17 @@ from routers import prep  # noqa: E402
 
 
 def test_os_error_reason_maps_common_errnos():
-    """errno → 用户能动手的一句话；认不出的给兜底，且**都不含原文**。"""
-    assert "磁盘" in os_error_reason(OSError(errno.ENOSPC, "No space left", "/x"))
-    assert "权限" in os_error_reason(OSError(errno.EACCES, "Permission denied", "/x"))
-    fallback = os_error_reason(OSError(errno.EBUSY, "Device busy", "/secret/dir"))
-    assert "secret" not in fallback and "Device busy" not in fallback
+    """errno（int）→ 用户能动手的一句话；认不出的给兜底，且**都不含原文**。
+
+    收 int 而不是异常对象是**关键**：拿到异常对象会让返回值带上污点（CodeQL
+    认不出自定义映射是 sanitizer）。这条同时钉住形状——传异常会 KeyError。
+    """
+    assert "磁盘" in os_error_reason(errno.ENOSPC)
+    assert "权限" in os_error_reason(errno.EACCES)
+    assert "占用" in os_error_reason(errno.EBUSY)
+    assert os_error_reason(-99999) == "详见应用日志", "认不出的 errno 走兜底"
+    # 传**异常对象**是无效用法（会落到兜底、且把污点接回响应）——故调用点必须传 exc.errno
+    assert os_error_reason(OSError(errno.ENOSPC, "x", "/secret")) == "详见应用日志"
 
 
 def test_prep_search_skipped_reason_has_no_raw_exception(monkeypatch, tmp_path):

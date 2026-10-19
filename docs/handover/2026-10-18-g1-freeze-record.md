@@ -48,7 +48,7 @@
 | `26.10.1` hotfix | **不做** | 风险矩阵裁决：四条风险共同前提都是非默认布局、无实际事故；证据落在第二档（tag 树实测完成、安装包未复核），签署条件已写 4 条 |
 | E-03「放掉记账」写入口 | 顺延 | 本批只读；写入口需单独立项（设计文档 §四 反目标） |
 | CodeQL 存量（184 条） | 12 条非路径告警已根因修复；182 条 path-injection 已分诊、不逐条改 | #331–#335 修完 ReDoS / URL 判定 / stack-trace（194→184，实测关闭）；#338 分诊；#339 实测发现 `resolve_profile` 的 domain 可穿越并修掉 |
-| #325（#194 修复） | **待合并裁决**（门禁已 CLEAR，见 §六之二） | 已补三处链接边界负向测试；CodeQL 对该 PR 报 **0 new alerts**（`unsafe_links` 被识别为 SafeAccessCheck），不再需要 dismissal 或 QL 包 |
+| #325（#194 修复） | **已合并**（`60a366d`，2026-10-19；#194 告警自动转 `fixed`） | 已补三处链接边界负向测试；CodeQL 对该 PR 报 **0 new alerts**（`unsafe_links` 被识别为 SafeAccessCheck），不再需要 dismissal 或 QL 包 |
 | P1-B ②③（反向迁移） | 不做，如实说明 | #305：技术上当前不可行，写在文档里而不是假装有 |
 | 全站 WCAG AA 专项 | 延后 | 按审计建议：避免 a11y 收口无限扩张（最小键盘可达性已闭环） |
 
@@ -73,7 +73,7 @@
 
 ## 六、挂起项与它的代价（说明为什么冻结不受影响）
 
-**#325（CodeQL #194 命令行注入修复）**：分支 `fix/command-line-injection` 除 CodeQL 门禁外全绿
+**#325（CodeQL #194 命令行注入修复）——已合并（2026-10-19，`60a366d`）**。合并后实测：`#194` 告警状态转 **`fixed`**，`py/command-line-injection` 归零；`tools/pdf_print.py` 在 main 上产生 **0 条新告警**。以下为合并前的挂起经过，保留备查：分支 `fix/command-line-injection` 除 CodeQL 门禁外全绿
 （2006 passed 时的那次运行），PR 分析里 `py/command-line-injection` **已 0 条**——说明修复有效；
 但新文件的 4 处"写用户自选输出路径"被判 `py/path-injection`（high），门禁按"新增"拦下。
 
@@ -93,7 +93,7 @@
 | `py/polynomial-redos` | **0**（3 条；20k 空白 3.78s → 0.11s，性能用例钉住） |
 | URL 子串判定（py+js） | **0**（2 条；改主机名相等，收进 `outbound.host_is`） |
 | `py/full-ssrf` #2 | 代码已修并合并（#326）；告警 open（不认自定义校验器） |
-| `py/command-line-injection` #194 | 代码已修在 **#325**；该 PR 现报 **0 new alerts** |
+| `py/command-line-injection` #194 | **已关闭（`fixed`）**——#325 于 2026-10-19 合并后自动置 fixed |
 | `py/path-injection` | 182 条存量；已分诊（`report_path_injection_triage.md`），按策略不逐条改 |
 
 **#325 为什么从 BLOCKED 变成 CLEAR**（实测确认，非偶然）：新增的
@@ -102,8 +102,7 @@
 概念，把它识别成合法 barrier。为排除"分析没覆盖到"的假阴性，特意**碰了一次该文件**
 强制重新分析：仍是 `0 new alerts`。这是结构性修复被识别，不是抑制。
 
-**合并前两件事**：① 用户确认合并（本 PR 一直保留给最终审查）；② 合并后核对 main 上
-`pdf_print.py` 是否产生新告警。
+**合并后核对（已完成）**：open 告警 184 → **182**（`py/path-injection` 182→181、`py/command-line-injection` 1→0）；main 上 `tools/pdf_print.py` **0 条新告警**。
 
 ## 七、复现命令（任何人接手都能重跑）
 

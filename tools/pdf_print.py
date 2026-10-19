@@ -74,6 +74,25 @@ def allowlisted_browser(browser):
     return None
 
 
+# 渲染**可能引用**的文件类型（相对资源的白名单）。
+# HTML/CSS 是结构，图片与字体是照片和排版——手写简历用相对路径引的就是这些。
+_RENDERABLE_EXTS = (
+    ".html", ".htm", ".css",
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico",
+    ".avif", ".jfif", ".woff", ".woff2", ".ttf", ".otf", ".eot",
+)
+
+
+def _ignore_non_renderable(dir_name, names):
+    """`shutil.copytree` 的 ignore 回调：只留渲染可能引用的类型。
+
+    为什么要白名单而不是黑名单：目录里有什么用户文件不可预测，而"渲染需要什么"
+    是可枚举的。代价（fail-closed 方向）：认不出的后缀视为"渲染不需要"，
+    极端后缀的图片可能不显示——比把用户内容复制出工作区可接受。
+    """
+    return [n for n in names if not n.lower().endswith(_RENDERABLE_EXTS)]
+
+
 def build_pdf(browser, html_path, pdf_path):
     """用浏览器把 `html_path` 打成 `pdf_path`；成功返回 True。
 
@@ -97,11 +116,23 @@ def build_pdf(browser, html_path, pdf_path):
         # `allowlisted_browser()` + 固定名关掉（#194）。
         # 注：不要试图用 `# codeql[py/path-injection]` 行内抑制——2026-10-17 实测
         # （#325，注释就写在被标记的 4 行上）**对 Python 不生效**，CodeQL 仍报 4 条。
-        shutil.copytree(source_dir, work, dirs_exist_ok=True,
-                        ignore=shutil.ignore_patterns("*.pdf"))
+        # 镜像范围收窄到「渲染可能引用的类型」（外部审计 2026-10-18 情形 1/3）：
+        # 此前是「除 PDF 外全拷」——那会把同目录的面试笔记 / 投递记录 CSV /
+        # 其它版本简历一起复制进临时目录，等于把无关内容搬出一个它本不该出的
+        # 位置（进程崩溃时还会以 TMP_PREFIX 留在系统临时区）。
+        # 类型白名单是**fail-closed** 的方向：认不出的后缀视为"渲染不需要"，
+        # 代价是极端后缀的图片可能不显示（比把用户内容复制出工作区可接受）。
+        # `symlinks=True`：不跟随符号链接（情形 2）——否则 `copytree` 会把链接
+        # **目标的内容**读出来一起复制。
+        shutil.copytree(source_dir, work, dirs_exist_ok=True, symlinks=True,
+                        ignore=_ignore_non_renderable)
         staged_html = os.path.join(work, _STAGED_HTML)
         staged_pdf = os.path.join(work, _STAGED_PDF)
-        shutil.copyfile(os.path.join(work, os.path.basename(html_path)), staged_html)
+        copied_html = os.path.join(work, os.path.basename(html_path))
+        # 同名时 copytree 已经把它放成暂存名了，再 copyfile 会 SameFileError
+        # （2026-10-18 实测：HTML 文件名恰好叫 resume.html 时直接崩）。
+        if os.path.abspath(copied_html) != os.path.abspath(staged_html):
+            shutil.copyfile(copied_html, staged_html)
         cmd = [
             exe,
             "--headless",

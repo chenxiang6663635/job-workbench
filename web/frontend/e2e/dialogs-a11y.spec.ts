@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ENV_SCRIPT, openPage } from "./fixtures";
 
 // 六个浮层的 a11y 扫描（T-2 批，2026-09-21）：页面级扫描（a11y.spec）只扫
@@ -20,12 +20,29 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
 });
 
+/** 等浮层里的**有限**动画/过渡落定（无限循环的 spinner 必须排除，否则永不 resolve）。
+ *
+ * 2026-10-19 实测：同一份产品代码在 `1c2a20a` 绿、`6aacb9d`（只改文档）红——
+ * axe 在 `transition-all` 中途取样时，会读到**中间态**的 opacity 混色，
+ * 算出 `#8c96ac` on `#26375e` = 3.95:1 这种并不稳定存在的组合。等落定再扫。
+ */
+async function settleAnimations(dialog: Locator): Promise<void> {
+  await dialog.evaluate(async (el) => {
+    const finite = (el as Element).getAnimations({ subtree: true }).filter((a) => {
+      const iterations = (a.effect as KeyframeEffect | null)?.getTiming().iterations;
+      return iterations !== Infinity;
+    });
+    await Promise.all(finite.map((a) => a.finished.catch(() => undefined)));
+  });
+}
+
 async function scanDialog(page: Page, label: string): Promise<void> {
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   // 弹窗内容是异步来的：等第一段真实可交互元素出现再扫
   await expect(dialog.locator("input, textarea, select, button, pre").first())
     .toBeVisible({ timeout: 10_000 });
+  await settleAnimations(dialog);
   // Radix 的 SelectValue 文本在挂载后的 effect 里才填进 trigger——刚打开的
   // 对话框里它可能还空着（页面级 Select 不暴露这个问题：openPage 等足了
   // networkidle，effect 早已跑完）。不等这一步，button-name 会时红时绿。
@@ -70,6 +87,13 @@ test("浮层 a11y：CSV 导入对话框", async ({ page }) => {
 test("浮层 a11y：IMAP 拉取对话框", async ({ page }) => {
   await openPage(page, "applications");
   await page.getByRole("button", { name: "Fetch from mailbox" }).click();
+  // 打开即自动拉取：`loading` 期间「Fetch again」是 `disabled={loading}`，
+  // 而 Button 的禁用样式是 `disabled:opacity-50` → 前景 `--foreground` 以 50%
+  // 叠在 `--popover` 上，实测得到 `#8c96ac` on `#26375e` = **3.95:1**。
+  // WCAG 1.4.3 明确豁免「不可用的界面组件」，所以这不是 AA 违规；但**在加载中
+  // 取样**会让同一份代码时而红时而绿（1c2a20a 绿 / 6aacb9d 红，产品代码相同）。
+  // 做法：等拉取结束（按钮恢复可用）再扫——既不豁免 a11y，也不与竞态赛跑。
+  await expect(page.getByRole("button", { name: "Fetch again" })).toBeEnabled();
   await scanDialog(page, "IMAP 拉取对话框");
 });
 

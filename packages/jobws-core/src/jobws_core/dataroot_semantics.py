@@ -26,9 +26,12 @@ from __future__ import annotations
 import csv
 import io
 import json
+import logging
 import os
 
 from . import credentials
+
+logger = logging.getLogger(__name__)
 
 # 语义项的路径（工作区内相对路径；顺序即各自在 messages 里出现的顺序）。
 TRACKER_REL = ("05_投递追踪", "tracker.csv")
@@ -112,8 +115,13 @@ def credential_warnings(workspace, store=None):
         try:
             secret = store.get(item["ref"])
         except Exception as exc:  # 存储实现承诺不抛；这里只兜住，不让校验炸掉（且不吞）
-            warnings.append("凭据引用校验失败（%s：%s）：%s"
-                            % (item["file"], item["ref"], exc))
+            # warnings 会经 `plan()` → `summary` 回到 HTTP 响应，所以**不带异常原文**
+            # （CodeQL py/stack-trace-exposure #222/#223 的最后一处）：原文进日志，
+            # 用户侧只需要知道「这条引用校验不了，迁移后要去设置页重新保存」。
+            logger.warning("凭据引用校验失败（%s：%s）：%s",
+                           item["file"], item["ref"], exc)
+            warnings.append("凭据引用校验失败（%s：%s）——迁移后仍需到设置页重新保存"
+                            % (item["file"], item["ref"]))
             continue
         if not secret:
             warnings.append("凭据引用取不到（%s：%s）——迁移后仍需到设置页重新保存"

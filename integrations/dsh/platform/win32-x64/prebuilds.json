@@ -68,7 +68,7 @@
     "bin/_internal/attrs-26.1.0.dist-info/RECORD": "a5151f0461f45abf44fdc57c2ccdb73151bb54a0abfd22133f7ea7ad48f8dc23",
     "bin/_internal/attrs-26.1.0.dist-info/WHEEL": "41c708c5adba6e097513ab8ccb9f1d7865a2fb469e22491a9e01dcc64da459fc",
     "bin/_internal/attrs-26.1.0.dist-info/licenses/LICENSE": "882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f",
-    "bin/_internal/base_library.zip": "5144ad0978b7051bc5935675e1b79baba0e24536a8b1d5d2b55ce79e7d489b2d",
+    "bin/_internal/base_library.zip": "75d806be928dfa7b65bdb0a95894cb69db70d54570c26e4b8eb9dfca5235941b",
     "bin/_internal/certifi/cacert.pem": "9cc2a774b5198dcff14d9be1e66091f538975d867ce029a96bce15a55dfd730f",
     "bin/_internal/certifi/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "bin/_internal/click-8.5.0.dist-info/INSTALLER": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508",
@@ -218,6 +218,6 @@
     "bin/_internal/win32/win32api.pyd": "8e09d7aa57dc33b663afd219fab21b6a70e9d98cc74a044df4d6cd94799d98c2",
     "bin/_internal/win32/win32evtlog.pyd": "f6f8814147d3ca2761d351c0c86e7142b15b63605a502e5eb62d0bbd2b88e73f",
     "bin/_internal/win32/win32job.pyd": "bfc31798ccf0bcf9b4453903918866abcfb546f5b1d6bd59e4691b83cbe44fa8",
-    "bin/jobws-mcp.exe": "2478c75f8fca73e13d287ee357816a3eb8fa8d67de5d616c034de07b028cec99"
+    "bin/jobws-mcp.exe": "7b651d6c3b8c9596f437bb89090ce17112e1ca18ba69346d05ae16afa96316c2"
   }
 }

@@ -24,7 +24,7 @@ import sys
 
 from mcp.server import MCPServer
 
-from . import guard, info, paths, prompts, resources, tool_registry
+from . import guard, info, init_workspace, paths, prompts, resources, tool_registry
 
 # A2 信息工具 / B4 数据根守卫 / 路径解析 / 资源 / 提示 / 工具注册表
 
@@ -78,13 +78,30 @@ def main(argv=None):
         description="求职工作台 MCP 服务（默认只读；写入走两段式确认）")
     parser.add_argument("--workspace", default=None,
                         help="工作区名或绝对路径；相对路径按应用根/数据根解析，越界拒绝")
+    parser.add_argument("--init", action="store_true",
+                        help="把随包模板铺成空工作区（幂等、不覆盖已有文件）后退出；"
+                             "只装插件的用户首次使用需要它")
     args = parser.parse_args(argv)
+
+    if args.init:
+        target = paths.resolve_default_workspace()
+        created = init_workspace.init_workspace(target)
+        # 一律走 stderr：stdio 传输下 stdout 是协议通道
+        if created:
+            sys.stderr.write("jobws-mcp: 已初始化空工作区 %s（%d 个文件）\n"
+                             % (target, len(created)))
+        else:
+            sys.stderr.write("jobws-mcp: 工作区已存在，未改动：%s\n" % target)
+        return 0
+
     try:
-        workspace = paths.resolve_workspace(args.workspace, must_exist=True)
+        # 默认根 + 缺失 → 自动建空骨架（零配置可用）；显式配置 → 仍然报错
+        workspace, notice = init_workspace.ensure_workspace(args.workspace)
     except paths.WorkspaceError as exc:
-        # 不进 stdout：stdio 传输下那是协议通道
         sys.stderr.write("jobws-mcp: %s\n" % exc)
         return 2
+    if notice:
+        sys.stderr.write(notice + "\n")
     build_server(workspace).run()
     return 0
 

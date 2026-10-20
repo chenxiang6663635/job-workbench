@@ -22,6 +22,8 @@
 
 ## [Unreleased]
 
+- **DSH 独立安装：首次使用自动初始化工作区（2026-10-19）**：只装插件的机器上，`<data_root>/personal` 不存在会让 MCP server 在建服务前就退出（退出码 2），**17 个工具一个都不注册**——此前只有装过桌面版的机器才「装着就能用」。现在 `jobws-mcp.exe --init` 把随包 `template/workspace` 铺成空骨架（14 个文件 / 6 个模块，幂等、不覆盖已有文件），`install.ps1` 装完自动跑一次；**未设** `JOBWS_DATA_DIR`／`JOBWS_WORKSPACE` 时首次启动自动初始化并在 stderr 说明，**设了但目录不存在**时仍然报错（避免把拼错的路径悄悄建成工作区）。工作区缺失的报错文案也改为指向 `--init`。
+
 ### Highlights (English)
 
 - **PDF rendering now has a resource budget (2026-10-19)** — the type allow-list said *which* files may be mirrored but not *how much*: a folder holding a pile of legitimate images/fonts would still be copied wholesale. Rendering now refuses, with an actionable message, when more than **400** files would be mirrored — the limit is measured against the real templates (largest asset folder: 3 files), so normal resumes are unaffected, and files outside the allow-list never count. **Byte size is *not* bounded** (a single huge image still goes through): `os.path.getsize` is a real file access, so CodeQL flags it as a new path-injection sink wherever it lives — stated here rather than left to look covered.

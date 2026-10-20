@@ -30,7 +30,7 @@ $script = (irm 'https://raw.githubusercontent.com/chenxiang6663635/job-workbench
 powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -Profile desktop
 ```
 
-脚本做四件事（全部幂等，可反复跑；先 `-DryRun` 只打印计划）：
+脚本做五件事（全部幂等，可反复跑；先 `-DryRun` 只打印计划）：
 
 1. **工作区放行**：给 profile 的 `pnpm-workspace.yaml` 写 `minimumReleaseAgeExclude`
    （pnpm 11 对发布不足 24h 的版本执行隔离——首发当日安装会被拦；放行本包与平台子包，
@@ -41,6 +41,10 @@ powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -Profile desktop
 4. **迁移**：幂等移除第一阶段手抄进 profile `cordis.patch.yml` 的 `mcp-jobws` /
    `preset-jobws` 挂载行——否则与 bundle **双挂载**（同 `serverName` 注册两次）。
    删除前先写 `cordis.patch.yml.bak-<时间戳>` 备份；没有旧行时不动任何东西。
+5. **初始化工作区**（2026-10-19 补）：跑一次随包 `jobws-mcp.exe --init`，把包内
+   `template/workspace` 铺成 `<data_root>/personal` 空骨架（14 个文件、6 个模块；
+   已存在则不改动）。**没有它，MCP server 会直接退出、17 个工具一个都不注册**——
+   详见 §五「首次使用必须有工作区」。
 
 不想跑脚本时，等价的是一条命令 + 两处手工检查：
 
@@ -136,6 +140,14 @@ dsh plugin --profile <p> remove dsh-job-workbench
   （`failOnStartupError: false`）——技能与固定件不受影响，MCP 工具面待平台子包补齐。
   **发布形态不依赖宿主 Python**（自包含运行时）；「探测到宿主 Python 时加速」属
   INTERNAL-ONLY 预留位（DSH 开放第三方 runtime API 前不启用）。
+- **首次使用必须有工作区**（2026-10-19 实测补）：MCP server 在**建服务之前**就要解析
+  工作区，`<data_root>/personal` 不存在时它会直接退出（退出码 2）、**17 个工具一个都不注册**。
+  材料一直是齐的（`template/workspace` 随 exe 发布），此前缺的是入口。现在两条路：
+  ① `install.ps1` 装完自动跑一次 `jobws-mcp.exe --init`；
+  ② 手动装包的人，启动前自己跑一次 `jobws-mcp.exe --init`（幂等，不覆盖已有文件）。
+  另外：**未设** `JOBWS_DATA_DIR` / `JOBWS_WORKSPACE` 时，首次启动会在默认数据根
+  **自动建**空骨架并在 stderr 说明；**设了**这两个变量却指向不存在的目录时**仍然报错**
+  ——那通常是路径写错，静默建成工作区比报错更难发现。
 - **杀软边界**：exe 未签名（代码签名已决策暂不采购，见 `docs/decisions/code-signing.md`），
   首次运行 Windows 可能提示 SmartScreen；onedir + 不 UPX 是已知的降误报形态。
 - **安装体积**：registry 安装会同时拉主包与平台子包（各自压缩后 ~21MB——同一份 exe 的两条

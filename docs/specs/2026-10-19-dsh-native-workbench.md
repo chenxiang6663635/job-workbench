@@ -123,6 +123,33 @@ DSH Client UI（右栏，只读）
 6. **官方 RPC 往返实测**：`ctx.connection.rpc.call` 是链路第一跳，但方向性未实测（见 §9.2 Q2）；实施前必须先做一次浏览器 → Node 插件 → 回显的最小往返。不通则整体换备选通道。
 7. **网络出站实测**：见 §6.3——不能只靠代码审查证明"没有 fetch 到外网"，因为请求可能来自宿主、模型 SDK 或第三方插件。
 
+### 5.3 前置条件 6 的实测进展：RPC-E1（2026-10-19，隔离 web profile）
+
+实验内容：写一个双半探针插件（Node 半 `ctx.connection.rpc.handle('/com.jobws.echo', …)`；
+Client 半 `ctx.connection.rpc.call(...)` 回显 nonce 并渲染到 DOM），装进**全新隔离**
+`DSH_HOME` 的 `e1` profile，用 `dsh --profile e1 web` 启动真实浏览器客户端。
+
+| 验证项 | 结果 | 证据 |
+|---|---|---|
+| Node 半能否拿到 `connection` 服务 | **FAIL** | 三种配置全部 `pending (waiting for service: connection)`：① `inject:['connection','webServer']` ② `inject:['connection']` ③ 再加 `peerDependencies`（照 better-sidebar 的写法声明 `@deepseek-ai/dsh-client-connection`） |
+| web profile 是否提供 `connection` | **否** | `--dump-config` 装配清单（20 个宿主内置插件）里**没有**提供者；`typert-gateway`(`@deepseek-ai/dsh-api-gateway`) 是**消费方**不是提供方 |
+| 第三方有无先例 | **无** | `dshmarket` 的 node 半不 inject 任何服务；`dsh-better-sidebar` 的 peerDeps 里没有 connection |
+| Client 往返能否验证 | **未验证** | 隔离环境无模型凭据，web 服务起不来——宿主进程活着但**零监听端口**（`Get-NetTCPConnection` 无记录） |
+
+**结论：E1 记 FAIL（环境/契约限制，不是代码错误），不得宣称 PASS。**
+
+按实验纪律，**没有**用 Node 侧结果冒充浏览器往返——因为浏览器侧从未加载成功。
+
+**剩余路径（按优先级）**：
+
+1. 在 **desktop profile** 复测——`connection` 很可能由 Electron 主进程提供（web profile 没有）；
+   但客户端是 Electron renderer，DOM 检查需 CDP，且需要 GUI 会话；
+2. 向 DSH 宿主提一个**最小的只读能力请求**（官方支持比私接稳）；
+3. 退回"受保护的 host HTTP 路由"（`dsh-mcp-view` 模式）——需自行处理身份 / Origin / 权限 / 脱敏。
+
+> 这条实测直接推翻了原设计中"Client → 官方 RPC → Node 插件"作为**默认第一跳**的假设。
+> 在 desktop profile 复测通过之前，数据通道应视为**未定**，不得按 (a) 写实施计划。
+
 ---
 
 ## 六、安全边界

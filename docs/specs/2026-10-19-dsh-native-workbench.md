@@ -102,25 +102,33 @@ DSH 是本项目的**第一等交付入口**之一（与桌面端/CLI/MCP 并列
 
 ## 五、数据通道（方案 a）与五个前置条件
 
-### 5.1 链路
+### 5.1 链路（分两层看，别绑在一起）
 
 ```
-DSH Client UI（右栏，只读）
-  → 官方客户端通信层（ctx.connection.rpc.call；不自建未保护 HTTP）
-  → DSH Node 插件（白名单 + 名称发现 + 三态）
-  → ctx.tools.execute（宿主工具执行接口）
-  → 既有 jobws MCP（宿主已 spawn 的同一实例）
-  → jobws_core（领域逻辑唯一真源）
+已验证层（Node → 业务数据）                          ★ 已实测通过
+  DSH Node 插件
+    → ctx.tools.execute（宿主工具执行接口，公开契约）
+    → 既有 jobws MCP（宿主已 spawn 的同一实例，零新增进程）
+    → jobws_core（领域逻辑唯一真源）
+
+待验证层（Client → Node）                            ★ RPC-E1 已测的两种方式 FAIL
+  DSH Client UI（右栏，只读）
+    → 官方客户端通信层
+    → DSH Node 插件（白名单 + 名称发现 + 三态）
 ```
 
-### 5.2 五个前置条件（缺一不实施）
+**这两个层必须分开判断**：第二层（客户端怎么拿到 Node 的结果）失败，**不构成**推翻第一层的理由——
+Node 侧复用已有 MCP 会话的能力已被实测证明（`dashboard_summary` / `score_calibration` 真实返回）。
+所以**不存在"因为客户端 RPC 不通就去再起一个 `jobws-mcp.exe`"的逻辑**。
+
+### 5.2 七个前置条件（缺一不实施）
 
 1. **工具名运行时发现**：扫 `ctx.tools.schemas()` 匹配，禁止硬编码（事实 4）。
 2. **严格白名单**：只放行 `jobws.info` / `dashboard_summary` / `score_calibration` 三个只读工具；其余一律拒绝——**包括 `mcp__jobws__apply_approval` 等写工具**（事实 3 证明可调）。
 3. **UI 三态**：连接中（工具未注册，~2s 空窗）→ 已连接 → 功能已支持但连接不可用（事实 5）。
-4. **通信走官方 RPC**：优先 `ctx.connection.rpc.call`；若最终必须自建 HTTP，须处理身份、Origin、权限、脱敏与失败态（只读不等于不敏感）。
+4. **通信走官方机制**：优先官方客户端通信层；若最终必须自建 HTTP，须处理身份、Origin、权限、脱敏与失败态（只读不等于不敏感）。
 5. **ptc 模式补验**：`executionMode()` 的正确调用方式未验证；若宿主跑 ptc 模式，无 `parent` 的直接调用可能只允许 `run_code`，调 `mcp__*` 会得 `UNKNOWN_TOOL`。
-6. **官方 RPC 往返实测**：`ctx.connection.rpc.call` 是链路第一跳，但方向性未实测（见 §9.2 Q2）；实施前必须先做一次浏览器 → Node 插件 → 回显的最小往返。不通则整体换备选通道。
+6. **客户端 ↔ Node 往返实测**：必须先做一次最小往返（详见 §5.3–§5.6）。**当前已测的两种官方方式均 FAIL**；`connection.fetch.register()` 静态核查通过、运行时未验证。
 7. **网络出站实测**：见 §6.3——不能只靠代码审查证明"没有 fetch 到外网"，因为请求可能来自宿主、模型 SDK 或第三方插件。
 
 ### 5.3 前置条件 6 的实测进展：RPC-E1（2026-10-19，隔离 web profile）
@@ -136,56 +144,137 @@ Client 半 `ctx.connection.rpc.call(...)` 回显 nonce 并渲染到 DOM），装
 | 第三方有无先例 | **无** | `dshmarket` 的 node 半不 inject 任何服务；`dsh-better-sidebar` 的 peerDeps 里没有 connection |
 | Client 往返能否验证 | **未验证** | 隔离环境无模型凭据，web 服务起不来——宿主进程活着但**零监听端口**（`Get-NetTCPConnection` 无记录） |
 
-### 5.3.1 desktop profile 复测（2026-10-20，用户执行）：两条官方路都断了
+### 5.3.1 desktop profile 复测（2026-10-20，已执行完毕）
 
-在 desktop profile 实测（隔离 `DSH_HOME`，探针 0.3.0 → 0.4.0 → 0.5.0）：
+这是**决定性的那一轮**：`integrations/dsh/scripts/install.ps1:46` 的默认 profile 是
+`desktop`，我们的插件实际就跑在那里——前面测的 web profile 是**错的目标**。
+隔离 `DSH_HOME` = `%TEMP%\dsh-e1d-063e80`，探针 0.3.0 → 0.4.0 → 0.5.0，由用户执行脚本。
 
 | 步骤 | 结果 |
 |---|---|
 | `ctx.connection` / `ctx.connection.rpc` / `rpc.handle` 可用性 | **全部 true**——desktop profile **确实提供** `connection`（与 web profile 不同） |
 | **路 A `rpc.handle('/com.jobws.echo', …)`** | **FAIL**：`cannot get property "webServer" without inject`。即使插件自己 `inject: ['connection','webServer']` 也无效——源码里 `get rpc()` 的 `owner = this.ctx` 绑的是 **connection 服务自己的 fiber**，`register()` 走 `owner.webServer.register(route)`；宿主的 desktop 装配没给 connection 接上 webServer |
-| **路 B `rpc.intercept('/api', matches, …)`** | 注册**成功**（`PASS(node)`），但约 3 分钟后**宿主崩溃**：`desktop welcome: Web request failed`（`openInitialWindow → settingsAndReference`）。宿主自己的 `@deepseek-ai/dsh-api-gateway` 同样 intercept `/api`——第三方再拦同一通道会破坏宿主欢迎流程。**此为推断**（未做对照实验），但同期 0.4.0（只试 handle、异常被捕获、不碰 `/api`）在同样环境下启动正常，两次唯一差异就是这次拦截 |
-| 客户端调用 | 0.3.0 下得到 `HTTP 405`（路由未注册）；0.5.0 下因宿主崩溃**未能验证** |
+| **路 B `rpc.intercept('/api', matches, …)`** | 注册**成功**（`PASS(node)`）；0.3.0 时客户端调用得 `HTTP 405`（路由未注册）。**随后宿主崩溃**（见下） |
+| 客户端往返 | **未验证**——0.5.0 那轮宿主崩溃，浏览器侧从未成功加载 |
 
-**结论：官方 RPC 对第三方插件实质关闭。** `handle` 因宿主接线缺口不可用；`intercept('/api')` 虽能注册，但与宿主自有 gateway 抢同一通道、有把宿主搞崩的风险。**不得**在方案 D 里使用任何一条。
+**崩溃事件（如实记录，因果未证实）**：0.5.0 注册 `/api` 拦截后，宿主在
+**01:00:25（本地）/ 07:00:25Z** 崩溃；日志 `shell pid: 130892`（即该隔离实例），
+错误 `desktop welcome: Web request failed`，栈 `openInitialWindow → settingsAndReference → invoke`；
+距探针写下 Node 证据（00:57:37）约 **2 分 48 秒**。
 
-**连带教训（实验纪律）**：本轮由用户执行脚本，实验实例在用户屏幕开出窗口并弹出崩溃对话框——**GUI 类实验必须先告知用户会看到什么、并备好一键清理**。
+- **未证实**：崩溃由我的 `/api` 拦截引起。旁证是——同期 0.4.0（只试 `handle`、异常被捕获、
+  **不碰 `/api`**）在同样环境下启动正常，两次运行唯一差异就是这次拦截；而宿主自己的
+  `@deepseek-ai/dsh-api-gateway` 同样 intercept `/api`。**但没有做对照实验**，
+  所以这是猜测，不是结论。
+- **已排除**：不是用户真实应用受损。崩溃实例 `shell pid` = 130892（隔离实例）；
+  用户 `~/.dsh/profiles/desktop`（3 个依赖）与 `web`（0 个）经核对**未装入任何实验插件**，
+  全 `~/.dsh` 无 `rpc-echo` / `jobws-tools-probe` 残留。
+- **真实数据为何未被触碰**（精确理由，不是"我们没碰"）：该隔离 desktop profile 里
+  **只装了回显探针、没有装 jobws 插件**，所以宿主不会 spawn `jobws-mcp.exe`，
+  根本不存在工作区访问路径。
 
-**结论：E1 记 FAIL（环境/契约限制，不是代码错误），不得宣称 PASS。**
+**E1 结论：FAIL——更准确地说，"当前版本与装配下，官方 RPC 往返尚未打通"。**
+不宣称 PASS，也没有用 Node 侧结果冒充浏览器往返（浏览器侧从未成功加载）。
 
-按实验纪律，**没有**用 Node 侧结果冒充浏览器往返——因为浏览器侧从未加载成功。
+### 5.4 隔离与证据保存纪律（2026-10-20 崩溃事件后立）
 
-> **重要更正（2026-10-20）**：`integrations/dsh/scripts/install.ps1:46` 的默认 profile 是
-> **`desktop`**（`[string]$Profile = 'desktop'`），README 的安装命令同样指向 desktop。
-> 也就是说**我们的插件实际运行在 desktop profile，而 E1 测的是 web profile——测错了目标**。
-> 因此上面的 FAIL **不能**用来判定方案 (a) 不成立：它只说明"web profile 不向第三方
-> bundle 插件提供 `connection`"。**决定性实验是 desktop profile 的复测。**
+GUI 类实验必须分别核对**三处根**，缺一不可：
 
-**剩余路径（按优先级）**：
+| 根 | 变量 / 路径 | 本轮实际值 |
+|---|---|---|
+| 宿主配置根 | `DSH_HOME` | `%TEMP%\dsh-e1d-063e80`（**已隔离**） |
+| Electron 用户目录 | `%APPDATA%\@deepseek-ai\...` | **未隔离**——崩溃日志写在这里，与 `DSH_HOME` 无关 |
+| 业务数据根 | `JOBWS_DATA_DIR`（默认 `%APPDATA%\job-workbench\data`） | 本轮未设置；但因未装 jobws 插件而无访问路径 |
 
-1. **desktop profile 复测（决定性）**——`connection` 很可能由 Electron 主进程提供
-   （web profile 没有）。约束：本机已有 DSH 实例运行时，Electron 单实例锁会阻止第二个
-   实例，需在用户侧执行；步骤见 §5.4；
-2. 向 DSH 宿主提一个**最小的只读能力请求**（官方支持比私接稳）；
-3. 退回"受保护的 host HTTP 路由"（`dsh-mcp-view` 模式）——需自行处理身份 / Origin / 权限 / 脱密。
+每次实验必须记录：插件版本与 `inject` 组合、启动 PID 与子进程树、三处根的实际值、证据文件路径。
 
-> 在 desktop profile 复测给出结论前，数据通道应视为**未定**，不得按 (a) 写实施计划。
+GUI 实验**开始前**必须告知用户：会弹出几个窗口、可能出现什么对话框、如何一键清理。
+清理只针对**本次创建且身份已核实**的进程（按 PID 树，**不按进程名**）。
 
-### 5.4 desktop 复测的操作步骤（需用户在自有机器上执行）
+### 5.5 证据表：已证实 / 未证实 / 下一步验证
 
-因 Electron 单实例锁，第二个隔离实例无法与用户正在运行的 DSH 共存，所以这一步
-**必须由用户执行**。脚本：`.codebuddy/tmp/e1-desktop-retest.ps1`（纯 ASCII，避开编码坑）：
+| # | 命题 | 状态 |
+|---|---|---|
+| 1 | desktop profile 向第三方插件提供 `connection` 服务 | **已证实** |
+| 2 | `rpc.handle()` 因宿主未给 connection 接 webServer 而不可用 | **已证实**（三种配置，含显式 `inject: ['connection','webServer']`，均失败） |
+| 3 | `rpc.intercept('/api')` 能注册成功 | **已证实** |
+| 4 | 官方 RPC 能让浏览器客户端完成一次往返 | **未证实**（浏览器侧从未成功加载） |
+| 5 | `/api` 拦截导致宿主崩溃 | **未证实**（有旁证，无对照实验） |
+| 6 | 实验损害了用户真实应用或数据 | **已排除**（pid + profile 双重核对；无数据损坏证据） |
+| 7 | 本机安装版本（0.2.1-rc.2）**存在** `ctx.connection.fetch.register` | **已证实**（静态扫描 app.asar，见 §5.7） |
+| 8 | `fetch.register` 的实现**不依赖** `webServer` | **已证实**（静态：只写 `this.fetchRoutes`，无 `owner.webServer`） |
+| 9 | 精确路由优先于共享 `/api` interceptor，二者可共存 | **已证实**（静态：`createSharedFetchHandler` 先查 `fetchRoutes` 再落 `interceptors`） |
+| 10 | 路由随插件停用自动注销（effect 作用域 + disposer） | **已证实**（静态：`return () => this.fetchRoutes.delete(route.path)`） |
+| 11 | 精确路由在真实 desktop 装配里可被浏览器调用 | **未证实（运行时）**——需单次隔离回显实验，**尚未批准** |
+| 12 | desktop 装配为何没给 connection 接 webServer | **未证实**（上游 issue 未检索到定论） |
 
-1. 建全新隔离 `DSH_HOME`；
-2. 先启动一次 app 让 desktop profile 初始化，然后按 PID 树退出；
-3. `dsh plugin --profile desktop add jobws-rpc-echo-0.3.0.tgz`；
-4. 再启动一次，等 40 秒；
-5. **Node 半答案自动可取**：读 `<DSH_HOME>\rpc-e1-node.json`——`verdict` 为
-   `PASS(node)` 即说明 desktop profile **能**提供 `connection`；
-6. **Client 往返答案需人眼**：app 窗口**左下角**应出现绿底黑字块，内容含
-   `"nonceMatch": true` 与 `PASS(client)`；没有则记 `FAIL(client)`。
+### 5.6 数据通道分层与路线裁决（2026-10-20 收敛）
 
-只清理本次创建的进程树，不碰用户真实的 `~/.dsh`。
+按"是否已验证"分四层，**不要混读**：
+
+| 层 | 内容 | 状态 |
+|---|---|---|
+| **① 已验证** | Node 半 `ctx.tools.execute()` → 既有 jobws MCP → `jobws_core` | ✅ 实测通过（`dashboard_summary` / `score_calibration` 真实返回） |
+| **② 已失败** | `rpc.handle()`（webServer 硬依赖）；`rpc.intercept('/api')`（与内置 Gateway 的单 interceptor 注册表冲突，**源码层已确认不可并存**） | ❌ 不得使用 |
+| **③ 待验证（首选候选）** | `ctx.connection.fetch.register()` 精确路由（如 `/api/jobws.summary`）→ Node 白名单 → ① | ⬳ 静态通过 / 运行时未验证 |
+| **④ 备选（需单独评审）** | 受保护的本地 HTTP 桥接；Node 自起第二个 MCP 实例 | ⬳ 仅在 ③ 不成立时评估 |
+
+**裁决**：③ 是当前唯一首选候选；**④ 中的"第二个 MCP 实例"暂不批准**——① 已证明 Node 能复用宿主已 spawn 的同一实例，没有证据表明必须承担双实例成本。
+
+> **明确不做**：现在直接上「Node 自起 MCP + HTTP」——它新增进程生命周期、身份验证与权限边界
+> 三项成本，必须作为独立备选方案评审，不能因为官方路不通就默认选它。
+
+### 5.7 静态证据：`fetch.register` 为何可能绕过 `rpc.handle` 的坑
+
+对本机 `D:\tools\dsh\resources\app.asar`（0.2.1-rc.2，174.3 MB）做**只读二进制检索**（asar 默认不压缩）。
+以下均为**安装版本里的实际代码**，不是上游 master：
+
+```js
+// rpc.handle 走的那条：register() —— 结尾是 owner.webServer.register(route)
+register(owner, channel, handler) {
+  assertChannel(channel);
+  …
+  return owner.effect(() => owner.webServer.register(route), `client-connection: ${channel} rpc channel`);
+}
+
+// fetch.register 走的那条：registerFetchRoute() —— 全程只碰 this.fetchRoutes
+registerFetchRoute(owner, route) {
+  assertFetchRoute(route);
+  const registered = { methods: new Set(route.methods), requestBody: route.requestBody, fetch: route.fetch };
+  return owner.effect(() => {
+    if (this.fetchRoutes.has(route.path))
+      throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} is already registered`);
+    this.fetchRoutes.set(route.path, registered);
+    return () => { this.fetchRoutes.delete(route.path); };      // ← 停用即注销
+  }, `client-connection: ${route.path} Fetch route`);
+}
+```
+
+分发顺序（`createSharedFetchHandler`）证实两条路**共存且精确路由优先**：
+
+```js
+fetch: (request, peer) => {
+  const pathname = new URL(request.url).pathname;
+  const route = this.fetchRoutes.get(pathname);                 // ① 先查精确路由
+  if (route?.methods.has(request.method) === true) {
+    if (peer.principal.kind !== "owner") return new Response("forbidden", { status: 403 });
+    return route.fetch(request);
+  }
+  const interceptor = this.interceptors.get(channel);           // ② 不命中才落共享 interceptor
+  …
+}
+```
+
+配套量化证据：全包 `owner.webServer.register` **仅 1 次**（即 `register()` 内）；其余 webServer 访问均为
+`owner.get("webServer")?.` 的**容错写法**（`admit` / `isTrusted` / `authorizeConnect`）。
+
+**这意味着什么**：`fetch.register` 不依赖 desktop 装配缺失的那根线，因此**有机会**在目标环境工作；
+它还把身份校验留给宿主的 `admit()`（Host/Origin 围栏 + 浏览器认证），非 owner Peer 得 403——
+正好符合"复用宿主既有认证、不自行敞开接口"的要求。
+
+**但这不是 PASS**：`get fetch()` 与 `get rpc()` 一样绑定 `owner = this.ctx`，运行时是否真的不受装配影响、
+`/api` 前缀在 desktop 里由谁挂载、插件停用后路由是否干净撤销——**都还需一次单次、可回收的隔离回显实验**，
+而该实验**尚未获得批准**（见 §5.4 隔离纪律与 GUI 实验前置条件）。
 
 ---
 

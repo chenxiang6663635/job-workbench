@@ -1,3 +1,13 @@
 # githooks 必须保持 LF：CRLF 检出会让 sh 包装器的 exec 行尾粘 \r，
 # 导致 python 打不开脚本、每次提交失败（独立审查抓出的跨平台缺陷）
 .githooks/* text eol=lf
+
+# 插件清单也必须保持 LF（2026-10-20 实测）：这两份 JSON 由
+# tools/assets_registry.py 生成，而 check_all 用**原字节**与生成结果比对。
+# Git for Windows 的系统级 core.autocrlf=true 会让 `git clone` 检出成 CRLF
+# （实测 size 2749 → 2794，多 45 个 \r），于是
+# tests/test_assets_registry.py::test_real_repo_is_in_sync 与
+# tests/test_cli_surface.py::test_check_skills_passes_on_repo_skills 双双假红——
+# 恰好发生在 G2/G3 §二 那条「干净构建」命令上。CI 是 Linux，永远看不到。
+# 固定 eol=lf 后，任何机器的检出都与生成器一致。
+.codebuddy-plugin/*.json text eol=lf

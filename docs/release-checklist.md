@@ -79,10 +79,12 @@ python tools\jobws.py release version
 ```powershell
 python tools\jobws.py skills check          # 技能 metadata 与插件壳/应用版本三向对齐（9 个）
 python tools\assets_registry.py --check     # plugin.json / marketplace.json 与真源一致
-powershell -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1
                                             # 子包版本 == 主包（不等 exit 1）；产出 bin/ 与 prebuilds.json
                                             # 需**非 editable 的构建 venv**（脚本默认探测
                                             # D:\tools\venvs\jobws-mcp-build；别用开发用的 jobws-mcp venv）
+                                            # **必须用 pwsh 7**：脚本是 UTF-8 无 BOM，Windows PowerShell
+                                            # 5.1 会按 ANSI 解码，中文注释被拆坏 → ParserError（2026-10-19 实测）
 python scripts\smoke_mcp_exe.py             # 17 工具 + 数量/末位/真调两个后补工具
 python tools\jobws.py release check --tag v26.11.0
                                             # 段名 + tag 与版本一致；不通过会给具体原因

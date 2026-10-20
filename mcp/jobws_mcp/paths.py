@@ -148,8 +148,8 @@ def resolve_workspace(name=None, must_exist=False):
     real = containment.real(path)
     if must_exist and not os.path.isdir(real):
         raise WorkspaceError(
-            "工作区不存在：%s（请先在你打开的工作台里初始化，"
-            "或设置 JOBWS_DATA_DIR 指向数据根）" % path)
+            "工作区不存在：%s（运行 `jobws-mcp --init` 初始化空工作区，"
+            "或用桌面端初始化，或设置 JOBWS_DATA_DIR 指向已初始化的数据根）" % path)
     return real
 
 

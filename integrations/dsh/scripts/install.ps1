@@ -256,6 +256,26 @@ try {
     Say "备份：$($parts[2])"
   }
 
+  # --- 步骤 4：首次使用初始化工作区（2026-10-19）-----------------------------
+  # 为什么需要：MCP server 在建服务前要求 `<data_root>/personal` 已存在，否则直接
+  # 退出、**工具零注册**；而只装插件的用户没有任何 init 入口。exe 里自带模板，
+  # `--init` 把它铺成空骨架（幂等、不覆盖已有文件）。
+  if (-not $DryRun) {
+    $wsExe = Join-Path $PROFILE_DIR 'node_modules\dsh-job-workbench-win32-x64\bin\jobws-mcp.exe'
+    if (-not (Test-Path $wsExe)) {
+      $wsExe = Join-Path $PROFILE_DIR 'node_modules\dsh-job-workbench\platform\win32-x64\bin\jobws-mcp.exe'
+    }
+    if (Test-Path $wsExe) {
+      Say '步骤 4：初始化工作区（已存在则不改动）'
+      & $wsExe --init
+      if ($LASTEXITCODE -ne 0) {
+        Warn "工作区初始化退出码 $LASTEXITCODE；可手动重跑：`"$wsExe`" --init"
+      }
+    } else {
+      Warn '未找到 jobws-mcp.exe，跳过工作区初始化（重启后若工具为空，运行一次 `jobws-mcp --init`）'
+    }
+  }
+
   # --- 收尾提示 --------------------------------------------------------------
   if ($DryRun) {
     Say 'dry-run 结束：以上是完整计划'

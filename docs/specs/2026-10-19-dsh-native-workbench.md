@@ -140,15 +140,37 @@ Client 半 `ctx.connection.rpc.call(...)` 回显 nonce 并渲染到 DOM），装
 
 按实验纪律，**没有**用 Node 侧结果冒充浏览器往返——因为浏览器侧从未加载成功。
 
+> **重要更正（2026-10-20）**：`integrations/dsh/scripts/install.ps1:46` 的默认 profile 是
+> **`desktop`**（`[string]$Profile = 'desktop'`），README 的安装命令同样指向 desktop。
+> 也就是说**我们的插件实际运行在 desktop profile，而 E1 测的是 web profile——测错了目标**。
+> 因此上面的 FAIL **不能**用来判定方案 (a) 不成立：它只说明"web profile 不向第三方
+> bundle 插件提供 `connection`"。**决定性实验是 desktop profile 的复测。**
+
 **剩余路径（按优先级）**：
 
-1. 在 **desktop profile** 复测——`connection` 很可能由 Electron 主进程提供（web profile 没有）；
-   但客户端是 Electron renderer，DOM 检查需 CDP，且需要 GUI 会话；
+1. **desktop profile 复测（决定性）**——`connection` 很可能由 Electron 主进程提供
+   （web profile 没有）。约束：本机已有 DSH 实例运行时，Electron 单实例锁会阻止第二个
+   实例，需在用户侧执行；步骤见 §5.4；
 2. 向 DSH 宿主提一个**最小的只读能力请求**（官方支持比私接稳）；
-3. 退回"受保护的 host HTTP 路由"（`dsh-mcp-view` 模式）——需自行处理身份 / Origin / 权限 / 脱敏。
+3. 退回"受保护的 host HTTP 路由"（`dsh-mcp-view` 模式）——需自行处理身份 / Origin / 权限 / 脱密。
 
-> 这条实测直接推翻了原设计中"Client → 官方 RPC → Node 插件"作为**默认第一跳**的假设。
-> 在 desktop profile 复测通过之前，数据通道应视为**未定**，不得按 (a) 写实施计划。
+> 在 desktop profile 复测给出结论前，数据通道应视为**未定**，不得按 (a) 写实施计划。
+
+### 5.4 desktop 复测的操作步骤（需用户在自有机器上执行）
+
+因 Electron 单实例锁，第二个隔离实例无法与用户正在运行的 DSH 共存，所以这一步
+**必须由用户执行**。脚本：`.codebuddy/tmp/e1-desktop-retest.ps1`（纯 ASCII，避开编码坑）：
+
+1. 建全新隔离 `DSH_HOME`；
+2. 先启动一次 app 让 desktop profile 初始化，然后按 PID 树退出；
+3. `dsh plugin --profile desktop add jobws-rpc-echo-0.3.0.tgz`；
+4. 再启动一次，等 40 秒；
+5. **Node 半答案自动可取**：读 `<DSH_HOME>\rpc-e1-node.json`——`verdict` 为
+   `PASS(node)` 即说明 desktop profile **能**提供 `connection`；
+6. **Client 往返答案需人眼**：app 窗口**左下角**应出现绿底黑字块，内容含
+   `"nonceMatch": true` 与 `PASS(client)`；没有则记 `FAIL(client)`。
+
+只清理本次创建的进程树，不碰用户真实的 `~/.dsh`。
 
 ---
 

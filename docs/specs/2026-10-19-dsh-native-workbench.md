@@ -204,7 +204,7 @@ GUI 实验**开始前**必须告知用户：会弹出几个窗口、可能出现
 | 7 | 本机安装版本（0.2.1-rc.2）**存在** `ctx.connection.fetch.register` | **已证实**（静态扫描 app.asar，见 §5.7） |
 | 8 | `fetch.register` 的实现**不依赖** `webServer` | **已证实**（静态：只写 `this.fetchRoutes`，无 `owner.webServer`） |
 | 9 | 精确路由优先于共享 `/api` interceptor，二者可共存 | **已证实**（静态：`createSharedFetchHandler` 先查 `fetchRoutes` 再落 `interceptors`） |
-| 10 | 路由随插件停用自动注销（effect 作用域 + disposer） | **已证实**（静态：`return () => this.fetchRoutes.delete(route.path)`） |
+| 10 | 路由具备清理机制（effect 作用域 + disposer） | **已证实存在该机制**（静态：`return () => this.fetchRoutes.delete(route.path)`）；但**第三方消费插件被停用时是否触发自动注销，尚未经运行时验证**——上游测试只直接调用了返回的 `dispose()`，没有证明 Cordis 的调用者作用域一定把第三方插件停用传导到路由撤销 |
 | 11 | 精确路由在真实 desktop 装配里可被浏览器调用 | **未证实（运行时）**——需单次隔离回显实验，**尚未批准** |
 | 12 | desktop 装配为何没给 connection 接 webServer | **未证实**（上游 issue 未检索到定论） |
 
@@ -217,7 +217,14 @@ GUI 实验**开始前**必须告知用户：会弹出几个窗口、可能出现
 | **① 已验证** | Node 半 `ctx.tools.execute()` → 既有 jobws MCP → `jobws_core` | ✅ 实测通过（`dashboard_summary` / `score_calibration` 真实返回） |
 | **② 已失败** | `rpc.handle()`（webServer 硬依赖）；`rpc.intercept('/api')`（与内置 Gateway 的单 interceptor 注册表冲突，**源码层已确认不可并存**） | ❌ 不得使用 |
 | **③ 待验证（首选候选）** | `ctx.connection.fetch.register()` 精确路由（如 `/api/jobws.summary`）→ Node 白名单 → ① | ⬳ 静态通过 / 运行时未验证 |
-| **④ 备选（需单独评审）** | 受保护的本地 HTTP 桥接；Node 自起第二个 MCP 实例 | ⬳ 仅在 ③ 不成立时评估 |
+| **④ 备选（需单独评审）** | 见下方分层说明 | ⬳ |
+
+**④ 必须再分两层，不能混为一谈**（2026-10-20 审计纠正）：
+
+| 子层 | 内容 | 裁决 |
+|---|---|---|
+| ④-a 客户端**传输**方式 | ③ 不成立时，改用独立的、受保护的本地 HTTP 桥接 | 可单独评估；换传输**不等于**换业务执行 |
+| ④-b 业务**执行**方式 | Node 自起第二个 `jobws-mcp.exe` | **不批准**。① 已证明 `ctx.tools.execute()` 能复用宿主已 spawn 的同一实例；只有后续发现它在正式运行模式下无法满足业务要求，才有必要单独评估第二份进程 |
 
 **裁决**：③ 是当前唯一首选候选；**④ 中的"第二个 MCP 实例"暂不批准**——① 已证明 Node 能复用宿主已 spawn 的同一实例，没有证据表明必须承担双实例成本。
 

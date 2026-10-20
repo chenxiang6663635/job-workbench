@@ -136,6 +136,21 @@ Client 半 `ctx.connection.rpc.call(...)` 回显 nonce 并渲染到 DOM），装
 | 第三方有无先例 | **无** | `dshmarket` 的 node 半不 inject 任何服务；`dsh-better-sidebar` 的 peerDeps 里没有 connection |
 | Client 往返能否验证 | **未验证** | 隔离环境无模型凭据，web 服务起不来——宿主进程活着但**零监听端口**（`Get-NetTCPConnection` 无记录） |
 
+### 5.3.1 desktop profile 复测（2026-10-20，用户执行）：两条官方路都断了
+
+在 desktop profile 实测（隔离 `DSH_HOME`，探针 0.3.0 → 0.4.0 → 0.5.0）：
+
+| 步骤 | 结果 |
+|---|---|
+| `ctx.connection` / `ctx.connection.rpc` / `rpc.handle` 可用性 | **全部 true**——desktop profile **确实提供** `connection`（与 web profile 不同） |
+| **路 A `rpc.handle('/com.jobws.echo', …)`** | **FAIL**：`cannot get property "webServer" without inject`。即使插件自己 `inject: ['connection','webServer']` 也无效——源码里 `get rpc()` 的 `owner = this.ctx` 绑的是 **connection 服务自己的 fiber**，`register()` 走 `owner.webServer.register(route)`；宿主的 desktop 装配没给 connection 接上 webServer |
+| **路 B `rpc.intercept('/api', matches, …)`** | 注册**成功**（`PASS(node)`），但约 3 分钟后**宿主崩溃**：`desktop welcome: Web request failed`（`openInitialWindow → settingsAndReference`）。宿主自己的 `@deepseek-ai/dsh-api-gateway` 同样 intercept `/api`——第三方再拦同一通道会破坏宿主欢迎流程。**此为推断**（未做对照实验），但同期 0.4.0（只试 handle、异常被捕获、不碰 `/api`）在同样环境下启动正常，两次唯一差异就是这次拦截 |
+| 客户端调用 | 0.3.0 下得到 `HTTP 405`（路由未注册）；0.5.0 下因宿主崩溃**未能验证** |
+
+**结论：官方 RPC 对第三方插件实质关闭。** `handle` 因宿主接线缺口不可用；`intercept('/api')` 虽能注册，但与宿主自有 gateway 抢同一通道、有把宿主搞崩的风险。**不得**在方案 D 里使用任何一条。
+
+**连带教训（实验纪律）**：本轮由用户执行脚本，实验实例在用户屏幕开出窗口并弹出崩溃对话框——**GUI 类实验必须先告知用户会看到什么、并备好一键清理**。
+
 **结论：E1 记 FAIL（环境/契约限制，不是代码错误），不得宣称 PASS。**
 
 按实验纪律，**没有**用 Node 侧结果冒充浏览器往返——因为浏览器侧从未加载成功。

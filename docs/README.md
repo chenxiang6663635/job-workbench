@@ -10,6 +10,7 @@
 |---|---|
 | [`usage-guide.md`](usage-guide.md) | **使用手册（英文主版）**：环境准备、一键启动、八个页面详解、AI 工作流、CLI 速查、备份、常见问题 |
 | [`usage-guide.zh-CN.md`](usage-guide.zh-CN.md) | 上述手册的**简体中文同步版**（内容与主版一致，互链在各自开头） |
+| [`dsh-user-guide.zh-CN.md`](dsh-user-guide.zh-CN.md) | **DSH 插件使用指南**（中文版，草稿）：安装/初始化/升级、八模块能力边界、自然语言使用流程、数据与安全规则、故障排查。**英文主版待补**；方案 D 界面尚未实现，相关章节已标 📋 |
 | [`../README.md`](../README.md) | 项目主入口：定位、三层架构、快速开始、目录说明 |
 | [`README.en-US.md`](README.en-US.md) | 本索引的**英文对照版**（结构同构、链接目标相同） |
 | [`data-flow-matrix.md`](data-flow-matrix.md) | **数据流矩阵**：什么数据、什么时候、去哪里——隐私承诺的权威底稿（界面文案与它冲突时以它为准） |
@@ -18,6 +19,7 @@
 
 | 文档 | 状态 | 说明 |
 |---|---|---|
+| [`specs/2026-10-19-dsh-native-workbench.md`](specs/2026-10-19-dsh-native-workbench.md) | 待确认（设计期，**不进 G1 候选**） | DSH 原生求职工作台（方案 D）：八模块导航、五态能力徽标、数据通道（复用宿主已 spawn 的同一 MCP 实例）与五个前置条件；含 2026-10-19 隔离实测事实（工具名带哈希、~2.1s 启动空窗、调用无鉴权） |
 | [`specs/2026-10-04-single-canonical-data-root.md`](specs/2026-10-04-single-canonical-data-root.md) | **现行** | 单一 canonical 数据根与历史工作区迁移：四端解析收敛为唯一解析器、三态守卫（歧义/失效/未初始化）、持久化数据根选择、迁移事务（copy→verify→switch，**在途**可续跑可回滚；生效后拒绝指针式回滚，见决策 5 的 2026-10-16 修订注）与跨端契约矩阵 |
 | [`specs/2026-08-30-general-workbench-design.md`](specs/2026-08-30-general-workbench-design.md) | **现行** | v2.0 通用工作台架构：三层分离、领域插件契约、脚本参数化、迁移映射。**注意**：文中「tools/ 下共 6 个脚本」等清单是 2026-08 的当时记录——脚本已归并为 `tools/jobws.py` 唯一入口，现状见 `contributing.zh-CN.md` |
 | [`specs/2026-08-30-web-prototype-design.md`](specs/2026-08-30-web-prototype-design.md) | 历史（部分章节已被取代） | Web 界面层：架构、API 契约、数据契约、并发与安全、验证记录。**注意**：依赖版本与 Python 基线等章节是 2026-08 的当时记录（3.8 时代），现状以 `contributing.zh-CN.md` 与 `web/backend/requirements.txt` 为准 |

@@ -64,6 +64,26 @@ def main():
     if not files:
         _fail("prebuilds.json 没有 files 清单")
 
+    # 元数据一致性（2026-10-21 审计）：G4 改版本后若忘记重建运行时，哈希仍一致、
+    # 旧二进制会静默通过——三方版本必须同时对上，status / schemaVersion 受控。
+    if manifest.get("schemaVersion") != 1:
+        _fail("prebuilds.json.schemaVersion=%r（期望 1）" % manifest.get("schemaVersion"))
+    if manifest.get("status") != "built":
+        _fail("prebuilds.json.status=%r（期望 'built'）" % manifest.get("status"))
+
+    def _pkg_version(path, label):
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f).get("version")
+        except (OSError, ValueError) as exc:
+            _fail("读不到%s版本：%s（%s）" % (label, path, exc))
+
+    platform_version = _pkg_version(os.path.join(OUT_DIR, "package.json"), "平台子包")
+    main_version = _pkg_version(os.path.join(os.path.dirname(OUT_DIR), "..", "package.json"), "DSH 主包")
+    if not (manifest.get("version") == platform_version == main_version):
+        _fail("三方版本不一致：manifest=%r 平台子包=%r 主包=%r——改版本后必须重建 MCP 运行时"
+              % (manifest.get("version"), platform_version, main_version))
+
     missing = []
     mismatched = []
     for rel, expected in files.items():

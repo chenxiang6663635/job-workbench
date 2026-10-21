@@ -72,6 +72,30 @@ function main() {
   const keys = Object.keys(files);
   if (keys.length === 0) fail("prebuilds.json 没有 files 清单");
 
+  // 元数据一致性（2026-10-21 审计）：G4 改两个包版本后若忘记重建运行时，文件哈希仍一致，
+  // 旧 manifest/旧二进制会静默通过——版本三方必须同时对上，且 status/schemaVersion 受控。
+  if (manifest.schemaVersion !== 1) {
+    fail(`prebuilds.json.schemaVersion=${manifest.schemaVersion}（期望 1）`);
+  }
+  if (manifest.status !== "built") {
+    fail(`prebuilds.json.status=${JSON.stringify(manifest.status)}（期望 "built"）`);
+  }
+  const readVersion = (p, label) => {
+    try {
+      return JSON.parse(fs.readFileSync(p, "utf8")).version;
+    } catch (err) {
+      fail(`读不到${label}版本：${p}（${err.message}）`);
+    }
+  };
+  const platformVersion = readVersion(path.join(root, "package.json"), "平台子包");
+  const mainVersion = readVersion(path.join(root, "..", "..", "package.json"), "DSH 主包");
+  if (!(manifest.version === platformVersion && platformVersion === mainVersion)) {
+    fail(
+      `三方版本不一致：manifest=${manifest.version} 平台子包=${platformVersion} 主包=${mainVersion}` +
+        "——改版本后必须重建 MCP 运行时并重新生成清单"
+    );
+  }
+
   const missing = [];
   const mismatched = [];
   for (const rel of keys) {

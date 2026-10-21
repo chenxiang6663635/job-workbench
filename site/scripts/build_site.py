@@ -19,6 +19,7 @@
 """
 
 import argparse
+import datetime
 import json
 import posixpath
 import re
@@ -71,16 +72,24 @@ def parse_published_release(text):
     asset = str(doc.get("asset") or "")
     sha = str(doc.get("sha256") or "").lower()
     date = str(doc.get("release_date") or "")
-    if not re.fullmatch(r"\d{2}\.\d{1,2}\.\d+", version):
-        raise ValueError("published-release.version 不是合法 CalVer：%r" % version)
+    vm = re.fullmatch(r"(\d{2})\.(\d{1,2})\.(\d+)", version)
+    if not vm or not 1 <= int(vm.group(2)) <= 12:
+        raise ValueError("published-release.version 不是合法 CalVer（月份 1-12）：%r" % version)
     if tag != "v" + version:
         raise ValueError("published-release.tag 与版本不一致：%r != v%s" % (tag, version))
     if asset != "job-workbench-setup-%s-win64.exe" % version:
         raise ValueError("published-release.asset 与版本不一致：%r" % asset)
     if not re.fullmatch(r"[0-9a-f]{64}", sha):
         raise ValueError("published-release.sha256 需要 64 位十六进制：%r" % sha)
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+    # 注意：这里**只校验格式**。sha256 是否等于正式 Release 资产，必须在激活前
+    # 独立核对（站点构建不联网，不能把格式合法当成资产一致）。
+    dm = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", date)
+    if not dm:
         raise ValueError("published-release.release_date 需要 YYYY-MM-DD：%r" % date)
+    try:
+        datetime.date(int(dm.group(1)), int(dm.group(2)), int(dm.group(3)))
+    except ValueError:
+        raise ValueError("published-release.release_date 不是真实存在的日期：%r" % date)
     return version, date
 
 
@@ -150,11 +159,16 @@ def _write_text(path, text):
     path.write_text(text, encoding="utf-8")
 
 
-def assemble(repo_root, out_dir):
+def assemble(repo_root, out_dir, *, require_published=True):
     """组装产物；out_dir 清空重建（产物 = 本次白名单内容的纯净函数）。
 
     拒绝把 out_dir 指到仓库根或仓库根之上——本函数会删除 out_dir，
     那个方向指错了没有任何恢复手段。
+
+    `require_published=True`（默认，生产）：缺少 `site/published-release.json` 直接失败。
+    官网展示的是「用户可下载的已发布版本」，绝不能回退到 main 上正在开发的产品版本——
+    否则 G4 落章后、G5 发布前（或该文件被误删时）官网会出现指向不存在 release 的下载链接。
+    `require_published=False` 只给旧夹具/显式兼容模式用。
     """
     repo_root = Path(repo_root)
     out_dir = Path(out_dir)
@@ -162,11 +176,16 @@ def assemble(repo_root, out_dir):
     if out_res == repo_res or out_res in repo_res.parents:
         raise ValueError("拒绝把输出目录指到仓库根或仓库根之上：%s" % out_dir)
 
-    # 官网展示「已发布版本」：优先《site/published-release.json》，缺失才回落源码版本。
-    # 回落是为了兼容旧仓库/测试夹具；有该文件时**绝不**用开发中的产品版本覆盖它。
+    # 官网展示「已发布版本」：必须来自 `site/published-release.json`。
+    # 生产默认要求该文件存在——缺失即失败，**不回退**到源码产品版本（否则 G4 落章后、
+    # G5 发布前官网会指向不存在的 release）。显式兼容模式才允许回落。
     published = repo_root / PUBLISHED_RELEASE
     if published.is_file():
         version, release_date = parse_published_release(_read_text(published))
+    elif require_published:
+        raise FileNotFoundError(
+            "缺少 %s：官网必须使用「已发布版本」元数据，不允许回退到源码产品版本"
+            "（确需旧夹具兼容请显式传 require_published=False）" % PUBLISHED_RELEASE)
     else:
         version = parse_version(
             _read_text(repo_root / "web" / "electron" / "package.json"))
@@ -213,12 +232,15 @@ def main(argv=None):
                         help="仓库根（默认：本脚本所在仓库）")
     parser.add_argument("--out", default=None,
                         help="输出目录（默认：<repo>/site/.build/docs）")
+    parser.add_argument("--allow-missing-published", action="store_true",
+                        help="兼容模式：缺少 site/published-release.json 时回退源码版本"
+                             "（**只给旧夹具/临时验证用**；生产发布不得启用）")
     args = parser.parse_args(argv)
     repo_root = (Path(args.repo_root) if args.repo_root
                  else Path(__file__).resolve().parents[2])
     out_dir = (Path(args.out) if args.out
                else repo_root / "site" / ".build" / "docs")
-    assemble(repo_root, out_dir)
+    assemble(repo_root, out_dir, require_published=not args.allow_missing_published)
     return 0
 
 

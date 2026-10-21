@@ -58,6 +58,11 @@ def repo(tmp_path):
     (content / "index.en.tmpl.md").write_text("# Site\n", encoding="utf-8")
     (content / "sub" / "page.tmpl.md").write_text("# 子页\n", encoding="utf-8")
     (content / "notes.md").write_text("不是模板，不进产物", encoding="utf-8")
+    # 生产语义要求 site/published-release.json 必须存在（assemble 默认 fail-closed）
+    (root / "site" / "published-release.json").write_text(json.dumps({
+        "version": "26.9.0", "tag": "v26.9.0", "release_date": "2026-09-25",
+        "asset": "job-workbench-setup-26.9.0-win64.exe", "sha256": "c" * 64,
+    }), encoding="utf-8")
     return root
 
 
@@ -89,10 +94,12 @@ def test_parse_published_release_ok():
 
 @pytest.mark.parametrize("overrides", [
     {"version": "26.10"},                                    # 非 CalVer
+    {"version": "26.13.0"},                                   # 月份越界
     {"tag": "v26.9.0"},                                       # tag 不一致
     {"asset": "setup.exe"},                                   # 文件名不一致
     {"sha256": "deadbeef"},                                   # 哈希格式
     {"release_date": "2026/10/06"},                           # 日期格式
+    {"release_date": "2026-02-30"},                           # 不存在的日期
 ])
 def test_parse_published_release_rejects_invalid(overrides):
     with pytest.raises(ValueError):
@@ -101,34 +108,31 @@ def test_parse_published_release_rejects_invalid(overrides):
 
 def test_assemble_prefers_published_release_over_source_version(repo, tmp_path):
     """有 published-release.json 时，官网展示「已发布版本」，不被源码产品版本覆盖。"""
-    site_dir = repo / "site"
-    site_dir.mkdir(exist_ok=True)
-    (site_dir / "published-release.json").write_text(
+    (repo / "site" / "published-release.json").write_text(
         json.dumps(_published_doc(version="26.10.1", tag="v26.10.1",
                                   release_date="2026-10-21",
                                   asset="job-workbench-setup-26.10.1-win64.exe")),
         encoding="utf-8")
-    content = site_dir / "content"
-    content.mkdir(parents=True, exist_ok=True)
-    (content / "download.tmpl.md").write_text(
-        "版本 {{VERSION}}（{{RELEASE_DATE}}）\n", encoding="utf-8")
     out = tmp_path / "out"
     build_site.assemble(repo, out)
-    text = (out / "download.md").read_text(encoding="utf-8")
+    text = (out / "index.md").read_text(encoding="utf-8")
     assert "26.10.1" in text and "2026-10-21" in text
     assert "26.9.0" not in text  # 源码版本不得覆盖已发布版本
 
 
-def test_assemble_falls_back_when_published_release_absent(repo, tmp_path):
-    """旧仓库/夹具没有该文件时回落到源码版本（向后兼容）。"""
-    content = repo / "site"
-    content.mkdir(exist_ok=True)
-    (content / "content").mkdir(exist_ok=True)
-    (content / "content" / "download.tmpl.md").write_text(
-        "版本 {{VERSION}}（{{RELEASE_DATE}}）\n", encoding="utf-8")
+def test_assemble_requires_published_release_by_default(repo, tmp_path):
+    """生产默认：缺 published-release.json 直接失败，绝不回退到源码产品版本。"""
+    (repo / "site" / "published-release.json").unlink()
+    with pytest.raises(FileNotFoundError):
+        build_site.assemble(repo, tmp_path / "out")
+
+
+def test_assemble_allows_fallback_only_in_explicit_mode(repo, tmp_path):
+    """显式兼容模式（require_published=False）才允许回落——只给旧夹具/临时验证。"""
+    (repo / "site" / "published-release.json").unlink()
     out = tmp_path / "out"
-    build_site.assemble(repo, out)
-    text = (out / "download.md").read_text(encoding="utf-8")
+    build_site.assemble(repo, out, require_published=False)
+    text = (out / "index.md").read_text(encoding="utf-8")
     assert "26.9.0" in text and "2026-09-25" in text
 
 

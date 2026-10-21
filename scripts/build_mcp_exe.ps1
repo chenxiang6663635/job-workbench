@@ -88,7 +88,7 @@ Write-Host "certifi = $certifiVer（>= ${CertifiMin}，安全下界通过）" -F
 # 的 direct_url.json.dir_info.editable）。
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-& $Py -c "import sys, json, pathlib, importlib.metadata as m; p = pathlib.Path(m.distribution('jobws-core').locate_file('')); f = p / 'direct_url.json'; bad = f.exists() and json.loads(f.read_text(encoding='utf-8')).get('dir_info', {}).get('editable') is True; sys.exit(1 if bad else 0)" 2>$null
+& $Py -c "import sys, json, importlib.metadata as m; d = m.distribution('jobws-core'); t = (d.read_text('direct_url.json') if any(f.name == 'direct_url.json' for f in (d.files or [])) else None); sys.exit(1 if (t and json.loads(t).get('dir_info', {}).get('editable') is True) else 0)" 2>$null
 $pkgCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ($pkgCode -ne 0) {

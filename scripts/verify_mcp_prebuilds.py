@@ -77,6 +77,20 @@ def main():
         _fail("清单与实际产物不符：缺失 %d 个 %s；哈希不符 %d 个 %s"
               % (len(missing), missing[:5], len(mismatched), mismatched[:5]))
 
+    # 反向集合（2026-10-21 审计）：bin/ 下每个实际文件都必须登记。
+    # 215/215 只证明登记的都对，不证明目录里恰好只有这 215 个——多一个未登记载荷即拒。
+    bin_dir = os.path.join(OUT_DIR, "bin")
+    if os.path.isdir(bin_dir):
+        actual = []
+        for dirpath, _dirnames, filenames in os.walk(bin_dir):
+            for fn in filenames:
+                full = os.path.join(dirpath, fn)
+                actual.append(os.path.relpath(full, OUT_DIR).replace("\\", "/"))
+        unregistered = sorted(r for r in actual if r not in files)
+        if unregistered:
+            _fail("bin/ 中有 %d 个未登记文件（旧构建残留或未审核载荷）：%s"
+                  % (len(unregistered), unregistered[:5]))
+
     pem = os.path.join(OUT_DIR, PEM_REL)
     if not os.path.isfile(pem):
         _fail("随包 CA 清单缺失：%s" % PEM_REL)

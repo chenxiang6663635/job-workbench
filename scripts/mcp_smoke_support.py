@@ -18,6 +18,7 @@ import json
 import os
 import queue
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -96,3 +97,43 @@ def run_once(args, env, timeout=TIMEOUT):
     return subprocess.run([EXE] + args, env=env, cwd=ROOT,
                           stdin=subprocess.DEVNULL,
                           capture_output=True, timeout=timeout)
+
+
+def peek_stderr(proc, timeout=2.0, limit=4096):
+    """**非阻塞**取一段 stderr（失败路径专用）。
+
+    2026-10-21 审计：初始化失败时直接 `stderr.read(4096)` 会在进程仍存活且缓冲未满时
+    永久阻塞——把「有界失败」又变回「无限等待」。这里用后台线程 + join 超时兜底。
+    """
+    box = {}
+
+    def _read():
+        try:
+            box["data"] = proc.stderr.read(limit)
+        except Exception:  # noqa: BLE001 —— 读流失败不该盖住原始错误
+            box["data"] = b""
+
+    t = threading.Thread(target=_read, daemon=True)
+    t.start()
+    t.join(timeout)
+    return (box.get("data") or b"").decode("utf-8", "replace")
+
+
+def check_pipe_timeout():
+    """自检：StdioPipe 在子进程无响应时必须在限期内返回 None（P1 修正的回归测试）。"""
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"],
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    try:
+        pipe = StdioPipe(proc)
+        start = time.time()
+        got = pipe.read_message(1, time.time() + 1.5)
+        elapsed = time.time() - start
+        if got is not None:
+            raise RuntimeError("无响应子进程不应返回消息")
+        if elapsed > 5:
+            raise RuntimeError("read_message 超时失效：%.1fs" % elapsed)
+        return elapsed
+    finally:
+        if proc.poll() is None:
+            proc.kill()

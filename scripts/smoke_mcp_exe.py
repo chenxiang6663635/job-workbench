@@ -22,7 +22,9 @@ from mcp_smoke_support import (
     ROOT,
     TIMEOUT,
     StdioPipe,
+    check_pipe_timeout,
     isolated_env,
+    peek_stderr,
     run_once,
     smoke_base_dir,
 )
@@ -172,7 +174,7 @@ def check_stdio_surface(pipe, deadline, base):
     reply = pipe.read_message(1, deadline)
     if reply is None or "result" not in reply:
         _fail("initialize 没有结果（stderr 见下）\n%s"
-              % pipe.proc.stderr.read(4096).decode("utf-8", "replace"))
+              % peek_stderr(pipe.proc))
     print("initialize OK：%s" % json.dumps(reply["result"].get("serverInfo", {}), ensure_ascii=False))
 
     pipe.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
@@ -245,6 +247,8 @@ def main():
         pipe = StdioPipe(proc)
         deadline = time.time() + TIMEOUT
         check_stdio_surface(pipe, deadline, base)
+        elapsed = check_pipe_timeout()  # P1：无响应通道必须限期返回
+        print("超时通道 OK：无响应进程 %.1fs 内返回 None" % elapsed)
         check_negative_cases(base, env)  # 一次性子进程，不干扰主服务
 
         proc.stdin.close()

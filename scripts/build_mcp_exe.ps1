@@ -23,6 +23,14 @@ $root = Split-Path -Parent $PSScriptRoot
 $mcpDir = Join-Path $root "mcp"
 $outDir = Join-Path $root "integrations\dsh\platform\win32-x64"
 $binDir = Join-Path $outDir "bin"
+$manifestPath = Join-Path $outDir "prebuilds.json"
+$staleManifestPath = Join-Path $outDir "prebuilds.json.stale"
+
+# 失败产物失效保护（2026-10-21 审计 P0）：**在任何可能失败的步骤之前**先让旧清单失效。
+# 任何一步失败（环境不合格/CERTIFI 不达标/打包失败/CA 门禁拒绝），prebuilds.json 都不存在，
+# 于是 `npm pack` 会缺清单、`scripts\verify_mcp_prebuilds.py` 会拒绝——不可能把旧 bin/
+# 连同旧清单当新制品发出去。旧清单改名保留（不销毁历史证据），成功后由生成器重建。
+if (Test-Path $manifestPath) { Move-Item $manifestPath $staleManifestPath -Force }
 
 if (-not $Py) { $Py = $env:JOBWS_MCP_BUILD_PY }
 $convention = "D:\tools\venvs\jobws-mcp-build\Scripts\python.exe"
@@ -153,8 +161,16 @@ Copy-Item (Join-Path $distDir "*") $binDir -Recurse
 & $Py (Join-Path $root "scripts\mcp_prebuilds.py") $outDir $mainVersion
 if ($LASTEXITCODE -ne 0) { Write-Host "prebuilds.json 生成失败" -ForegroundColor Red; exit 1 }
 
+# 3.5 清掉失效标记：走到这里说明清单已由成功构建重建（失败路径会留下 .stale 供排查）
+if (Test-Path $staleManifestPath) { Remove-Item $staleManifestPath -Force }
+
+# 3.6 全链路校验（npm pack 前置门禁；与 .stale 检查同一条判据，作为成功路径的最终闸）
+& $Py (Join-Path $root "scripts\verify_mcp_prebuilds.py")
+if ($LASTEXITCODE -ne 0) { Write-Host "预构建清单/CA 校验失败——不得打包" -ForegroundColor Red; exit 1 }
+
 # 4. 报告
 $total = Get-ChildItem $binDir -Recurse -File | Measure-Object -Property Length -Sum
 Write-Host "=== 构建完成 ===" -ForegroundColor Green
 Write-Host ("产物: {0}（{1} 个文件，{2:N1} MB）" -f $binDir, $total.Count, ($total.Sum / 1MB))
 Write-Host "冒烟: python scripts\smoke_mcp_exe.py"
+Write-Host "打包前校验: python scripts\verify_mcp_prebuilds.py"

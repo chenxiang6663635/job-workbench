@@ -226,11 +226,12 @@ PYSEC-2026-4320 / GHSA-6q48-6c7w-9gw2：certifi 捆绑的 emSign 根 CA 所用**
 
 **本例外只修复桌面后端依赖路径。** 以下三项独立于本例外，未随 #369 完成：
 
-1. **DSH MCP 分发链仍带受影响 CA 清单**：`integrations/dsh/platform/win32-x64/prebuilds.json`
+1. **DSH MCP 分发链的 manifest 仍声明旧 CA 清单**：`integrations/dsh/platform/win32-x64/prebuilds.json`
    登记的 `bin/_internal/certifi/cacert.pem` 哈希 `9cc2a774…` 与 certifi 2026.7.22（受影响版）
-   **逐位一致**——即当前 DSH 独立分发的 MCP EXE 携含 G3 的旧清单。该分发路径的修复
-   （重建 MCP EXE + 更新 prebuilds + npm pack 内容核验 + 17 工具冒烟）须作为**独立的安全
-   变更**另行申请 G1 例外，**不在本例外范围**，亦不得在纯文档 PR 中夹带二进制改动。
+   **逐位一致**。**证据边界**：已独立核实的是**受控预构建 manifest**；实际 MCP EXE 与 npm
+   tarball 仍需逐文件回读（`bin/` 未纳入 Git 源码树）。该分发路径的修复（重建 MCP EXE +
+   更新 prebuilds + npm pack 内容核验 + 17 工具冒烟）须作为**独立的安全变更**另行申请
+   G1 例外，**不在本例外范围**，亦不得在纯文档 PR 中夹带二进制改动。
 2. **已发布 `v26.10.0` 的旧版安全风险**：独立 Hotfix 裁决（旧版安装包实际 CA 清单 + TLS
    回退路径可达性 + 系统信任库层），不与发行动作捆绑。
 3. **系统信任库**：更新随包 certifi ≠ 清除操作系统层对受影响链的信任——按部署环境评估
@@ -238,13 +239,22 @@ PYSEC-2026-4320 / GHSA-6q48-6c7w-9gw2：certifi 捆绑的 emSign 根 CA 所用**
 
 ### 9.7 候选 SHA 规则（本条生效后）
 
-- **当前发行候选 = `fc2ad96`**（= `6b52a88` + #369 两依赖文件修复）。
-- `git log --oneline 6b52a88..fc2ad96` 应只列出 #369 一个（squash 单提交）。
+- **当前发行候选 = `fc2ad96`**（= `aee9c263` + #369 两依赖文件修复；`aee9c263` 是 #369 合并前的实际主线）。
+- **单次安全例外的差异判据**（勿用候选链区间——那会混入其间的治理提交）：
+  `git show --format= --name-only fc2ad96` 与 `git diff --name-only aee9c263..fc2ad96`
+  都应**只有两行**：`web/backend/requirements.lock` 与 `web/backend/requirements.txt`。
+- **候选演变 ≠ 单次补丁审查**：`6b52a88..fc2ad96` 实为 **9 个提交 / 7 个文件**
+  （#360–#367 八个治理文档提交 + #369）——那是候选链的历史跨度，**不是**本例外批准的改动面。
 - 后续若再加阻断修复：按 §8.5 同款纪律——先更新本节（或新增 §十），再重跑 §二，
   **不得默默替换候选**。
 
 
 
+
+## 历史附录：G1 批准当日的复现命令（2026-10-19，`cd464e0` 时点）
+
+> **勿对当前候选执行**——`cd464e0` 是 G1 批准当日的旧候选；当前候选为 `fc2ad96`（见 §九）。
+> 保留原文是为可复现当时的验证读数，不是现行操作步骤。
 
 ```powershell
 git checkout cd464e0

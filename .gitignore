@@ -5,16 +5,6 @@ __pycache__/
 .venv/
 venv/
 
-# pip 的 PEP 517 构建临时目录：建在 **cwd** 而非 %TEMP%——在仓库根跑
-# `pip install <本地包>`（如 packages/jobws-core）失败/中断时就遗留在仓库根。
-# 2026-10-20 实测：一次 editable 失败 + 后续几次调用共留下 15 个**空**目录
-# （pip-build-tracker-* / pip-ephem-wheel-cache-* / pip-install-*）。
-# 空目录 git 不跟踪、status 不显示，属隐形污染——目录层清理 + 规则层双管。
-/pip-build-tracker-*/
-/pip-ephem-wheel-cache-*/
-/pip-install-*/
-/pip-modern-metadata-*/
-
 # 临时与编辑器文件
 *.tmp
 *.bak

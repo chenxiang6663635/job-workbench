@@ -4,6 +4,7 @@
 用 tmp_path 假仓库直测纯函数与 assemble——docs/ 会持续变化，把断言钉在真实
 文件上会让测试随内容漂移（与 test_release_notes_structure.py 同款取舍）。
 """
+import json
 import os
 import sys
 
@@ -67,6 +68,68 @@ def _tree(root):
 
 def test_parse_version():
     assert build_site.parse_version('{"version": "26.9.0"}') == "26.9.0"
+
+
+def _published_doc(**overrides):
+    doc = {
+        "version": "26.10.0",
+        "tag": "v26.10.0",
+        "release_date": "2026-10-06",
+        "asset": "job-workbench-setup-26.10.0-win64.exe",
+        "sha256": "a" * 64,
+    }
+    doc.update(overrides)
+    return doc
+
+
+def test_parse_published_release_ok():
+    assert build_site.parse_published_release(
+        json.dumps(_published_doc())) == ("26.10.0", "2026-10-06")
+
+
+@pytest.mark.parametrize("overrides", [
+    {"version": "26.10"},                                    # 非 CalVer
+    {"tag": "v26.9.0"},                                       # tag 不一致
+    {"asset": "setup.exe"},                                   # 文件名不一致
+    {"sha256": "deadbeef"},                                   # 哈希格式
+    {"release_date": "2026/10/06"},                           # 日期格式
+])
+def test_parse_published_release_rejects_invalid(overrides):
+    with pytest.raises(ValueError):
+        build_site.parse_published_release(json.dumps(_published_doc(**overrides)))
+
+
+def test_assemble_prefers_published_release_over_source_version(repo, tmp_path):
+    """有 published-release.json 时，官网展示「已发布版本」，不被源码产品版本覆盖。"""
+    site_dir = repo / "site"
+    site_dir.mkdir(exist_ok=True)
+    (site_dir / "published-release.json").write_text(
+        json.dumps(_published_doc(version="26.10.1", tag="v26.10.1",
+                                  release_date="2026-10-21",
+                                  asset="job-workbench-setup-26.10.1-win64.exe")),
+        encoding="utf-8")
+    content = site_dir / "content"
+    content.mkdir(parents=True, exist_ok=True)
+    (content / "download.tmpl.md").write_text(
+        "版本 {{VERSION}}（{{RELEASE_DATE}}）\n", encoding="utf-8")
+    out = tmp_path / "out"
+    build_site.assemble(repo, out)
+    text = (out / "download.md").read_text(encoding="utf-8")
+    assert "26.10.1" in text and "2026-10-21" in text
+    assert "26.9.0" not in text  # 源码版本不得覆盖已发布版本
+
+
+def test_assemble_falls_back_when_published_release_absent(repo, tmp_path):
+    """旧仓库/夹具没有该文件时回落到源码版本（向后兼容）。"""
+    content = repo / "site"
+    content.mkdir(exist_ok=True)
+    (content / "content").mkdir(exist_ok=True)
+    (content / "content" / "download.tmpl.md").write_text(
+        "版本 {{VERSION}}（{{RELEASE_DATE}}）\n", encoding="utf-8")
+    out = tmp_path / "out"
+    build_site.assemble(repo, out)
+    text = (out / "download.md").read_text(encoding="utf-8")
+    assert "26.9.0" in text and "2026-09-25" in text
 
 
 def test_parse_release_date_first_dated_section():

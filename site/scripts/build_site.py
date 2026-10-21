@@ -46,8 +46,42 @@ _URL_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
 def parse_version(package_json_text):
-    """web/electron/package.json 的 version——版本号的唯一来源。"""
+    """web/electron/package.json 的 version——**源码产品版本**的唯一来源。
+
+    注意：它不等于「官网展示的已发布版本」。两者在 G4 落章到 G5 发布之间、
+    以及从旧 tag 制作 Hotfix 时会不同；官网以 `site/published-release.json` 为准
+    （见 `parse_published_release`）。
+    """
     return json.loads(package_json_text.lstrip("\ufeff"))["version"]
+
+
+PUBLISHED_RELEASE = "site/published-release.json"
+
+
+def parse_published_release(text):
+    """`site/published-release.json` 的 (version, release_date)，带 fail-closed 校验。
+
+    这份元数据描述**用户实际能下载的正式发布版本**，与源码产品版本分离：
+    官网下载按钮必须指向真实存在、哈希可核对的安装包，而不是 main 上正在开发的版本。
+    任一判据不满足就抛错（宁可站点构建失败，也不能把未发布版本展示成最新版）。
+    """
+    doc = json.loads(text.lstrip("\ufeff"))
+    version = str(doc.get("version") or "")
+    tag = str(doc.get("tag") or "")
+    asset = str(doc.get("asset") or "")
+    sha = str(doc.get("sha256") or "").lower()
+    date = str(doc.get("release_date") or "")
+    if not re.fullmatch(r"\d{2}\.\d{1,2}\.\d+", version):
+        raise ValueError("published-release.version 不是合法 CalVer：%r" % version)
+    if tag != "v" + version:
+        raise ValueError("published-release.tag 与版本不一致：%r != v%s" % (tag, version))
+    if asset != "job-workbench-setup-%s-win64.exe" % version:
+        raise ValueError("published-release.asset 与版本不一致：%r" % asset)
+    if not re.fullmatch(r"[0-9a-f]{64}", sha):
+        raise ValueError("published-release.sha256 需要 64 位十六进制：%r" % sha)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        raise ValueError("published-release.release_date 需要 YYYY-MM-DD：%r" % date)
+    return version, date
 
 
 def parse_release_date(changelog_text):
@@ -128,9 +162,15 @@ def assemble(repo_root, out_dir):
     if out_res == repo_res or out_res in repo_res.parents:
         raise ValueError("拒绝把输出目录指到仓库根或仓库根之上：%s" % out_dir)
 
-    version = parse_version(
-        _read_text(repo_root / "web" / "electron" / "package.json"))
-    release_date = parse_release_date(_read_text(repo_root / "CHANGELOG.md"))
+    # 官网展示「已发布版本」：优先《site/published-release.json》，缺失才回落源码版本。
+    # 回落是为了兼容旧仓库/测试夹具；有该文件时**绝不**用开发中的产品版本覆盖它。
+    published = repo_root / PUBLISHED_RELEASE
+    if published.is_file():
+        version, release_date = parse_published_release(_read_text(published))
+    else:
+        version = parse_version(
+            _read_text(repo_root / "web" / "electron" / "package.json"))
+        release_date = parse_release_date(_read_text(repo_root / "CHANGELOG.md"))
 
     if out_dir.exists():
         shutil.rmtree(out_dir)

@@ -59,5 +59,8 @@
     "locale/*.json",
     "icon.svg",
     "README.md"
-  ]
+  ],
+  "scripts": {
+    "prepack": "node ../../scripts/verify_mcp_prebuilds.js ./platform/win32-x64"
+  }
 }

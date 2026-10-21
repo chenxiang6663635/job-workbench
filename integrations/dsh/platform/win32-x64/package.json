@@ -17,5 +17,8 @@
   "files": [
     "bin",
     "prebuilds.json"
-  ]
+  ],
+  "scripts": {
+    "prepack": "node ../../../../scripts/verify_mcp_prebuilds.js ."
+  }
 }

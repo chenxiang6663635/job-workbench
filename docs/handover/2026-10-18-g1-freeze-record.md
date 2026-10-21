@@ -263,3 +263,60 @@ D:\tools\venvs\jobws-mcp\Scripts\python.exe -m pytest mcp/tests -q   # 101 passe
 python tools/jobws.py lint i18n,size,four-ends,legacy-imports,ui-tokens,themes,domains
 D:\tools\venvs\jobws-mcp\Scripts\python.exe scripts\smoke_mcp_exe.py # 17 工具 + SMOKE OK
 ```
+
+## 十、冻结例外 #3：DSH 插件 MCP 运行时证书安全修复（2026-10-21 批准并合并）
+
+### 10.1 为什么算阻断（G3 P0，不是 G4 普通核验）
+
+DSH 插件（产品对 DSH 的交付单位）的 **MCP 运行时组件**用**独立构建 venv**，不受桌面
+`requirements.lock` 约束。实测该 venv `certifi 2026.7.22`（PYSEC-2026-4320 受影响版），
+`integrations/dsh/platform/win32-x64/prebuilds.json` 登记的 `bin/_internal/certifi/cacert.pem`
+= `9cc2a774…` 与之**逐位一致**。旧构建脚本的 pip 安装行无版本下界 → 镜像滞后或旧 venv 复用
+会静默打出受影响 CA。不能带已知受影响清单进入新的正式分发。
+
+### 10.2 实际改动（8 文件：3 新增 + 5 修改，零业务代码）
+
+| 文件 | 类型 | 改动 |
+|---|---|---|
+| `scripts/build_mcp_exe.ps1` | 修改 | certifi 下界 fail-fast、产物 PEM 硬门禁（无 G3 + SHA=基线）、失败产物失效保护（`.stale`）、PEP 610 editable 检测、UTF-8 BOM |
+| `scripts/smoke_mcp_exe.py` | 修改 | 双隔离、realpath 精确断言、exit 2 精确断言、真默认启动自动初始化、超时自检 |
+| `integrations/dsh/platform/win32-x64/prebuilds.json` | 修改 | 重建：`cacert` `9cc2a774…` → `50f79f98…`，215 文件 |
+| `integrations/dsh/package.json` | 修改 | 加 `scripts.prepack`（校验内嵌副本） |
+| `integrations/dsh/platform/win32-x64/package.json` | 修改 | 加 `scripts.prepack`（校验本包） |
+| `scripts/mcp_smoke_support.py` | 新增 | StdioPipe 真实超时 + 隔离环境 + peek_stderr 非阻塞 + check_pipe_timeout |
+| `scripts/verify_mcp_prebuilds.py` | 新增 | pack 前置闸（Python 版） |
+| `scripts/verify_mcp_prebuilds.js` | 新增 | **prepack 门禁（Node 版）**——`npm pack` / `publish` 自动执行 |
+
+### 10.3 合并身份与门禁
+
+- PR **#370**，Head `e6ca5ba3512b2663c24b3b2f1639af1a182363ee` → Squash 合并；
+- 合并后 **main = `7c248405a731c656f3d44523542670fb0a6fa7e8`**；
+- main CI `39598705022` **success（4m52s，含全量 E2E）**；CodeQL `39598705137` success（2m5s）。
+
+### 10.4 验证证据（本地 + 打包命令级）
+
+- 构建环境：certifi 2026.10.19 / pip **26.2.2** / PyInstaller 6.22.3 / mcp 2.3.0 / Python 3.12.8；
+- 产物 PEM `50F79F98…`、G3 零残留；prebuilds **215 文件全量核验 0 不符 0 缺失**；
+- **门禁接入 npm 生命周期**：两包 `prepack` 自动执行；四种负向（`.stale` / 未登记文件 /
+  缺 PEM / 篡改 DLL）+ **只改版本不重建**均使 `npm pack` 失败（`npm error code 1`）；
+- 冒烟：17 工具 / 3 资源 / 2 模板 / 两工具行为 + 隔离精确断言 + 缺根 exit2 + 真自动初始化 + 越界 exit2 + 超时自检；
+- npm 双包解包：各 **215 文件 0 不符 0 缺失**、PEM `50f79f98…`、G3 为 0；
+- 非预期变更：9 skills / preset / install.ps1 / 版本号 **零改动**；旧构建工具版本未留档（证据缺口）。
+
+### 10.5 Desktop B 组范围化重建豁免（已批准）
+
+- B 组真实来源 `fc2ad96`，SHA256 `c77d0e73710844b927d849eeb2fc5502a8e9a93541c8798eb10a1706bafdd27d`，
+  **不得改写、不得表述为由本例外合并后的 SHA 构建**；
+- 可用于 G2 真实 NSIS 安装 / 证书回读 / 数据根 / 升级回滚验收；
+- **豁免生效条件**：本例外净差异不触及 Desktop 构建输入（8 文件均在 `scripts/` 与
+  `integrations/dsh/`，不触及）——已满足；
+- 新候选仍须完整自动化回归；**G4 后 C 组必须从最终源码完整重建**；
+- 该项是**重建步骤豁免，不是 G2 测试豁免**。
+
+### 10.6 未结案（不得因本例外关闭）
+
+1. **G3 真实 DSH 安装验收**：npm 双包构建/校验通过 ≠ 真实安装、17 工具、9 Skills、Preset 验收通过；
+2. **5b PDF（G3 阻断）**：修复 PR #371（`jwb-resume` 边界段）待隔离 DSH 按原语义复跑；
+3. **`26.10.1` Desktop 安全 Hotfix**：**已获路线授权**（一次性政策例外，B 路线），
+   正式政策文件**待独立入库**（入库后在本节补准确路径）；发布前官网同步 P0 未关闭；
+4. **G4/G5**：未授权。

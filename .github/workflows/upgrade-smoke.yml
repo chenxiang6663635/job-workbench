@@ -59,10 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: 检出默认分支（仅脚本）
+      # 不写 ref：checkout 取触发事件的 ref（PR 时是 head/merge，dispatch 时是默认分支）。
+      # 写死 default_branch 会让 PR 阶段的 sparse-checkout 找不到本 PR 才新增的脚本。
+      - name: 检出（仅脚本）
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
 
       - name: actionlint
         run: |
@@ -91,10 +91,9 @@ jobs:
           Write-Host "OS=$([System.Environment]::OSVersion.VersionString) ARCH=$env:PROCESSOR_ARCHITECTURE"
           Write-Host "PS=$($PSVersionTable.PSVersion)"
 
-      - name: 检出默认分支（仅脚本）
+      - name: 检出（仅脚本；不写 ref，取触发事件 ref）
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
             scripts/upgrade-smoke.ps1
             scripts/upgrade-smoke.selftest.ps1

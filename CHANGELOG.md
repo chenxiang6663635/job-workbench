@@ -47,6 +47,9 @@
 
 - `web/backend/requirements.lock`：`certifi==2026.7.22` → `2026.10.19`（两 PyPI digest 同步更新）。
 - `web/backend/requirements.txt`：下界 `>=2026.7.22` → `>=2026.10.19`。
+- `web/backend/requirements.lock`：`pypdf==6.19.0` → `6.21.2`（两 PyPI digest 同步更新；修
+  5 项可用性 CVE：113786 / 113792 / 113793 / 113794 / 113795）。
+- `web/backend/requirements.txt`：`pypdf` 下界 `>=6.19.0` → `>=6.21.2`。
 
 ## [26.10.0] - 2026-10-06
 

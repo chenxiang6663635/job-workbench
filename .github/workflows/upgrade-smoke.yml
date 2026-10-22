@@ -72,7 +72,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          ./scripts/upgrade-smoke.selftest.ps1
+          # 用 & 调用：Linux runner 上 .ps1 不是可执行文件，`./x.ps1` 会 not recognized
+          & ./scripts/upgrade-smoke.selftest.ps1
 
   upgrade-smoke:
     name: 26.10.0 → 26.10.1 覆盖升级
@@ -139,7 +140,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          ./scripts/upgrade-smoke.ps1 `
+          & ./scripts/upgrade-smoke.ps1 `
             -OldExe "$env:RUNNER_TEMP\dl\job-workbench-setup-26.10.0-win64.exe" `
             -NewExe "$env:RUNNER_TEMP\dl\setup-26.10.1.exe" `
             -BaseDir "$env:RUNNER_TEMP\jw-smoke"

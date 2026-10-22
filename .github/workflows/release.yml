@@ -535,9 +535,13 @@ jobs:
           name: release-payload
 
       # 用 gh（runner 预装、第一方）而不是第三方 release action：少一个供应链依赖。
-      # 发布语义（2026-09-27，#226）：先完整再公开（draft→上传→核验→publish）、
-      # 公开即不可变（已 publish 的 Release 重跑直接拒绝——出问题发更高版本号）；
-      # --clobber 仅在 draft 阶段生效（未公开 = 可变），用于同一次发布内的重试。
+      # 发布语义（2026-09-27 #226 → 2026-10-22 方案 B 修订）：
+      # - **本 job 只到 Draft 为止**（创建/续传 → 上传资产 → 核验资产齐全），
+      #   **不再自动 `--draft=false`**。Draft 中间态不构成发布审批；正式公开由人工在
+      #   核验 Draft 资产（SHA256 + 隔离环境真实安装验收）后执行 `gh release edit <TAG> --draft=false`。
+      # - 原因：自动解除 Draft 会让「未经安装验收的制品」直接对用户可见，这是发布 P0。
+      # - 公开即不可变（已 publish 的 Release 重跑直接拒绝——出问题发更高版本号）；
+      # - --clobber 仅在 draft 阶段生效（未公开 = 可变），用于同一次发布内的重试。
       #
       # 每条 gh 后面都必须显式判 $LASTEXITCODE：GitHub 的 pwsh 包装器只在**脚本末尾**
       # 检查一次退出码，而 $ErrorActionPreference="Stop" 对原生命令不生效。漏判的后果
@@ -601,8 +605,12 @@ jobs:
             throw "上传命令返回 0，但 Release 资产列表里缺少：$($missing -join ', ')。实际列表：$($assets -join ', ')"
           }
 
-          # 资产齐全才 publish（先完整、再公开）——publish 之后本脚本的重跑会被
-          # 上面的「已发布拒绝覆盖」拦住，形成 append-only。
-          gh release edit $env:TAG --draft=false
-          if ($LASTEXITCODE -ne 0) { throw "publish 失败（exit $LASTEXITCODE）——Release 仍是 draft，请人工检查后手动发布" }
-          Write-Host "已发布：$($env:TAG) / $($files -join ', ')"
+          # 【方案 B（2026-10-22 发布治理裁决）】资产齐全后**保持 Draft，不自动公开**。
+          # 原因：`--draft=false` 在本 job 内与构建/上传同一流程自动执行，等于「未经真实
+          # 安装验收的制品被自动公开」；Draft 中间态本身**不构成发布审批**。
+          # 正式公开必须由人工在核验 Draft 资产（SHA256 + 隔离环境安装验收）后执行：
+          #   gh release edit <TAG> --draft=false
+          # 该命令只解除 Draft，**不重新构建、不替换资产**；append-only 仍由上面的
+          # 「已发布拒绝覆盖」守卫保证。
+          Write-Host "Release $($env:TAG) 已就绪并保持 Draft（未公开）：$($files -join ', ')"
+          Write-Host "下一步（需人工授权）：核验资产 SHA256 并在隔离环境完成安装验收后，执行 gh release edit $($env:TAG) --draft=false"

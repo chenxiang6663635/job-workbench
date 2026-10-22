@@ -320,3 +320,64 @@ DSH 插件（产品对 DSH 的交付单位）的 **MCP 运行时组件**用**独
 3. **`26.10.1` Desktop 安全 Hotfix**：**已获路线授权**（一次性政策例外，B 路线），
    正式政策文件**待独立入库**（入库后在本节补准确路径）；发布前官网同步 P0 未关闭；
 4. **G4/G5**：未授权。
+## 十一、冻结例外 #4：pypdf 依赖安全修复（2026-10-22 批准并合并）
+
+### 11.1 为什么算阻断（G3 P0 发行阻断）
+
+pypdf==6.19.0 被新披露 5 个 CVE（2026-113786 / 113792 / 113793 / 113794 / 113795），
+main CI 的 **pip-audit 必需检查失败**（run `39723447801`）。pypdf 有两条实际业务调用路径：
+`web/backend/resume_import.py`（`PdfReader` 读用户导入的 PDF）与 `tools/resume_build.py`
+（文本提取 / A4 纸型 / ATS 校验）。
+
+**风险边界（不夸大）**：五个 CVE 的 CVSS 4.0 均为**可用性影响**（`VA:L`/`VA:H`），机密性/
+完整性为 `N`；未证明五者在本项目全部可达（部分依赖可选组件或特定解析路径）；**无已发生攻击证据**。
+P0 依据 = 公开依赖风险 + 实际 PDF 输入面 + 现行必需检查失败。
+
+### 11.2 受控差异（2 文件 +4/-4）
+
+| 文件 | 改动 |
+|---|---|
+| `web/backend/requirements.txt` | `pypdf>=6.19.0` → `>=6.21.2` |
+| `web/backend/requirements.lock` | pypdf 块 `6.19.0` → `6.21.2` + 两官方 sha256（wheel `1d44d1a3…` / sdist `0a3e1c5c…`） |
+
+**零漂移校验**：uv 重新编译并以「现有 lock（去掉 pypdf）」为约束比对——22 包**零新增零删除**，
+仅 pypdf 变化。uv 0.13.4 的 `# via` 多行格式与旧 lock（0.12.5 生成）不同，采用最小替换避免 44 行无关噪音。
+
+### 11.3 合并身份
+
+- PR **#375**，Head `e72f11db85ca09dd96bb84afb7be9c40bf282f63` → Squash 合并；
+- 合并后 **main = `9d733b4bb836c477d228c2a545ea6fd67a0461dc`**；
+- main CI `39731924847` **success（4m31s）**；CodeQL `39731924846` success（3m9s）——pip-audit 恢复绿。
+
+### 11.4 验证证据
+
+- `pip-audit`：**No known vulnerabilities found**（本地 + CI 双证）；
+- PDF 定向回归 **44 passed / 4 skipped**（resume api / cli lock / pdf argv / templates / tmp prefix /
+  pdf link boundary / mirror budget / mirror scope / error message hygiene）；
+- 全量 **2047 passed / 37 skipped / 0 failed**（CI 侧 2072 passed / 12 skipped，总数一致、跳过条件不同）；
+- Frozen 后端重建（35.5 MB）+ 冒烟通过（health ok、`/api/system/check` 实际执行 tools 代码）。
+
+**证据边界**：Frozen 内 pypdf 版本在 PYZ 归档中不可直读，版本由构建 venv（6.21.2）决定；
+真实 PDF 导入 / ATS 需在安装验收中用测试 PDF 最终确认。
+
+### 11.5 Desktop B 组资格变化（本例外的主要影响）
+
+pypdf 是 **Desktop Frozen 后端的运行依赖**，触及 Desktop 构建输入 → **旧 B 组直接复用资格失效**：
+
+| 对象 | 处理 |
+|---|---|
+| 旧 B 组 `fc2ad96` / `c77d0e73…` | 保留文件、哈希与构建日志为**历史证据**，不改写 |
+| §十 10.5 的 DSH 范围化豁免 | 保留为**历史决定**（当时净差异确实不触及 Desktop 输入） |
+| pypdf 修复后的新候选 | 需从新候选 SHA（`9d733b4b`）**重建 Desktop B 组**并执行 G2 验收 |
+| 已完成的测试证据 | 可作对照，不得冒充新候选验收 |
+| G4 后 C 组 | 仍须从最终源码完整重建 |
+
+> 这是**新安全例外导致的重建要求**，不是推翻 §十 的历史裁决。
+
+### 11.6 未结案
+
+1. **`26.10.1` Hotfix**：一次性政策例外（PR #374）待合并签署；Hotfix 已含 certifi + pypdf 两项，
+   新 dry-run `39733251853` success（`f90a94e`）；真实安装升级验收与发布授权未做；
+2. **5b PDF**：PR #371 待隔离 DSH 复跑；
+3. **G2/G3**：新 B 组重建后执行真实安装与 DSH 插件验收；
+4. **G4/G5**：未授权。

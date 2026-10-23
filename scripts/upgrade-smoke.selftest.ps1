@@ -61,6 +61,7 @@ Check '卸载使用 _?=（不是 ?=）' ($scriptText.Contains('_?=')) 'NSIS 要�
 Check '升级调用不带 /D=' ($scriptText.Contains('Invoke-Installer $NewExe @()')) '带 /D= 会掩盖位置恢复缺陷'
 Check '前置 fail-closed 拒绝运行' ($scriptText.Contains('拒绝运行')) ''
 Check '含 8765 空闲前置' ($scriptText.Contains("'PF-1'")) ''
+Check 'Listeners 返回用逗号包数组' ($scriptText.Contains('return ,@(Get-NetTCPConnection')) '空数组被函数返回展开成 $null，.Count 会抛错'
 Check '含端口归属断言' ($scriptText.Contains("'RT-5'")) ''
 Check '含 RT-8a' ($scriptText.Contains("'RT-8a-")) ''
 Check '含 RT-8b' ($scriptText.Contains("'RT-8b-")) ''

@@ -1,0 +1,167 @@
+# D′-1 草案：26.10.1 一次性 Windows CI 安装器升级合同
+#
+# 状态：**草案，未 push、未 dispatch**。
+# 目标位置（获授权后）：.github/workflows/upgrade-smoke.yml
+#
+# 审计修正（本轮）：
+#   P0-3  perm 增加 actions: read（跨 run 下载 artifact），显式传 run-id / repository / token
+#   P1    upload-artifact 一律 if: always()（失败也要收据）；新增 actionlint 与 PowerShell 自检
+#
+# 设计约束：
+#   - 独立于 Hotfix 源码：只 checkout 默认分支的脚本，不 checkout ce789f4
+#   - 固定输入：旧版 v26.10.0 官方包 + 26.10.1 RC 的 run artifact（均校验 SHA256）
+#   - 一次性托管 runner、fail-closed、超时、产出收据
+#   - 不接触真实数据、不调用模型、不 tag、不发布
+
+name: Upgrade Smoke (D'-1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      new_run_id:
+        description: '26.10.1 RC 的构建 run id（artifact 来源，禁止失败后改用其他 run）'
+        required: true
+        default: '39748850478'
+
+      new_artifact_name:
+        description: 'RC 的 artifact 名称'
+        required: true
+        default: 'installer'
+      old_sha256:
+        description: '旧版 26.10.0 期望 SHA256'
+        required: true
+        default: '197fe10593eb50b127c87aaa690ad575aee7dc38b001110de5421e4df52ca954'
+      new_sha256:
+        description: '新版 26.10.1 期望 SHA256'
+        required: true
+        default: 'fbc6bbeebbc0e9af6c592e78591c3328f4adc9a7898208244b7bcfe1e75615c7'
+
+  # 审计 B-4：PR 阶段也要跑 lint（actionlint + 脚本自检），否则「CI 会检查」不成立。
+  # 只有 lint job 在 PR 触发；upgrade-smoke job 用 if 限定为手动触发。
+  pull_request:
+    paths:
+      - 'scripts/upgrade-smoke.ps1'
+      - 'scripts/upgrade-smoke.selftest.ps1'
+      - '.github/workflows/upgrade-smoke.yml'
+
+permissions:
+  contents: read
+  actions: read      # 跨 run 读取 artifact 必需
+
+concurrency:
+  group: upgrade-smoke-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  # 静态检查：workflow 自身表达式/结构 + 脚本纯函数自检（不安装任何东西）
+  lint:
+    name: 静态检查（actionlint + 脚本自检）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # 不写 ref：checkout 取触发事件的 ref（PR 时是 head/merge，dispatch 时是默认分支）。
+      # 写死 default_branch 会让 PR 阶段的 sparse-checkout 找不到本 PR 才新增的脚本。
+      - name: 检出（仅脚本）
+        uses: actions/checkout@v4
+
+      - name: actionlint
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -color
+
+      - name: PowerShell 自检（不安装）
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # 用 & 调用：Linux runner 上 .ps1 不是可执行文件，`./x.ps1` 会 not recognized
+          & ./scripts/upgrade-smoke.selftest.ps1
+
+  upgrade-smoke:
+    name: 26.10.0 → 26.10.1 覆盖升级
+    needs: lint
+    # 只在手动触发时执行真机安装；PR 触发时只跑 lint（审计 B-4）
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 记录 runner 身份
+        shell: pwsh
+        run: |
+          Write-Host "ImageOS=$env:ImageOS ImageVersion=$env:ImageVersion"
+          Write-Host "OS=$([System.Environment]::OSVersion.VersionString) ARCH=$env:PROCESSOR_ARCHITECTURE"
+          Write-Host "PS=$($PSVersionTable.PSVersion)"
+
+      - name: 检出（仅脚本；不写 ref，取触发事件 ref）
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/upgrade-smoke.ps1
+            scripts/upgrade-smoke.selftest.ps1
+          sparse-checkout-cone-mode: false
+
+      - name: 下载官方 26.10.0
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\dl" | Out-Null
+          gh release download v26.10.0 --pattern 'job-workbench-setup-26.10.0-win64.exe' --dir "$env:RUNNER_TEMP\dl"
+          if ($LASTEXITCODE -ne 0) { throw '下载 26.10.0 失败' }
+          $p = "$env:RUNNER_TEMP\dl\job-workbench-setup-26.10.0-win64.exe"
+          $h = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "old sha256 = $h"
+          if ($h -ne '${{ inputs.old_sha256 }}') { throw "旧版哈希不符：$h" }
+
+      - name: 下载 26.10.1 RC artifact（固定 run，不降级替代）
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = '${{ github.repository }}'
+          $runId = '${{ inputs.new_run_id }}'
+          $name  = '${{ inputs.new_artifact_name }}'
+          $dest  = "$env:RUNNER_TEMP\dl\new"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          # 显式指定仓库与 run-id：只读该 run 的指定 artifact，失败即 fail（不重试其他 run）
+          gh run download $runId --repo $repo --name $name --dir $dest
+          if ($LASTEXITCODE -ne 0) { throw "下载 run $runId 的 artifact '$name' 失败（可能已过期）——不得改用其他 run 或重新构建" }
+          $exe = Get-ChildItem -LiteralPath $dest -Recurse -File -Filter '*26.10.1-win64.exe' | Select-Object -First 1
+          if ($null -eq $exe) { throw 'artifact 中未找到 26.10.1 安装包' }
+          Copy-Item -LiteralPath $exe.FullName -Destination "$env:RUNNER_TEMP\dl\setup-26.10.1.exe" -Force
+          $h = (Get-FileHash -LiteralPath "$env:RUNNER_TEMP\dl\setup-26.10.1.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "new sha256 = $h"
+          if ($h -ne '${{ inputs.new_sha256 }}') { throw "新版哈希不符：$h" }
+
+      - name: 执行升级冒烟
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./scripts/upgrade-smoke.ps1 `
+            -OldExe "$env:RUNNER_TEMP\dl\job-workbench-setup-26.10.0-win64.exe" `
+            -NewExe "$env:RUNNER_TEMP\dl\setup-26.10.1.exe" `
+            -BaseDir "$env:RUNNER_TEMP\jw-smoke"
+          exit $LASTEXITCODE
+
+      - name: 上传验收收据（失败也传）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upgrade-smoke-receipt
+          path: ${{ runner.temp }}/jw-smoke-receipt.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: 清理（兜底）
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($n in @('Job Workbench', 'job-workbench-backend')) {
+            Get-Process -Name $n -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+          foreach ($p in @("$env:RUNNER_TEMP\jw-smoke", "$env:RUNNER_TEMP\dl")) {
+            if (Test-Path $p) { Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue }
+          }
+          Write-Host 'cleanup done'

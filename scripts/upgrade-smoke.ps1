@@ -100,10 +100,6 @@ function Normalize-Text([string] $s) {
   ($s -replace "`r`n", "`n").Trim()
 }
 
-function Get-RegDefault([string] $key) {
-  if (-not (Test-Path -LiteralPath $key)) { return $null }
-  (Get-Item -LiteralPath $key).GetValue('', $null, 'DoNotExpandEnvironmentNames')
-}
 function Get-RegValue([string] $key, [string] $name) {
   if (-not (Test-Path -LiteralPath $key)) { return $null }
   $item = Get-Item -LiteralPath $key
@@ -248,7 +244,10 @@ try {
   $UninstKey = Find-UninstallKey
   Require ($null -ne $UninstKey) '安装后未找到 Job Workbench 卸载登记——无法验证版本与安装位置（不得据此判 PASS）'
   $AppKey = 'HKCU:\Software\' + (Split-Path $UninstKey -Leaf)
-  $installDir = Get-RegValue $UninstKey 'InstallLocation'
+  # InstallLocation 写在 INSTALL_REGISTRY_KEY（Software\<GUID>），**不在** Uninstall 键下
+  # （installer.nsh:104 WriteRegStr ... ${INSTALL_REGISTRY_KEY} InstallLocation "$INSTDIR"）。
+  # 早先从 Uninstall 键读它，结果恒空。
+  $installDir = Get-RegValue $AppKey 'InstallLocation'
   if ([string]::IsNullOrWhiteSpace($installDir) -or -not (Test-Path -LiteralPath $installDir)) { $installDir = $testDir }
   $script:InstallDir = $installDir
 
@@ -258,9 +257,8 @@ try {
   Require (Test-Path -LiteralPath $oldBackend) '旧版安装缺后端 exe，无法继续（安装包不完整）'
 
   $before = @{
-    InstDir    = Get-RegDefault $AppKey
-    InstLoc    = Get-RegValue $UninstKey 'InstallLocation'
-    MainBinary = Get-RegValue $UninstKey 'MainBinaryName'
+    InstLoc    = Get-RegValue $AppKey 'InstallLocation'      # 在 Software\<GUID> 下
+    MainBinary = Get-RegValue $UninstKey 'MainBinaryName'    # 在 Uninstall\<GUID> 下
   }
   Write-Host ("  before: InstDir='{0}' InstLoc='{1}'" -f $before.InstDir, $before.InstLoc) -ForegroundColor DarkGray
 
@@ -286,7 +284,9 @@ try {
     $expSnapParent = [System.IO.Path]::GetFullPath($appData)
     Record 'SE-2' 'dataRoot = 隔离工作区根' ($dataRoot -ieq $expData) "actual=$dataRoot"
     Record 'SE-3' 'snapshotDir 位于隔离 APPDATA 下' ($snapDir.StartsWith($expSnapParent, 'OrdinalIgnoreCase')) "actual=$snapDir"
-    Record 'SE-4' '旧版 appVersion 已上报' ([string]::IsNullOrWhiteSpace([string]$paths.appVersion) -eq $false) ([string]$paths.appVersion)
+    # 原 SE-4（旧版 appVersion 非空）已删除：直接起 backend exe 时**没有应用壳注入**
+    # JOBWS_APP_VERSION，packaged 形态也读不到 package.json —— 该字段本来就该为空。
+    # 版本真值由 RT-8a-3 验证（那是经应用壳启动的进程）。
     Record 'SE-5' 'telemetry = false' ($paths.telemetry -eq $false) ([string]$paths.telemetry)
 
     # 写入虚构文件（local-first 形态），随后必须能被新版应用读出。
@@ -337,14 +337,14 @@ try {
   Record 'UP-1' '升级后版本 = 26.10.1' ($newVersion -eq '26.10.1') $newVersion
 
   $after = @{
-    InstDir    = Get-RegDefault $AppKey
-    InstLoc    = Get-RegValue $UninstKey 'InstallLocation'
+    InstLoc    = Get-RegValue $AppKey 'InstallLocation'
     MainBinary = Get-RegValue $UninstKey 'MainBinaryName'
   }
-  # 防假阳性：before/after 若都为空，-ceq 会为真——那不是"位置恢复了"，是"根本没读到"。
-  Require (($null -ne $before.InstLoc) -and ($null -ne $after.InstLoc)) '安装位置注册项缺失（before/after 之一为空）——位置恢复无法验证，不得判 PASS'
-  Record 'UP-2' 'appId 默认值未变（位置恢复）' ($after.InstDir -ceq $before.InstDir) "$($before.InstDir) -> $($after.InstDir)"
-  Record 'UP-3' 'InstallLocation 未变' ($after.InstLoc -ceq $before.InstLoc) "$($before.InstLoc) -> $($after.InstLoc)"
+  # 防假阳性：InstLoc 若为空，-ceq 会为真——那不是"位置恢复了"，是"根本没读到"。
+  Require (($null -ne $before.InstLoc) -and ($null -ne $after.InstLoc)) '安装位置注册项缺失（InstallLocation 为空）——位置恢复无法验证，不得判 PASS'
+  # 原 UP-2（比较 appId 键默认值）已删除：installer.nsh 只写 InstallLocation 命名值，
+  # 不保证写默认值；拿不可靠的字段做断言只会制造噪声或假阳性。位置恢复由 UP-3 承担。
+  Record 'UP-3' 'InstallLocation 未变（位置恢复）' ($after.InstLoc -ceq $before.InstLoc) "$($before.InstLoc) -> $($after.InstLoc)"
   Record 'UP-4' 'MainBinaryName 未变' ($after.MainBinary -ceq $before.MainBinary) "$($before.MainBinary) -> $($after.MainBinary)"
   Record 'UP-5' '种子文件仍在且哈希未变' ((Test-Path -LiteralPath $seedFile) -and (Get-Sha256 $seedFile) -eq $seedHash) $seedHash
 

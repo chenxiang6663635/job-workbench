@@ -62,6 +62,11 @@ Check '升级调用不带 /D=' ($scriptText.Contains('Invoke-Installer $NewExe @
 Check '前置 fail-closed 拒绝运行' ($scriptText.Contains('拒绝运行')) ''
 Check '含 8765 空闲前置' ($scriptText.Contains("'PF-1'")) ''
 Check 'Listeners 返回用逗号包数组' ($scriptText.Contains('return ,@(Get-NetTCPConnection')) '空数组被函数返回展开成 $null，.Count 会抛错'
+
+# --- 真机 run 39904842099 暴露的三处 ---
+Check '注册表键按 DisplayName 定位' ($scriptText.Contains('function Find-UninstallKey') -and -not $scriptText.Contains("Uninstall\{`$AppId}")) '写死 appId 会读不到 GUID 键'
+Check '数据根预建 workspace 目录' ($scriptText.Contains('Join-Path $wsDir $Workspace')) 'v26.10.0 无 #357 自动初始化，缺目录会 404'
+Check '位置恢复有非空保护' ($scriptText.Contains('位置恢复无法验证')) 'before/after 都为空时 -ceq 为真 → 假阳性'
 Check '含端口归属断言' ($scriptText.Contains("'RT-5'")) ''
 Check '含 RT-8a' ($scriptText.Contains("'RT-8a-")) ''
 Check '含 RT-8b' ($scriptText.Contains("'RT-8b-")) ''

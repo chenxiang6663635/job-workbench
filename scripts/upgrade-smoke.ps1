@@ -260,7 +260,7 @@ try {
     InstLoc    = Get-RegValue $AppKey 'InstallLocation'      # 在 Software\<GUID> 下
     MainBinary = Get-RegValue $UninstKey 'MainBinaryName'    # 在 Uninstall\<GUID> 下
   }
-  Write-Host ("  before: InstDir='{0}' InstLoc='{1}'" -f $before.InstDir, $before.InstLoc) -ForegroundColor DarkGray
+  Write-Host ("  before: InstLoc='{0}' MainBinary='{1}'" -f $before.InstLoc, $before.MainBinary) -ForegroundColor DarkGray
 
   # -------------------------------------------------------------- 3. 经真实 API 建立数据 + 快照
   Step 'Seed data via real API (RT-8a/8b 前置) + snapshot' 'seed'

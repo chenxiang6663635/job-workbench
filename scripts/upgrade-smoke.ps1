@@ -149,8 +149,13 @@ function Get-Api([string] $path) {
   Invoke-RestMethod -Uri "$ApiBase$path" -TimeoutSec 10 -Method Get
 }
 function Post-Api([string] $path, $body) {
-  $json = if ($null -eq $body) { '{}' } else { ($body | ConvertTo-Json -Compress) }
-  Invoke-RestMethod -Uri "$ApiBase$path" -TimeoutSec 30 -Method Post -ContentType 'application/json' -Body $json
+  # $body = $null 表示该端点**没有 body 参数**（如 /api/system/backup）——不要凭空发 "{}"，
+  # 那会让"有没有 body"这件事在证据里变得含糊。
+  if ($null -eq $body) {
+    return Invoke-RestMethod -Uri "$ApiBase$path" -TimeoutSec 60 -Method Post
+  }
+  Invoke-RestMethod -Uri "$ApiBase$path" -TimeoutSec 60 -Method Post `
+    -ContentType 'application/json' -Body ($body | ConvertTo-Json -Compress)
 }
 
 function Stop-Tree([int] $port) {
@@ -201,13 +206,14 @@ try {
   $env:APPDATA        = $appData
   Remove-Item Env:\JOBWS_PYTHON -ErrorAction SilentlyContinue   # 不让 Python 回退被当成通过
 
+  # 不写 USERPROFILE：本地跑会落真实用户名路径。用「是否托管 runner」替代，信息量足够。
   $script:RunnerInfo = [ordered]@{
-    ImageOS      = $env:ImageOS
-    ImageVersion = $env:ImageVersion
-    OSVersion    = [System.Environment]::OSVersion.VersionString
-    Architecture = $env:PROCESSOR_ARCHITECTURE
-    PSVersion    = $PSVersionTable.PSVersion.ToString()
-    UserProfile  = $env:USERPROFILE
+    ImageOS        = $env:ImageOS
+    ImageVersion   = $env:ImageVersion
+    OSVersion      = [System.Environment]::OSVersion.VersionString
+    Architecture   = $env:PROCESSOR_ARCHITECTURE
+    PSVersion      = $PSVersionTable.PSVersion.ToString()
+    IsHostedRunner = [bool]$env:GITHUB_ACTIONS
   }
   Write-Host ($script:RunnerInfo | ConvertTo-Json -Compress) -ForegroundColor DarkGray
 
@@ -494,7 +500,10 @@ try {
     }
     $dir = Split-Path $ReceiptPath -Parent
     if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
-    $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ReceiptPath -Encoding utf8
+    # 收据自身也必须无 BOM：与 seed 文件同理（M-1）——5.1 的 `-Encoding utf8` 会写 BOM，
+    # 下游 JSON 解析器读到 \ufeff 会失败。
+    $json = $receipt | ConvertTo-Json -Depth 8
+    [System.IO.File]::WriteAllText($ReceiptPath, $json, [System.Text.UTF8Encoding]::new($false))
     Write-Host "`n收据：$ReceiptPath" -ForegroundColor Cyan
     Write-Host ("结论：{0}（{1}/{2} PASS，fatal={3}）" -f $conclusion, $receipt.summary.passed, $receipt.summary.total, [bool]($null -ne $script:Fatal)) `
       -ForegroundColor $(if ($conclusion -eq 'PASS') { 'Green' } else { 'Red' })

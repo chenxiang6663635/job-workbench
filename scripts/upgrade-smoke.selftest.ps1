@@ -72,6 +72,11 @@ Check 'B-2 不用 /content 的 text 字段' (-not ($scriptText -match '\$(?:cont
 Check 'B-3 种子写入 workspace' ($scriptText.Contains('$wsPath')) 'dataRoot 是 personal 的父目录'
 Check 'B-3 断言 workspace 层级' ($scriptText.Contains("'SE-2b'") -and $scriptText.Contains("'RT-8a-1b'")) '须区分 dataRoot 与 workspace'
 
+# --- 收据质量（全文复审后修的三处）---
+Check '收据不写 USERPROFILE' (-not $scriptText.Contains('UserProfile  = $env:USERPROFILE')) '本地跑会泄漏真实用户名路径'
+Check '收据用 .NET 无 BOM 写入' ($scriptText.Contains('WriteAllText($ReceiptPath')) ''
+Check '无 body 端点不发 {}' (-not $scriptText.Contains("if (`$null -eq `$body) { '{}' }")) ''
+
 # --- MAJOR 修复回归检查 ---
 Check 'M-1 用 .NET 无 BOM 写入' ($scriptText.Contains('UTF8Encoding]::new($false)')) ''
 Check 'M-2 换行规范化比对' ($scriptText.Contains('Normalize-Text')) ''

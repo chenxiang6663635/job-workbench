@@ -64,6 +64,7 @@ $script:OldHash   = $null
 $script:NewHash   = $null
 $script:InstallDir= $null
 $script:RunnerInfo= $null
+$script:DataRoot  = $null   # MAJOR-2：旧版自报的数据根，供升级后比对（跨阶段）
 
 function Record([string] $id, [string] $what, [bool] $ok, [string] $detail = '') {
   $row = [pscustomobject]@{
@@ -245,6 +246,7 @@ try {
     # RT-8a（旧版基线）：dataRoot / snapshotDir 分别落在两个隔离根
     $paths = Get-Api "/api/system/paths?ws=$Workspace"
     $dataRoot = [System.IO.Path]::GetFullPath([string]$paths.dataRoot)
+    $script:DataRoot = $dataRoot   # MAJOR-2：保留旧版自报值，升级后用同一来源比对
     $snapDir  = [System.IO.Path]::GetFullPath([string]$paths.snapshotDir)
     $expData  = [System.IO.Path]::GetFullPath($wsDir)
     $expSnapParent = [System.IO.Path]::GetFullPath($appData)
@@ -360,6 +362,8 @@ try {
       Record 'RT-8a-2' 'snapshotDir 位于隔离 APPDATA 下' ($sd.StartsWith($expSnapParent, 'OrdinalIgnoreCase')) "actual=$sd"
       Record 'RT-8a-3' 'appVersion = 26.10.1' ([string]$p2.appVersion -eq '26.10.1') ([string]$p2.appVersion)
       Record 'RT-8a-4' 'telemetry = false' ($p2.telemetry -eq $false) ([string]$p2.telemetry)
+      # MAJOR-2：升级前后数据根一致性——两边都由各自版本的应用自报，非同源自比
+      Record 'RT-8a-5' '升级前后数据根一致' ($dr -ieq [string]$script:DataRoot) "$($script:DataRoot) -> $dr"
 
       # RT-8b：新版 API 能列出并逐字读回升级前写入的内容
       # 审计 B-2：/content 返回字段是 content（不是 text）。
@@ -410,16 +414,24 @@ try {
 
   # -------------------------------------------------------------- 6. PEM 基线
   Step 'Bundled CA baseline' 'ca'
-  $pem = Get-ChildItem -LiteralPath $installDir -Recurse -File -Filter 'cacert.pem' -ErrorAction SilentlyContinue |
-    Select-Object -First 1
-  if ($null -ne $pem) {
-    $pemSha = (Get-FileHash -LiteralPath $pem.FullName -Algorithm SHA256).Hash.ToUpperInvariant()
-    $g3 = (Select-String -LiteralPath $pem.FullName -Pattern 'emSign ECC Root CA - G3' -SimpleMatch | Measure-Object).Count
+  # MAJOR-1：原实现 `-Filter 'cacert.pem' | Select-Object -First 1` 是「取到哪个算哪个」——
+  # 当前安装包内只有 1 个（resources\backend\_internal\certifi\cacert.pem，实测 238,856 B），
+  # 但布局一旦变化就会静默取错对象。这里改为**精确路径**，并额外枚举全部匹配项做数量断言。
+  $pemPath = Join-Path $installDir 'resources\backend\_internal\certifi\cacert.pem'
+  $pemExists = Test-Path -LiteralPath $pemPath
+  Record 'CA-0' '后端 PEM 精确路径存在' $pemExists $pemPath
+
+  $allPems = @(Get-ChildItem -LiteralPath $installDir -Recurse -File -Filter 'cacert.pem' -ErrorAction SilentlyContinue)
+  Record 'CA-0b' '安装目录仅含 1 个 cacert.pem' ($allPems.Count -eq 1) "count=$($allPems.Count)"
+
+  if ($pemExists) {
+    $pemSha = (Get-FileHash -LiteralPath $pemPath -Algorithm SHA256).Hash.ToUpperInvariant()
+    $g3 = (Select-String -LiteralPath $pemPath -Pattern 'emSign ECC Root CA - G3' -SimpleMatch | Measure-Object).Count
     Record 'CA-1' '安装目录 PEM = 安全基线' ($pemSha -eq $SafePemSha) $pemSha
     Record 'CA-2' '不含受影响 G3 根' ($g3 -eq 0) "g3_hits=$g3"
   } else {
-    Record 'CA-1' '安装目录 PEM = 安全基线' $false '未找到 cacert.pem'
-    Record 'CA-2' '不含受影响 G3 根' $false '未找到 cacert.pem'
+    Record 'CA-1' '安装目录 PEM = 安全基线' $false "未找到 $pemPath"
+    Record 'CA-2' '不含受影响 G3 根' $false "未找到 $pemPath"
   }
 
   # -------------------------------------------------------------- 7. 卸载

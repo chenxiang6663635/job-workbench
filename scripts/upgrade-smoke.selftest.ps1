@@ -77,6 +77,11 @@ Check 'M-1 用 .NET 无 BOM 写入' ($scriptText.Contains('UTF8Encoding]::new($f
 Check 'M-2 换行规范化比对' ($scriptText.Contains('Normalize-Text')) ''
 Check 'M-4 健康检查只等一次' (-not $scriptText.Contains('Wait-Health $BackendPort 5')) ''
 Check 'M-5 gaps 参与裁决' ($scriptText.Contains('PASS_WITH_GAPS')) ''
+
+# --- 代码审查 MAJOR 回归检查 ---
+Check '审查 M1 PEM 用精确路径' ($scriptText.Contains("'CA-0'") -and $scriptText.Contains('resources\backend\_internal\certifi\cacert.pem')) '不用 -First 1 模糊匹配'
+Check '审查 M1 PEM 数量断言' ($scriptText.Contains("'CA-0b'")) ''
+Check '审查 M2 数据根跨版本比对' ($scriptText.Contains("'RT-8a-5'")) '不用恒真的自比自'
 Check '收据在 finally 中生成' ($scriptText -match 'finally\s*\{[\s\S]*收据') '失败路径也要留证'
 Check '含 known_gaps 登记' ($scriptText.Contains('known_gaps')) ''
 Check '脚本无本机硬编码路径' (-not $scriptText.Contains('C:\Users\cx\g2g3-build')) '不应引用本机路径'

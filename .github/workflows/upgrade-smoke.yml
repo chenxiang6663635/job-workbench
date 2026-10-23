@@ -151,7 +151,8 @@ jobs:
         with:
           name: upgrade-smoke-receipt
           path: ${{ runner.temp }}/jw-smoke-receipt.json
-          if-no-files-found: warn
+          # P0-2：收据是唯一可审计产物，缺失即证据链断裂 —— 必须让 job 失败，不能 warn 后变绿
+          if-no-files-found: error
           retention-days: 30
 
       - name: 清理（兜底）

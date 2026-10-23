@@ -140,8 +140,12 @@ function Invoke-Installer([string] $path, [string[]] $extra) {
 }
 
 function Invoke-Uninstaller([string] $dir) {
-  $u = Join-Path $dir 'uninstall.exe'
-  Require (Test-Path -LiteralPath $u) "找不到卸载器：$u"
+  # electron-builder 的卸载器名是 "Uninstall ${PRODUCT_FILENAME}.exe"（common.nsh:17），
+  # 即 `Uninstall Job Workbench.exe` —— 不是 uninstall.exe（2026-10-23 真机 run 39910385167 实测）。
+  $u = (Get-ChildItem -LiteralPath $dir -File -Filter 'Uninstall*.exe' -ErrorAction SilentlyContinue |
+        Select-Object -First 1).FullName
+  if (-not $u) { $u = Join-Path $dir 'uninstall.exe' }
+  Require (Test-Path -LiteralPath $u) "找不到卸载器（Uninstall*.exe / uninstall.exe）：$dir"
   # NSIS：_?= 必须最后、路径不加引号；否则卸载器 fork 到 TEMP 后立即返回
   Invoke-Installer $u @("_?=$dir")
   $deadline = (Get-Date).AddSeconds($InstallerTimeout)
@@ -374,8 +378,16 @@ try {
       Record 'RT-5' '监听者 = 本次安装的后端 exe' $false '无监听者'
     }
 
-    $logPath = Join-Path $appData 'job-workbench\main.log'
-    if (Test-Path -LiteralPath $logPath) {
+    # 日志目录有两套命名并存（2026-10-23 真机实测）：
+    #   Electron userData = %APPDATA%\<productName> = `Job Workbench`（日志、prefs 在这里）
+    #   pathres.user_data_dir() = %APPDATA%\job-workbench（快照在这里，见 snapshotDir）
+    # 所以日志不能只查后者。
+    $logCandidates = @(
+      (Join-Path $appData 'Job Workbench\main.log'),
+      (Join-Path $appData 'job-workbench\main.log')
+    )
+    $logPath = $logCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if ($logPath) {
       $log = Get-Content -LiteralPath $logPath -Raw -Encoding utf8
       Record 'RT-6' '日志含 packaged backend' ($log -match 'Using packaged backend:') ''
       Record 'RT-7' '日志不含 python 回退' (-not ($log -match 'Using python backend:')) ''
@@ -486,10 +498,13 @@ try {
   # ---------------------------------------------------------------- 兜底清理（各步吞错）
   try { Stop-Tree $BackendPort } catch { }
   try {
-    if ($script:InstallDir -and (Test-Path -LiteralPath (Join-Path $script:InstallDir 'uninstall.exe'))) {
-      $u = Join-Path $script:InstallDir 'uninstall.exe'
-      Start-Process -FilePath $u -ArgumentList @('/S', "_?=$($script:InstallDir)") -Wait -ErrorAction SilentlyContinue
-     } } catch { }
+    # 清理阶段不依赖卸载器文件名（可能是 "Uninstall Job Workbench.exe"），
+    # 直接删本脚本创建的测试目录（PF-5 已断言它事先不存在，删除安全）。
+    # 注意：只删 $testDir，不动注册表里的 InstallLocation（那是产品的真实安装位置）。
+    if ($testDir -and (Test-Path -LiteralPath $testDir)) {
+      Remove-Item -LiteralPath $testDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  } catch { }
   try {
     foreach ($k in @($UninstKey, $AppKey)) {
       # $UninstKey 在失败路径上可能仍是 $null（StrictMode 下 Test-Path $null 会抛）

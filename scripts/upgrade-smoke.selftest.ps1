@@ -74,6 +74,13 @@ Check '不引用已删除的 $before.InstDir' (-not $scriptText.Contains('$befor
 # --- 第 5 次真机 run 39910385167 暴露：文件名/目录名假设错 ---
 Check '卸载器按 Uninstall*.exe 定位' ($scriptText.Contains("Filter 'Uninstall*.exe'")) 'electron-builder 用 Uninstall <ProductName>.exe'
 Check '日志措辞不作业强制判据' (-not $scriptText.Contains("Record 'RT-6'")) 'RT-5（监听者进程路径）已提供更强证据'
+
+# --- 第八轮审计四项（P0-1/P0-2/P1-2 + PDF）---
+Check 'P0-1 有失败注入开关' ($scriptText.Contains('$FailInjection')) ''
+Check 'P0-1 exit 在 finally 内' ($scriptText -match '(?s)finally.*exit \$script:ExitCode') 'return 会跳过 finally 之后的 exit'
+Check 'P0-2 收据缺失使 job 失败' ($workflowText.Contains('if-no-files-found: error')) ''
+Check 'P1-2 有默认 /S 卸载用例' ($scriptText.Contains("'UN5-1'")) ''
+Check 'PDF 提取用例存在（不调模型）' ($scriptText.Contains("'RT-9-1'") -and $scriptText.Contains('127.0.0.1:1')) '用错误码区分抽取与模型阶段'
 Check '含端口归属断言' ($scriptText.Contains("'RT-5'")) ''
 Check '含 RT-8a' ($scriptText.Contains("'RT-8a-")) ''
 Check '含 RT-8b' ($scriptText.Contains("'RT-8b-")) ''
@@ -135,6 +142,30 @@ try {
   Check '路径规范化可用' ($p1 -match 'b$') $p1
 } finally {
   Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+Write-Host "`n== 5. 退出码契约（失败注入，P0-1）" -ForegroundColor Cyan
+$tmpR = Join-Path ([System.IO.Path]::GetTempPath()) ("jw-inj-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $tmpR | Out-Null
+try {
+  $injReceipt = Join-Path $tmpR 'inj.json'
+  # 注入一条非致命 FAIL：脚本必须收尾、写收据、并以非 0 退出
+  $null = & pwsh -NoProfile -ExecutionPolicy Bypass -File $ScriptPath `
+    -OldExe 'injected-does-not-exist.exe' -NewExe 'injected-does-not-exist.exe' `
+    -BaseDir (Join-Path $tmpR 'b') -ReceiptPath $injReceipt -FailInjection 2>&1
+  $injExit = $LASTEXITCODE
+  Check '注入 FAIL → 退出码非 0' ($injExit -ne 0) "exit=$injExit"
+
+  $conc = '<no-receipt>'
+  if (Test-Path -LiteralPath $injReceipt) {
+    $ij = Get-Content -LiteralPath $injReceipt -Raw -Encoding utf8 | ConvertFrom-Json
+    $conc = [string]$ij.summary.conclusion
+  }
+  Check '注入 FAIL → 收据结论 = FAIL' ($conc -eq 'FAIL') "conclusion=$conc"
+} catch {
+  Check '失败注入测试可执行' $false $_.Exception.Message
+} finally {
+  Remove-Item -LiteralPath $tmpR -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host ''

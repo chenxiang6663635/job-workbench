@@ -33,7 +33,10 @@ param(
   [Parameter(Mandatory = $true)][string] $OldExe,
   [Parameter(Mandatory = $true)][string] $NewExe,
   [string] $BaseDir = (Join-Path $env:RUNNER_TEMP 'jw-smoke'),
-  [string] $ReceiptPath = ''
+  [string] $ReceiptPath = '',
+  # 失败注入（仅供 selftest）：注入一条非致命 FAIL 后立即收尾，
+  # 用来证明「断言 FAIL → 退出码非 0」这条链路真的成立。正式运行不传。
+  [switch] $FailInjection
 )
 
 Set-StrictMode -Version 2.0
@@ -71,6 +74,13 @@ $script:NewHash   = $null
 $script:InstallDir= $null
 $script:RunnerInfo= $null
 $script:DataRoot  = $null   # MAJOR-2：旧版自报的数据根，供升级后比对（跨阶段）
+# 退出码判据（P0-1）：只有「主流程走完 + 无 FAIL + 无 fatal + 收据已写出」才允许 exit 0
+$script:MainFlowCompleted = $false
+$script:ReceiptWritten    = $false
+# 早期即失败（如 -FailInjection、身份校验 throw）时 preflight 尚未执行，
+# 这些变量不存在 → finally 里的引用会在 Set-StrictMode 下抛错。统一先初始化为 $null。
+$testDir = $null; $wsDir = $null; $appData = $null; $wsPath = $null; $ws2 = $null
+$seedFile = $null; $seedHash = $null; $newBackend = $null; $installDir = $null
 
 function Record([string] $id, [string] $what, [bool] $ok, [string] $detail = '') {
   $row = [pscustomobject]@{
@@ -190,6 +200,15 @@ function Stop-Tree([int] $port) {
 
 # ================================================================ 主体（失败也写收据）
 try {
+  # 失败注入（仅 selftest）：在任何断言之前模拟「注入一条非致命 FAIL，主流程正常收尾」。
+  # 用于证明 P0-1 的修复真的成立——即 Record FAIL 必须让退出码非 0。
+  if ($FailInjection) {
+    Step 'FailInjection（selftest）' 'fail-injection'
+    Record 'SELFTEST-INJ' '注入非致命 FAIL（自检用）' $false 'forced by -FailInjection'
+    $script:MainFlowCompleted = $true
+    return
+  }
+
   # -------------------------------------------------------------- 0. 身份
   Step 'Identity' 'identity'
   Require (Test-Path -LiteralPath $OldExe) "旧版安装包不存在：$OldExe"
@@ -436,6 +455,42 @@ try {
         Record 'RT-8c-2' '快照演练（preview）通过' $false '未执行'
         Record 'RT-8c-3' '快照恢复后数据仍正确' $false '未执行'
       }
+
+      # RT-9：打包后端的 PDF 文本提取（pypdf）——**不调用任何模型**。
+      # 判据设计：/api/resume/import 先本地抽取（resume_import._extract_pdf，纯 pypdf）
+      # 再调 BYOK 模型。把 provider 指向本机不可达端口 http://127.0.0.1:1，则：
+      #   抽取成功 → 停在模型调用 → 502 resume.modelUnreachable
+      #   抽取失败 → 422 resume.extractFailed
+      # 因此「502 且错误码为 modelUnreachable」即证明 pypdf 在打包后端里可用，且全程零外发。
+      try {
+        $pdfPath = Join-Path $appData 'smoke-resume.pdf'
+        $pdfB64 = 'JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vUmVzb3VyY2VzPDwvRm9udDw8L0YxIDQgMCBSPj4+Pi9Db250ZW50cyA1IDAgUj4+ZW5kb2JqCjQgMCBvYmo8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PmVuZG9iago1IDAgb2JqPDwvTGVuZ3RoIDc4Pj5zdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDcyMCBUZCAoSm9iIFdvcmtiZW5jaCBzbW9rZSBKT0JXUy1TTU9LRS1QREYtTUFSS0VSLTIwMjYpIFRqIEVUCmVuZHN0cmVhbWVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1MiAwMDAwMCBuIAowMDAwMDAwMTAxIDAwMDAwIG4gCjAwMDAwMDAyMTEgMDAwMDAgbiAKMDAwMDAwMDI3MiAwMDAwMCBuIAp0cmFpbGVyPDwvU2l6ZSA2L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMzk1CiUlRU9GCg=='
+        [System.IO.File]::WriteAllBytes($pdfPath, [Convert]::FromBase64String($pdfB64))
+        $cfgDir = Join-Path $ws2 'config'
+        New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
+        $cfgJson = '{"base_url":"http://127.0.0.1:1","api_key":"smoke-not-a-real-key","model":"smoke-model"}'
+        [System.IO.File]::WriteAllText((Join-Path $cfgDir 'provider.json'), $cfgJson, [System.Text.UTF8Encoding]::new($false))
+        $body = @{ filename = 'smoke-resume.pdf'; content_base64 = $pdfB64; model = 'smoke-model' } | ConvertTo-Json -Compress
+        $pdfStatus = 0; $pdfErr = ''
+        try {
+          $null = Invoke-RestMethod -Uri "$ApiBase/api/resume/import?ws=$Workspace" -Method Post `
+            -ContentType 'application/json' -Body $body -TimeoutSec 30
+          $pdfStatus = 200
+        } catch {
+          $resp = $_.Exception.Response
+          if ($null -ne $resp) {
+            $pdfStatus = [int]$resp.StatusCode
+            try {
+              $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
+              $txt = $sr.ReadToEnd(); $sr.Close()
+              $pdfErr = [string](($txt | ConvertFrom-Json).error)
+            } catch { }
+          }
+        }
+        Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' ($pdfStatus -eq 502 -and $pdfErr -eq 'resume.modelUnreachable') "http=$pdfStatus error=$pdfErr"
+      } catch {
+        Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' $false $_.Exception.Message
+      }
     } else {
       Record 'RT-8a-1' 'dataRoot = 隔离工作区根' $false '后端未就绪'
       Record 'RT-8b-1' '新版 API 列出种子文件' $false '后端未就绪'
@@ -477,11 +532,36 @@ try {
   Record 'UN-3' '用户数据保留' (Test-Path -LiteralPath $seedFile) $seedFile
   Record 'UN-4' '数据未被迁址' ((Test-Path -LiteralPath $seedFile) -and ((Get-Sha256 $seedFile) -eq $seedHash)) $seedHash
 
-  $script:ExitCode = 0
+  # -------------------------------------------------------------- 8. 默认 /S 卸载（P1-2）
+  # 上面用的是 `_?=<dir>` 原地模式（可同步等待，但卸载器无法自删）。
+  # 这里补测**用户实际使用的默认模式**：不带 _?=，卸载器 fork 到 TEMP 后自删。
+  # 判据分级：注册表/主程序/数据必须过；安装目录是否有空目录残留只记录不判失败。
+  Step 'Reinstall + default /S uninstall (P1-2)' 'uninstall-default'
+  Invoke-Installer $NewExe @("/D=$testDir")
+  $u2 = (Get-ChildItem -LiteralPath $testDir -File -Filter 'Uninstall*.exe' -ErrorAction SilentlyContinue |
+         Select-Object -First 1).FullName
+  Require ($null -ne $u2 -and $u2 -ne '') '重装后未找到卸载器，无法测默认卸载'
+  Start-Process -FilePath $u2 -ArgumentList @('/S') | Out-Null   # 默认模式：立即 fork，不阻塞
+  $dl = (Get-Date).AddSeconds(180)
+  while ($null -ne (Find-UninstallKey)) {
+    if ((Get-Date) -gt $dl) { break }
+    Start-Sleep -Seconds 2
+  }
+  Record 'UN5-1' '默认 /S：卸载登记消失' ($null -eq (Find-UninstallKey)) ''
+  Record 'UN5-2' '默认 /S：主程序消失' (-not (Test-Path -LiteralPath (Join-Path $installDir 'Job Workbench.exe'))) $installDir
+  Record 'UN5-3' '默认 /S：用户数据保留' ((Test-Path -LiteralPath $seedFile) -and ((Get-Sha256 $seedFile) -eq $seedHash)) $seedHash
+  $residual = @(Get-ChildItem -LiteralPath $installDir -File -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)
+  Record 'UN5-4' '默认 /S：安装目录残留清单已记录（允许空目录，逐条列出）' $true `
+    ("residual=" + $(if ($residual.Count -gt 0) { $residual -join ',' } else { '<none>' }))
+
+  # P0-1：这里**不再**无条件置 ExitCode=0——退出码由 finally 依据
+  # 「无 FAIL / 无 fatal / 收据已写出 / 主流程走完」统一裁决。
+  $script:MainFlowCompleted = $true
 } catch {
   $script:Fatal = $_.Exception.Message
   Write-Host "`nFATAL($($script:Phase)): $($script:Fatal)" -ForegroundColor Red
 } finally {
+  $failed = @()   # 先定义，保证下面的退出码裁决不会因 StrictMode 报「变量未定义」
   # ---------------------------------------------------------------- 兜底清理（各步吞错）
   try { Stop-Tree $BackendPort } catch { }
   try {
@@ -538,6 +618,7 @@ try {
     # 下游 JSON 解析器读到 \ufeff 会失败。
     $json = $receipt | ConvertTo-Json -Depth 8
     [System.IO.File]::WriteAllText($ReceiptPath, $json, [System.Text.UTF8Encoding]::new($false))
+    $script:ReceiptWritten = $true   # P0-2：收据没写出 = 证据链断裂 = 正式验收失败
     Write-Host "`n收据：$ReceiptPath" -ForegroundColor Cyan
     Write-Host ("结论：{0}（{1}/{2} PASS，fatal={3}）" -f $conclusion, $receipt.summary.passed, $receipt.summary.total, [bool]($null -ne $script:Fatal)) `
       -ForegroundColor $(if ($conclusion -eq 'PASS') { 'Green' } else { 'Red' })
@@ -546,7 +627,22 @@ try {
     }
   } catch {
     Write-Host "收据写入失败：$($_.Exception.Message)" -ForegroundColor Red
+    $script:ReceiptWritten = $false
   }
-}
 
-exit $script:ExitCode
+  # ---------------------------------------------------------------- P0-1 退出码裁决
+  # 「PASS_WITH_GAPS」是**有明确已知缺口的成功**，允许 exit 0；
+  # 但任一 FAIL / fatal / 收据缺失 / 主流程未走完，正式验收必须失败。
+  if ($null -ne $script:Fatal) { $script:ExitCode = 1 }
+  elseif ($failed.Count -gt 0) { $script:ExitCode = 1 }
+  elseif (-not $script:ReceiptWritten) { $script:ExitCode = 1 }
+  elseif (-not $script:MainFlowCompleted) { $script:ExitCode = 1 }
+  else { $script:ExitCode = 0 }
+  Write-Host ("退出码：{0}（FAIL={1} fatal={2} receipt={3} completed={4}）" -f `
+    $script:ExitCode, $failed.Count, [bool]($null -ne $script:Fatal), $script:ReceiptWritten, $script:MainFlowCompleted) `
+    -ForegroundColor $(if ($script:ExitCode -eq 0) { 'Green' } else { 'Red' })
+
+  # exit 必须在 finally **内部**：`return`（-FailInjection 走那条路）会让控制流跳过
+  # finally 之后的语句，退出码就退回默认 0——失败注入自检正是靠这条抓到过。
+  exit $script:ExitCode
+}

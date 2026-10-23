@@ -47,8 +47,14 @@ $Workspace    = 'personal'
 $OldSha256    = '197fe10593eb50b127c87aaa690ad575aee7dc38b001110de5421e4df52ca954'
 $NewSha256    = 'fbc6bbeebbc0e9af6c592e78591c3328f4adc9a7898208244b7bcfe1e75615c7'
 $SafePemSha   = '50F79F98DAC192B20DBF73F35C56F0B0C557AB267FF5199D1117CC1180B70785'
-$UninstKey    = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{$AppId}"
-$AppKey       = "HKCU:\Software\$AppId"
+# 注册表键名**不是** appId：electron-builder 用 UUID.v5(appId, NS_UUID) 派生 GUID
+# （NsisTarget.js:174-175 → guid = UUID.v5(appInfo.id, ...); uninstallAppKey = guid），
+# 于是 INSTALL_REGISTRY_KEY = "Software\<GUID>"、UNINSTALL_REGISTRY_KEY = "...\Uninstall\<GUID>"。
+# 硬编码 "{appId}" 的后果（2026-10-23 真机 run 39904842099 实测）：DisplayVersion 读不到 →
+# IN-1 FAIL、before 全空 → UP-2/3/4 两边都是 $null 时 -ceq 为真 → **假阳性**。
+# 因此改为安装后按 DisplayName 枚举定位（见 Find-UninstallKey）。
+$UninstKey    = $null
+$AppKey       = $null
 $InstallerTimeout = 600
 
 if ([string]::IsNullOrWhiteSpace($ReceiptPath)) {
@@ -103,6 +109,19 @@ function Get-RegValue([string] $key, [string] $name) {
   $item = Get-Item -LiteralPath $key
   if ($item.GetValueNames() -notcontains $name) { return $null }
   $item.GetValue($name, $null, 'DoNotExpandEnvironmentNames')
+}
+
+function Find-UninstallKey {
+  # 在 HKCU Uninstall 下按 DisplayName 找 Job Workbench 的键，返回其 PSPath；找不到返回 $null。
+  # 不用固定 GUID：guid 由 UUID.v5(appId, NS_UUID) 派生，改 appId 就会变，硬编码必然腐化。
+  $root = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+  if (-not (Test-Path -LiteralPath $root)) { return $null }
+  foreach ($k in Get-ChildItem -LiteralPath $root -ErrorAction SilentlyContinue) {
+    $dn = $null
+    try { $dn = (Get-ItemProperty -LiteralPath $k.PSPath -ErrorAction Stop).DisplayName } catch { }
+    if ($dn -and $dn -like 'Job Workbench*') { return $k.PSPath }
+  }
+  return $null
 }
 
 function Get-Listeners([int] $port) {
@@ -192,17 +211,18 @@ try {
   Record 'PF-1' "端口 $BackendPort 无监听" ($listeners.Count -eq 0) "listeners=$($listeners.Count)"
   Require ($listeners.Count -eq 0) "端口 $BackendPort 已被占用——会绕过被测安装，拒绝运行"
 
-  $hasUninst = Test-Path -LiteralPath $UninstKey
-  $hasAppKey = Test-Path -LiteralPath $AppKey
+  $existingUninst = Find-UninstallKey
+  $hasUninst = $null -ne $existingUninst
   $procs = @(Get-Process -Name 'Job Workbench', 'job-workbench-backend' -ErrorAction SilentlyContinue)
   $dirExists = Test-Path -LiteralPath $testDir
-  Record 'PF-2' '无既有卸载登记' (-not $hasUninst) $UninstKey
-  Record 'PF-3' '无既有 appId 键' (-not $hasAppKey) $AppKey
+  Record 'PF-2' '无既有卸载登记' (-not $hasUninst) $(if ($hasUninst) { $existingUninst } else { '<none>' })
   Record 'PF-4' '无相关进程' ($procs.Count -eq 0) "count=$($procs.Count)"
   Record 'PF-5' '测试目录事先不存在' (-not $dirExists) $testDir
-  Require ((-not $hasUninst) -and (-not $hasAppKey) -and $procs.Count -eq 0 -and (-not $dirExists)) '环境不干净，拒绝运行（fail-closed）'
+  Require ((-not $hasUninst) -and $procs.Count -eq 0 -and (-not $dirExists)) '环境不干净，拒绝运行（fail-closed）'
 
-  New-Item -ItemType Directory -Force -Path $BaseDir, $wsDir, $appData | Out-Null
+  # v26.10.0 **没有** #357 自动初始化：数据根下必须预先存在 <workspace> 目录，
+  # 否则 /api/system/paths 解析工作区时返回 404（2026-10-23 真机 run 39904842099 实测）。
+  New-Item -ItemType Directory -Force -Path $BaseDir, $wsDir, $appData, (Join-Path $wsDir $Workspace) | Out-Null
 
   # 三处路径分别隔离：工作区 JOBWS_DATA_DIR；快照/偏好 APPDATA
   $env:JOBWS_DATA_DIR = $wsDir
@@ -223,6 +243,11 @@ try {
   # -------------------------------------------------------------- 2. 安装旧版
   Step 'Install 26.10.0 (/S /D=)' 'install-old'
   Invoke-Installer $OldExe @("/D=$testDir")
+  # 安装后按 DisplayName 定位真实键（GUID 形态），拿不到就拒绝继续——
+  # 否则后续断言全在空值上做，会得出假 PASS。
+  $UninstKey = Find-UninstallKey
+  Require ($null -ne $UninstKey) '安装后未找到 Job Workbench 卸载登记——无法验证版本与安装位置（不得据此判 PASS）'
+  $AppKey = 'HKCU:\Software\' + (Split-Path $UninstKey -Leaf)
   $installDir = Get-RegValue $UninstKey 'InstallLocation'
   if ([string]::IsNullOrWhiteSpace($installDir) -or -not (Test-Path -LiteralPath $installDir)) { $installDir = $testDir }
   $script:InstallDir = $installDir
@@ -316,6 +341,8 @@ try {
     InstLoc    = Get-RegValue $UninstKey 'InstallLocation'
     MainBinary = Get-RegValue $UninstKey 'MainBinaryName'
   }
+  # 防假阳性：before/after 若都为空，-ceq 会为真——那不是"位置恢复了"，是"根本没读到"。
+  Require (($null -ne $before.InstLoc) -and ($null -ne $after.InstLoc)) '安装位置注册项缺失（before/after 之一为空）——位置恢复无法验证，不得判 PASS'
   Record 'UP-2' 'appId 默认值未变（位置恢复）' ($after.InstDir -ceq $before.InstDir) "$($before.InstDir) -> $($after.InstDir)"
   Record 'UP-3' 'InstallLocation 未变' ($after.InstLoc -ceq $before.InstLoc) "$($before.InstLoc) -> $($after.InstLoc)"
   Record 'UP-4' 'MainBinaryName 未变' ($after.MainBinary -ceq $before.MainBinary) "$($before.MainBinary) -> $($after.MainBinary)"
@@ -446,7 +473,7 @@ try {
   # -------------------------------------------------------------- 7. 卸载
   Step 'Uninstall (/S _?=)' 'uninstall'
   Invoke-Uninstaller $installDir
-  Record 'UN-1' '卸载项已删除' (-not (Test-Path -LiteralPath $UninstKey)) $UninstKey
+  Record 'UN-1' '卸载项已删除' ($null -eq (Find-UninstallKey)) $UninstKey
   Record 'UN-2' '后端 exe 已删除' (-not (Test-Path -LiteralPath $newBackend)) $newBackend
   Record 'UN-3' '用户数据保留' (Test-Path -LiteralPath $seedFile) $seedFile
   Record 'UN-4' '数据未被迁址' ((Test-Path -LiteralPath $seedFile) -and ((Get-Sha256 $seedFile) -eq $seedHash)) $seedHash
@@ -465,7 +492,8 @@ try {
      } } catch { }
   try {
     foreach ($k in @($UninstKey, $AppKey)) {
-      if (Test-Path -LiteralPath $k) { Remove-Item -LiteralPath $k -Recurse -Force -ErrorAction SilentlyContinue }
+      # $UninstKey 在失败路径上可能仍是 $null（StrictMode 下 Test-Path $null 会抛）
+      if ($k -and (Test-Path -LiteralPath $k)) { Remove-Item -LiteralPath $k -Recurse -Force -ErrorAction SilentlyContinue }
     }
   } catch { }
 

@@ -483,7 +483,13 @@ try {
             try {
               $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
               $txt = $sr.ReadToEnd(); $sr.Close()
-              $pdfErr = [string](($txt | ConvertFrom-Json).error)
+              # ApiError 的响应体是 {"detail","error_code","error_params"?}（main.py:67）
+              # ——字段名是 error_code，不是 error（2026-10-23 run 39941261237 实测）。
+              if ($txt) {
+                $oj = $txt | ConvertFrom-Json
+                $prop = $oj.PSObject.Properties['error_code']
+                if ($null -ne $prop) { $pdfErr = [string]$prop.Value }
+              }
             } catch { }
           }
         }

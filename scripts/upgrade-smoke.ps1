@@ -106,7 +106,10 @@ function Get-RegValue([string] $key, [string] $name) {
 }
 
 function Get-Listeners([int] $port) {
-  @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+  # 逗号包一层：函数**返回**空数组时，PowerShell 的管道语义会把它展开成 $null，
+  # 调用方 `$x.Count` 在 Set-StrictMode 下直接抛 "property 'Count' cannot be found"。
+  # （2026-10-23 真机 run 39903820189 在 preflight 第一行实测到；本地复现确认。）
+  return ,@(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
 }
 
 function Invoke-Installer([string] $path, [string[]] $extra) {

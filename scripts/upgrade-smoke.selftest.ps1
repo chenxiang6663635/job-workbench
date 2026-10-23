@@ -70,6 +70,10 @@ Check '位置恢复有非空保护' ($scriptText.Contains('位置恢复无法验
 
 # --- 第 4 次真机 run 39909147773 暴露：删字段时漏改引用 ---
 Check '不引用已删除的 $before.InstDir' (-not $scriptText.Contains('$before.InstDir')) 'StrictMode 下哈希缺键会抛 property cannot be found'
+
+# --- 第 5 次真机 run 39910385167 暴露：文件名/目录名假设错 ---
+Check '卸载器按 Uninstall*.exe 定位' ($scriptText.Contains("Filter 'Uninstall*.exe'")) 'electron-builder 用 Uninstall <ProductName>.exe'
+Check '日志路径含 productName 候选' ($scriptText.Contains("'Job Workbench\main.log'")) 'Electron userData 用 productName，pathres 用 job-workbench'
 Check '含端口归属断言' ($scriptText.Contains("'RT-5'")) ''
 Check '含 RT-8a' ($scriptText.Contains("'RT-8a-")) ''
 Check '含 RT-8b' ($scriptText.Contains("'RT-8b-")) ''

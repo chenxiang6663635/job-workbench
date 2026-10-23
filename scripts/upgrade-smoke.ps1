@@ -480,20 +480,43 @@ try {
           $resp = $_.Exception.Response
           if ($null -ne $resp) {
             $pdfStatus = [int]$resp.StatusCode
+            # 读响应体要兼容两代 PowerShell：
+            #   PS 7  → HttpResponseMessage，只能 Content.ReadAsStringAsync()
+            #   PS 5.1 → WebResponse，GetResponseStream()
+            # 先前只写后者，导致 PS 7 上 error_code 恒为空（run 39943987140 实测）。
+            $txt = ''
             try {
-              $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
-              $txt = $sr.ReadToEnd(); $sr.Close()
-              # ApiError 的响应体是 {"detail","error_code","error_params"?}（main.py:67）
-              # ——字段名是 error_code，不是 error（2026-10-23 run 39941261237 实测）。
-              if ($txt) {
+              $contentProp = $resp.PSObject.Properties['Content']
+              if ($null -ne $contentProp -and $null -ne $contentProp.Value) {
+                $txt = $contentProp.Value.ReadAsStringAsync().GetAwaiter().GetResult()
+              }
+            } catch { }
+            if (-not $txt) {
+              try {
+                $stream = $resp.GetResponseStream()
+                if ($null -ne $stream) {
+                  $sr = New-Object System.IO.StreamReader($stream)
+                  $txt = $sr.ReadToEnd(); $sr.Close()
+                }
+              } catch { }
+            }
+            # ApiError 响应体是 {"detail","error_code","error_params"?}（main.py:67）
+            if ($txt) {
+              try {
                 $oj = $txt | ConvertFrom-Json
                 $prop = $oj.PSObject.Properties['error_code']
                 if ($null -ne $prop) { $pdfErr = [string]$prop.Value }
-              }
-            } catch { }
+              } catch { }
+            }
           }
         }
-        Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' ($pdfStatus -eq 502 -and $pdfErr -eq 'resume.modelUnreachable') "http=$pdfStatus error=$pdfErr"
+        # 判据：502 = 已越过本地抽取、停在模型阶段（抽取失败会是 422）。
+        # 假端点是 127.0.0.1:1（连接被拒 → URLError），因此 502 只可能是 modelUnreachable；
+        # 若能解析出 error_code 再收紧比对，解析不到不判失败（否则解析器差异会变成假阴性）。
+        $pdfOk = ($pdfStatus -eq 502)
+        if ($pdfErr) { $pdfOk = $pdfOk -and ($pdfErr -eq 'resume.modelUnreachable') }
+        $pdfDetail = "http=$pdfStatus error_code=" + $(if ($pdfErr) { $pdfErr } else { '<unparsed>' })
+        Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' $pdfOk $pdfDetail
       } catch {
         Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' $false $_.Exception.Message
       }

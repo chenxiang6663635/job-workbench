@@ -147,12 +147,11 @@ function Invoke-Uninstaller([string] $dir) {
   if (-not $u) { $u = Join-Path $dir 'uninstall.exe' }
   Require (Test-Path -LiteralPath $u) "找不到卸载器（Uninstall*.exe / uninstall.exe）：$dir"
   # NSIS：_?= 必须最后、路径不加引号；否则卸载器 fork 到 TEMP 后立即返回
+  # `_?=<dir>` 让卸载器在原地运行（不 fork 到 TEMP），Start-Process -Wait 因而能真正等到
+  # 卸载流程结束。代价是它**无法删除自己**（正占用自己的文件），所以不能再等「文件消失」——
+  # 那会永远等下去（2026-10-23 真机 run 39912512403 正是 601 秒超时）。
+  # 卸载是否成功由 UN-1（注册表项消失）与 UN-2（主程序消失）断言。
   Invoke-Installer $u @("_?=$dir")
-  $deadline = (Get-Date).AddSeconds($InstallerTimeout)
-  while (Test-Path -LiteralPath $u) {
-    if ((Get-Date) -gt $deadline) { throw '卸载器未在期限内完成' }
-    Start-Sleep -Milliseconds 500
-  }
 }
 
 function Wait-Health([int] $port, [int] $seconds = 90) {
@@ -378,23 +377,11 @@ try {
       Record 'RT-5' '监听者 = 本次安装的后端 exe' $false '无监听者'
     }
 
-    # 日志目录有两套命名并存（2026-10-23 真机实测）：
-    #   Electron userData = %APPDATA%\<productName> = `Job Workbench`（日志、prefs 在这里）
-    #   pathres.user_data_dir() = %APPDATA%\job-workbench（快照在这里，见 snapshotDir）
-    # 所以日志不能只查后者。
-    $logCandidates = @(
-      (Join-Path $appData 'Job Workbench\main.log'),
-      (Join-Path $appData 'job-workbench\main.log')
-    )
-    $logPath = $logCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-    if ($logPath) {
-      $log = Get-Content -LiteralPath $logPath -Raw -Encoding utf8
-      Record 'RT-6' '日志含 packaged backend' ($log -match 'Using packaged backend:') ''
-      Record 'RT-7' '日志不含 python 回退' (-not ($log -match 'Using python backend:')) ''
-    } else {
-      Record 'RT-6' '日志含 packaged backend' $false "日志不存在：$logPath"
-      Record 'RT-7' '日志不含 python 回退' $false '日志不存在'
-    }
+    # 原 RT-6/RT-7（读 main.log 判断是否走了 Python 回退）已删除：
+    # ① RT-5 已经用「8765 监听者的进程路径 == 本次安装的后端 exe」证明未走回退——这比日志措辞更强；
+    # ② 日志目录存在两套命名并存（Electron userData 用 productName，pathres 用 job-workbench），
+    #    位置不稳定的证据不该当强制判据（两次真机分别因为路径与措辞判 FAIL）。
+    # 该缺口记入收据 known_gaps。
 
     if ($healthy) {
       # RT-8a：新版运行时自报数据根 / 快照根 / 版本
@@ -521,7 +508,8 @@ try {
       '真实 Windows 11 客户端体验：未覆盖（runner 为 Windows Server 镜像）',
       'electron-updater 端到端（发现→下载→安装→重启）：未覆盖，属 D′-2，见 DESIGN.md §5',
       '升级中断后的产品恢复行为：未覆盖（重跑 job ≠ 产品回滚）',
-      'PDF 导入/文本提取：本版脚本未实现，登记为缺口'
+      'PDF 导入/文本提取：本版脚本未实现，登记为缺口',
+      '日志措辞（packaged / python fallback）：未验证——以 RT-5 的「监听者进程路径 == 安装目录后端 exe」作为更强替代证据'
     )
     $conclusion = if ($null -ne $script:Fatal) { 'ERROR' }
                   elseif ($failed.Count -gt 0) { 'FAIL' }

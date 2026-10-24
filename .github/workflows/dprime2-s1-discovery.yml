@@ -46,17 +46,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # P0（2026-10-24 审查修正）：PR 阶段的硬门禁。跑 66 项离线自检
+  # P0（2026-10-24 审查修正）：PR 阶段的硬门禁。跑 86 项离线自检
   # （禁项扫描 / 文本契约 / VerifyRc 在有 RC 时启用）。**不安装、不改环境、不起 mock**。
+  #
+  # 平台必须是 **windows-latest**，不能用 ubuntu：自检会实跑
+  # `pwsh -File scripts/dprime2-s1.ps1 -Action NewCert / Tls1 / Verdict`，
+  # 其中 Verdict 读 HKCU 注册表（Get-ItemProperty 'HKCU:\...\Uninstall\*'），
+  # Linux 的 pwsh 没有注册表提供程序 → 直接抛错 → E1/E2/E3 全报 "no receipt"
+  # （2026-10-24 CI 实测：ubuntu-latest 上 78 通过 / 3 失败）。
   s1-lint:
-    name: S1 离线自检（66 项）
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    name: S1 离线自检（86 项）
+    runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: 安装自检依赖
+        shell: pwsh
         run: python -m pip install --quiet cryptography
       - name: 跑 S1 离线自检
+        shell: pwsh
         # DPRIME2_RC_ROOT 未设时 RC 相关项记 SKIP（本地无 RC 属正常）
         run: python scripts/dprime2-s1.selftest.py
 

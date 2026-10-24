@@ -307,16 +307,31 @@ if ($Action -eq 'Tls1') {
     if (-not (Test-Path $certCheck)) { throw "缺 certcheck 脚本：$certCheck" }
     $py = (Get-Command $Python -ErrorAction SilentlyContinue).Source
     if (-not $py) { throw "找不到 python（$Python），TLS-1 无法执行" }
-    $raw = & $py $certCheck --dir $OutDir
-    $parsed = $raw | ConvertFrom-Json
+    # 2026-10-24 CI 实测修正：外部命令的多行输出在 pwsh 里是**字符串数组**，
+    # `$raw | ConvertFrom-Json` 会逐行转换，结果没有 .rows 属性 → StrictMode 抛错 →
+    # 整个 Tls1 中断、tls1.json 不产出（自检随后 FileNotFoundError 全盘崩）。
+    # 先用 -join 并成单串再解析；解析不了也要把原始输出写进收据（证据优先）。
+    $raw = ''
+    try { $raw = (& $py $certCheck --dir $OutDir 2>&1) -join "`n" } catch { $raw = "certcheck 调用失败：$($_.Exception.Message)" }
+    $parsed = $null
+    try { $parsed = $raw | ConvertFrom-Json } catch { $parsed = $null }
+    if ($null -eq $parsed) {
+        $p = Write-Json 'tls1.json' ([pscustomobject]@{
+            at = (Get-Date).ToString('o'); mode = 'unparsed'; handshake_performed = $false
+            rows = @(); all_ok = $false
+            raw_output = (($raw -replace "`r?`n", ' | ')).Substring(0, [Math]::Min(400, ($raw -replace "`r?`n", ' | ').Length))
+        })
+        Write-Host "Tls1: certcheck 输出不可解析 -> $p"
+        exit 5
+    }
     $rows = @($parsed.rows | ForEach-Object {
-            [pscustomobject]@{ id = $_.id; ok = [bool]$_.ok; detail = "$($_.detail)" }
-        })
+    [pscustomobject]@{ id = $_.id; ok = [bool]$_.ok; detail = "$($_.detail)" }
+    })
     $p = Write-Json 'tls1.json' ([pscustomobject]@{
-            at = (Get-Date).ToString('o'); mode = $parsed.mode
-            handshake_performed = [bool]$parsed.handshake_performed
-            rows = $rows; all_ok = [bool]$parsed.all_ok
-        })
+    at = (Get-Date).ToString('o'); mode = $parsed.mode
+    handshake_performed = [bool]$parsed.handshake_performed
+    rows = $rows; all_ok = [bool]$parsed.all_ok
+    })
     Write-Host "Tls1 (offline): all_ok=$($parsed.all_ok) -> $p"
     $rows | Where-Object { -not $_.ok } | ForEach-Object { Write-Host "  FAIL: $($_.id) $($_.detail)" }
     if (-not $parsed.all_ok) { exit 5 }

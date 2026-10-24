@@ -132,9 +132,21 @@ for f in ("ca.crt", "server.crt", "server.key"):
         "%d bytes" % os.path.getsize(os.path.join(out_c, f)) if os.path.isfile(os.path.join(out_c, f)) else "missing")
 rc, out = ps("Tls1", out_c)
 rep("C3 Tls1 离线结构检查全过", rc == 0, out.strip().splitlines()[-1][:80] if out.strip() else "")
-tls1 = json.load(io.open(os.path.join(out_c, "tls1.json"), encoding="utf-8"))
-rep("C4 Tls1 未做握手", tls1.get("handshake_performed") is False and
-    tls1.get("mode") == "offline-structure-only", "mode=%s" % tls1.get("mode"))
+# tls1.json 可能不存在（Tls1 自身崩了）。此时必须记 FAIL 并继续，
+# 不能让 FileNotFoundError 把整个自检打断——后面几十项的结果同样重要。
+# 2026-10-24 CI 实测：Tls1 因外部命令输出是数组而崩，自检全盘崩掉。
+_tls1_path = os.path.join(out_c, "tls1.json")
+if not os.path.isfile(_tls1_path):
+    rep("C4 Tls1 未做握手", False, "缺 tls1.json（Tls1 未产出，见 C3 的 detail）")
+else:
+    tls1 = json.load(io.open(_tls1_path, encoding="utf-8"))
+    rep("C4 Tls1 未做握手", tls1.get("handshake_performed") is False and
+        tls1.get("mode") == "offline-structure-only", "mode=%s" % tls1.get("mode"))
+    _t1rows = tls1.get("rows") or []
+    rep("C4b Tls1 收据含逐项 rows", len(_t1rows) > 0, "rows=%d" % len(_t1rows))
+    if tls1.get("raw_output"):
+        rep("C4c Tls1 记录了不可解析的原始输出", True,
+            ("raw=%s" % str(tls1.get("raw_output"))[:70]))
 
 # ── C2. PrepareFixtures：与生产**同一条路径**备元数据（2026-10-24 补）──────
 # 原自检自己手写 atom.xml/latest.json，掩盖了 StartMock 根本不生成夹具的缺口。

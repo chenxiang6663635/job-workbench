@@ -46,6 +46,9 @@ on:
     paths:
       - 'scripts/upgrade-smoke.ps1'
       - 'scripts/upgrade-smoke.selftest.ps1'
+      # 判据纯函数库：主脚本 dot-source 它。漏改这里会让「只动判据」的 PR 不触发自检
+      # （2026-10-24 审计发现：加了依赖却只在 lint job 的全仓库 checkout 下才通过）
+      - 'scripts/upgrade-smoke.lib.ps1'
       - '.github/workflows/upgrade-smoke.yml'
 
 permissions:
@@ -95,12 +98,18 @@ jobs:
           Write-Host "OS=$([System.Environment]::OSVersion.VersionString) ARCH=$env:PROCESSOR_ARCHITECTURE"
           Write-Host "PS=$($PSVersionTable.PSVersion)"
 
+      # ⚠ sparse-checkout 必须列全主脚本的**所有运行时依赖**（含 dot-source 的库文件）。
+      # 2026-10-24 审计发现：PR #389 加了 `upgrade-smoke.lib.ps1` 依赖却漏改这里，
+      # 下一次 dispatch 会在主脚本初始化阶段就 throw「缺少判据函数文件」——
+      # 而 PR CI 抓不到（lint job 是全仓库检出，真机 job 在 PR 阶段被 if 跳过）。
+      # selftest 现在会按本清单**模拟检出**并断言依赖完整，这类遗漏不再靠人记。
       - name: 检出（仅脚本；不写 ref，取触发事件 ref）
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             scripts/upgrade-smoke.ps1
             scripts/upgrade-smoke.selftest.ps1
+            scripts/upgrade-smoke.lib.ps1
           sparse-checkout-cone-mode: false
 
       - name: 下载官方 26.10.0

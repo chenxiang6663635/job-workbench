@@ -71,7 +71,14 @@ def skip(name, why):
 
 
 def ps(action, outdir, extra=()):
-    cmd = list(PWSH) + ["-Action", action, "-OutDir", outdir] + list(extra)
+    # 显式传 -Python sys.executable：保证 ps1 里调 certcheck 用的就是
+    # **当前这个** python（workflow 刚给它装过 cryptography）。
+    # 否则 ps1 自己 `Get-Command python` 在 CI 的 pwsh 子进程里可能解析到
+    # Microsoft Store 的 python stub——那个 stub 在非交互管道里**静默 exit 1**，
+    # 表现为"stdout 空、stderr 空、exit=1"，完全看不出原因。
+    # 2026-10-24 CI 连续四轮卡在 C3，根因就是这个。
+    cmd = list(PWSH) + ["-Action", action, "-OutDir", outdir,
+                        "-Python", sys.executable] + list(extra)
     p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
                        errors="replace", timeout=300)
     return p.returncode, (p.stdout or "") + (p.stderr or "")

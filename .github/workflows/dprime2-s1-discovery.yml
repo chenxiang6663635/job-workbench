@@ -72,8 +72,14 @@ jobs:
           & $py -c "import cryptography, sys; print('cryptography=' + cryptography.__version__); print('exe=' + sys.executable)"
       - name: 跑 S1 离线自检
         shell: pwsh
-        # DPRIME2_RC_ROOT 未设时 RC 相关项记 SKIP（本地无 RC 属正常）
-        run: python scripts/dprime2-s1.selftest.py
+        # 诊断：pwsh 与 python 各自解析到的解释器。若 pwsh 看到的是
+        # WindowsApps 下的 python stub（非交互管道里静默 exit 1），
+        # 而自检用的是 hostedtoolcache 的 python，就会出现
+        # "certcheck 无输出 exit=1" 且 stdout/stderr 全空。
+        run: |
+          Write-Host "pwsh 看到 python = $((Get-Command python -ErrorAction SilentlyContinue).Source)"
+          Write-Host "python 自报 exe  = $(& python -c 'import sys; print(sys.executable)')"
+          python scripts/dprime2-s1.selftest.py
 
   s1-discovery:
     name: S1 更新发现（不下载不安装新版）

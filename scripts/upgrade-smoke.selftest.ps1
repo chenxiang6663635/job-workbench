@@ -133,6 +133,81 @@ Check '有 timeout-minutes' ($workflowText -match 'timeout-minutes') ''
 Check 'B-4 PR 也触发 lint' ($workflowText -match '(?m)^\s*pull_request:') '否则「CI 会检查」不成立'
 Check 'B-4 真机 job 仅手动触发' ($workflowText -match "if:\s*github\.event_name == 'workflow_dispatch'") ''
 
+# --- 3b. 检出清单 vs 运行时依赖（2026-10-24 审计新增的阻断项回归钉子）---------
+# 事故：主脚本加了 `. upgrade-smoke.lib.ps1` 依赖，但 Windows job 的 sparse-checkout
+# 没同步 → 真机 job 会在初始化阶段 throw「缺少判据函数文件」。
+# PR CI 抓不到：lint job 是全仓库检出，真机 job 在 PR 阶段被 if 跳过。
+# 下面**按 workflow 的 sparse-checkout 清单真实复制一遍**，再断言依赖齐全。
+Write-Host "`n== 3b. 检出清单 vs 运行时依赖" -ForegroundColor Cyan
+
+# ① 从主脚本提取所有 `Join-Path $PSScriptRoot '<file>'` 依赖
+$runtimeDeps = [regex]::Matches($scriptText, "Join-Path\s+\`$PSScriptRoot\s+'([^']+)'") |
+  ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+Check '主脚本声明了运行时依赖（至少 lib）' (@($runtimeDeps).Count -ge 1) ($runtimeDeps -join ', ')
+
+# ② 从 workflow 抽出 sparse-checkout 的条目（缩进比 `sparse-checkout:` 更深的非空行）
+$wfLines = $workflowText -split "`r?`n"
+$sparseEntries = @()
+$sparseIndent = -1
+foreach ($line in $wfLines) {
+  if ($line -match '^(\s*)sparse-checkout:\s*\|') {
+    $sparseIndent = $Matches[1].Length
+    continue
+  }
+  if ($sparseIndent -ge 0) {
+    if ($line.Trim() -eq '') { continue }
+    $ind = $line.Length - $line.TrimStart().Length
+    if ($ind -le $sparseIndent) { $sparseIndent = -1; continue }
+    $sparseEntries += $line.Trim()
+  }
+}
+Check '解析出 sparse-checkout 条目' (@($sparseEntries).Count -ge 2) ($sparseEntries -join ', ')
+
+# ③ 每个运行时依赖都必须出现在 sparse-checkout 清单里
+foreach ($dep in $runtimeDeps) {
+  $want = "scripts/$dep"
+  Check "sparse-checkout 含依赖 $dep" ($sparseEntries -contains $want) "清单=$($sparseEntries -join ',')"
+}
+
+# ④ PR 触发路径也要覆盖依赖（否则「只改判据库」的 PR 不跑自检）
+# 取 pull_request 到下一个顶层键（permissions）之间的文本——比逐行正则稳，
+# 因为 paths 列表里允许夹注释行（本仓 2026-10-24 就夹了）。
+$prStart = $workflowText.IndexOf('pull_request:')
+$prEnd = if ($prStart -ge 0) { $workflowText.IndexOf("`npermissions:", $prStart) } else { -1 }
+$prPathsBlock = if ($prStart -ge 0 -and $prEnd -gt $prStart) {
+  $workflowText.Substring($prStart, $prEnd - $prStart)
+} elseif ($prStart -ge 0) {
+  $workflowText.Substring($prStart)   # 找不到 permissions 时保守取到文件尾
+} else { '' }
+Check '解析出 pull_request 段' (-not [string]::IsNullOrWhiteSpace($prPathsBlock)) ''
+foreach ($dep in $runtimeDeps) {
+  # paths 用 `- 'x'`（带引号），sparse-checkout 用裸路径；据此区分两者
+  Check "PR 触发路径含依赖 $dep" ($prPathsBlock.Contains("'scripts/$dep'")) ''
+}
+
+# ⑤ 模拟检出：只复制 workflow 列出的文件，再断言依赖齐全（真跑一遍）
+$simRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("jw-sparse-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $simRoot | Out-Null
+try {
+  $srcRoot = $PSScriptRoot   # scripts/ 目录
+  $copied = 0
+  foreach ($rel in $sparseEntries) {
+    $leaf = Split-Path $rel -Leaf
+    $src = Join-Path $srcRoot $leaf
+    if (Test-Path -LiteralPath $src) {
+      Copy-Item -LiteralPath $src -Destination (Join-Path $simRoot $leaf)
+      $copied++
+    }
+  }
+  Check '模拟检出至少复制到主脚本' (Test-Path -LiteralPath (Join-Path $simRoot 'upgrade-smoke.ps1')) "copied=$copied"
+  foreach ($dep in $runtimeDeps) {
+    $ok = Test-Path -LiteralPath (Join-Path $simRoot $dep)
+    Check "模拟检出后 $dep 存在" $ok '这是真机 job 的失败点：缺它会在初始化阶段 throw'
+  }
+} finally {
+  Remove-Item -LiteralPath $simRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 Write-Host "`n== 4. 纯函数行为（不安装）" -ForegroundColor Cyan
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("jw-selftest-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null

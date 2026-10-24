@@ -60,9 +60,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: 安装自检依赖
+      - name: 安装并校验自检依赖
         shell: pwsh
-        run: python -m pip install --quiet cryptography
+        # 用 **Get-Command python 解析到的同一个解释器**安装并立即验证 import——
+        # 否则"pip 装的 python"与"ps1 里 Get-Command python"可能不是同一个，
+        # certcheck 会以 ModuleNotFoundError 崩掉，而自检其他项看起来正常。
+        run: |
+          $py = (Get-Command python).Source
+          Write-Host "python = $py"
+          & $py -m pip install --quiet --upgrade cryptography
+          & $py -c "import cryptography, sys; print('cryptography=' + cryptography.__version__); print('exe=' + sys.executable)"
       - name: 跑 S1 离线自检
         shell: pwsh
         # DPRIME2_RC_ROOT 未设时 RC 相关项记 SKIP（本地无 RC 属正常）

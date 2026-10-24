@@ -319,7 +319,10 @@ if ($Action -eq 'Tls1') {
         $p = Write-Json 'tls1.json' ([pscustomobject]@{
             at = (Get-Date).ToString('o'); mode = 'unparsed'; handshake_performed = $false
             rows = @(); all_ok = $false
-            raw_output = (($raw -replace "`r?`n", ' | ')).Substring(0, [Math]::Min(400, ($raw -replace "`r?`n", ' | ').Length))
+            # raw_output 截到 2000：certcheck 的 Traceback 需要足够长度才能定位
+            # （2026-10-24 第一次只留 400 字符，看不到真正的异常行）。
+            $flat = ($raw -replace "`r?`n", ' | ')
+            raw_output = $flat.Substring(0, [Math]::Min(2000, $flat.Length))
         })
         Write-Host "Tls1: certcheck 输出不可解析 -> $p"
         exit 5

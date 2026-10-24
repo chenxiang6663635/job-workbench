@@ -145,8 +145,10 @@ else:
     _t1rows = tls1.get("rows") or []
     rep("C4b Tls1 收据含逐项 rows", len(_t1rows) > 0, "rows=%d" % len(_t1rows))
     if tls1.get("raw_output"):
-        rep("C4c Tls1 记录了不可解析的原始输出", True,
-            ("raw=%s" % str(tls1.get("raw_output"))[:70]))
+        # 完整打印 raw_output：这是定位 certcheck 崩溃的唯一线索，
+        # 截断到 70 字符等于把 Traceback 的关键行藏起来（2026-10-24 实测吃过亏）。
+        _raw = str(tls1.get("raw_output"))
+        rep("C4c Tls1 记录了不可解析的原始输出", True, "raw(len=%d)=%s" % (len(_raw), _raw[:600]))
 
 # ── C2. PrepareFixtures：与生产**同一条路径**备元数据（2026-10-24 补）──────
 # 原自检自己手写 atom.xml/latest.json，掩盖了 StartMock 根本不生成夹具的缺口。

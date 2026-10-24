@@ -95,6 +95,21 @@ function Record([string] $id, [string] $what, [bool] $ok, [string] $detail = '')
   $color = if ($ok) { 'Green' } else { 'Red' }
   Write-Host ("  [{0}] {1} — {2}" -f $tag, $what, $detail) -ForegroundColor $color
 }
+# GAP = 本次未能取得该证据：**不是**产品缺陷（不计入 failed、不使 job 判 FAIL），
+# 也**不是**通过（不计入 passed）。用于 error_code 未能解析这类"判据无法落地"的情形。
+# 2026-10-24 审计要求：这类缺口必须显式留痕，不能靠放宽判据让它变 PASS。
+function RecordGap([string] $id, [string] $what, [string] $detail = '') {
+  $row = [pscustomobject]@{
+    id     = $id
+    check  = $what
+    status = 'GAP'
+    detail = $detail
+    phase  = $script:Phase
+  }
+  $script:Rows.Add($row)
+  Write-Host ("  [GAP ] {0} — {1}" -f $what, $detail) -ForegroundColor Yellow
+}
+
 function Step([string] $t, [string] $phase) {
   $script:Phase = $phase
   Write-Host "`n== $t" -ForegroundColor Cyan
@@ -478,12 +493,14 @@ try {
         Record 'RT-8c-3' '快照恢复后数据回到原内容' $false '未执行'
       }
 
-      # RT-9：打包后端的 PDF 文本提取（pypdf）——**不调用任何模型**。
-      # 判据设计：/api/resume/import 先本地抽取（resume_import._extract_pdf，纯 pypdf）
-      # 再调 BYOK 模型。把 provider 指向本机不可达端口 http://127.0.0.1:1，则：
-      #   抽取成功 → 停在模型调用 → 502 resume.modelUnreachable
-      #   抽取失败 → 422 resume.extractFailed
-      # 因此「502 且错误码为 modelUnreachable」即证明 pypdf 在打包后端里可用，且全程零外发。
+      # RT-9：打包后端的 PDF 文本提取（pypdf）——**不调用任何真实模型、不发外网**。
+      # /api/resume/import 的执行顺序（resume.py）：解码 → extract_text(pypdf) → 拼提示词 → 调模型。
+      # 把 provider 指向本机不可达端口 http://127.0.0.1:1，则：
+      #   提取失败 → 422 resume.extractFailed（resume.py:218）
+      #   提取成功 → 停在模型调用 → **502 之一**（modelHttpError / modelUnreachable /
+      #              modelCallFailed / modelNotJson，均见 resume.py）
+      # 所以 502 只能证明「越过了提取」，不能证明「命中的是 modelUnreachable」——
+      # 后者需要 error_code 精确匹配（RT-9-2），解析不到即记证据缺口，不予放宽。
       try {
         $pdfPath = Join-Path $appData 'smoke-resume.pdf'
         $pdfB64 = 'JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vUmVzb3VyY2VzPDwvRm9udDw8L0YxIDQgMCBSPj4+Pi9Db250ZW50cyA1IDAgUj4+ZW5kb2JqCjQgMCBvYmo8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PmVuZG9iago1IDAgb2JqPDwvTGVuZ3RoIDc4Pj5zdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDcyMCBUZCAoSm9iIFdvcmtiZW5jaCBzbW9rZSBKT0JXUy1TTU9LRS1QREYtTUFSS0VSLTIwMjYpIFRqIEVUCmVuZHN0cmVhbWVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1MiAwMDAwMCBuIAowMDAwMDAwMTAxIDAwMDAwIG4gCjAwMDAwMDAyMTEgMDAwMDAgbiAKMDAwMDAwMDI3MiAwMDAwMCBuIAp0cmFpbGVyPDwvU2l6ZSA2L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMzk1CiUlRU9GCg=='
@@ -532,15 +549,34 @@ try {
             }
           }
         }
-        # 判据：502 = 已越过本地抽取、停在模型阶段（抽取失败会是 422）。
-        # 假端点是 127.0.0.1:1（连接被拒 → URLError），因此 502 只可能是 modelUnreachable；
-        # 若能解析出 error_code 再收紧比对，解析不到不判失败（否则解析器差异会变成假阴性）。
-        $pdfOk = ($pdfStatus -eq 502)
-        if ($pdfErr) { $pdfOk = $pdfOk -and ($pdfErr -eq 'resume.modelUnreachable') }
+        # 判据分两级（2026-10-24 审计纠正：原实现"解析不到就放宽"会掩盖解析缺陷）。
+        #
+        # resume.py 里 **4 个** 错误码都返回 502：
+        #   resume.modelHttpError / resume.modelUnreachable / resume.modelCallFailed / resume.modelNotJson
+        # 而**提取失败是 422 resume.extractFailed**（resume.py:218）。
+        # 因此：
+        #   RT-9-1（弱）= 502 任一 → 已越过本地提取阶段；这一条成立，但它**不**证明命中哪个错误码。
+        #   RT-9-2（强）= 502 且 error_code 精确等于 resume.modelUnreachable；解析不到即判未达成，
+        #                 并作为**证据缺口**留痕（不放宽、不兜底）。
+        $passedExtract = ($pdfStatus -eq 502)
+        $hitUnreachable = ($pdfStatus -eq 502) -and ($pdfErr -eq 'resume.modelUnreachable')
         $pdfDetail = "http=$pdfStatus error_code=" + $(if ($pdfErr) { $pdfErr } else { '<unparsed>' })
-        Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' $pdfOk $pdfDetail
+        Record 'RT-9-1' 'PDF 已越过本地提取阶段（502，非 422 提取失败）' $passedExtract $pdfDetail
+        if ($hitUnreachable) {
+          Record 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' $true $pdfDetail
+        } elseif (-not $pdfErr) {
+          # 502 到了但 error_code 读不出来 → 判据无法落地。记 GAP，不放宽成 PASS，也不算产品失败。
+          $rawSnippet = if ($txt) { ($txt -replace '\s+', ' ') } else { '<empty body>' }
+          RecordGap 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' `
+            ("证据缺口：502 已到但 error_code 未解析；raw=" + $rawSnippet.Substring(0, [Math]::Min(140, $rawSnippet.Length)))
+        } else {
+          # 解析出来了但不是 modelUnreachable（可能是 modelHttpError/CallFailed/NotJson）——
+          # 这是**真实的判据不符**，不是缺口。
+          Record 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' $false $pdfDetail
+        }
       } catch {
-        Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' $false $_.Exception.Message
+        Record 'RT-9-1' 'PDF 已越过本地提取阶段（502，非 422 提取失败）' $false $_.Exception.Message
+        RecordGap 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' '未执行（RT-9-1 先行失败）'
       }
     } else {
       Record 'RT-8a-1' 'dataRoot = 隔离工作区根' $false '后端未就绪'
@@ -548,10 +584,11 @@ try {
       Record 'RT-8c-1' '升级前快照仍可见' $false '后端未就绪'
       Record 'RT-8c-2b' '种子文件已被破坏（恢复判据前置）' $false '后端未就绪'
       Record 'RT-8c-3' '快照恢复后数据回到原内容' $false '后端未就绪'
-      # RT-9-1：后端未就绪时同样必须留痕——不能因为它"没跑"就从收据里消失
+      # RT-9-1/9-2：后端未就绪时同样必须留痕——不能因为它"没跑"就从收据里消失
       # （2026-10-23 审计：D'-1 用的 3379bf3 版本脚本没有 RT-9 段，导致 pypdf 路径
       #  在 45/45 的收据里毫无痕迹，被误读成"已覆盖"）
-      Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' $false '后端未就绪'
+      Record 'RT-9-1' 'PDF 已越过本地提取阶段（502，非 422 提取失败）' $false '后端未就绪'
+      RecordGap 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' '后端未就绪'
     }
   } finally {
     if ($null -ne $appProc -and -not $appProc.HasExited) { try { $appProc.Kill() } catch { } }
@@ -640,22 +677,28 @@ try {
   try {
     $failed = @($script:Rows | Where-Object { $_.status -eq 'FAIL' })
     # M-5：known_gaps 必须参与**裁决**，不能只是注释文字——有缺口时结论不能是纯 PASS。
+    # known_gaps = **本次运行**仍未覆盖的能力。只影响本次 conclusion。
     $knownGaps = @(
       'NSIS 向导 UI / UAC 提权 / SmartScreen：未覆盖（静默安装绕过）',
       '真实 Windows 11 客户端体验：未覆盖（runner 为 Windows Server 镜像）',
       'electron-updater 端到端（发现→下载→安装→重启）：未覆盖，属 D′-2，见 DESIGN.md §5',
       '升级中断后的产品恢复行为：未覆盖（重跑 job ≠ 产品回滚）',
       '日志措辞（packaged / python fallback）：未验证——以 RT-5 的「监听者进程路径 == 安装目录后端 exe」作为更强替代证据',
-      # 2026-10-23 审计登记：**历史收据的证据边界**（不是当前脚本的缺口，别混读）
-      'pypdf/PDF 路径：RT-9-1 已在本脚本实现，但 D′-1 收据（run 39914715729）所用的
-       3379bf3 版本脚本没有该段，故那次 45/45 不含 pypdf 证据——需用本脚本补跑一次',
-      'D′-1 收据（run 39914715729）的两条判据弱点，本次已修但历史收据仍带此记录：
-       UP-4 为空值假阳性（detail " -> "，前后均未读到 MainBinaryName，该断言已删除）；
-       RT-8c-3 未先破坏种子文件即 restore（不能证明恢复能力，已改为先破坏后恢复）'
+      'pypdf 五个 CVE 的具体漏洞路径：未逐一验证——RT-9 只证明「提取链路在打包后端可执行」'
     )
+    # historical_evidence_limitations = **旧收据**（run 39914715729）的既有问题。
+    # 与本次结果无关，**不参与** conclusion 计算——否则补跑成功后收据仍显示一个已完成的待办。
+    $historicalLimitations = @(
+      '旧收据所用脚本提交 3379bf3 没有 RT-9 段，故其 45/45 不含任何 pypdf 证据（RT-9 是后来加进 main 的）',
+      'UP-4（MainBinaryName 未变）当时为空值假阳性：detail 为 " -> "，升级前后均未读到该值（本脚本已删除该断言）',
+      'RT-8c-3 当时未先破坏种子文件即执行 restore，detail 为 len=51（= 原始内容），不能证明恢复能力（本脚本已改为先破坏后恢复）'
+    )
+    # GAP 行（证据缺口）既不计入 passed 也不计入 failed：它表示"判据无法落地"，
+    # 但必须单独计数并让 conclusion 反映出来（不能让缺口被读成全绿）。
+    $gapRows = @($script:Rows | Where-Object { $_.status -eq 'GAP' })
     $conclusion = if ($null -ne $script:Fatal) { 'ERROR' }
                   elseif ($failed.Count -gt 0) { 'FAIL' }
-                  elseif ($knownGaps.Count -gt 0) { 'PASS_WITH_GAPS' }
+                  elseif ($knownGaps.Count -gt 0 -or $gapRows.Count -gt 0) { 'PASS_WITH_GAPS' }
                   else { 'PASS' }
     $receipt = [ordered]@{
       kind         = 'dprime-1-upgrade-installer'
@@ -670,9 +713,11 @@ try {
         total      = $script:Rows.Count
         passed     = @($script:Rows | Where-Object { $_.status -eq 'PASS' }).Count
         failed     = $failed.Count
+        gap        = $gapRows.Count
         conclusion = $conclusion
       }
-      known_gaps   = $knownGaps
+      known_gaps                   = $knownGaps
+      historical_evidence_limitations = $historicalLimitations
     }
     $dir = Split-Path $ReceiptPath -Parent
     if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }

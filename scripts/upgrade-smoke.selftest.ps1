@@ -103,6 +103,16 @@ Check 'M-2 换行规范化比对' ($scriptText.Contains('Normalize-Text')) ''
 Check 'M-4 健康检查只等一次' (-not $scriptText.Contains('Wait-Health $BackendPort 5')) ''
 Check 'M-5 gaps 参与裁决' ($scriptText.Contains('PASS_WITH_GAPS')) ''
 
+# --- 2026-10-24 证据边界回归检查（外部审计提出，逐条钉住）---
+Check 'UP-4 已删除（不可靠字段的空值假阳性）' (-not $scriptText.Contains("Record 'UP-4'")) 'MainBinaryName 不是 NSIS 保证写入的命名值；前后皆空时 -ceq 为真'
+Check 'RT-8c 先破坏种子再恢复' ($scriptText.Contains('TAMPERED-BEFORE-RESTORE') -and $scriptText.Contains("'RT-8c-2b'")) 'restore 前不动文件 → 不能证明恢复能力'
+Check 'RT-8c 断言破坏确实生效' ($scriptText.Contains('破坏种子文件失败')) '否则内容未变时后续判据无效'
+Check 'RT-9-2 要求 error_code 精确匹配' ($scriptText.Contains('$hitUnreachable')) '502 有 4 个分支，不能只凭状态码判定命中 modelUnreachable'
+Check 'RT-9 不再"解析不到就放宽"' (-not $scriptText.Contains("if (`$pdfErr) { `$pdfOk = `$pdfOk -and")) '解析失败应记证据缺口'
+Check 'GAP 态存在且不计入 failed' ($scriptText.Contains('function RecordGap') -and -not ($scriptText -match 'failed\s*=\s*@\(\$script:Rows \| Where-Object \{ \$_.status -eq .GAP')) '证据缺口既非失败也非通过'
+Check 'GAP 使结论为 PASS_WITH_GAPS' ($scriptText.Contains('$gapRows.Count -gt 0')) '缺口不能被读成全绿'
+Check '历史边界与本次缺口分开字段' ($scriptText.Contains('historical_evidence_limitations')) '补跑成功后不得仍显示"需补跑一次"'
+
 # --- 代码审查 MAJOR 回归检查 ---
 Check '审查 M1 PEM 用精确路径' ($scriptText.Contains("'CA-0'") -and $scriptText.Contains('resources\backend\_internal\certifi\cacert.pem')) '不用 -First 1 模糊匹配'
 Check '审查 M1 PEM 数量断言' ($scriptText.Contains("'CA-0b'")) ''

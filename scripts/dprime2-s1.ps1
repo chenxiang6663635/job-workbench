@@ -305,7 +305,10 @@ if ($Action -eq 'NewCert') {
 if ($Action -eq 'Tls1') {
     $certCheck = Join-Path $PSScriptRoot 'dprime2-certcheck.py'
     if (-not (Test-Path $certCheck)) { throw "缺 certcheck 脚本：$certCheck" }
-    $py = (Get-Command $Python -ErrorAction SilentlyContinue).Source
+    # StrictMode 陷阱（2026-10-24 实测）：Get-Command 失败返回 $null，
+    # 直接 .Source 会抛 "在此对象上找不到属性 Source"——报错信息完全指不到真因。
+    $pyCmd = Get-Command $Python -ErrorAction SilentlyContinue
+    $py = if ($null -ne $pyCmd) { $pyCmd.Source } else { $null }
     if (-not $py) { throw "找不到 python（$Python），TLS-1 无法执行" }
     # 2026-10-24 CI 实测修正：外部命令的多行输出在 pwsh 里是**字符串数组**，
     # `$raw | ConvertFrom-Json` 会逐行转换，结果没有 .rows 属性 → StrictMode 抛错 →
@@ -316,12 +319,15 @@ if ($Action -eq 'Tls1') {
     $parsed = $null
     try { $parsed = $raw | ConvertFrom-Json } catch { $parsed = $null }
     if ($null -eq $parsed) {
+        # raw_output 截到 2000：certcheck 的 Traceback 需要足够长度才能定位
+        # （2026-10-24 第一次只留 400 字符，看不到真正的异常行）。
+        # ⚠️ $flat 必须算在**哈希字面量之外**：写在 [pscustomobject]@{ } 里会被当成
+        # 键值对的一部分，StrictMode 下报 "variable '$flat' cannot be retrieved"
+        # （2026-10-24 我自己踩过一次，CI 因此从 3 失败变成 2 失败但根因被掩盖）。
+        $flat = ($raw -replace "`r?`n", ' | ')
         $p = Write-Json 'tls1.json' ([pscustomobject]@{
             at = (Get-Date).ToString('o'); mode = 'unparsed'; handshake_performed = $false
             rows = @(); all_ok = $false
-            # raw_output 截到 2000：certcheck 的 Traceback 需要足够长度才能定位
-            # （2026-10-24 第一次只留 400 字符，看不到真正的异常行）。
-            $flat = ($raw -replace "`r?`n", ' | ')
             raw_output = $flat.Substring(0, [Math]::Min(2000, $flat.Length))
         })
         Write-Host "Tls1: certcheck 输出不可解析 -> $p"

@@ -314,17 +314,25 @@ if ($Action -eq 'Tls1') {
     # `$raw | ConvertFrom-Json` 会逐行转换，结果没有 .rows 属性 → StrictMode 抛错 →
     # 整个 Tls1 中断、tls1.json 不产出（自检随后 FileNotFoundError 全盘崩）。
     # 先用 -join 并成单串再解析；解析不了也要把原始输出写进收据（证据优先）。
-    # stderr **不要**并入 stdout：cryptography 在旧 Python 上会往 stderr 打
+    # stderr **不并入** stdout：cryptography 在部分 Python 版本上会往 stderr 打
     # CryptographyDeprecationWarning，混进来会让 JSON 解析失败（本轮实测踩过）。
-    # 改为只取 stdout；stderr 单独留档，便于诊断。
+    # 但 stderr 也**不能直接扔掉**：ModuleNotFoundError 这类真错误也只出现在 stderr，
+    # 丢了就只剩"无输出 exit=1"，完全看不出原因（2026-10-24 实测踩过）。
+    # 折中：stdout 单独取用于解析，stderr 捕获到变量、截断后写进 tls1.json 留档。
     $raw = ''
+    $errText = ''
+    $errVar = @()
     try {
-        $out = & $py $certCheck --dir $OutDir 2>$null
+        $out = & $py $certCheck --dir $OutDir 2>$errVar
         $raw = ($out -join "`n")
+        $errText = ($errVar -join "`n")
     } catch {
         $raw = "certcheck 调用失败：$($_.Exception.Message)"
+        $errText = ($errVar -join "`n")
     }
-    if (-not $raw.Trim()) { $raw = "certcheck 无输出（exit=$LASTEXITCODE）" }
+    $rcCert = $LASTEXITCODE
+    $errFlat = ($errText -replace "`r?`n", ' | ')
+    if (-not $raw.Trim()) { $raw = "certcheck 无 stdout 输出（exit=$rcCert）" }
     $parsed = $null
     try { $parsed = $raw | ConvertFrom-Json } catch { $parsed = $null }
     if ($null -eq $parsed) {
@@ -338,6 +346,8 @@ if ($Action -eq 'Tls1') {
             at = (Get-Date).ToString('o'); mode = 'unparsed'; handshake_performed = $false
             rows = @(); all_ok = $false
             raw_output = $flat.Substring(0, [Math]::Min(2000, $flat.Length))
+            stderr_tail = $errFlat.Substring(0, [Math]::Min(2000, $errFlat.Length))
+            exit_code = $rcCert
         })
         Write-Host "Tls1: certcheck 输出不可解析 -> $p"
         exit 5
@@ -349,6 +359,8 @@ if ($Action -eq 'Tls1') {
     at = (Get-Date).ToString('o'); mode = $parsed.mode
     handshake_performed = [bool]$parsed.handshake_performed
     rows = $rows; all_ok = [bool]$parsed.all_ok
+    exit_code = $rcCert
+    stderr_tail = $errFlat.Substring(0, [Math]::Min(2000, $errFlat.Length))
     })
     Write-Host "Tls1 (offline): all_ok=$($parsed.all_ok) -> $p"
     $rows | Where-Object { -not $_.ok } | ForEach-Object { Write-Host "  FAIL: $($_.id) $($_.detail)" }

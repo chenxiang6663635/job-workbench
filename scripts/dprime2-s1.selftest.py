@@ -149,6 +149,15 @@ else:
         # 截断到 70 字符等于把 Traceback 的关键行藏起来（2026-10-24 实测吃过亏）。
         _raw = str(tls1.get("raw_output"))
         rep("C4c Tls1 记录了不可解析的原始输出", True, "raw(len=%d)=%s" % (len(_raw), _raw[:600]))
+    # stderr 单独打印：ModuleNotFoundError 这类真错误只出现在 stderr，
+    # 而 stdout 可能完全为空（2026-10-24 CI 实测：只剩"无输出 exit=1"）。
+    _se = str(tls1.get("stderr_tail") or "")
+    if _se.strip():
+        rep("C4e Tls1 记录了 certcheck 的 stderr", True, "stderr(len=%d)=%s" % (len(_se), _se[:400]))
+    else:
+        rep("C4e certcheck stderr 为空", True, "无 stderr 输出（正常）")
+    if "exit_code" in tls1:
+        rep("C4f Tls1 记录了退出码", True, "exit_code=%s" % tls1.get("exit_code"))
     # C4d：certcheck 自身崩了也必须留下结构化证据（internal_error + traceback_tail），
     # 而不是裸 Traceback 让调用方只剩 unparsed（2026-10-24 cryptography 50.0.2 实测）。
     if tls1.get("internal_error"):

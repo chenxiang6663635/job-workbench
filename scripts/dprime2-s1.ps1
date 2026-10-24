@@ -225,6 +225,12 @@ if ($Action -eq 'NewCert') {
         [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]::new($true, $false, 0, $true))
     $caReq.CertificateExtensions.Add(
         [System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]::new('KeyCertSign,CrlSign', $true))
+    # SKI（Subject Key Identifier）：OpenSSL 3.4+ 的严格链校验要求链上有 SKI/AKI，
+    # 缺了会报 CERTIFICATE_VERIFY_FAILED / Missing Authority Key Identifier
+    # （2026-10-24 PR CI 的 S1 自检 job 实测：Python 3.14 + OpenSSL 3.x 拒绝本证书）。
+    # 这也预示 S1 真跑时 Electron/Chromium 会用同一套严格规则——必须补上。
+    $caSkiExt = [System.Security.Cryptography.X509Certificates.X509SubjectKeyIdentifierExtension]::new($caRsa, $false)
+    $caReq.CertificateExtensions.Add($caSkiExt)
     $ca = $caReq.CreateSelfSigned($notBefore, $notAfter)
 
     # 服务器证书（由 CA 签发，serverAuth + SAN）
@@ -242,6 +248,19 @@ if ($Action -eq 'NewCert') {
     $srvReq.CertificateExtensions.Add(
         [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]::new($oids, $true))
     $srvReq.CertificateExtensions.Add($sanExt)
+    # 服务器证书同样要 SKI；AKI 指向 CA 的 SKI。
+    # .NET 没有 X509AuthorityKeyIdentifierExtension（实测缺失），按 RFC 5280 最小形式手编 DER：
+    #   AuthorityKeyIdentifier ::= SEQUENCE { keyIdentifier [0] OCTET STRING }
+    #   → 30 <len> 80 14 <20 字节 SKI>
+    $srvReq.CertificateExtensions.Add(
+        [System.Security.Cryptography.X509Certificates.X509SubjectKeyIdentifierExtension]::new($srvRsa, $false))
+    $caSkiHex = $caSkiExt.SubjectKeyIdentifier
+    $caSkiBytes = for ($i = 0; $i -lt $caSkiHex.Length; $i += 2) { [Convert]::ToByte($caSkiHex.Substring($i, 2), 16) }
+    $akiInner = [byte[]]@(0x80, 0x14) + $caSkiBytes
+    $akiDer = [byte[]]@(0x30, [byte]$akiInner.Length) + $akiInner
+    $srvReq.CertificateExtensions.Add(
+        [System.Security.Cryptography.X509Certificates.X509Extension]::new(
+            [System.Security.Cryptography.Oid]::new('2.5.29.35'), $akiDer, $false))
     $srv = $srvReq.Create($ca, $notBefore, $notAfter, [guid]::NewGuid().ToByteArray())
 
     function Export-Pem([byte[]]$Der, [string]$Label) {
@@ -255,7 +274,10 @@ if ($Action -eq 'NewCert') {
     $keyPem = Export-Pem $srvRsa.ExportPkcs8PrivateKey() 'PRIVATE KEY'
 
     Set-Content -Path (Join-Path $OutDir 'ca.crt') -Value $caPem -NoNewline -Encoding utf8
-    Set-Content -Path (Join-Path $OutDir 'server.crt') -Value ($caPem + "`n" + $srvPem) -NoNewline -Encoding utf8
+    # server.crt 必须是**叶子在前、CA 在后**：ssl.load_cert_chain() 与多数 TLS 实现
+    # 都按「第一个证书 = 叶子」解析。原实现写成 CA+leaf，Python 侧直接
+    # SSLError: KEY_VALUES_MISMATCH（第一个证书与私钥不匹配）——2026-10-24 实测。
+    Set-Content -Path (Join-Path $OutDir 'server.crt') -Value ($srvPem + "`n" + $caPem) -NoNewline -Encoding utf8
     Set-Content -Path (Join-Path $OutDir 'server.key') -Value $keyPem -NoNewline -Encoding utf8
 
     $info = [pscustomobject]@{

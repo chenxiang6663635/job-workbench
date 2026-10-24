@@ -21,6 +21,16 @@ import shutil
 import ssl
 import subprocess
 import sys
+
+# Windows 控制台默认 GBK，打印含非 GBK 字符（如 U+02FD）会 UnicodeEncodeError，
+# 把整个自检打断在 rep() 的 print 上（2026-10-24 本地实测：跑到 C3 就崩，
+# 后面几十项结果全丢）。统一 reconfigure；失败就忽略（CI 的 Linux 无此问题）。
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+import sys
 import tempfile
 import time
 import urllib.request
@@ -161,13 +171,22 @@ if not RC_OK:
         '/releases/tag/v26.10.1"/><title>v26.10.1</title></entry></feed>')
     io.open(os.path.join(fixture, "tag.html"), "w", encoding="utf-8").write(
         '<!doctype html><title>v26.10.1</title>')
-# 只补证书（StartMock 负责这部分；自检不绑 443 所以自己放）。
-# 只放**叶子**：Python 的 load_cert_chain 用 certfile 第一张配密钥
-# （server.crt 里 CA 在前，直接复制会 KEY_VALUES_MISMATCH）
+# 只放**叶子**：Python 的 load_cert_chain 用 certfile 第一张配密钥。
+# ⚠️ 证书块顺序已经造成两次假失败（先是 NewCert 写成 CA-first，改成 leaf-first 后
+#    这里与 certcheck._load 又按旧顺序取到了 CA）。**不再依赖顺序**：用 cryptography
+#    按 subject 取 CN=github.com 的那一张；没有该库时才退回顺序约定（leaf-first）。
 _all = io.open(os.path.join(out_c, "server.crt"), encoding="utf-8").read()
 _blocks = [b for b in _all.split("-----BEGIN CERTIFICATE-----") if "END CERTIFICATE" in b]
-io.open(os.path.join(fixture, "server.crt"), "w", encoding="utf-8").write(
-    "-----BEGIN CERTIFICATE-----" + _blocks[-1])
+_leaf_pem = None
+try:
+    from cryptography import x509 as _x509
+    from cryptography.hazmat.primitives import serialization as _ser
+    _certs = _x509.load_pem_x509_certificates(_all.encode())
+    _leaf = next((c for c in _certs if c.subject.rfc4514_string() == "CN=github.com"), _certs[0])
+    _leaf_pem = _leaf.public_bytes(_ser.Encoding.PEM).decode("ascii")
+except Exception:
+    _leaf_pem = "-----BEGIN CERTIFICATE-----" + _blocks[0]
+io.open(os.path.join(fixture, "server.crt"), "w", encoding="utf-8").write(_leaf_pem)
 shutil.copy(os.path.join(out_c, "ca.crt"), fixture)
 shutil.copy(os.path.join(out_c, "server.key"), fixture)
 io.open(os.path.join(fixture, "probe.txt"), "w", encoding="utf-8").write("dprime2-tls2-probe")
@@ -213,11 +232,17 @@ try:
         for p in paths:
             headers = {"Accept": "application/json"} if p.endswith("/releases/latest") else {}
             req = urllib.request.Request(base + p, headers=headers, method="GET")
-            with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
-                body = r.read()
-                rep("D2 路由 %s" % p.split("/", 3)[-1][:28],
-                    r.status == 200 and body == want[p],
-                    "status=%s bytes=%d" % (r.status, len(body)))
+            # 必须 try/except：TLS/握手异常若未捕获，会**整个自检崩溃**，
+            # 把其余几十项的结果全部丢掉（2026-10-24 PR CI 实测踩到）。
+            try:
+                with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
+                    body = r.read()
+                    rep("D2 路由 %s" % p.split("/", 3)[-1][:28],
+                        r.status == 200 and body == want[p],
+                        "status=%s bytes=%d" % (r.status, len(body)))
+            except Exception as e:
+                rep("D2 路由 %s" % p.split("/", 3)[-1][:28], False,
+                    "请求失败：%s: %s" % (type(e).__name__, e))
 
         # D2b 关键等价性：**不带** Accept: application/json 时必须 302 到 tag 页，
         # 而不是回 JSON（真实 GitHub 行为；否则 mock 会掩盖客户端漏发头的问题）
@@ -425,6 +450,40 @@ rep("PR 阶段跑 S1 自检（lint job）",
 rep("收据缺失使 job 失败（非 warn）",
     "if-no-files-found: error" in wf,
     "收据是唯一可审计产物，缺失即证据链断裂")
+
+# ── 第十四轮：证书链三处修正的回归钉子 ────────────────────────────────
+# PR CI 的 S1 自检 job 实测失败：Python 3.14 + OpenSSL 3.x 以
+# "Missing Authority Key Identifier" 拒绝 mock 证书。根因是 NewCert 用 .NET
+# 生成证书时没加 SKI/AKI；顺带发现 server.crt 的证书顺序也错（CA 在前，
+# load_cert_chain 要求叶子在前），而 certcheck 与 selftest 又按旧顺序取证书。
+ps1_src_cert = ps1_src
+rep("R1 NewCert 给 CA 加 SKI",
+    "X509SubjectKeyIdentifierExtension" in ps1_src_cert,
+    "OpenSSL 3.4+ 严格链校验要求 SKI，缺了 CERTIFICATE_VERIFY_FAILED")
+rep("R2 NewCert 给叶子加 AKI（RFC5280 最小 DER）",
+    "2.5.29.35" in ps1_src_cert and "0x80, 0x14" in ps1_src_cert,
+    ".NET 无 X509AuthorityKeyIdentifierExtension，需手编 SEQUENCE{[0]OCTET STRING}")
+rep("R3 server.crt 叶子在前",
+    ps1_src_cert.find("$srvPem + \"`n\" + $caPem") >= 0,
+    "load_cert_chain 用第一张证书配密钥，CA 在前会 KEY_VALUES_MISMATCH")
+rep("R4 selftest 不依赖证书顺序（按 CN 取叶子）",
+    "CN=github.com" in io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            "dprime2-s1.selftest.py"), encoding="utf-8").read()
+    and "_blocks[0]" in io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                             "dprime2-s1.selftest.py"), encoding="utf-8").read(),
+    "顺序假设已错两次，改为语义化选取")
+rep("R5 certcheck 取 server.crt 第一个证书",
+    "srv_pem[0]" in io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "dprime2-certcheck.py"), encoding="utf-8").read(),
+    "[-1] 在 leaf-first 顺序下会取到 CA")
+rep("R6 D 组请求异常不吞掉整个自检",
+    "请求失败" in io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                       "dprime2-s1.selftest.py"), encoding="utf-8").read(),
+    "未捕获的 TLS 异常会让后面几十项结果全部丢失")
+rep("R7 stdout 编码兜底（Windows GBK）",
+    "reconfigure" in io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "dprime2-s1.selftest.py"), encoding="utf-8").read(),
+    "非 GBK 字符会让 print 抛 UnicodeEncodeError，自检中断")
 
 # ── 汇总 ─────────────────────────────────────────────────────────────────
 shutil.rmtree(tmp, ignore_errors=True)

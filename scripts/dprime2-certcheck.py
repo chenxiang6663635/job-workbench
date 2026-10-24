@@ -39,8 +39,11 @@ def _load(d):
     srv_pem = pem_certs(os.path.join(d, "server.crt"))
     if not ca_pem or not srv_pem:
         return None, None
+    # server.crt 的排列是**叶子在前、CA 在后**（load_cert_chain 的要求，2026-10-24 修正）。
+    # 原实现取 srv_pem[-1]（那是旧顺序「CA 在前」下的叶子），顺序改对后 [-1] 变成 CA，
+    # 于是 T1-7 报 key_bits=2048 cert_bits=4096。load_pem_x509_certificate 只读第一个证书。
     return (x509.load_pem_x509_certificate(ca_pem[0].encode()),
-            x509.load_pem_x509_certificate(srv_pem[-1].encode()))
+            x509.load_pem_x509_certificate(srv_pem[0].encode()))
 
 
 def _check_identity(ca, srv, add):

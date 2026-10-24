@@ -314,8 +314,17 @@ if ($Action -eq 'Tls1') {
     # `$raw | ConvertFrom-Json` 会逐行转换，结果没有 .rows 属性 → StrictMode 抛错 →
     # 整个 Tls1 中断、tls1.json 不产出（自检随后 FileNotFoundError 全盘崩）。
     # 先用 -join 并成单串再解析；解析不了也要把原始输出写进收据（证据优先）。
+    # stderr **不要**并入 stdout：cryptography 在旧 Python 上会往 stderr 打
+    # CryptographyDeprecationWarning，混进来会让 JSON 解析失败（本轮实测踩过）。
+    # 改为只取 stdout；stderr 单独留档，便于诊断。
     $raw = ''
-    try { $raw = (& $py $certCheck --dir $OutDir 2>&1) -join "`n" } catch { $raw = "certcheck 调用失败：$($_.Exception.Message)" }
+    try {
+        $out = & $py $certCheck --dir $OutDir 2>$null
+        $raw = ($out -join "`n")
+    } catch {
+        $raw = "certcheck 调用失败：$($_.Exception.Message)"
+    }
+    if (-not $raw.Trim()) { $raw = "certcheck 无输出（exit=$LASTEXITCODE）" }
     $parsed = $null
     try { $parsed = $raw | ConvertFrom-Json } catch { $parsed = $null }
     if ($null -eq $parsed) {

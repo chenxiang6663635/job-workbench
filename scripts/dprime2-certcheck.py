@@ -122,15 +122,34 @@ def main():
     def add(rid, ok, detail):
         rows.append({"id": rid, "ok": bool(ok), "detail": str(detail)[:200]})
 
-    ca, srv = _load(d)
-    if ca is None:
-        print(json.dumps({"all_ok": False, "rows": [
-            {"id": "T1-0 PEM 可解析", "ok": False, "detail": "ca/server PEM 缺失"}]},
-            ensure_ascii=False))
-        return 1
+    # 任何未预期异常都必须以**结构化 JSON** 输出，而不是裸 Traceback。
+    # 2026-10-24 CI 实测：cryptography 50.0.2 下本脚本抛 Traceback，
+    # 调用方（ps1 的 Tls1）解析不到 rows，整条链路只剩 "unparsed"，
+    # 看不到真正的异常行——等于把诊断信息扔了。
+    try:
+        ca, srv = _load(d)
+        if ca is None:
+            print(json.dumps({"all_ok": False, "rows": [
+                {"id": "T1-0 PEM 可解析", "ok": False, "detail": "ca/server PEM 缺失"}]},
+                ensure_ascii=False))
+            return 1
 
-    _check_identity(ca, srv, add)
-    _check_crypto(ca, srv, d, add)
+        _check_identity(ca, srv, add)
+        _check_crypto(ca, srv, d, add)
+    except Exception as exc:  # noqa: BLE001 —— 结构性兜底：保住诊断信息
+        import traceback
+        tb = traceback.format_exc()
+        add("T1-X certcheck 内部异常", False,
+            "%s: %s" % (type(exc).__name__, str(exc)[:120]))
+        print(json.dumps({
+            "mode": "offline-structure-only",
+            "handshake_performed": False,
+            "all_ok": False,
+            "internal_error": "%s: %s" % (type(exc).__name__, str(exc)[:200]),
+            "traceback_tail": tb[-800:],
+            "rows": rows,
+        }, ensure_ascii=False))
+        return 5
 
     all_ok = all(r["ok"] for r in rows)
     print(json.dumps({

@@ -149,6 +149,13 @@ else:
         # 截断到 70 字符等于把 Traceback 的关键行藏起来（2026-10-24 实测吃过亏）。
         _raw = str(tls1.get("raw_output"))
         rep("C4c Tls1 记录了不可解析的原始输出", True, "raw(len=%d)=%s" % (len(_raw), _raw[:600]))
+    # C4d：certcheck 自身崩了也必须留下结构化证据（internal_error + traceback_tail），
+    # 而不是裸 Traceback 让调用方只剩 unparsed（2026-10-24 cryptography 50.0.2 实测）。
+    if tls1.get("internal_error"):
+        rep("C4d certcheck 崩时留下结构化异常", bool(tls1.get("traceback_tail")),
+            "internal_error=%s" % str(tls1.get("internal_error"))[:120])
+    else:
+        rep("C4d certcheck 未内部崩溃", True, "无 internal_error 字段")
 
 # ── C2. PrepareFixtures：与生产**同一条路径**备元数据（2026-10-24 补）──────
 # 原自检自己手写 atom.xml/latest.json，掩盖了 StartMock 根本不生成夹具的缺口。

@@ -28,6 +28,7 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 PS1 = os.path.join(HERE, "dprime2-s1.ps1")
 MOCK = os.path.join(HERE, "dprime2-mock-server.py")
+CERTCHECK = os.path.join(HERE, "dprime2-certcheck.py")
 
 # workflow 位置随布局变化：仓库里在 .github/workflows/，草案目录里与脚本同放。
 # 两处都支持，并用 DPRIME2_WF 可覆盖（便于在无仓库结构的临时目录里跑）。
@@ -82,7 +83,7 @@ def strip_comments(text):
     return "\n".join(out)
 
 
-for path in (PS1, MOCK):
+for path in (PS1, MOCK, CERTCHECK, WF):
     txt = strip_comments(io.open(path, encoding="utf-8").read())
     hits = [f for f in FORBIDDEN if f in txt]
     rep("A1 无禁项 %s" % os.path.basename(path), not hits, "hits=%s" % hits)
@@ -361,6 +362,20 @@ rep("G4 mock 校验 Accept: application/json",
 rep("G5 mock 有 302 落点 /releases/tag/", "/releases/tag/" in mock_src, "")
 rep("G6 夹具记录派生关系（非自造元数据）",
     "派生" in ps1_src and "latest.yml version" in ps1_src, "")
+
+# --- 2026-10-24 审查修正的回归钉子 ---
+rep("G7 G1-b 走两层提取（NSIS 内嵌 app-64.7z）",
+    "$PLUGINSDIR/app-64.7z" in ps1_src and "app-update.yml" in ps1_src,
+    "单层提取在 electron-builder NSIS 包上必失败 → G1-b 假 FAIL")
+rep("G8 G1-b 比对未执行时记缺口而非假 FAIL",
+    "比对未能执行" in ps1_src and "known_gaps = $knownGaps" in ps1_src,
+    "工具失败 ≠ 产品失败，但缺口必须可见")
+rep("G9 负例停客户端杀整棵进程树",
+    "taskkill /PID $c.Id /T /F" in ps1_src,
+    "Stop-Process 不杀 Electron/backend 子进程，残留会污染正例")
+rep("G10 G3 判据不依赖错误文本（cert_like 仅为佐证）",
+    "cert_like_hits" in ps1_src and "TLS_REJECTED_AS_EXPECTED" in ps1_src,
+    "服务端视角可能只见 EOF，把证书字样当判据会假阴性")
 
 # ── 汇总 ─────────────────────────────────────────────────────────────────
 shutil.rmtree(tmp, ignore_errors=True)

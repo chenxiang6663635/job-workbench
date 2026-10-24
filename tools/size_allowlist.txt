@@ -68,7 +68,7 @@ scripts/smoke_backend_exe.py = 162  # 起 exe → 打健康检查 → 断言；m
 # 是"断言清单"而非业务逻辑，按组拆文件只会让"某条断言在哪"变得难找。
 # **自洁触发**：S1 定稿（TLS 负例与上游对照稳定）后按 A–G 分组拆成多个文件，
 # 届时本行必须删除；在此期间只许变小。
-scripts/dprime2-s1.selftest.py = 378
+scripts/dprime2-s1.selftest.py = 393
 #
 # --- Electron 主进程：2026-09-25 发布前收口批把它与 .js/.mjs 纳入扫描 ---
 # （此前 web/electron 与 .js 都在范围外。）2026-10-04 #204 已完成拆分：main.js

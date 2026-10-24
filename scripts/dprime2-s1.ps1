@@ -622,8 +622,21 @@ if ($Action -eq 'InstallAndRun') {
         New-Item -ItemType Directory -Force -Path $refDir | Out-Null
         $refYml = Join-Path $refDir 'app-update.yml'
         if ($sevenZip -and -not (Test-Path $refYml)) {
-            # NSIS 安装包可被 7-Zip 读取；只提取这一个文件，不执行安装包
+            # 2026-10-24 审查修正：electron-builder 的 NSIS 包是**两层嵌套**——
+            # 外层 exe 内嵌 `$PLUGINSDIR/app-64.7z`，app-update.yml 在内层 7z 的
+            # resources/ 下。单层 `7z e setup.exe resources\app-update.yml` 必然提取不到，
+            # 会让 G1-b 在 runner 首跑就假 FAIL。策略：先试单层（兼容非嵌套形态），
+            # 失败则两层；再失败如实记 reason，由 Verdict 记缺口而非假失败。
+            # （7z 在 windows-latest runner 预装于 Program Files\7-Zip；本机未装，两层路径未经实测——
+            #  已在收据里标注，首跑若仍失败按缺口处置，不回退为放行。）
             & $sevenZip e $Setup "-o$refDir" 'resources\app-update.yml' -y 2>&1 | Out-Null
+            if (-not (Test-Path $refYml)) {
+                $inner = Join-Path $refDir 'app-64.7z'
+                & $sevenZip e $Setup "-o$refDir" '$PLUGINSDIR/app-64.7z' -y 2>&1 | Out-Null
+                if (Test-Path $inner) {
+                    & $sevenZip e $inner "-o$refDir" 'resources\app-update.yml' -y 2>&1 | Out-Null
+                }
+            }
         }
         $g1.present = Test-Path $appUpdate
         $g1.path = $appUpdate
@@ -667,7 +680,10 @@ if ($Action -eq 'InstallAndRun') {
         # 唯一差别是信任条件。等够窗口后停掉客户端，由 TlsNegative 判定。
         Write-Host "InstallAndRun(-Negative): pid=$($c.Id) 等待 $WindowSeconds s 观察是否被证书拦下…"
         Start-Sleep -Seconds $WindowSeconds
-        try { Stop-Process -Id $c.Id -Force -ErrorAction SilentlyContinue } catch { }
+        # 必须杀**整棵进程树**：Electron 主进程被杀后其 spawn 的后端 exe 不保证随之退出
+        # （本机 PDF 冒烟实测踩过同款坑：jobws-mcp 孤儿存活并占用 8765）。
+        # 残留进程会让正例阶段的新客户端启动异常，污染正例证据。
+        & taskkill /PID $c.Id /T /F 2>&1 | Out-Null
         $p = Write-Json 'client-negative.json' ([pscustomobject]@{
                 at = (Get-Date).ToString('o'); setup_sha256 = $sha; exe = $installed
                 client_pid = $c.Id; window_start = $start.ToString('o'); window_end = $windowEnd.ToString('o')
@@ -731,25 +747,27 @@ if ($Action -eq 'TlsNegative') {
         ok = ($clientHits.Count -eq 0)
         detail = "client=$($clientHits.Count)"
     }
-    # ③ 握手失败信息里出现证书类字样（排除纯网络错误）
-    $certLike = @($tlsFail | Where-Object { "$($_.tls_error)" -match 'CERT|certificate|verify|unknown ca|bad certificate|handshake' })
-    $rows += [pscustomobject]@{
-        id = 'G3-3 失败原因属证书/握手类'
-        ok = ($certLike.Count -ge 1)
-        detail = ($tlsFail | ForEach-Object { "$($_.tls_error)".Substring(0, [Math]::Min(90, "$($_.tls_error)".Length)) }) -join ' | '
-    }
+    # ③ 错误文本**佐证**（不作为硬判据）：服务端视角的 SSL 错误因客户端行为而异——
+    # Chromium 拒 CA 可能表现为服务端 EOF（UNEXPECTED_EOF_WHILE_READING），文本里未必有
+    # "certificate" 字样。把「错误文本含证书字样」当 FAIL 条件会制造假阴性。
+    # 真正的判据是 G3-1（抵达 443）+ G3-2（无成功请求）+ workflow 里"唯一变量是 CA"。
+    # cert_like_hits 只作收据字段供人工复核。
+    $certLike = @($tlsFail | Where-Object { "$($_.tls_error)" -match 'CERT|certificate|unknown.?ca|ALERT' })
+    $certLikeHits = $certLike.Count
+    $errText = ($tlsFail | ForEach-Object { "$($_.tls_error)".Substring(0, [Math]::Min(90, "$($_.tls_error)".Length)) }) -join ' | '
 
     # 分类：请求没到 → 代理/解析问题，不是 TLS 负例通过
     $classification = if ($tlsFail.Count -eq 0 -and $clientHits.Count -eq 0) { 'BLOCKED_BY_PROXY_OR_RESOLUTION' }
                       elseif ($clientHits.Count -gt 0) { 'NEGATIVE_INVALID_CA_WAS_TRUSTED' }
-                      elseif (-not ($rows | Where-Object { -not $_.ok })) { 'TLS_REJECTED_AS_EXPECTED' }
+                      elseif ($tlsFail.Count -ge 1 -and $clientHits.Count -eq 0) { 'TLS_REJECTED_AS_EXPECTED' }
                       else { 'INCONCLUSIVE' }
     $allOk = ($classification -eq 'TLS_REJECTED_AS_EXPECTED')
 
     $p = Write-Json 'tls-negative.json' ([pscustomobject]@{
             at = (Get-Date).ToString('o'); classification = $classification
             tls_failures = $tlsFail; rows = $rows; all_ok = $allOk
-            note = '仅凭"请求失败"不足以判负例通过：G3-1 要求有握手失败记录（证明抵达 443），G3-2 要求无成功请求'
+            cert_like_hits = $certLikeHits; tls_error_sample = $errText
+            note = '仅凭"请求失败"不足以判负例通过：G3-1 要求有握手失败记录（证明抵达 443），G3-2 要求无成功请求；cert_like_hits 为佐证非判据'
         })
     Write-Host "TlsNegative: $classification (all_ok=$allOk) -> $p"
     $rows | Where-Object { -not $_.ok } | ForEach-Object { Write-Host "  FAIL: $($_.id) — $($_.detail)" }
@@ -766,18 +784,22 @@ if ($Action -eq 'Verdict') {
         $allReqs = Get-Content $log | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json }
     }
     # 只统计**最后一个 boundary 之后**的请求（负例 → 正例之间有分界，
-    # 否则负例阶段的 tls_failure 会污染正例判定）
+    # 否则负例阶段的 tls_failure 会污染正例判定）。
+    # boundary 为最后一条时切到空集——显式判断，不靠反向范围 + 过滤兜底。
     $boundaryIdx = -1
     for ($i = 0; $i -lt $allReqs.Count; $i++) {
         if ($allReqs[$i].kind -eq 'boundary') { $boundaryIdx = $i }
     }
-    $reqs = if ($boundaryIdx -ge 0) { @($allReqs[($boundaryIdx + 1)..($allReqs.Count - 1)]) } else { $allReqs }
+    $reqs = @()
+    if ($boundaryIdx -lt 0) { $reqs = $allReqs }
+    elseif ($boundaryIdx + 1 -lt $allReqs.Count) { $reqs = @($allReqs[($boundaryIdx + 1)..($allReqs.Count - 1)]) }
     $reqs = @($reqs | Where-Object { $_ })
     $clientReqs = @($reqs | Where-Object { $_.kind -eq 'client' })
     $probeReqs = @($reqs | Where-Object { $_.kind -eq 'probe' })
     $tlsFailReqs = @($reqs | Where-Object { $_.kind -eq 'tls_failure' })
 
     $rows = @()
+    $g1GapText = ''   # G1-b 比对未执行时的缺口文案；置于赋值前初始化（StrictMode 安全）
     function V($id, $ok, $detail) { $script:rows += [pscustomobject]@{ id = $id; status = $(if ($ok) { 'PASS' } else { 'FAIL' }); detail = "$detail" } }
 
     # S1-3：三条都由客户端（非探针）请求过
@@ -836,8 +858,17 @@ if ($Action -eq 'Verdict') {
     # G1-b：不能只看"用了官方包"，要证明安装后的 app-update.yml 与包内那份一致、且指向正确仓库
     $g1b = if (Test-Path (Join-Path $OutDir 'g1b-app-update.json')) { Get-Content (Join-Path $OutDir 'g1b-app-update.json') -Raw | ConvertFrom-Json } else { $null }
     $g1d = if ($g1b) { $g1b.detail } else { $null }
-    V 'G1-b app-update.yml 与安装包内一致' ([bool]($g1d -and $g1d.matches_installer)) `
-        $(if ($g1d) { "provider=$($g1d.provider) owner=$($g1d.owner) repo=$($g1d.repo) match=$($g1d.matches_installer) reason=$($g1d.reason)" } else { '缺 g1b-app-update.json' })
+    # G1-b 判据分层（2026-10-24 审查修正）：「比对结果不一致」是产品/流程问题 → FAIL；
+    # 「比对未能执行」（7z 缺失、两层提取失败）是**工具问题** → 不产生 FAIL（那会把
+    # 提取工具的失败伪装成产品失败），但必须进 known_gaps 让缺口可见。
+    # 字段核对（provider/owner/repo）由 S1-8 承担，不受此分层影响。
+    if ($g1d -and $g1d.checked) {
+        V 'G1-b app-update.yml 与安装包内一致' ([bool]$g1d.matches_installer) `
+            "provider=$($g1d.provider) owner=$($g1d.owner) repo=$($g1d.repo) match=$($g1d.matches_installer)"
+    } else {
+        $g1GapText = if ($g1d) { 'G1-b 包内一致性比对未能执行：' + $g1d.reason } else { 'G1-b 比对未执行：缺 g1b-app-update.json' }
+        Write-Host "  GAP: $g1GapText"
+    }
     V 'S1-8 未改客户端二进制/app-update.yml' ([bool]($g1d -and $g1d.provider_ok -and $g1d.repo_ok)) `
         $(if ($g1d) { "provider_ok=$($g1d.provider_ok) repo_ok=$($g1d.repo_ok)" } else { '未取得字段' })
     V 'S1-9 mock 未收凭据' (-not (@($reqs | Where-Object { $_.auth_header_present }).Count -gt 0)) "auth_header_seen=$(@($reqs | Where-Object { $_.auth_header_present }).Count)"
@@ -869,6 +900,8 @@ if ($Action -eq 'Verdict') {
     try { $gitSha = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) } catch { }
     if (-not $gitSha) { $gitSha = $env:GITHUB_SHA }
 
+    $knownGaps = @('下载/安装/重启/数据保留属 S2/S3', 'GUI 自动交互未验证')
+  if ($g1GapText) { $knownGaps += $g1GapText }
     $receipt = [pscustomobject]@{
         kind = 'dprime-2-s1-discovery'
         generated_at = (Get-Date).ToString('o')
@@ -890,9 +923,9 @@ if ($Action -eq 'Verdict') {
         rows = $rows
         summary = [pscustomobject]@{ total = $rows.Count; passed = $pass; failed = $rows.Count - $pass; conclusion = $conclusion }
         env_restored = [pscustomobject]@{ hosts_clean = $hostsOk; ca_present = $caPresent }
-        known_gaps = @('下载/安装/重启/数据保留属 S2/S3', 'GUI 自动交互未验证')
+        known_gaps = $knownGaps
     }
-    $rp = Join-Path $OutDir 'dprime2-s1-receipt.json'
+  $rp = Join-Path $OutDir 'dprime2-s1-receipt.json'
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -Path $rp -Encoding utf8
     Write-Host "Verdict: $conclusion ($pass/$($rows.Count)) -> $rp"
     $rows | Where-Object { $_.status -eq 'FAIL' } | ForEach-Object { Write-Host "  FAIL: $($_.id) — $($_.detail)" }

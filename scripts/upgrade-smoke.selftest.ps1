@@ -154,6 +154,63 @@ try {
   Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+Write-Host "`n== 4b. 判据函数行为（真实调用，非关键词匹配）" -ForegroundColor Cyan
+# 2026-10-24 审计要求：静态 grep 抓不到异常分支缺陷（RT-9 的 200/422 误入 502-GAP 分支
+# 就是这样漏过去的）。这里 dot-source 纯函数并**实际调用**，覆盖六种响应组合。
+$libPath = Join-Path $PSScriptRoot 'upgrade-smoke.lib.ps1'
+Check '判据函数文件存在' (Test-Path -LiteralPath $libPath) $libPath
+if (Test-Path -LiteralPath $libPath) {
+  . $libPath
+
+  # 1) 502 + 精确命中 → 强弱两条都成立
+  $v = Get-Rt9Verdict -Status 502 -ErrorCode 'resume.modelUnreachable'
+  Check '502+modelUnreachable → RT-9-1 PASS / RT-9-2 PASS' `
+    ($v.Rt91Ok -and $v.Rt92Kind -eq 'PASS') "rt91=$($v.Rt91Ok) rt92=$($v.Rt92Kind)"
+
+  # 2) 502 + 别的错误码 → 真实判据不符（FAIL，不是 GAP）
+  $v = Get-Rt9Verdict -Status 502 -ErrorCode 'resume.modelHttpError'
+  Check '502+modelHttpError → RT-9-1 PASS / RT-9-2 FAIL' `
+    ($v.Rt91Ok -and $v.Rt92Kind -eq 'FAIL') "rt91=$($v.Rt91Ok) rt92=$($v.Rt92Kind)"
+
+  # 3) 502 + 错误码读不出 → 证据缺口（GAP）
+  $v = Get-Rt9Verdict -Status 502 -ErrorCode '' -Body '{"detail":"x"}'
+  Check '502+空错误码 → RT-9-1 PASS / RT-9-2 GAP（证据缺口）' `
+    ($v.Rt91Ok -and $v.Rt92Kind -eq 'GAP' -and $v.Rt92Detail -match '证据缺口') `
+    "rt91=$($v.Rt91Ok) rt92=$($v.Rt92Kind)"
+
+  # 4) 422 提取失败 → RT-9-1 不成立（这条是本脚本要抓的真实缺陷路径）
+  $v = Get-Rt9Verdict -Status 422 -ErrorCode 'resume.extractFailed'
+  Check '422+extractFailed → RT-9-1 FAIL / RT-9-2 GAP（前置未满足）' `
+    ((-not $v.Rt91Ok) -and $v.Rt92Kind -eq 'GAP' -and $v.Rt92Detail -match '前置未满足') `
+    "rt91=$($v.Rt91Ok) rt92=$($v.Rt92Kind)"
+
+  # 5) ★ 回归钉子：200 + 空错误码。
+  #    修复前的 `elseif (-not $pdfErr)` 缺 502 前置，这里会误记成"502 已到但未解析"。
+  $v = Get-Rt9Verdict -Status 200 -ErrorCode '' -Body ''
+  Check '★ 200+空错误码 → 不得误入「502 已到」缺口' `
+    ((-not $v.Rt91Ok) -and $v.Rt92Kind -eq 'GAP' -and $v.Rt92Detail -notmatch '502 已到' -and $v.Rt92Detail -match '前置未满足') `
+    "rt91=$($v.Rt91Ok) rt92=$($v.Rt92Kind) detail=$($v.Rt92Detail)"
+
+  # 6) 无响应（0）→ 同样走"前置未满足"
+  $v = Get-Rt9Verdict -Status 0 -ErrorCode ''
+  Check '0+无响应 → RT-9-1 FAIL / RT-9-2 GAP（前置未满足）' `
+    ((-not $v.Rt91Ok) -and $v.Rt92Kind -eq 'GAP' -and $v.Rt92Detail -match '前置未满足') `
+    "rt91=$($v.Rt91Ok) rt92=$($v.Rt92Kind)"
+
+  # 7) 主脚本必须 dot-source 这个 lib（否则上面这些函数在真实运行时不存在）
+  $mainText = if (Test-Path -LiteralPath $ScriptPath) { Get-Content -LiteralPath $ScriptPath -Raw } else { '' }
+  Check '主脚本已 dot-source 判据函数文件' ($mainText -match '\.\s*\$libPath') ''
+
+  # 8) 收据登记去重：RT-9-1 在整份脚本中只应出现在"登记点"，不应有额外补记绕过标志位
+  Check 'RT-9 段有去重标志' ($mainText.Contains('$rt9Logged')) '重复登记会让收据出现同 id 两行'
+
+  # 9) 登记点计数：预期 3 处 —— ①判据段（唯一正常路径）②catch 内（受 $rt9Logged 保护）
+  #    ③后端未就绪分支（fail-closed 留痕）。新增分支时必须同步改这个阈值，
+  #    从而强制改动人思考"这会不会导致同一次运行登记两次"。
+  $rt91Count = ([regex]::Matches($mainText, "Record 'RT-9-1'")).Count
+  Check 'RT-9-1 登记点计数 = 3（判据段/catch/未就绪）' ($rt91Count -eq 3) "count=$rt91Count"
+}
+
 Write-Host "`n== 5. 退出码契约（失败注入，P0-1）" -ForegroundColor Cyan
 $tmpR = Join-Path ([System.IO.Path]::GetTempPath()) ("jw-inj-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $tmpR | Out-Null

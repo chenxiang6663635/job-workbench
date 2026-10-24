@@ -55,8 +55,18 @@ function Get-State {
     return [pscustomobject]@{}
 }
 
+# P0-3（2026-10-24 审查修正）：原实现整对象覆盖 state.json，导致
+# StartMock 写入的 mock_pid 被后续 InstallAndRun 的状态对象冲掉，
+# Restore 读不到 mock PID → mock 停不掉 → CleanupVerify 报 443 仍在监听。
+# 改为**字段级合并**：读旧 state，只更新传入字段，其余保留。
 function Save-State([pscustomobject]$State) {
-    $State | ConvertTo-Json -Depth 6 | Set-Content -Path $StatePath -Encoding utf8
+    $old = Get-State
+    $merged = [ordered]@{}
+    if ($null -ne $old) {
+        foreach ($p in $old.PSObject.Properties) { $merged[$p.Name] = $p.Value }
+    }
+    foreach ($p in $State.PSObject.Properties) { $merged[$p.Name] = $p.Value }
+    [pscustomobject]$merged | ConvertTo-Json -Depth 6 | Set-Content -Path $StatePath -Encoding utf8
 }
 
 function Write-Json($Name, $Obj) {
@@ -385,7 +395,10 @@ if ($Action -eq 'UpstreamProbe') {
     }
     $rows += [pscustomobject]@{
         id = 'UP-3 带 JSON Accept 的 tag_name 可解析'
-        ok = (-not [string]::IsNullOrWhiteSpace($withJson.tag_name) -or $withJson.final_status -eq 200)
+        # UP-3（2026-10-24 审查修正）：原判据 `tag_name 非空 -or HTTP 200` 是假阳性——
+    # 只要返回 200 就通过，即使没解析出 tag_name。既然要求"证明 JSON 里存在可解析的 tag"，
+    # 就必须以 tag_name 为准；200 只作为辅助记录，不参与通过判定。
+    ok = (-not [string]::IsNullOrWhiteSpace($withJson.tag_name))
         detail = "tag=$($withJson.tag_name)"
     }
     $allOk = -not ($rows | Where-Object { -not $_.ok })
@@ -512,7 +525,11 @@ if ($Action -eq 'StartMock') {
 
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = (Get-Command $Python).Source
-    $psi.ArgumentList.AddRange(@($mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', "$Port"))
+    # P0-4（2026-10-24 审查修正）：`ProcessStartInfo.ArgumentList` 是 Collection<string>，
+    # **没有 AddRange**——原写法会抛 MethodNotFound，StartMock 直接崩。逐项 Add。
+    foreach ($a in @($mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', "$Port")) {
+        $psi.ArgumentList.Add($a)
+    }
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
@@ -699,9 +716,28 @@ if ($Action -eq 'InstallAndRun') {
         exit 0
     }
 
+    # P0-2（2026-10-24 审查修正）：原实现只计算 $windowEnd 时间戳就写 client.json 退出，
+    # **从未真正等待**。而 updater.js 在应用启动后约 5 秒才 checkForUpdates，
+    # 于是 Verdict 会在客户端尚未发起请求时读日志 → 得到错误的失败结论。
+    # 现在：等满观察窗口，并在窗口内轮询「客户端请求是否抵达 mock」（服务端视角，
+    # 比找客户端日志更可靠），命中即记录 discovery_at；窗口必须等满，让事件完整落盘。
+    $discoveryAt = $null
+    $mockLog = Join-Path $OutDir 'mock-requests.jsonl'
+    $deadline = $start.AddSeconds($WindowSeconds)
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 3
+        if ((Test-Path $mockLog) -and (Select-String -Path $mockLog -Pattern '"kind":\s*"client"' -ErrorAction SilentlyContinue)) {
+            $discoveryAt = (Get-Date).ToString('o')
+            break
+        }
+    }
+    while ((Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+
     $p = Write-Json 'client.json' ([pscustomobject]@{
             at = (Get-Date).ToString('o'); setup_sha256 = $sha; exe = $installed
-            client_pid = $c.Id; window_start = $start.ToString('o'); window_end = $windowEnd.ToString('o')
+            client_pid = $c.Id; window_start = $start.ToString('o'); window_end = $deadline.ToString('o')
+            waited_seconds = [int]((Get-Date) - $start).TotalSeconds
+            discovery_at = $discoveryAt
             data_root = $wsRoot; app_update_yml = $g1
         })
     Save-State ([pscustomobject]@{
@@ -807,7 +843,11 @@ if ($Action -eq 'Verdict') {
         $hit = @($clientReqs | Where-Object { $_.path -eq $p }).Count
         V "S1-3 $p" ($hit -gt 0) "client_hits=$hit"
     }
-    V 'S1-3b 探针与客户端请求已分离' ($probeReqs.Count -ge 0 -and $clientReqs.Count -ge 0) "client=$($clientReqs.Count) probe=$($probeReqs.Count)"
+    # P0-7a（2026-10-24 审查修正）：原判据 `Count -ge 0 -and Count -ge 0` 是**恒真**，
+    # 没有任何证据价值。改为真实断言：探针不得命中任何一条**必需路径**
+    # （TLS-2 探针只走 /_probe/tls2，与三条必需路径分离）。
+    $probeOnRequired = @($probeReqs | Where-Object { $REQUIRED_PATHS -contains $_.path }).Count
+    V 'S1-3b 探针不污染必需路径' ($probeOnRequired -eq 0) "probe_on_required=$probeOnRequired probe_total=$($probeReqs.Count) client_total=$($clientReqs.Count)"
 
     # 一致性
     $atomPath = "/$OWNER/$REPO/releases.atom"
@@ -854,7 +894,21 @@ if ($Action -eq 'Verdict') {
     if ($caThumb) {
         $caPresent = [bool](Get-ChildItem Cert:\LocalMachine\Root | Where-Object Thumbprint -eq $caThumb)
     }
-    V 'S1-7 未下载未安装新版' ($true) 'S1 范围只到发现事件'
+    # P0-7b（2026-10-24 审查修正）：原判据直接传 $true，是**范围声明伪装成测试成功**。
+    # 改为可执行检查：此时应仍装着 26.10.0（S1 不下载不安装新版），
+    # 读注册表 DisplayVersion 证明版本未变。
+    # 注意：`Get-ItemProperty 'Uninstall\*'` 会返回一些**没有 DisplayName / DisplayVersion 属性**的项，
+    # Set-StrictMode 2.0 下任何形式的属性访问（`$_.X`、`"$($_.X)"`）都会抛 PropertyNotFound
+    # （2026-10-24 自检 E1/E2/E3 实测抓到：Verdict 因此不生成收据 → 三组判定全 "no receipt"）。
+    # 因此必须先探测属性是否存在，再取值。
+    $verNow = ''
+    $regHit = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+        Where-Object { ($_.PSObject.Properties.Name -contains 'DisplayName') -and ($_.DisplayName -match 'Job Workbench') } |
+        Select-Object -First 1
+    if ($null -ne $regHit -and ($regHit.PSObject.Properties.Name -contains 'DisplayVersion')) {
+        $verNow = [string]$regHit.DisplayVersion
+    }
+    V 'S1-7 未下载未安装新版（版本仍为 26.10.0）' ($verNow.Trim() -eq '26.10.0') "display_version=$verNow"
     # G1-b：不能只看"用了官方包"，要证明安装后的 app-update.yml 与包内那份一致、且指向正确仓库
     $g1b = if (Test-Path (Join-Path $OutDir 'g1b-app-update.json')) { Get-Content (Join-Path $OutDir 'g1b-app-update.json') -Raw | ConvertFrom-Json } else { $null }
     $g1d = if ($g1b) { $g1b.detail } else { $null }
@@ -876,12 +930,20 @@ if ($Action -eq 'Verdict') {
     $tlsNeg = if (Test-Path (Join-Path $OutDir 'tls-negative.json')) { Get-Content (Join-Path $OutDir 'tls-negative.json') -Raw | ConvertFrom-Json } else { $null }
     V 'G3 TLS 负例：未信任 CA 时被拒' ([bool]($tlsNeg -and $tlsNeg.classification -eq 'TLS_REJECTED_AS_EXPECTED')) `
         $(if ($tlsNeg) { "classification=$($tlsNeg.classification)" } else { '缺 tls-negative.json（负例阶段未执行）' })
-    V 'S1-10 环境已恢复（hosts/证书）' ($hostsOk -and -not $caPresent) "hosts_clean=$hostsOk ca_present=$caPresent"
+    # P0-1（2026-10-24 审查修正）：原 S1-10 在 Verdict 里检查「hosts 已清 + CA 已移除」，
+    # 但 Verdict 跑在 Restore **之前**——此时接管本就该还在生效 → 恒 FAIL。
+    # 环境恢复改由独立步骤 CleanupVerify 断言（其失败让 job 失败），Verdict 不再重复判定；
+    # 这里只把观测值写进收据，标注 pending，避免读者误以为已恢复。
+    V 'S1-10 环境恢复由 CleanupVerify 独立判定（本步只记录观测值）' $true "hosts_clean=$hostsOk ca_present=$caPresent (pending_cleanup_verify)"
 
     $pass = @($rows | Where-Object { $_.status -eq 'PASS' }).Count
-    $conclusion = if ($pass -eq $rows.Count) { 'S1_PASS' }
+    # P0-7（2026-10-24 审查修正）：G1-b 的 GAP（工具问题：7z 缺失/提取失败）不产生 FAIL 行，
+    # 但它是**硬门禁项未完成**——不能因为"其他行全 PASS"就判 S1_PASS。
+    # 分层：结果不一致 → FAIL；门禁未完成（G1-b GAP 或 TLS/代理受阻）→ S1_INCOMPLETE。
+    $conclusion = if ($pass -lt $rows.Count) { 'S1_FAIL' }
     elseif ($classification -ne 'NONE') { 'S1_INCOMPLETE' }
-    else { 'S1_FAIL' }
+    elseif ($g1GapText) { 'S1_INCOMPLETE' }
+    else { 'S1_PASS' }
 
     $tls1 = if (Test-Path (Join-Path $OutDir 'tls1.json')) { Get-Content (Join-Path $OutDir 'tls1.json') -Raw | ConvertFrom-Json } else { $null }
     # G6：收据必须能回答"这次用的是哪份脚本"——否则事后无法证明跑的就是审核过的那份
@@ -929,6 +991,13 @@ if ($Action -eq 'Verdict') {
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -Path $rp -Encoding utf8
     Write-Host "Verdict: $conclusion ($pass/$($rows.Count)) -> $rp"
     $rows | Where-Object { $_.status -eq 'FAIL' } | ForEach-Object { Write-Host "  FAIL: $($_.id) — $($_.detail)" }
+    # P0-6（2026-10-24 审查修正）：原实现无条件 `exit 0` → 即使证据判定 S1_FAIL，
+    # GitHub Actions 仍可能显示绿色，违反 fail-closed 发布验收语义。
+    # 收据在上面已写盘（成败都有），再由结论决定退出码：
+    #   S1_FAIL / 有 FAIL 行 / G1-b 缺口 / TLS-代理受阻 → 非 0
+    $blocking = ($conclusion -eq 'S1_FAIL') -or ($g1GapText -ne '') -or ($classification -ne 'NONE')
+    Write-Host "Verdict exit: blocking=$blocking conclusion=$conclusion g1_gap=$([bool]$g1GapText)"
+    if ($blocking) { exit 1 }
     exit 0
 }
 
@@ -955,7 +1024,8 @@ if ($Action -eq 'Restore') {
     } catch { $res.ca = "failed: $($_.Exception.Message)" }
     try {
         $mp = Get-Prop $st 'mock_pid'
-    if ($mp) { Stop-Process -Id $mp -Force -ErrorAction SilentlyContinue }
+        # 与负例同一理由：mock 进程可能有子进程；杀整棵树更稳
+        if ($mp) { & taskkill /PID $mp /T /F 2>&1 | Out-Null }
         $res.mock = "killed pid=$mp"
     } catch { $res.mock = "failed: $($_.Exception.Message)" }
     $p = Write-Json 'restore.json' $res

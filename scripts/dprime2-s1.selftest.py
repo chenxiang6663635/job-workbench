@@ -334,16 +334,20 @@ _i_neg = wf.find("-Action InstallAndRun -Negative")
 _i_mark = wf.find("-Action MarkBoundary")
 _i_ca = wf.find("-Action InstallCa")
 _i_pos = wf.find("-Action InstallAndRun `")
-rep("F1b 负例 → boundary → 导入 CA → 正例 的顺序正确",
-    -1 < _i_neg < _i_mark < _i_ca and _i_ca < _i_pos,
-    "neg=%d mark=%d ca=%d pos=%d" % (_i_neg, _i_mark, _i_ca, _i_pos))
+rep("F1b 负例前分界 → 负例 → 导入 CA → 正例 的顺序正确",
+    -1 < _i_mark < _i_neg < _i_ca and _i_ca < _i_pos,
+    "neg=%d mark=%d ca=%d pos=%d"
+    "（P0-5：分界必须在负例之前，否则就绪探针的 tls_failure 污染负例判据）"
+    % (_i_neg, _i_mark, _i_ca, _i_pos))
 rep("F1c UpstreamProbe 在任何 PatchHosts 之前",
     -1 < wf.find("-Action UpstreamProbe") < wf.find("-Action PatchHosts"), "")
 rep("F2 Verdict/Restore/CleanupVerify/Upload 都是 always()",
     wf.count("if: always()") >= 4, "count=%d" % wf.count("if: always()"))
 rep("F3 permissions 含 actions: read（跨 run 取 artifact）",
     "actions: read" in wf, "")
-rep("F4 无 pull_request 触发", "pull_request" not in wf, "")
+rep("F4 PR 阶段跑 S1 自检（有 pull_request 触发）",
+    "pull_request" in wf and "s1-lint" in wf,
+    "只有 workflow_dispatch 时，PR 的绿色 CI 不含本次改动自检")
 rep("F5 下载 RC 走固定 run-id 输入",
     "run-id: ${{ inputs.rc_run_id }}" in wf and "name: installer" in wf, "")
 
@@ -364,9 +368,11 @@ rep("G6 夹具记录派生关系（非自造元数据）",
     "派生" in ps1_src and "latest.yml version" in ps1_src, "")
 
 # --- 2026-10-24 审查修正的回归钉子 ---
-rep("G7 G1-b 走两层提取（NSIS 内嵌 app-64.7z）",
+rep("G7 G1-b 保留两层降级链（外层直含 resources，降级仅作防御）",
     "$PLUGINSDIR/app-64.7z" in ps1_src and "app-update.yml" in ps1_src,
-    "单层提取在 electron-builder NSIS 包上必失败 → G1-b 假 FAIL")
+    "2026-10-24 实物实测：官方 26.10.0 外层 7z 归档**直接含** resources/app-update.yml"
+    "（104 B，无 app-64.7z、无 $PLUGINSDIR），单层即可成功；降级链是对未来"
+    "oneClick / nsis-web 形态的防御，不得写成当前包的既定结构")
 rep("G8 G1-b 比对未执行时记缺口而非假 FAIL",
     "比对未能执行" in ps1_src and "known_gaps = $knownGaps" in ps1_src,
     "工具失败 ≠ 产品失败，但缺口必须可见")
@@ -376,6 +382,49 @@ rep("G9 负例停客户端杀整棵进程树",
 rep("G10 G3 判据不依赖错误文本（cert_like 仅为佐证）",
     "cert_like_hits" in ps1_src and "TLS_REJECTED_AS_EXPECTED" in ps1_src,
     "服务端视角可能只见 EOF，把证书字样当判据会假阴性")
+
+# ── 第十三轮审查修正的回归钉子（PR #391 第二轮）────────────────────────
+# 这一轮全部是「执行环境 / 生命周期 / 证据真实性」类缺陷，离线自检必须钉住。
+rep("P0 certcheck.py 在 sparse-checkout 清单内",
+    "scripts/dprime2-certcheck.py" in wf,
+    "Tls1 对它 throw；漏检出则 S1 首跑在 TLS-1 阶段失败")
+rep("P0-1 Verdict 不判定环境恢复（交 CleanupVerify 独立判定）",
+    "CleanupVerify 独立判定" in ps1_src and "S1-10 环境已恢复" not in ps1_src,
+    "Verdict 跑在 Restore 之前，检查「已恢复」即恒 FAIL")
+rep("P0-2 正例实际等待观察窗口（非只算时间戳）",
+    "waited_seconds" in ps1_src and "$discoveryAt" in ps1_src,
+    "updater.js 启动约 5s 后才检查；不等待会得到假阴性")
+rep("P0-3 Save-State 字段级合并（不整对象覆盖）",
+    "$merged" in ps1_src and "Get-State" in ps1_src,
+    "整对象覆盖会丢 mock_pid → Restore 停不掉 mock → CleanupVerify 失败"
+    "（判据只查代码符号，不查注释文字——ps1_src 是剥注释版）")
+rep("P0-4 不用 ArgumentList.AddRange",
+    "AddRange" not in ps1_src,
+    "ProcessStartInfo.ArgumentList 是 Collection<string>，无 AddRange")
+rep("P0-5 负例启动前打日志分界",
+    wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
+    "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")
+rep("P0-6 Verdict 按结论退出（非恒 exit 0）",
+    "if ($blocking) { exit 1 }" in ps1_src,
+    "恒 exit 0 会让 S1_FAIL 也显示绿色 CI，违反 fail-closed")
+rep("P0-7a S1-3b 不是恒真断言",
+    "probeOnRequired" in ps1_src,
+    "Count -ge 0 -and Count -ge 0 恒真，无证据价值")
+rep("P0-7b S1-7 不是传 $true 的范围声明",
+    "display_version=$verNow" in ps1_src,
+    "范围声明不能伪装成测试成功")
+rep("UP-3 不以 HTTP 200 代替 tag_name",
+    "-or $withJson.final_status -eq 200" not in ps1_src,
+    "只要 200 就通过是假阳性")
+rep("G1-b GAP 阻断 S1_PASS",
+    "elseif ($g1GapText) { 'S1_INCOMPLETE' }" in ps1_src,
+    "硬门禁未完成（工具问题）不得判 PASS")
+rep("PR 阶段跑 S1 自检（lint job）",
+    "s1-lint" in wf and "pull_request" in wf,
+    "只有 workflow_dispatch 时，PR 的绿色 CI 不含本次自检")
+rep("收据缺失使 job 失败（非 warn）",
+    "if-no-files-found: error" in wf,
+    "收据是唯一可审计产物，缺失即证据链断裂")
 
 # ── 汇总 ─────────────────────────────────────────────────────────────────
 shutil.rmtree(tmp, ignore_errors=True)

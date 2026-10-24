@@ -26,6 +26,17 @@ on:
         required: true
         default: "45"
 
+  # P0（2026-10-24 审查修正）：原 workflow 只有 workflow_dispatch，PR 阶段
+  # **不会**跑 S1 自检 → "绿色 CI" 只证明既有检查通过，不能证明本次改动的
+  # 66 项自检被执行（D′-1 也曾有同样的"CI 不跑自检"缺口）。
+  pull_request:
+    paths:
+      - 'scripts/dprime2-s1.ps1'
+      - 'scripts/dprime2-mock-server.py'
+      - 'scripts/dprime2-certcheck.py'
+      - 'scripts/dprime2-s1.selftest.py'
+      - '.github/workflows/dprime2-s1-discovery.yml'
+
 permissions:
   contents: read
   actions: read        # 仅用于从固定 run 下载 installer artifact；不给 mock
@@ -35,8 +46,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # P0（2026-10-24 审查修正）：PR 阶段的硬门禁。跑 66 项离线自检
+  # （禁项扫描 / 文本契约 / VerifyRc 在有 RC 时启用）。**不安装、不改环境、不起 mock**。
+  s1-lint:
+    name: S1 离线自检（66 项）
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装自检依赖
+        run: python -m pip install --quiet cryptography
+      - name: 跑 S1 离线自检
+        # DPRIME2_RC_ROOT 未设时 RC 相关项记 SKIP（本地无 RC 属正常）
+        run: python scripts/dprime2-s1.selftest.py
+
   s1-discovery:
     name: S1 更新发现（不下载不安装新版）
+    # 真机 job 只在手动触发时跑；PR 只跑上面的 lint
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 25
     defaults:
@@ -44,11 +71,16 @@ jobs:
         shell: pwsh
     steps:
       # ① 检出（此时仍能访问 github.com；脚本随仓库分发）
+      #    P0（2026-10-24 审查修正）：原清单漏了 dprime2-certcheck.py，而 Tls1 动作
+      #    对它 `throw "缺 certcheck 脚本"` → S1 首跑在 TLS-1 阶段就失败。
+      #    **运行时依赖必须与 sparse-checkout 清单一致**（D′-1 也曾漏 .lib.ps1）。
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
             scripts/dprime2-s1.ps1
             scripts/dprime2-mock-server.py
+            scripts/dprime2-certcheck.py
+            scripts/dprime2-s1.selftest.py
           sparse-checkout-cone-mode: false
 
       # ② 环境预检（P0-2：代理 / PAC / DNS / IPv6 / 端口 / 既有安装）
@@ -123,6 +155,15 @@ jobs:
 
       # ⑩ G3 负例：装+启动真实 26.10.0，此时**测试 CA 未导入**
       #    与正例共用同一 mock / 同一域名 / 同一夹具，唯一差别是信任条件。
+      #    P0-5（2026-10-24 审查修正）：分界必须打在负例**之前**。原顺序把
+      #    MarkBoundary 放在负例判定之后，导致 TlsNegative 用全量日志，
+      #    StartMock 的 TCP 就绪探针留下的 tls_failure 会被误判成
+      #    "客户端因不信任 CA 被拒" → 假阳性。
+      - name: 标记日志分界（负例前）
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action MarkBoundary `
+              -OutDir $env:RUNNER_TEMP\dprime2-s1 -Label negative-phase-start
+
       - name: G3 负例——未信任 CA 时启动客户端
         run: |
           & ./scripts/dprime2-s1.ps1 -Action InstallAndRun -Negative `
@@ -199,5 +240,6 @@ jobs:
             ${{ runner.temp }}/dprime2-s1/client-negative.json
             ${{ runner.temp }}/dprime2-s1/cleanup-verify.json
             ${{ runner.temp }}/dprime2-s1/restore.json
-          if-no-files-found: warn
+          # 收据是唯一可审计产物：缺失即证据链断裂，必须让 job 失败（不能 warn 后变绿）
+          if-no-files-found: error
           retention-days: 30

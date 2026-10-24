@@ -6,6 +6,42 @@
 
 ---
 
+## ⚠️ 状态更新（2026-10-24，第十三轮审查后）
+
+**本文是历史记录，保留当时结论以便追溯；不代表当前 HEAD 状态。**
+
+| 项 | 本文写作时 | 当前（第十三轮修正后） |
+|---|---|---|
+| 离线自检 | 40/40 | **79/79**（含 13 条新增回归钉子） |
+| `StartMock` 不生成夹具（P0） | 待修 | ✅ 已修：`PrepareFixtures` 动作从固定 RC 派生三份夹具，`StartMock` 前置校验 |
+| `app-64.7z` 两层提取 | — | ✅ 已实现降级链；**但其"单层必失败"的解释已被实物实测推翻**（见下） |
+| 自检进 PR CI | 未做 | ✅ 已做：workflow 加 `pull_request` + `s1-lint` job |
+
+### 关于 NSIS 提取的一处更正（重要）
+
+本文及后续审查曾断言「electron-builder NSIS 包是外层 exe → 内层 `app-64.7z` → resources，单层提取必然失败」。**该判断已被实物实测推翻**：
+
+```
+7za l job-workbench-setup-26.10.0-win64.exe
+  → ....A  104  91  resources\app-update.yml     ← 外层 7z 归档直接含
+  → 外层无 app-64.7z、无 $PLUGINSDIR
+```
+
+本项目 `oneClick=false` 的 assisted installer 形态下，归档直接展开为 `resources/`，单层 `7z e setup.exe 'resources\app-update.yml'` 即可成功。两层降级链保留为对未来形态（oneClick / nsis-web）的防御，**但不得写成当前安装包的既定结构**。
+
+### 后续修正清单（第十二/十三轮）
+
+| 轮次 | 修正 |
+|---|---|
+| 第十二轮 | certcheck.py 漏出 sparse-checkout（TLS-1 必失败）；`ArgumentList.AddRange` 不存在；正例不等待观察窗口；`Save-State` 整对象覆盖丢 `mock_pid`；`Verdict` 在 Restore 前判"已恢复"恒 FAIL；`S1-3b` 恒真；`S1-7` 传 `$true`；UP-3 以 HTTP 200 代替 `tag_name`；G1-b GAP 不阻断 PASS；`Verdict` 恒 `exit 0`；分界标记顺序错误导致就绪探针污染负例 |
+| 第十三轮 | 上述全部落地 + 自检 E 组（真跑 Verdict）抓到 `Where-Object { $_.DisplayName }` 在 StrictMode 下对缺失属性抛错、导致收据不生成；改为属性存在性探测 |
+
+**当前仍未闭合**：真实 runner 执行（S1-C）未授权；`windows-latest` 是否预装 7z 未核实（由 G1-b 的 GAP 出口兜底）。
+
+---
+
+---
+
 ## 一、红线逐条对照（合同 §八 R-1…R-8）
 
 | # | 红线 | 实现如何满足 | 证据 |

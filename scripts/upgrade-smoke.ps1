@@ -367,7 +367,11 @@ try {
   # 原 UP-2（比较 appId 键默认值）已删除：installer.nsh 只写 InstallLocation 命名值，
   # 不保证写默认值；拿不可靠的字段做断言只会制造噪声或假阳性。位置恢复由 UP-3 承担。
   Record 'UP-3' 'InstallLocation 未变（位置恢复）' ($after.InstLoc -ceq $before.InstLoc) "$($before.InstLoc) -> $($after.InstLoc)"
-  Record 'UP-4' 'MainBinaryName 未变' ($after.MainBinary -ceq $before.MainBinary) "$($before.MainBinary) -> $($after.MainBinary)"
+  # 原 UP-4（比较 MainBinaryName）已删除，2026-10-23 审计纠正：与 UP-2 同源的不可靠字段。
+  # 实证：run 39914715729 的收据 detail 为 " -> "——升级前后**都没读到**该值，
+  # 两个空串 -ceq 相等，于是记成 PASS。那不是"主程序名未变"，是"根本没读到"。
+  # MainBinaryName 同样不是 installer.nsh 保证写入的命名值（同 UP-2 的理由）。
+  # 若将来 NSIS 确实写该值，应同时补上与 UP-3 同款的空值守卫再恢复此断言。
   Record 'UP-5' '种子文件仍在且哈希未变' ((Test-Path -LiteralPath $seedFile) -and (Get-Sha256 $seedFile) -eq $seedHash) $seedHash
 
   # -------------------------------------------------------------- 5. 自举（五重）+ RT-8
@@ -442,18 +446,36 @@ try {
           Record 'RT-8c-1' '升级前快照仍可见' $found "name=$snapName count=$($snaps.count)"
           $prev = Post-Api "/api/system/snapshots/preview?ws=$Workspace" @{ name = $snapName }
           Record 'RT-8c-2' '快照演练（preview）通过' ($null -ne $prev) ''
+          # 先破坏种子文件，再 restore（2026-10-23 审计纠正）。
+          # 原判据在 restore 前不动文件，于是"恢复后内容正确"只证明"文件本来就没被改过"——
+          # run 39914715729 的 detail 是 len=51（= 原始内容），restore 即使什么都没做也会 PASS。
+          # 现在先把内容改成明显不同的值并确认改动生效，restore 后才可能证明恢复能力。
+          $tampered = "# smoke seed`nid: SMOKE-001`nvalue: TAMPERED-BEFORE-RESTORE`n"
+          Set-Content -LiteralPath $seedFile -Value $tampered -Encoding utf8 -NoNewline
+          $tamperedNow = Get-Content -LiteralPath $seedFile -Raw -Encoding utf8
+          if ((Normalize-Text $tamperedNow) -eq (Normalize-Text $seedBody)) {
+            throw '破坏种子文件失败：内容未实际改变——后续恢复判据无效，不得判 PASS'
+          }
+          Record 'RT-8c-2b' '种子文件已被破坏（恢复判据前置）' $true "len=$($tamperedNow.Length)"
           $null = Post-Api "/api/system/snapshots/restore?ws=$Workspace" @{ name = $snapName }
           $afterRestore = Get-Content -LiteralPath $seedFile -Raw -Encoding utf8
-          Record 'RT-8c-3' '快照恢复后数据仍正确（换行已规范化）' ((Normalize-Text $afterRestore) -eq (Normalize-Text $seedBody)) "len=$($afterRestore.Length)"
+          $restoredOk = ((Normalize-Text $afterRestore) -eq (Normalize-Text $seedBody))
+          Record 'RT-8c-3' '快照恢复后数据回到原内容（换行已规范化）' $restoredOk "len=$($afterRestore.Length)"
+          if (-not $restoredOk) {
+            # 恢复失败必须留下现场内容，便于判断是 restore 没生效还是内容被改写
+            Record 'RT-8c-3b' '恢复失败现场' $false ("got=" + ((Normalize-Text $afterRestore) -replace "\s+", ' '))
+          }
         } catch {
           Record 'RT-8c-1' '升级前快照仍可见' $false $_.Exception.Message
           Record 'RT-8c-2' '快照演练（preview）通过' $false '未执行'
-          Record 'RT-8c-3' '快照恢复后数据仍正确' $false '未执行'
+          Record 'RT-8c-2b' '种子文件已被破坏（恢复判据前置）' $false '未执行'
+          Record 'RT-8c-3' '快照恢复后数据回到原内容' $false '未执行'
         }
       } else {
         Record 'RT-8c-1' '升级前快照仍可见' $false '基线快照未创建（见 SE-9）'
         Record 'RT-8c-2' '快照演练（preview）通过' $false '未执行'
-        Record 'RT-8c-3' '快照恢复后数据仍正确' $false '未执行'
+        Record 'RT-8c-2b' '种子文件已被破坏（恢复判据前置）' $false '未执行'
+        Record 'RT-8c-3' '快照恢复后数据回到原内容' $false '未执行'
       }
 
       # RT-9：打包后端的 PDF 文本提取（pypdf）——**不调用任何模型**。
@@ -524,6 +546,12 @@ try {
       Record 'RT-8a-1' 'dataRoot = 隔离工作区根' $false '后端未就绪'
       Record 'RT-8b-1' '新版 API 列出种子文件' $false '后端未就绪'
       Record 'RT-8c-1' '升级前快照仍可见' $false '后端未就绪'
+      Record 'RT-8c-2b' '种子文件已被破坏（恢复判据前置）' $false '后端未就绪'
+      Record 'RT-8c-3' '快照恢复后数据回到原内容' $false '后端未就绪'
+      # RT-9-1：后端未就绪时同样必须留痕——不能因为它"没跑"就从收据里消失
+      # （2026-10-23 审计：D'-1 用的 3379bf3 版本脚本没有 RT-9 段，导致 pypdf 路径
+      #  在 45/45 的收据里毫无痕迹，被误读成"已覆盖"）
+      Record 'RT-9-1' 'PDF 文本提取通过（pypdf 在打包后端可用）' $false '后端未就绪'
     }
   } finally {
     if ($null -ne $appProc -and -not $appProc.HasExited) { try { $appProc.Kill() } catch { } }
@@ -617,8 +645,13 @@ try {
       '真实 Windows 11 客户端体验：未覆盖（runner 为 Windows Server 镜像）',
       'electron-updater 端到端（发现→下载→安装→重启）：未覆盖，属 D′-2，见 DESIGN.md §5',
       '升级中断后的产品恢复行为：未覆盖（重跑 job ≠ 产品回滚）',
-      'PDF 导入/文本提取：本版脚本未实现，登记为缺口',
-      '日志措辞（packaged / python fallback）：未验证——以 RT-5 的「监听者进程路径 == 安装目录后端 exe」作为更强替代证据'
+      '日志措辞（packaged / python fallback）：未验证——以 RT-5 的「监听者进程路径 == 安装目录后端 exe」作为更强替代证据',
+      # 2026-10-23 审计登记：**历史收据的证据边界**（不是当前脚本的缺口，别混读）
+      'pypdf/PDF 路径：RT-9-1 已在本脚本实现，但 D′-1 收据（run 39914715729）所用的
+       3379bf3 版本脚本没有该段，故那次 45/45 不含 pypdf 证据——需用本脚本补跑一次',
+      'D′-1 收据（run 39914715729）的两条判据弱点，本次已修但历史收据仍带此记录：
+       UP-4 为空值假阳性（detail " -> "，前后均未读到 MainBinaryName，该断言已删除）；
+       RT-8c-3 未先破坏种子文件即 restore（不能证明恢复能力，已改为先破坏后恢复）'
     )
     $conclusion = if ($null -ne $script:Fatal) { 'ERROR' }
                   elseif ($failed.Count -gt 0) { 'FAIL' }

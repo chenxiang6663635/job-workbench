@@ -1,7 +1,11 @@
-# D′-1 草案：26.10.1 一次性 Windows CI 安装器升级合同
+# D′-1：26.10.1 一次性 Windows CI 安装器升级合同
 #
-# 状态：**草案，未 push、未 dispatch**。
-# 目标位置（获授权后）：.github/workflows/upgrade-smoke.yml
+# 状态（2026-10-24 订正）：**已在用**。文件本就位于 `.github/workflows/upgrade-smoke.yml`，
+# 且 `workflow_dispatch` 已执行多次（真机验收记录见 `dprime-runs/<run_id>/`）。
+# 此前的"草案，未 push、未 dispatch"是设计期遗留文字，会让后续审计把正式 CI 入口误当草稿。
+#
+# 触发方式：`workflow_dispatch` 才会跑真机 job；`pull_request`（限本文件与两个 .ps1 变更）
+# 只跑 `lint` job（actionlint + selftest），**不安装任何东西**——PR 全绿不等于 Windows 安装验收通过。
 #
 # 审计修正（本轮）：
 #   P0-3  perm 增加 actions: read（跨 run 下载 artifact），显式传 run-id / repository / token

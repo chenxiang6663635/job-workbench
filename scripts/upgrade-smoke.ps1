@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  D′-1：26.10.1 一次性 Windows CI 安装器升级合同（草案）。
+  D′-1：26.10.1 一次性 Windows CI 安装器升级合同。
 
 .DESCRIPTION
   在**一次性 GitHub 托管 Windows runner** 上验证：
@@ -10,7 +10,10 @@
   本脚本**不含自动更新测试**（那属 D′-2，见 DESIGN.md §5：原 α 的
   `api.github.com` 前提已被上游 6.8.9 源码证伪）。
 
-  设计：DESIGN.md。**草案：未 push、未 dispatch。**
+  设计：DESIGN.md。状态：**已在用**（workflow_dispatch 已执行多次，真机收据在 dprime-runs/）。
+  此前"草案：未 push、未 dispatch"是设计期遗留，已订正以免与正式入口混淆。
+
+  判据函数在 scripts/upgrade-smoke.lib.ps1（纯函数，供 selftest 行为级测试）。
 
   审计修正（本轮）：
     P0-2 RT-8 拆 8a/8b/8c，按 Hotfix 真实 API（`/api/system/paths` 等）实现
@@ -41,6 +44,12 @@ param(
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
+
+# 纯判据函数（无副作用）。单独成文件是为了让 selftest 能 dot-source 后**实际调用**它们，
+# 而不是只做关键词匹配——静态检查抓不到异常分支缺陷（RT-9 就是这么漏过去的）。
+$libPath = Join-Path $PSScriptRoot 'upgrade-smoke.lib.ps1'
+if (-not (Test-Path -LiteralPath $libPath)) { throw "缺少判据函数文件：$libPath" }
+. $libPath
 
 # ---------------------------------------------------------------- 产品事实（勿改）
 $AppId        = 'com.jobworkbench.app'          # 不可改：electron-builder 由它派生升级 GUID
@@ -510,7 +519,11 @@ try {
         $cfgJson = '{"base_url":"http://127.0.0.1:1","api_key":"smoke-not-a-real-key","model":"smoke-model"}'
         [System.IO.File]::WriteAllText((Join-Path $cfgDir 'provider.json'), $cfgJson, [System.Text.UTF8Encoding]::new($false))
         $body = @{ filename = 'smoke-resume.pdf'; content_base64 = $pdfB64; model = 'smoke-model' } | ConvertTo-Json -Compress
-        $pdfStatus = 0; $pdfErr = ''
+        # 三个变量必须在 try 之前初始化（2026-10-24 审计指出）：
+        # 200 路径不进 catch 分支，而 `$txt` 原先只在 catch 内赋值 → 后面 `if ($txt)`
+        # 在 StrictMode 下会抛"变量未定义"，异常又被外层 catch 捕获、导致 RT-9-1 重复登记。
+        $pdfStatus = 0; $pdfErr = ''; $txt = ''
+        $rt9Logged = $false        # 收据登记去重标志：catch 内仅在尚未登记时补记
         try {
           $null = Invoke-RestMethod -Uri "$ApiBase/api/resume/import?ws=$Workspace" -Method Post `
             -ContentType 'application/json' -Body $body -TimeoutSec 30
@@ -562,21 +575,26 @@ try {
         $hitUnreachable = ($pdfStatus -eq 502) -and ($pdfErr -eq 'resume.modelUnreachable')
         $pdfDetail = "http=$pdfStatus error_code=" + $(if ($pdfErr) { $pdfErr } else { '<unparsed>' })
         Record 'RT-9-1' 'PDF 已越过本地提取阶段（502，非 422 提取失败）' $passedExtract $pdfDetail
-        if ($hitUnreachable) {
-          Record 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' $true $pdfDetail
-        } elseif (-not $pdfErr) {
-          # 502 到了但 error_code 读不出来 → 判据无法落地。记 GAP，不放宽成 PASS，也不算产品失败。
-          $rawSnippet = if ($txt) { ($txt -replace '\s+', ' ') } else { '<empty body>' }
-          RecordGap 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' `
-            ("证据缺口：502 已到但 error_code 未解析；raw=" + $rawSnippet.Substring(0, [Math]::Min(140, $rawSnippet.Length)))
+        $rt9Logged = $true
+        # 判据逻辑在 upgrade-smoke.lib.ps1 的 Get-Rt9Verdict（纯函数，可行为级测试）。
+        # 2026-10-24 审计指出：内联版 `elseif (-not $pdfErr)` 缺 502 前置，200/422 且
+        # 错误码为空时会误入"502 已到但未解析"的 GAP 分支——为一个不成立的前提记缺口。
+        $rt9 = Get-Rt9Verdict -Status $pdfStatus -ErrorCode $pdfErr -Body $txt
+        if ($rt9.Rt92Kind -eq 'PASS') {
+          Record 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' $true $rt9.Rt92Detail
+        } elseif ($rt9.Rt92Kind -eq 'FAIL') {
+          Record 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' $false $rt9.Rt92Detail
         } else {
-          # 解析出来了但不是 modelUnreachable（可能是 modelHttpError/CallFailed/NotJson）——
-          # 这是**真实的判据不符**，不是缺口。
-          Record 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' $false $pdfDetail
+          RecordGap 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' $rt9.Rt92Detail
         }
       } catch {
-        Record 'RT-9-1' 'PDF 已越过本地提取阶段（502，非 422 提取失败）' $false $_.Exception.Message
-        RecordGap 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' '未执行（RT-9-1 先行失败）'
+        # 去重：上面的判据段若已登记过 RT-9-1，这里不再补记，避免收据出现重复 id。
+        if (-not $rt9Logged) {
+          Record 'RT-9-1' 'PDF 已越过本地提取阶段（502，非 422 提取失败）' $false $_.Exception.Message
+          RecordGap 'RT-9-2' '命中 resume.modelUnreachable（error_code 精确匹配）' '未执行（RT-9 段异常中止）'
+        } else {
+          RecordGap 'RT-9-2' '判据评估异常（RT-9-1 已登记，此处只补缺口）' $_.Exception.Message
+        }
       }
     } else {
       Record 'RT-8a-1' 'dataRoot = 隔离工作区根' $false '后端未就绪'

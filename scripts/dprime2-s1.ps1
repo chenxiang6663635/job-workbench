@@ -853,9 +853,29 @@ if ($Action -eq 'Verdict') {
     else { 'S1_FAIL' }
 
     $tls1 = if (Test-Path (Join-Path $OutDir 'tls1.json')) { Get-Content (Join-Path $OutDir 'tls1.json') -Raw | ConvertFrom-Json } else { $null }
+    # G6：收据必须能回答"这次用的是哪份脚本"——否则事后无法证明跑的就是审核过的那份
+    $scriptInv = [ordered]@{}
+    foreach ($pair in @(@('orchestrator', $PSCommandPath),
+            @('mock_server', (Join-Path $PSScriptRoot 'dprime2-mock-server.py')),
+            @('certcheck', (Join-Path $PSScriptRoot 'dprime2-certcheck.py')))) {
+        $p = $pair[1]
+        $scriptInv[$pair[0]] = [pscustomobject]@{
+            path = $p
+            exists = (Test-Path $p)
+            sha256 = if (Test-Path $p) { Get-Sha256 $p } else { '' }
+        }
+    }
+    $gitSha = ''
+    try { $gitSha = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) } catch { }
+    if (-not $gitSha) { $gitSha = $env:GITHUB_SHA }
+
     $receipt = [pscustomobject]@{
         kind = 'dprime-2-s1-discovery'
         generated_at = (Get-Date).ToString('o')
+        scripts = [pscustomobject]@{
+            git_sha = "$gitSha".Trim()
+            files = $scriptInv
+        }
         inputs = [pscustomobject]@{
             client_installer_sha256 = $EXPECT_CLIENT_SHA256
             target_version = '26.10.1'; mock_paths_required = $REQUIRED_PATHS

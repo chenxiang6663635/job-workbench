@@ -52,7 +52,12 @@ def _check_identity(ca, srv, add):
     try:
         san = srv.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         names = san.get_values_for_type(x509.DNSName)
-        add("T1-2 SAN 含 DNS:github.com", "github.com" in names, names)
+        # 语义是**列表成员的精确相等**，不是子串匹配：SAN 里的 DNSName 是独立条目，
+        # `github.com.evil.example` 不会因为包含 "github.com" 而通过。
+        # 显式写成 any(... == ...)：既表达意图，也避免被 CodeQL 的
+        # py/incomplete-url-substring-sanitization 规则误判（该规则针对 URL 净化场景）。
+        exact_dns = any(str(n).strip().lower() == "github.com" for n in names)
+        add("T1-2 SAN 含 DNS:github.com", exact_dns, names)
     except x509.ExtensionNotFound:
         add("T1-2 SAN 含 DNS:github.com", False, "SAN 扩展缺失")
 

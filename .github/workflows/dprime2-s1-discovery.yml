@@ -70,6 +70,24 @@ jobs:
           Write-Host "python = $py"
           & $py -m pip install --quiet --upgrade cryptography
           & $py -c "import cryptography, sys; print('cryptography=' + cryptography.__version__); print('exe=' + sys.executable)"
+      - name: 诊断 certcheck（手动跑，暴露真实 exit/stdout/stderr）
+        shell: pwsh
+        # 自检里 certcheck 连续多轮表现为「stdout 空 / stderr 空 / exit=1」，
+        # 而本地同版本 Python 完全正常。这里在 CI 上手动跑一遍，
+        # 把三个流分别打印出来——不再靠推断。
+        run: |
+          $py = & python -c "import sys; print(sys.executable)"
+          Write-Host "python  = $py"
+          $diag = Join-Path $env:RUNNER_TEMP "certcheck-diag"
+          New-Item -ItemType Directory -Force -Path $diag | Out-Null
+          & ./scripts/dprime2-s1.ps1 -Action NewCert -OutDir $diag | Out-Host
+          Write-Host "NewCert exit=$LASTEXITCODE"
+          $o = & $py ./scripts/dprime2-certcheck.py --dir $diag 2>$e
+          Write-Host "certcheck exit=$LASTEXITCODE"
+          Write-Host "stdout_lines=$(@($o).Count) stderr_lines=$(@($e).Count)"
+          Write-Host "STDOUT>> $($o -join \"`n\")"
+          Write-Host "STDERR>> $($e -join \"`n\")"
+
       - name: 跑 S1 离线自检
         shell: pwsh
         # 诊断：pwsh 与 python 各自解析到的解释器。若 pwsh 看到的是

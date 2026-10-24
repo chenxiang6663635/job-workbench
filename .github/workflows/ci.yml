@@ -435,7 +435,13 @@ jobs:
   # `--omit=dev` 视角有 high+ 即红；开发工具链（tailwind 的 chokidar→braces 链、
   # electron-builder 的 got 链）的告警**只报告不阻断**——它们不进产物，且剩余
   # 修复要么等上游、要么是 major（`--force` 会引入破坏性升级，属独立工程）。
-  # Python 侧是**运行时**依赖（打进 exe），一律阻断。
+  # Python 侧一律阻断，但**注意口径**：`requirements.lock` 里不止运行时依赖——
+  # 它还含打包器（`pyinstaller`）及其传递依赖（`setuptools` / `altgraph` 等），
+  # 因为 release 的打包环境要求「同一 SHA 两周后重建出同一棵依赖树」（见
+  # `requirements.lock.in` 注释）。所以 pip-audit 报出的告警**不一定在产物里**；
+  # 要判断"是否进制品"，须核对打包输出（`pyinstaller.spec` 的 collect 项）而不是
+  # 只看 lock。2026-10-24 的 `setuptools` 告警即属此类，裁决见
+  # `docs/handover/2026-10-21-26.10.1-policy-exception.md` §五之四。
   #
   # 已知边界：npm audit 的告警面依赖 npm 的 advisory 库（与 GitHub Advisory 同源
   # 但收录节奏可能不同）；pip-audit 每次扫描时查 OSV。静态代码扫描另立 workflow：

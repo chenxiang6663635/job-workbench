@@ -316,22 +316,30 @@ if ($Action -eq 'Tls1') {
     # 先用 -join 并成单串再解析；解析不了也要把原始输出写进收据（证据优先）。
     # stderr **不并入** stdout：cryptography 在部分 Python 版本上会往 stderr 打
     # CryptographyDeprecationWarning，混进来会让 JSON 解析失败（本轮实测踩过）。
-    # 但 stderr 也**不能直接扔掉**：ModuleNotFoundError 这类真错误也只出现在 stderr，
-    # 丢了就只剩"无输出 exit=1"，完全看不出原因（2026-10-24 实测踩过）。
-    # 折中：stdout 单独取用于解析，stderr 捕获到变量、截断后写进 tls1.json 留档。
+    # 但 stderr 也**不能直接扔掉**：ModuleNotFoundError / UnicodeEncodeError
+    # 这类真错误只出现在 stderr，丢了就只剩"无输出 exit=1"。
+    # 用**文件**重定向而非 2>$var：后者在 CI 的 pwsh 上不可靠
+    # （2026-10-24 实测：stderr 有 10 行 Traceback，但 2>$errVar 捕到的是空）。
     $raw = ''
     $errText = ''
-    $errVar = @()
+    $errFile = Join-Path $OutDir 'certcheck.stderr.log'
     try {
-        $out = & $py $certCheck --dir $OutDir 2>$errVar
+        $out = & $py $certCheck --dir $OutDir 2>$errFile
         $raw = ($out -join "`n")
-        $errText = ($errVar -join "`n")
+        if (Test-Path -LiteralPath $errFile) {
+            $errText = (Get-Content -LiteralPath $errFile -Raw -Encoding utf8)
+        }
     } catch {
         $raw = "certcheck 调用失败：$($_.Exception.Message)"
-        $errText = ($errVar -join "`n")
+        if (Test-Path -LiteralPath $errFile) {
+            $errText = (Get-Content -LiteralPath $errFile -Raw -Encoding utf8)
+        }
     }
+    # -replace 对空字符串/多行文本可能返回 Object[]（数组无 .Substring）。
+    # 先 -join 成单串，再 flatten——2026-10-24 CI 实测踩过：
+    # "方法调用失败，因为 [System.Object[]] 不包含名为 'Substring' 的方法"。
     $rcCert = $LASTEXITCODE
-    $errFlat = ($errText -replace "`r?`n", ' | ')
+    $errFlat = (($errText -join "`n") -replace "`r?`n", ' | ')
     if (-not $raw.Trim()) { $raw = "certcheck 无 stdout 输出（exit=$rcCert）" }
     $parsed = $null
     try { $parsed = $raw | ConvertFrom-Json } catch { $parsed = $null }

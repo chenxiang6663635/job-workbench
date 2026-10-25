@@ -12,6 +12,17 @@ import json
 import os
 import sys
 
+# 2026-10-24 CI 实测根因：GitHub runner 的 locale 是 en-US，Python 的 stdout
+# 编码是 **cp1252**（不是 UTF-8）。本脚本 print 的 JSON 含中文，
+# 于是 UnicodeEncodeError -> exit 1 + Traceback 到 stderr，而 stdout 全空。
+# 本地是中文系统（cp936）所以不复现——典型的"本地过、CI 挂"。
+# 双保险：① 输出统一 ensure_ascii=True（纯 ASCII，任何编码都能打）
+#        ② reconfigure stdout 为 UTF-8（兜底其他 print）
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -131,7 +142,7 @@ def main():
         if ca is None:
             print(json.dumps({"all_ok": False, "rows": [
                 {"id": "T1-0 PEM 可解析", "ok": False, "detail": "ca/server PEM 缺失"}]},
-                ensure_ascii=False))
+                ensure_ascii=True))
             return 1
 
         _check_identity(ca, srv, add)
@@ -148,7 +159,7 @@ def main():
             "internal_error": "%s: %s" % (type(exc).__name__, str(exc)[:200]),
             "traceback_tail": tb[-800:],
             "rows": rows,
-        }, ensure_ascii=False))
+        }, ensure_ascii=True))
         return 5
 
     all_ok = all(r["ok"] for r in rows)
@@ -157,7 +168,7 @@ def main():
         "handshake_performed": False,
         "all_ok": all_ok,
         "rows": rows,
-    }, ensure_ascii=False))
+    }, ensure_ascii=True))
     return 0 if all_ok else 5
 
 

@@ -1,0 +1,273 @@
+# D′-2 S1 更新发现探针（v3，**未提交、未 dispatch**）
+#
+# 配套：dprime-2-s1-contract.md v3 / dprime-2-s1-workflow-design.md v3
+# 目标：一次性 windows runner 上，官方 26.10.0 客户端从受控源「发现」26.10.1。
+# 不做：下载、安装新版、重启、数据验证（S2/S3）。
+#
+# 红线：不改客户端二进制；不关 TLS；不用 ignore-certificate-errors；
+#       不碰正式 Release/tag；不接收凭据；不在日常 Windows 运行。
+# 脚本源：D:\g2g3-build\dprime2\（待批准后入 scripts/ 并随仓库分发）
+
+name: Dprime2-S1-Discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      old_sha256:
+        description: "官方 26.10.0 期望 SHA256"
+        required: true
+        default: "197fe10593eb50b127c87aaa690ad575aee7dc38b001110de5421e4df52ca954"
+      rc_run_id:
+        description: "产出 RC 资产的构建 run（installer artifact）"
+        required: true
+        default: "39748850478"
+      window_seconds:
+        description: "客户端观察窗口（秒）"
+        required: true
+        default: "45"
+
+  # P0（2026-10-24 审查修正）：原 workflow 只有 workflow_dispatch，PR 阶段
+  # **不会**跑 S1 自检 → "绿色 CI" 只证明既有检查通过，不能证明本次改动的
+  # 66 项自检被执行（D′-1 也曾有同样的"CI 不跑自检"缺口）。
+  pull_request:
+    paths:
+      - 'scripts/dprime2-s1.ps1'
+      - 'scripts/dprime2-mock-server.py'
+      - 'scripts/dprime2-certcheck.py'
+      - 'scripts/dprime2-s1.selftest.py'
+      - '.github/workflows/dprime2-s1-discovery.yml'
+
+permissions:
+  contents: read
+  actions: read        # 仅用于从固定 run 下载 installer artifact；不给 mock
+
+concurrency:
+  group: dprime2-s1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # P0（2026-10-24 审查修正）：PR 阶段的硬门禁。跑 86 项离线自检
+  # （禁项扫描 / 文本契约 / VerifyRc 在有 RC 时启用）。**不安装、不改环境、不起 mock**。
+  #
+  # 平台必须是 **windows-latest**，不能用 ubuntu：自检会实跑
+  # `pwsh -File scripts/dprime2-s1.ps1 -Action NewCert / Tls1 / Verdict`，
+  # 其中 Verdict 读 HKCU 注册表（Get-ItemProperty 'HKCU:\...\Uninstall\*'），
+  # Linux 的 pwsh 没有注册表提供程序 → 直接抛错 → E1/E2/E3 全报 "no receipt"
+  # （2026-10-24 CI 实测：ubuntu-latest 上 78 通过 / 3 失败）。
+  s1-lint:
+    name: S1 离线自检（86 项）
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装并校验自检依赖
+        shell: pwsh
+        # 用 **Get-Command python 解析到的同一个解释器**安装并立即验证 import——
+        # 否则"pip 装的 python"与"ps1 里 Get-Command python"可能不是同一个，
+        # certcheck 会以 ModuleNotFoundError 崩掉，而自检其他项看起来正常。
+        run: |
+          $py = (Get-Command python).Source
+          Write-Host "python = $py"
+          & $py -m pip install --quiet --upgrade cryptography
+          & $py -c "import cryptography, sys; print('cryptography=' + cryptography.__version__); print('exe=' + sys.executable)"
+      # 诊断脚本 scripts/dprime2-diag.py 保留（定位「本地过、CI 挂」类问题很有用：
+      # 它手动跑 NewCert + certcheck，把 rc/stdout/stderr 分别打印）。
+      # 2026-10-24 靠它抓到 certcheck 的真根因：CI 的 locale 是 en-US，
+      # Python stdout 编码 cp1252 编不了中文 → UnicodeEncodeError。
+      # 该问题已修（ensure_ascii=True + reconfigure），此步骤随之退役——
+      # 不再每次 PR 都跑，需要时手动 `python scripts/dprime2-diag.py` 即可。
+
+      - name: 跑 S1 离线自检
+        shell: pwsh
+        # 诊断：pwsh 与 python 各自解析到的解释器。若 pwsh 看到的是
+        # WindowsApps 下的 python stub（非交互管道里静默 exit 1），
+        # 而自检用的是 hostedtoolcache 的 python，就会出现
+        # "certcheck 无输出 exit=1" 且 stdout/stderr 全空。
+        run: |
+          Write-Host "pwsh 看到 python = $((Get-Command python -ErrorAction SilentlyContinue).Source)"
+          Write-Host "python 自报 exe  = $(& python -c 'import sys; print(sys.executable)')"
+          python scripts/dprime2-s1.selftest.py
+
+  s1-discovery:
+    name: S1 更新发现（不下载不安装新版）
+    # 真机 job 只在手动触发时跑；PR 只跑上面的 lint
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # ① 检出（此时仍能访问 github.com；脚本随仓库分发）
+      #    P0（2026-10-24 审查修正）：原清单漏了 dprime2-certcheck.py，而 Tls1 动作
+      #    对它 `throw "缺 certcheck 脚本"` → S1 首跑在 TLS-1 阶段就失败。
+      #    **运行时依赖必须与 sparse-checkout 清单一致**（D′-1 也曾漏 .lib.ps1）。
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/dprime2-s1.ps1
+            scripts/dprime2-mock-server.py
+            scripts/dprime2-certcheck.py
+            scripts/dprime2-s1.selftest.py
+          sparse-checkout-cone-mode: false
+
+      # ② 环境预检（P0-2：代理 / PAC / DNS / IPv6 / 端口 / 既有安装）
+      #    代理一旦检出，后续步骤必须显式处置，不得默认 hosts 生效
+      - name: Preflight 代理与解析预检
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action Preflight -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ②b 上游内容协商对照（**必须在任何 hosts 改动之前**，只读）
+      #     2026-10-24 审计：`github.com/.../releases/latest` 对 Accept: application/json
+      #     的响应不是稳定接口（2023-01-28 GitHub 曾短暂改掉，导致 electron-updater 5.x 报错）。
+      #     把当时的实际行为钉进收据，才能证明 mock 的内容协商与真实一致。
+      #     只打项目实际使用的路径，**不打 api.github.com**（那是另一个端点）。
+      - name: 上游内容协商对照（只读）
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action UpstreamProbe -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ③ 下载官方 26.10.0 并校验 SHA256（改 hosts 前）
+      - name: 下载并校验官方 26.10.0
+        run: |
+          $url = "https://github.com/chenxiang6663635/job-workbench/releases/download/v26.10.0/job-workbench-setup-26.10.0-win64.exe"
+          $dst = Join-Path $env:RUNNER_TEMP 'old-setup.exe'
+          Invoke-WebRequest -Uri $url -OutFile $dst -MaximumRetryCount 3
+          $h = (Get-FileHash $dst -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne '${{ inputs.old_sha256 }}') { throw "26.10.0 SHA256 不符：$h" }
+          Write-Host "client installer OK: $h"
+
+      # ④ 取真实 RC 元数据（P0-3：固定 run 的 installer artifact，禁止测试框架自造）
+      #    保留期 7 天：过期则本步失败 → 整体中止，不得回退到编造元数据
+      - name: 下载固定 RC 资产
+        uses: actions/download-artifact@v4
+        with:
+          name: installer
+          path: ${{ runner.temp }}/dprime2-rc
+          run-id: ${{ inputs.rc_run_id }}
+          github-token: ${{ github.token }}
+
+      # ⑤ RC 身份闸门（version/文件名/size/SHA512/SHA256 逐项；不过即中止）
+      - name: 校验 RC 元数据身份
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action VerifyRc `
+              -OutDir $env:RUNNER_TEMP\dprime2-s1 `
+              -RcRoot $env:RUNNER_TEMP\dprime2-rc
+
+      # ⑥ 生成测试 CA + 服务器证书（纯内存，不写证书存储）
+      - name: 生成测试 CA 与服务器证书
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action NewCert -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑦ TLS-1：纯离线结构检查（不握手）
+      - name: TLS-1 证书离线自检
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action Tls1 -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑦b 备好三条路由的夹具（2026-10-24 补：原 StartMock 只放证书，
+      #     atom.xml / latest.yml 缺失会让三条路由全 404）
+      - name: 备好元数据夹具（从固定 RC 派生）
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action PrepareFixtures `
+              -OutDir $env:RUNNER_TEMP\dprime2-s1 `
+              -RcRoot $env:RUNNER_TEMP\dprime2-rc
+
+      # ⑧ 起受控源（只绑 127.0.0.1:443，无凭据）。**此时尚未导入 CA** —— 负例阶段需要
+      - name: 启动受控更新源（CA 未导入）
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action StartMock -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑨ 改 hosts（先备份；此后不再访问 github.com）
+      - name: 劫持 github.com
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action PatchHosts -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑩ G3 负例：装+启动真实 26.10.0，此时**测试 CA 未导入**
+      #    与正例共用同一 mock / 同一域名 / 同一夹具，唯一差别是信任条件。
+      #    P0-5（2026-10-24 审查修正）：分界必须打在负例**之前**。原顺序把
+      #    MarkBoundary 放在负例判定之后，导致 TlsNegative 用全量日志，
+      #    StartMock 的 TCP 就绪探针留下的 tls_failure 会被误判成
+      #    "客户端因不信任 CA 被拒" → 假阳性。
+      - name: 标记日志分界（负例前）
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action MarkBoundary `
+              -OutDir $env:RUNNER_TEMP\dprime2-s1 -Label negative-phase-start
+
+      - name: G3 负例——未信任 CA 时启动客户端
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action InstallAndRun -Negative `
+              -OutDir $env:RUNNER_TEMP\dprime2-s1 `
+              -Setup (Join-Path $env:RUNNER_TEMP 'old-setup.exe') `
+              -WindowSeconds ${{ inputs.window_seconds }}
+
+      # ⑪ 负例判定：必须"到了 443 但被拒"，不能只看"请求失败"
+      - name: G3 负例判定
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action TlsNegative -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑫ 日志分界：之后才是正例阶段（否则负例的 tls_failure 会污染正例判定）
+      - name: 标记日志分界
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action MarkBoundary `
+              -OutDir $env:RUNNER_TEMP\dprime2-s1 -Label positive-phase-start
+
+      # ⑬ 导入测试 CA（可逆，记录指纹）—— 正例阶段的唯一变量
+      - name: 导入测试 CA
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action InstallCa -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑭ TLS-2：系统侧真实握手，只走 /_probe/tls2（与客户端请求分离）
+      - name: TLS-2 系统侧校验（探针路径）
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action Tls2 -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑮ 正例：再次启动客户端（CA 已导入），期望完成 TLS-3 与三条请求
+      - name: 安装并启动 26.10.0（CA 已导入）
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action InstallAndRun `
+              -OutDir $env:RUNNER_TEMP\dprime2-s1 `
+              -Setup (Join-Path $env:RUNNER_TEMP 'old-setup.exe') `
+              -WindowSeconds ${{ inputs.window_seconds }}
+
+      # ⑬ 判定（TLS-3 + 三条请求 + 发现事件 + 10 项判据）
+      - name: S1 判定与收据
+        if: always()
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action Verdict -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑭ 恢复（hosts + 证书 + mock），必须先于上传
+      - name: 恢复环境
+        if: always()
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action Restore -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑮ 独立清理核验（P0-4：与 Restore 分开；不干净则本步失败，
+      #     收据里 env_restored=false → 结论不得为 S1_PASS）
+      - name: 独立清理核验
+        if: always()
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action CleanupVerify -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑯ 收据上传（always；无论成败都要有）
+      - name: 上传收据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dprime2-s1-receipt
+          path: |
+            ${{ runner.temp }}/dprime2-s1/dprime2-s1-receipt.json
+            ${{ runner.temp }}/dprime2-s1/mock-requests.jsonl
+            ${{ runner.temp }}/dprime2-s1/preflight.json
+            ${{ runner.temp }}/dprime2-s1/upstream-probe.json
+            ${{ runner.temp }}/dprime2-s1/rc-identity.json
+            ${{ runner.temp }}/dprime2-s1/fixtures.json
+            ${{ runner.temp }}/dprime2-s1/tls1.json
+            ${{ runner.temp }}/dprime2-s1/tls2.json
+            ${{ runner.temp }}/dprime2-s1/tls-negative.json
+            ${{ runner.temp }}/dprime2-s1/g1b-app-update.json
+            ${{ runner.temp }}/dprime2-s1/client.json
+            ${{ runner.temp }}/dprime2-s1/client-negative.json
+            ${{ runner.temp }}/dprime2-s1/cleanup-verify.json
+            ${{ runner.temp }}/dprime2-s1/restore.json
+          # 收据是唯一可审计产物：缺失即证据链断裂，必须让 job 失败（不能 warn 后变绿）
+          if-no-files-found: error
+          retention-days: 30

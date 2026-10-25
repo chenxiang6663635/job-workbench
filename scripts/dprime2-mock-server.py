@@ -13,11 +13,11 @@
 """
 
 import argparse
+import datetime
 import json
 import os
 import ssl
 import sys
-import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 OWNER = "chenxiang6663635"
@@ -203,9 +203,22 @@ def main():
     ctx.load_cert_chain(os.path.join(args.root, "server.crt"),
                         os.path.join(args.root, "server.key"))
 
+    # 2026-10-25 S1-C run 40194676744：mock 起进程后 20 秒仍 listening=False，
+    # 而 preflight 显示 443 空闲（Test-Tcp 探测不到**保留端口段**——
+    # GitHub runner 上 Hyper-V/WSL 常保留大段高位端口，`netsh excludedportrange`
+    # 里的端口 bind() 报 WSAEACCES，但 TCP 探测显示"空闲"）。
+    # 对策：--port 传 0，由 OS 分配一个保证可用的端口；实际端口写进
+    # stdout 首行（MOCK_PORT=<n>）与 port.json，调用方读它而非假定端口。
     httpd = TlsRecordingServer((args.host, args.port), Handler, ctx, args.root, args.log)
+    actual_port = httpd.server_address[1]
 
-    print("mock listening on https://%s:%d (routes=%d)" % (args.host, args.port, len(ROUTES)))
+    print("MOCK_PORT=%d" % actual_port)
+    print("mock listening on https://%s:%d (routes=%d)" % (args.host, actual_port, len(ROUTES)))
+    try:
+        with open(os.path.join(args.root, os.pardir, "port.json"), "w", encoding="utf-8") as f:
+            f.write('{"port": %d}\n' % actual_port)
+    except OSError:
+        pass
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

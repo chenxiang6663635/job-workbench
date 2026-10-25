@@ -107,6 +107,19 @@ function Test-Tcp([string]$HostName, [int]$P) {
     } catch { return $false }
 }
 
+# 取 mock 的**实际**端口（StartMock 让 OS 分配，写进 mock-port.txt）。
+# 不能用请求的 $Port：S1-C run 40194676744 实测请求 443 起不来，
+# 而 OS 分配的端口一定可用。后续动作（Tls2/TlsNegative/Verdict）都必须用这个值。
+function Get-MockPort([string]$OutDir) {
+    $f = Join-Path $OutDir 'mock-port.txt'
+    if (-not (Test-Path -LiteralPath $f)) { return 0 }
+    $v = (Get-Content -LiteralPath $f -Raw -Encoding utf8)
+    if ($null -eq $v) { return 0 }
+    $n = 0
+    if ([int]::TryParse("$v".Trim(), [ref]$n)) { return $n }
+    return 0
+}
+
 # ── 0. 环境预检（P0-2：代理 / DNS / IPv6）────────────────────────────────
 if ($Action -eq 'Preflight') {
     $r = [ordered]@{
@@ -145,9 +158,12 @@ if ($Action -eq 'Preflight') {
     $r.dns.loopback = (Resolve-DnsName 127.0.0.1 -ErrorAction SilentlyContinue | Out-String)
 
     $r.ports.p8765 = (Test-Tcp '127.0.0.1' 8765)
-    $r.ports.p443 = (Test-Tcp '127.0.0.1' $Port)
+    # 不再把「请求端口被占」当阻塞：StartMock 已改为让 OS 分配端口（--port 0），
+    # 固定端口（如 443）被占或落在保留段内都不影响（S1-C run 40194676744 实测：
+    # 443 探测显示空闲但 bind 失败，属 Hyper-V 保留端口段，TCP 探测看不见）。
+    # 这里只记录观测值，不阻断。
+    $r.ports.requested = (Test-Tcp '127.0.0.1' $Port)
     if ($r.ports.p8765) { $r.blockers += '8765 已被占用（旧安装可能正在运行）' }
-    if ($r.ports.p443) { $r.blockers += "$Port 已被占用" }
 
     # 既有安装
     $r.install.dirs = @()
@@ -575,14 +591,23 @@ if ($Action -eq 'PrepareFixtures') {
 }
 
 if ($Action -eq 'StartMock') {
-    $st = Get-State
-    if (Test-Tcp '127.0.0.1' $Port) { Write-Host "StartMock: port $Port already in use"; exit 6 }    $fixture = Join-Path $OutDir 'fixtures'
+  $st = Get-State
+  # 不再因请求端口被占而退出：mock 用 --port 0 让 OS 分配（见下方注释）。
+  # 仅在请求端口确实被占时给个提示，不影响继续。
+  if (Test-Tcp '127.0.0.1' $Port) {
+      Write-Host "StartMock: 请求端口 $Port 已被占用——改用 OS 自动分配端口"
+  }
+  $fixture = Join-Path $OutDir 'fixtures'
     New-Item -ItemType Directory -Force -Path $fixture | Out-Null
-    # Python 的 load_cert_chain 用 certfile 里**第一张**证书配密钥，而 server.crt 是
-    # 「CA + 叶子」顺序；必须只给叶子证书，否则 KEY_VALUES_MISMATCH。
+    # server.crt 的顺序是**叶子在前、CA 在后**（load_cert_chain 要求第一张配密钥，
+    # 2026-10-24 第十三轮审查修正）。所以这里要取**第一张**（叶子），不是最后一张。
+    # （曾因顺序改对而漏改此处，取到 CA → KEY_VALUES_MISMATCH，mock 起不来。
+    #   S1-C run 40194676744 的 listening=False 真因就是这个，与 443 端口无关。）
     $chainPem = Get-Content (Join-Path $OutDir 'server.crt') -Raw
     $blocks = @($chainPem -split '(?=-----BEGIN CERTIFICATE-----)' | Where-Object { $_.Trim() })
-    Set-Content -Path (Join-Path $fixture 'server.crt') -Value ($blocks | Select-Object -Last 1).Trim() -NoNewline -Encoding utf8
+    $leaf = $blocks | Where-Object { $_ -match 'CN=github\.com' } | Select-Object -First 1
+    if (-not $leaf) { $leaf = $blocks | Select-Object -First 1 }
+    Set-Content -Path (Join-Path $fixture 'server.crt') -Value $leaf.Trim() -NoNewline -Encoding utf8
     Copy-Item (Join-Path $OutDir 'ca.crt') $fixture -Force
     Copy-Item (Join-Path $OutDir 'server.key') $fixture -Force
     Set-Content -Path (Join-Path $fixture 'probe.txt') -Value 'dprime2-tls2-probe' -Encoding utf8
@@ -602,29 +627,58 @@ if ($Action -eq 'StartMock') {
     $psi.FileName = (Get-Command $Python).Source
     # P0-4（2026-10-24 审查修正）：`ProcessStartInfo.ArgumentList` 是 Collection<string>，
     # **没有 AddRange**——原写法会抛 MethodNotFound，StartMock 直接崩。逐项 Add。
-    foreach ($a in @($mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', "$Port")) {
+    # --port 0：让 OS 分配端口（S1-C run 40194676744 实测 443 起不来，
+    # 而 Test-Tcp 探测不到保留端口段——探测说空闲、bind() 实际失败）。
+    foreach ($a in @($mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', '0')) {
         $psi.ArgumentList.Add($a)
     }
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.WorkingDirectory = $OutDir
-    $proc = [System.Diagnostics.Process]::Start($psi)
+    $mockOut = Join-Path $OutDir 'mock.stdout.log'
+    $mockErr = Join-Path $OutDir 'mock.stderr.log'
+    # 用 Start-Process -RedirectStandardOutput/Error（而非 ProcessStartInfo +
+    # BeginOutputReadLine + Register-ObjectEvent）——后者的事件在本机实测**不 flush**，
+    # stdout 文件始终为空、读不到 MOCK_PORT（2026-10-25 实测）。
+    # Start-Process -PassThru 同时给出进程对象与稳定的文件重定向。
+    $proc = Start-Process -FilePath $psi.FileName -ArgumentList $psi.ArgumentList `
+        -PassThru -WorkingDirectory $OutDir `
+        -RedirectStandardOutput $mockOut -RedirectStandardError $mockErr -WindowStyle Hidden
 
+    # 等 mock 报出 OS 分配的端口（首行 MOCK_PORT=<n>）
+    $actualPort = 0
     $deadline = (Get-Date).AddSeconds(20)
-    $up = $false
-    while ((Get-Date) -lt $deadline -and -not $up) {
-        Start-Sleep -Milliseconds 500
-        $up = Test-Tcp '127.0.0.1' $Port
+    while ((Get-Date) -lt $deadline -and $actualPort -eq 0) {
+        Start-Sleep -Milliseconds 300
+        if (Test-Path -LiteralPath $mockOut) {
+            $m = Select-String -Path $mockOut -Pattern 'MOCK_PORT=(\d+)' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($m) { $actualPort = [int]$m.Matches[0].Groups[1].Value }
+        }
+        if ($proc.HasExited) { break }
     }
+    $up = ($actualPort -gt 0) -and (Test-Tcp '127.0.0.1' $actualPort)
+    $mockOutText = if (Test-Path -LiteralPath $mockOut) { (Get-Content -LiteralPath $mockOut -Raw -Encoding utf8) } else { '' }
+    $mockErrText = if (Test-Path -LiteralPath $mockErr) { (Get-Content -LiteralPath $mockErr -Raw -Encoding utf8) } else { '' }
+    $flatOut = ($mockOutText -join "`n") -replace "`r?`n", ' | '
+    $flatErr = ($mockErrText -join "`n") -replace "`r?`n", ' | '
     $p = Write-Json 'mock.json' ([pscustomobject]@{
-            at = (Get-Date).ToString('o'); pid = $proc.Id; port = $Port
+            at = (Get-Date).ToString('o'); pid = $proc.Id
+            requested_port = $Port; actual_port = $actualPort
             listening = $up; log = $log; fixture = $fixture
+            process_exited = $proc.HasExited
+            exit_code = $(if ($proc.HasExited) { $proc.ExitCode } else { $null })
+            stdout_tail = $flatOut.Substring(0, [Math]::Min(500, $flatOut.Length))
+            stderr_tail = $flatErr.Substring(0, [Math]::Min(1500, $flatErr.Length))
         })
+    # 后续动作（Tls2 / TlsNegative / Verdict）必须用**实际端口**，不能用请求端口。
+    # 单独存一份，避免被其他动作的状态对象覆盖。
+    Set-Content -Path (Join-Path $OutDir 'mock-port.txt') -Value "$actualPort" -Encoding utf8
     Save-State ([pscustomobject]@{ mock_pid = $proc.Id
+            mock_port = $actualPort
             ca_thumbprint = (Get-Prop $st 'ca_thumbprint')
-            out_dir = $OutDir; python = $Python; port = $Port })
-    Write-Host "StartMock: pid=$($proc.Id) listening=$up -> $p"
+            out_dir = $OutDir; python = $Python; port = $actualPort })
+    Write-Host "StartMock: pid=$($proc.Id) listening=$up actual_port=$actualPort -> $p"
     if (-not $up) { exit 7 }
     exit 0
 }
@@ -785,7 +839,7 @@ if ($Action -eq 'InstallAndRun') {
         Save-State ([pscustomobject]@{
                 neg_pid = $c.Id; neg_window_start = $start; neg_window_end = $windowEnd
                 ca_thumbprint = (Get-Prop (Get-State) 'ca_thumbprint')
-                out_dir = $OutDir; python = $Python; port = $Port
+                out_dir = $OutDir; python = $Python; port = (Get-MockPort $OutDir)
             })
         Write-Host "InstallAndRun(-Negative): stopped pid=$($c.Id) -> $p"
         exit 0
@@ -818,7 +872,7 @@ if ($Action -eq 'InstallAndRun') {
     Save-State ([pscustomobject]@{
             client_pid = $c.Id; window_start = $start; window_end = $windowEnd
             ca_thumbprint = (Get-Prop (Get-State) 'ca_thumbprint')
-            out_dir = $OutDir; python = $Python; port = $Port
+            out_dir = $OutDir; python = $Python; port = (Get-MockPort $OutDir)
         })
     Write-Host "InstallAndRun: pid=$($c.Id) exe=$installed window=$($WindowSeconds)s app-update.yml 比对=$($g1.matches_installer) -> $p"
     exit 0
@@ -1118,7 +1172,9 @@ if ($Action -eq 'CleanupVerify') {
     if ($caThumbC) {
         $caPresent = [bool](Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $caThumbC)
     }
-    $portOpen = Test-Tcp '127.0.0.1' $Port
+    # 用 mock 的**实际**端口核验（StartMock 让 OS 分配，请求端口可能是 443 但从未绑上）
+    $mockPort = Get-MockPort $OutDir
+    $portOpen = if ($mockPort -gt 0) { Test-Tcp '127.0.0.1' $mockPort } else { $false }
     $mockAlive = $false
     $mpc = Get-Prop $st 'mock_pid'
     if ($mpc) { $mockAlive = [bool](Get-Process -Id $mpc -ErrorAction SilentlyContinue) }

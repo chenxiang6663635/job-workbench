@@ -111,6 +111,20 @@ jobs:
             scripts/dprime2-s1.selftest.py
           sparse-checkout-cone-mode: false
 
+      # ①b 安装 certcheck 的依赖（P0，S1-C run 40193077866 实测）：
+      #     TLS-1 调 certcheck.py，它 `from cryptography import x509`；
+      #     windows-latest **不预装** cryptography（只有 s1-lint job 装过）。
+      #     结果 Tls1 拿到 ModuleNotFoundError，整条链在 TLS-1 就断，
+      #     后面 StartMock / InstallAndRun 全没跑 → Verdict 里三条请求 0 命中。
+      #     必须与 s1-lint 用同一个解释器安装，避免"装的 python"与"用的 python"不同。
+      - name: 安装并校验自检依赖
+        shell: pwsh
+        run: |
+          $py = (Get-Command python).Source
+          Write-Host "python = $py"
+          & $py -m pip install --quiet --upgrade cryptography
+          & $py -c "import cryptography, sys; print('cryptography=' + cryptography.__version__); print('exe=' + sys.executable)"
+
       # ② 环境预检（P0-2：代理 / PAC / DNS / IPv6 / 端口 / 既有安装）
       #    代理一旦检出，后续步骤必须显式处置，不得默认 hosts 生效
       - name: Preflight 代理与解析预检

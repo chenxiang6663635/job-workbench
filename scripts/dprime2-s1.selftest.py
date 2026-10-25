@@ -463,6 +463,26 @@ rep("P0-3 Save-State 字段级合并（不整对象覆盖）",
 rep("P0-4 不用 ArgumentList.AddRange",
     "AddRange" not in ps1_src,
     "ProcessStartInfo.ArgumentList 是 Collection<string>，无 AddRange")
+
+# --- S1-C run 40194676744 / 40194676744 复现暴露的两处（都是"改一半"）---
+rep("S1-C-a mock 用 OS 分配端口（--port 0）",
+    "'--port', '0'" in ps1_src,
+    "固定端口（443）可能落在 Hyper-V 保留段：TCP 探测说空闲、bind() 失败")
+rep("S1-C-b 从 stdout 读回实际端口",
+    "MOCK_PORT=" in ps1_src and "Get-MockPort" in ps1_src,
+    "后续动作必须用实际端口，不能沿用请求端口")
+rep("S1-C-c StartMock 取叶子证书（不是最后一张）",
+    "CN=github" in ps1_src and "Select-Object -First 1" in ps1_src,
+    "server.crt 是叶子在前；取最后一张会拿到 CA → KEY_VALUES_MISMATCH，mock 起不来")
+rep("S1-C-d mock server 不引用未导入的 io",
+    "io.open" not in mock_src,
+    "S1-C 复现时 mock 报 NameError: name 'io' is not defined，端口报出后仍退出")
+rep("S1-C-e 端口读取不用事件回调",
+    "BeginOutputReadLine" not in ps1_src,
+    "BeginOutputReadLine + Register-ObjectEvent 在 pwsh 里不 flush，stdout 文件为空")
+rep("S1-C-f 真机 job 也装 cryptography",
+    wf.count("pip install") >= 2,
+    "windows-latest 不预装；只给 s1-lint 装会让真机链在 TLS-1 断掉")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

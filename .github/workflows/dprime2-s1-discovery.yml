@@ -70,12 +70,12 @@ jobs:
           Write-Host "python = $py"
           & $py -m pip install --quiet --upgrade cryptography
           & $py -c "import cryptography, sys; print('cryptography=' + cryptography.__version__); print('exe=' + sys.executable)"
-      - name: 诊断 certcheck（手动跑，暴露真实 exit/stdout/stderr）
-        # 自检里 certcheck 连续多轮表现为「stdout 空 / stderr 空 / exit=1」，
-        # 而本地同版本 Python 完全正常。用 Python 脚本诊断而非内联 PowerShell：
-        # YAML 的 run: 块在 pwsh -command 模式下对嵌套引号极不友好，
-        # 内联版本自己就会 ParserError（2026-10-24 实测）。
-        run: python scripts/dprime2-diag.py
+      # 诊断脚本 scripts/dprime2-diag.py 保留（定位「本地过、CI 挂」类问题很有用：
+      # 它手动跑 NewCert + certcheck，把 rc/stdout/stderr 分别打印）。
+      # 2026-10-24 靠它抓到 certcheck 的真根因：CI 的 locale 是 en-US，
+      # Python stdout 编码 cp1252 编不了中文 → UnicodeEncodeError。
+      # 该问题已修（ensure_ascii=True + reconfigure），此步骤随之退役——
+      # 不再每次 PR 都跑，需要时手动 `python scripts/dprime2-diag.py` 即可。
 
       - name: 跑 S1 离线自检
         shell: pwsh

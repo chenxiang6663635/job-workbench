@@ -744,7 +744,11 @@ if ($Action -eq 'PatchHosts') {
 if ($Action -eq 'Tls2') {
     $st = Get-State
     $url = "https://github.com/_probe/tls2"
-    $row = [ordered]@{ at = (Get-Date).ToString('o'); url = $url; probe_only = $true }
+    # 必须**初始化所有后续会被读的键**：$row 是 [ordered] 字典，
+    # StrictMode 2.0 下访问不存在的键会抛 "The property 'status' cannot be found"
+    # （S1-C run 40267935863 实测：catch 分支没设 status，L775 读它就崩）。
+    $row = [ordered]@{ at = (Get-Date).ToString('o'); url = $url; probe_only = $true
+        status = $null; ok = $false; error = $null; body = $null }
     try {
         $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20
         $row.status = [int]$resp.StatusCode

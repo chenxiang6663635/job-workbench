@@ -282,6 +282,12 @@ jobs:
             ${{ runner.temp }}/dprime2-s1/client-negative.json
             ${{ runner.temp }}/dprime2-s1/cleanup-verify.json
             ${{ runner.temp }}/dprime2-s1/restore.json
+            # mock 的三个证据文件（S1-C run 40203301912 实测漏传：mock 失败时
+            # 收据里只有 actual_port=0，stderr_tail 没上传等于白抓）
+            ${{ runner.temp }}/dprime2-s1/mock.json
+            ${{ runner.temp }}/dprime2-s1/mock.stdout.log
+            ${{ runner.temp }}/dprime2-s1/mock.stderr.log
+            ${{ runner.temp }}/dprime2-s1/port.json
           # 收据是唯一可审计产物：缺失即证据链断裂，必须让 job 失败（不能 warn 后变绿）
           if-no-files-found: error
           retention-days: 30

@@ -629,7 +629,10 @@ if ($Action -eq 'StartMock') {
     # **没有 AddRange**——原写法会抛 MethodNotFound，StartMock 直接崩。逐项 Add。
     # --port 0：让 OS 分配端口（S1-C run 40194676744 实测 443 起不来，
     # 而 Test-Tcp 探测不到保留端口段——探测说空闲、bind() 实际失败）。
-    foreach ($a in @($mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', '0')) {
+    # -u：关闭 Python stdout 缓冲。runner 上 stdout 重定向到文件时是**块缓冲**，
+    # MOCK_PORT= 要等 4KB 或进程退出才 flush（S1-C run 40203301912 实测：
+    # 本地正常、runner 上 5 秒就 break，读不到端口）。
+    foreach ($a in @('-u', $mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', '0')) {
         $psi.ArgumentList.Add($a)
     }
     $psi.UseShellExecute = $false
@@ -646,16 +649,37 @@ if ($Action -eq 'StartMock') {
         -PassThru -WorkingDirectory $OutDir `
         -RedirectStandardOutput $mockOut -RedirectStandardError $mockErr -WindowStyle Hidden
 
-    # 等 mock 报出 OS 分配的端口（首行 MOCK_PORT=<n>）
+    # 等 mock 报出 OS 分配的端口。**两个来源**都试：
+    #   ① stdout 首行 MOCK_PORT=<n>（已加 -u 关缓冲）
+    #   ② port.json（mock 自己写在 fixture 父目录，比 stdout 更不受缓冲影响）
+    # 不因 $proc.HasExited 提前 break：缓冲未刷时会漏读。
     $actualPort = 0
-    $deadline = (Get-Date).AddSeconds(20)
+    $portJson = Join-Path $OutDir 'port.json'
+    $deadline = (Get-Date).AddSeconds(25)
     while ((Get-Date) -lt $deadline -and $actualPort -eq 0) {
-        Start-Sleep -Milliseconds 300
+        Start-Sleep -Milliseconds 400
         if (Test-Path -LiteralPath $mockOut) {
             $m = Select-String -Path $mockOut -Pattern 'MOCK_PORT=(\d+)' -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($m) { $actualPort = [int]$m.Matches[0].Groups[1].Value }
         }
-        if ($proc.HasExited) { break }
+        if (-not $actualPort -and (Test-Path -LiteralPath $portJson)) {
+            try {
+                $pj = Get-Content -LiteralPath $portJson -Raw -Encoding utf8 | ConvertFrom-Json
+                if ($pj.port -and [int]$pj.port -gt 0) { $actualPort = [int]$pj.port }
+            } catch { }
+        }
+        if (-not $actualPort -and $proc.HasExited) {
+            # 进程已退出且两个来源都读不到：再等一下（退出瞬间文件可能未落盘），
+            # 然后靠 stderr 定位。
+            Start-Sleep -Milliseconds 600
+            if (Test-Path -LiteralPath $portJson) {
+                try {
+                    $pj = Get-Content -LiteralPath $portJson -Raw -Encoding utf8 | ConvertFrom-Json
+                    if ($pj.port -and [int]$pj.port -gt 0) { $actualPort = [int]$pj.port }
+                } catch { }
+            }
+            if (-not $actualPort) { break }
+        }
     }
     $up = ($actualPort -gt 0) -and (Test-Tcp '127.0.0.1' $actualPort)
     $mockOutText = if (Test-Path -LiteralPath $mockOut) { (Get-Content -LiteralPath $mockOut -Raw -Encoding utf8) } else { '' }
@@ -679,7 +703,18 @@ if ($Action -eq 'StartMock') {
             ca_thumbprint = (Get-Prop $st 'ca_thumbprint')
             out_dir = $OutDir; python = $Python; port = $actualPort })
     Write-Host "StartMock: pid=$($proc.Id) listening=$up actual_port=$actualPort -> $p"
-    if (-not $up) { exit 7 }
+    if (-not $up) {
+        # 失败时把 mock 的两个流**直接打到 workflow 日志**——不依赖收据上传。
+        # S1-C run 40203301912 实测：mock.json 不在上传清单里，失败后只能看到
+        # "actual_port=0"，完全看不出 mock 为什么退出。
+        Write-Host "--- mock stdout ---"
+        if ($flatOut) { Write-Host $flatOut } else { Write-Host "(empty)" }
+        Write-Host "--- mock stderr ---"
+        if ($flatErr) { Write-Host $flatErr } else { Write-Host "(empty)" }
+        Write-Host "--- mock process ---"
+        Write-Host "exited=$($proc.HasExited) exit_code=$(if ($proc.HasExited) { $proc.ExitCode } else { '<running>' })"
+        exit 7
+    }
     exit 0
 }
 

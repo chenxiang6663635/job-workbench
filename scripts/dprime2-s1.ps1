@@ -14,7 +14,7 @@
 param(
     [Parameter(Mandatory)][ValidateSet(
         'Preflight','VerifyRc','UpstreamProbe','NewCert','Tls1','PrepareFixtures','InstallCa',
-        'StartMock','PatchHosts','Tls2','InstallAndRun','MarkBoundary','TlsNegative','Verdict',
+        'StartMock','PatchHosts','CheckMock','Tls2','InstallAndRun','MarkBoundary','TlsNegative','Verdict',
         'Restore','CleanupVerify')]
     [string]$Action,
     [string]$OutDir = $(if ($env:RUNNER_TEMP) { Join-Path $env:RUNNER_TEMP 'dprime2-s1' } else { $PWD.Path }),
@@ -1177,7 +1177,11 @@ if ($Action -eq 'Verdict') {
     $g1RepoOk = [bool](Get-Prop $g1d 'repo_ok')
     V 'S1-8 未改客户端二进制/app-update.yml' ($g1ProviderOk -and $g1RepoOk) `
         $(if ($g1d) { "provider_ok=$g1ProviderOk repo_ok=$g1RepoOk" } else { '未取得字段' })
-    V 'S1-9 mock 未收凭据' (-not (@($reqs | Where-Object { $_.auth_header_present }).Count -gt 0)) "auth_header_seen=$(@($reqs | Where-Object { $_.auth_header_present }).Count)"
+    # boundary 记录没有 auth_header_present 字段——StrictMode 2.0 下直接过滤会抛
+    # "The property 'auth_header_present' cannot be found"（run 40273862891 实测）。
+    # 只对**存在该字段且为真**的记录计数。
+    $authSeen = @($reqs | Where-Object { (Get-Prop $_ 'auth_header_present') -eq $true }).Count
+    V 'S1-9 mock 未收凭据' ($authSeen -eq 0) "auth_header_seen=$authSeen"
     # G3：负例证据（到了 443 但被拒），读 TlsNegative 的结论
     $tlsNeg = if (Test-Path (Join-Path $OutDir 'tls-negative.json')) { Get-Content (Join-Path $OutDir 'tls-negative.json') -Raw | ConvertFrom-Json } else { $null }
     V 'G3 TLS 负例：未信任 CA 时被拒' ([bool]($tlsNeg -and $tlsNeg.classification -eq 'TLS_REJECTED_AS_EXPECTED')) `

@@ -608,8 +608,18 @@ jobs:
             throw "上传命令返回 0，但 Release 资产列表里缺少：$($missing -join ', ')。实际列表：$($assets -join ', ')"
           }
 
-          # 资产齐全才 publish（先完整、再公开）——publish 之后本脚本的重跑会被
-          # 上面的「已发布拒绝覆盖」拦住，形成 append-only。
-          gh release edit $env:TAG --draft=false
-          if ($LASTEXITCODE -ne 0) { throw "publish 失败（exit $LASTEXITCODE）——Release 仍是 draft，请人工检查后手动发布" }
-          Write-Host "已发布：$($env:TAG) / $($files -join ', ')"
+          # 【A+（2026-10-26 发布控制裁决）】资产齐全后**保持 Draft，不自动公开**。
+          #
+          # 原实现紧接此处执行 `gh release edit --draft=false`，后果是：tag push →
+          # package → e2e → publish 全自动跑通后，**未经任何人工核验的制品直接对用户可见**。
+          # Draft 中间态本身不构成发布审批，把它自动解除等于取消审批环节。
+          #
+          # 正式公开必须由人工在核验 Draft 资产（SHA256 + 隔离环境真实安装验收）后执行：
+          #   gh release edit <TAG> --draft=false
+          # 该命令只解除 Draft，**不重新构建、不替换资产**；append-only 仍由上面的
+          # 「已发布拒绝覆盖」守卫保证。
+          #
+          # 该形态已在 26.10.1 Hotfix（分支 ce789f4 / #377）上实战验证：
+          # release run 40283765943 产出 Draft，人工核验后于 2026-10-26T09:06:27Z 手动公开。
+          Write-Host "Release $($env:TAG) 已就绪并保持 Draft（未公开）：$($files -join ', ')"
+          Write-Host "下一步（需人工授权）：核验资产 SHA256 并在隔离环境完成安装验收后，执行 gh release edit $($env:TAG) --draft=false"

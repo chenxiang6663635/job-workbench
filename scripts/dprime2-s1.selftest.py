@@ -511,6 +511,9 @@ rep("S1-C-m 兜底不匹配 resources 下的 backend exe",
 rep("S1-C-n provider_ok 用 Get-Prop 安全取",
     "Get-Prop $g1d 'provider_ok'" in ps1_src,
     "安装目录解析失败时 detail 没有该字段，直接访问会抛")
+rep("S1-C-o Tls2 的 row 预初始化 status/ok",
+    "status = $null; ok = $false" in ps1_src,
+    "[ordered] 字典缺键在 StrictMode 下会抛；catch 分支不设 status 时读它就崩")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

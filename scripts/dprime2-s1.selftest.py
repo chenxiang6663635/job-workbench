@@ -549,6 +549,20 @@ rep("动作集合一致（ValidateSet == 实现的 if 分支）",
 rep("S1-C-u auth_header_present 用 Get-Prop 安全取",
     "Get-Prop $_ 'auth_header_present'" in ps1_src,
     "boundary 记录没有该字段，直接过滤会抛（run 40273862891 实测）")
+
+# --- run 40275076793 确诊：mock 在 step 之间被 job object 杀掉 ---
+rep("S1-C-v mock 用 schtasks 托管（跨 step 存活）",
+    "schtasks /create" in ps1_src and "start-mock.cmd" in ps1_src,
+    "Start-Process 起的子进程会随 step 的 pwsh 一起被 GitHub Actions 清理")
+rep("S1-C-w schtasks 创建失败有 /it 回退",
+    "/it /f" in ps1_src,
+    "SYSTEM 身份在非管理员环境下建不了任务，需要以当前用户回退")
+rep("S1-C-x Restore 会 end+delete 计划任务",
+    "schtasks /end" in ps1_src and "schtasks /delete" in ps1_src,
+    "残留任务会让下次 dispatch 的同名任务冲突")
+rep("S1-C-y CleanupVerify 检查任务残留",
+    "task_left" in ps1_src,
+    "只查进程/端口不够：schtasks 托管的进程名可能不同")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

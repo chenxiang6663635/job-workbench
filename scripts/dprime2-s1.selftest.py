@@ -465,9 +465,10 @@ rep("P0-4 不用 ArgumentList.AddRange",
     "ProcessStartInfo.ArgumentList 是 Collection<string>，无 AddRange")
 
 # --- S1-C run 40194676744 / 40194676744 复现暴露的两处（都是"改一半"）---
-rep("S1-C-a mock 用 OS 分配端口（--port 0）",
-    "'--port', '0'" in ps1_src,
-    "固定端口（443）可能落在 Hyper-V 保留段：TCP 探测说空闲、bind() 失败")
+rep("S1-C-a mock 绑固定端口（hosts 劫持要求 443）",
+    "'--port', \"$Port\"" in ps1_src and "--port', '0'" not in ps1_src,
+    "hosts 把 github.com 指向 127.0.0.1 后请求只走 443；"
+    "曾误判 KEY_VALUES_MISMATCH 为端口问题而改 OS 分配，导致 probe_hits=0")
 rep("S1-C-b 从 stdout 读回实际端口",
     "MOCK_PORT=" in ps1_src and "Get-MockPort" in ps1_src,
     "后续动作必须用实际端口，不能沿用请求端口")

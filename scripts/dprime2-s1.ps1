@@ -643,23 +643,44 @@ if ($Action -eq 'StartMock') {
     $psi.WorkingDirectory = $OutDir
     $mockOut = Join-Path $OutDir 'mock.stdout.log'
     $mockErr = Join-Path $OutDir 'mock.stderr.log'
-    # 用 Start-Process -RedirectStandardOutput/Error（而非 ProcessStartInfo +
-    # BeginOutputReadLine + Register-ObjectEvent）——后者的事件在本机实测**不 flush**，
-    # stdout 文件始终为空、读不到 MOCK_PORT（2026-10-25 实测）。
-    # Start-Process -PassThru 同时给出进程对象与稳定的文件重定向。
-    $proc = Start-Process -FilePath $psi.FileName -ArgumentList $psi.ArgumentList `
-        -PassThru -WorkingDirectory $OutDir `
-        -RedirectStandardOutput $mockOut -RedirectStandardError $mockErr -WindowStyle Hidden
 
-    # 等 mock 报出实际端口（正常应为 443）。**两个来源**都试：
-    #   ① stdout 首行 MOCK_PORT=<n>（已加 -u 关缓冲）
-    #   ② port.json（mock 写在 fixture 父目录，比 stdout 更不受缓冲影响）
-    # 不因 $proc.HasExited 提前 break：缓冲未刷时会漏读。
-    # 若 443 绑不上（被占 / 保留段），mock 会以非 0 退出且 stderr 有 WinError，
-    # 下面的失败分支会把 stderr 打到日志。
+    # **必须让 mock 脱离当前 step 的进程树**。
+    # 2026-10-26 run 40275076793 实测：StartMock 报告 listening=true，
+    # 但下一个 step 的 CheckMock 报 alive=False listen=443=False——
+    # GitHub Actions 的 step 之间用 job object 清理子进程，Start-Process
+    # 起的 mock 会随 StartMock 那个 pwsh 一起被杀。
+    # （这一轮才确诊：之前一直被端口/证书问题掩盖。）
+    # 方案：写一个 .cmd，用 schtasks 以 SYSTEM 身份运行——Task Scheduler
+    # 托管，不属于任何 step 的 job object，跨 step 存活。
+    $mockCmd = Join-Path $OutDir 'start-mock.cmd'
+    $argLine = '-u "' + $mockScript + '" --root "' + $fixture + '" --log "' + $log +
+               '" --host 127.0.0.1 --port ' + $Port + ' > "' + $mockOut + '" 2> "' + $mockErr + '"'
+    $cmdBody = "@echo off`r`n`"$($psi.FileName)`" $argLine`r`n"
+    Set-Content -LiteralPath $mockCmd -Value $cmdBody -Encoding ascii -NoNewline
+
+    $taskName = 'dprime2-s1-mock'
+    & schtasks /delete /tn $taskName /f 2>&1 | Out-Null
+    # 先试 SYSTEM（runner 是管理员，最稳：不受登录会话影响）；
+    # 失败再试 /it（以当前登录用户身份，不需要密码）。
+    $createOut = & schtasks /create /tn $taskName /tr "`"$mockCmd`"" /sc once /st 00:00 `
+        /ru SYSTEM /rl HIGHEST /f 2>&1
+    $createRc = $LASTEXITCODE
+    Write-Host "StartMock: schtasks create(SYSTEM, rc=$createRc) -> $($createOut -join ' ')"
+    if ($createRc -ne 0) {
+        $createOut = & schtasks /create /tn $taskName /tr "`"$mockCmd`"" /sc once /st 00:00 `
+            /it /f 2>&1
+        $createRc = $LASTEXITCODE
+        Write-Host "StartMock: schtasks create(/it, rc=$createRc) -> $($createOut -join ' ')"
+    }
+    $runOut = & schtasks /run /tn $taskName 2>&1
+    Write-Host "StartMock: schtasks run(rc=$LASTEXITCODE) -> $($runOut -join ' ')"
+    $proc = $null
+
+    # 等 mock 报出实际端口（正常应为 443）。两个来源：stdout 的 MOCK_PORT= 与 port.json。
+    # 进程存活改由「443 是否有监听者」判断（schtasks 拿不到 Process 对象）。
     $actualPort = 0
     $portJson = Join-Path $OutDir 'port.json'
-    $deadline = (Get-Date).AddSeconds(25)
+    $deadline = (Get-Date).AddSeconds(30)
     while ((Get-Date) -lt $deadline -and $actualPort -eq 0) {
         Start-Sleep -Milliseconds 400
         if (Test-Path -LiteralPath $mockOut) {
@@ -672,41 +693,40 @@ if ($Action -eq 'StartMock') {
                 if ($pj.port -and [int]$pj.port -gt 0) { $actualPort = [int]$pj.port }
             } catch { }
         }
-        if (-not $actualPort -and $proc.HasExited) {
-            # 进程已退出且两个来源都读不到：再等一下（退出瞬间文件可能未落盘），
-            # 然后靠 stderr 定位。
+        # mock 若已崩（stderr 有内容且 443 无人监听），不再空等
+        if (-not $actualPort -and (Test-Path -LiteralPath $mockErr) -and
+            (Get-Item -LiteralPath $mockErr).Length -gt 0 -and -not (Test-Tcp '127.0.0.1' $Port)) {
             Start-Sleep -Milliseconds 600
-            if (Test-Path -LiteralPath $portJson) {
-                try {
-                    $pj = Get-Content -LiteralPath $portJson -Raw -Encoding utf8 | ConvertFrom-Json
-                    if ($pj.port -and [int]$pj.port -gt 0) { $actualPort = [int]$pj.port }
-                } catch { }
-            }
-            if (-not $actualPort) { break }
+            if (-not (Test-Tcp '127.0.0.1' $Port)) { break }
         }
     }
     $up = ($actualPort -gt 0) -and (Test-Tcp '127.0.0.1' $actualPort)
+    # PID 反查：schtasks 不返回 PID，用 443 的 OwningProcess
+    $mockPid = $null
+    $conn = Get-NetTCPConnection -LocalPort $actualPort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($conn) { $mockPid = $conn.OwningProcess }
     $mockOutText = if (Test-Path -LiteralPath $mockOut) { (Get-Content -LiteralPath $mockOut -Raw -Encoding utf8) } else { '' }
     $mockErrText = if (Test-Path -LiteralPath $mockErr) { (Get-Content -LiteralPath $mockErr -Raw -Encoding utf8) } else { '' }
     $flatOut = ($mockOutText -join "`n") -replace "`r?`n", ' | '
     $flatErr = ($mockErrText -join "`n") -replace "`r?`n", ' | '
     $p = Write-Json 'mock.json' ([pscustomobject]@{
-            at = (Get-Date).ToString('o'); pid = $proc.Id
+            at = (Get-Date).ToString('o'); pid = $mockPid; task_name = $taskName
             requested_port = $Port; actual_port = $actualPort
             listening = $up; log = $log; fixture = $fixture
-            process_exited = $proc.HasExited
-            exit_code = $(if ($proc.HasExited) { $proc.ExitCode } else { $null })
+            process_exited = (-not $up)
+            exit_code = $null
             stdout_tail = $flatOut.Substring(0, [Math]::Min(500, $flatOut.Length))
             stderr_tail = $flatErr.Substring(0, [Math]::Min(1500, $flatErr.Length))
         })
     # 后续动作（Tls2 / TlsNegative / Verdict）必须用**实际端口**，不能用请求端口。
     # 单独存一份，避免被其他动作的状态对象覆盖。
     Set-Content -Path (Join-Path $OutDir 'mock-port.txt') -Value "$actualPort" -Encoding utf8
-    Save-State ([pscustomobject]@{ mock_pid = $proc.Id
+    Save-State ([pscustomobject]@{ mock_pid = $mockPid
+            mock_task = $taskName
             mock_port = $actualPort
             ca_thumbprint = (Get-Prop $st 'ca_thumbprint')
             out_dir = $OutDir; python = $Python; port = $actualPort })
-    Write-Host "StartMock: pid=$($proc.Id) listening=$up actual_port=$actualPort -> $p"
+    Write-Host "StartMock: pid=$mockPid task=$taskName listening=$up actual_port=$actualPort -> $p"
     if (-not $up) {
         # 失败时把 mock 的两个流**直接打到 workflow 日志**——不依赖收据上传。
         # S1-C run 40203301912 实测：mock.json 不在上传清单里，失败后只能看到
@@ -716,7 +736,11 @@ if ($Action -eq 'StartMock') {
         Write-Host "--- mock stderr ---"
         if ($flatErr) { Write-Host $flatErr } else { Write-Host "(empty)" }
         Write-Host "--- mock process ---"
-        Write-Host "exited=$($proc.HasExited) exit_code=$(if ($proc.HasExited) { $proc.ExitCode } else { '<running>' })"
+        # schtasks 托管后没有 Process 对象，只能报 PID（反查）与任务状态
+        Write-Host "pid=$mockPid task=$taskName listening_443=$(Test-Tcp '127.0.0.1' $Port)"
+        $tq2 = & schtasks /query /tn $taskName 2>&1
+        Write-Host "task_query_exit=$LASTEXITCODE"
+        if ($tq2) { Write-Host (($tq2 -join ' | ').Substring(0, [Math]::Min(300, ($tq2 -join ' | ').Length))) }
         exit 7
     }
     exit 0
@@ -1279,10 +1303,21 @@ if ($Action -eq 'Restore') {
         }
     } catch { $res.ca = "failed: $($_.Exception.Message)" }
     try {
+        # mock 现在由 schtasks 托管，必须**先 end/delete 任务**再杀进程，
+        # 否则任务计划里会残留（且下次 dispatch 的同名任务会冲突）。
+        $task = Get-Prop $st 'mock_task'
         $mp = Get-Prop $st 'mock_pid'
-        # 与负例同一理由：mock 进程可能有子进程；杀整棵树更稳
-        if ($mp) { & taskkill /PID $mp /T /F 2>&1 | Out-Null }
-        $res.mock = "killed pid=$mp"
+        $parts = @()
+        if ($task) {
+            & schtasks /end /tn $task 2>&1 | Out-Null
+            & schtasks /delete /tn $task /f 2>&1 | Out-Null
+            $parts += "task $task ended+deleted"
+        }
+        if ($mp) {
+            & taskkill /PID $mp /T /F 2>&1 | Out-Null
+            $parts += "killed pid=$mp"
+        }
+        $res.mock = if ($parts.Count -gt 0) { $parts -join '; ' } else { 'no-mock-state' }
     } catch { $res.mock = "failed: $($_.Exception.Message)" }
     $p = Write-Json 'restore.json' $res
     Write-Host "Restore: hosts=$($res.hosts) ca=$($res.ca) mock=$($res.mock) -> $p"
@@ -1302,13 +1337,20 @@ if ($Action -eq 'CleanupVerify') {
     # 用 mock 的**实际**端口核验（StartMock 让 OS 分配，请求端口可能是 443 但从未绑上）
     $mockPort = Get-MockPort $OutDir
     $portOpen = if ($mockPort -gt 0) { Test-Tcp '127.0.0.1' $mockPort } else { $false }
+    # 三项都要查：进程、端口、计划任务（schtasks 托管时进程名可能不同，
+    # 残留的任务会导致下次 dispatch 冲突）
     $mockAlive = $false
     $mpc = Get-Prop $st 'mock_pid'
     if ($mpc) { $mockAlive = [bool](Get-Process -Id $mpc -ErrorAction SilentlyContinue) }
-    $allClean = $hostsClean -and -not $caPresent -and -not $portOpen -and -not $mockAlive
+    $taskLeft = $false
+    $taskNameC = 'dprime2-s1-mock'
+    $tq = & schtasks /query /tn $taskNameC 2>&1
+    if ($LASTEXITCODE -eq 0) { $taskLeft = $true }
+    $allClean = $hostsClean -and -not $caPresent -and -not $portOpen -and -not $mockAlive -and -not $taskLeft
     $p = Write-Json 'cleanup-verify.json' ([pscustomobject]@{
             at = (Get-Date).ToString('o'); hosts_clean = $hostsClean; ca_present = $caPresent
-            port_open = $portOpen; mock_alive = $mockAlive; all_clean = $allClean
+            port_open = $portOpen; mock_alive = $mockAlive; task_left = $taskLeft
+            all_clean = $allClean
         })
     Write-Host "CleanupVerify: all_clean=$allClean (hosts=$hostsClean ca=$caPresent port=$portOpen mock=$mockAlive) -> $p"
     if (-not $allClean) { exit 10 }

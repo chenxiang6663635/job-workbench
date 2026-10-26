@@ -483,6 +483,20 @@ rep("S1-C-e 端口读取不用事件回调",
 rep("S1-C-f 真机 job 也装 cryptography",
     wf.count("pip install") >= 2,
     "windows-latest 不预装；只给 s1-lint 装会让真机链在 TLS-1 断掉")
+
+# --- S1-C run 40203301912 暴露的三处（证据/缓冲/上传）---
+rep("S1-C-g 端口有第二来源 port.json",
+    "port.json" in ps1_src and "pj.port" in ps1_src,
+    "stdout 若被块缓冲/未 flush，port.json 是兜底来源")
+rep("S1-C-h python 加 -u 关缓冲",
+    "'-u'" in ps1_src,
+    "重定向到文件时 Python 块缓冲，MOCK_PORT= 可能等 4KB 或退出才 flush")
+rep("S1-C-i mock 失败时把 stderr 打到日志",
+    "--- mock stderr ---" in ps1_src,
+    "run 40203301912：mock.json 不在上传清单，失败后只剩 actual_port=0 无从定位")
+rep("S1-C-j 上传清单含 mock 证据文件",
+    "mock.json" in wf and "mock.stderr.log" in wf and "port.json" in wf,
+    "缺上传等于白抓：失败现场无法回溯")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

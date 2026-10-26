@@ -191,9 +191,17 @@ jobs:
           & ./scripts/dprime2-s1.ps1 -Action StartMock -OutDir $env:RUNNER_TEMP\dprime2-s1
 
       # ⑨ 改 hosts（先备份；此后不再访问 github.com）
+      #    PatchHosts 现在 fail-closed：解析不到 127.0.0.1 就 exit 12，
+      #    不再带着坏前提往下跑。
       - name: 劫持 github.com
         run: |
           & ./scripts/dprime2-s1.ps1 -Action PatchHosts -OutDir $env:RUNNER_TEMP\dprime2-s1
+
+      # ⑨b mock 存活核验：把「mock 中途死了」与「hosts 没生效」分开
+      #     run 40272601107 的 Tls2 报 refused 时，两者无法区分。
+      - name: 核验 mock 仍存活
+        run: |
+          & ./scripts/dprime2-s1.ps1 -Action CheckMock -OutDir $env:RUNNER_TEMP\dprime2-s1
 
       # ⑩ G3 负例：装+启动真实 26.10.0，此时**测试 CA 未导入**
       #    与正例共用同一 mock / 同一域名 / 同一夹具，唯一差别是信任条件。
@@ -288,6 +296,8 @@ jobs:
             ${{ runner.temp }}/dprime2-s1/mock.stdout.log
             ${{ runner.temp }}/dprime2-s1/mock.stderr.log
             ${{ runner.temp }}/dprime2-s1/port.json
+            # hosts.json：PatchHosts 的观测结果（resolved_after 证明劫持是否生效）
+            ${{ runner.temp }}/dprime2-s1/hosts.json
           # 收据是唯一可审计产物：缺失即证据链断裂，必须让 job 失败（不能 warn 后变绿）
           if-no-files-found: error
           retention-days: 30

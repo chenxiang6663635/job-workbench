@@ -533,6 +533,22 @@ rep("S1-C-s 有 CheckMock 存活核验动作",
 rep("S1-C-t Tls2 记录 dns 与 mock_listening",
     "mock_listening" in ps1_src,
     "事后才能判断当时 github.com 解析到哪、443 是否有监听")
+
+# --- run 40273862891 暴露：加动作忘同步 ValidateSet ---
+# 这条钉子**自动比对两边**，不是硬编码某个动作名：
+# 以后再加新动作却忘了改 ValidateSet，会在这里立刻失败。
+import re as _re
+
+_vs = _re.search(r"ValidateSet\(([^)]*)\)", ps1_src, _re.S)
+_validate = set(_re.findall(r"'([A-Za-z0-9_]+)'", _vs.group(1))) if _vs else set()
+_impl = set(_re.findall(r"Action -eq '([A-Za-z0-9_]+)'", ps1_src))
+rep("动作集合一致（ValidateSet == 实现的 if 分支）",
+    _validate == _impl,
+    "ValidateSet 多出: %s / 实现多出: %s"
+    % (sorted(_validate - _impl), sorted(_impl - _validate)))
+rep("S1-C-u auth_header_present 用 Get-Prop 安全取",
+    "Get-Prop $_ 'auth_header_present'" in ps1_src,
+    "boundary 记录没有该字段，直接过滤会抛（run 40273862891 实测）")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

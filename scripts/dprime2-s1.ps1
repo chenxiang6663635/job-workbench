@@ -627,12 +627,14 @@ if ($Action -eq 'StartMock') {
     $psi.FileName = (Get-Command $Python).Source
     # P0-4（2026-10-24 审查修正）：`ProcessStartInfo.ArgumentList` 是 Collection<string>，
     # **没有 AddRange**——原写法会抛 MethodNotFound，StartMock 直接崩。逐项 Add。
-    # --port 0：让 OS 分配端口（S1-C run 40194676744 实测 443 起不来，
-    # 而 Test-Tcp 探测不到保留端口段——探测说空闲、bind() 实际失败）。
-    # -u：关闭 Python stdout 缓冲。runner 上 stdout 重定向到文件时是**块缓冲**，
-    # MOCK_PORT= 要等 4KB 或进程退出才 flush（S1-C run 40203301912 实测：
-    # 本地正常、runner 上 5 秒就 break，读不到端口）。
-    foreach ($a in @('-u', $mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', '0')) {
+    # **必须绑 443**：hosts 把 github.com 指向 127.0.0.1 后，客户端与探针
+    # 一律连 443——mock 若在别的端口，请求根本到不了（S1-C run 40268990137 实测：
+    # probe_hits=0、TLS-2 ok=False）。
+    # 曾经担心 443 绑不上而改成 --port 0，那是**误判**：run 40194676744 的
+    # listening=False 真因是 KEY_VALUES_MISMATCH（取错证书），不是端口。
+    # 证书链已修，这里恢复固定端口。
+    # -u：关闭 Python stdout 缓冲（重定向到文件时是块缓冲，MOCK_PORT= 可能不 flush）。
+    foreach ($a in @('-u', $mockScript, '--root', $fixture, '--log', $log, '--host', '127.0.0.1', '--port', "$Port")) {
         $psi.ArgumentList.Add($a)
     }
     $psi.UseShellExecute = $false
@@ -649,10 +651,12 @@ if ($Action -eq 'StartMock') {
         -PassThru -WorkingDirectory $OutDir `
         -RedirectStandardOutput $mockOut -RedirectStandardError $mockErr -WindowStyle Hidden
 
-    # 等 mock 报出 OS 分配的端口。**两个来源**都试：
+    # 等 mock 报出实际端口（正常应为 443）。**两个来源**都试：
     #   ① stdout 首行 MOCK_PORT=<n>（已加 -u 关缓冲）
-    #   ② port.json（mock 自己写在 fixture 父目录，比 stdout 更不受缓冲影响）
+    #   ② port.json（mock 写在 fixture 父目录，比 stdout 更不受缓冲影响）
     # 不因 $proc.HasExited 提前 break：缓冲未刷时会漏读。
+    # 若 443 绑不上（被占 / 保留段），mock 会以非 0 退出且 stderr 有 WinError，
+    # 下面的失败分支会把 stderr 打到日志。
     $actualPort = 0
     $portJson = Join-Path $OutDir 'port.json'
     $deadline = (Get-Date).AddSeconds(25)

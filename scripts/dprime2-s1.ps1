@@ -1142,19 +1142,29 @@ if ($Action -eq 'Verdict') {
     V 'S1-6 客户端日志出现目标版本' [bool]$foundVersion ("log_files=$($logCandidates.Count) matched_26.10.1=$foundVersion")
     V 'S1-6b 出现发现事件' [bool]$updateAvailable "matched=$updateAvailable"
 
-    # TLS / 代理分类
+    # TLS / 代理分类。
+    # **判据优先级必须是「服务端观测到的握手结果」> 「客户端日志文本」**。
+    # 2026-10-26 run 40276500504 实测：三条 client 请求全部 200、带
+    # tls_version=TLSv1.3 与 cipher（服务端确证握手完成），而客户端日志里
+    # 仍有 "certificate" 字样（来自负例阶段/历史告警）→ 旧逻辑判
+    # BLOCKED_BY_TLS_TRUST，把已经成功的 TLS-3 判成失败。
+    # 服务端记录的是「这次连接到底有没有完成握手」，比日志措辞可靠。
     $tlsErr = ($logText -match 'CERT_|UNABLE_TO_VERIFY|ERR_TLS|certificate')
     $tls2 = if (Test-Path (Join-Path $OutDir 'tls2.json')) { Get-Content (Join-Path $OutDir 'tls2.json') -Raw | ConvertFrom-Json } else { $null }
     $preflight = if (Test-Path (Join-Path $OutDir 'preflight.json')) { Get-Content (Join-Path $OutDir 'preflight.json') -Raw | ConvertFrom-Json } else { $null }
+    # 服务端硬证据：三条必需路径都有成功的 client 请求（带 tls_version）
+    $clientTlsOk = @($clientReqs | Where-Object { (Get-Prop $_ 'tls_version') }).Count
     $classification = 'NONE'
-    if (-not $tls2 -or -not $tls2.ok) {
+    if ($clientReqs.Count -ge 3 -and $clientTlsOk -ge 3) {
+        $classification = 'NONE'      # 握手已在服务端确证完成，日志措辞不再参与
+    } elseif (-not $tls2 -or -not $tls2.ok) {
         $classification = if ($preflight -and $preflight.proxy.detected) { 'BLOCKED_BY_PROXY_OR_RESOLUTION' } else { 'BLOCKED_BY_TLS_TRUST' }
     } elseif ($clientReqs.Count -eq 0) {
         $classification = 'BLOCKED_BY_PROXY_OR_RESOLUTION'
     } elseif ($tlsErr) {
         $classification = 'BLOCKED_BY_TLS_TRUST'
     }
-    V 'S1-4 客户端真实完成 TLS（TLS-3）' (($classification -eq 'NONE') -and ($clientReqs.Count -ge 3) -and $updateAvailable) "classification=$classification client_reqs=$($clientReqs.Count) tls_err=$tlsErr"
+    V 'S1-4 客户端真实完成 TLS（TLS-3）' (($classification -eq 'NONE') -and ($clientReqs.Count -ge 3) -and $updateAvailable) "classification=$classification client_reqs=$($clientReqs.Count) client_tls_ok=$clientTlsOk tls_err=$tlsErr"
 
     # 环境 / 纯净性
     $hostsOk = -not ((Get-Content "$env:SystemRoot\System32\drivers\etc\hosts" -Raw) -match '127\.0\.0\.1 github\.com')

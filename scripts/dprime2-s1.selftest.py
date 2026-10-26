@@ -563,6 +563,12 @@ rep("S1-C-x Restore 会 end+delete 计划任务",
 rep("S1-C-y CleanupVerify 检查任务残留",
     "task_left" in ps1_src,
     "只查进程/端口不够：schtasks 托管的进程名可能不同")
+
+# --- run 40276500504：TLS-3 实际成功，却被日志文本判成失败 ---
+rep("S1-C-z TLS 分类以服务端 tls_version 优先",
+    "client_tls_ok" in ps1_src and "$clientTlsOk -ge 3" in ps1_src,
+    "三条 client 请求都带 tls_version 即握手已完成；"
+    "日志里的 certificate 字样（来自负例阶段）不该覆盖服务端观测")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

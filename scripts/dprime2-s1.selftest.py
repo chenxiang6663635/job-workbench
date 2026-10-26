@@ -497,6 +497,20 @@ rep("S1-C-i mock 失败时把 stderr 打到日志",
 rep("S1-C-j 上传清单含 mock 证据文件",
     "mock.json" in wf and "mock.stderr.log" in wf and "port.json" in wf,
     "缺上传等于白抓：失败现场无法回溯")
+
+# --- S1-C run 40256998614 暴露的三处（StrictMode 缺属性 + 安装路径假设）---
+rep("S1-C-k 异常取 Response 前先探测属性",
+    "-contains 'Response'" in ps1_src,
+    "HttpRequestException 等没有 Response 属性，StrictMode 下直接访问会抛")
+rep("S1-C-l 安装目录用 productName（Job Workbench）",
+    "Programs\\Job Workbench\\Job Workbench.exe" in ps1_src,
+    "electron-builder 用 productName 命名，猜 job-workbench\\ 永远不存在")
+rep("S1-C-m 兜底不匹配 resources 下的 backend exe",
+    "-notmatch '\\\\resources\\\\'" in ps1_src,
+    "job-workbench*.exe -Recurse 先命中 backend exe，installDir 会多一层")
+rep("S1-C-n provider_ok 用 Get-Prop 安全取",
+    "Get-Prop $g1d 'provider_ok'" in ps1_src,
+    "安装目录解析失败时 detail 没有该字段，直接访问会抛")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

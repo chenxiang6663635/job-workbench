@@ -753,7 +753,16 @@ if ($Action -eq 'Tls2') {
     } catch {
         $row.ok = $false
         $row.error = $_.Exception.Message
-        if ($_.Exception.Response) { $row.status = [int]$_.Exception.Response.StatusCode }
+        # StrictMode 2.0：异常对象**未必**有 Response 属性
+        # （HttpRequestException / 连接被拒 等就没有），直接访问会抛
+        # "The property 'Response' cannot be found"（S1-C run 40256998614 实测）。
+        # 必须先探测属性存在再取。
+        $exProps = $_.Exception.PSObject.Properties.Name
+        if ($exProps -contains 'Response' -and $null -ne $_.Exception.Response) {
+            if ($_.Exception.Response.PSObject.Properties.Name -contains 'StatusCode') {
+                $row.status = [int]$_.Exception.Response.StatusCode
+            }
+        }
     }
     # mock 是否记录到该探针请求（证明确实走了本地 443）
     $log = Join-Path $OutDir 'mock-requests.jsonl'
@@ -774,14 +783,26 @@ if ($Action -eq 'InstallAndRun') {
     $sha = Get-Sha256 $Setup
     if ($sha -ne $EXPECT_CLIENT_SHA256) { Write-Host "客户端 SHA256 不符：$sha"; exit 9 }
 
-    $installed = "$env:LOCALAPPDATA\Programs\job-workbench\job-workbench.exe"
-    $alreadyInstalled = Test-Path $installed
+    # electron-builder 的默认安装位置用 **productName**：
+    #   %LOCALAPPDATA%\Programs\<productName>\<productName>.exe
+    # 本项目 productName = "Job Workbench"（带空格），主程序名也是它。
+    # 原实现猜的 `job-workbench\job-workbench.exe` 永远不存在，于是走兜底
+    # `-Filter 'job-workbench*.exe' -Recurse`，先命中的是
+    #   resources\backend\job-workbench-backend.exe
+    # → $installDir 多了一层 \resources\backend，G1-b 于是去找
+    #   ...\Job Workbench\resources\backend\resources\app-update.yml（不存在）
+    # （S1-C run 40256998614 实测，日志里路径清晰可见）。
+    $installed = Join-Path $env:LOCALAPPDATA 'Programs\Job Workbench\Job Workbench.exe'
+    $alreadyInstalled = Test-Path -LiteralPath $installed
     if (-not ($Negative -and $alreadyInstalled)) {
         $p = Start-Process -FilePath $Setup -ArgumentList '/S' -Wait -PassThru
         Start-Sleep -Seconds 5
     }
-    if (-not (Test-Path $installed)) {
-        $cands = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Filter 'job-workbench*.exe' -Recurse -ErrorAction SilentlyContinue |
+    if (-not (Test-Path -LiteralPath $installed)) {
+        # 兜底：只认**安装根**下的主程序，排除 resources\（那里是 backend exe）
+        $cands = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Filter '*.exe' -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\resources\\' } |
+            Where-Object { $_.Name -match 'Job Workbench' } |
             Select-Object -First 1
         if ($cands) { $installed = $cands.FullName }
     }
@@ -1087,8 +1108,14 @@ if ($Action -eq 'Verdict') {
         $g1GapText = if ($g1d) { 'G1-b 包内一致性比对未能执行：' + $g1d.reason } else { 'G1-b 比对未执行：缺 g1b-app-update.json' }
         Write-Host "  GAP: $g1GapText"
     }
-    V 'S1-8 未改客户端二进制/app-update.yml' ([bool]($g1d -and $g1d.provider_ok -and $g1d.repo_ok)) `
-        $(if ($g1d) { "provider_ok=$($g1d.provider_ok) repo_ok=$($g1d.repo_ok)" } else { '未取得字段' })
+    # StrictMode 2.0：$g1d 是 g1b-app-update.json 的 detail，安装目录解析失败时
+    # 它**没有** provider_ok / repo_ok 字段，直接访问会抛
+    # "The property 'provider_ok' cannot be found"（S1-C run 40256998614 实测）。
+    # 用 Get-Prop 安全取，缺失即视为未通过。
+    $g1ProviderOk = [bool](Get-Prop $g1d 'provider_ok')
+    $g1RepoOk = [bool](Get-Prop $g1d 'repo_ok')
+    V 'S1-8 未改客户端二进制/app-update.yml' ($g1ProviderOk -and $g1RepoOk) `
+        $(if ($g1d) { "provider_ok=$g1ProviderOk repo_ok=$g1RepoOk" } else { '未取得字段' })
     V 'S1-9 mock 未收凭据' (-not (@($reqs | Where-Object { $_.auth_header_present }).Count -gt 0)) "auth_header_seen=$(@($reqs | Where-Object { $_.auth_header_present }).Count)"
     # G3：负例证据（到了 443 但被拒），读 TlsNegative 的结论
     $tlsNeg = if (Test-Path (Join-Path $OutDir 'tls-negative.json')) { Get-Content (Join-Path $OutDir 'tls-negative.json') -Raw | ConvertFrom-Json } else { $null }

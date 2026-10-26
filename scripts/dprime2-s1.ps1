@@ -732,15 +732,44 @@ if ($Action -eq 'PatchHosts') {
     if ($content -match [regex]::Escape($marker)) {
         Write-Host 'PatchHosts: 已存在托管条目，跳过'
     } else {
-        Add-Content -Path $hosts -Value "`r`n$marker`r`n127.0.0.1 github.com"
+        # **IPv4 与 IPv6 都要写**：只写 IPv4 时，若系统解析出 IPv6 并优先使用，
+        # 请求会绕过 hosts 去连真实地址（.NET 在 dual-stack 下优先 IPv6）。
+        # 2026-10-26 run 40272601107 实测：mock 在 127.0.0.1:443 正常监听，
+        # 而 Tls2 报 "actively refused (github.com:443)" —— 典型的 IPv6 先试后失败。
+        Add-Content -Path $hosts -Value "`r`n$marker`r`n127.0.0.1 github.com`r`n::1 github.com"
     }
-    $after = Resolve-DnsName github.com -Type A -ErrorAction SilentlyContinue
-    $ips = ($after | Where-Object IPAddress | ForEach-Object IPAddress) -join ','
+    $afterA = Resolve-DnsName github.com -Type A -ErrorAction SilentlyContinue
+    $ips = (($afterA | Where-Object IPAddress | ForEach-Object IPAddress) -join ',')
+    $loopOk = ($ips -match '127\.0\.0\.1')
     $p = Write-Json 'hosts.json' ([pscustomobject]@{
             at = (Get-Date).ToString('o'); backup = $bak; marker = $marker
-            resolved_after = $ips; ok = ($ips -match '127\.0\.0\.1')
+            resolved_after = $ips; ok = $loopOk
         })
     Write-Host "PatchHosts: github.com -> $ips -> $p"
+    # **fail-closed**：劫持没生效就必须停。否则 StartMock / Tls2 / InstallAndRun
+    # 全都在错误前提上跑，只会产出"请求到不了"的噪声失败，掩盖真因。
+    if (-not $loopOk) {
+        Write-Host "PatchHosts: FAIL —— github.com 未解析到 127.0.0.1（实际：$ips）"
+        exit 12
+    }
+    exit 0
+}
+
+# ── 6b. mock 存活核验（把"mock 中途死了"与"hosts 没生效"彻底分开）──────────
+# 2026-10-26 run 40272601107：mock 在 StartMock 时刻 listening=true，
+# 但 Tls2 报 refused，无法判断是 mock 死了还是 hosts 没生效。
+if ($Action -eq 'CheckMock') {
+    $st = Get-State
+    $mp = Get-Prop $st 'mock_pid'
+    $alive = $false
+    if ($mp) { $alive = [bool](Get-Process -Id $mp -ErrorAction SilentlyContinue) }
+    $listen = Test-Tcp '127.0.0.1' $Port
+    $p = Write-Json 'check-mock.json' ([pscustomobject]@{
+            at = (Get-Date).ToString('o'); mock_pid = $mp; process_alive = $alive
+            port = $Port; listening = $listen
+        })
+    Write-Host "CheckMock: pid=$mp alive=$alive listen=$($Port)=$listen -> $p"
+    if (-not $alive -or -not $listen) { exit 13 }
     exit 0
 }
 
@@ -752,7 +781,18 @@ if ($Action -eq 'Tls2') {
     # StrictMode 2.0 下访问不存在的键会抛 "The property 'status' cannot be found"
     # （S1-C run 40267935863 实测：catch 分支没设 status，L775 读它就崩）。
     $row = [ordered]@{ at = (Get-Date).ToString('o'); url = $url; probe_only = $true
-        status = $null; ok = $false; error = $null; body = $null }
+        status = $null; ok = $false; error = $null; body = $null
+        dns = $null; mock_listening = $null }
+    # 诊断：hosts 劫持是否真的生效？mock 是否还在 443 上？
+    # 2026-10-26 run 40272601107 实测：mock 明明 listening=true 于 443，
+    # 而这里报 "actively refused (github.com:443)" —— 必须把当时的两件事写下来：
+    #   · github.com 解析到了哪个 IP（hosts 是否生效）
+    #   · 127.0.0.1:443 当时是否真的有人监听
+    try {
+        $dnsOut = Resolve-DnsName github.com -Type A -ErrorAction SilentlyContinue
+        $row.dns = (($dnsOut | Where-Object IPAddress | ForEach-Object IPAddress) -join ',')
+    } catch { $row.dns = "resolve-failed: $($_.Exception.Message)" }
+    $row.mock_listening = Test-Tcp '127.0.0.1' $Port
     try {
         $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20
         $row.status = [int]$resp.StatusCode
@@ -956,10 +996,23 @@ if ($Action -eq 'MarkBoundary') {
 # ── 8c. 负例判定（S1-G3）：必须是「到了 443 但证书被拒」，不是「请求没到」─────
 if ($Action -eq 'TlsNegative') {
     $log = Join-Path $OutDir 'mock-requests.jsonl'
-    $reqs = @()
+    $allReqs = @()
     if (Test-Path $log) {
-        $reqs = Get-Content $log | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json }
+        $allReqs = @(Get-Content $log | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json })
     }
+    # **必须只统计最后一个 boundary 之后**的记录。
+    # 否则 StartMock 的 Test-Tcp 就绪探针留下的 tls_failure（TCP 连上即断，
+    # 服务端记 UNEXPECTED_EOF）会被当成「客户端因不信任 CA 被拒」——假阳性。
+    # 2026-10-26 run 40272601107 实测：tls_failures 里那条的时间是 05:08:41，
+    # 与 mock 启动同一秒，而 boundary negative-phase-start 是 05:08:48。
+    $boundaryIdx = -1
+    for ($i = 0; $i -lt $allReqs.Count; $i++) {
+        if ($allReqs[$i].kind -eq 'boundary') { $boundaryIdx = $i }
+    }
+    $reqs = if ($boundaryIdx -lt 0) { $allReqs }
+            elseif ($boundaryIdx + 1 -lt $allReqs.Count) { @($allReqs[($boundaryIdx + 1)..($allReqs.Count - 1)]) }
+            else { @() }
+    $reqs = @($reqs | Where-Object { $_ })
     $tlsFail = @($reqs | Where-Object { $_.kind -eq 'tls_failure' })
     $clientHits = @($reqs | Where-Object { $_.kind -eq 'client' })
     $rows = @()

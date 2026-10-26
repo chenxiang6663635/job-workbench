@@ -515,6 +515,24 @@ rep("S1-C-n provider_ok 用 Get-Prop 安全取",
 rep("S1-C-o Tls2 的 row 预初始化 status/ok",
     "status = $null; ok = $false" in ps1_src,
     "[ordered] 字典缺键在 StrictMode 下会抛；catch 分支不设 status 时读它就崩")
+
+# --- S1-C run 40272601107 暴露的五处（hosts/boundary/存活/诊断）---
+rep("S1-C-p hosts 同时写 IPv4 与 IPv6",
+    "::1 github.com" in ps1_src,
+    "只写 IPv4 时 .NET 可能优先解析 IPv6，绕过 hosts 连真实地址")
+rep("S1-C-q PatchHosts 失败即停（fail-closed）",
+    "exit 12" in ps1_src,
+    "劫持没生效仍往下跑，只会产出「请求到不了」的噪声失败")
+rep("S1-C-r TlsNegative 只统计 boundary 之后",
+    ps1_src.count("boundaryIdx") >= 2,
+    "就绪探针的 tls_failure 会被当成客户端拒 CA → 负例假通过"
+    "（Verdict 与 TlsNegative 各自都要按 boundary 过滤）")
+rep("S1-C-s 有 CheckMock 存活核验动作",
+    "Action -eq 'CheckMock'" in ps1_src and "CheckMock" in wf,
+    "refused 时无法区分「mock 死了」与「hosts 没生效」")
+rep("S1-C-t Tls2 记录 dns 与 mock_listening",
+    "mock_listening" in ps1_src,
+    "事后才能判断当时 github.com 解析到哪、443 是否有监听")
 rep("P0-5 负例启动前打日志分界",
     wf.count("MarkBoundary") >= 2 and "negative-phase-start" in wf,
     "分界打在负例判定之后，会让就绪探针的 tls_failure 污染负例判据")

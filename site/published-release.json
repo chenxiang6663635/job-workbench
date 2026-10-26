@@ -1,7 +1,7 @@
 {
-  "version": "26.10.0",
-  "tag": "v26.10.0",
-  "release_date": "2026-10-06",
-  "asset": "job-workbench-setup-26.10.0-win64.exe",
-  "sha256": "197fe10593eb50b127c87aaa690ad575aee7dc38b001110de5421e4df52ca954"
+  "version": "26.10.1",
+  "tag": "v26.10.1",
+  "release_date": "2026-10-26",
+  "asset": "job-workbench-setup-26.10.1-win64.exe",
+  "sha256": "120f220d029d6fdee8c7a1b257a30185d54b31d1886c9ad8292114b67005d046"
 }

@@ -1,0 +1,143 @@
+# G2 五项制品级验收（Desktop B 组）
+#
+# 设计约束（2026-10-26 维护者裁决）：
+#   · 只消费**已构建成功**的 Artifact，不重新构建
+#   · PR 阶段**只做静态检查**（PSParser + 离线 selftest），绝不安装
+#   · 真实验收仅在 workflow_dispatch 下执行
+#   · 权限最小化：contents:read + actions:read（读 artifact），不碰 Release
+#
+# 触发：
+#   gh workflow run g2-acceptance.yml --ref main `
+#     -f run_id=40437650451 -f artifact_name=installer `
+#     -f expected_sha256=7d986df44fa5393a22a96b246894b8c88e156ee7c44d3087913f5f7f226cb7f2 `
+#     -f expected_size=138039688
+name: G2 验收（Desktop B 组）
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/g2-acceptance.ps1'
+      - 'scripts/g2-acceptance.selftest.ps1'
+      - '.github/workflows/g2-acceptance.yml'
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: '来源 workflow run ID（构建出该 artifact 的那次）'
+        required: true
+        type: string
+      artifact_name:
+        description: 'artifact 名'
+        required: false
+        default: 'installer'
+        type: string
+      expected_sha256:
+        description: '安装包预期 SHA256（必填，缺省即拒）'
+        required: true
+        type: string
+      expected_size:
+        description: '安装包预期字节数'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  # ── PR 阶段：只做静态检查，不安装任何东西 ────────────────────────────
+  static:
+    name: 静态检查（PSParser + 离线自检）
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PowerShell 语法检查
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($f in @('scripts/g2-acceptance.ps1', 'scripts/g2-acceptance.selftest.ps1')) {
+            $e = $null
+            $null = [System.Management.Automation.PSParser]::Tokenize(
+              (Get-Content $f -Raw -Encoding UTF8), [ref]$e)
+            if (@($e).Count -gt 0) {
+              @($e) | ForEach-Object { Write-Host "  $($_.Token.StartLine): $($_.Message)" }
+              throw "$f 有 $($@($e).Count) 个语法错误"
+            }
+            Write-Host "$f 语法 OK"
+          }
+
+      - name: 离线自检
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./scripts/g2-acceptance.selftest.ps1
+
+  # ── 真实验收：仅手动触发 ─────────────────────────────────────────────
+  acceptance:
+    name: 五项真实验收（隔离 Runner）
+    if: github.event_name == 'workflow_dispatch'
+    needs: static
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # G2-2 需要解析 PEM；G2-3 需要独立复核 PDF（A4/页数/字符数）
+      - name: 安装校验依赖（cryptography / pypdf）
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check --quiet cryptography pypdf
+          python -c "import cryptography, pypdf; print('cryptography', cryptography.__version__); print('pypdf', pypdf.__version__)"
+
+      - name: 浏览器可用性探测（G2-3 前置，缺失记 INFRA_ERROR 而非 FAIL）
+        shell: pwsh
+        run: |
+          $found = @()
+          foreach ($p in @(
+            'C:\Program Files\Google\Chrome\Application\chrome.exe',
+            'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+            'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
+            'C:\Program Files\Microsoft\Edge\Application\msedge.exe')) {
+            if (Test-Path $p) { $found += $p }
+          }
+          Write-Host "浏览器: $($found -join '; ')"
+          if ($found.Count -eq 0) {
+            Write-Host "::warning::未找到 Chrome/Edge —— PDF 生成项将记 INFRA_ERROR（不是产品缺陷）"
+          }
+
+      - name: G2 五项验收
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:RUNNER_TEMP 'g2'
+          & ./scripts/g2-acceptance.ps1 -Action All -OutDir $out `
+              -RunId ([int]'${{ github.event.inputs.run_id }}') `
+              -ArtifactName '${{ github.event.inputs.artifact_name }}' `
+              -ExpectedSha256 '${{ github.event.inputs.expected_sha256 }}' `
+              -ExpectedSize ([long]'${{ github.event.inputs.expected_size }}')
+          "g2_exit=$LASTEXITCODE" | Tee-Object -FilePath (Join-Path $out 'exit.txt')
+
+      - name: 上传收据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g2-receipt
+          path: |
+            ${{ runner.temp }}/g2/g2-receipt.json
+            ${{ runner.temp }}/g2/records.json
+            ${{ runner.temp }}/g2/state.json
+            ${{ runner.temp }}/g2/cleanup.json
+            ${{ runner.temp }}/g2/backend.stdout.log
+            ${{ runner.temp }}/g2/backend.stderr.log
+            ${{ runner.temp }}/g2/exit.txt
+          if-no-files-found: warn
+          retention-days: 30

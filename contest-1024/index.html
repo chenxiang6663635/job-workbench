@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>求职证据实验室 · 这段经历能写进简历吗</title>
+<meta name="description" content="用一个虚构案例演示：AI 可以帮你优化表达，但不能替你编造经历。">
+<style>
+  :root{
+    --bg:#f6f6f3; --card:#ffffff; --ink:#191917; --ink2:#4a4a45; --muted:#77776f;
+    --line:#e4e4de; --line2:#efefe9;
+    --ok:#3a6b47; --ok-bg:#eff6f0; --ok-line:#c9dfcd;
+    --mid:#a86c14; --mid-bg:#fdf4e4; --mid-line:#ecd3a4;
+    --no:#a03a2c; --no-bg:#fbeeeb; --no-line:#e9c5bd;
+    --r:12px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;padding:0 0 60px;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:0 18px}
+
+  /* ---------- 头部 ---------- */
+  header{padding:34px 0 22px}
+  .brand{
+    display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
+    letter-spacing:.06em;color:var(--muted);margin-bottom:16px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block}
+  h1{
+    font-size:33px;line-height:1.28;letter-spacing:-.02em;margin:0 0 12px;font-weight:700;
+  }
+  h1 .dim{color:var(--muted);font-weight:600}
+  .lead{margin:0;color:var(--ink2);font-size:15.5px;max-width:34em}
+  .lead b{color:var(--ink);font-weight:700}
+  .pitch{
+    margin:16px 0 0;padding:12px 15px;background:#fff;border:1px solid var(--line);
+    border-left:3px solid var(--ink);border-radius:0 10px 10px 0;
+    font-size:15px;color:var(--muted);max-width:34em;
+  }
+  .pitch b{color:var(--ink);font-weight:700}
+  .fict{
+    margin-top:16px;font-size:12.5px;color:var(--muted);
+    background:#efefe9;border-radius:8px;padding:9px 12px;display:inline-block;
+  }
+
+  /* ---------- 首屏核心 ---------- */
+  .try{margin:26px 0 0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 18px}
+  .try .tryq{font-size:16.5px;font-weight:600;line-height:1.5;margin:0 0 15px;letter-spacing:-.01em}
+  .try .tryq b{color:var(--no)}
+  .trynote{margin:11px 0 0;font-size:11.5px;color:var(--muted)}
+
+  /* ---------- 岗位切换 ---------- */
+  .jobs{display:flex;gap:8px;margin:26px 0 14px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .jobs::-webkit-scrollbar{display:none}
+  .job{
+    flex:0 0 auto;text-align:left;cursor:pointer;font-family:inherit;
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;font-size:13.5px;line-height:1.35;color:var(--ink2);
+    transition:border-color .15s,background .15s,color .15s;
+  }
+  .job strong{display:block;font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px}
+  .job[aria-selected="true"]{border-color:var(--ink);background:var(--ink);color:#e9e9e4}
+  .job[aria-selected="true"] strong{color:#fff}
+
+  .switchhint{margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .switchhint b{color:var(--ink2);font-weight:600}
+
+  /* ---------- 门槛横幅 ---------- */
+  .gate{
+    display:flex;gap:10px;align-items:flex-start;border-radius:10px;
+    padding:11px 14px;font-size:13.5px;margin-bottom:16px;border:1px solid transparent;
+    transition:background .2s,border-color .2s;
+  }
+  .gate .ic{flex:0 0 auto;margin-top:1px;font-size:14px;line-height:1.3}
+  .gate.ok{background:var(--ok-bg);border-color:var(--ok-line);color:#2c5537}
+  .gate.mid{background:var(--mid-bg);border-color:var(--mid-line);color:#7a4e0c}
+  .gate b{font-weight:700}
+
+  /* ---------- 任务链 ---------- */
+  .chain{display:flex;gap:6px;margin:22px 0 8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .chain::-webkit-scrollbar{display:none}
+  .chain .st{
+    flex:0 0 auto;font-size:11.5px;color:var(--muted);padding:5px 11px;white-space:nowrap;
+    border:1px solid var(--line);background:#fff;border-radius:99px;
+  }
+  .chain .st.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+  .chainnote{margin:0 0 20px;font-size:11.5px;color:var(--muted)}
+
+  /* ---------- 评分卡 ---------- */
+  .score{margin:0 0 14px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:15px 16px}
+  .score .hd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
+  .score .lbl{font-size:12px;font-weight:600;letter-spacing:.03em;color:var(--muted)}
+  .score .total{font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.025em}
+  .score .total em{font-size:12.5px;font-weight:400;font-style:normal;color:var(--muted);margin-left:3px}
+  .score .verdict{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;background:var(--ok);color:#fff;flex:0 0 auto}
+  .score .verdict.mid{background:var(--mid)}
+  .score .verdict.no{background:var(--no)}
+  .score .verdict.gray{background:#8a8a80}
+  .score .dims{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-top:12px}
+  .score .dim{font-size:12px;color:var(--ink2)}
+  .score .dim span{float:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .score .dim .bar{height:5px;background:#efefe9;border-radius:99px;margin-top:5px;overflow:hidden;clear:both}
+  .score .dim .bar i{display:block;height:100%;background:var(--ink);border-radius:99px}
+  .score .act{margin-top:13px;padding-top:12px;border-top:1px solid var(--line2);font-size:13px;color:var(--ink2)}
+  .score .act b{color:var(--ink)}
+  .score .src{color:var(--muted);font-size:11.5px;margin-top:7px}
+  .score.blank{background:var(--mid-bg);border-color:var(--mid-line)}
+  .score .na{font-size:13.5px;color:#7a4e0c;line-height:1.6}
+
+  /* ---------- 场景迁移 ---------- */
+  .xfer{margin-top:34px;padding-top:24px;border-top:1px solid var(--line)}
+  .xfer h2{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:0 0 5px}
+  .xfer .sub{margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.6}
+  .col li.pick{cursor:pointer;border-radius:5px;transition:background .15s}
+  .col li.pick:hover{background:#f5f5ef}
+  .col li.pick::after{content:"›";color:var(--muted);margin-left:auto;font-size:15px;line-height:1}
+  .qcard{margin-top:12px}
+  .qcard .q{font-size:14.5px;font-weight:600;margin:0 0 6px}
+  .qcard .meta{font-size:12px;color:var(--muted);margin:0 0 9px}
+  .qcard .ans{font-size:13.5px;color:var(--ink2);line-height:1.62;margin:0}
+
+  /* ---------- 证据三栏 ---------- */
+  .evidence{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .col{
+    background:#fff;border:1px solid var(--line);border-radius:var(--r);
+    padding:14px 14px 10px;min-height:132px;
+  }
+  .col h2{
+    margin:0 0 2px;font-size:12px;font-weight:600;letter-spacing:.03em;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+  }
+  .col h2 .n{
+    font-size:15px;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:0;
+  }
+  .col .hint{font-size:11.5px;color:var(--muted);line-height:1.45;margin:0 0 10px}
+  .col ul{list-style:none;margin:0;padding:0}
+  .col li{
+    font-size:13.5px;padding:5px 0;border-top:1px solid var(--line2);
+    display:flex;align-items:center;gap:7px;
+  }
+  .col li:first-child{border-top:none}
+  .col li .lv{
+    font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;
+    padding:0 4px;line-height:1.5;flex:0 0 auto;
+  }
+  .c-ok h2{color:var(--ok)} .c-ok .n{color:var(--ok)}
+  .c-mid h2{color:var(--mid)} .c-mid .n{color:var(--mid)}
+  .c-no h2{color:var(--no)} .c-no .n{color:var(--no)}
+  .c-mid{background:linear-gradient(#fffdf8,#fff)}
+
+  /* ---------- 核心交互 ---------- */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{
+    cursor:pointer;font-family:inherit;font-size:13.5px;padding:8px 15px;border-radius:99px;
+    border:1px solid var(--line);background:#fafaf7;color:var(--ink2);
+    transition:all .15s;font-variant-numeric:tabular-nums;
+  }
+  .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+  .go{
+    width:100%;padding:13px 18px;font-size:15px;font-weight:600;font-family:inherit;
+    cursor:pointer;background:var(--ink);color:#fdfdfb;border:none;border-radius:10px;
+    transition:transform .1s,opacity .15s;
+  }
+  .go:active{transform:scale(.99);opacity:.92}
+
+  .result{margin-top:14px;border-radius:11px;border:1px solid var(--line);
+          padding:14px 15px;display:none;animation:in .22s ease}
+  @keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .result.show{display:block}
+  .result .tag{
+    display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;
+    padding:2px 7px;border-radius:4px;margin-bottom:8px;
+  }
+  .result p{margin:0;font-size:14px;line-height:1.62}
+  .result.matched{background:var(--ok-bg);border-color:var(--ok-line)}
+  .result.matched .tag{background:var(--ok);color:#fff}
+  .result.injectable{background:var(--mid-bg);border-color:var(--mid-line)}
+  .result.injectable .tag{background:var(--mid);color:#fff}
+  .result.missing{background:var(--no-bg);border-color:var(--no-line)}
+  .result.missing .tag{background:var(--no);color:#fff}
+  .result.na{background:#f2f2ec;border-color:var(--line)}
+  .result.na .tag{background:#8a8a80;color:#fff}
+
+  .src{margin-top:11px;padding-top:11px;border-top:1px dashed var(--mid-line);font-size:13px;color:#6d4a10}
+  .src .fno{font-weight:700;letter-spacing:.02em}
+  .src q{display:block;margin-top:5px;color:#5b5b52;font-style:normal}
+  .src mark{background:#f6dda8;color:#5c3a08;padding:0 2px;border-radius:3px;font-weight:600}
+  .scan{margin-top:9px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  /* ---------- 事实库 ---------- */
+  details{margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  details+details{margin-top:10px}
+  summary{
+    cursor:pointer;padding:13px 16px;font-size:13.5px;font-weight:600;color:var(--ink2);
+    list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"展开";font-size:11.5px;font-weight:400;color:var(--muted);flex:0 0 auto}
+  details[open] summary::after{content:"收起"}
+  details[open] summary{border-bottom:1px solid var(--line2)}
+  .fbody{padding:4px 16px 14px}
+  .fact{
+    padding:10px 0;border-bottom:1px solid var(--line2);font-size:13px;color:var(--ink2);
+    transition:background .2s;border-radius:6px;
+  }
+  .fact:last-child{border-bottom:none}
+  .fact .fid{font-weight:700;color:var(--ink);margin-right:6px}
+  .fact .fsrc{font-size:11.5px;color:var(--muted);display:block;margin-bottom:2px}
+  .fact.hit{background:var(--mid-bg);padding-left:8px;margin-left:-8px;padding-right:8px;margin-right:-8px}
+
+  .how p{margin:0 0 10px;font-size:13px;color:var(--ink2)}
+  .how p:last-child{margin-bottom:0}
+  .how code{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
+    background:#efefe9;padding:1px 5px;border-radius:4px;
+  }
+  .how .quote{
+    border-left:2px solid var(--line);padding-left:12px;color:var(--muted);font-size:12.5px;
+  }
+
+  /* ---------- 完整产品入口 ---------- */
+  .cta{margin-top:36px;padding:28px 24px;background:var(--card);border:1px solid var(--line);
+       border-radius:var(--r);text-align:center}
+  .cta-lead{margin:0 0 9px;font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+  .cta-sub{margin:0 auto 20px;font-size:13.5px;color:var(--ink2);line-height:1.7;max-width:34em}
+  .cta-btn{display:inline-flex;align-items:center;gap:9px;padding:13px 24px;border-radius:11px;
+           background:var(--brand);color:#fff;text-decoration:none;font-size:14px;font-weight:650;
+           transition:transform .15s,box-shadow .15s}
+  .cta-btn:hover{transform:translateY(-2px);box-shadow:0 11px 24px rgba(27,38,33,.2)}
+  .cta-note{margin:13px 0 0;font-size:11.5px;color:var(--muted)}
+
+  footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);
+         font-size:12px;color:var(--muted);line-height:1.8}
+  footer a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+
+  /* ---------- 移动端 ---------- */
+  @media (max-width:640px){
+    body{font-size:15px}
+    h1{font-size:24px}
+    .wrap{padding:0 14px}
+    .evidence{grid-template-columns:1fr;gap:8px}
+    .col{min-height:0;padding:12px 14px 8px}
+    .col h2{margin-bottom:0}
+    .col .hint{margin-bottom:6px}
+    .col ul{display:flex;flex-wrap:wrap;gap:0 10px}
+    .col li{border-top:none;padding:3px 0;font-size:13px}
+    header{padding:26px 0 14px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+
+/* ---------- 视觉升级：品牌深墨，绿/琥珀/红独占"状态"语义 ---------- */
+:root {
+  --bg:#f7f7f4; --card:#ffffff; --ink:#1b2621; --ink2:#49564f;
+  --muted:#6f7a74; --line:#e3e6e1; --line2:#eff1ec;
+  --ok:#2f7d4f; --ok-bg:#eef7f0; --ok-line:#c5e2ce;
+  --mid:#a77426; --mid-bg:#fff6e7; --mid-line:#efd9ac;
+  --no:#ad5144; --no-bg:#fff1ee; --no-line:#f0cdc6;
+  --brand:#1f2d26;
+  --r:18px;
+}
+html { scroll-behavior:smooth; }
+body {
+  background:
+    radial-gradient(ellipse 900px 420px at 10% 0%,rgba(188,196,186,.14),transparent 72%),
+    linear-gradient(180deg,#fafaf7 0%,#f7f7f4 62%,#f8f8f5 100%);
+  color:var(--ink);line-height:1.65;
+}
+.wrap{max-width:1160px;padding:0 34px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid rgba(36,85,65,.12);padding:22px 0}
+.topbar-brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink)}
+.brand-emblem{width:41px;height:41px;border-radius:13px;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;letter-spacing:-.07em;position:relative;box-shadow:0 6px 14px rgba(27,38,33,.16);flex:0 0 41px}
+.brand-dot{position:absolute;right:8px;top:8px;width:5px;height:5px;border-radius:50%;background:#ddca9a}
+.topbar-name{display:flex;flex-direction:column;font-size:12px;letter-spacing:.105em;font-weight:800;line-height:1.3}
+.topbar-name small{font-weight:500;letter-spacing:.12em;color:var(--muted);font-size:9px;margin-top:4px}
+.topbar-right{display:flex;align-items:center;gap:18px}
+.nav-status{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--muted);display:flex;align-items:center;gap:7px}
+.nav-status i,.try-live i{width:7px;height:7px;border-radius:50%;display:inline-block;background:#8b9a92;box-shadow:0 0 0 3px rgba(120,135,127,.12)}
+.topbar-link{text-decoration:none;color:var(--ink);font-weight:800;font-size:11px;letter-spacing:.07em;padding:9px 14px;border-radius:99px;border:1px solid #d9e7dc;background:#fff;transition:all .2s}
+.topbar-link:hover{background:var(--ink);border-color:var(--ink);color:white;transform:translateY(-1px)}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.02fr);gap:52px;align-items:center;position:relative;padding:70px 0 54px}
+.hero:before{content:"";position:absolute;left:-130px;top:0;width:470px;height:470px;background:radial-gradient(circle,rgba(155,199,154,.1),transparent 70%);pointer-events:none}
+.hero header{padding:0;position:relative;z-index:1}
+.hero .brand{display:none}
+.hero-eyebrow{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.16em;font-weight:800;color:#6b7d73;margin-bottom:23px}
+.hero-eyebrow span{height:1px;width:29px;background:var(--brand);display:inline-block}
+h1{font-size:clamp(34px,3.6vw,48px);line-height:1.22;letter-spacing:-.045em;font-weight:800;margin:0 0 20px;max-width:560px}
+.hero-em{position:relative;z-index:0;white-space:normal}
+.hero-em:after{content:"";height:11px;background:#e6dcc0;opacity:.85;position:absolute;bottom:2px;left:0;right:0;z-index:-1;border-radius:10px;transform:rotate(-1deg)}
+.lead{font-size:17px;line-height:1.76;color:#5d6b64;max-width:30em}
+.lead b{color:var(--ink)}
+.hero-principles{display:flex;flex-wrap:wrap;gap:9px;margin-top:28px}
+.hero-principles span{display:flex;align-items:center;gap:8px;color:#5d6b64;font-size:11px;font-weight:700;letter-spacing:.02em;background:rgba(255,255,255,.7);border:1px solid #e3e6e1;border-radius:99px;padding:7px 12px}
+.hero-principles i{font-style:normal;font-size:10px;color:var(--brand);font-weight:900}
+.try{margin:0;position:relative;padding:27px 28px 24px;border:1px solid rgba(66,113,80,.14);border-radius:23px;background:rgba(255,255,255,.97);box-shadow:0 23px 70px rgba(31,77,56,.10),0 5px 16px rgba(31,77,56,.045);overflow:hidden}
+.try:before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:linear-gradient(90deg,#26352d 0%,#6b7d73 55%,#d9d2bd 100%)}
+.try-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:28px}
+.try-live{display:flex;align-items:center;gap:11px;font-size:10px;font-weight:800;letter-spacing:.08em;color:#6b7d73}
+.try-index{font-size:10px;letter-spacing:.08em;color:#9aaa9b;font-weight:800}
+.try-label{font-size:10px;letter-spacing:.15em;color:#899d90;font-weight:800;margin-bottom:10px}
+.try .tryq{font-size:19px;line-height:1.54;letter-spacing:-.03em;margin-bottom:20px;color:#1b3028;font-weight:730}
+.try .tryq b{color:var(--no);background:var(--no-bg);padding:1px 6px;border-radius:5px}
+.chips{gap:8px;margin-bottom:18px}
+.chip{border:1px solid #dbe7de;background:#f8faf7;color:#496258;font-weight:650;border-radius:10px;padding:10px 15px;font-size:13px}
+.chip:hover{border-color:#b9c4bd;background:#f6f7f4;transform:translateY(-1px)}
+.chip[aria-pressed="true"]{background:var(--brand);color:white;border-color:var(--brand);box-shadow:0 5px 13px rgba(31,38,33,.18)}
+.go{padding:15px 20px;background:linear-gradient(112deg,#26352d,#141d19);color:#fff;border-radius:12px;box-shadow:0 9px 19px rgba(23,33,28,.18);font-weight:750;letter-spacing:.015em;transition:all .18s}
+.go:hover{transform:translateY(-2px);box-shadow:0 12px 23px rgba(23,33,28,.26)}
+.go::after{content:"\2192";margin-left:12px;display:inline-block;font-size:18px;line-height:0;vertical-align:-1px}
+.trynote{font-size:12px;margin-top:14px;color:#7d9185;line-height:1.55}
+.result{border-radius:13px;padding:16px;margin-top:15px}
+.result .tag{letter-spacing:0;border-radius:99px;padding:4px 11px;font-size:11px}
+.result p{line-height:1.75}
+.result .src{background:rgba(255,255,255,.65);padding:11px 12px;border:1px solid rgba(149,123,51,.14);border-radius:9px}
+.result .scan{color:#73877b;font-size:11.5px}
+.chain{margin:0 0 8px;padding:18px 0 8px;justify-content:center;gap:8px}
+.chain .st{padding:7px 12px;background:rgba(255,255,255,.78);border:1px solid #e1ebe2;border-radius:8px;font-size:11px;font-weight:650}
+.chain .st.on{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 4px 10px rgba(27,38,33,.12)}
+.chainnote{max-width:800px;text-align:center;margin:0 auto 27px;line-height:1.65;font-size:11.5px}
+.pitch{margin:0 0 42px;max-width:none;color:var(--ink2);background:#f2f2ed;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:14px;padding:16px 20px;font-size:15px}
+.pitch b{color:var(--ink)}
+.explore{padding:32px 35px 37px;border-radius:23px;border:1px solid #e2eae1;background:rgba(255,255,255,.76);box-shadow:0 10px 35px rgba(39,72,51,.038)}
+.section-heading{display:flex;gap:20px;justify-content:space-between;align-items:center;margin-bottom:26px}
+.section-kicker{color:var(--muted);letter-spacing:.1em;font-size:10px;font-weight:800}
+.section-heading h2{font-size:26px;letter-spacing:-.045em;font-weight:780;line-height:1.33;margin:7px 0 8px}
+.section-heading p{font-size:12px;color:#7b9083;margin:0;max-width:45em}
+.section-count{align-items:flex-end;display:flex;flex-direction:column;line-height:1.08;color:#b7cbb7;flex:0 0 auto}
+.section-count strong{font-size:45px;font-weight:800;letter-spacing:-.075em}
+.section-count span{font-size:10px;letter-spacing:.09em;font-weight:850}
+.jobs{margin:0 0 15px;overflow-x:auto;gap:10px;padding-bottom:5px}
+.job{border:1px solid #dde9df;background:#f7faf7;padding:13px 17px;border-radius:12px;min-width:168px;transition:all .18s}
+.job strong{font-size:14px}
+.job:hover{border-color:#b9c4bd;background:white;transform:translateY(-1px)}
+.job[aria-selected="true"]{background:var(--brand);border-color:var(--brand);color:#e4e8e4;box-shadow:0 8px 18px rgba(27,38,33,.15)}
+.switchhint{color:#789080;margin-bottom:21px;font-size:12px}
+.switchhint b{color:var(--ink2)}
+.panel-label{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:.1em;font-weight:850;color:#7c9383;margin-bottom:12px}
+.panel-number{font-size:10px;color:var(--ink2);background:#eef0ec;border-radius:6px;padding:4px 7px;letter-spacing:0}
+.gate{border-radius:12px;padding:15px 17px;font-size:13px;margin:0 0 13px;gap:12px}
+.gate .ic{border-radius:99px;width:24px;height:24px;background:rgba(255,255,255,.68);display:inline-flex;align-items:center;justify-content:center;margin-top:0;flex:0 0 24px;font-weight:850}
+.score{border-radius:17px;padding:22px 22px 20px;border:1px solid #e4ede5;box-shadow:0 6px 17px rgba(39,77,55,.035);margin-bottom:27px}
+.score .lbl{font-size:11px;color:#708675;font-weight:800;letter-spacing:.06em}
+.score .total{font-size:52px;line-height:1.08;letter-spacing:-.065em;margin:5px 0 2px}
+.score .total em{font-size:14px;letter-spacing:0}
+.score .verdict{padding:8px 14px;font-size:12px}
+.score .verdict.gray{background:#6b7973}
+.score .dims{gap:18px 27px;margin-top:21px}
+.score .dim{font-size:12px;color:#446153;font-weight:550}
+.score .dim span{color:#6f8779}
+.score .dim .bar{height:7px;background:#edf2eb;margin-top:8px}
+.score .dim .bar i{background:linear-gradient(90deg,#a8b3ac,var(--brand))}
+.score .act{font-size:13px;margin-top:20px;padding-top:18px;color:var(--ink2)}
+.score .src{font-size:11.5px;color:#7c8e81;max-width:700px}
+.score.blank{padding:24px;border-radius:17px}
+.evidence-panel-label{margin:4px 0 13px}
+.evidence{gap:13px}
+.col{min-height:150px;background:#fff;border-radius:16px;padding:20px 17px 15px;border:1px solid #e3ece3;box-shadow:0 5px 15px rgba(38,71,50,.025);position:relative;overflow:hidden}
+.col::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--line)}
+.col.c-ok::before{background:var(--ok)}.col.c-mid::before{background:var(--mid)}.col.c-no::before{background:var(--no)}
+.col h2{font-size:13px;letter-spacing:0;color:var(--ink);align-items:center}
+.col h2 .n{font-size:25px;font-weight:790}
+.col .hint{font-size:11px;color:#829185;margin:4px 0 14px}
+.col li{font-size:13px;padding:8px 0;border-top:1px solid #eff1ec;color:var(--ink2)}
+.col li .lv{font-size:9px;background:#f6f9f5;border-color:#e1e9df}
+.col.c-mid{background:linear-gradient(180deg,#fffdf8,#fff 70%)}
+.fict{font-size:11.5px;background:#e9f0e9;color:#607568;border:1px solid #dae8d9;border-radius:99px;padding:9px 15px;margin-top:24px}
+details{border-radius:15px;border:1px solid #e1eadf;background:#fff;box-shadow:0 3px 13px rgba(29,65,43,.025)}
+summary{padding:16px 19px;color:var(--ink2)}
+summary:hover{background:#f6faf5}
+details[open] summary{background:#f6faf5}
+.fact.hit{background:#fcf5e3}
+.xfer{padding:33px 33px 30px;margin-top:32px;background:rgba(255,255,255,.78);border:1px solid #e0e9df;border-radius:22px}
+.xfer-deco{color:var(--muted);letter-spacing:.08em;font-size:10px;font-weight:800;margin-bottom:7px}
+.xfer h2{font-size:23px;letter-spacing:-.035em;margin:0 0 8px}
+.xfer .sub{color:#718478;margin-bottom:21px}
+.xfer .col{box-shadow:none}
+.how{margin-top:16px}
+footer{padding:25px 0 0;margin-top:42px;border-top:1px solid #dbe7dd;color:#798b7e;font-size:12px}
+.footer-mark{display:flex;align-items:center;gap:10px;margin-bottom:17px;color:var(--ink2)}
+.footer-mark .brand-emblem{width:27px;height:27px;flex-basis:27px;font-size:14px;border-radius:8px;box-shadow:none}
+.footer-mark .brand-dot{right:5px;top:5px;width:4px;height:4px}
+.footer-mark strong{font-size:12px;letter-spacing:.01em}
+footer a{color:var(--ink);font-weight:700}
+button:focus-visible,a:focus-visible,summary:focus-visible,[role="tab"]:focus-visible{outline:3px solid var(--brand);outline-offset:3px}
+@media (max-width:880px){
+  .wrap{padding:0 24px}
+  .hero{grid-template-columns:1fr;gap:27px;padding:45px 0 35px}
+  .hero h1{max-width:720px}
+  .hero .try{max-width:720px}
+  .hero-principles{margin-top:17px}
+  .chain{justify-content:flex-start}
+}
+@media (max-width:640px){
+  body{padding-bottom:38px}
+  .wrap{padding:0 15px}
+  .topbar{padding:13px 0}
+  .brand-emblem{width:36px;height:36px;flex-basis:36px;font-size:18px}
+  .topbar-name{font-size:10.5px}
+  .topbar-name small{font-size:8px}
+  .topbar-right{gap:7px}
+  .nav-status{display:none}
+  .topbar-link{font-size:10px;padding:8px 10px}
+  .hero{padding:37px 0 27px;gap:26px}
+  .hero-eyebrow{font-size:9px;margin-bottom:15px}
+  h1{font-size:clamp(31px,8.2vw,38px);letter-spacing:-.052em;margin-bottom:17px}
+  .hero-em:after{height:8px;bottom:1px}
+  .lead{font-size:15.5px;line-height:1.7}
+  .hero-principles span{font-size:9px;padding:7px 9px}
+  .try{padding:22px 17px 19px;border-radius:18px}
+  .try-meta{margin-bottom:24px}
+  .try-live,.try-index{font-size:9px}
+  .try .tryq{font-size:17px;line-height:1.55}
+  .chips{gap:7px}
+  .chip{font-size:12px;padding:8px 11px;border-radius:9px}
+  .go{font-size:14px}
+  .chain{padding:10px 0 0;margin-bottom:10px;gap:6px}
+  .chain .st{font-size:10px;padding:6px 10px}
+  .chainnote{text-align:left;margin-bottom:20px}
+  .pitch{padding:14px 16px;margin-bottom:25px;font-size:13.5px}
+  .explore{padding:23px 14px 25px;border-radius:18px}
+  .section-heading{margin-bottom:17px}
+  .section-heading h2{font-size:21px}
+  .section-heading p{font-size:11px}
+  .section-count strong{font-size:33px}
+  .section-count span{font-size:8px}
+  .job{min-width:139px;padding:11px 11px}
+  .job strong{font-size:12px}
+  .jobs{gap:7px}
+  .score{padding:18px 15px}
+  .score .total{font-size:43px}
+  .score .dims{gap:13px 16px}
+  .score .dim{font-size:11px}
+  .evidence{grid-template-columns:1fr;gap:10px}
+  .col{min-height:0;padding:17px 15px 12px;border-radius:13px}
+  .col .hint{margin-bottom:10px}
+  .col li{border-top:none;padding:3px 0;font-size:12px}
+  .col ul{gap:0 13px}
+  .fict{font-size:11px;padding:8px 11px;line-height:1.6;border-radius:11px}
+  .xfer{padding:23px 14px;border-radius:18px}
+  .xfer h2{font-size:19px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+@media (max-width:880px){.hero:before{display:none}}
+.hero-em:after{display:none}
+.hero-em{background:linear-gradient(transparent 77%,rgba(181,219,187,.78) 77%);-webkit-box-decoration-break:clone;box-decoration-break:clone;overflow-wrap:anywhere}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="topbar" aria-label="Site navigation">
+    <a class="topbar-brand" href="#home" aria-label="Job Workbench top">
+      <span class="brand-emblem" aria-hidden="true">jw<span class="brand-dot"></span></span>
+      <span class="topbar-name">JOB WORKBENCH<small>求职证据实验室</small></span>
+    </a>
+    <div class="topbar-right">
+      <span class="nav-status"><i aria-hidden="true"></i> 示例数据</span>
+      <a class="topbar-link" href="https://github.com/chenxiang6663635/job-workbench" target="_blank" rel="noopener noreferrer">GITHUB <span aria-hidden="true">&#8599;</span></a>
+    </div>
+  </nav>
+
+
+  <section class="hero" id="home">
+  <header>
+    <div class="brand"><span class="dot"></span>JOB WORKBENCH · 求职证据实验室</div>
+    <div class="hero-eyebrow"><span></span> JOB WORKBENCH · 交互式功能演示</div>
+    <h1>这段经历，<br><span class="hero-em">真的能写进简历吗？</span></h1>
+    <p class="lead">来自<strong>本地优先、可审计的 AI 职业行动工作台</strong>。<br>AI 可以帮你优化表达，<b>但不能替你编造经历。</b></p>
+    <div class="hero-principles" aria-label="Product principles">
+      <span><i aria-hidden="true">01</i> 证据先行</span>
+      <span><i aria-hidden="true">02</i> 由你决定</span>
+    </div>
+  </header>
+
+  <section class="try" aria-label="Interactive example">
+    <div class="try-meta"><span class="try-live"><i aria-hidden="true"></i> 可交互示例</span><span class="try-index">01 / 快速验证</span></div>
+    <div class="try-label">JD / 简历 / 事实库</div>
+    <div class="tryq">林行舟想在简历里写 <b id="tryTerm">Kubernetes</b>，有依据吗？</div>
+    <div class="chips" id="chips"></div>
+    <button class="go" id="go" type="button">检查是否有事实依据</button>
+    <div class="result" id="result" aria-live="polite"></div>
+    <p class="trynote" id="trynote">换一个词试试，结果会不一样。</p>
+  </section>
+  </section>
+
+  <div class="chain" id="chain"></div>
+  <p class="chainnote">完整产品是一条链：建岗位 → 评分 → 看差距 → 改简历 → 投递 → 跟踪 → 面试与 Offer。本页以「证据核查」为核心，并用虚构案例展示资格判断、预置评分与题库记录。</p>
+
+  <p class="pitch">别的工具帮你改简历。<b>这个工具给你证据和准备优先级——投不投，最后一句话是你的。</b></p>
+
+  <section class="explore" id="explore">
+    <div class="section-heading">
+      <div><span class="section-kicker">02 / 三个岗位</span>
+      <h2>三个岗位，三种决策</h2>
+      <p>不仅看分数，更要看依据与资格</p></div>
+      <div class="section-count" aria-label="三个示例岗位"><strong>03</strong><span>示例岗位</span></div>
+    </div>
+  <div class="jobs" role="tablist" aria-label="选择岗位" id="jobs"></div>
+  <p class="switchhint" id="switchhint"></p>
+  <div class="panel-label"><span class="panel-number">01</span> 资格与准备</div>
+  <div class="gate" id="gate" role="status"><span class="ic">·</span><span id="gateText"></span></div>
+
+  <div class="score" id="score"></div>
+
+  <div class="panel-label evidence-panel-label"><span class="panel-number">02</span> 有出处的证据</div>
+  <div class="evidence" id="evidence"></div>
+  </section>
+
+  <div class="fict" style="margin-top:16px">演示数据全部虚构：候选人「林行舟」、三个岗位、事实库与题库均不存在。</div>
+
+  <details id="factbox">
+    <summary>我的事实库 · 4 条</summary>
+    <div class="fbody" id="factlist"></div>
+  </details>
+
+  <section class="xfer">
+    <div class="xfer-deco" aria-hidden="true">03 / 另一个场景</div>
+    <h2>换一个场景，问同一个问题</h2>
+    <p class="sub">上面问「这句话有出处吗」，这里问「这块知识有记录吗」。<br>
+      题库的状态只有三档：<b>会了 / 看过 / 未看</b>——都是你自己标的，系统不替你验证。
+      它只保证一件事：<b>没有记录的地方，不会假装有。</b>点一个考点看记录。<br>
+      看 <b>Kubernetes</b>：事实库和简历里都没有它的依据，题库里却有一条「看过」——<b>读过课程，不等于部署过集群。</b>这两件事同时成立。</p>
+    <div class="evidence" id="study"></div>
+    <div class="result qcard" id="studyResult"></div>
+  </section>
+
+  <details class="how">
+    <summary>这是怎么判的</summary>
+    <div class="fbody">
+      <p>每个 JD 词条做两次检查：<b>当前简历</b>里有没有 → 有就是「已在简历」；没有再查<b>事实母版</b>（事实库 + 简历主版）→ 有就是「可召回」；两边都没有，就是「真实缺口」。</p>
+      <p>演示只用 4 条事实和十几个词条，是为了让你在一屏里看完判定规则——不是为了模拟真实档案量。真实产品里这两样都来自你自己的资料，词表由领域插件提供。</p>
+      <p><b>上面这些只决定「能写什么」。岗位评分是另一回事：</b>技术匹配 30 + 经历匹配 25 + 方向契合 30 + 培养与稳定性 15 = 100 分。分数表示当前资料下的<b>匹配程度</b>，不是面试或录用概率。</p>
+      <p>评分用来安排准备精力：高匹配可以优先定制材料，低匹配可以考虑低成本尝试。是否投递还要看硬门槛、企业的限投规则（有的公司只能投一个岗位，有的允许两到五个志愿并分先后）、个人意愿和申请成本——<b>由你最终决定。</b></p>
+      <p>资格信息不足时，系统不提供确定性评分，但也不会因此判定你不合格——它只是先不下结论。</p>
+      <p class="quote">本次演示对投递建议做了改进：低匹配不再等同于禁止投递。完整桌面版里的历史评分档位仍在独立评估与统一中。</p>
+      <p>「可召回」的意思不是「你能写」，而是「你的资料里有记录，可以核对后考虑补」。母版里的内容是你自己提供的，未经外部核实。</p>
+      <p class="quote">判定基于文本匹配，不做语义识别。所以它可能漏判，也不会替你判断一段经历是否真实——这正是它拒绝自动改简历的原因。</p>
+      <p>资格门槛是另一套判断：硬门槛事实未填时，结论是「待补档案」，不打分、不判死。两套机制互相独立：一个岗位可以同时有多条证据缺口和一个待补的门槛。</p>
+    </div>
+  </details>
+
+  <section class="cta">
+    <p class="cta-lead">想了解完整产品？</p>
+    <p class="cta-sub">本页以证据核查为核心，附带展示岗位资格、预置评分与题库记录。完整的 Job Workbench 还管简历工坊（HTML 排版 → PDF + ATS 校验）、投递追踪、面试与 Offer 对比、题库与笔记——工作区就是本地的 Markdown 与 CSV；AI 与邮件服务按需配置，外发范围取决于你启用了什么。</p>
+    <a class="cta-btn" href="https://github.com/chenxiang6663635/job-workbench" target="_blank" rel="noopener">查看开源项目 <span aria-hidden="true">&#8594;</span></a>
+    <p class="cta-note">MIT 开源 · 完整产品提供桌面、本地 Web、CLI、通用 AI 宿主与 DSH 集成；各入口可按配置访问同一个本地工作区。<b>本页独立运行，只用内嵌的虚构数据。</b></p>
+  </section>
+
+  <footer>
+    <div class="footer-mark"><span class="brand-emblem" aria-hidden="true">jw<span class="brand-dot"></span></span><strong>Evidence makes decisions better.</strong></div>
+    演示版 · 单文件 · 无外部资源依赖 · 演示逻辑不采集或上传求职资料 · 不调用大模型<br>
+    AI 宿主（MCP）的写入需先看差异预览、凭一次性令牌确认后才落盘；其他入口按功能分别采用确认或直接写入。判定沿用 <code>gap_analysis</code> 语义：词典驱动、子串匹配、可复现。
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ================= 虚构数据 ================= */
+
+  var RESUME = [
+    "林行舟 · 后端开发工程师 · 3 年经验",
+    "技术栈：Python、FastAPI、MySQL、Redis、Linux",
+    "经历：高并发订单服务与风控规则引擎的开发与维护",
+    "工程：分库分表、读写分离、慢查询优化"
+  ].join("；");
+
+  var FACTS = [
+    { id: "F1", source: "简历主版 v1.0", text: "Python / FastAPI / MySQL / Redis / Linux；高并发订单服务与风控规则引擎。" },
+    { id: "F2", source: "实习周报 2025-07", text: "用 Docker 部署过三个内部服务，写了 Dockerfile 与 compose 编排。" },
+    { id: "F3", source: "项目复盘 2025-03", text: "订单服务 QPS 峰值 1200，做了分库分表与读写分离。" },
+    { id: "F4", source: "技术分享 2025-05", text: "组内分享 MySQL 索引优化，整理了慢查询排查清单。" }
+  ];
+
+  var JOBS = [
+    {
+      company: "某电商平台",
+      title: "后端开发工程师",
+      gate: { status: "通过", text: "硬门槛（学历 / 专业 / 届数）均已在档案中满足，可以进入评分。" },
+      score: {
+        dims: [["技术匹配", 26, 30], ["经历匹配", 21, 25], ["方向契合", 27, 30], ["培养与稳定性", 13, 15]],
+        verdict: "重点准备", tone: "ok",
+        action: "值得针对性定制：优先投，简历按这份 JD 定向改写。"
+      },
+      terms: [
+        { t: "Python", level: "Primary" },
+        { t: "FastAPI", level: "Primary" },
+        { t: "MySQL", level: "Primary" },
+        { t: "高并发", level: "Primary" },
+        { t: "Redis", level: "Secondary" },
+        { t: "Docker", level: "Primary" },
+        { t: "Kubernetes", level: "Secondary" },
+        { t: "消息队列", level: "Secondary" }
+      ]
+    },
+    {
+      company: "某量化机构",
+      title: "平台工程师",
+      gate: { status: "待补档案", missing: ["届数"],
+              text: "硬门槛里的〔届数〕还没填，这个岗位我判不了——不打分，也不判死。" },
+      score: null,
+      terms: [
+        { t: "Python", level: "Primary" },
+        { t: "Linux", level: "Primary" },
+        { t: "C++", level: "Primary" },
+        { t: "高并发", level: "Secondary" },
+        { t: "Docker", level: "Secondary" },
+        { t: "Kubernetes", level: "Primary" },
+        { t: "量化", level: "Secondary" }
+      ]
+    },
+    {
+      company: "某互联网大厂",
+      title: "算法工程师",
+      gate: { status: "通过", text: "硬门槛（学历 / 专业 / 届数）均已在档案中满足，可以进入评分。" },
+      score: {
+        dims: [["技术匹配", 7, 30], ["经历匹配", 8, 25], ["方向契合", 9, 30], ["培养与稳定性", 4, 15]],
+        verdict: "低成本尝试", tone: "gray",
+        action: "符合硬门槛、又没撞上岗位名额限制时，可以用通用简历投一次；不建议为它投入大量定制时间。"
+      },
+      terms: [
+        { t: "Python", level: "Primary" },
+        { t: "C++", level: "Primary" },
+        { t: "深度学习", level: "Primary" },
+        { t: "论文", level: "Secondary" },
+        { t: "Docker", level: "Secondary" }
+      ]
+    }
+  ];
+
+  var CANDIDATES = ["Kubernetes", "Docker", "消息队列", "C++"];
+
+  var CHAIN = ["建岗位", "评分", "看差距", "改简历", "投递", "跟踪", "面试 / Offer"];
+  var CHAIN_ON = [1, 2];   // 本页演示的两步
+
+  var HINTS = [
+    '先切到 <b>平台工程师</b>——一个硬门槛没填时，它连分都不给。',
+    '再切到 <b>算法工程师</b>——门槛齐、也能评分，但分数低。<b>它说的是「少投入」，不是「不许投」。</b>',
+    '三种结论：<b>重点准备 / 待核实 / 低成本尝试。</b>没有一种是在替你决定投不投。'
+  ];
+
+  /* 题库：字段与真实 questions.csv 一致（题目 / 科目 / 状态 / 来源 / 答案要点）
+     会了 / 看过 / 未看 是**用户自评**，独立成组，不与简历三态的判定依据混用 */
+  var STUDY = [
+    { k: "Redis", st: "会了", subject: "缓存", q: "缓存穿透和缓存雪崩有什么区别？",
+      src: "面试记录 · 一面 2025-09",
+      a: "穿透：查一个不存在的 key，缓存不命中就一直打库——布隆过滤器 + 空值缓存。雪崩：大批 key 同时过期——随机 TTL + 多级缓存 + 熔断降级。" },
+    { k: "MySQL", st: "会了", subject: "数据库", q: "索引为什么用 B+ 树，不用二叉树？",
+      src: "面试记录 · 二面 2025-09",
+      a: "矮胖树把树高压到三四层，减少磁盘 IO；叶子节点串成链表，范围查询不用回溯；非叶子只存键，一页能装更多。" },
+    { k: "Kubernetes", st: "看过", subject: "云原生", q: "Service 有哪几种类型？",
+      src: "课程笔记 2025-06",
+      a: "ClusterIP（集群内）、NodePort（每节点开端口）、LoadBalancer（云厂商负载均衡）、ExternalName（CNAME 到外部服务）。" },
+    { k: "HTTP/2", st: "看过", subject: "网络", q: "多路复用解决了什么问题？",
+      src: "课程笔记 2025-07",
+      a: "一条 TCP 连接上并发多个流，消除 HTTP/1.1 的应用层队头阻塞。但 TCP 层的队头阻塞还在——这正是 QUIC 出现的原因。" },
+    { k: "分布式事务", st: "未看", subject: "分布式", q: "TCC 和 Saga 怎么选？",
+      src: "面试记录 · 三面 2025-10",
+      a: "TCC 要业务自己写 Try / Confirm / Cancel 三段，侵入大但强一致；Saga 靠补偿回滚，适合长事务，最终一致。" },
+    { k: "消息队列", st: "", subject: "中间件", q: "", src: "", a: "" }
+  ];
+
+  /* ================= 判定（照搬 gap_analysis 语义） ================= */
+
+  function lc(s) { return String(s).toLowerCase(); }
+
+  function classify(term, job) {
+    var inJD = null;
+    for (var i = 0; i < job.terms.length; i++) {
+      if (lc(job.terms[i].t) === lc(term)) { inJD = job.terms[i]; break; }
+    }
+    if (!inJD) return null;                       // JD 没提这个词，不参与比对
+    if (lc(RESUME).indexOf(lc(term)) !== -1) {
+      return { state: "matched", level: inJD.level };
+    }
+    var hits = FACTS.filter(function (f) { return lc(f.text).indexOf(lc(term)) !== -1; });
+    if (hits.length) return { state: "injectable", level: inJD.level, hits: hits };
+    return { state: "missing", level: inJD.level, scanned: FACTS.length };
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
+    });
+  }
+  function hl(text, term) {
+    var safe = esc(text);
+    var t = esc(term).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return safe.replace(new RegExp(t, "gi"), function (m) { return "<mark>" + m + "</mark>"; });
+  }
+
+  /* ================= 渲染 ================= */
+
+  var state = { job: 0, term: "Kubernetes", checked: false };
+
+  var elJobs = document.getElementById("jobs");
+  var elChain = document.getElementById("chain");
+  var elScore = document.getElementById("score");
+  var elHint = document.getElementById("switchhint");
+  var elGate = document.getElementById("gate");
+  var elGateText = document.getElementById("gateText");
+  var elEvidence = document.getElementById("evidence");
+  var elChips = document.getElementById("chips");
+  var elResult = document.getElementById("result");
+  var elFacts = document.getElementById("factlist");
+  var elFactBox = document.getElementById("factbox");
+  var elStudy = document.getElementById("study");
+  var elStudyResult = document.getElementById("studyResult");
+  var elTryTerm = document.getElementById("tryTerm");
+  var elTryNote = document.getElementById("trynote");
+
+  /* 首屏提问句与岗位提示必须跟着当前选择走 */
+  function renderTry() {
+    var j = JOBS[state.job];
+    var inResume = lc(RESUME).indexOf(lc(state.term)) !== -1;
+    elTryTerm.textContent = state.term;
+    elTryNote.textContent = "换一个词试试，结果会不一样。当前示例岗位：" +
+      j.company + " · " + j.title + "。" +
+      (inResume ? "（这个词已经写在简历里了）" : "");
+  }
+
+  function renderJobs() {
+    elJobs.innerHTML = JOBS.map(function (j, i) {
+      return '<button class="job" type="button" role="tab" data-i="' + i + '"' +
+             ' aria-selected="' + (i === state.job) + '">' +
+             "<strong>" + esc(j.title) + "</strong>" + esc(j.company) + "</button>";
+    }).join("");
+  }
+
+  function renderChain() {
+    elChain.innerHTML = CHAIN.map(function (t, i) {
+      return '<span class="st' + (CHAIN_ON.indexOf(i) !== -1 ? " on" : "") + '">' + esc(t) + "</span>";
+    }).join("");
+  }
+
+  function renderScore() {
+    var s = JOBS[state.job].score;
+    if (!s) {
+      elScore.className = "score blank";
+      elScore.innerHTML =
+        '<div class="lbl">岗位评分</div>' +
+        '<div class="na">档案未齐，不进入评分。补齐〔届数〕之后才会算分——现在给任何分数，都是猜的。</div>';
+      return;
+    }
+    var total = 0;
+    var dims = s.dims.map(function (d) {
+      total += d[1];
+      var pct = Math.round(d[1] / d[2] * 100);
+      return '<div class="dim">' + esc(d[0]) + "<span>" + d[1] + "/" + d[2] + "</span>" +
+             '<div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+    }).join("");
+    elScore.className = "score";
+    elScore.innerHTML =
+      '<div class="hd"><div><div class="lbl">岗位评分 · 预置解析卡</div>' +
+      '<div class="total">' + total + "<em>/ 100</em></div></div>" +
+      '<span class="verdict ' + (s.tone || "ok") + '">' + esc(s.verdict) + "</span></div>" +
+      '<div class="dims">' + dims + "</div>" +
+      '<div class="act">→ <b>' + esc(s.action) + "</b></div>" +
+      '<div class="src">分数来自示例解析卡（技术匹配 / 经历匹配 / 方向契合 / 培养与稳定性）。' +
+      "这是匹配程度，不是录用概率；档位说的是「该花多少准备时间」，不是「许不许投」。</div>";
+  }
+
+  function renderGate() {
+    var g = JOBS[state.job].gate;
+    var cls = g.status === "待补档案" ? "mid" : "ok";
+    var icon = g.status === "待补档案" ? "!" : "✓";
+    elGate.className = "gate " + cls;
+    elGate.firstElementChild.textContent = icon;
+    elGateText.innerHTML = (g.status === "待补档案" ? "<b>待补档案</b> · " : "<b>门槛通过</b> · ") + esc(g.text);
+    elHint.innerHTML = HINTS[state.job] || "";
+  }
+
+  function bucket() {
+    var job = JOBS[state.job];
+    var out = { matched: [], injectable: [], missing: [] };
+    job.terms.forEach(function (item) {
+      var r = classify(item.t, job);
+      if (r) out[r.state].push({ t: item.t, level: item.level, r: r });
+    });
+    return out;
+  }
+
+  function renderEvidence() {
+    var b = bucket();
+    var defs = [
+      { key: "matched", cls: "c-ok", title: "已在简历", hint: "简历里已经写了，不用改。" },
+      { key: "injectable", cls: "c-mid", title: "可召回", hint: "资料里有记录，本版没用上。" },
+      { key: "missing", cls: "c-no", title: "真实缺口", hint: "当前资料里没找到依据。有真实经历就先补记录。" }
+    ];
+    elEvidence.innerHTML = defs.map(function (d) {
+      var items = b[d.key];
+      var lis = items.length
+        ? items.map(function (x) {
+            return "<li>" + esc(x.t) + '<span class="lv">' + esc(x.level) + "</span></li>";
+          }).join("")
+        : '<li style="color:var(--muted);font-size:12.5px">（无）</li>';
+      return '<div class="col ' + d.cls + '">' +
+               "<h2>" + d.title + '<span class="n">' + items.length + "</span></h2>" +
+               '<p class="hint">' + d.hint + "</p>" +
+               "<ul>" + lis + "</ul></div>";
+    }).join("");
+  }
+
+  function renderChips() {
+    elChips.innerHTML = CANDIDATES.map(function (t) {
+      return '<button class="chip" type="button" data-t="' + esc(t) + '"' +
+             ' aria-pressed="' + (t === state.term) + '">' + esc(t) + "</button>";
+    }).join("");
+  }
+
+  function renderFacts(highlight) {
+    elFacts.innerHTML = FACTS.map(function (f) {
+      var on = highlight && highlight.indexOf(f.id) !== -1;
+      return '<div class="fact' + (on ? " hit" : "") + '">' +
+               '<span class="fsrc"><span class="fid">' + f.id + "</span>" + esc(f.source) + "</span>" +
+               esc(f.text) + "</div>";
+    }).join("");
+  }
+
+  function showResult() {
+    var job = JOBS[state.job];
+    var term = state.term;
+    var r = classify(term, job);
+    var html = "";
+
+    if (!r) {
+      html = '<span class="tag">JD 未要求</span><p>这份 JD 没有提到 ' + esc(term) +
+             "，所以不参与比对。换一个词试试。</p>";
+      elResult.className = "result show na";
+      renderFacts(null);
+    } else if (r.state === "matched") {
+      html = '<span class="tag">已写在简历里</span><p>当前简历已经体现 <b>' + esc(term) +
+             "</b>，不需要再补。重复叠加不会加分，只会让简历变长。</p>";
+      elResult.className = "result show matched";
+      renderFacts(null);
+    } else if (r.state === "injectable") {
+      var f = r.hits[0];
+      html = '<span class="tag">资料中存在相关线索</span>' +
+             "<p>当前简历未体现 <b>" + esc(term) + "</b>，但你提供的事实资料里有相关记录，" +
+             "可以核对后考虑补充。</p>" +
+             '<div class="src"><span class="fno">' + f.id + "</span> · " + esc(f.source) +
+             "<q>" + hl(f.text, term) + "</q></div>" +
+             '<div class="scan">在 ' + FACTS.length + " 条事实记录中命中 " + r.hits.length + " 条。" +
+             "下面的事实库已展开并标出这一条。</div>";
+      elResult.className = "result show injectable";
+      renderFacts(r.hits.map(function (x) { return x.id; }));
+      elFactBox.open = true;
+    } else {
+      html = '<span class="tag">当前资料中未找到依据</span>' +
+             "<p>已提供的资料里没有 <b>" + esc(term) + "</b> 使用经历的依据。" +
+             "暂不建议写入；如果确有相关经历，请先补充可核对的事实资料。</p>" +
+             '<div class="scan">检索 ' + r.scanned + " 条事实记录，命中 0 条。</div>";
+      elResult.className = "result show missing";
+      renderFacts(null);
+    }
+
+    elResult.innerHTML = html;
+  }
+
+  /* ================= 备考场景（同一套三态，换题库） ================= */
+
+  function studyBucket() {
+    var out = { done: [], shaky: [], blank: [] };
+    STUDY.forEach(function (x) {
+      if (x.st === "会了") out.done.push(x);
+      else if (x.st === "看过") out.shaky.push(x);
+      else out.blank.push(x);
+    });
+    return out;
+  }
+
+  function renderStudy() {
+    var b = studyBucket();
+    var defs = [
+      { key: "done", cls: "c-ok", title: "「会了」", hint: "记录写着会了——你自己标的。" },
+      { key: "shaky", cls: "c-mid", title: "「看过」", hint: "记录写着看过——你自己标的。" },
+      { key: "blank", cls: "c-no", title: "「未看」或无记录", hint: "两种空缺：记了但没看，或根本没记。" }
+    ];
+    elStudy.innerHTML = defs.map(function (d) {
+      var items = b[d.key];
+      var lis = items.length
+        ? items.map(function (x) {
+            return '<li class="pick" data-k="' + esc(x.k) + '">' + esc(x.k) +
+                   '<span class="lv">' + esc(x.subject) + "</span></li>";
+          }).join("")
+        : '<li style="color:var(--muted);font-size:12.5px">（无）</li>';
+      return '<div class="col ' + d.cls + '">' +
+             "<h2>" + d.title + '<span class="n">' + items.length + "</span></h2>" +
+             '<p class="hint">' + d.hint + "</p><ul>" + lis + "</ul></div>";
+    }).join("");
+  }
+
+  function showStudy(k) {
+    var x = null, i;
+    for (i = 0; i < STUDY.length; i++) { if (STUDY[i].k === k) x = STUDY[i]; }
+    if (!x) return;
+
+    var cls = x.st === "会了" ? "matched" : (x.st === "看过" ? "injectable" : "missing");
+    var tag = x.st ? "记录写着「" + x.st + "」" : "没有记录";
+    var html;
+
+    if (!x.q) {
+      html = '<span class="tag">' + tag + "</span>" +
+             '<p class="q">题库里没有「' + esc(k) + "」这道题。</p>" +
+             '<p class="meta">考点在清单上，题库里没有对应记录——这种空缺最危险，因为你不知道自己不知道。</p>' +
+             '<p class="meta">要么去学，要么承认这块是空的。别在面试里现编。</p>';
+    } else {
+      html = '<span class="tag">' + tag + "</span>" +
+             '<p class="q">' + esc(x.q) + "</p>" +
+             '<p class="meta">状态「' + esc(x.st) + "」· 来源 " + esc(x.src) +
+             " · 这是你当时的自评，系统不校验它。</p>" +
+             '<p class="ans">' + esc(x.a) + "</p>";
+    }
+    elStudyResult.className = "result qcard show " + cls;
+    elStudyResult.innerHTML = html;
+  }
+
+  elStudy.addEventListener("click", function (e) {
+    var li = e.target.closest(".pick");
+    if (!li) return;
+    showStudy(li.dataset.k || li.getAttribute("data-k"));
+  });
+
+  /* ================= 交互 ================= */
+
+  elJobs.addEventListener("click", function (e) {
+    var btn = e.target.closest(".job");
+    if (!btn) return;
+    state.job = +btn.dataset.i;
+    state.checked = false;
+    elResult.className = "result";
+    elResult.innerHTML = "";
+    renderJobs(); renderGate(); renderScore(); renderEvidence(); renderFacts(null); renderTry();
+  });
+
+  elChips.addEventListener("click", function (e) {
+    var btn = e.target.closest(".chip");
+    if (!btn) return;
+    state.term = btn.dataset.t;
+    renderChips();
+    renderTry();
+    if (state.checked) showResult();
+  });
+
+  document.getElementById("go").addEventListener("click", function () {
+    state.checked = true;
+    showResult();
+  });
+
+  /* ================= 启动 ================= */
+
+  renderJobs();
+  renderChain();
+  renderGate();
+  renderScore();
+  renderEvidence();
+  renderChips();
+  renderFacts(null);
+  renderStudy();
+  renderTry();
+})();
+</script>
+</body>
+</html>

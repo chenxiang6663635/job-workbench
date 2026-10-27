@@ -161,6 +161,47 @@ Rep '创建记录用中文字段（方向/批次必填）' (
     ($src -match '方向 = .other.') -and ($src -match '批次 = ')
 ) 'NewApplication 的必填字段是中文名；传 company/role 会 422（run 40448839713 实测）'
 
+# --- 2026-10-26 维护者逐行复核指出的三处覆盖缺口 ---
+# ① 缺根探针不能在启动前替被测对象建目录
+Rep '缺根探针不擅自创建被测根' (
+    ($src -match '\-CreateRoot:') -and ($src -match 'CreateRoot:\$false')
+) 'Start-Backend 的 New-Item -Force 会把「缺根」变成「空根」，测的不是 fail-closed'
+
+# ② PATCH 必须读回台账（精确行绑定的强化版见下方「PATCH 读回按 id 精确定位唯一行」）
+Rep 'PATCH 读回台账核对' (
+    ($src -match 'g2-patch-probe') -and ($src -match 'Import-Csv')
+) 'HTTP 200 只说明服务端接受请求，不代表那一行真被改了'
+
+# ③ 非 PASS 必须非零退出（否则 job 绿但结论不是 PASS = 假绿）
+Rep '非 PASS 一律非零退出' (
+    ($src -match "G2_INCOMPLETE_INFRA' \{ 31 \}") -and ($src -match "G2_PARTIAL' \{ 32 \}")
+) '此前 INFRA_ERROR / NOT_EXECUTED 也 exit 0，与静默跳过同类'
+
+# --- 2026-10-26 第二轮复核：三处剩余假绿条件 + 一处命名越界 ---
+# ④ PATCH 读回必须绑定到同一行
+Rep 'PATCH 读回按 id 精确定位唯一行' (
+    ($src -match 'Import-Csv -LiteralPath \$tracker') -and
+    ($src -match 'rows_with_this_id') -and
+    ($src -match 'pre_probe')
+) '整表匹配 id + 整表匹配 probe 时，A 行有 id、B 行有 probe 也会同时为真'
+
+# ⑤ 缺根必须在请求之后再确认一次
+Rep '缺根请求后再复核一次' (
+    ($src -match "G2-4f1") -and ($src -match 'exists_after_request')
+) '服务可能在处理请求时静默建目录，只在启动后查一次会漏'
+
+# ⑥ 汇总必须校验必需断言集合
+Rep '汇总校验必需断言集合' (
+    ($src -match '\$MUST_IDS = @\(') -and
+    ($src -match '\$dupIds') -and
+    ($src -match "'G2_INCOMPLETE_ASSERTIONS' \{ 34 \}")
+) '只靠「已运行项全 PASS」会漏掉「必需项没跑」的情况'
+
+# ⑦ 4g 不得越界宣称「无第三处写入」
+Rep 'G2-4g 精确命名（只覆盖 A 根）' (
+    ($src -match 'A 根中未发现测试标识') -and ($src -notmatch "'G2-4g' '无第三处写入'")
+) '只扫描 A 根不能说成「无第三处写入」——其他位置未覆盖'
+
 Write-Host ''
 Write-Host '=== B. 反向验证：输入闸门必须真的会拒 ==='
 

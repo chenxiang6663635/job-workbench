@@ -542,18 +542,27 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     if (-not $appId) {
         Add-Record 'G2-4c' 'PATCH 前置 id' 'FAIL' "创建响应无 id：$($create.body.Substring(0,[Math]::Min(200,$create.body.Length)))"
     } else {
-        # PatchApplication 全字段 Optional；用 `备注` 避免撞 `当前阶段` 的枚举校验，
-        # 同时足以证明「这次 PATCH 真的改了 B 根那条记录」。
-        $patch = Invoke-Api 'PATCH' "/api/applications/$appId`?ws=personal" ([ordered]@{ 备注 = 'g2-patch-probe' })
-        # **不能只看 HTTP 200**：200 只说明服务端接受了请求，
-        # 不代表 B 根台账真的改了那一行。必须读回文件核对内容。
+        # PatchApplication 全字段 Optional；用 `备注` 避免撞 `当前阶段` 的枚举校验。
         $tracker = Join-Path $rootB 'personal\05_投递追踪\tracker.csv'
-        $csvText = if (Test-Path $tracker) { Get-Content $tracker -Raw -Encoding utf8 } else { '' }
-        $rowHit = $csvText -match [regex]::Escape($appId)
-        $probeHit = $csvText -match 'g2-patch-probe'
-        Add-Record 'G2-4c' 'B 根真实 PATCH' `
-            $(if ($patch.status -eq 200 -and $rowHit -and $probeHit) { 'PASS' } else { 'FAIL' }) `
-            "http=$($patch.status) code=$($patch.error_code) id_in_csv=$rowHit probe_in_csv=$probeHit exc=$($patch.exception)"
+        # **PATCH 前基线**：整表不得已含 probe，否则「读回有 probe」不能归因于本次 PATCH
+        $preRows = @()
+        if (Test-Path $tracker) { $preRows = @(Import-Csv -LiteralPath $tracker -Encoding utf8) }
+        $preProbe = @($preRows | Where-Object { (Get-Prop $_ '备注') -eq 'g2-patch-probe' }).Count
+        $preRowCount = $preRows.Count
+
+        $patch = Invoke-Api 'PATCH' "/api/applications/$appId`?ws=personal" ([ordered]@{ 备注 = 'g2-patch-probe' })
+
+        # **必须按 id 精确定位唯一行**：旧写法整表匹配 id + 整表匹配 probe，
+        # A 行有 id、B 行有 probe 时仍会同时为真（维护者 2026-10-26 指出的假绿条件）。
+        $postRows = @()
+        if (Test-Path $tracker) { $postRows = @(Import-Csv -LiteralPath $tracker -Encoding utf8) }
+        $hits = @($postRows | Where-Object { (Get-Prop $_ 'id') -eq $appId })
+        $rowUnique = ($hits.Count -eq 1)
+        $noteVal = if ($rowUnique) { [string](Get-Prop $hits[0] '备注') } else { '<n/a>' }
+        $noteOk = ($rowUnique -and $noteVal -eq 'g2-patch-probe')
+        $ok4c = ($patch.status -eq 200 -and $preProbe -eq 0 -and $rowUnique -and $noteOk)
+        Add-Record 'G2-4c' 'B 根真实 PATCH' $(if ($ok4c) { 'PASS' } else { 'FAIL' }) `
+            "http=$($patch.status) code=$($patch.error_code) pre_probe=$preProbe rows_before=$preRowCount rows_with_this_id=$($hits.Count) note='$noteVal' exc=$($patch.exception)"
     }
     Stop-Backend $bp
 
@@ -584,9 +593,15 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     $mrOk = ($mr.status -in 404, 503)
     Add-Record 'G2-4f' '缺根 fail-closed（404/503）' $(if ($mrOk) { 'PASS' } else { 'FAIL' }) `
         "http=$($mr.status) code=$($mr.error_code) exc=$($mr.exception)"
+    # **请求之后必须再查一次**：服务可能在处理请求时静默创建目录，
+    # 那样 4f0 通过但实际已被写入（维护者 2026-10-26 指出的第二个假绿条件）。
+    $rootMissingAfterReq = -not (Test-Path $missing)
+    Add-Record 'G2-4f1' '请求后被测根仍不存在' $(if ($rootMissingAfterReq) { 'PASS' } else { 'FAIL' }) `
+        "root=$missing exists_after_request=$(Test-Path $missing)"
     Stop-Backend $bp
 
-    # ⑤ 第三处非预期写入：B 根之外不得出现本次的 company 字符串
+    # ⑤ 只扫描 A 根，**不能称为「无第三处写入」**——那需要覆盖系统其他位置。
+    # 精确命名：A 根中未发现本次测试标识（维护者 2026-10-26 指出的命名越界）。
     $leak = @()
     foreach ($r in @($rootA)) {
         if (Test-Path $r) {
@@ -594,8 +609,8 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
                 Where-Object { (Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue) -match '虚构G2公司' })
         }
     }
-    Add-Record 'G2-4g' '无第三处写入' $(if ($leak.Count -eq 0) { 'PASS' } else { 'FAIL' }) `
-        $(if ($leak.Count -eq 0) { 'A 根零命中' } else { ($leak | ForEach-Object { $_.FullName }) -join '; ' })
+    Add-Record 'G2-4g' 'A 根中未发现测试标识' $(if ($leak.Count -eq 0) { 'PASS' } else { 'FAIL' }) `
+        $(if ($leak.Count -eq 0) { 'A 根零命中（仅覆盖 A 根，不代表其他位置）' } else { ($leak | ForEach-Object { $_.FullName }) -join '; ' })
 
     if ($Action -eq 'DataRoots') { exit 0 }
 }
@@ -711,7 +726,48 @@ if ($Action -eq 'All') {
     $f = @($recs | Where-Object { $_.status -eq 'FAIL' }).Count
     $n = @($recs | Where-Object { $_.status -eq 'NOT_EXECUTED' }).Count
     $e = @($recs | Where-Object { $_.status -eq 'INFRA_ERROR' }).Count
-    $concl = if ($f -gt 0) { 'G2_FAIL' }
+
+    # **必需断言集合校验**：只靠「已运行项全 PASS」不够——
+    # 脚本若因逻辑错误漏跑一项、或根本没生成记录，也会得到 PASS。
+    # 这里强制：① ID 唯一 ② 必需 ID 都在 ③ 状态枚举合法。
+    $MUST_IDS = @(
+        'G2-0a', 'G2-0b',
+        'G2-1a', 'G2-1b', 'G2-1c', 'G2-1d',
+        'G2-2a',
+        'G2-3a', 'G2-3b',
+        'G2-4a', 'G2-4a2', 'G2-4b', 'G2-4d', 'G2-4e',
+        'G2-4f0', 'G2-4f', 'G2-4f1', 'G2-4g',
+        'G2-5a', 'G2-5b', 'G2-5c', 'G2-5d', 'G2-5e', 'G2-5f', 'G2-5g',
+        'G2-6a', 'G2-6b',
+        'G2-7a'
+    )
+    # 条件性 ID：仅在前置项 PASS 时必须存在
+    $COND_IDS = @(
+        @{ id = 'G2-2b'; needs = 'G2-2a' },
+        @{ id = 'G2-3c'; needs = 'G2-3b' },
+        @{ id = 'G2-3d'; needs = 'G2-3b' },
+        @{ id = 'G2-3e'; needs = 'G2-3b' },
+        @{ id = 'G2-3f'; needs = 'G2-3b' },
+        @{ id = 'G2-4c'; needs = 'G2-4b' }
+    )
+    $ALLOWED = @('PASS', 'FAIL', 'NOT_EXECUTED', 'INFRA_ERROR')
+    $ids = @($recs | ForEach-Object { [string]$_.id })
+    $dupIds = @($ids | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+    $missingIds = @($MUST_IDS | Where-Object { $ids -notcontains $_ })
+    $badStatus = @($recs | Where-Object { $ALLOWED -notcontains [string]$_.status } |
+        ForEach-Object { "$($_.id):$($_.status)" })
+    $condMissing = @()
+    foreach ($c in $COND_IDS) {
+        $needRec = $recs | Where-Object { [string]$_.id -eq $c.needs } | Select-Object -First 1
+        if ($needRec -and [string]$needRec.status -eq 'PASS' -and $ids -notcontains $c.id) {
+            $condMissing += "$($c.id)(需 $($c.needs) PASS)"
+        }
+    }
+    $assertOk = ($dupIds.Count -eq 0 -and $missingIds.Count -eq 0 -and
+                 $badStatus.Count -eq 0 -and $condMissing.Count -eq 0)
+
+    $concl = if (-not $assertOk) { 'G2_INCOMPLETE_ASSERTIONS' }
+             elseif ($f -gt 0) { 'G2_FAIL' }
              elseif ($e -gt 0) { 'G2_INCOMPLETE_INFRA' }
              elseif ($n -gt 0) { 'G2_PARTIAL' }
              else { 'G2_RUNNER_FUNCTIONAL_PASS' }
@@ -721,6 +777,14 @@ if ($Action -eq 'All') {
         conclusion = $concl
         summary = [pscustomobject]@{ total = $recs.Count; passed = $p; failed = $f
             not_executed = $n; infra_error = $e }
+        assertionSet = [pscustomobject]@{
+            ok = $assertOk
+            required_count = $MUST_IDS.Count
+            duplicate_ids = $dupIds
+            missing_required = $missingIds
+            invalid_status = $badStatus
+            missing_conditional = $condMissing
+        }
         identity = [pscustomobject]@{
             run_id = (Get-Prop (Get-State) 'run_id')
             exe_sha256 = (Get-Prop (Get-State) 'sha256')
@@ -745,6 +809,7 @@ if ($Action -eq 'All') {
     # 结果是 job 变绿但收据结论不是 PASS —— 假绿，与静默跳过同类。
     if ($concl -ne 'G2_RUNNER_FUNCTIONAL_PASS') {
         $code = switch ($concl) {
+            'G2_INCOMPLETE_ASSERTIONS' { 34 }
             'G2_FAIL' { 30 }
             'G2_INCOMPLETE_INFRA' { 31 }
             'G2_PARTIAL' { 32 }

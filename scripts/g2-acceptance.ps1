@@ -118,8 +118,13 @@ function Invoke-Api {
         # **不能叫 $args**：那是 PowerShell 的自动变量（函数的参数数组），
         # 给它赋值会让 splatting 与函数调用产生未定义行为。
         # run 40446372140 实测：GET（无 Body）成功、POST（带 Body）全部 http=0。
+        #
+        # **必须用 -SkipHttpErrorCheck**（PS7+）：不加的话 4xx/5xx 会抛异常，
+        # 而 `$_.Exception.Response` 在本环境拿不到 StatusCode，
+        # status 就恒为 0 —— 于是「400 越界」「404 缺根」这些**正确行为**
+        # 被记成 FAIL（run 40448839713 实测：4e 实际 400、4f 实际 404，都判成 http=0）。
         $iwArgs = @{ Uri = $uri; Method = $Method; TimeoutSec = $TimeoutSec
-                     UseBasicParsing = $true }
+                     UseBasicParsing = $true; SkipHttpErrorCheck = $true }
         if ($null -ne $Body) {
             $iwArgs['ContentType'] = 'application/json; charset=utf-8'
             $iwArgs['Body'] = ($Body | ConvertTo-Json -Depth 8 -Compress)
@@ -513,8 +518,12 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     Add-Record 'G2-4a2' '4b 前后端仍存活' $(if ($aliveAfter4a -and $h2.status -eq 200) { 'PASS' } else { 'FAIL' }) `
         "tcp=$aliveAfter4a health=$($h2.status) pid=$($bp.Id) exited=$(if ($bp.HasExited) { $bp.ExitCode } else { '<running>' })"
 
+    # **NewApplication 用中文字段名**，且 `方向`/`批次` 是必填（无默认值）。
+    # run 40448839713 实测：传 company/role/status → 422 Unprocessable Entity。
+    # `方向` 用 `other`：tracker.DIRECTIONS 里恒有它；空工作区时 check_direction
+    # 读不到方向清单会直接放行。
     $create = Invoke-Api 'POST' '/api/applications?ws=personal' ([ordered]@{
-            company = '虚构G2公司'; role = '虚构G2岗位'; status = '已投递'
+            公司 = '虚构G2公司'; 岗位 = '虚构G2岗位'; 方向 = 'other'; 批次 = '正式批'
         })
     # **必须把 exception 记进 detail**：http=0 时它是唯一线索
     # （run 40447597853：后端日志里完全没有 /api/applications 的记录，
@@ -528,7 +537,9 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     if (-not $appId) {
         Add-Record 'G2-4c' 'PATCH 前置 id' 'FAIL' "创建响应无 id：$($create.body.Substring(0,[Math]::Min(200,$create.body.Length)))"
     } else {
-        $patch = Invoke-Api 'PATCH' "/api/applications/$appId`?ws=personal" ([ordered]@{ status = '已面试' })
+        # PatchApplication 全字段 Optional；用 `备注` 避免撞 `当前阶段` 的枚举校验，
+        # 同时足以证明「这次 PATCH 真的改了 B 根那条记录」。
+        $patch = Invoke-Api 'PATCH' "/api/applications/$appId`?ws=personal" ([ordered]@{ 备注 = 'g2-patch-probe' })
         Add-Record 'G2-4c' 'B 根真实 PATCH' $(if ($patch.status -eq 200) { 'PASS' } else { 'FAIL' }) `
             "http=$($patch.status) code=$($patch.error_code) exc=$($patch.exception)"
     }

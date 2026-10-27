@@ -152,6 +152,15 @@ Rep 'PDF 响应相对路径拼到数据根' (
     ($src -match 'IsPathRooted\(\$pdfPath\)') -and ($src -match 'Join-Path \(Join-Path \$rootB .personal.\)')
 ) 'run 40446372140 实测：pdf=02_简历工坊/pdf/简历_demo.pdf，直接 Test-Path 会 FAIL'
 
+# --- run 40448839713：exception 揭示 4e 实际 400、4f 实际 404，却被记成 http=0 ---
+Rep 'Invoke-Api 用 SkipHttpErrorCheck' (
+    ($src -match 'SkipHttpErrorCheck\s*=\s*\$true')
+) '不加它时 4xx 抛异常且 Response.StatusCode 取不到，正确行为被误判 FAIL'
+
+Rep '创建记录用中文字段（方向/批次必填）' (
+    ($src -match '方向 = .other.') -and ($src -match '批次 = ')
+) 'NewApplication 的必填字段是中文名；传 company/role 会 422（run 40448839713 实测）'
+
 Write-Host ''
 Write-Host '=== B. 反向验证：输入闸门必须真的会拒 ==='
 

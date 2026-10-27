@@ -71,8 +71,32 @@ def _dist_editable(dist) -> bool:
         return False
 
 
+def _dist_source(dist) -> tuple[str, str]:
+    """PEP 610 的 direct_url：返回 (来源 URL, wheel 的 sha256)。
+
+    `pip install ./some/wheel.whl` → `archive_info.hash = "sha256=…"`（可核对）
+    `pip install ./pkg`（目录）    → 只有 `dir_info`，**没有** wheel 哈希（记缺口）
+    """
+    try:
+        raw = dist.read_text("direct_url.json")
+    except Exception:  # noqa: BLE001
+        return "", ""
+    if not raw:
+        return "", ""
+    try:
+        d = json.loads(raw)
+    except ValueError:
+        return "", ""
+    h = str((d.get("archive_info") or {}).get("hash", ""))
+    sha = h[len("sha256="):] if h.startswith("sha256=") else ""
+    return str(d.get("url", "")), sha
+
+
 def collect_installed() -> list[dict]:
-    """读真实环境：返回 [{name, version, editable}]，允许重名（用于检出重复元数据）。"""
+    """读真实环境：返回 [{name, version, editable, source, wheel_sha256}]。
+
+    允许重名（用于检出重复元数据）。
+    """
     rows = []
     for dist in metadata.distributions():
         try:
@@ -82,7 +106,14 @@ def collect_installed() -> list[dict]:
             continue
         if not name:
             continue
-        rows.append({"name": name, "version": version, "editable": _dist_editable(dist)})
+        source, wheel_sha = _dist_source(dist)
+        rows.append({
+            "name": name,
+            "version": version,
+            "editable": _dist_editable(dist),
+            "source": source,
+            "wheel_sha256": wheel_sha,
+        })
     return rows
 
 
@@ -119,6 +150,13 @@ def check_sets(lock: dict[str, str], installed: list[dict]) -> list[dict]:
     )
     dup = sorted(n for n, ds in by_name.items() if len(ds) > 1)
 
+    # C2b：第一方包**必须不在锁里**（分层：第三方走锁，第一方走 wheel 身份）。
+    # 若有人把 jobws-core 写进 .in，它会以"第三方"身份被静默比对版本，绕过 C5 的来源核对。
+    leak = sorted(set(lock) & {norm(x) for x in FIRST_PARTY})
+    rows.append({"id": "C2b 锁中不含第一方包（分层未被破坏）",
+                 "status": "FAIL" if leak else "PASS",
+                 "detail": "leaked=%s" % (leak or "无")})
+
     rows.append({"id": "C2 无缺失依赖（lock 有、venv 无）", "status": "FAIL" if missing else "PASS",
                  "detail": "missing=%s" % (missing or "无")})
     rows.append({"id": "C3 无多余依赖（venv 有、lock 无、非引导工具）", "status": "FAIL" if extra else "PASS",
@@ -130,12 +168,25 @@ def check_sets(lock: dict[str, str], installed: list[dict]) -> list[dict]:
     return rows
 
 
-def check_first_party(installed: list[dict]) -> dict:
-    """C5：第一方包存在且**非 editable**（editable 是链接树，不是制品来源）。"""
+def check_first_party(installed: list[dict]) -> list[dict]:
+    """C5 + C5b：第一方包的存在/形态，以及**可审计身份**（版本 / 来源 / wheel 哈希）。
+
+    C5（硬判据）：必须存在，且**非 editable**（editable 是链接树，不是制品来源）。
+    C5b（缺口判据）：必须能指出这次装的是**哪个 wheel**。pip 安装本地 wheel 时，
+    `direct_url.json` 里会有 `archive_info.hash = "sha256=…"`；目录安装（`pip install .`）
+    只有 `dir_info`、**没有 wheel 哈希**——那种情况记 SKIP（缺口可见），不冒充通过。
+
+    为什么 C5b 必要：只防 editable 防不了"装的是上一次构建的旧 wheel"。第一方包的
+    版本号在开发期常常不变，光看版本号无法区分两次构建。
+    """
     by_name: dict[str, list[dict]] = {}
     for d in installed:
         by_name.setdefault(norm(d["name"]), []).append(d)
-    problems = []
+
+    problems: list[str] = []
+    audit: list[str] = []
+    unverifiable: list[str] = []
+
     for fp in FIRST_PARTY:
         ds = by_name.get(norm(fp))
         if not ds:
@@ -143,8 +194,30 @@ def check_first_party(installed: list[dict]) -> dict:
             continue
         if any(d["editable"] for d in ds):
             problems.append("%s 是 editable 安装（必须是本次检出构建的 wheel）" % fp)
-    return {"id": "C5 第一方包非 editable 且存在", "status": "FAIL" if problems else "PASS",
-            "detail": "; ".join(problems) or "ok"}
+            continue
+
+        d = ds[0]
+        version = d.get("version", "")
+        source = d.get("source", "")
+        wheel_sha = d.get("wheel_sha256", "")
+        if wheel_sha:
+            audit.append("%s==%s wheel_sha256=%s…" % (fp, version, wheel_sha[:12]))
+        elif source:
+            unverifiable.append("%s==%s 来源=%s（无 wheel 哈希：疑似目录安装）"
+                                % (fp, version, source[:60]))
+        else:
+            unverifiable.append("%s==%s 无 direct_url 记录（来源不可审计）" % (fp, version))
+
+    rows = [
+        {"id": "C5 第一方包非 editable 且存在",
+         "status": "FAIL" if problems else "PASS",
+         "detail": "; ".join(problems) or "ok"},
+        # SKIP 不计入 failed（不误报产品失败），但会出现在结果里，缺口不会被读成全绿
+        {"id": "C5b 第一方包 wheel 身份可审计",
+         "status": "SKIP" if unverifiable else "PASS",
+         "detail": "; ".join(unverifiable) if unverifiable else ("; ".join(audit) or "ok")},
+    ]
+    return rows
 
 
 def check_pip() -> dict:
@@ -179,7 +252,7 @@ def main() -> int:
     if not injected:
         rows.append(check_interpreter())
     rows.extend(check_sets(lock, installed))
-    rows.append(check_first_party(installed))
+    rows.extend(check_first_party(installed))
     if not injected:
         rows.append(check_pip())
 

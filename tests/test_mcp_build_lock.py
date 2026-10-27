@@ -48,30 +48,45 @@ def lock_pins():
     return parse_pins(LOCK.read_text(encoding="utf-8"))
 
 
-def build_dists(drop=(), extra=(), override=None, editable=()):
+def build_dists(drop=(), extra=(), override=None, editable=(), first_party_hash=True):
     """按锁构造一份"正确的"已安装集合，再按需注入违规。"""
     override = override or {}
     editable = {_norm(x) for x in editable}
     rows = [
-        {"name": n, "version": override.get(n, v), "editable": n in editable}
+        {"name": n, "version": override.get(n, v), "editable": n in editable,
+         "source": "", "wheel_sha256": ""}
         for n, v in lock_pins().items() if n not in drop
     ]
-    # 第一方包与引导工具不在锁里：检查器只校验「存在 + 非 editable」，不校验版本
+    # 第一方包与引导工具不在锁里：检查器校验「存在 + 非 editable + wheel 身份可审计」。
+    # first_party_hash=False 用于模拟「目录安装」——有来源但无 wheel 哈希（应为缺口）。
     for name in FIRST_PARTY:
-        rows.append({"name": name, "version": "0.0.0+local", "editable": _norm(name) in editable})
+        rows.append({
+            "name": name,
+            "version": "0.0.0+local",
+            "editable": _norm(name) in editable,
+            "source": ("file:///repo/dist/%s-0.0.0-py3-none-any.whl" % name
+                       if first_party_hash else "file:///repo/packages/%s" % name),
+            "wheel_sha256": ("a" * 64) if first_party_hash else "",
+        })
     for name in BOOTSTRAP:
-        rows.append({"name": name, "version": "25.0", "editable": False})
-    rows.extend({"name": n, "version": v, "editable": False} for n, v in extra)
+        rows.append({"name": name, "version": "25.0", "editable": False,
+                     "source": "", "wheel_sha256": ""})
+    rows.extend({"name": n, "version": v, "editable": False,
+                 "source": "", "wheel_sha256": ""} for n, v in extra)
     return {"dists": rows}
 
 
-def run_checker(tmp_path, dists):
-    """跑检查器（注入模式），返回 (退出码, 结果 dict)。"""
+def run_checker(tmp_path, dists, lock_text=None):
+    """跑检查器（注入模式），返回 (退出码, 结果 dict)。lock_text 可替换锁内容。"""
     fake = tmp_path / "installed.json"
     fake.write_text(json.dumps(dists), encoding="utf-8")
+    lock_path = LOCK
+    if lock_text is not None:
+        lock_path = tmp_path / "custom.lock"
+        lock_path.write_text(lock_text, encoding="utf-8")
     report = tmp_path / "report.json"
     proc = subprocess.run(
-        [sys.executable, str(CHECKER), "--lock", str(LOCK),
+        [sys.executable, str(CHECKER), "--lock", str(lock_path),
          "--installed-json", str(fake), "--json-out", str(report)],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
@@ -116,6 +131,33 @@ def test_first_party_editable_fails(tmp_path, pkg):
     rc, res = run_checker(tmp_path, build_dists(editable=[pkg]))
     assert rc == 1
     assert "C5" in failed_ids(res)
+
+
+def test_first_party_missing_wheel_hash_is_gap_not_fail(tmp_path):
+    """目录安装（有来源、无 wheel 哈希）→ C5 仍过，C5b 记 SKIP 缺口。
+
+    这是分工的关键：只防 editable 防不了「装的是上次构建的旧 wheel」。
+    缺口不能算产品失败（rc 仍 0），但必须在结果里看得见。
+    """
+    rc, res = run_checker(tmp_path, build_dists(first_party_hash=False))
+    status = {r["id"].split()[0]: r["status"] for r in res["rows"]}
+    assert rc == 0, "缺口不应被算成失败：%s" % failed_ids(res)
+    assert status["C5"] == "PASS"
+    assert status["C5b"] == "SKIP"
+    c5b = next(r for r in res["rows"] if r["id"].startswith("C5b"))
+    assert "无 wheel 哈希" in c5b["detail"]
+
+
+def test_lock_with_first_party_leaks_layer_fails(tmp_path):
+    """第一方包混进锁 → C2b FAIL。
+
+    否则它会被当第三方静默比对版本，绕过 C5 的来源核对。
+    """
+    text = LOCK.read_text(encoding="utf-8")
+    text += "\njobws-core==1.0.0 \\\n    --hash=sha256:%s\n" % ("a" * 64)
+    rc, res = run_checker(tmp_path, build_dists(), lock_text=text)
+    assert rc == 1
+    assert "C2b" in failed_ids(res)
 
 
 def test_duplicate_metadata_fails(tmp_path):

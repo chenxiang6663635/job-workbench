@@ -32,12 +32,16 @@ PyInstaller 的 hook 会把 venv 里多装的包 collect 进制品（`setuptools
 | ID | 判据 | 失败条件 |
 |---|---|---|
 | C1 | 解释器 = Windows x64 CPython 3.12 | 平台/架构/版本/实现不符 |
+| **C2b** | **锁中不含第一方包**（分层未被破坏） | `jobws-core` / `jobws-mcp` 出现在锁里 —— 否则它会被当第三方静默比对版本，绕过 C5 的来源核对 |
 | C2 | 无缺失依赖 | 锁中有、venv 无 |
 | C3 | 无多余依赖 | venv 有、锁中无、且不在引导工具例外（仅 `pip`） |
 | C4 | 版本与锁一致 | 同名包版本不符 |
 | C5 | 第一方包存在且**非 editable** | `jobws-core` / `jobws-mcp` 缺失或为 editable 链接树 |
+| **C5b** | **第一方包 wheel 身份可审计** | 无 wheel 哈希（目录安装）或来源不可读 → **SKIP 缺口**，不算产品失败但必须可见 |
 | C6 | 无重复包元数据 | 同规范化包名出现多份安装 |
 | C7 | `pip check` 无依赖冲突 | 依赖不满足（无 pip 时记 SKIP，不冒充 PASS） |
+
+**C5b 为什么必要**：只防 editable 防不了「装的是上一次构建的旧 wheel」——第一方包在开发期的版本号常常不变，光比版本号无法区分两次构建。pip 安装本地 wheel 时 `direct_url.json` 里有 `archive_info.hash`；目录安装（`pip install .`）没有，记缺口并要求改用 wheel。
 
 **例外只有 `pip`**。刻意**不**把 `setuptools` / `wheel` / `packaging` 或 PyInstaller 的辅助依赖设为白名单——它们参与实际构建，必须进锁。
 
@@ -65,6 +69,12 @@ uv pip compile mcp/build-requirements.in `
 非预期漂移 = 无
 hash 条数 = 519
 ```
+
+> **hash 的准确口径**（2026-10-27 审查修正）：`--python-platform windows` **只影响解析**，
+> 不限制 hash 收集——519 个 hash 里含多平台的 wheel。纯 Python 包通常 2 个（wheel + sdist），
+> 带二进制扩展的包则很多（实测 `pydantic-core` 137 / `rpds-py` 128 / `cffi` 100 / `cryptography` 59）。
+> 这不影响正确性：`--require-hashes` 只要求**当前平台**那一份存在。
+> 但不要在文档里写成「只锁了 Windows 的 wheel」。
 
 ### 2. 干净 venv 的哈希安装（HASH_INSTALL_TESTED）
 
@@ -129,3 +139,20 @@ python -m venv <tmp>
   跑 17 工具冒烟 → 记新哈希。
 - 与各 `pyproject.toml` 的版本范围冲突时：**锁优先**；`uv.lock` 不参与构建。
 - 重建 lock 后若出现非预期版本漂移，**停下来**，不要"反正 CI 绿了"就接受。
+
+## 八、2026-10-27 自审修正（5 项）
+
+初版 PR #418 提交后按"当成别人写的"标准自查，发现以下问题并已修：
+
+| # | 发现 | 性质 | 处置 |
+|---|---|---|---|
+| 1 | C5 只防 editable，**没有记录 wheel 哈希/版本/来源** —— 防不了"装的是上次构建的旧 wheel" | **MAJOR**（裁决 §二、§四 明确要求） | 新增 C5b：读 `direct_url.json` 的 `archive_info.hash`；读不到记 SKIP 缺口，不冒充通过 |
+| 2 | `build_mcp_exe.ps1` 的 `$Py` **会回退到 PATH 里的裸 `python`** | **MAJOR**（裁决 §三 明确禁止"回退到 PATH 中不明来源的 Python"） | 去掉回退：三级显式指定（参数 / 环境变量 / 约定路径）都不满足则 `exit 2` 并打印三种配法；另加 `Test-Path` 校验 |
+| 3 | 没有"锁中不得含第一方包"的断言 —— 若有人把 `jobws-core` 写进 `.in`，会被当第三方静默比对版本 | MINOR（分层破损） | 新增 C2b 判据 + 对应负向测试 |
+| 4 | 文档写"生成 Windows x64 的 hash"，实际 hash 含多平台 | MINOR（表述误导） | §四 补准确口径（`--python-platform` 只影响解析） |
+| 5 | `.in`/`.lock` 一致性测试用正则解析，对带环境标记（`; python_version >= …`）的条目会误判 | MINOR（当前锁内无标记） | 记为已知限制，不预先实现解析器 |
+
+**未改的判定**（保持"MEETS"）：集合相等语义、例外只有 `pip`、七类判据、负向测试真跑检查器、
+certifi 固定 10.19 与 `main` 门禁自洽、边界不覆盖 NSIS、四级证据分级。
+
+错误码约定（本脚本）：`0` 通过 / `1` 环境与锁不一致 / `2` 未配置或找不到构建解释器。

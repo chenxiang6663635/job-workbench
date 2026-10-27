@@ -35,7 +35,24 @@ if (Test-Path $manifestPath) { Move-Item $manifestPath $staleManifestPath -Force
 if (-not $Py) { $Py = $env:JOBWS_MCP_BUILD_PY }
 $convention = "D:\tools\venvs\jobws-mcp-build\Scripts\python.exe"
 if (-not $Py -and (Test-Path $convention)) { $Py = $convention }
-if (-not $Py) { $Py = "python" }
+
+# 解释器必须**显式确定**，不回退到 PATH 里的裸 `python`（2026-10-27 审查修正）。
+# 回退的后果：检查器会去查一个来源不明、可能与本次构建无关的环境；即使因为缺包而
+# 失败，报错也会误导（"缺依赖"而不是"用错解释器"），而万一那个环境恰好齐备，
+# 就会拿错环境产出制品。构建入口宁可在这里停住。
+if (-not $Py) {
+    Write-Host "未指定构建解释器——拒绝启动。" -ForegroundColor Red
+    Write-Host "  三种指定方式（任选其一）：" -ForegroundColor Yellow
+    Write-Host "    1) -Py <路径>                                  （命令行参数）" -ForegroundColor Yellow
+    Write-Host "    2) `$env:JOBWS_MCP_BUILD_PY = '<路径>'          （环境变量）" -ForegroundColor Yellow
+    Write-Host "    3) 放到约定路径：$convention" -ForegroundColor Yellow
+    Write-Host "  该解释器必须是**专用构建 venv**（不要用开发用的 jobws-mcp venv——它刻意是 editable）。" -ForegroundColor DarkGray
+    exit 2
+}
+if (-not (Test-Path -LiteralPath $Py)) {
+    Write-Host "构建解释器不存在：$Py" -ForegroundColor Red
+    exit 2
+}
 
 Write-Host "=== 构建 jobws-mcp.exe（DSH bundle 随包运行时）===" -ForegroundColor Cyan
 Write-Host "使用解释器: $Py" -ForegroundColor DarkGray

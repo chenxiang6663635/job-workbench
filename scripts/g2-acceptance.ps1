@@ -66,8 +66,19 @@ function Get-State {
 }
 
 function Save-State {
+    <# **合并**而非覆盖：Preflight 写 run_id/sha256，Install 写 install_dir，
+       BuildPdf 写 root_b —— 若覆盖，收据的 identity 会丢前面阶段的字段
+       （run 40446372140 实测：run_id / exe_sha256 全为 null）。 #>
     param($Obj)
-    ($Obj | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $StateFile -Encoding utf8
+    $cur = @{}
+    if (Test-Path -LiteralPath $StateFile) {
+        try {
+            $prev = Get-Content -LiteralPath $StateFile -Raw -Encoding utf8 | ConvertFrom-Json
+            foreach ($p in $prev.PSObject.Properties) { $cur[$p.Name] = $p.Value }
+        } catch { }
+    }
+    foreach ($p in $Obj.PSObject.Properties) { $cur[$p.Name] = $p.Value }
+    ([pscustomobject]$cur | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $StateFile -Encoding utf8
 }
 
 function Add-Record {
@@ -104,13 +115,16 @@ function Invoke-Api {
     $uri = "$ApiBase$Path"
     $res = [ordered]@{ status = 0; body = ''; error_code = ''; exception = '' }
     try {
-        $args = @{ Uri = $uri; Method = $Method; TimeoutSec = $TimeoutSec
-                   UseBasicParsing = $true }
+        # **不能叫 $args**：那是 PowerShell 的自动变量（函数的参数数组），
+        # 给它赋值会让 splatting 与函数调用产生未定义行为。
+        # run 40446372140 实测：GET（无 Body）成功、POST（带 Body）全部 http=0。
+        $iwArgs = @{ Uri = $uri; Method = $Method; TimeoutSec = $TimeoutSec
+                     UseBasicParsing = $true }
         if ($null -ne $Body) {
-            $args['ContentType'] = 'application/json; charset=utf-8'
-            $args['Body'] = ($Body | ConvertTo-Json -Depth 8 -Compress)
+            $iwArgs['ContentType'] = 'application/json; charset=utf-8'
+            $iwArgs['Body'] = ($Body | ConvertTo-Json -Depth 8 -Compress)
         }
-        $r = Invoke-WebRequest @args
+        $r = Invoke-WebRequest @iwArgs
         $res.status = [int]$r.StatusCode
         $res.body = $r.Content
     } catch {
@@ -420,6 +434,11 @@ if ($Action -eq 'BuildPdf' -or $Action -eq 'All') {
         Add-Record 'G2-3b' 'PDF 生成 passed=true' $(if ($passed -eq $true) { 'PASS' } else { 'FAIL' }) "passed=$passed"
         $pdfPath = Get-Prop $j 'pdf'
         if (-not $pdfPath) { $pdfPath = Get-Prop $j 'path' }
+        # 响应里是**相对数据根**的路径（如 `02_简历工坊/pdf/简历_demo.pdf`），
+        # 不是绝对路径。run 40446372140 实测：直接 Test-Path 会 FAIL。
+        if ($pdfPath -and -not [System.IO.Path]::IsPathRooted($pdfPath)) {
+            $pdfPath = Join-Path (Join-Path $rootB 'personal') $pdfPath
+        }
         if ($pdfPath -and (Test-Path $pdfPath)) {
             Add-Record 'G2-3c' 'PDF 文件存在' 'PASS' "$pdfPath ($((Get-Item $pdfPath).Length) B)"
             # 用 pypdf 独立复核：A4 + 1 页 + 提取 >=300

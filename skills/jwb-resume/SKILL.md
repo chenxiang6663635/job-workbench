@@ -29,6 +29,16 @@ jobws resume render --resume-accent 酒红     # 换强调色（预设名或 #he
 
 省略 `--workspace` 时默认使用 `personal/`。
 
+## 宿主形态：没有仓库时（MCP / DSH）
+
+宿主未接仓库（`jobws` CLI 不可用，如只装了 DSH 插件）时：**PDF 渲染与归档不在 MCP 工具面内**——
+`jobws resume` / `jobws resume render` 都不可用，MCP 只提供读取与预览类工具。
+
+- 需要生成正式 PDF：引导用户到**桌面端或仓库形态**运行上述命令，**不要声称已生成**。
+- 宿主自行用其他方式生成了临时 PDF：可以如实说明来源与 ATS 实测结果，但必须标注
+  「**非 canonical 产物**」——不得冒充 `jobws resume` 流水线的正式输出，不得据此归档投递。
+- ATS 三项（页数 / 文本层 ≥300 字符 / 关键事实）照常如实报告，未通过就是 FAIL。
+
 ## 前提
 
 **两条路径并存，先确认走哪条：**

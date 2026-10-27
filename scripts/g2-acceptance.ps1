@@ -505,10 +505,22 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     $h = Invoke-Api 'GET' '/api/health' $null 10
     Add-Record 'G2-4a' 'B 根后端就绪' $(if ($h.status -eq 200) { 'PASS' } else { 'FAIL' }) "http=$($h.status)"
 
+    # **4b 之前必须确认后端还活着**。run 40447597853 实测：4a(http=200) 之后
+    # /api/applications 全部 http=0，且后端日志里没有任何该路径的记录——
+    # 只有两种解释：进程死了，或请求根本没发出。这里把两者分开。
+    $aliveAfter4a = (Test-Tcp '127.0.0.1' ([int]$BackendPort))
+    $h2 = Invoke-Api 'GET' '/api/health' $null 10
+    Add-Record 'G2-4a2' '4b 前后端仍存活' $(if ($aliveAfter4a -and $h2.status -eq 200) { 'PASS' } else { 'FAIL' }) `
+        "tcp=$aliveAfter4a health=$($h2.status) pid=$($bp.Id) exited=$(if ($bp.HasExited) { $bp.ExitCode } else { '<running>' })"
+
     $create = Invoke-Api 'POST' '/api/applications?ws=personal' ([ordered]@{
             company = '虚构G2公司'; role = '虚构G2岗位'; status = '已投递'
         })
-    Add-Record 'G2-4b' 'B 根创建记录' $(if ($create.status -in 200, 201) { 'PASS' } else { 'FAIL' }) "http=$($create.status) code=$($create.error_code)"
+    # **必须把 exception 记进 detail**：http=0 时它是唯一线索
+    # （run 40447597853：后端日志里完全没有 /api/applications 的记录，
+    #   说明请求根本没发出去，只有 exception 能说明为什么）
+    Add-Record 'G2-4b' 'B 根创建记录' $(if ($create.status -in 200, 201) { 'PASS' } else { 'FAIL' }) `
+        "http=$($create.status) code=$($create.error_code) exc=$($create.exception)"
     $appId = ''
     if ($create.body) {
         try { $appId = [string](Get-Prop ($create.body | ConvertFrom-Json) 'id') } catch { }
@@ -517,7 +529,8 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
         Add-Record 'G2-4c' 'PATCH 前置 id' 'FAIL' "创建响应无 id：$($create.body.Substring(0,[Math]::Min(200,$create.body.Length)))"
     } else {
         $patch = Invoke-Api 'PATCH' "/api/applications/$appId`?ws=personal" ([ordered]@{ status = '已面试' })
-        Add-Record 'G2-4c' 'B 根真实 PATCH' $(if ($patch.status -eq 200) { 'PASS' } else { 'FAIL' }) "http=$($patch.status) code=$($patch.error_code)"
+        Add-Record 'G2-4c' 'B 根真实 PATCH' $(if ($patch.status -eq 200) { 'PASS' } else { 'FAIL' }) `
+            "http=$($patch.status) code=$($patch.error_code) exc=$($patch.exception)"
     }
     Stop-Backend $bp
 
@@ -531,7 +544,7 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     $oob = Invoke-Api 'GET' '/api/applications?ws=../../../etc' $null 20
     Add-Record 'G2-4e' '越界返回 400 ws.outOfRange' `
         $(if ($oob.status -eq 400 -and $oob.error_code -eq 'ws.outOfRange') { 'PASS' } else { 'FAIL' }) `
-        "http=$($oob.status) code=$($oob.error_code)"
+        "http=$($oob.status) code=$($oob.error_code) exc=$($oob.exception)"
     Stop-Backend $bp
 
     # ④ 缺根必须 fail-closed（404/503），绝不能 200 + 应用根数据
@@ -542,7 +555,7 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     $mr = Invoke-Api 'GET' '/api/applications?ws=personal' $null 20
     $mrOk = ($mr.status -in 404, 503)
     Add-Record 'G2-4f' '缺根 fail-closed（404/503）' $(if ($mrOk) { 'PASS' } else { 'FAIL' }) `
-        "http=$($mr.status) code=$($mr.error_code)"
+        "http=$($mr.status) code=$($mr.error_code) exc=$($mr.exception)"
     Stop-Backend $bp
 
     # ⑤ 第三处非预期写入：B 根之外不得出现本次的 company 字符串

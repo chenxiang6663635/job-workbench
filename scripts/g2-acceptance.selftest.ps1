@@ -129,6 +129,12 @@ Rep '收据含 known_gaps（GUI/UAC 未覆盖）' (
     ($src -match 'NSIS 向导 UI') -and ($src -match 'SmartScreen')
 ) 'runner 能验的功能被误当成完整 G2 验收'
 
+# run 40445221109 实测：40437650451 > Int32.Max(2,147,483,647)，
+# [int] 会在参数绑定阶段就抛 "Cannot convert value ... to type System.Int32"。
+Rep 'RunId 用 [long] 而非 [int]' (
+    ($src -match '\[long\]\$RunId')
+) 'GitHub run id 是 64 位；[int] 会在真实 run 上直接失败（run 40445221109 实测）'
+
 Write-Host ''
 Write-Host '=== B. 反向验证：输入闸门必须真的会拒 ==='
 
@@ -147,7 +153,7 @@ try {
     $out1 = Join-Path $tmp 'o1'
     $wrongSha = ('0' * 64)
     & pwsh -NoProfile -ExecutionPolicy Bypass -File $ps1 -Action Preflight -OutDir $out1 `
-        -RunId 1 -ArtifactName installer -ExpectedSha256 $wrongSha `
+        -RunId 40437650451 -ArtifactName installer -ExpectedSha256 $wrongSha `
         -ExpectedSize $fakeSize -PreDownloadedDir $fakeDir 2>&1 | Out-Null
     $rc1 = $LASTEXITCODE
     Rep 'B-1 假 SHA256 被拒（exit 21）' ($rc1 -eq 21) "实际 exit=$rc1（期望 21）"
@@ -163,7 +169,7 @@ try {
     # B-2：故意给错 size → 必须 exit 21，且 G2-0a 记 FAIL
     $out2 = Join-Path $tmp 'o2'
     & pwsh -NoProfile -ExecutionPolicy Bypass -File $ps1 -Action Preflight -OutDir $out2 `
-        -RunId 1 -ArtifactName installer -ExpectedSha256 $fakeSha `
+        -RunId 40437650451 -ArtifactName installer -ExpectedSha256 $fakeSha `
         -ExpectedSize ($fakeSize + 123) -PreDownloadedDir $fakeDir 2>&1 | Out-Null
     $rc2 = $LASTEXITCODE
     Rep 'B-2 假 size 被拒（exit 21）' ($rc2 -eq 21) "实际 exit=$rc2（期望 21）"
@@ -171,7 +177,7 @@ try {
     # B-3：SHA 与 size 都对，但缺 latest.yml → G2-0c FAIL → 仍须 exit 21
     $out3 = Join-Path $tmp 'o3'
     & pwsh -NoProfile -ExecutionPolicy Bypass -File $ps1 -Action Preflight -OutDir $out3 `
-        -RunId 1 -ArtifactName installer -ExpectedSha256 $fakeSha `
+        -RunId 40437650451 -ArtifactName installer -ExpectedSha256 $fakeSha `
         -ExpectedSize $fakeSize -PreDownloadedDir $fakeDir 2>&1 | Out-Null
     $rc3 = $LASTEXITCODE
     Rep 'B-3 缺 latest.yml 被拒（exit 21）' ($rc3 -eq 21) "实际 exit=$rc3（期望 21）"
@@ -191,7 +197,7 @@ try {
         "sha512: $sha512b64"
     ) | Set-Content -LiteralPath (Join-Path $fakeDir 'latest.yml') -Encoding utf8
     & pwsh -NoProfile -ExecutionPolicy Bypass -File $ps1 -Action Preflight -OutDir $out4 `
-        -RunId 1 -ArtifactName installer -ExpectedSha256 $fakeSha `
+        -RunId 40437650451 -ArtifactName installer -ExpectedSha256 $fakeSha `
         -ExpectedSize $fakeSize -PreDownloadedDir $fakeDir 2>&1 | Out-Null
     $rc4 = $LASTEXITCODE
     Rep 'B-4 全部匹配时放行（exit 0）' ($rc4 -eq 0) "实际 exit=$rc4（期望 0，证明闸门非恒拒）"

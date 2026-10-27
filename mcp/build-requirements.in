@@ -1,0 +1,70 @@
+# ============================================================================
+# MCP 构建依赖锁的**输入文件**（人维护）
+#
+# build-requirements.lock 是由本文件机械生成的输出，不要手改 lock。
+# 重新生成（Windows x64 / CPython 3.12，与构建环境一致）：
+#
+#   uv pip compile mcp/build-requirements.in `
+#       --python-version 3.12 `
+#       --python-platform windows `
+#       --only-binary :all: `
+#       --generate-hashes `
+#       --output-file mcp/build-requirements.lock
+#
+# 为什么要这个文件：此前 build_mcp_exe.ps1 每次从各 pyproject 的**开放范围**
+# （如 mcp>=2.2,<3）重新解析，同一 commit 实测构建出三个不同哈希的 EXE
+# （8eebafb8 / c8a9b4bc / fbf76ef1）。依赖是其中可消除的一部分。
+#
+# 纪律：
+#   · 本文件里**全部钉死 ==**：不引入未经冒烟验证的新版本（升级 = 单独评审）。
+#   · 构建侧唯一依据是本文件 / lock；uv.lock 与各 pyproject 的版本范围不参与构建。
+#   · 升级任何一项 = 改本文件 → 重生成 lock → 重建 EXE → 跑 17 工具冒烟 → 记新哈希。
+#   · **第一方包（jobws-core / jobws-mcp）刻意不在此列**：它们必须从本次检出
+#     构建成非 editable wheel 再安装，其身份（wheel 哈希 + 源提交）单独登记。
+# ============================================================================
+
+# ---- 构建工具链 -----------------------------------------------------------
+# setuptools 必须锁：PyInstaller 的 hook-setuptools 会把它带进制品
+# （已实测 bin/_internal/setuptools/... 存在），漂移会改变二进制内容。
+setuptools==84.2.1
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.9
+
+# ---- 运行时依赖（随包发布）-----------------------------------------------
+PyJWT==2.15.1
+altgraph==0.17.5
+annotated-types==0.8.0
+anyio==4.15.1
+attrs==26.1.0
+# certifi 固定为**已批准的安全基线 2026.10.19**（2026-10-27 裁决）。
+# 2026.10.23 已可用，但未走完安全基线升级的四条门禁；不得借"构建可复现性改进"
+# 顺带生效。升级须独立评审后改本行并重生成 lock。
+certifi==2026.10.19
+cffi==2.1.1
+click==8.5.0
+cryptography==50.0.2
+h11==0.16.0
+httpcore2==2.16.0
+httpx2==2.16.0
+idna==3.20
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+mcp==2.3.0
+mcp-types==2.3.0
+opentelemetry-api==1.45.1
+packaging==26.3
+pefile==2024.8.26
+pycparser==3.12
+pydantic==2.14.1
+pydantic_core==2.50.1
+python-multipart==0.0.32
+pywin32==312
+pywin32-ctypes==0.2.3
+referencing==0.37.0
+rpds-py==2026.9.1
+sse-starlette==3.6.0
+starlette==1.10.0
+truststore==0.10.5
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+uvicorn==0.54.0

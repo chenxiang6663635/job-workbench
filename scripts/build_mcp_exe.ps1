@@ -84,6 +84,40 @@ if ($verOk -ne 0) {
 }
 Write-Host "certifi = $certifiVer（>= ${CertifiMin}，安全下界通过）" -ForegroundColor Green
 
+# 构建依赖准入（MCP Build Lock Contract v1，2026-10-27）。
+#
+# 判据在 scripts/check_mcp_build_environment.py，本脚本只调用、不重复实现规则——
+# 同一套判据同时被 tests/test_mcp_build_lock.py 用注入模式测试，避免两处漂移。
+#
+# 与下面「editable 检查」的关系：那条是历史门禁（只查 jobws-core 一种形态），
+# 保留不动；本检查覆盖它的全部语义（C5）并额外覆盖缺包/多余包/版本/重复/解释器。
+#
+# 为什么必须是**集合相等**而不是「lock ⊆ venv」：PyInstaller 的 hook 会把 venv 里
+# 多装的包 collect 进制品（setuptools 就这样进的）。只查「该有的有」会漏掉「不该有的有」。
+$lockPath = Join-Path $mcpDir "build-requirements.lock"
+$envChecker = Join-Path $root "scripts\check_mcp_build_environment.py"
+$envReport = Join-Path ([System.IO.Path]::GetTempPath()) "mcp-build-env-check.json"
+
+if (-not (Test-Path $lockPath)) {
+    Write-Host "缺 mcp/build-requirements.lock —— 依赖未锁定，拒绝产出（同 commit 会构建出不同二进制）。" -ForegroundColor Red
+    Write-Host "  由 mcp/build-requirements.in 生成，命令见该文件头部注释。" -ForegroundColor Yellow
+    exit 1
+}
+if (-not (Test-Path $envChecker)) {
+    Write-Host "缺 scripts/check_mcp_build_environment.py —— 准入检查无法执行，拒绝产出。" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "构建环境准入检查（build-requirements.lock）..." -ForegroundColor Yellow
+& $Py $envChecker --lock $lockPath --json-out $envReport
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "构建环境与锁不一致——拒绝产出。明细：$envReport" -ForegroundColor Red
+    Write-Host "  按锁收敛环境（第三方）：$Py -m pip install --require-hashes --only-binary :all: -r `"$lockPath`"" -ForegroundColor Yellow
+    Write-Host "  第一方包须从本次检出构建（非 editable）：$Py -m pip install --force-reinstall --no-deps .\packages\jobws-core .\mcp" -ForegroundColor Yellow
+    exit 1
+}
+Write-Host "构建环境准入通过（与锁集合相等）" -ForegroundColor Green
+
 # 领域包必须**非 editable**（与后端打包同一纪律：editable 是链接树；判据 PEP 610/660
 # 的 direct_url.json.dir_info.editable）。
 $prevEap = $ErrorActionPreference

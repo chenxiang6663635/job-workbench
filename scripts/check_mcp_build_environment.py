@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""MCP 构建环境准入检查（MCP Build Lock Contract v1 的判据实现）。
+
+只做一件事：判定「当前构建 venv」是否与 `mcp/build-requirements.lock` 构成
+**集合相等**的受控环境，并单独核对第一方包来源。
+
+为什么独立成文件：同一套判据要被两处复用——`scripts/build_mcp_exe.ps1` 的
+构建前门禁，以及 `tests/test_mcp_build_lock.py` 的负向测试。若把规则写在
+PowerShell 里，测试只能靠"扫描脚本里有没有关键字"，那是假测试。
+
+为什么是**集合相等**而不是 `LOCK ⊆ INSTALLED`：
+  「该有的都有」不保证「不该有的没有」。PyInstaller 的 hook 会把 venv 里
+  顺手装的包 collect 进制品（`setuptools` 就是这样进的），所以多余包必须 FAIL。
+
+用法：
+  python scripts/check_mcp_build_environment.py --lock mcp/build-requirements.lock
+  python scripts/check_mcp_build_environment.py --lock ... --installed-json fake.json
+    加 --installed-json 即「注入模式」：不读真实环境、不查解释器/pip check，
+    仅评估集合判据——供测试构造违规组合。
+退出码：0 全部 PASS；1 有 FAIL（明细打印到 stderr）。
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import platform
+import re
+import subprocess
+import sys
+from importlib import metadata
+
+# 第一方包：必须由**本次检出**构建的非 editable wheel 安装，不属于 PyPI 第三方锁。
+FIRST_PARTY = ("jobws-core", "jobws-mcp")
+
+# venv 引导工具：不在受控第三方集合内，允许存在（版本单独记录，不参与锁比对）。
+# 刻意**不**把 setuptools / wheel / packaging 放进来——它们参与实际构建（hook 会 collect）。
+BOOTSTRAP_ALLOWED = ("pip",)
+
+EXPECT_PY = (3, 12)
+
+
+def norm(name: str) -> str:
+    """PEP 503 规范化：大小写、`-`/`_`/`.` 归一。"""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def load_lock(path: str) -> dict[str, str]:
+    """解析 lock：返回 {规范化名: 版本}。忽略注释与 --hash 续行。"""
+    out: dict[str, str] = {}
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            m = re.match(r"^([A-Za-z0-9_.\-]+)==([^\s\\]+)", line)
+            if m:
+                out[norm(m.group(1))] = m.group(2)
+    return out
+
+
+def _dist_editable(dist) -> bool:
+    """PEP 610：direct_url.json 的 dir_info.editable 为真 → editable 安装。"""
+    try:
+        raw = dist.read_text("direct_url.json")
+    except Exception:  # noqa: BLE001 —— 元数据损坏按非 editable 记录，另有重复/来源判据兜底
+        return False
+    if not raw:
+        return False
+    try:
+        return bool(json.loads(raw).get("dir_info", {}).get("editable"))
+    except ValueError:
+        return False
+
+
+def collect_installed() -> list[dict]:
+    """读真实环境：返回 [{name, version, editable}]，允许重名（用于检出重复元数据）。"""
+    rows = []
+    for dist in metadata.distributions():
+        try:
+            name = dist.metadata["Name"]
+            version = dist.version
+        except Exception:  # noqa: BLE001
+            continue
+        if not name:
+            continue
+        rows.append({"name": name, "version": version, "editable": _dist_editable(dist)})
+    return rows
+
+
+def check_interpreter() -> dict:
+    """C1：必须是 Windows x64 + CPython 3.12（与 lock 的 --python-platform 对齐）。"""
+    ok = (
+        sys.platform == "win32"
+        and platform.machine().upper() in ("AMD64", "X86_64")
+        and sys.version_info[:2] == EXPECT_PY
+        and platform.python_implementation() == "CPython"
+    )
+    detail = "%s/%s CPython %d.%d (%s)" % (
+        sys.platform, platform.machine(), sys.version_info[0], sys.version_info[1],
+        platform.python_implementation(),
+    )
+    return {"id": "C1 解释器 = Windows x64 CPython 3.12", "status": "PASS" if ok else "FAIL", "detail": detail}
+
+
+def check_sets(lock: dict[str, str], installed: list[dict]) -> list[dict]:
+    """C2–C4、C6：缺包 / 多余包 / 版本错误 / 重复元数据。"""
+    rows = []
+    by_name: dict[str, list[dict]] = {}
+    for d in installed:
+        by_name.setdefault(norm(d["name"]), []).append(d)
+
+    missing = sorted(set(lock) - set(by_name))
+    extra = sorted(
+        n for n in set(by_name) - set(lock)
+        if n not in {norm(x) for x in FIRST_PARTY} and n not in {norm(x) for x in BOOTSTRAP_ALLOWED}
+    )
+    version_bad = sorted(
+        "%s: 实际 %s != lock %s" % (n, by_name[n][0]["version"], lock[n])
+        for n in set(lock) & set(by_name) if by_name[n][0]["version"] != lock[n]
+    )
+    dup = sorted(n for n, ds in by_name.items() if len(ds) > 1)
+
+    rows.append({"id": "C2 无缺失依赖（lock 有、venv 无）", "status": "FAIL" if missing else "PASS",
+                 "detail": "missing=%s" % (missing or "无")})
+    rows.append({"id": "C3 无多余依赖（venv 有、lock 无、非引导工具）", "status": "FAIL" if extra else "PASS",
+                 "detail": "extra=%s" % (extra or "无")})
+    rows.append({"id": "C4 版本与 lock 一致", "status": "FAIL" if version_bad else "PASS",
+                 "detail": "drift=%s" % (version_bad or "无")})
+    rows.append({"id": "C6 无重复包元数据", "status": "FAIL" if dup else "PASS",
+                 "detail": "duplicates=%s" % (dup or "无")})
+    return rows
+
+
+def check_first_party(installed: list[dict]) -> dict:
+    """C5：第一方包存在且**非 editable**（editable 是链接树，不是制品来源）。"""
+    by_name: dict[str, list[dict]] = {}
+    for d in installed:
+        by_name.setdefault(norm(d["name"]), []).append(d)
+    problems = []
+    for fp in FIRST_PARTY:
+        ds = by_name.get(norm(fp))
+        if not ds:
+            problems.append("%s 未安装" % fp)
+            continue
+        if any(d["editable"] for d in ds):
+            problems.append("%s 是 editable 安装（必须是本次检出构建的 wheel）" % fp)
+    return {"id": "C5 第一方包非 editable 且存在", "status": "FAIL" if problems else "PASS",
+            "detail": "; ".join(problems) or "ok"}
+
+
+def check_pip() -> dict:
+    """C7：pip check 无依赖冲突（无 pip 时记为 SKIP，不冒充 PASS）。"""
+    try:
+        r = subprocess.run([sys.executable, "-m", "pip", "check"],
+                           capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"id": "C7 pip check 无依赖冲突", "status": "SKIP", "detail": "无法执行: %s" % exc}
+    if r.returncode == 0:
+        return {"id": "C7 pip check 无依赖冲突", "status": "PASS", "detail": "ok"}
+    return {"id": "C7 pip check 无依赖冲突", "status": "FAIL",
+            "detail": (r.stdout + r.stderr).strip()[:400]}
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--lock", required=True)
+    ap.add_argument("--installed-json", default="", help="注入已安装集合（测试用）；给出则跳过真实环境判据")
+    ap.add_argument("--json-out", default="", help="把结果写成 JSON")
+    args = ap.parse_args()
+
+    lock = load_lock(args.lock)
+    injected = bool(args.installed_json)
+    if injected:
+        with open(args.installed_json, encoding="utf-8") as fh:
+            installed = json.load(fh)["dists"]
+    else:
+        installed = collect_installed()
+
+    rows = []
+    if not injected:
+        rows.append(check_interpreter())
+    rows.extend(check_sets(lock, installed))
+    rows.append(check_first_party(installed))
+    if not injected:
+        rows.append(check_pip())
+
+    failed = [r for r in rows if r["status"] == "FAIL"]
+    result = {"mode": "injected" if injected else "real", "lock": args.lock,
+              "lock_packages": len(lock), "installed_dists": len(installed),
+              "rows": rows, "failed": len(failed), "all_ok": not failed}
+
+    print("MCP 构建环境准入检查（lock 包数=%d，venv 分布数=%d）" % (len(lock), len(installed)))
+    for r in rows:
+        print("  [%-4s] %s — %s" % (r["status"], r["id"], str(r["detail"])[:150]))
+    print("结论：%s" % ("PASS" if not failed else "FAIL（%d 项）" % len(failed)))
+
+    if args.json_out:
+        with open(args.json_out, "w", encoding="utf-8", newline="") as fh:
+            fh.write(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if not failed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

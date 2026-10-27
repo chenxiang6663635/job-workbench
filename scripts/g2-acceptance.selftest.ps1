@@ -161,6 +161,22 @@ Rep '创建记录用中文字段（方向/批次必填）' (
     ($src -match '方向 = .other.') -and ($src -match '批次 = ')
 ) 'NewApplication 的必填字段是中文名；传 company/role 会 422（run 40448839713 实测）'
 
+# --- 2026-10-26 维护者逐行复核指出的三处覆盖缺口 ---
+# ① 缺根探针不能在启动前替被测对象建目录
+Rep '缺根探针不擅自创建被测根' (
+    ($src -match '\-CreateRoot:') -and ($src -match 'CreateRoot:\$false')
+) 'Start-Backend 的 New-Item -Force 会把「缺根」变成「空根」，测的不是 fail-closed'
+
+# ② PATCH 必须读回台账，不能只看 200
+Rep 'PATCH 读回台账核对' (
+    ($src -match 'g2-patch-probe') -and ($src -match 'rowHit') -and ($src -match 'probeHit')
+) 'HTTP 200 只说明服务端接受请求，不代表那一行真被改了'
+
+# ③ 非 PASS 必须非零退出（否则 job 绿但结论不是 PASS = 假绿）
+Rep '非 PASS 一律非零退出' (
+    ($src -match "G2_INCOMPLETE_INFRA' \{ 31 \}") -and ($src -match "G2_PARTIAL' \{ 32 \}")
+) '此前 INFRA_ERROR / NOT_EXECUTED 也 exit 0，与静默跳过同类'
+
 Write-Host ''
 Write-Host '=== B. 反向验证：输入闸门必须真的会拒 ==='
 

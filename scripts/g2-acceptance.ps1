@@ -183,9 +183,14 @@ function Stop-Backend {
 }
 
 function Start-Backend {
-    <# 启动安装目录内的 frozen 后端；数据根与 APPDATA 都隔离。返回 Process。 #>
-    param([string]$BackendExe, [string]$DataRoot, [string]$IsoAppData)
-    New-Item -ItemType Directory -Force -Path $DataRoot | Out-Null
+    <# 启动安装目录内的 frozen 后端；数据根与 APPDATA 都隔离。返回 Process。
+       -CreateRoot:$false 用于「缺根探针」——**绝不能替被测对象建目录**，
+       否则探针测的是自己刚建出来的空根，而不是「根不存在时的 fail-closed 行为」。 #>
+    param([string]$BackendExe, [string]$DataRoot, [string]$IsoAppData,
+          [bool]$CreateRoot = $true)
+    if ($CreateRoot) {
+        New-Item -ItemType Directory -Force -Path $DataRoot | Out-Null
+    }
     New-Item -ItemType Directory -Force -Path $IsoAppData | Out-Null
     $env:JOBWS_DATA_DIR = $DataRoot
     $env:APPDATA = $IsoAppData
@@ -540,8 +545,15 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
         # PatchApplication 全字段 Optional；用 `备注` 避免撞 `当前阶段` 的枚举校验，
         # 同时足以证明「这次 PATCH 真的改了 B 根那条记录」。
         $patch = Invoke-Api 'PATCH' "/api/applications/$appId`?ws=personal" ([ordered]@{ 备注 = 'g2-patch-probe' })
-        Add-Record 'G2-4c' 'B 根真实 PATCH' $(if ($patch.status -eq 200) { 'PASS' } else { 'FAIL' }) `
-            "http=$($patch.status) code=$($patch.error_code) exc=$($patch.exception)"
+        # **不能只看 HTTP 200**：200 只说明服务端接受了请求，
+        # 不代表 B 根台账真的改了那一行。必须读回文件核对内容。
+        $tracker = Join-Path $rootB 'personal\05_投递追踪\tracker.csv'
+        $csvText = if (Test-Path $tracker) { Get-Content $tracker -Raw -Encoding utf8 } else { '' }
+        $rowHit = $csvText -match [regex]::Escape($appId)
+        $probeHit = $csvText -match 'g2-patch-probe'
+        Add-Record 'G2-4c' 'B 根真实 PATCH' `
+            $(if ($patch.status -eq 200 -and $rowHit -and $probeHit) { 'PASS' } else { 'FAIL' }) `
+            "http=$($patch.status) code=$($patch.error_code) id_in_csv=$rowHit probe_in_csv=$probeHit exc=$($patch.exception)"
     }
     Stop-Backend $bp
 
@@ -561,7 +573,12 @@ if ($Action -eq 'DataRoots' -or $Action -eq 'All') {
     # ④ 缺根必须 fail-closed（404/503），绝不能 200 + 应用根数据
     $missing = Join-Path $OutDir 'roots\missing-no-such'
     if (Test-Path $missing) { Remove-Item $missing -Recurse -Force }
-    $bp = Start-Backend $backendExe $missing $appB
+    # -CreateRoot:$false：不替被测对象建根。若这里建了，探针就变成
+    # 「空根是否 404」而不是「根不存在是否 fail-closed」——覆盖缺口。
+    $bp = Start-Backend $backendExe $missing $appB -CreateRoot:$false
+    $rootStillMissing = -not (Test-Path $missing)
+    Add-Record 'G2-4f0' '探针未擅自创建被测根' $(if ($rootStillMissing) { 'PASS' } else { 'FAIL' }) `
+        "root=$missing exists=$(Test-Path $missing)"
     $null = Wait-Health 20
     $mr = Invoke-Api 'GET' '/api/applications?ws=personal' $null 20
     $mrOk = ($mr.status -in 404, 503)
@@ -724,5 +741,17 @@ if ($Action -eq 'All') {
     Write-Host "  conclusion = $concl"
     Write-Host "  total=$($recs.Count) pass=$p fail=$f not_executed=$n infra_error=$e"
     Write-Host "  receipt    = $rp"
-    if ($f -gt 0) { exit 30 } else { exit 0 }
+    # **只有全 PASS 才允许 exit 0**。此前 INFRA_ERROR / NOT_EXECUTED 也会 exit 0，
+    # 结果是 job 变绿但收据结论不是 PASS —— 假绿，与静默跳过同类。
+    if ($concl -ne 'G2_RUNNER_FUNCTIONAL_PASS') {
+        $code = switch ($concl) {
+            'G2_FAIL' { 30 }
+            'G2_INCOMPLETE_INFRA' { 31 }
+            'G2_PARTIAL' { 32 }
+            default { 33 }
+        }
+        Write-Host "G2 未达 PASS（conclusion=$concl），exit=$code"
+        exit $code
+    }
+    exit 0
 }

@@ -18,7 +18,8 @@ param(
                  'Cleanup','State','Records','All')]
     [string]$Action = 'State',
     [string]$OutDir = '',
-    [int]$RunId = 0,
+    # GitHub run id 是 64 位（如 40437650451 > Int32.Max），必须 [long]
+    [long]$RunId = 0,
     [string]$ArtifactName = 'installer',
     [string]$ExpectedSha256 = '',
     [long]$ExpectedSize = 0,

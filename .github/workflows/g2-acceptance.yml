@@ -121,7 +121,8 @@ jobs:
           $out = Join-Path $env:RUNNER_TEMP 'g2'
           # **先赋变量**：`-Param ([int]'123')` 这种内联类型转换在参数位置会被拆成
           # 多个 token，导致 InvalidArgument（2026-10-26 run 40444177798 实测）。
-          $runId   = [int]'${{ github.event.inputs.run_id }}'
+          # run_id 是 64 位（如 40437650451 > Int32.Max），必须用 [long]
+          $runId   = [long]'${{ github.event.inputs.run_id }}'
           $artName = '${{ github.event.inputs.artifact_name }}'
           $expSha  = '${{ github.event.inputs.expected_sha256 }}'
           $expSize = [long]'${{ github.event.inputs.expected_size }}'

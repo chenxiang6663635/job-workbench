@@ -160,3 +160,34 @@ debug.log
 # 忽略只影响 git，本机照样编辑与生成（工作区发现只扫仓库根，所以必须留在原位）；
 # 模板里的空样例在 template/ 下，不受影响。历史中的 personal/ 已用 filter-repo 清除。
 personal/
+
+# ── 环境清理（2026-10-27，与产品无关的忽略规则）─────────────────────────
+
+# 点前缀的临时目录：上面 `/tmp_*`、`/tmp-*`、`/tmp*/` 三条都要求名字**以 t 开头**，
+# 写成 `.tmp-xxx` 一条都命中不了（2026-10-25 实测 `git check-ignore` 退出码 1）。
+# 实例：`.tmp-pillow`（`pip install --target`，219 文件）、`.tmp-remotion`
+# （Remotion 工程 + npm 缓存 + 内嵌第二层，16642 文件 / 677 MB）。
+.tmp-*/
+.tmp_*/
+
+# WorkBuddy 的运行时目录与发布标记。上面 `.workbuddy-ai/memory/` 是按**另一个**工具名写的，
+# 覆盖不到实际落盘的 `.workbuddy/`（applications.yaml + memory/*.md）与 `.wbapp_*.genie`。
+# 这两样是「作品由该工具创建/发布」的**活证据**：留在本机才有证明力，不应入库。
+/.workbuddy/
+/.wbapp_*.genie
+
+# 仓库根不是 node 工程（前端在 web/frontend、桌面端在 web/electron），
+# 根上的 package.json / package-lock.json 只可能来自一次性 `npm i`
+# （2026-10-25 实例：`npm i @remotion/cli` 装到了根）。
+# **前导斜杠是关键**：不带会把 web/frontend/package.json 这类真源一起吞掉。
+/package.json
+/package-lock.json
+
+# 仓库根的一次性产物：CLI 安装日志、探针二维码、封面截图。同样用前导斜杠限定作用域。
+/*.log
+/shot*.png
+/qr_*.png
+
+# 独立发布工作区的内部标记：应用绑定按工作区根计算，嵌套目录需单独忽略。
+/contest-1024-live/.wbapp_*.genie
+/contest-1024-live/.workbuddy/

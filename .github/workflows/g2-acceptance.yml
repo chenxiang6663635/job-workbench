@@ -119,12 +119,31 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $out = Join-Path $env:RUNNER_TEMP 'g2'
-          & ./scripts/g2-acceptance.ps1 -Action All -OutDir $out `
-              -RunId ([int]'${{ github.event.inputs.run_id }}') `
-              -ArtifactName '${{ github.event.inputs.artifact_name }}' `
-              -ExpectedSha256 '${{ github.event.inputs.expected_sha256 }}' `
-              -ExpectedSize ([long]'${{ github.event.inputs.expected_size }}')
-          "g2_exit=$LASTEXITCODE" | Tee-Object -FilePath (Join-Path $out 'exit.txt')
+          # **先赋变量**：`-Param ([int]'123')` 这种内联类型转换在参数位置会被拆成
+          # 多个 token，导致 InvalidArgument（2026-10-26 run 40444177798 实测）。
+          $runId   = [int]'${{ github.event.inputs.run_id }}'
+          $artName = '${{ github.event.inputs.artifact_name }}'
+          $expSha  = '${{ github.event.inputs.expected_sha256 }}'
+          $expSize = [long]'${{ github.event.inputs.expected_size }}'
+          Write-Host "参数: run_id=$runId artifact=$artName size=$expSize"
+          Write-Host "     sha256=$expSha"
+          # 用 try/finally 保证失败也写 exit.txt —— 否则收据全空、无法审计
+          $rc = 0
+          try {
+              & ./scripts/g2-acceptance.ps1 -Action All -OutDir $out `
+                  -RunId $runId -ArtifactName $artName `
+                  -ExpectedSha256 $expSha -ExpectedSize $expSize
+              $rc = $LASTEXITCODE
+          } catch {
+              $rc = 99
+              Write-Host "::error::g2-acceptance 抛出未捕获异常：$($_.Exception.Message)"
+              $_.ScriptStackTrace | Out-File (Join-Path $out 'error-stack.txt') -Encoding utf8
+          } finally {
+              "g2_exit=$rc" | Tee-Object -FilePath (Join-Path $out 'exit.txt')
+              # 记录实际 head_sha（收据内部不记录，审计靠这个）
+              "head_sha=$(git rev-parse HEAD)" | Tee-Object -Append -FilePath (Join-Path $out 'exit.txt')
+          }
+          if ($rc -ne 0) { throw "G2 验收未全部通过（exit=$rc），详见收据" }
 
       - name: 上传收据
         if: always()
@@ -139,5 +158,7 @@ jobs:
             ${{ runner.temp }}/g2/backend.stdout.log
             ${{ runner.temp }}/g2/backend.stderr.log
             ${{ runner.temp }}/g2/exit.txt
+            ${{ runner.temp }}/g2/error-stack.txt
+            ${{ runner.temp }}/g2/check_g3.py
           if-no-files-found: warn
           retention-days: 30

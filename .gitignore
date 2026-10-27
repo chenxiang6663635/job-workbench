@@ -188,6 +188,10 @@ personal/
 /shot*.png
 /qr_*.png
 
-# 独立发布工作区的内部标记：应用绑定按工作区根计算，嵌套目录需单独忽略。
-/contest-1024-live/.wbapp_*.genie
-/contest-1024-live/.workbuddy/
+# 参赛演示的**发布副本**与素材目录：都不入库，但理由不同。
+#   · contest-1024-live/：发布时的工作副本。index.html 与 contest-1024/index.html 逐字节相同
+#     （已归档），其余是 WorkBuddy 的内部标记（.genie / .workbuddy）。
+#   · contest-shots/：创作过程的截图、封面、样片与提交回执。含本机路径与账号信息，
+#     按 2026-10-27 裁决**刻意不入库**——留在本机才是活证据。
+/contest-1024-live/
+/contest-shots/

@@ -135,6 +135,23 @@ Rep 'RunId 用 [long] 而非 [int]' (
     ($src -match '\[long\]\$RunId')
 ) 'GitHub run id 是 64 位；[int] 会在真实 run 上直接失败（run 40445221109 实测）'
 
+# --- run 40446372140：26/31 PASS，5 个 FAIL 全是 http=0，暴露三处脚本缺陷 ---
+# ① splatting 的哈希表不能叫 $args（PowerShell 自动变量）
+Rep 'Invoke-WebRequest 的 splatting 变量不叫 $args' (
+    ($src -notmatch '(?m)^\s*\$args\s*=\s*@\{') -and ($src -match '\$iwArgs\s*=\s*@\{')
+) '$args 是函数参数自动变量，赋值让 GET 成功、POST 全部 http=0'
+
+# ② Save-State 必须合并，否则收据 identity 丢前面阶段的字段
+Rep 'Save-State 合并而非覆盖' (
+    ($src -match 'foreach \(\$p in \$prev\.PSObject\.Properties\)') -and
+    ($src -match '\$cur\[\$p\.Name\] = \$p\.Value')
+) 'run 40446372140 实测：identity.run_id / exe_sha256 全为 null（被 Install 覆盖）'
+
+# ③ PDF 响应是相对数据根的路径，必须拼接
+Rep 'PDF 响应相对路径拼到数据根' (
+    ($src -match 'IsPathRooted\(\$pdfPath\)') -and ($src -match 'Join-Path \(Join-Path \$rootB .personal.\)')
+) 'run 40446372140 实测：pdf=02_简历工坊/pdf/简历_demo.pdf，直接 Test-Path 会 FAIL'
+
 Write-Host ''
 Write-Host '=== B. 反向验证：输入闸门必须真的会拒 ==='
 

@@ -76,7 +76,7 @@ def build_dists(drop=(), extra=(), override=None, editable=(), first_party_hash=
     return {"dists": rows}
 
 
-def run_checker(tmp_path, dists, lock_text=None):
+def run_checker(tmp_path, dists, lock_text=None, strict=False):
     """跑检查器（注入模式），返回 (退出码, 结果 dict)。lock_text 可替换锁内容。"""
     fake = tmp_path / "installed.json"
     fake.write_text(json.dumps(dists), encoding="utf-8")
@@ -85,11 +85,12 @@ def run_checker(tmp_path, dists, lock_text=None):
         lock_path = tmp_path / "custom.lock"
         lock_path.write_text(lock_text, encoding="utf-8")
     report = tmp_path / "report.json"
-    proc = subprocess.run(
-        [sys.executable, str(CHECKER), "--lock", str(lock_path),
-         "--installed-json", str(fake), "--json-out", str(report)],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-    )
+    cmd = [sys.executable, str(CHECKER), "--lock", str(lock_path),
+           "--installed-json", str(fake), "--json-out", str(report)]
+    if strict:
+        cmd.append("--strict")
+    proc = subprocess.run(cmd, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
     assert report.is_file(), "检查器未产出 JSON：%s" % (proc.stdout + proc.stderr)
     return proc.returncode, json.loads(report.read_text(encoding="utf-8"))
 
@@ -137,15 +138,35 @@ def test_first_party_missing_wheel_hash_is_gap_not_fail(tmp_path):
     """目录安装（有来源、无 wheel 哈希）→ C5 仍过，C5b 记 SKIP 缺口。
 
     这是分工的关键：只防 editable 防不了「装的是上次构建的旧 wheel」。
-    缺口不能算产品失败（rc 仍 0），但必须在结果里看得见。
+    非 strict 下缺口不阻断，但必须用**独立退出码 3** 让调用方看得见
+    （2026-10-27 收紧：此前 SKIP 返回 0，与「全 PASS」无法区分）。
     """
     rc, res = run_checker(tmp_path, build_dists(first_party_hash=False))
     status = {r["id"].split()[0]: r["status"] for r in res["rows"]}
-    assert rc == 0, "缺口不应被算成失败：%s" % failed_ids(res)
+    assert rc == 3, "缺口应返回 3（PASS_WITH_GAPS），实际 %d：%s" % (rc, failed_ids(res))
+    assert res["gaps"] >= 1 and res["exit_code"] == 3
     assert status["C5"] == "PASS"
     assert status["C5b"] == "SKIP"
     c5b = next(r for r in res["rows"] if r["id"].startswith("C5b"))
     assert "无 wheel 哈希" in c5b["detail"]
+
+
+def test_gap_is_rejected_under_strict(tmp_path):
+    """--strict（构建入口用的模式）下，同样的缺口必须变成失败。
+
+    G4 要签「第一方构建来源完整可追溯」，签署版不能含 SKIP——
+    否则「没拿到证据」会被读成「证据齐全」。
+    """
+    rc, res = run_checker(tmp_path, build_dists(first_party_hash=False), strict=True)
+    assert rc == 1, "strict 下缺口必须拒绝，实际 rc=%d" % rc
+    assert res["strict"] is True and res["all_ok"] is False
+
+
+def test_clean_environment_passes_under_strict(tmp_path):
+    """无缺口时 strict 不应误伤——满证据的环境照常 PASS。"""
+    rc, res = run_checker(tmp_path, build_dists(), strict=True)
+    assert rc == 0, failed_ids(res)
+    assert res["gaps"] == 0
 
 
 def test_lock_with_first_party_leaks_layer_fails(tmp_path):

@@ -125,12 +125,17 @@ if (-not (Test-Path $envChecker)) {
     exit 1
 }
 
-Write-Host "构建环境准入检查（build-requirements.lock）..." -ForegroundColor Yellow
-& $Py $envChecker --lock $lockPath --json-out $envReport
+Write-Host "构建环境准入检查（build-requirements.lock，strict）..." -ForegroundColor Yellow
+# --strict（2026-10-27 收紧）：缺口（SKIP）也算失败。
+# 缺口的例子：第一方包是目录安装（无 wheel 哈希）、环境里没有 pip 导致 C7 跑不了。
+# 构建入口不接受"证据没拿到但也没报错"——那样的制品说不清是谁构建的。
+& $Py $envChecker --lock $lockPath --json-out $envReport --strict
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "构建环境与锁不一致——拒绝产出。明细：$envReport" -ForegroundColor Red
+    Write-Host "构建环境未达签署要求（不一致或存在缺口）——拒绝产出。明细：$envReport" -ForegroundColor Red
     Write-Host "  按锁收敛环境（第三方）：$Py -m pip install --require-hashes --only-binary :all: -r `"$lockPath`"" -ForegroundColor Yellow
-    Write-Host "  第一方包须从本次检出构建（非 editable）：$Py -m pip install --force-reinstall --no-deps .\packages\jobws-core .\mcp" -ForegroundColor Yellow
+    Write-Host "  第一方包必须以 **wheel**（非 editable、非目录）安装，才有可核验哈希：" -ForegroundColor Yellow
+    Write-Host "    $Py -m pip wheel .\packages\jobws-core .\mcp -w dist --no-deps" -ForegroundColor Yellow
+    Write-Host "    $Py -m pip install --force-reinstall --no-deps dist\jobws_core-*.whl dist\jobws_mcp-*.whl" -ForegroundColor Yellow
     exit 1
 }
 Write-Host "构建环境准入通过（与锁集合相等）" -ForegroundColor Green

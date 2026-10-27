@@ -22,6 +22,10 @@ Thumbs.db
 # uv.lock（mcp 依赖树）。其余 *.lock（运行时文件锁等）继续忽略。
 !web/backend/requirements.lock
 !uv.lock
+# 例外（2026-10-27）：MCP 构建依赖锁。它是构建侧唯一依据（build_mcp_exe.ps1 按它
+# 校验环境），必须入库——否则新克隆的仓库里构建入口会因"缺 lock"直接 exit 1。
+# 与上面两条同理：可复现锁文件是**源**，不是运行时产物。
+!mcp/build-requirements.lock
 node_modules/
 dist/
 build/

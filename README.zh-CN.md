@@ -13,11 +13,11 @@
 
 > 版本号是月粒度 CalVer `YY.MM.N`（`26.9.0` = 当月第一次发布，hotfix 只递增第三位）。安装包**未经代码签名**——首次运行 Windows 可能显示「Windows 已保护你的电脑」，见「下载」一节的处理方式。
 
-一个**本地优先、AI 可审计**的求职工作台：从 JD 解析到 offer 决策的完整链路，用纯 Markdown 与 CSV 管理在你自己的磁盘上——可以从**桌面端、浏览器或你自己的 AI CLI** 三种入口驱动。
+一个**本地优先、注重 AI 输出可审计性**的职业行动工作台，**目前聚焦从岗位分析到 Offer 复盘的求职流程**：数据以纯 Markdown 与 CSV 存在你自己的磁盘上——**桌面端（含浏览器界面）、命令行、AI 宿主（MCP）、编辑器插件** 四个入口驱动同一套数据，说法与确认方式对齐，逐项见 [`docs/four-ends.md`](docs/four-ends.md)。
 
 ## 为什么做这个项目
 
-求职意味着敏感的个人数据（简历、电话、投递历史）——以及可能悄悄编造事实的 AI 输出。这个项目围绕三个回答构建：
+求职意味着敏感的个人数据（简历、电话、投递历史）——以及可能悄悄编造事实的 AI 输出。这个项目围绕四个回答构建：
 
 - **本地优先的隐私**。一切以纯文本存在你自己的磁盘上——git 能 diff、Excel 能打开、无遥测、**没有云端服务器**（桌面端启动的本地后端只监听 127.0.0.1）。真实个人数据留在 `personal/`（整体 gitignore）：克隆本仓库得到空工作区，你可以放心公开 fork 而不泄露任何东西。
 - **可审计的 AI，而非黑箱自动化**。你自己的 AI CLI（BYOK 模型）做语义判断——读 JD、评匹配度；Python 脚本做一切确定性的事：资格门槛、评分校验、PDF 生成、追踪表读写——且每个自动判定（投递健康度、CSV 导入差异、失败聚类）都附带明确的、可人工核对的**理由**，绝不是一个裸分数。
@@ -59,14 +59,24 @@
 
 以下页面全部由 demo 数据生成（`jobws init --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。两套图由 `web/frontend` 下的 `npm.cmd run capture` 产出——页面改了就重跑它，不要手工重拍。
 
-![看板](docs/screenshots/zh-CN/01-dashboard.png)
-![追踪表](docs/screenshots/zh-CN/02-applications.png)
-![岗位池](docs/screenshots/zh-CN/03-jobs.png)
-![简历工坊](docs/screenshots/zh-CN/04-resume.png)
-![准备](docs/screenshots/zh-CN/05-prepare.png)
-![进展](docs/screenshots/zh-CN/06-progress.png)
-![素材库](docs/screenshots/zh-CN/07-library.png)
-![设置](docs/screenshots/zh-CN/08-settings.png)
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/zh-CN/01-dashboard.png" alt="看板"></td>
+    <td width="50%"><img src="docs/screenshots/zh-CN/02-applications.png" alt="追踪表"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/zh-CN/03-jobs.png" alt="岗位池"></td>
+    <td width="50%"><img src="docs/screenshots/zh-CN/04-resume.png" alt="简历工坊"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/zh-CN/05-prepare.png" alt="准备"></td>
+    <td width="50%"><img src="docs/screenshots/zh-CN/06-progress.png" alt="进展"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/zh-CN/07-library.png" alt="素材库"></td>
+    <td width="50%"><img src="docs/screenshots/zh-CN/08-settings.png" alt="设置"></td>
+  </tr>
+</table>
 
 ## 快速开始
 

@@ -11,7 +11,7 @@
 
 > Version numbers are month-granularity CalVer `YY.MM.N` (`26.9.0` = first release of the month; a hotfix bumps `N`). The installer is **not code-signed** — see [Download](#download) for what Windows may show on first run.
 
-A **local-first, auditable AI-assisted job-search workbench**: run the whole pipeline — from JD analysis to offer decision — in plain Markdown & CSV on your own disk. Drive it from the desktop app, the browser, or your own AI CLI.
+A **local-first career-action workbench built around auditable AI output**, currently focused on the job-search pipeline: from JD analysis to offer review. Data lives in plain Markdown & CSV on your own disk; four entry points drive the same data — **desktop app (with its browser UI), CLI, your own AI host (MCP), and editor plugins** — with matching wording and confirmation semantics (per-entry matrix: [`docs/four-ends.md`](docs/four-ends.md)).
 
 English | [简体中文](README.zh-CN.md)
 
@@ -19,7 +19,7 @@ English | [简体中文](README.zh-CN.md)
 
 ## Why job-workbench
 
-Job hunting means sensitive personal data (resumes, phone numbers, employer history) — and AI outputs that can quietly fabricate facts. This project is built around three answers:
+Job hunting means sensitive personal data (resumes, phone numbers, employer history) — and AI outputs that can quietly fabricate facts. This project is built around four answers:
 
 - **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, and **no cloud server** (the desktop app starts a local backend that listens on 127.0.0.1 only). Real personal data stays in `personal/`, which is fully git-ignored: a fresh clone gives you an empty workspace, and you can fork this repo without leaking a thing.
 - **Auditable AI, not black-box automation.** Your own AI CLI (BYOK models) does the semantic judgment — reading the JD, scoring fit. Python scripts do everything deterministic: eligibility gates, score validation, PDF generation, tracker I/O — and every automated verdict (application health, CSV import diffs, failure clustering) comes with explicit, human-checkable **reasons**, never a bare score.
@@ -61,13 +61,24 @@ The workbench turns all of that into queryable, traceable files.
 
 All pages below run on generated demo data (`jobws init --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information. The two sets are produced by `npm.cmd run capture` in `web/frontend` — rerun it after any page change instead of retaking shots by hand.
 
-![Tracker](docs/screenshots/02-applications.png)
-![Jobs](docs/screenshots/03-jobs.png)
-![Resume workshop](docs/screenshots/04-resume.png)
-![Prepare](docs/screenshots/05-prepare.png)
-![Progress](docs/screenshots/06-progress.png)
-![Library](docs/screenshots/07-library.png)
-![Settings](docs/screenshots/08-settings.png)
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/02-applications.png" alt="Tracker"></td>
+    <td width="50%"><img src="docs/screenshots/03-jobs.png" alt="Jobs"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/04-resume.png" alt="Resume workshop"></td>
+    <td width="50%"><img src="docs/screenshots/05-prepare.png" alt="Prepare"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/06-progress.png" alt="Progress"></td>
+    <td width="50%"><img src="docs/screenshots/07-library.png" alt="Library"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/08-settings.png" alt="Settings"></td>
+    <td width="50%"></td>
+  </tr>
+</table>
 
 ## Quick start
 

@@ -123,15 +123,40 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\upgrade-smoke.ps1 `
 如果只有本地构建有问题      → 本地验证不可靠，一切以 CI 产出为准
 ```
 
-**下一步必须做的**（本轮未做，因为需要跑完整 workflow）：
+### 已确认：**是本地构建环境的问题，不是产品问题**
+
+跑了 `gh workflow run release.yml -f dry_run=true -f tag=v26.10.0`（run `40693641970`），
+job「构建 Windows 安装包」**`completed/success`**。
+
+而 `release.yml` L352-384 本来就带**完整的静默安装 + 卸载冒烟**：
 
 ```powershell
-gh workflow run release.yml -f dry_run=true -f tag=v26.11.0-rc
-# 或任意可用 tag —— 目的是拿 CI 构建的安装包
-# 然后用它的产物重复上面的 /S 安装测试
+$proc = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
+if ($proc.ExitCode -ne 0) { throw "静默安装失败（exit $($proc.ExitCode)）" }
+...  # 探 %LOCALAPPDATA%\Programs 下的卸载器
+$uninst = Start-Process -FilePath $uninstaller.FullName -ArgumentList "/S" -Wait -PassThru
+if ($uninst.ExitCode -ne 0) { throw "静默卸载失败（exit $($uninst.ExitCode)）" }
 ```
 
-**在此之前，不要用本地构建的包去验证升级链**——那会得到误导性结论。
+**所以 CI 构建的安装包 `/S` 是通的**（否则那个 job 会红）。
+
+**结论**：
+
+| 判断 | 结果 |
+|---|---|
+| 26.11.0 会装不上吗 | **不会**——CI 构建的包能静默装 |
+| 本地构建的包为什么不行 | **未确认**。最可能是本地 `node_modules` 在 Electron 44.4.5 → 44.10.0 升级后状态不一致（`npm install` 只 changed 1 package，且二进制是手动补下的） |
+| 该怎么验升级链 | **用 CI 产出的安装包**，不是本地构建的 |
+
+**操作纪律**（比原来那句更准确）：
+
+> 本地构建只用于**验证构建链路本身**（能不能产出 NSIS 包）。
+> **任何"能不能装 / 能不能升级"的判断，一律用 CI 产出的 artifact**——
+> 本地环境存在未定位的差异，拿它下结论会误导。
+
+**仍待确认的一件事**：CI artifact 的下载（131 MB）在本机网络下会中途断（`unexpected EOF` / `curl exit 56`），
+所以「用 CI 包跑 upgrade-smoke」这一步**还没在本机执行过**。这属于网络问题，不是产品问题；
+在 CI runner 内部直接跑（`upgrade-smoke.ps1` 设计上就是给一次性 runner 用的）不受影响。
 
 `-FailInjection` 可注入一条非致命 FAIL 验证「断言失败 → 退出码非 0」这条链路；
 `upgrade-smoke.selftest.ps1` 是判据函数的自检（**通过它不代表安装验收通过**）。

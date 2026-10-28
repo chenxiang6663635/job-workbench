@@ -22,6 +22,8 @@
 
 ## [Unreleased]
 
+- **启动时默认不再复用端口上已有的后端（2026-10-28）**：桌面端启动会先探测 `127.0.0.1:8765`，此前只要对方回 `{"status":"ok"}` 就直接**附着**上去——但它可能是**另一个工作台实例**，指向另一个数据根，等于「界面连到别人的数据」。现在默认拒绝附着并明确提示冲突；确需复用（自己用 `start.ps1` 起的后端）时设 `JOBWS_ALLOW_REUSE=1`。同一轮里后端 `/api/health` 补了 `service` 与 `instance_id`：只验 `status` 挡不住陌生服务（`{"status":"ok","service":"unrelated"}` 此前会被接受），也分辨不出「同一个产品的另一个实例」。开发脚本 `start.ps1` 不再结束任何预存进程——原实现会在端口被占时 `Stop-Process -Force`，连 `-CheckOnly`（声称只检查环境）也会走到那段。
+
 - **DSH 独立安装：首次使用自动初始化工作区（2026-10-19）**：只装插件的机器上，`<data_root>/personal` 不存在会让 MCP server 在建服务前就退出（退出码 2），**17 个工具一个都不注册**——此前只有装过桌面版的机器才「装着就能用」。现在 `jobws-mcp.exe --init` 把随包 `template/workspace` 铺成空骨架（14 个文件 / 6 个模块，幂等、不覆盖已有文件），`install.ps1` 装完自动跑一次；**未设** `JOBWS_DATA_DIR`／`JOBWS_WORKSPACE` 时首次启动自动初始化并在 stderr 说明，**设了但目录不存在**时仍然报错（避免把拼错的路径悄悄建成工作区）。工作区缺失的报错文案也改为指向 `--init`。
 
 ### Highlights (English)

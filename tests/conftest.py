@@ -75,6 +75,22 @@ def _never_touch_real_credential_manager(monkeypatch):
     monkeypatch.setenv("JOBWS_CREDENTIAL_STORE", "plaintext")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_approval_store(tmp_path, monkeypatch):
+    """令牌目录按用例隔离（2026-10-28）。
+
+    为什么需要：`approval._store_dir()` 默认落在**全局** `$TEMP/jobws-approvals`——
+    同一用户下并行跑的进程共用同一个令牌目录。生产上这是设计（令牌本就跨进程可见，
+    靠载荷指纹与单次使用约束），但测试里会互相干扰：两个用例并行创建 / 消耗令牌时
+    偶发失败（实测两次：`test_prep_toggle.py::test_token_is_single_use`、
+    `test_mails.py::test_cli_mail_preview_token_flow`）。
+
+    隔离手段是 `JOBWS_APPROVAL_DIR`（生产不设，行为完全不变）；`_store_dir()` 在
+    **调用时**读环境变量，所以 function 级 fixture 对 module 级 client 同样生效。
+    """
+    monkeypatch.setenv("JOBWS_APPROVAL_DIR", str(tmp_path / "jobws-approvals"))
+
+
 BASELINE = (3, 12)
 
 

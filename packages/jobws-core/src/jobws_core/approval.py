@@ -88,7 +88,10 @@ def _store_dir():
     澄清一句：「预览不落盘」指的是**不碰用户数据**——预览会在系统临时目录里建
     这个目录、写一份令牌，那是协议自身的簿记，与工作区无关（独立审查 M2）。
     """
-    path = os.path.join(tempfile.gettempdir(), "jobws-approvals")
+    # JOBWS_APPROVAL_DIR 覆盖：默认是全局 $TEMP，并行进程共用——生产上是设计，
+    # 但测试会互相干扰。理由与隔离方式见 tests/conftest.py 的 _isolate_approval_store。
+    override = os.environ.get("JOBWS_APPROVAL_DIR", "").strip()
+    path = override or os.path.join(tempfile.gettempdir(), "jobws-approvals")
     os.makedirs(path, exist_ok=True)
     return path
 

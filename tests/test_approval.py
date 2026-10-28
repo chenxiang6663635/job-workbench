@@ -237,3 +237,25 @@ def test_unknown_operation_is_rejected(tokens, workspace):
         approval.apply(result["token"])
 
     assert "未知操作" in str(ei.value)
+
+# ---- 令牌目录可覆盖（2026-10-28）------------------------------------------------
+# 默认落在全局 $TEMP/jobws-approvals：同一用户下并行进程共用，生产上是设计
+# （令牌跨进程可见、靠指纹与单次使用约束），但测试会互相干扰——实测两次偶发失败
+# （test_token_is_single_use / test_cli_mail_preview_token_flow）。
+# conftest 的 autouse fixture 用本变量按用例隔离；这里钉住「覆盖生效 + 不设时回默认」。
+
+
+def test_store_dir_honors_env_override(monkeypatch, tmp_path):
+    target = tmp_path / "custom-approvals"
+    monkeypatch.setenv("JOBWS_APPROVAL_DIR", str(target))
+    assert approval._store_dir() == str(target)
+    assert target.is_dir(), "覆盖目录应被创建"
+
+
+def test_store_dir_falls_back_to_temp_when_unset(monkeypatch):
+    import os
+    import tempfile
+
+    monkeypatch.delenv("JOBWS_APPROVAL_DIR", raising=False)
+    d = approval._store_dir()
+    assert d == os.path.join(tempfile.gettempdir(), "jobws-approvals"), d

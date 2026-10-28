@@ -94,6 +94,14 @@ ipcMain.handle("prefs:get", () => {
 
 app.whenReady().then(() => {
   if (!single.hasLock) return; // 已请求退出的第二实例：不再拉起后端与窗口
+
+  // 运行时身份（2026-10-28 审计要求）：出问题时「用户跑的是哪个 Electron」必须可回答。
+  // 之前只能靠 package-lock 推断，而打包产物可能在别处解析到不同版本——这里记的是
+  // **实际加载的那个运行时**，与锁文件不是一回事。
+  log(
+    `Runtime: app=${app.getVersion()} electron=${process.versions.electron} `
+    + `node=${process.versions.node} execPath=${process.execPath}`,
+  );
   // 缩放偏好在 ready 后加载：loadFromDisk 走 app.getPath("userData")
   prefs.loadFromDisk();
   navigation.installCsp();

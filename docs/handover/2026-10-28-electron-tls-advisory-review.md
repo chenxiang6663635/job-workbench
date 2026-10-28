@@ -62,6 +62,48 @@
 - **不要**趁这次跳 Electron 大版本（那需要单独的兼容性评估，见 ROADMAP 候选池的
   「Electron 主版本升级」）。
 
+## 四之补 · 实际升级记录（2026-10-28 已执行）
+
+**已升级到 `electron@44.10.0`**（`web/electron/package.json` 声明改为 `^44.9.1`，
+lock 解析到 44.10.0）。这满足了「44 系列 ≥ 44.9.1」的修复要求。
+
+### 踩到的坑：二进制下载必须走镜像
+
+`npm install` 本身 5 秒完成，但 **`dist/` 没下载**（只装了 JS 包）。
+手动跑 `node node_modules/electron/install.js` 时，从 GitHub releases 下载
+**112 秒后 TLS 失败**。
+
+改用镜像后 **16 秒成功**：
+
+```powershell
+$env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
+node node_modules/electron/install.js
+```
+
+> **这不是可选项**：没有 `dist/` 就无法打包（`electron-builder` 需要真实二进制），
+> 而 `npm install` 成功不代表二进制就位——**必须检查 `node_modules/electron/dist/electron.exe` 是否存在**。
+
+### 升级后的验收
+
+| 项 | 结果 |
+|---|---|
+| lock 版本 | `44.10.0`（resolved 指向 registry 的 44.10.0.tgz） |
+| 二进制 | ✅ `dist/` 73 文件 / 367 MB，`path.txt` = `electron.exe` |
+| `check_packaging` | ✅ OK（17 依赖 / 18 模块） |
+| Electron 单测（10 个文件） | ✅ 全部 exit 0 |
+| 前端 `lint` / `tsc` / `vite build` | ✅ 0 error；dist 126 文件 / 3.2 MB |
+
+### 运行时版本证据
+
+`main.js` 启动时新增一行日志（2026-10-28 审计要求）：
+
+```
+Runtime: app=<app.getVersion()> electron=<process.versions.electron> node=<process.versions.node> execPath=<process.execPath>
+```
+
+记的是**实际加载的运行时**，不是锁文件里的声明——两者可能不同（打包产物的解析路径
+与源码树不是一回事）。
+
 ## 五、落章前必须回答的两个问题
 
 1. **打包制品用的确切运行时**：`electron-builder` 打出来的 asar 外层运行时，是否就是

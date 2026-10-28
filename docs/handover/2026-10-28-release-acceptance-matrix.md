@@ -41,6 +41,29 @@
 
 > 「26.10.0 → 26.10.1 的 D′ 验收通过」**不能替代**「26.10.1 → 26.11.0」——那是不同的一对版本。
 
+### 怎么跑（26.11.0 落章后，一条命令）
+
+`scripts/upgrade-smoke.ps1` 原先硬编码了 26.10.0 与 26.10.1 RC 的 SHA256（审计指出的
+「正式包全量升级测试被硬编码 RC 哈希挡住」就是这个）。**2026-10-28 已参数化**：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\upgrade-smoke.ps1 `
+  -OldExe   <26.10.1 正式安装包>  -OldSha256 <其 SHA256>  -OldLabel "26.10.1" `
+  -NewExe   <26.11.0 候选安装包>  -NewSha256 <其 SHA256>  -NewLabel "26.11.0"
+```
+
+默认值仍是原来那一对（向后兼容），所以既有用法不受影响。
+
+**三条使用纪律**：
+
+1. **在一次性 Windows runner 上跑**——脚本前置是 fail-closed：要求 8765 端口空闲、
+   无既有卸载登记、无相关进程、测试目录不存在。在开发者日常机器上跑会被拒绝。
+2. **不要为跑通而填空哈希或跳过校验**——那会让身份断言变成装饰，收据也就失去意义。
+3. **它验不了「自动更新」**（那是 D′-2，`autoUpdater` 的路径），只验**覆盖安装**。
+
+`-FailInjection` 可注入一条非致命 FAIL 验证「断言失败 → 退出码非 0」这条链路；
+`upgrade-smoke.selftest.ps1` 是判据函数的自检（**通过它不代表安装验收通过**）。
+
 ## 三、风险签署（P0-4）
 
 `docs/releases/26.10.1-post-release-risk-acceptance.md` §五 仍是「☐ 待签」，

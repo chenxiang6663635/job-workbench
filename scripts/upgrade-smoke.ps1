@@ -20,10 +20,18 @@
     P1   收据在**任何失败路径**都生成（主体包 try/finally，写收据本身不抛错）
 
 .PARAMETER OldExe
-  官方 26.10.0 安装包（SHA256 必须 = 197fe105…）。
+  旧版安装包（默认语义：官方 26.10.0）。
 
 .PARAMETER NewExe
-  26.10.1 RC 安装包（SHA256 必须 = fbc6bbee…）。
+  新版安装包（默认语义：26.10.1 RC）。
+
+.PARAMETER OldSha256 / NewSha256
+  两个安装包的期望 SHA256。**2026-10-28 参数化**：原先是硬编码，只能验
+  26.10.0 → 26.10.1 RC 这一对，正式包的全量升级测试被它挡住（审计指出）。
+  默认值保持原样（向后兼容）；26.11.0 落章后传新哈希即可验 26.10.1 → 26.11.0。
+
+.PARAMETER OldLabel / NewLabel
+  人读版本标签，只进收据与日志文案，不参与判据。
 
 .PARAMETER BaseDir
   测试根（一次性 runner 上默认 RUNNER_TEMP）。
@@ -39,7 +47,20 @@ param(
   [string] $ReceiptPath = '',
   # 失败注入（仅供 selftest）：注入一条非致命 FAIL 后立即收尾，
   # 用来证明「断言 FAIL → 退出码非 0」这条链路真的成立。正式运行不传。
-  [switch] $FailInjection
+  [switch] $FailInjection,
+
+  # ── 安装包身份（2026-10-28 参数化）────────────────────────────────────────────
+  # 原先把两个 SHA256 硬编码在脚本里，只能验「26.10.0 → 26.10.1 RC」这一对。
+  # 后果（审计指出）：正式包的全量升级测试被这条硬编码挡住——传别的包一律
+  # 「身份不符，拒绝继续」。改成参数后默认值保持原样（向后兼容），
+  # 26.11.0 落章后传新哈希即可验「26.10.1 → 26.11.0」。
+  #
+  # **不要为了让脚本跑通而填一个空字符串或跳过校验**——那会让身份断言变成装饰。
+  [string] $OldSha256 = '197fe10593eb50b127c87aaa690ad575aee7dc38b001110de5421e4df52ca954',
+  [string] $NewSha256 = 'fbc6bbeebbc0e9af6c592e78591c3328f4adc9a7898208244b7bcfe1e75615c7',
+  # 人读标签，只进收据与日志（不影响判据）
+  [string] $OldLabel = '26.10.0',
+  [string] $NewLabel = '26.10.1'
 )
 
 Set-StrictMode -Version 2.0
@@ -56,8 +77,7 @@ $AppId        = 'com.jobworkbench.app'          # 不可改：electron-builder �
 $BackendPort  = 8765
 $ApiBase      = "http://127.0.0.1:$BackendPort"
 $Workspace    = 'personal'
-$OldSha256    = '197fe10593eb50b127c87aaa690ad575aee7dc38b001110de5421e4df52ca954'
-$NewSha256    = 'fbc6bbeebbc0e9af6c592e78591c3328f4adc9a7898208244b7bcfe1e75615c7'
+# $OldSha256 / $NewSha256 / $OldLabel / $NewLabel 由 param 提供（2026-10-28 参数化）
 $SafePemSha   = '50F79F98DAC192B20DBF73F35C56F0B0C557AB267FF5199D1117CC1180B70785'
 # 注册表键名**不是** appId：electron-builder 用 UUID.v5(appId, NS_UUID) 派生 GUID
 # （NsisTarget.js:174-175 → guid = UUID.v5(appInfo.id, ...); uninstallAppKey = guid），
@@ -239,9 +259,10 @@ try {
   Require (Test-Path -LiteralPath $NewExe) "新版安装包不存在：$NewExe"
   $script:OldHash = Get-Sha256 $OldExe
   $script:NewHash = Get-Sha256 $NewExe
-  Record 'ID-1' '旧版 26.10.0 SHA256' ($script:OldHash -eq $OldSha256) $script:OldHash
-  Record 'ID-2' '新版 26.10.1 SHA256' ($script:NewHash -eq $NewSha256) $script:NewHash
-  Require ($script:OldHash -eq $OldSha256 -and $script:NewHash -eq $NewSha256) '安装包身份不符，拒绝继续'
+  Record 'ID-1' "旧版 $OldLabel SHA256" ($script:OldHash -eq $OldSha256) $script:OldHash
+  Record 'ID-2' "新版 $NewLabel SHA256" ($script:NewHash -eq $NewSha256) $script:NewHash
+  Require ($script:OldHash -eq $OldSha256 -and $script:NewHash -eq $NewSha256) `
+    "安装包身份不符，拒绝继续（期望 $OldLabel=$($OldSha256.Substring(0,8))… / $NewLabel=$($NewSha256.Substring(0,8))…）"
 
   # -------------------------------------------------------------- 1. 前置（fail-closed）
   Step 'Preflight（任一不满足即拒绝运行）' 'preflight'
@@ -283,7 +304,7 @@ try {
   Write-Host ($script:RunnerInfo | ConvertTo-Json -Compress) -ForegroundColor DarkGray
 
   # -------------------------------------------------------------- 2. 安装旧版
-  Step 'Install 26.10.0 (/S /D=)' 'install-old'
+  Step "Install $OldLabel (/S /D=)" 'install-old'
   Invoke-Installer $OldExe @("/D=$testDir")
   # 安装后按 DisplayName 定位真实键（GUID 形态），拿不到就拒绝继续——
   # 否则后续断言全在空值上做，会得出假 PASS。
@@ -297,7 +318,7 @@ try {
   if ([string]::IsNullOrWhiteSpace($installDir) -or -not (Test-Path -LiteralPath $installDir)) { $installDir = $testDir }
   $script:InstallDir = $installDir
 
-  Record 'IN-1' '旧版版本 = 26.10.0' ((Get-RegValue $UninstKey 'DisplayVersion') -eq '26.10.0') (Get-RegValue $UninstKey 'DisplayVersion')
+  Record 'IN-1' "旧版版本 = $OldLabel" ((Get-RegValue $UninstKey 'DisplayVersion') -eq $OldLabel) (Get-RegValue $UninstKey 'DisplayVersion')
   $oldBackend = Join-Path $installDir 'resources\backend\job-workbench-backend.exe'
   Record 'IN-2' '安装目录含后端 exe' (Test-Path -LiteralPath $oldBackend) $oldBackend
   Require (Test-Path -LiteralPath $oldBackend) '旧版安装缺后端 exe，无法继续（安装包不完整）'
@@ -377,10 +398,10 @@ try {
   }
 
   # -------------------------------------------------------------- 4. 覆盖升级（不带 /D=）
-  Step 'Upgrade to 26.10.1 (/S，不带 /D=)' 'upgrade'
+  Step "Upgrade to $NewLabel (/S，不带 /D=)" 'upgrade'
   Invoke-Installer $NewExe @()
   $newVersion = Get-RegValue $UninstKey 'DisplayVersion'
-  Record 'UP-1' '升级后版本 = 26.10.1' ($newVersion -eq '26.10.1') $newVersion
+  Record 'UP-1' "升级后版本 = $NewLabel" ($newVersion -eq $NewLabel) $newVersion
 
   $after = @{
     InstLoc    = Get-RegValue $AppKey 'InstallLocation'
@@ -442,7 +463,7 @@ try {
       Record 'RT-8a-1' 'dataRoot = 隔离数据根（JOBWS_DATA_DIR）' ($dr -ieq $expData) "actual=$dr"
       Record 'RT-8a-1b' 'workspace = dataRoot\personal（两级不同）' ($ws2 -ieq $expWs) "actual=$ws2"
       Record 'RT-8a-2' 'snapshotDir 位于隔离 APPDATA 下' ($sd.StartsWith($expSnapParent, 'OrdinalIgnoreCase')) "actual=$sd"
-      Record 'RT-8a-3' 'appVersion = 26.10.1' ([string]$p2.appVersion -eq '26.10.1') ([string]$p2.appVersion)
+      Record 'RT-8a-3' "appVersion = $NewLabel" ([string]$p2.appVersion -eq $NewLabel) ([string]$p2.appVersion)
       Record 'RT-8a-4' 'telemetry = false' ($p2.telemetry -eq $false) ([string]$p2.telemetry)
       # MAJOR-2：升级前后数据根一致性——两边都由各自版本的应用自报，非同源自比
       Record 'RT-8a-5' '升级前后数据根一致' ($dr -ieq [string]$script:DataRoot) "$($script:DataRoot) -> $dr"

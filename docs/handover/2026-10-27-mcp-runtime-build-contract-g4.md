@@ -21,8 +21,12 @@
 |---|---|---|
 | `LOCK_CONTENT_VALIDATED` | ✅ | PR #418：37 包闭包比对，519 个 hash，`.in`≡`.lock` 有测试 |
 | `HASH_INSTALL_TESTED` | ✅ | PR #418：干净 venv `--require-hashes` → exit 0，38 包（37 + pip），certifi=2026.10.19 |
-| `DECLARATIVE_BUILD_ENV_READY` | ❌ | 入口**只校验不安装**：依赖仍靠人工配 venv |
-| `REPRODUCIBILITY_EVALUATED` | ❌ | 从未做过两个独立环境构建 + 比整个 onedir |
+| `DECLARATIVE_BUILD_ENV_READY` | ✅ | `-FromLock` 已实现并实测：全新 venv + 按锁装 + `--no-build-isolation` + wheel 候选断言 |
+| `REPRODUCIBILITY_EVALUATED` | ✅ | 四轮比对（§5.2b）：三个根因逐个消除 |
+| **`REPRODUCIBILITY_PASS`** | ✅（**有边界**） | 227/227 文件逐字节一致；边界见 §5.2b——同机同路径，跨机器未证明 |
+
+> 上一行那个"有边界"不是谦辞：跨机器仍会因 venv 路径不同而不同（`Scripts/*.exe` 内嵌绝对路径、
+> `RECORD` 记录其哈希）。把构建路径相对路径化属独立工程目标，不在本轮。
 
 ## 三、当前构建链实际做了什么（逐段核对）
 
@@ -190,56 +194,62 @@ mcp/build-requirements.lock: setuptools==84.2.1   ← 运行时环境是钉死�
 
 **R1 不可省**：同一 venv 连续跑两次，即使哈希相同，也只有"该环境的重复构建一致性"，不能推到"独立环境可复现"。
 
-### 5.2b 实测记录（2026-10-27，本机）
+### 5.2b 实测记录（2026-10-27，本机四轮）
 
-真实跑了两轮「两个独立 venv」的比对，得到一条**可修复的根因**和一条**未闭合的残留**。
+从「6 个文件不同」一路收敛到「227 个文件逐字节一致」。三个根因、三次修复，每次都有前后数据。
 
-**第一轮（未设 `SOURCE_DATE_EPOCH`）**
+| 轮 | 改了什么 | R2 集合 | R3 哈希 | R5 exe |
+|---|---|---|---|---|
+| ① 基线 | — | ✅ 227 | ❌ 221/227（6 差） | ❌ `745ab93a` ≠ `5284e768` |
+| ② | `SOURCE_DATE_EPOCH` + 固定 wheel 暂存 | ✅ 227 | ⚠️ 224/227（3 差） | ✅ `3e2a2e2d` |
+| ③ | 固定 **venv** 路径 | ✅ 227 | ⚠️ 226/227（1 差） | ✅ `ace7654b` |
+| ④ | 再加 `PYTHONHASHSEED=0` | ✅ 227 | ✅ **227/227** | ✅ `ace7654b` |
 
-| 判据 | 结果 |
-|---|---|
-| R2 文件集合 | ✅ 227 = 227 |
-| R3 每文件哈希 | ❌ 221/227 相同，**6 个不同** |
-| R5 exe sha256 | ❌ `745ab93a…` ≠ `5284e768…` |
+#### 根因一：`pip wheel` 的 ZIP 时间戳（第 ①→② 轮）
 
-差异集中在：`jobws-mcp.exe`、`base_library.zip`、三个 `RECORD`、`direct_url.json`。
+`direct_url.json` 里 wheel 的 `sha256` 两次就不同（`062669d1…` vs `937c80d8…`）——
+说明**不可复现的是 wheel 本身**，不是安装过程。对照实验（独立 venv、同设
+`SOURCE_DATE_EPOCH=1700000000`）产出 `bec27ea2…` = `bec27ea2…`。
 
-**根因定位**：`direct_url.json` 里的 wheel `sha256` 两次都不同（`062669d1…` vs `937c80d8…`）——
-说明**不可复现的是 wheel 本身**，不是安装过程。对照实验（两个独立 venv、同设
-`SOURCE_DATE_EPOCH=1700000000`）产出 `bec27ea2…` = `bec27ea2…`，**完全相同**。
+修法：`SOURCE_DATE_EPOCH` = HEAD commit 时间（确定值、语义正确；取不到就拒绝构建）。
+这一轮同时让 `jobws-mcp.exe` 变得一致。
 
-结论：`pip wheel` 打出的 ZIP 条目时间戳取"当前时间"，不设 `SOURCE_DATE_EPOCH` 就每次不同。
+#### 根因二：venv 绝对路径被嵌进 launcher exe（第 ②→③ 轮）
 
-**第二轮（修复后：`SOURCE_DATE_EPOCH` = HEAD commit 时间 + 固定 wheel 暂存路径）**
+`RECORD` 里有一行 `../../Scripts/httpx2.exe`。实测该 launcher 的二进制里**含 venv 路径**
+（`jobws-mcp-build-c0f69a6f` vs `-ba71ea7b`），而 RECORD 记录它的 sha256，随 onedir 打包。
 
-| 判据 | 结果 |
-|---|---|
-| R2 文件集合 | ✅ 227 = 227 |
-| R3 每文件哈希 | ⚠️ 224/227 相同，**3 个不同** |
-| R4 version | ✅ |
-| **R5 exe sha256** | ✅ **`3e2a2e2d…` = `3e2a2e2d…`** |
+修法：venv 路径固定为 `jobws-mcp-build-fromlock`（每次先删后建，仍是全新环境）。
+加上第 ② 轮固定的 wheel 暂存路径，`direct_url.json` 与两个 `RECORD` 全部不再漂移。
 
-**所以本轮结论是分级的**：
+#### 根因三：`PYTHONHASHSEED` 导致的 zip 条目顺序（第 ③→④ 轮）
+
+`base_library.zip` 的时间戳**早已固定**为 `(1980,1,1,0,0,0)`（PyInstaller 硬编码），
+所以不是时间问题。但条目顺序不是字母序（`genericpath.pyc` 在 `copyreg.pyc` 之前），
+说明是遍历序——PyInstaller 内部大量用 `set` 收集模块，而 str 哈希默认随机。
+
+修法：`PYTHONHASHSEED=0`。这一轮之后 155 个 `.pyc` 逐字节一致。
+
+#### 最终签署
 
 ```
 REPRODUCIBILITY_EVALUATED = true
-REPRODUCIBILITY_PASS      = false   ← R3 未全过
-R5（核心产物 exe）        = PASS
+REPRODUCIBILITY_PASS      = true
+R1 两个独立 venv（同路径串行重建）✅
+R2 文件集合 227 = 227            ✅
+R3 每文件 sha256 227/227         ✅
+R4 version 26.10.0               ✅
+R5 jobws-mcp.exe ace7654b…       ✅
 ```
 
-**残留的 3 个文件**及判断：
+**必须一起读的边界**：
 
-| 文件 | 判断 |
-|---|---|
-| `bin/_internal/base_library.zip` | PyInstaller 打包标准库时的非确定性（zip 内顺序/时间戳），未定位到开关 |
-| `httpx2-*.dist-info/RECORD` | 从 PyPI 装的第三方 wheel，pip 写 RECORD 时的路径/时间，**不是我们构建的** |
-| `jsonschema-*.dist-info/RECORD` | 同上 |
-
-值得注意：`jobws_core-*-dist-info/RECORD` 与 `direct_url.json` **已经从差异里消失**——
-说明固定 wheel 路径 + `SOURCE_DATE_EPOCH` 对**第一方包**生效了。
-
-**下一轮要签 `REPRODUCIBILITY_PASS` 还差**：使 `base_library.zip` 确定化（查 PyInstaller 的
-zip 时间戳开关），以及决定第三方 wheel 的 `RECORD` 差异是否算入判据。
+- 已证明的是**同机 + 同固定路径 + 同 `SOURCE_DATE_EPOCH` + 同 `PYTHONHASHSEED`** 下的字节一致；
+- **跨机器未证明**：venv 路径不同（`C:\Users\<名>\AppData\Local\Temp\…`）会改变 launcher 与
+  `RECORD`，因此跨机器目前**仍会不同**。要实现跨机器可复现，需要把构建路径相对路径化，
+  属独立工程目标；
+- 因此本 PASS 的实际价值是：**「同一版本重建两次，字节是否一致」可回答**，
+  以及**「制品是否被意外改动」可对账**——不是"任何人都能复现出同一字节"。
 
 ### 5.3 如果 R3/R5 不相等
 
@@ -262,7 +272,9 @@ differences = [ ...逐文件差异清单... ]  ← 必须落进收据，不许�
 | 3 | `prebuilds.json` 的 `version` 停在 `26.10.0` | 与 26.11.0 落章不同步 | 落章时随重建刷新 |
 | 4 | 主包与平台子包各带一份 `platform` | 体积重复（有意 fallback） | **不删**；缩包实验留后续 |
 | 5 | npm 两包尚未发布（registry 404） | 首次公开分发未开始 | 落章后独立授权 |
-| 6 | **构建工具链不受锁控制**（`setuptools>=61` 开放下界 + pip 默认构建隔离） | 两次构建可能用不同 setuptools，污染可复现性结论 | 实现 `-FromLock` 时必须带 `--no-build-isolation`（见 §4.3、D5） |
+| 6 | ~~构建工具链不受锁控制~~（`setuptools>=61` 开放下界 + pip 默认构建隔离） | 两次构建可能用不同 setuptools | ✅ **已处置**：`-FromLock` 带 `--no-build-isolation`，实测 `setuptools=84.2.1` = 锁内值（D5） |
+| 7 | ~~产物不可复现~~ | 「重建同一版本」无法对账 | ✅ **已处置**：三个根因逐个消除，227/227 文件逐字节一致（§5.2b） |
+| 8 | **跨机器可复现未证明** | 不同机器的 venv 路径不同 → `Scripts/*.exe` 与 `RECORD` 会不同 | **本轮不承诺**；要做得把构建路径相对路径化，属独立工程目标 |
 
 ## 七、落章执行顺序（26.11.0）
 

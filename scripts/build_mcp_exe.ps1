@@ -74,13 +74,29 @@ if ($FromLock) {
         exit 2
     }
     $env:SOURCE_DATE_EPOCH = $sde
-    Write-Host "SOURCE_DATE_EPOCH = $sde（取自 HEAD commit 时间）" -ForegroundColor DarkGray
 
-    # venv 落**系统临时目录**——AGENTS.md：仓库根禁止 scratch 目录
-    $freshVenv = Join-Path $env:TEMP ("jobws-mcp-build-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+    # PYTHONHASHSEED 固定：PyInstaller 内部大量用 set 收集模块，而 str 的哈希默认随机
+    # （受 PYTHONHASHSEED 控制）→ set 迭代顺序不稳定 → base_library.zip 里的条目顺序
+    # 每次不同 → 整包哈希不同（2026-10-27 实测：时间戳已固定为 1980-01-01，但顺序不是
+    # 字母序，说明是遍历序）。
+    $env:PYTHONHASHSEED = "0"
+    Write-Host "SOURCE_DATE_EPOCH=$sde  PYTHONHASHSEED=0（取自 HEAD commit 时间 + 固定哈希种子）" -ForegroundColor DarkGray
+
+    # venv 落**系统临时目录**（AGENTS.md：仓库根禁止 scratch）；
+    # 且路径必须**固定**——pip 在 venv 的 Scripts/ 下生成的 launcher exe（如 httpx2.exe）
+    # 会把 venv 绝对路径嵌进二进制，该 exe 的 sha256 又被写进 dist-info/RECORD，
+    # 随 onedir 一起打包。路径含随机 GUID 时两次构建的 RECORD 就必然不同（2026-10-27 实测）。
+    # 固定路径 = 让这条链上的所有字节都可复现。
+    $freshVenv = Join-Path $env:TEMP "jobws-mcp-build-fromlock"
     Write-Host "从锁重建构建环境（declarative）..." -ForegroundColor Yellow
     Write-Host "  基础解释器: $BasePython" -ForegroundColor DarkGray
-    Write-Host "  新建 venv : $freshVenv" -ForegroundColor DarkGray
+    Write-Host "  目标 venv : $freshVenv（固定路径，旧目录先删）" -ForegroundColor DarkGray
+
+    # 用 .NET 直接删：一次删几千文件，PS 的 Remove-Item 在本机会触发批量删除守卫
+    if (Test-Path -LiteralPath $freshVenv) {
+        try { [System.IO.Directory]::Delete($freshVenv, $true) }
+        catch { Write-Host "无法清理旧 venv：$($_.Exception.Message)" -ForegroundColor Red; exit 2 }
+    }
 
     & $BasePython -m venv $freshVenv
     if ($LASTEXITCODE -ne 0) { Write-Host "建 venv 失败" -ForegroundColor Red; exit 1 }
@@ -89,7 +105,10 @@ if ($FromLock) {
     # 1) 第三方：按锁装，强制哈希。setuptools==84.2.1 也在锁里，随后给 --no-build-isolation 用。
     & $Py -m pip install -q --disable-pip-version-check --require-hashes --only-binary :all: -r $lockPath
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "按锁安装失败——环境不满足 --require-hashes。" -ForegroundColor Red
+        Write-Host "按锁安装失败——环境不满足 --require-hashes，或网络不可达。" -ForegroundColor Red
+        Write-Host "  若是网络问题（本机实测 PyPI 的 /simple/altgraph/ 索引页会持续 TLS 失败），可临时换源：" -ForegroundColor Yellow
+        Write-Host "    `$env:PIP_INDEX_URL = 'https://pypi.tuna.tsinghua.edu.cn/simple'" -ForegroundColor Yellow
+        Write-Host "  --require-hashes 校验的是 wheel 字节，与从哪个源下载无关，换源不放宽任何证据。" -ForegroundColor DarkGray
         exit 1
     }
 

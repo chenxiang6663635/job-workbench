@@ -22,6 +22,9 @@
 
 **26.11.0 的已知阻断项**（2026-10-28 审计发现，落章前必须处置或如实登记）：
 
+> 逐条验收（含「已自动化 / 需真机 / 无法构造」的三分标注）见
+> [handover/2026-10-28-release-acceptance-matrix.md](handover/2026-10-28-release-acceptance-matrix.md)。
+
 - [ ] **26.10.1 的公开自动升级链未端到端验证**：P-2（真实客户端能发现）/ P-3（能下载）/
       P-4（能安装并重启——`quitAndInstall(true,true)` 与 `elevate.exe` 分支从未执行）/
       P-5（自动升级路径的数据保持）全部为 `NOT_EXECUTED`。26.10.1 已按政策例外公开并

@@ -193,10 +193,15 @@ async function waitForHealth(baseUrl, timeoutMs = 60_000) {
   while (Date.now() < deadline) {
     try {
       const res = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(2000) });
-      // 身份判据（ADR port-identity）：结构化 {status:"ok"}——子串匹配会放行陌生服务
+      // 身份判据（ADR port-identity 修订 1）：`status` + **`service`**。
+      //
+      // 2026-10-28 独立审查：这里此前只查 `status === "ok"`——是 Electron 侧
+      // 收紧后**漏掉的第四处**，而且注释自称引用 ADR，实现的却是 ADR 修订前的判据。
+      // 两个入口都会中招：`--base-url` 指向 8765 时，以及自起 8769 却发现端口
+      // 被另一个 jobws 实例占住时（会拍到别人的数据，且脚本不报错）。
       if (res.ok) {
         const body = await res.json().catch(() => null);
-        if (body && body.status === "ok") return;
+        if (body && body.status === "ok" && body.service === "jobws") return;
       }
     } catch (err) { /* 还没起来，继续等 */ }
     await new Promise((resolve) => setTimeout(resolve, 400));

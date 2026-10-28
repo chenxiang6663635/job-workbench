@@ -219,30 +219,10 @@ def _pause_if_frozen():
         pass
 
 
-def _port_in_use(port):
-    """端口是否已有进程监听。"""
-    import socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(1)
-        return s.connect_ex(("127.0.0.1", port)) == 0
-
-
-def _is_our_service(port):
-    """端口上的服务是否为本工作台的后端：200 + status=="ok" + service=="jobws"。
-
-    2026-10-28 审计：此前只查 status，`{"status":"ok","service":"unrelated"}` 也算
-    「我们的」（与 Electron 侧同源的缺陷）。两侧判据必须一起改，各有测试钉住。
-    """
-    import json
-    import urllib.request
-    try:
-        with urllib.request.urlopen("http://127.0.0.1:%d/api/health" % port, timeout=2) as r:
-            payload = json.loads(r.read().decode("utf-8", errors="replace"))
-        return (isinstance(payload, dict)
-                and payload.get("status") == "ok"
-                and payload.get("service") == "jobws")
-    except Exception:
-        return False
+from identity import (  # noqa: E402  (同目录模块；main.py 以脚本方式运行)
+    is_our_service as _is_our_service,
+    port_in_use as _port_in_use,
+)
 
 
 def _should_open_browser():
@@ -293,13 +273,29 @@ if __name__ == "__main__":
     try:
         if _port_in_use(args.port):
             if _is_our_service(args.port):
-                # 已有本工作台服务在跑（可能是 dev 后端或另一个实例）：直接复用，开界面即可
-                print("检测到服务已在运行，直接打开界面：%s" % url)
-                if _should_open_browser():
-                    import webbrowser
-                    webbrowser.open(url)
+                # 身份通过 ≠ 该复用：端口上可能是**另一个实例**（不同数据根/workspace），
+                # 附着上去就是「界面连到别人的数据」——而 --workspace / JOBWS_DATA_DIR
+                # 只影响新进程，改不了已在跑的那个。ADR port-identity 修订 2 已写明要改，
+                # 代码此前仍是「静默开界面并 exit 0」（2026-10-28 独立审查发现）。
+                allow_reuse = os.environ.get("JOBWS_ALLOW_REUSE", "").strip() == "1"
+                if allow_reuse:
+                    print("检测到服务已在运行，按 JOBWS_ALLOW_REUSE=1 复用并打开界面：%s" % url)
+                    if _should_open_browser():
+                        import webbrowser
+                        webbrowser.open(url)
+                    _pause_if_frozen()
+                    sys.exit(0)
+
+                print("错误：端口 %d 上已有一个本工作台的后端在运行。" % args.port,
+                      file=sys.stderr)
+                print("      它可能指向另一个数据根或工作区——直接附着会让你看到、"
+                      "甚至写到不属于本次启动的数据。", file=sys.stderr)
+                print("      · 想用它：直接操作那个实例（不要重复启动）。", file=sys.stderr)
+                print("      · 确实要复用：设 JOBWS_ALLOW_REUSE=1 再启动。", file=sys.stderr)
+                print("      · 想全新启动：先正常退出那个实例；或用 --port 换一个端口。",
+                      file=sys.stderr)
                 _pause_if_frozen()
-                sys.exit(0)
+                sys.exit(1)
             print("错误：端口 %d 已被其他程序占用，无法启动。" % args.port)
             print("请关闭占用该端口的程序后重试（或改用 --port 指定其他端口）。")
             _pause_if_frozen()

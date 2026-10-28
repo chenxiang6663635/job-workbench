@@ -51,3 +51,26 @@ def test_health_does_not_leak_data_root(client):
     joined = " ".join(str(v) for v in body.values()).lower()
     for marker in ("job-workbench", "data_root", "dataroot", "c:\\", "/home/", "workspace"):
         assert marker not in joined, "健康响应不应带数据根线索，命中 %r" % marker
+
+def test_health_echoes_instance_id_from_env(monkeypatch, client):
+    """后端必须**回显** JOBWS_INSTANCE_ID —— 跨语言链路的中间一段。
+
+    完整链路：Electron 生成 → 经 env 注入子进程 → 后端放进 /api/health →
+    Electron 校验。JS 侧测的是**假响应**（`backend_identity.test.js`），
+    所以「真后端会不会回显」此前没有任何断言（2026-10-28 独立审查指出）。
+    """
+    monkeypatch.setenv("JOBWS_INSTANCE_ID", "deadbeef01")
+    body = client.get("/api/health").json()
+    assert body.get("instance_id") == "deadbeef01"
+
+
+def test_health_instance_id_is_empty_when_not_injected(monkeypatch, client):
+    """没注入时是**空串**，不是缺字段。
+
+    消费方据此区分「受控实例」与「手工 `uvicorn main:app` 起的」——后者不该被
+    误认成「壳拉起的那个」。空串也让字段始终存在，避免消费方写 `if key in body`
+    这类容易写错的判断。
+    """
+    monkeypatch.delenv("JOBWS_INSTANCE_ID", raising=False)
+    body = client.get("/api/health").json()
+    assert body.get("instance_id") == ""

@@ -135,8 +135,13 @@ function createBackendProcess({
 
   function waitBackendReady(cb) {
     const start = Date.now();
+    // 记最后一次探测原因：超时的**成因不同，处置也不同**（2026-10-28 独立审查）。
+    // 之前这里把 reason 直接丢掉，于是「端口上有个身份不符的服务」和「后端真的没起来」
+    // 在用户眼里都是同一个 30 秒「启动超时」——而前者再等也不会好。
+    let lastReason = "refused";
     const poll = () => {
-      checkHealth((ok) => {
+      checkHealth((ok, reason) => {
+        lastReason = reason;
         if (ok) {
           backendReady = true;
           log("Backend ready");
@@ -147,9 +152,17 @@ function createBackendProcess({
           log("Backend startup timed out. Packaged builds: see the [backend-err] exit reason above in this log; source runs: check your Python/FastAPI environment");
           // 同 P2：超时后静默自退，用户看到的是"双击了没反应"
           const t = tFor(resolvedLang());
+          // identity：端口在应答，但**不是这个窗口拉起的那个后端**（很可能是另一个
+          // jobws 实例）。继续等是徒劳的，必须说清楚，否则用户只会反复重启。
+          const hint = lastReason === "identity"
+            ? "\n\nThe port is answering, but not as the backend this window started "
+              + "— most likely another Job Workbench instance owns it.\n"
+              + "Waiting longer will not help: quit that instance (or set "
+              + "JOBWS_ALLOW_REUSE=1 to attach to it deliberately)."
+            : "";
           notifyUser(
             t("backendTimeoutTitle"),
-            `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}\n\n${HEALTH_URL}`,
+            `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}${hint}\n\n${HEALTH_URL}`,
             { withDiagnostics: true });
           app.quit();
           return;

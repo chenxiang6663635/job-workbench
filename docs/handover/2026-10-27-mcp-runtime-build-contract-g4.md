@@ -62,23 +62,70 @@ build_mcp_exe.ps1 -FromLock
 # 1) 用指定基础解释器建**全新** venv（不复用既有构建 venv）
 & $BasePython -m venv $freshVenv
 
-# 2) 第三方：按锁安装，强制哈希
+# 2) 第三方：按锁安装，强制哈希（这一步把 setuptools==84.2.1 也装进 venv）
 & "$freshVenv\Scripts\python.exe" -m pip install --require-hashes --only-binary :all: `
     -r mcp/build-requirements.lock
 
-# 3) 第一方：先构建 wheel（才有可核验哈希），再安装
-& "$freshVenv\Scripts\python.exe" -m pip wheel .\packages\jobws-core .\mcp -w dist --no-deps
-& "$freshVenv\Scripts\python.exe" -m pip install --no-deps dist\jobws_core-*.whl dist\jobws_mcp-*.whl
+# 3) 先清掉旧构建输出——避免上一次的 wheel 被当成这一次的产物装进去
+Remove-Item .\dist\jobws_core-*.whl, .\dist\jobws_mcp-*.whl -ErrorAction SilentlyContinue
 
-# 4) 记录第一方 wheel 身份（供收据）
-#    wheel 文件名含版本；sha256 落进构建收据的 first_party 段
+# 4) 第一方：**关掉构建隔离**构建 wheel
+#    见 §4.3：两个包的 build-system 都是开放下界，默认隔离会另建环境重新解析，
+#    装到的 setuptools 版本不受锁控制。--no-build-isolation 让它用 venv 里那份（= 锁里的）。
+& "$freshVenv\Scripts\python.exe" -m pip wheel .\packages\jobws-core .\mcp `
+    -w dist --no-deps --no-build-isolation
+
+# 5) 明确取到「每个包恰好一个」wheel，不靠通配符
+#    多于一个候选直接失败——不要装上"碰巧排在前面的那个"
+$coreWhl = @(Get-ChildItem .\dist\jobws_core-*.whl)
+$mcpWhl  = @(Get-ChildItem .\dist\jobws_mcp-*.whl)
+if ($coreWhl.Count -ne 1) { throw "jobws-core wheel 候选数=$($coreWhl.Count)（须为 1）" }
+if ($mcpWhl.Count  -ne 1) { throw "jobws-mcp wheel 候选数=$($mcpWhl.Count)（须为 1）" }
+& "$freshVenv\Scripts\python.exe" -m pip install --no-deps `
+    $coreWhl[0].FullName $mcpWhl[0].FullName
+
+# 6) 第一方 wheel 身份入收据：绝对路径 + sha256 + 版本（不是只记文件名）
 ```
 
 ### 4.2 为什么第一方必须走 wheel 而不是目录安装
 
 `pip install .\packages\jobws-core`（目录）在 `direct_url.json` 里只有 `dir_info`，**没有 wheel 哈希**——于是 C5b 只能记 SKIP，而 strict 模式会因此拒绝产出。这不是障碍，是合同在逼正确做法。
 
-### 4.3 `DECLARATIVE_BUILD_ENV_READY` 的签署判据
+### 4.3 构建工具链**也要锁**（设计稿初版漏了这一点）
+
+#### 事实
+
+两个第一方包的构建系统都是**开放下界**：
+
+```
+mcp/pyproject.toml:                 requires = ["setuptools>=61.0"]
+packages/jobws-core/pyproject.toml: requires = ["setuptools>=64"]
+```
+
+而 `pip wheel` **默认开启构建隔离**：它在临时环境里按上面那些下界**重新解析** setuptools，用的是解析当时的最新版——不是锁里的那个。
+
+```
+mcp/build-requirements.lock: setuptools==84.2.1   ← 运行时环境是钉死的
+                               但构建隔离用的那份：不受锁控制
+```
+
+`--no-deps` **不会**关闭这个机制——它只管"不要装这个包的依赖"，不管"构建这个包需要什么工具"。
+
+#### 后果
+
+即使 37 项运行时依赖完全一致，两次构建仍可能因为构建工具版本不同而产出不同的 wheel 字节——进而污染 `REPRODUCIBILITY_EVALUATED` 的结论。
+
+#### 处置（已并入 §4.1 的步骤 4）
+
+| 项 | 做法 |
+|---|---|
+| 关隔离 | `pip wheel --no-build-isolation`，让构建用 venv 里那份 `setuptools==84.2.1` |
+| 前提 | `setuptools` 必须在 lock 里（**已经在了**：`setuptools==84.2.1`），否则关隔离后会找不到构建后端 |
+| 记录 | 构建收据里记 `build_tools.setuptools`、`build_tools.pip` 的实际版本 |
+
+**这条不能靠"碰巧版本相同"来满足**——要显式关闭隔离，让版本由锁决定。
+
+### 4.4 `DECLARATIVE_BUILD_ENV_READY` 的签署判据
 
 | # | 判据 | 怎么验 |
 |---|---|---|
@@ -86,10 +133,41 @@ build_mcp_exe.ps1 -FromLock
 | D2 | 过程中没有任何手工 `pip install` | 构建日志里只有脚本发出的 pip 命令 |
 | D3 | 安装用了 `--require-hashes` | 命令可回看 |
 | D4 | 第一方 wheel 有 sha256 记录 | 构建收据里能查到 |
+| **D5** | **构建工具链由锁决定**（`--no-build-isolation`） | 收据里记 `setuptools` 实际版本，且等于 lock 里的值 |
+| **D6** | **每个第一方包恰好一个 wheel 候选** | 候选数 ≠ 1 时脚本必须失败，不是取第一个 |
 
 **D1 是分水岭**：在本机复用既有 venv 跑通不算——那证明的是"这台机器恰好能构建"。
 
-## 五、可复现性判据（`REPRODUCIBILITY_EVALUATED`）
+**D5 是最容易漏的**：`--no-deps` 让很多人以为"依赖已经锁住了"，但构建隔离是另一条路径——见 §4.3。
+
+### 4.5 构建收据要记的输入身份（完整清单）
+
+只记最终 exe 的哈希不够——出问题时无法回答"这串哈希是由什么造出来的"。收据至少要能重建这个问题：
+
+| 段 | 字段 |
+|---|---|
+| 源码 | `git_sha`、`dirty`（工作树是否有未提交改动）、`branch` |
+| 解释器 | `python_version`、`sys.executable` 绝对路径 |
+| 依赖 | `lock_sha256`、`lock_package_count`（37）、`lock_hash_count`（519） |
+| 构建工具 | `build_tools.setuptools`、`build_tools.pip` |
+| 第一方 | 每个包的 wheel 绝对路径 + `sha256` + `version` + 是否 `--no-build-isolation` |
+| 安全基线 | `certifi_version`、`pem_sha256` |
+| 产物 | `jobws-mcp.exe` 的 sha256、`prebuilds.json` 的 sha256、文件总数 |
+| 环境 | `declarative_venv`（是否由 `-FromLock` 新建）、`isolated_from_existing` |
+
+**`dirty` 字段尤其重要**：一个带未提交改动的构建，其 `git_sha` 无法代表实际源码。
+
+## 五、可复现性：`EVALUATED` 与 `PASS` 是两级
+
+初版设计稿把这两个词混着用了，先分清：
+
+| 等级 | 含义 | 什么时候能签 |
+|---|---|---|
+| `REPRODUCIBILITY_EVALUATED` | **做过**两次独立构建，并产出差异报告 | 只要真的做了就能签——**无论结果好坏** |
+| `REPRODUCIBILITY_PASS` | 全量文件与哈希**满足** R1–R6 冻结判据 | 只有全部满足才能签 |
+
+**"做过评估" ≠ "通过评估"。** 前者回答「我们查过」，后者回答「查下来是一样的」。
+收据里两个字段都要写，不允许用一个含糊的 `REPRODUCIBILITY = OK` 盖住。
 
 ### 5.1 比什么
 
@@ -114,32 +192,47 @@ build_mcp_exe.ps1 -FromLock
 
 ### 5.3 如果 R3/R5 不相等
 
-如实记 `REPRODUCIBILITY_EVALUATED = NOT_DEMONSTRATED`，并把差异文件清单落进收据。
-**不得**通过"多试几次直到哈希相同"来制造一致。
+```
+REPRODUCIBILITY_EVALUATED = true      ← 确实做了两次构建
+REPRODUCIBILITY_PASS      = false     ← 但没通过
+differences = [ ...逐文件差异清单... ]  ← 必须落进收据，不许只写"不一致"
+```
+
+**不得**通过"多试几次直到哈希相同"来制造一致——那是把随机性当成功。第一次不等就要停下来记录差异，而不是换一次重跑。
+
+差异清单至少要能回答：**哪些文件不同、差在字节还是只差时间戳、差异是否集中在某类文件**（例如 `_internal/` 下的 `.pyc`）。
 
 ## 六、当前已知障碍（写在这里，避免落章时才发现）
 
 | # | 障碍 | 影响 | 处置 |
 |---|---|---|---|
-| 1 | 工作树有另一条 **certifi 2026.10.23** 未提交线（`verify_mcp_prebuilds.{py,js}` + `AGENTS.md`） | 若误提交，会让校验门禁（10.23）与构建门禁（10.19）互相打死 | 该线须独立走四条门禁；落章前确认工作树干净 |
-| 2 | 该线原本的 `tests/test_certifi_baseline.py` 已改名为 `.pending-1023` | **当前没有测试保护"PS1 与 verify 的 certifi 基线一致"** | 建议补一条三方一致性测试（PS1 / verify.py / verify.js），与落章同一批 |
+| 1 | ~~工作树有另一条 certifi 2026.10.23 未提交线~~ | 会让校验门禁（10.23）与构建门禁（10.19）互相打死 | ✅ **已处置（2026-10-27）**：按裁决撤离，三处恢复 10.19；原始 diff 与文件存于 `.codebuddy/tmp/certifi-1023-backup/` |
+| 2 | ~~无测试保护 certifi 三方一致~~ | 基线漂移只在真机构建时暴露 | ✅ **已补**：`tests/test_certifi_baseline_parity.py`（4 项，红绿双向验证过） |
 | 3 | `prebuilds.json` 的 `version` 停在 `26.10.0` | 与 26.11.0 落章不同步 | 落章时随重建刷新 |
 | 4 | 主包与平台子包各带一份 `platform` | 体积重复（有意 fallback） | **不删**；缩包实验留后续 |
 | 5 | npm 两包尚未发布（registry 404） | 首次公开分发未开始 | 落章后独立授权 |
+| 6 | **构建工具链不受锁控制**（`setuptools>=61` 开放下界 + pip 默认构建隔离） | 两次构建可能用不同 setuptools，污染可复现性结论 | 实现 `-FromLock` 时必须带 `--no-build-isolation`（见 §4.3、D5） |
 
 ## 七、落章执行顺序（26.11.0）
 
 ```
-1. 冻结源码身份（tag 前的 commit）
-2. 确认工作树干净（障碍 1 必须已处置）
+1. 冻结源码身份（tag 前的 commit），记录 git_sha + dirty 状态
+2. 确认工作树干净（障碍 1/2 已处置；否则 dirty=true，源码身份不可信）
 3. 同步五处版本：web/electron/package.json、integrations/dsh/package.json、
    platform/win32-x64/package.json、9 个 SKILL.md、CHANGELOG
-4. -FromLock 构建（第一次）→ 记 bin/ 全量 sha256 + 收据
-5. -FromLock 构建（第二次，独立 venv）→ 比 R2–R5
-6. 生成 prebuilds.json → verify_mcp_prebuilds.py
-7. npm pack 双 tarball → 记 sha256
-8. 17 工具冒烟
-9. 结论：REPRODUCIBILITY_EVALUATED = PASS / NOT_DEMONSTRATED（如实）
+4. -FromLock 构建（第一次）：
+     a. 全新 venv + --require-hashes 装锁（含 setuptools==84.2.1）
+     b. 清 dist/ 旧 wheel
+     c. pip wheel --no-deps --no-build-isolation（D5）
+     d. 每包恰好一个候选，记绝对路径 + sha256（D6）
+     e. 安装 + PyInstaller + prebuilds.json
+     f. 收据写入 §4.5 的全部字段
+5. -FromLock 构建（第二次，**另一个**全新 venv）→ 比 R2–R5
+6. 差异为零 → REPRODUCIBILITY_PASS = true；否则记 EVALUATED=true / PASS=false + 差异清单
+7. verify_mcp_prebuilds.py（清单 + PEM）
+8. npm pack 双 tarball → 记 sha256
+9. 17 工具冒烟
+10. 结论按两级如实写：EVALUATED / PASS 分开签
 ```
 
 第 4 与第 5 步必须用**不同 venv**；第 9 步的结论只对 MCP 运行时有效。

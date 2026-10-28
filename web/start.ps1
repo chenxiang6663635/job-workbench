@@ -62,21 +62,17 @@ if (-not (Test-Path (Join-Path $backend "main.py"))) {
 
 Write-Host "=== 求职工作台 Web 启动 ===" -ForegroundColor Cyan
 
-# 端口若已占用则先释放，避免"Address already in use"
-foreach ($port in 8765, 5173) {
-    $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
-    foreach ($c in $conns) {
-        Write-Host "  释放端口 $port (PID $($c.OwningProcess))" -ForegroundColor Yellow
-        try {
-            Stop-Process -Id $c.OwningProcess -Force -ErrorAction Stop
-        } catch {
-            Write-Host "  无法释放端口 $port：$($_.Exception.Message)" -ForegroundColor Red
-            Write-Host "  端口可能被其他程序占用。请关闭占用该端口的程序后重试，或修改端口配置。" -ForegroundColor Red
-            exit 1
-        }
-    }
-}
-Start-Sleep -Seconds 1
+# 端口占用检查**刻意不放在这里**。
+#
+# 两条理由（2026-10-28 审计）：
+#   1. `-CheckOnly` 承诺「只检查环境、不启动服务」，但它的判断点在解释器解析之后
+#      （见下方 `if ($CheckOnly)`）。把任何**有副作用**的动作排在那之前，就等于
+#      「说只检查、实际动了手」——原实现在这里 `Stop-Process -Force`，`-CheckOnly`
+#      照样会走到。
+#   2. 结束进程这件事本身就不该由「端口被占」推出。打印 PID 是可观察性，不是授权，
+#      也不是进程归属证明。
+#
+# 现在的合同：端口检查挪到真正启动前一步（依赖预检之后），且**只报告不结束**。
 
 # 依赖预检：后端需 python，前端需 node/npm。缺失时给出明确提示而非裸报错。
 Write-Host "检查运行依赖..." -ForegroundColor Cyan
@@ -159,6 +155,22 @@ if (-not (Get-Command "node" -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command "npm.cmd" -ErrorAction SilentlyContinue) -and -not (Get-Command "npm" -ErrorAction SilentlyContinue)) {
     Write-Host "错误：未找到 npm。前端依赖 npm 启动，请确认 Node.js 安装完整。" -ForegroundColor Red
     exit 1
+}
+
+# ── 端口占用：只报告，**不结束任何进程** ─────────────────────────────────
+# 这里已经越过了 `-CheckOnly` 的返回点，所以不会污染「只检查」的语义。
+# 不结束进程的理由见文件上方那段注释：端口被占推不出「这个进程可以杀」。
+foreach ($port in 8765, 5173) {
+    $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($conns) {
+        $ids = ($conns | ForEach-Object { $_.OwningProcess }) -join ", "
+        Write-Host "  端口 $port 已被占用（PID $ids）。" -ForegroundColor Red
+        Write-Host "  本脚本不会结束任何预存进程。" -ForegroundColor Yellow
+        Write-Host "    · 若是安装版/另一个工作台实例在跑：请直接用它，或先正常退出它。"
+        Write-Host "    · 若是你之前用本脚本起的：关掉那个控制台窗口，服务会跟着退出。" -ForegroundColor Yellow
+        Write-Host "    · 确认无用后再自行结束（任务管理器 / Get-Process -Id <PID>）。" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # 启动后端

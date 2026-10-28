@@ -209,11 +209,27 @@ function Invoke-Uninstaller([string] $dir) {
 }
 
 function Wait-Health([int] $port, [int] $seconds = 90) {
+  # 判据：`status` + `service`（ADR port-identity 修订 1）。
+  #
+  # 2026-10-28 独立审查：这里此前是 `$r.Content -match 'ok'`——**子串匹配**，
+  # 正是 ADR 在 2026-10-07 宣布退役的那条判据，却一直留在这个发布闸门里。
+  # 后果：`{"status":"ok","service":"unrelated"}` 会让验收脚本认为「后端已就绪」，
+  # 于是后续断言对着一个陌生服务跑，结论无效却看不出来。
+  #
+  # 注意 StrictMode 2.0 下访问不存在的属性会抛，所以先查属性存在性。
   $deadline = (Get-Date).AddSeconds($seconds)
   while ((Get-Date) -lt $deadline) {
     try {
       $r = Invoke-WebRequest -Uri "$ApiBase/api/health" -TimeoutSec 2 -UseBasicParsing
-      if ($r.StatusCode -eq 200 -and $r.Content -match 'ok') { return $true }
+      if ($r.StatusCode -eq 200) {
+        $h = $null
+        try { $h = $r.Content | ConvertFrom-Json } catch { }
+        if ($h -and
+            $h.PSObject.Properties['status'] -and $h.status -eq 'ok' -and
+            $h.PSObject.Properties['service'] -and $h.service -eq 'jobws') {
+          return $true
+        }
+      }
     } catch { }
     Start-Sleep -Milliseconds 500
   }

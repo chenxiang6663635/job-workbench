@@ -373,7 +373,7 @@ python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<dir>/解析
 
 Work through these in order:
 
-1. **Is the service alive?** Restart with `cd web && .\start.ps1` (it clears the ports for you). Vite is a foreground process — if the terminal that started it is closed, the service is gone. This is by far the most common cause
+1. **Is the service alive?** Restart with `cd web && .\start.ps1` (if a port is taken it **reports the conflict and exits** — it never kills an existing process; see \"Port already in use\"). Vite is a foreground process — if the terminal that started it is closed, the service is gone. This is by far the most common cause
 2. **Is the browser caching old JS?** Force a reload with `Ctrl + F5`
 3. **Still blank?** The app now has an ErrorBoundary, so a crash shows an error message instead of a blank page. Open the Console (F12) and send me the error
 
@@ -391,11 +391,21 @@ On Windows you must start the frontend manually with `npm.cmd run dev`. A plain 
 
 ### The port is taken
 
-`start.ps1` frees 8765/5173 automatically. To do it by hand:
+`start.ps1` **never kills an existing process** (since 2026-10-28). When 8765/5173 is taken it
+prints the PID and exits; deciding what to do is yours — "the port is busy" does not imply
+"that process may be killed". This is not hypothetical: on 2026-09-25 a dev-script run killed a
+running installed backend that may have been writing data.
+
+Find out who owns the port first:
 
 ```powershell
-Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+Get-NetTCPConnection -LocalPort 8765 -State Listen |
+  ForEach-Object { Get-Process -Id $_.OwningProcess | Select-Object Id, ProcessName, Path }
 ```
+
+- Started by **your own** `start.ps1`: close that console window; the service exits with it.
+- An **installed build or another workbench instance**: just use that instance, or quit it first.
+- Once you are sure it is unused, end it yourself (the script deliberately does not judge this).
 
 ### A job card in the UI has no score
 

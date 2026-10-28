@@ -374,7 +374,7 @@ python tools/jobws.py jd --gap --resume hvac "personal/01_岗位池/<目录>/解
 
 按顺序排查：
 
-1. **服务活着吗**：`cd web && .\start.ps1` 重启（会自动清端口）。Vite 是前台进程，启动它的终端关了服务就没了——这是最常见原因
+1. **服务活着吗**：`cd web && .\start.ps1` 重启（端口被占时会**报冲突并退出**，不会结束任何已存在的进程——见下方「端口被占用」）。Vite 是前台进程，启动它的终端关了服务就没了——这是最常见原因
 2. **浏览器缓存了旧版 JS**：`Ctrl + F5` 强制刷新
 3. **还是黑屏**：页面现在有 ErrorBoundary，崩溃会显示错误文字而不是黑屏；按 F12 看 Console，把报错发我
 
@@ -392,11 +392,20 @@ Windows 下手动启动前端必须用 `npm.cmd run dev`。直接 `npm run dev` 
 
 ### 端口被占用
 
-`start.ps1` 会自动释放 8765/5173。手动释放：
+`start.ps1` **不会结束任何已存在的进程**（2026-10-28 起）。端口 8765/5173 被占用时，
+它打印 PID 后退出，由你确认再处理——因为「端口被占」推不出「那个进程可以杀」：
+2026-09-25 就发生过跑开发脚本时误杀正在运行的安装版后端，而它可能正在写数据。
+
+先确认占用者是谁：
 
 ```powershell
-Get-NetTCPConnection -LocalPort 8765 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+Get-NetTCPConnection -LocalPort 8765 -State Listen |
+  ForEach-Object { Get-Process -Id $_.OwningProcess | Select-Object Id, ProcessName, Path }
 ```
+
+- 若是**你自己**用 `start.ps1` 起的：关掉那个控制台窗口即可，服务会跟着退出。
+- 若是**安装版或另一个工作台实例**：直接用那个实例，或先正常退出它。
+- 确认确实无用之后，再自行结束它（本脚本不会替你判断这一点）。
 
 ### 网页里岗位卡片没有评分
 

@@ -52,8 +52,19 @@ def _patch_urlopen(monkeypatch, payload):
 
 
 def test_health_json_ok_is_ours(monkeypatch, main_module):
-    _patch_urlopen(monkeypatch, b'{"status": "ok"}')
+    """结构化 + **身份字段**才算我们的后端（2026-10-28 加了 `service`）。"""
+    _patch_urlopen(monkeypatch, b'{"status": "ok", "service": "jobws"}')
     assert main_module._is_our_service(8765) is True
+
+
+def test_status_ok_without_service_is_not_ours(monkeypatch, main_module):
+    """只有 `status`、没有 `service`：可能是陌生服务，也可能是没注入身份的旧后端。
+
+    两者都不该被当成本次可复用的实例——2026-10-28 审计的原始反例正是
+    `{"status":"ok","service":"unrelated"}` 被接受。这里把「缺字段」也一并拒掉。
+    """
+    _patch_urlopen(monkeypatch, b'{"status": "ok"}')
+    assert main_module._is_our_service(8765) is False
 
 
 def test_substring_ok_is_not_enough(monkeypatch, main_module):

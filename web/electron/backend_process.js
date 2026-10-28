@@ -16,21 +16,9 @@ const HEALTH_URL = `http://127.0.0.1:${BACKEND_PORT}/api/health`;
 const HEARTBEAT_INTERVAL = 500; // ms
 const HEARTBEAT_TIMEOUT = 30000; // ms
 
-/**
- * 健康响应的身份判定（纯函数，见 docs/decisions/port-identity.md）：200 且 JSON
- * `{"status":"ok"}` 才算「本工作台的后端在跑」——此前的「正文含 ok」子串匹配
- * 会连返回 ok 字样的陌生服务一起放行（复用 = 界面接上别的进程）。非 JSON /
- * 字段不对 → 未就绪。
- */
-function isHealthy(statusCode, body) {
-  if (statusCode !== 200) return false;
-  try {
-    const parsed = JSON.parse(body);
-    return !!parsed && parsed.status === "ok";
-  } catch {
-    return false;
-  }
-}
+// 身份判据与实例标识已抽到 ./backend_identity（2026-10-28 职责归位）：
+// 那边是纯函数（可单测、无副作用），这里只负责「拉起/停止进程 + 用判据决策」。
+const { SERVICE_ID, INSTANCE_ID, isHealthy, decideStartupAction } = require("./backend_identity");
 
 function createBackendProcess({
   app, log, notifyUser, tFor, resolvedLang, backendDir,
@@ -57,7 +45,14 @@ function createBackendProcess({
   // 后端回退读仓库 web/electron/package.json——两路同源同值。做成函数、到真正拉起
   // 后端时才求值：避免在模块加载阶段依赖 app 的初始化状态。
   function backendEnv() {
-    return { ...env, JOBWS_NO_BROWSER: "1", JOBWS_APP_VERSION: app.getVersion() };
+    return {
+      ...env,
+      JOBWS_NO_BROWSER: "1",
+      JOBWS_APP_VERSION: app.getVersion(),
+      // 实例标识随子进程下发：后端把它放进 /api/health，`waitBackendReady` 据此
+      // 确认「应答的是我拉起的那个」。没有它，端口上任何身份正确的实例都算「就绪」。
+      JOBWS_INSTANCE_ID: INSTANCE_ID,
+    };
   }
 
   // ---- Python 探测（优先级：JOBWS_PYTHON 环境变量 → PATH 中 python → python3）----
@@ -109,22 +104,32 @@ function createBackendProcess({
   // ---- 后端健康检查 ----
   // cb 用 done 门保护：timeout 与 error 存在竞态（destroy 后理论可能双触发），
   // 双回调会让 waitBackendReady 双轮询、后端就绪时 createWindow 两次 → 双窗口
-  function checkHealth(cb) {
+  // 回调签名 `(ok, reason)`。reason 让调用方区分「端口空闲」与「端口被别的东西占着」——
+  // 两者都是 ok=false，但处置完全相反（一个该启动，一个该报冲突退出）：
+  //   "ok"       身份通过
+  //   "identity" HTTP 200 但身份不符（陌生服务，或另一个 jobws 实例）
+  //   "status"   HTTP 非 200
+  //   "refused"  连不上 → 端口空闲，或对端刚退出
+  //   "timeout"  不应答 → 端口像是被占，但不是健康的后端
+  function checkHealth(cb, expectInstance) {
     let done = false;
-    const once = (ok) => {
+    const once = (ok, reason) => {
       if (done) return;
       done = true;
-      cb(ok);
+      cb(ok, reason);
     };
     const req = http.get(HEALTH_URL, { timeout: 1000 }, (res) => {
       let body = "";
       res.on("data", (d) => (body += d));
-      res.on("end", () => once(isHealthy(res.statusCode, body)));
+      res.on("end", () => {
+        const ok = isHealthy(res.statusCode, body, expectInstance);
+        once(ok, ok ? "ok" : (res.statusCode === 200 ? "identity" : "status"));
+      });
     });
-    req.on("error", () => once(false));
+    req.on("error", () => once(false, "refused"));
     req.on("timeout", () => {
       req.destroy();
-      once(false);
+      once(false, "timeout");
     });
   }
 
@@ -150,7 +155,7 @@ function createBackendProcess({
           return;
         }
         setTimeout(poll, HEARTBEAT_INTERVAL);
-      });
+      }, INSTANCE_ID);   // 只认自己拉起的那个进程：别的 jobws 实例应答不算就绪
     };
     poll();
   }
@@ -289,4 +294,4 @@ function createBackendProcess({
   };
 }
 
-module.exports = { createBackendProcess };
+module.exports = { createBackendProcess, decideStartupAction, INSTANCE_ID, SERVICE_ID };

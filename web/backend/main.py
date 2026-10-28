@@ -156,7 +156,20 @@ route_registry.register(app)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    """健康 + **身份**（2026-10-28 审计：只回 status 时，任何返回 ok 的陌生服务都被当成本后端）。
+
+    `service` 是身份判据（前端 isHealthy 校验它），`version` 供诊断，来源同「关于」区块。
+    刻意不返回数据根：ADR port-identity 规定复用的后端用它自己的数据根。
+    """
+    return {
+        "status": "ok",
+        "service": "jobws",
+        "version": app_version() or "0.0.0-dev",
+        # 实例标识：由 Electron 在 spawn 时生成并注入。空串表示「不是受控实例」
+        # （手工 `uvicorn main:app` 起的、或旧版壳）——消费方据此区分「复用的服务」
+        # 与「我拉起的那个」。**不是鉴权**：本地 API 的 token / Origin 保护是另一件事。
+        "instance_id": os.environ.get("JOBWS_INSTANCE_ID", ""),
+    }
 
 
 # ---- 前端静态产物同源托管（Electron 桌面壳）----
@@ -215,14 +228,19 @@ def _port_in_use(port):
 
 
 def _is_our_service(port):
-    """端口上的服务是否为本工作台：200 + JSON `{"status": "ok"}`（ADR port-identity；
-    子串匹配会放行返回 ok 字样的陌生服务——复用 = 界面接错进程）。"""
+    """端口上的服务是否为本工作台的后端：200 + status=="ok" + service=="jobws"。
+
+    2026-10-28 审计：此前只查 status，`{"status":"ok","service":"unrelated"}` 也算
+    「我们的」（与 Electron 侧同源的缺陷）。两侧判据必须一起改，各有测试钉住。
+    """
     import json
     import urllib.request
     try:
         with urllib.request.urlopen("http://127.0.0.1:%d/api/health" % port, timeout=2) as r:
             payload = json.loads(r.read().decode("utf-8", errors="replace"))
-        return isinstance(payload, dict) and payload.get("status") == "ok"
+        return (isinstance(payload, dict)
+                and payload.get("status") == "ok"
+                and payload.get("service") == "jobws")
     except Exception:
         return False
 

@@ -190,6 +190,57 @@ mcp/build-requirements.lock: setuptools==84.2.1   ← 运行时环境是钉死�
 
 **R1 不可省**：同一 venv 连续跑两次，即使哈希相同，也只有"该环境的重复构建一致性"，不能推到"独立环境可复现"。
 
+### 5.2b 实测记录（2026-10-27，本机）
+
+真实跑了两轮「两个独立 venv」的比对，得到一条**可修复的根因**和一条**未闭合的残留**。
+
+**第一轮（未设 `SOURCE_DATE_EPOCH`）**
+
+| 判据 | 结果 |
+|---|---|
+| R2 文件集合 | ✅ 227 = 227 |
+| R3 每文件哈希 | ❌ 221/227 相同，**6 个不同** |
+| R5 exe sha256 | ❌ `745ab93a…` ≠ `5284e768…` |
+
+差异集中在：`jobws-mcp.exe`、`base_library.zip`、三个 `RECORD`、`direct_url.json`。
+
+**根因定位**：`direct_url.json` 里的 wheel `sha256` 两次都不同（`062669d1…` vs `937c80d8…`）——
+说明**不可复现的是 wheel 本身**，不是安装过程。对照实验（两个独立 venv、同设
+`SOURCE_DATE_EPOCH=1700000000`）产出 `bec27ea2…` = `bec27ea2…`，**完全相同**。
+
+结论：`pip wheel` 打出的 ZIP 条目时间戳取"当前时间"，不设 `SOURCE_DATE_EPOCH` 就每次不同。
+
+**第二轮（修复后：`SOURCE_DATE_EPOCH` = HEAD commit 时间 + 固定 wheel 暂存路径）**
+
+| 判据 | 结果 |
+|---|---|
+| R2 文件集合 | ✅ 227 = 227 |
+| R3 每文件哈希 | ⚠️ 224/227 相同，**3 个不同** |
+| R4 version | ✅ |
+| **R5 exe sha256** | ✅ **`3e2a2e2d…` = `3e2a2e2d…`** |
+
+**所以本轮结论是分级的**：
+
+```
+REPRODUCIBILITY_EVALUATED = true
+REPRODUCIBILITY_PASS      = false   ← R3 未全过
+R5（核心产物 exe）        = PASS
+```
+
+**残留的 3 个文件**及判断：
+
+| 文件 | 判断 |
+|---|---|
+| `bin/_internal/base_library.zip` | PyInstaller 打包标准库时的非确定性（zip 内顺序/时间戳），未定位到开关 |
+| `httpx2-*.dist-info/RECORD` | 从 PyPI 装的第三方 wheel，pip 写 RECORD 时的路径/时间，**不是我们构建的** |
+| `jsonschema-*.dist-info/RECORD` | 同上 |
+
+值得注意：`jobws_core-*-dist-info/RECORD` 与 `direct_url.json` **已经从差异里消失**——
+说明固定 wheel 路径 + `SOURCE_DATE_EPOCH` 对**第一方包**生效了。
+
+**下一轮要签 `REPRODUCIBILITY_PASS` 还差**：使 `base_library.zip` 确定化（查 PyInstaller 的
+zip 时间戳开关），以及决定第三方 wheel 的 `RECORD` 差异是否算入判据。
+
 ### 5.3 如果 R3/R5 不相等
 
 ```

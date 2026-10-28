@@ -81,6 +81,58 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\upgrade-smoke.ps1 `
 > 而**正式发布版**是 `120f220d…`——两者不同。这实证了审计说的
 > 「正式包的全量升级测试被硬编码 RC 哈希挡住」：不参数化，正式包永远验不了。
 
+### ⚠️ C 方案实测：本地构建的安装包**无法静默安装**（新发现的阻断项）
+
+**做了什么**：用当前源码构建一个测试包（版本临时改 `26.10.99`，构建后已改回），
+跑 `26.10.0 → 26.10.99` 的完整升级链路，验证工具链是否通畅。
+
+**结果：17/17 PASS 之后，卡在升级段。**
+
+```
+== Preflight            全部 ok
+== Install 26.10.0      [ok] 版本=26.10.0，安装目录含后端 exe
+== Seed data            全部 ok（dataRoot / snapshotDir / telemetry / workspace / 种子文件 / API 读回 / 基线快照）
+== Upgrade to 26.10.99  FATAL: 安装器退出码 2
+结论：ERROR（17/17 PASS，fatal=True，completed=False）
+```
+
+**进一步定位（排除"升级路径"因素）**：
+
+| 测试 | 结果 |
+|---|---|
+| 官方 26.10.0 包 `/S /D=<TEMP>` | ✅ 成功（17/17 PASS 已证） |
+| **本地构建包** `/S /D=<TEMP>` | ❌ `exit=2`，目标目录未创建 |
+| **本地构建包** `/S`（不带 `/D=`，装默认位置） | ❌ **120 秒未退出**，被强制终止；默认位置未创建 |
+
+**所以不是 `/D=` 或"升级路径"的问题——是本地构建的安装包本身。**
+
+已排除的：
+- 包大小正常（135.4 MB vs 官方 131.5 MB，Electron 44.10.0 大 4 MB 合理）
+- `build` 段配置与官方相同（`oneClick:false` / `perMachine:false` / `allowElevation:true` / `allowToChangeInstallationDirectory:true`）
+- 磁盘/权限：同一台机器上官方包能装
+
+**未确认的根因**（需要 NSIS 层面诊断，本轮未做）：
+- 构建日志显示 `no code signing certificate configured, signing is skipped`——
+  但官方包同样未签名，**未必是这条**
+- 也可能是本地 `electron-builder` / NSIS 版本与 CI 不同
+
+**这意味着什么**：
+
+```
+如果 CI 构建的包也有这个问题 → 26.11.0 装不上，是硬阻断
+如果只有本地构建有问题      → 本地验证不可靠，一切以 CI 产出为准
+```
+
+**下一步必须做的**（本轮未做，因为需要跑完整 workflow）：
+
+```powershell
+gh workflow run release.yml -f dry_run=true -f tag=v26.11.0-rc
+# 或任意可用 tag —— 目的是拿 CI 构建的安装包
+# 然后用它的产物重复上面的 /S 安装测试
+```
+
+**在此之前，不要用本地构建的包去验证升级链**——那会得到误导性结论。
+
 `-FailInjection` 可注入一条非致命 FAIL 验证「断言失败 → 退出码非 0」这条链路；
 `upgrade-smoke.selftest.ps1` 是判据函数的自检（**通过它不代表安装验收通过**）。
 

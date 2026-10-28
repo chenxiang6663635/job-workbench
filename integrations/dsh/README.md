@@ -165,13 +165,34 @@ dsh plugin --profile <p> remove dsh-job-workbench
 落章时本目录 `package.json` 与 `platform/win32-x64/package.json` 一起改——`assets_registry`
 与 `build_mcp_exe.ps1` 已勾稽，漏改即红）。两个包、发布顺序固定：
 
+**首发前置自检**（任何一项不过就不要发——首发不可撤销）：
+
+| # | 检查 | 怎么查 | 不过的后果 |
+|---|---|---|---|
+| 1 | **目标宿主版本满足 `peerDependencies`** | 见 §七 兼容矩阵；**prerelease 是陷阱**，见下表脚注 | 用户装了，但宿主把整包跳过（`skippedBundles`），**不报错** |
+| 2 | 两包版本 == `web/electron/package.json` | `python tools\assets_registry.py --check` | 构建门禁红 |
+| 3 | `prebuilds.json` 与 `bin/` 自洽 | `python scripts\verify_mcp_prebuilds.py` | `npm prepack` 拒绝打包 |
+| 4 | 17 工具冒烟 | `python scripts\smoke_mcp_exe.py` | 装上了也没有工具 |
+| 5 | 包体积在 npm 限制内 | `npm pack --dry-run` 看 `package size` | 发布被 registry 拒绝 |
+| 6 | 工作树干净 | `git status --porcelain` 为空 | 构建收据 `dirty=true`，`git_sha` 不代表实际源码 |
+
+> 第 1 项最容易漏：**同一个 minor 里的 prerelease 不自动落在 `^` 范围内**。
+> 实测（`node` + npm 自带 semver）：`^0.2.0-rc.2` 展开为 `>=0.2.0-rc.2 <0.3.0-0`，
+> `0.2.0-rc.3` ✅、`0.2.0` ✅、`0.2.1` ✅，但 **`0.2.1-rc.3` ❌**——
+> 因为它的 `[major,minor,patch]` 是 `(0,2,1)`，range 里只有 `(0,2,0)` 与 `(0,3,0)` 的 comparator。
+> 详见 §七。
+
 ```powershell
 # 0) 预检：清单一致 + 版本一致
 python tools\jobws.py lint four-ends
 python tools\assets_registry.py --check
 
 # 1) 产物：exe + 哈希清单（bin/ 不入库，由本步产出）
-powershell -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1
+#    -FromLock：从 mcp/build-requirements.lock 重建全新 venv 再构建（2026-10-27 起）
+#    -BasePython：用来建 venv 的**基础**解释器（3.12），不要传构建 venv 自己的 python
+#    必须用 pwsh 7（PS 5.1 按 ANSI 解码 UTF-8 无 BOM 脚本 → ParserError）
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1 `
+     -FromLock -BasePython "<3.12 基础解释器路径>"
 python scripts\smoke_mcp_exe.py
 
 # 2) 平台子包先发（主包 optionalDependencies 指向它）
@@ -233,9 +254,28 @@ jobws 行全部消失——**行与技能一起退场，但宿主照常启动**�
 | 宿主版本 | 预期 | 依据 |
 |---|---|---|
 | 0.2.0-rc.1 | 拒绝 | 低于 `^0.2.0-rc.2` 下限 |
-| **0.2.0-rc.2（当前实证宿主）** | **通过** | 本机 profile 装载实测（1330 行合成、三条行在位） |
-| 0.2.0 / 0.2.x | 通过 | 同 0.2 元组 + 范围覆盖 |
-| 0.3.0-rc.x / 0.3.x | 拒绝（保守） | `<0.3` 上限；实测可用后再放宽 |
+| **0.2.0-rc.2** | **通过** | 本机 profile 装载实测（1330 行合成、三条行在位） |
+| 0.2.0-rc.3 / 0.2.0 | 通过 | semver 判定：与 rc.2 同 `(0,2,0)` 元组 |
+| **0.2.1-rc.x**（如 0.2.1-rc.3） | **拒绝** | ⚠️ **prerelease 陷阱**：见下 |
+| 0.2.1 / 0.2.9（正式版） | 通过 | 正式版不受 prerelease 规则约束 |
+| 0.3.0-rc.x / 0.3.x | 拒绝（保守） | `<0.3.0-0` 上限；实测可用后再放宽 |
+
+> **⚠️ prerelease 陷阱（2026-10-27 实测补正，此前"0.2.x 通过"的表述不准确）**
+>
+> `^0.2.0-rc.2` 展开为 `>=0.2.0-rc.2 <0.3.0-0`。node-semver 的规则是：
+> **带 prerelease 的版本，只有在 range 里存在 `[major,minor,patch]` 相同的 comparator 时才匹配。**
+>
+> `0.2.1-rc.3` 的元组是 `(0,2,1)`，而 range 里的 comparator 是 `(0,2,0)` 与 `(0,3,0)`——**不匹配**。
+>
+> 实测（npm 自带 semver）：
+>
+> ```
+> 0.2.0-rc.3 ✅   0.2.0 ✅   0.2.1 ✅   0.2.9 ✅
+> 0.2.1-rc.1 ❌   0.2.1-rc.3 ❌            ← 同一个 minor 里的 prerelease 不在范围内
+> ```
+>
+> 所以：**目标宿主若是 `0.2.x-rc.y`（x ≥ 1），必须先处理**——两条路见下方"放宽路径"。
+> 这是"装了但工具不出现"的典型成因，而且宿主不报错（`failOnStartupError: false`）。
 
 **放宽路径（不重发包的官方通道）**：宿主升到范围外但实测可用时——① **用户侧即可先放行**：
 profile 的 `compatibility.json`（插件管理器 UI 管理：精确 `包名@版本` → 精确运行时版本

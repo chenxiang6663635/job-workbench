@@ -176,11 +176,9 @@ dsh plugin --profile <p> remove dsh-job-workbench
 | 5 | 包体积在 npm 限制内 | `npm pack --dry-run` 看 `package size` | 发布被 registry 拒绝 |
 | 6 | 工作树干净 | `git status --porcelain` 为空 | 构建收据 `dirty=true`，`git_sha` 不代表实际源码 |
 
-> 第 1 项最容易漏：**同一个 minor 里的 prerelease 不自动落在 `^` 范围内**。
-> 实测（`node` + npm 自带 semver）：`^0.2.0-rc.2` 展开为 `>=0.2.0-rc.2 <0.3.0-0`，
-> `0.2.0-rc.3` ✅、`0.2.0` ✅、`0.2.1` ✅，但 **`0.2.1-rc.3` ❌**——
-> 因为它的 `[major,minor,patch]` 是 `(0,2,1)`，range 里只有 `(0,2,0)` 与 `(0,3,0)` 的 comparator。
-> 详见 §七。
+> 第 1 项要按 **DSH 的实际实现**判，**不要按纯 semver 默认行为**：DSH 的 `satisfies()`
+> 传了 `includePrerelease: true`，所以 `0.2.1-rc.3` 这类 prerelease **是能通过的**
+> （纯 semver 默认会拒绝——这个差异曾导致一次误判，见 §七 的实测源码）。
 
 ```powershell
 # 0) 预检：清单一致 + 版本一致
@@ -225,13 +223,16 @@ topic ✓（2026-10-07 添加）、真实可用代码 ✓、仓库年龄 ≥1 �
 与代码一致（**17 工具 / 9 技能**，2026-10-19 订正：原写 15/9，工具面在 #324 扩到 17 后
 此处漏改），这是被维护者核对的第一件事。
 
-## 七、版本兼容与放宽路径（2026-10-07 实现实证）
+## 七、版本兼容与放宽路径（2026-10-07 实测 + 2026-10-28 读源码补正）
 
-**机制（读自 DSH 自带实现文档 + 本机正反两向实测，不是猜测）**：profile 导入插件与加载
-组合包前，DSH 检查其 `peerDependencies` 中对 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*` 的
-声明，与宿主运行时版本比较——**每个声明的范围都必须匹配；预发布版本参与匹配；未声明则
-不施加约束；无效范围视为不兼容**（来源：`@deepseek-ai/dsh-app-boot` README 的 admission
-段）。被拒的组合包**整体跳过**并列入 `skippedBundles`，启动时报告一次（含包名/版本/风险）：
+**机制（两轮独立证据**：2026-10-07 本机正反两向实测；2026-10-28 直接读 0.2.1-rc.3 的
+`app.asar` 源码**）**：profile 导入插件与加载组合包前，DSH 检查其 `peerDependencies` 中对
+`@deepseek-ai/dsh` / `@deepseek-ai/dsh-*` 的声明，与宿主运行时版本比较——**每个声明的
+范围都必须匹配；未声明则不施加约束；无效范围视为不兼容**。预发布**参与**匹配，且是
+**宽松**的（`includePrerelease: true`，与纯 semver 默认行为不同，见下）。被拒的组合包
+**整体跳过**并列入 `skippedBundles`，启动时报告一次（含包名/版本/风险）：
+
+来源：`@deepseek-ai/dsh-app-boot/lib/index.js` 的 `unmetRequirements()` 与 `satisfies()`。
 
 ```
 dsh: skipping profile bundle "dsh-job-workbench": Error: Plugin dsh-job-workbench@26.10.0 is
@@ -241,12 +242,35 @@ incompatible with dsh 0.2.0-rc.2: peerDependencies {"@deepseek-ai/dsh-mcp-client
 本机反证：把任一 peer 临时改成不可能范围后，`--dump-config` 从 1330 行掉到 1260 行、三条
 jobws 行全部消失——**行与技能一起退场，但宿主照常启动**（优雅降级），还原后即恢复。
 
-**`engines.dsh` 不被强制**——官方原话「兼容性仅作声明」：当前安装器与加载器都不检查它，
-也不校验其 SemVer 语法（来源：`@deepseek-ai/dsh-package-manifest` README）。保留它是给
-工具链与人的声明性元数据；**真正的准入面是 peerDependencies**。
+**`engines` 的层级很关键——0.2.1-rc.3 起会检查「顶层」`engines`**（2026-10-28 读 asar 补正）：
+
+```js
+// @deepseek-ai/dsh-app-boot/lib/index.js
+function unmetRequirements(fields, runtimeVersion) {
+  const engines = Object.hasOwn(fields, "engines") ? objectOf(fields.engines, ...) : {};
+  ...
+  if (typeof range !== "string") error("Plugin manifest engines.dsh must be a string");
+  return satisfies(runtimeVersion, range) ? {} : { "engines.dsh": range };
+}
+```
+
+`fields` 是 **manifest 顶层**。所以：
+
+| 写法 | 是否被检查 |
+|---|---|
+| 顶层 `"engines": { "dsh": "..." }` | **会被检查**，不满足则整包跳过 |
+| `"dsh": { "engines": { "dsh": "..." } }`（**本包当前写法**） | **不被检查**——顶层没有 `engines` |
+
+我们刻意放在 `dsh.engines` 嵌套里，把它当声明性元数据；**真正的准入面是
+`peerDependencies`**（13 条，见下）。这也解释了旧文档"engines 不被强制"的观察——
+那句话在 0.2.0-rc.2 时代成立，且在当前写法下仍然成立，但**不是因为 DSH 不检查**，
+而是因为**我们没写在被检查的那一层**。
+
+> ⚠️ 因此不要"整理" manifest 时把 `dsh.engines` 提成顶层 `engines`——那会**新开一道门禁**，
+> 而门禁一旦不满足，失败方式是**整包静默跳过**。
 
 **我们的声明**：`cordis.patch.yml` 引用到的全部 13 个官方包都进了 `peerDependencies`
-（`^0.2.0-rc.2`）；`engines.dsh` = `>=0.2.0-rc.2 <0.3`。这个形态由
+（`^0.2.0-rc.2`）；`dsh.engines.dsh` = `>=0.2.0-rc.2 <0.3`。这个形态由
 `tests/test_dsh_bundle_manifest.py` 钉住（双向一致 + 预发布分支 + 保守上限），改错即红。
 
 **兼容矩阵（语义，非承诺）**：
@@ -255,27 +279,34 @@ jobws 行全部消失——**行与技能一起退场，但宿主照常启动**�
 |---|---|---|
 | 0.2.0-rc.1 | 拒绝 | 低于 `^0.2.0-rc.2` 下限 |
 | **0.2.0-rc.2** | **通过** | 本机 profile 装载实测（1330 行合成、三条行在位） |
-| 0.2.0-rc.3 / 0.2.0 | 通过 | semver 判定：与 rc.2 同 `(0,2,0)` 元组 |
-| **0.2.1-rc.x**（如 0.2.1-rc.3） | **拒绝** | ⚠️ **prerelease 陷阱**：见下 |
-| 0.2.1 / 0.2.9（正式版） | 通过 | 正式版不受 prerelease 规则约束 |
+| 0.2.0-rc.3 / 0.2.0 | 通过 | semver 判定 |
+| **0.2.1-rc.x**（如 0.2.1-rc.3） | **通过** | DSH 的 `satisfies()` 传了 `includePrerelease: true`（见下） |
+| 0.2.1 / 0.2.9（正式版） | 通过 | 同上 |
 | 0.3.0-rc.x / 0.3.x | 拒绝（保守） | `<0.3.0-0` 上限；实测可用后再放宽 |
 
-> **⚠️ prerelease 陷阱（2026-10-27 实测补正，此前"0.2.x 通过"的表述不准确）**
+> **⚠️ prerelease：不要按纯 semver 默认行为推断**
 >
-> `^0.2.0-rc.2` 展开为 `>=0.2.0-rc.2 <0.3.0-0`。node-semver 的规则是：
-> **带 prerelease 的版本，只有在 range 里存在 `[major,minor,patch]` 相同的 comparator 时才匹配。**
+> 实测 `@deepseek-ai/dsh-app-boot/lib/index.js`（直接读 0.2.1-rc.3 的 `app.asar`）：
 >
-> `0.2.1-rc.3` 的元组是 `(0,2,1)`，而 range 里的 comparator 是 `(0,2,0)` 与 `(0,3,0)`——**不匹配**。
->
-> 实测（npm 自带 semver）：
->
-> ```
-> 0.2.0-rc.3 ✅   0.2.0 ✅   0.2.1 ✅   0.2.9 ✅
-> 0.2.1-rc.1 ❌   0.2.1-rc.3 ❌            ← 同一个 minor 里的 prerelease 不在范围内
+> ```js
+> function satisfies(runtimeVersion, range) {
+>   return range.trim() !== "" && semver.satisfies(runtimeVersion, range, { includePrerelease: true });
+> }
 > ```
 >
-> 所以：**目标宿主若是 `0.2.x-rc.y`（x ≥ 1），必须先处理**——两条路见下方"放宽路径"。
-> 这是"装了但工具不出现"的典型成因，而且宿主不报错（`failOnStartupError: false`）。
+> `includePrerelease: true` 关掉了 node-semver 的 prerelease 隔离规则。两种模式的差异：
+>
+> ```
+> 版本          纯 semver 默认      includePrerelease（DSH 实际）
+> 0.2.0-rc.2    ✅ 通过             ✅ 通过
+> 0.2.1-rc.1    ❌ 拒绝             ✅ 通过
+> 0.2.1-rc.3    ❌ 拒绝             ✅ 通过
+> 0.3.0-rc.1    ❌ 拒绝             ❌ 拒绝
+> ```
+>
+> **记这条的用处**：按纯 semver 推断会得出「`0.2.1-rc.3` 装不上」的错误结论
+> ——2026-10-27 确实这样推断过并写进了本文档，次日读 asar 源码才纠正。
+> 若将来 DSH 去掉 `includePrerelease`，判定会变，**届时重新验证，别沿用本表**。
 
 **放宽路径（不重发包的官方通道）**：宿主升到范围外但实测可用时——① **用户侧即可先放行**：
 profile 的 `compatibility.json`（插件管理器 UI 管理：精确 `包名@版本` → 精确运行时版本
@@ -283,3 +314,8 @@ profile 的 `compatibility.json`（插件管理器 UI 管理：精确 `包名@�
 小改，不动 exe 与技能）；③ 宿主多版本积累后，用
 `npx -y --package @deepseek-ai/dsh@<版本> dsh headless --patch <本目录>\cordis.patch.yml "…"`
 跑矩阵冒烟，把「实测可用」变成可复现证据（本地 / CI 均可）。
+
+> **适用条件（别提前用）**：这三条只对**确实落在范围外**的宿主生效。当前 `^0.2.0-rc.2`
+> 已覆盖到 `0.2.1-rc.x`（含本机实证宿主 `0.2.1-rc.3`），**不需要任何放宽**。
+> 真正需要它的场景是宿主跨到 `0.3.x`，或将来某个 `0.2.x-rc.y` 被
+> `includePrerelease` 之外的规则挡住。**先按 §七 表格判断，不要看到 rc 就以为要放行。**

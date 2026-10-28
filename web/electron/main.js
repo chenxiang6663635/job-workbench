@@ -25,7 +25,7 @@ const os = require("os");
 const path = require("path");
 const { tFor } = require("./i18n");
 const { createLogger } = require("./logger");
-const { createBackendProcess } = require("./backend_process");
+const { createBackendProcess, decideStartupAction } = require("./backend_process");
 const { createPrefs } = require("./prefs");
 const { createDiagnosticsBridge } = require("./diagnostics_bridge");
 const { createNotifications } = require("./notifications");
@@ -98,16 +98,46 @@ app.whenReady().then(() => {
   prefs.loadFromDisk();
   navigation.installCsp();
 
-  // 若后端端口已被占用（用户可能已用 start.ps1 起了服务），直接复用
-  backend.checkHealth((ok) => {
-    if (ok) {
-      log("Backend already running — opening the window directly");
+  // 「连到哪个实例」的唯一分叉点。
+  //
+  // 默认**不**复用端口上已有的后端：它也返回 `status:ok`、`service:jobws`，但可能是
+  // **另一个工作台实例**（另一个数据根）。附着上去就是「界面连到别人的数据」——
+  // 而 `JOBWS_DATA_DIR` 只影响新启动的进程，改不了 8765 上已有的那个。
+  //
+  // 开发场景确实要复用（你自己用 start.ps1 起的后端）时设 `JOBWS_ALLOW_REUSE=1`，
+  // 属于**显式授权**，不是默认行为。
+  const allowReuse = process.env.JOBWS_ALLOW_REUSE === "1";
+  backend.checkHealth((ok, reason) => {
+    const decision = decideStartupAction({ ok, reason, allowReuse });
+
+    if (decision.action === "reuse") {
+      log(`Backend already running — reuse explicitly allowed (${reason})`);
       backend.markReady();
       windows.createWindow();
-    } else {
-      backend.startBackend();
-      backend.waitBackendReady(() => windows.createWindow());
+      return;
     }
+
+    if (decision.action === "conflict") {
+      // 端口被占但不该附着：不自动结束任何进程，明确告诉用户冲突。
+      log(`Backend port conflict (${decision.kind}); refusing to attach or kill`);
+      const detail = decision.kind === "reuse-disallowed"
+        ? "Another Job Workbench backend is already listening on 127.0.0.1:8765.\n\n"
+          + "It may point to a different data root. Attaching would show or write the "
+          + "wrong workspace, so this window will not open.\n\n"
+          + "• To use that instance: open it directly (do not start a second one).\n"
+          + "• To reuse it from this shell anyway: set JOBWS_ALLOW_REUSE=1.\n"
+          + "• To start fresh: quit that instance first."
+        : `The port 127.0.0.1:8765 is held by something that is not a healthy `
+          + `Job Workbench backend (${decision.kind}).\n\n`
+          + "This app will not attach to it, and will not kill it.\n\n"
+          + "• Find and close whatever holds the port, then start again.";
+      dialog.showErrorBox("Cannot start: backend port is in use", detail);
+      app.quit();
+      return;
+    }
+
+    backend.startBackend();
+    backend.waitBackendReady(() => windows.createWindow());
   });
 
   updater.setup();

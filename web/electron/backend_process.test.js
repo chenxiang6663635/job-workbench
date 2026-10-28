@@ -6,7 +6,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
-const { createBackendProcess } = require("./backend_process");
+const { createBackendProcess, decideStartupAction, INSTANCE_ID } = require("./backend_process");
 const EXE = path.join("app", "resources", "backend", "job-workbench-backend.exe"); // 打包形态 exe 落点
 
 /** 最小可用的后端进程对象：记录 stdout/stderr 与生命周期回调，供测试主动触发。 */
@@ -154,17 +154,25 @@ test("findBackendExe: packaged layout only, never on source runs", () => {
   assert.equal(makeDeps().bp.findBackendExe(), null);
 });
 
-test("checkHealth: 200 + structured {status:'ok'} means ready; everything else is not", () => {
+test("checkHealth: 200 + {status:ok, service:jobws} means ready", () => {
   const h = fakeHealthHttp();
   const { bp } = makeDeps({ http: h.http });
   const results = collect((cb) => bp.checkHealth(cb));
   assert.equal(h.state.url, bp.HEALTH_URL);
   assert.equal(h.state.opts.timeout, 1000);
-  h.respond(200, JSON.stringify({ status: "ok" }));
+  h.respond(200, JSON.stringify({ status: "ok", service: "jobws", version: "26.11.0" }));
   assert.deepEqual(results, [true]);
-  // 状态码不对 / 非 JSON / 只是含 ok 字样的陌生人 —— 都不算就绪（ADR: port-identity）
-  for (const [status, body] of [[500, JSON.stringify({ status: "ok" })], [200, "ok"], [200, "all ok"],
-                                [200, JSON.stringify({ status: "starting" })]]) {
+  // 状态码不对 / 非 JSON / 只是含 ok 字样 / status 不对 / **身份不对** —— 都不算就绪
+  for (const [status, body] of [
+    [500, JSON.stringify({ status: "ok", service: "jobws" })],
+    [200, "ok"],
+    [200, "all ok"],
+    [200, JSON.stringify({ status: "starting", service: "jobws" })],
+    // 2026-10-28 审计实测的漏网场景：status 对、service 是别人的进程
+    [200, JSON.stringify({ status: "ok", service: "unrelated" })],
+    // 旧后端（只有 status）：宁可等不到，也不要把界面接到一个身份不明的进程上
+    [200, JSON.stringify({ status: "ok" })],
+  ]) {
     const h2 = fakeHealthHttp(), b = makeDeps({ http: h2.http });
     const results2 = collect((cb) => b.bp.checkHealth(cb));
     h2.respond(status, body);
@@ -176,7 +184,7 @@ test("checkHealth: the done gate collapses racing events into one callback", () 
   const h = fakeHealthHttp();
   const { bp } = makeDeps({ http: h.http });
   const results = collect((cb) => bp.checkHealth(cb));
-  h.respond(200, JSON.stringify({ status: "ok" }));
+  h.respond(200, JSON.stringify({ status: "ok", service: "jobws" }));
   h.fire("error"); // 迟到的事件：done 门拦下，否则 waitBackendReady 双轮询 → 双窗口
   h.fire("timeout");
   assert.deepEqual(results, [true]);
@@ -193,7 +201,8 @@ test("waitBackendReady: a healthy backend flips ready and calls back", () => {
   const h = fakeHealthHttp();
   const { bp, logs } = makeDeps({ http: h.http });
   const called = collect((cb) => bp.waitBackendReady(() => cb(true)));
-  h.respond(200, JSON.stringify({ status: "ok" }));
+  // 启动路径要求实例匹配：只认自己拉起的那个（响应里带 INSTANCE_ID）
+  h.respond(200, JSON.stringify({ status: "ok", service: "jobws", instance_id: INSTANCE_ID }));
   assert.deepEqual(called, [true]);
   assert.equal(bp.isReady(), true);
   assert.ok(logs.some((l) => l.includes("Backend ready")));
@@ -201,7 +210,10 @@ test("waitBackendReady: a healthy backend flips ready and calls back", () => {
 
 test("backendEnv: forces JOBWS_NO_BROWSER=1 and injects the app version", () => {
   const { bp } = makeDeps({ env: { PATH: "x", JOBWS_NO_BROWSER: "0" } });
-  assert.deepEqual(bp.backendEnv(), { PATH: "x", JOBWS_NO_BROWSER: "1", JOBWS_APP_VERSION: "26.9.0" });
+  assert.deepEqual(bp.backendEnv(), {
+    PATH: "x", JOBWS_NO_BROWSER: "1", JOBWS_APP_VERSION: "26.9.0",
+    JOBWS_INSTANCE_ID: INSTANCE_ID,
+  });
 });
 test("backendEnv: reads env and the app version at call time, not at creation time", () => {
   let version = "1.0.0";
@@ -230,7 +242,10 @@ test("startBackend: prefers the packaged exe, forwards output, keeps the empty g
   assert.equal(call.opts.cwd, path.dirname(EXE));
   assert.equal(call.opts.stdio, "pipe");
   assert.equal(call.opts.detached, false);
-  assert.deepEqual(call.opts.env, { JOBWS_NO_BROWSER: "1", JOBWS_APP_VERSION: "26.9.0" });
+  assert.deepEqual(call.opts.env, {
+    JOBWS_NO_BROWSER: "1", JOBWS_APP_VERSION: "26.9.0",
+    JOBWS_INSTANCE_ID: INSTANCE_ID,
+  });
   assert.equal(h.bp.isRunning(), true);
   call.proc.out("booting");
   call.proc.err("traceback");

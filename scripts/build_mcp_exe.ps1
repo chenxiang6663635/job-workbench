@@ -62,6 +62,20 @@ if ($FromLock) {
         exit 2
     }
 
+    # 可复现性（2026-10-27 实测发现）：不设 SOURCE_DATE_EPOCH 时，wheel 内的 ZIP 条目
+    # 时间戳取"当前时间"，两次独立构建的 wheel **sha256 就不同**（实测 062669d1 vs 937c80d8），
+    # 而这个轮子会被装进 exe，于是 exe 也不可复现。
+    # 设为**本 commit 的时间**（确定值、语义也正确）后，两个独立 venv 建出的 wheel sha256
+    # 完全相同（实测 bec27ea2 = bec27ea2）。PyInstaller 同样读取该变量。
+    $sde = ""
+    try { $sde = (& git -C $root log -1 --format=%ct 2>$null) } catch { }
+    if (-not $sde -or $sde -notmatch '^\d+$') {
+        Write-Host "取不到 commit 时间（git 不可用？）——拒绝猜测，构建中止。" -ForegroundColor Red
+        exit 2
+    }
+    $env:SOURCE_DATE_EPOCH = $sde
+    Write-Host "SOURCE_DATE_EPOCH = $sde（取自 HEAD commit 时间）" -ForegroundColor DarkGray
+
     # venv 落**系统临时目录**——AGENTS.md：仓库根禁止 scratch 目录
     $freshVenv = Join-Path $env:TEMP ("jobws-mcp-build-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
     Write-Host "从锁重建构建环境（declarative）..." -ForegroundColor Yellow
@@ -83,7 +97,11 @@ if ($FromLock) {
     #    --no-build-isolation 是关键：两个包的 build-system 都是 setuptools 开放下界
     #    （>=61.0 / >=64），默认隔离会另建临时环境重新解析，装到的版本**不受锁控制**。
     #    关掉后用的是 venv 里那份（= 锁里的 setuptools==84.2.1）。
-    $wheelStaging = Join-Path $freshVenv "wheels"
+    # wheel 暂存用**固定路径**：pip 把 wheel 的绝对路径写进 dist-info/direct_url.json，
+    # 路径若含随机 GUID 这个文件就每次不同——它会被打进 exe，成为不可复现的来源之一。
+    # （venv 本身仍用随机名：它的路径不进产物，而清理随机目录比清理固定目录更安全。）
+    $wheelStaging = Join-Path $env:TEMP "jobws-mcp-wheels-fromlock"
+    if (Test-Path $wheelStaging) { Remove-Item $wheelStaging -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $wheelStaging | Out-Null
     & $Py -m pip wheel (Join-Path $root "packages\jobws-core") $mcpDir `
         -w $wheelStaging --no-deps --no-build-isolation

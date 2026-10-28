@@ -12,10 +12,19 @@
 # >=2019.03.09, <2026.10.19；本脚本把「构建环境版本」与「随包 PEM 内容」都做成硬门禁，
 # 镜像滞后或旧 venv 复用时直接失败，而不是静默打出受影响 CA。
 #
-# 用法：powershell -ExecutionPolicy Bypass -File scripts/build_mcp_exe.ps1 [-Py "<构建解释器>"]
-#      默认探测顺序：-Py > env:JOBWS_MCP_BUILD_PY > D:\tools\venvs\jobws-mcp-build > PATH python
+# 用法：
+#   pwsh -File scripts/build_mcp_exe.ps1 [-Py "<构建解释器>"]
+#       沿用既有 venv，**只校验不安装**（默认；与历史行为完全一致）
+#   pwsh -File scripts/build_mcp_exe.ps1 -FromLock -BasePython "<基础解释器>"
+#       从 mcp/build-requirements.lock **重建**全新 venv 再构建（G4 声明式构建）
+#       -Py 的默认探测：-Py > env:JOBWS_MCP_BUILD_PY > D:\tools\venvs\jobws-mcp-build > PATH python
 param(
-    [string]$Py = ""
+    [string]$Py = "",
+    # 从依赖锁重建构建环境（G4 的 DECLARATIVE_BUILD_ENV_READY 实现）。
+    # 不给时行为**完全不变**——保持向后兼容，也避免改动既有发版流程。
+    [switch]$FromLock,
+    # 建新 venv 用的**基础**解释器（-FromLock 必填）。与 -Py 不同：那是 venv 里的 python。
+    [string]$BasePython = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,6 +40,75 @@ $staleManifestPath = Join-Path $outDir "prebuilds.json.stale"
 # 于是 `npm pack` 会缺清单、`scripts\verify_mcp_prebuilds.py` 会拒绝——不可能把旧 bin/
 # 连同旧清单当新制品发出去。旧清单改名保留（不销毁历史证据），成功后由生成器重建。
 if (Test-Path $manifestPath) { Move-Item $manifestPath $staleManifestPath -Force }
+
+# ── -FromLock：从依赖锁**重建**构建环境（G4 声明式构建）───────────────────────────
+# 为什么需要它：不给该开关时，本脚本只有「事后校验」——依赖靠一串没人记录的手工
+# pip install。换台机器按 commit 重建不成立，这也是 DECLARATIVE_BUILD_ENV_READY
+# 一直签不下来的原因。
+if ($FromLock) {
+    $lockPath = Join-Path $mcpDir "build-requirements.lock"
+    if (-not (Test-Path -LiteralPath $lockPath)) {
+        Write-Host "缺 mcp/build-requirements.lock —— 无法从锁重建，拒绝启动。" -ForegroundColor Red
+        exit 2
+    }
+    if (-not $BasePython) {
+        Write-Host "-FromLock 需要 -BasePython（用来建全新 venv 的**基础**解释器）。" -ForegroundColor Red
+        Write-Host "  例：-FromLock -BasePython 'C:\Python312\python.exe'" -ForegroundColor Yellow
+        Write-Host "  注意别传构建 venv 自己的 python（那是 -Py 的语义）。" -ForegroundColor DarkGray
+        exit 2
+    }
+    if (-not (Test-Path -LiteralPath $BasePython)) {
+        Write-Host "基础解释器不存在：$BasePython" -ForegroundColor Red
+        exit 2
+    }
+
+    # venv 落**系统临时目录**——AGENTS.md：仓库根禁止 scratch 目录
+    $freshVenv = Join-Path $env:TEMP ("jobws-mcp-build-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+    Write-Host "从锁重建构建环境（declarative）..." -ForegroundColor Yellow
+    Write-Host "  基础解释器: $BasePython" -ForegroundColor DarkGray
+    Write-Host "  新建 venv : $freshVenv" -ForegroundColor DarkGray
+
+    & $BasePython -m venv $freshVenv
+    if ($LASTEXITCODE -ne 0) { Write-Host "建 venv 失败" -ForegroundColor Red; exit 1 }
+    $Py = Join-Path $freshVenv "Scripts\python.exe"
+
+    # 1) 第三方：按锁装，强制哈希。setuptools==84.2.1 也在锁里，随后给 --no-build-isolation 用。
+    & $Py -m pip install -q --disable-pip-version-check --require-hashes --only-binary :all: -r $lockPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "按锁安装失败——环境不满足 --require-hashes。" -ForegroundColor Red
+        exit 1
+    }
+
+    # 2) 第一方：清空暂存 → **关构建隔离**建 wheel
+    #    --no-build-isolation 是关键：两个包的 build-system 都是 setuptools 开放下界
+    #    （>=61.0 / >=64），默认隔离会另建临时环境重新解析，装到的版本**不受锁控制**。
+    #    关掉后用的是 venv 里那份（= 锁里的 setuptools==84.2.1）。
+    $wheelStaging = Join-Path $freshVenv "wheels"
+    New-Item -ItemType Directory -Force -Path $wheelStaging | Out-Null
+    & $Py -m pip wheel (Join-Path $root "packages\jobws-core") $mcpDir `
+        -w $wheelStaging --no-deps --no-build-isolation
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "第一方 wheel 构建失败（--no-build-isolation 需要 venv 内有 setuptools）。" -ForegroundColor Red
+        exit 1
+    }
+
+    # 3) 每个包**恰好一个**候选——不靠通配符取"碰巧排在前面的那个"
+    $coreWhl = @(Get-ChildItem $wheelStaging -Filter "jobws_core-*.whl")
+    $mcpWhl = @(Get-ChildItem $wheelStaging -Filter "jobws_mcp-*.whl")
+    if ($coreWhl.Count -ne 1) {
+        Write-Host "jobws-core wheel 候选数=$($coreWhl.Count)（须为 1）——拒绝猜测装哪个。" -ForegroundColor Red
+        exit 1
+    }
+    if ($mcpWhl.Count -ne 1) {
+        Write-Host "jobws-mcp wheel 候选数=$($mcpWhl.Count)（须为 1）——拒绝猜测装哪个。" -ForegroundColor Red
+        exit 1
+    }
+    & $Py -m pip install -q --disable-pip-version-check --no-deps $coreWhl[0].FullName $mcpWhl[0].FullName
+    if ($LASTEXITCODE -ne 0) { Write-Host "第一方 wheel 安装失败" -ForegroundColor Red; exit 1 }
+
+    $script:FromLockWheels = @{ core = $coreWhl[0].FullName; mcp = $mcpWhl[0].FullName }
+    Write-Host "构建环境已由锁重建：$freshVenv" -ForegroundColor Green
+}
 
 if (-not $Py) { $Py = $env:JOBWS_MCP_BUILD_PY }
 $convention = "D:\tools\venvs\jobws-mcp-build\Scripts\python.exe"
@@ -223,6 +301,24 @@ if (Test-Path $staleManifestPath) { Remove-Item $staleManifestPath -Force }
 # 3.6 全链路校验（npm pack 前置门禁；与 .stale 检查同一条判据，作为成功路径的最终闸）
 & $Py (Join-Path $root "scripts\verify_mcp_prebuilds.py")
 if ($LASTEXITCODE -ne 0) { Write-Host "预构建清单/CA 校验失败——不得打包" -ForegroundColor Red; exit 1 }
+
+# 3.7 构建收据（G4 合同 §4.5）：记录「这串哈希由什么造出来」。
+# 只在 -FromLock 时生成——非声明式构建的输入不可枚举（环境是手工配的），
+# 记一份不完整收据反而会误导。
+if ($FromLock) {
+    $receiptPath = Join-Path $env:TEMP ("jobws-mcp-receipt-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".json")
+    & $Py (Join-Path $root "scripts\mcp_build_receipt.py") --out $receiptPath `
+        --python $Py `
+        --lock (Join-Path $mcpDir "build-requirements.lock") `
+        --core-wheel $script:FromLockWheels.core `
+        --mcp-wheel $script:FromLockWheels.mcp `
+        --exe (Join-Path $binDir "jobws-mcp.exe") `
+        --manifest $manifestPath --from-lock
+    if ($LASTEXITCODE -ne 0) {
+        # 不阻断产物，但缺证据要显眼——收据是 G4 签署的前提
+        Write-Host "构建收据生成失败（产物已产出，但缺输入身份证据）" -ForegroundColor Yellow
+    }
+}
 
 # 4. 报告
 $total = Get-ChildItem $binDir -Recurse -File | Measure-Object -Property Length -Sum

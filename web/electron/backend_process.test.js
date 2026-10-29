@@ -44,8 +44,8 @@ test("backendEnv: reads env and the app version at call time, not at creation ti
 
 test("startBackend: prefers the packaged exe, forwards output, keeps the empty guard", () => {
   const h = exeHarness();
-  h.bp.startBackend();
-  h.bp.startBackend(); // 已运行：空守卫直接返回
+  assert.equal(h.bp.startBackend(), true, "spawned => true, so the caller may poll for readiness");
+  assert.equal(h.bp.startBackend(), true, "already running => still true (idempotent guard)");
   assert.equal(h.spawned.length, 1);
   const call = h.spawned[0];
   assert.equal(call.cmd, EXE);
@@ -73,7 +73,7 @@ test("startBackend: python fallback runs uvicorn from the backend dir", () => {
       execFileSync: () => Buffer.from("ok"),
     },
   });
-  bp.startBackend();
+  assert.equal(bp.startBackend(), true, "python fallback managed to spawn => true");
   assert.equal(spawned.length, 1);
   assert.equal(spawned[0].cmd, "py");
   assert.deepEqual(spawned[0].args, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", String(bp.BACKEND_PORT)]);
@@ -82,7 +82,9 @@ test("startBackend: python fallback runs uvicorn from the backend dir", () => {
 
 test("startBackend: with no exe and no usable Python it notifies, then quits after the dialog", async () => {
   const { bp, notifications, quits } = makeDeps({ env: { PATH: "" } });
-  bp.startBackend();
+  // false = 起不来。调用方（main.js）据此**不进入**就绪轮询，
+  // 否则 30 秒后会在「你缺 Python」这个弹窗后面再弹一个「启动超时」。
+  assert.equal(bp.startBackend(), false, "cannot start => false");
   assert.equal(notifications.length, 1);
   assert.equal(notifications[0].title, "backendMissingPythonTitle");
   assert.equal(notifications[0].message, "backendMissingPythonMessage");

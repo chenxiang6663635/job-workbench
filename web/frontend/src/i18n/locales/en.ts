@@ -639,7 +639,10 @@ export default {
   "settings.backingup": "Backing up...",
   "settings.openDataDir": "Open data folder",
   "settings.diagnostics": "Export diagnostics",
-  "settings.diagnosticsDesc": "Version, platform, the self-check summary and the main process log tail — no workspace data files and no credentials (the summary may quote a few cell values and column names, the minimum needed to tell which table is broken), safe to attach to a bug report. The self-check moves unparsable files into the workspace quarantine/ folder.",
+  // 2026-10-29 review: "safe to attach to a bug report" was an over-promise — paths are
+  // redacted but the log tail may still contain emails, company names, and file paths.
+  // The desktop dialog already says "review before pasting"; this surface must match.
+  "settings.diagnosticsDesc": "Version, platform, the self-check summary and the main process log tail — no workspace data files and no credentials (the summary may quote a few cell values and column names, the minimum needed to tell which table is broken). Review it and remove anything sensitive (email addresses, file paths, company names) before attaching to a public bug report. The self-check moves unparsable files into the workspace quarantine/ folder.",
   // Finding a setting / getting back / knowing when it applies (batch 4)
   "settings.groupAppearance": "Appearance & preferences",
   "settings.groupInterface": "Language & interface",

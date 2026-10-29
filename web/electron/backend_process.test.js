@@ -146,6 +146,20 @@ test("checkHealth: only an explicit connection refusal counts as refused", () =>
   assert.deepEqual(fire(undefined), [[false, "error"]]);
 });
 
+test("checkHealth: an unanswered request reports the timeout reason", () => {
+  // 2026-10-28 审计 §七 第 1 条剩下一处：timeout 分支此前只有「迟到事件不重复回调」
+  // 与 destroyed 的断言，reason 字符串本身没被钉住（那条 [false] 来自先到的 error）。
+  // 回归形态：reason 改错（例如退回 refused）→ decideStartupAction 会去启动新后端，
+  // 撞上被占用的端口——与本轮修的 error 误分类同一类。
+  const h = fakeHealthHttp();
+  const { bp } = makeDeps({ http: h.http });
+  const out = [];
+  // 不能用 collect（它只收第一个参数——reason 会被吞掉，正是这条测试要钉的东西）
+  bp.checkHealth((ok, reason) => out.push([ok, reason]));
+  h.fire("timeout");
+  assert.deepEqual(out, [[false, "timeout"]]);
+});
+
 test("checkHealth: the done gate collapses racing events into one callback", () => {
   const h = fakeHealthHttp();
   const { bp } = makeDeps({ http: h.http });

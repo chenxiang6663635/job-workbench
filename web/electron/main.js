@@ -24,6 +24,7 @@ const { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, screen, se
 const os = require("os");
 const path = require("path");
 const { tFor } = require("./i18n");
+const { conflictText } = require("./startup_messages");
 const { createLogger } = require("./logger");
 const { createBackendProcess, decideStartupAction } = require("./backend_process");
 const { createPrefs } = require("./prefs");
@@ -127,20 +128,18 @@ app.whenReady().then(() => {
 
     if (decision.action === "conflict") {
       // 端口被占但不该附着：不自动结束任何进程，明确告诉用户冲突。
+      // 文案走语言表、按钮走 notifyUser（2026-10-28 审计 §七 第 2 条：此前是硬编码
+      // 英文，且 `showErrorBox` 不能带按钮——用户拿不到「把日志交出去」的出口）。
+      // 退出放在弹窗关掉之后：先 quit 会把还没读的弹窗一起收走。
       log(`Backend port conflict (${decision.kind}); refusing to attach or kill`);
-      const detail = decision.kind === "reuse-disallowed"
-        ? "Another Job Workbench backend is already listening on 127.0.0.1:8765.\n\n"
-          + "It may point to a different data root. Attaching would show or write the "
-          + "wrong workspace, so this window will not open.\n\n"
-          + "• To use that instance: open it directly (do not start a second one).\n"
-          + "• To reuse it from this shell anyway: set JOBWS_ALLOW_REUSE=1.\n"
-          + "• To start fresh: quit that instance first."
-        : `The port 127.0.0.1:8765 is held by something that is not a healthy `
-          + `Job Workbench backend (${decision.kind}).\n\n`
-          + "This app will not attach to it, and will not kill it.\n\n"
-          + "• Find and close whatever holds the port, then start again.";
-      dialog.showErrorBox("Cannot start: backend port is in use", detail);
-      app.quit();
+      try {
+        const { title, detail } = conflictText(decision.kind, tFor(prefs.resolvedLang()));
+        diagnostics.notifyUser(title, detail, { withDiagnostics: true }).then(() => app.quit());
+      } catch (e) {
+        // 同步抛错不该变成「弹窗没出来、进程也不退」：日志留痕后照样退出
+        log(`Port conflict dialog failed: ${e.message}`);
+        app.quit();
+      }
       return;
     }
 

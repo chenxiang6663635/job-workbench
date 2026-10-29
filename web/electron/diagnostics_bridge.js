@@ -27,6 +27,11 @@ function createDiagnosticsBridge({
    * `withDiagnostics`：附一个「复制诊断信息」按钮——调研惯例（Slack 故障弹窗里的
    * Download Logs、Obsidian 生态的「复制诊断报告」命令）：故障当下这个弹窗是用户
    * 唯一会看的界面，信息出口就该在这里。默认只有 OK。
+   *
+   * **返回 promise（2026-10-28 审计 §七 第 2 条）**：弹窗是异步的，调用方若紧接着
+   * `app.quit()`（端口冲突就是这种），弹窗会被一起收走、用户根本读不到。拿到这个
+   * promise 的调用方可以等它落定再退出。永远 resolve，不会 reject；老调用方忽略
+   * 返回值即为原行为。
    */
   function notifyUser(title, message, { withDiagnostics = false } = {}) {
     const buttons = withDiagnostics ? [tFor(resolvedLang())("copyDiag"), "OK"] : ["OK"];
@@ -37,7 +42,7 @@ function createDiagnosticsBridge({
     try {
       const win = BrowserWindow.getAllWindows()[0];
       const shown = win ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts);
-      shown
+      return shown
         .then(({ response }) => {
           if (withDiagnostics && response === 0) copyDiagnostics();
         })
@@ -45,6 +50,7 @@ function createDiagnosticsBridge({
     } catch (e) {
       // 通知失败不该变成第二次崩溃：日志里留一句即可
       log(`notifyUser failed: ${e.message}`);
+      return Promise.resolve();
     }
   }
 

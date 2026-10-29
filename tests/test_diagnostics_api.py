@@ -153,3 +153,28 @@ def test_missing_log_file_still_returns_a_package(tmp_path, client):
     assert "diagnostics.json" in zf.namelist()
     manifest = __import__("json").loads(zf.read("diagnostics.json").decode("utf-8"))
     assert manifest["log"] is None or manifest["log"].get("present") is False, manifest.get("log")
+
+def test_readme_tells_users_to_check_before_posting_publicly():
+    """导出包自带的说明也要有「公开前自查」提醒（2026-10-29 复核）。
+
+    背景：设置页文案已改成「先检查再贴」，但**导出的 zip 里那份 README 仍然只说
+    "已脱敏家目录"**。而「不打包凭证文件」不等于「日志文本绝不含敏感值」——
+    main-log.txt 里仍可能有邮箱、公司名、业务文件路径。
+
+    这是一个独立的用户可见出口：用户拿到 zip 后往往直接把它拖进 issue，
+    未必回头再看设置页。
+    """
+    from routers import diagnostics
+
+    manifest = {
+        "generatedAt": "2026-10-29T00:00:00",
+        "app": {"version": "26.11.0", "platform": "win32", "python": "3.12.0"},
+        "paths": {"dataRoot": os.path.join(os.path.expanduser("~"), "ws"), "mode": "portable"},
+    }
+    text = diagnostics._readme(manifest, os.path.expanduser("~"))
+
+    assert "公开" in text and ("检查" in text or "自查" in text), text
+    assert "邮箱" in text, "should name the concrete risks, not just say 'sensitive'"
+    # 仍然要保留原有的两条硬事实，别为了加提醒把它们冲掉
+    assert "不含" in text and "凭证" in text
+    assert "~" in text

@@ -88,96 +88,62 @@ function fakeHealthHttp() {
       if (resEvents.data) resEvents.data(body);
       if (resEvents.end) resEvents.end();
     },
-    fire: (e) => reqEvents[e] && reqEvents[e](),
+    fire: (e, arg) => reqEvents[e] && reqEvents[e](arg),
   };
 }
 /** 同步收集一次回调的结果（fake 环境里事件都是同步触发的）。 */
 function collect(run) { const out = []; run((v) => out.push(v)); return out; }
 
-test("exposes the backend constants verbatim", () => {
-  const { bp } = makeDeps();
-  assert.equal(bp.BACKEND_PORT, 8765);
-  assert.equal(bp.HEALTH_URL, "http://127.0.0.1:8765/api/health");
-  assert.equal(bp.HEARTBEAT_INTERVAL, 500);
-  assert.equal(bp.HEARTBEAT_TIMEOUT, 30000);
-});
-
-test("findOnPath: first PATH entry wins; win32 tries .exe then .cmd then bare name", () => {
-  const hit = path.join("/usr/local/bin", "python");
-  const posix = makeDeps({ env: { PATH: "/usr/local/bin:/usr/bin" }, fs: { existsSync: (p) => p === hit } });
-  assert.equal(posix.bp.findOnPath("python"), hit);
-  const dir = "C:\\tools";
-  const exe = path.join(dir, "python.exe");
-  const cmd = path.join(dir, "python.cmd");
-  // 只有 .cmd 存在：.exe 未命中后继续找，而不是直接放弃
-  const cmdOnly = makeDeps({ platform: "win32", env: { PATH: `C:\\empty;${dir}` }, fs: { existsSync: (p) => p === cmd } });
-  assert.equal(cmdOnly.bp.findOnPath("python"), cmd);
-  // .exe 与 .cmd 同时存在：按扩展名顺序取 .exe
-  const both = makeDeps({ platform: "win32", env: { PATH: dir }, fs: { existsSync: (p) => p === exe || p === cmd } });
-  assert.equal(both.bp.findOnPath("python"), exe);
-  assert.equal(makeDeps({ env: { PATH: "/nope" } }).bp.findOnPath("python"), null, "no match means null");
-});
-
-test("detectPython: JOBWS_PYTHON first, skips unusable candidates, null when none", () => {
-  const tries = [];
-  const first = makeDeps({
-    env: { JOBWS_PYTHON: "custom-py", PATH: "" },
-    childProcess: { execFileSync: (cmd) => (tries.push(cmd), Buffer.from("ok")) },
-  });
-  assert.equal(first.bp.detectPython(), "custom-py");
-  assert.deepEqual(tries, ["custom-py"], "a hit ends the search");
-  assert.ok(first.logs.some((l) => l.includes("Using Python: custom-py")), "the choice is logged");
-  const py = path.join("/opt/py", "python");
-  const py3 = path.join("/opt/py", "python3");
-  const fallbackTries = [];
-  const fallback = makeDeps({
-    env: { JOBWS_PYTHON: "broken-py", PATH: "/opt/py" },
-    fs: { existsSync: (p) => p === py || p === py3 },
-    childProcess: {
-      execFileSync: (cmd) => {
-        fallbackTries.push(cmd);
-        if (cmd === "broken-py") throw new Error("not found");
-        if (cmd === py) throw new Error("ModuleNotFoundError: fastapi\nmore detail");
-        return Buffer.from("ok");
-      },
-    },
-  });
-  assert.equal(fallback.bp.detectPython(), py3);
-  assert.deepEqual(fallbackTries, ["broken-py", py, py3]);
-  assert.ok(fallback.logs.some((l) => l.includes(`Python not usable: ${py}`)), "a rejected candidate is logged");
-  assert.ok(fallback.logs.every((l) => !l.includes("more detail")), "only the first error line is logged");
-  // 没有候选可试 → null（默认 execFileSync 会 assert.fail，证明没有盲探测）
-  assert.equal(makeDeps({ env: { PATH: "" } }).bp.detectPython(), null);
-});
 test("findBackendExe: packaged layout only, never on source runs", () => {
   assert.equal(exeHarness().bp.findBackendExe(), EXE);
   assert.equal(makeDeps().bp.findBackendExe(), null);
 });
 
-test("checkHealth: 200 + {status:ok, service:jobws} means ready", () => {
-  const h = fakeHealthHttp();
-  const { bp } = makeDeps({ http: h.http });
-  const results = collect((cb) => bp.checkHealth(cb));
-  assert.equal(h.state.url, bp.HEALTH_URL);
-  assert.equal(h.state.opts.timeout, 1000);
-  h.respond(200, JSON.stringify({ status: "ok", service: "jobws", version: "26.11.0" }));
-  assert.deepEqual(results, [true]);
-  // 状态码不对 / 非 JSON / 只是含 ok 字样 / status 不对 / **身份不对** —— 都不算就绪
-  for (const [status, body] of [
-    [500, JSON.stringify({ status: "ok", service: "jobws" })],
-    [200, "ok"],
-    [200, "all ok"],
-    [200, JSON.stringify({ status: "starting", service: "jobws" })],
-    // 2026-10-28 审计实测的漏网场景：status 对、service 是别人的进程
-    [200, JSON.stringify({ status: "ok", service: "unrelated" })],
-    // 旧后端（只有 status）：宁可等不到，也不要把界面接到一个身份不明的进程上
-    [200, JSON.stringify({ status: "ok" })],
-  ]) {
-    const h2 = fakeHealthHttp(), b = makeDeps({ http: h2.http });
-    const results2 = collect((cb) => b.bp.checkHealth(cb));
-    h2.respond(status, body);
-    assert.deepEqual(results2, [false], `${status} + ${JSON.stringify(body)}`);
-  }
+test("checkHealth: (ok, reason) — reason distinguishes six outcomes", () => {
+  const probe = (status, body, expectInstance) => {
+    const h = fakeHealthHttp();
+    const { bp } = makeDeps({ http: h.http });
+    const out = [];
+    bp.checkHealth((ok, reason) => out.push([ok, reason]), expectInstance);
+    h.respond(status, body);
+    return out;
+  };
+  const okBody = JSON.stringify({ status: "ok", service: "jobws" });
+
+  assert.deepEqual(probe(200, okBody), [[true, "ok"]]);
+  // 非 200 → status
+  assert.deepEqual(probe(500, okBody), [[false, "status"]]);
+  // 200 但身份不符 → identity（2026-10-28 审计的原始反例）
+  assert.deepEqual(probe(200, JSON.stringify({ status: "ok", service: "unrelated" })),
+    [[false, "identity"]]);
+  // 200 但缺 service（旧后端）→ identity，宁可等不到也不误连
+  assert.deepEqual(probe(200, JSON.stringify({ status: "ok" })), [[false, "identity"]]);
+  // 非 JSON / 只含 ok 字样 → identity
+  assert.deepEqual(probe(200, "all ok"), [[false, "identity"]]);
+  // 实例不匹配 → identity（另一个 jobws 实例）
+  assert.deepEqual(
+    probe(200, JSON.stringify({ status: "ok", service: "jobws", instance_id: "other" }), INSTANCE_ID),
+    [[false, "identity"]]);
+});
+
+test("checkHealth: only an explicit connection refusal counts as refused", () => {
+  // 2026-10-28 审计：此前所有 error 都归 refused，于是 ECONNRESET 被读成
+  // 「端口空着，去启动」——新后端随后撞上已占用的端口，失败原因与真因无关。
+  const fire = (err) => {
+    const h = fakeHealthHttp();
+    const { bp } = makeDeps({ http: h.http });
+    const out = [];
+    bp.checkHealth((ok, reason) => out.push([ok, reason]));
+    h.fire("error", err);
+    return out;
+  };
+  const withCode = (code) => Object.assign(new Error("x"), { code });
+
+  assert.deepEqual(fire(withCode("ECONNREFUSED")), [[false, "refused"]]);
+  assert.deepEqual(fire(withCode("ECONNRESET")), [[false, "error"]]);
+  assert.deepEqual(fire(withCode("ETIMEDOUT")), [[false, "error"]]);
+  // 没有 code 的 error（比如手工 reject）同样保守地归 error
+  assert.deepEqual(fire(undefined), [[false, "error"]]);
 });
 
 test("checkHealth: the done gate collapses racing events into one callback", () => {

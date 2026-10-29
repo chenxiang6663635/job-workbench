@@ -19,6 +19,7 @@ const HEARTBEAT_TIMEOUT = 30000; // ms
 // 身份判据与实例标识已抽到 ./backend_identity（2026-10-28 职责归位）：
 // 那边是纯函数（可单测、无副作用），这里只负责「拉起/停止进程 + 用判据决策」。
 const { SERVICE_ID, INSTANCE_ID, isHealthy, decideStartupAction } = require("./backend_identity");
+const { createPythonDetector } = require("./python_detect");
 
 function createBackendProcess({
   app, log, notifyUser, tFor, resolvedLang, backendDir,
@@ -55,51 +56,11 @@ function createBackendProcess({
     };
   }
 
-  // ---- Python 探测（优先级：JOBWS_PYTHON 环境变量 → PATH 中 python → python3）----
-  function detectPython() {
-    const candidates = [];
-    if (env.JOBWS_PYTHON) {
-      candidates.push(env.JOBWS_PYTHON);
-    }
-    // PATH 中的可执行文件（Windows 上 python.exe）
-    const whichPython = findOnPath("python");
-    if (whichPython) candidates.push(whichPython);
-    const whichPython3 = findOnPath("python3");
-    if (whichPython3) candidates.push(whichPython3);
-
-    for (const cand of candidates) {
-      try {
-        // 验证能运行，且含 FastAPI/uvicorn
-        const out = childProcess
-          .execFileSync(cand, ["-c", "import uvicorn, fastapi; print('ok')"], {
-            timeout: 10000,
-            stdio: "pipe",
-          })
-          .toString()
-          .trim();
-        if (out === "ok") {
-          log(`Using Python: ${cand}`);
-          return cand;
-        }
-      } catch (e) {
-        log(`Python not usable: ${cand} (${e.message.split("\n")[0]})`);
-      }
-    }
-    return null;
-  }
-
-  function findOnPath(name) {
-    const sep = platform === "win32" ? ";" : ":";
-    const paths = (env.PATH || "").split(sep);
-    const exts = platform === "win32" ? [".exe", ".cmd", ""] : [""];
-    for (const p of paths) {
-      for (const ext of exts) {
-        const candidate = path.join(p, name + ext);
-        if (fs.existsSync(candidate)) return candidate;
-      }
-    }
-    return null;
-  }
+  // Python 探测抽到 ./python_detect（2026-10-28 职责归位：本文件越过规模水位，
+  // 而这两个函数只依赖注入的 env/platform/path/fs/childProcess，零行为变更）。
+  const { detectPython, findOnPath } = createPythonDetector({
+    env, platform, path, fs, childProcess, log,
+  });
 
   // ---- 后端健康检查 ----
   // cb 用 done 门保护：timeout 与 error 存在竞态（destroy 后理论可能双触发），
@@ -126,7 +87,16 @@ function createBackendProcess({
         once(ok, ok ? "ok" : (res.statusCode === 200 ? "identity" : "status"));
       });
     });
-    req.on("error", () => once(false, "refused"));
+    // 只把**明确的连接被拒**当成「端口空闲」——那是"可以启动新后端"的唯一前提。
+    //
+    // 2026-10-28 审计：此前所有 error 事件都归 `refused`，于是 ECONNRESET / ETIMEDOUT
+    // 这类错误说明端口上**有东西但状态异常**，却会被读成「端口空着，去启动」——
+    // 新后端随后撞上已占用的端口，失败原因（bind 失败）与真因（对端异常）无关。
+    // 实例身份校验能兜住「连错实例」，但兜不住「在不该启动的时候启动」。
+    req.on("error", (err) => {
+      const code = err && err.code;
+      once(false, code === "ECONNREFUSED" ? "refused" : "error");
+    });
     req.on("timeout", () => {
       req.destroy();
       once(false, "timeout");

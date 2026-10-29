@@ -56,6 +56,21 @@ when one exists. Historical implementation records stay in
 **发布节点**：`26.11.0`（十一月发车，单一发布节点）；`26.10.1` 只留给四类阻断
 hotfix（安全 / 数据损坏 / 安装·启动阻断 / 更新链失效）。
 
+**2026-10-29 补记**（两个发布物，都是「已就绪、待落章」）：
+
+- **`26.10.2` 安全 hotfix**（分支 `release/26.10.2`）：Electron `44.4.5` → `44.10.0`，
+  只动依赖与版本号，不带 main 上的任何修复。属上面「四类阻断」里的**安全**一类，
+  不占 `26.11.0` 的功能预算。tag 前的核对清单见
+  [`docs/handover/2026-10-28-p0-closure.md`](docs/handover/2026-10-28-p0-closure.md)。
+- **DSH 双包随 `26.11.0` 一并首发**：`integrations/dsh/` 的主包与平台子包
+  （`dsh-job-workbench` / `dsh-job-workbench-win32-x64`）技术侧**已完整**——
+  自包含 runtime + `prebuilds.json` 哈希清单 + `prepack` 校验 + 17 工具冒烟 +
+  227/227 逐字节可复现。**缺的不是技术，是落章六处**。执行单见
+  [`docs/handover/2026-10-28-dsh-first-release-runbook.md`](docs/handover/2026-10-28-dsh-first-release-runbook.md)：
+  落章 → `-FromLock` 重建 → 双包预检 + 冒烟 → 子包先主包后发布 →
+  公共 npm 全新安装核验 → marketplace 收录（必须在主包发布之后）。
+
+
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench
 is stable for daily use and the workspace format promises **backward compatibility** — new columns
 and tables are read as empty when missing and written with unified headers, so no user-side

@@ -132,8 +132,14 @@ app.whenReady().then(() => {
       // 英文，且 `showErrorBox` 不能带按钮——用户拿不到「把日志交出去」的出口）。
       // 退出放在弹窗关掉之后：先 quit 会把还没读的弹窗一起收走。
       log(`Backend port conflict (${decision.kind}); refusing to attach or kill`);
-      const { title, detail } = conflictText(decision.kind, tFor(prefs.resolvedLang()));
-      diagnostics.notifyUser(title, detail, { withDiagnostics: true }).then(() => app.quit());
+      try {
+        const { title, detail } = conflictText(decision.kind, tFor(prefs.resolvedLang()));
+        diagnostics.notifyUser(title, detail, { withDiagnostics: true }).then(() => app.quit());
+      } catch (e) {
+        // 同步抛错不该变成「弹窗没出来、进程也不退」：日志留痕后照样退出
+        log(`Port conflict dialog failed: ${e.message}`);
+        app.quit();
+      }
       return;
     }
 

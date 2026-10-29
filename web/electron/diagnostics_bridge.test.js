@@ -47,8 +47,9 @@ test("notifyUser: returns a thenable so the caller can quit after the dialog clo
 });
 
 test("notifyUser: the diagnostics button copies a report and the promise still resolves", async () => {
-  const { bridge, copied } = makeBridge({ response: 0 });
+  const { bridge, copied, dialogs } = makeBridge({ response: 0 });
   await bridge.notifyUser("title", "message", { withDiagnostics: true });
+  assert.deepEqual(dialogs[0].buttons, ["Copy diagnostics", "OK"]);
   assert.equal(copied.length, 1, "the first button must copy the diagnostics report");
   assert.ok(copied[0].includes("[backend-err] boom"), copied[0]);
 });

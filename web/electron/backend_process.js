@@ -127,12 +127,13 @@ function createBackendProcess({
           // jobws 实例）。继续等是徒劳的，必须说清楚，否则用户只会反复重启。
           // 文案走语言表（2026-10-28 审计 §七 第 2 条：此前是硬编码英文）。
           const hint = timeoutHint(lastReason, t);
+          // 退出放在弹窗关掉之后：紧跟着 quit 会把还没读的弹窗收走（端口冲突那条已改，
+          // 这里是同一类启动阻断提示，2026-10-28 评审指出漏改）。
           notifyUser(
             t("backendTimeoutTitle"),
             `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}`
               + `${hint ? `\n\n${hint}` : ""}\n\n${HEALTH_URL}`,
-            { withDiagnostics: true });
-          app.quit();
+            { withDiagnostics: true }).then(() => app.quit());
           return;
         }
         setTimeout(poll, HEARTBEAT_INTERVAL);
@@ -171,8 +172,7 @@ function createBackendProcess({
         // 连 30 秒那条"启动超时"提示都来不及出现，用户看到的就是"双击了没反应"
         const t = tFor(resolvedLang());
         notifyUser(t("backendMissingPythonTitle"), t("backendMissingPythonMessage"),
-                   { withDiagnostics: true });
-        app.quit();
+                   { withDiagnostics: true }).then(() => app.quit());
         return;
       }
       log(`Using python backend: ${python}`);

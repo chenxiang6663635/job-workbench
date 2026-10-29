@@ -36,12 +36,26 @@ test("conflictText: reuse-disallowed explains the address, the env switch and no
   assert.ok(!detail.includes("{"), "placeholders must be substituted: " + detail);
 });
 
-test("conflictText: the other kinds name the reason and never suggest attaching", () => {
-  const { detail } = conflictText("identity", ZH);
-  assert.ok(detail.includes("identity"), detail);
-  assert.ok(!detail.includes("JOBWS_ALLOW_REUSE"),
-    "must not suggest attaching to a port with an unknown identity");
-  assert.ok(!detail.includes("{"), "placeholders must be substituted: " + detail);
+test("conflictText: every non-reuse kind names the reason and never suggests attaching", () => {
+  for (const kind of ["identity", "status", "timeout", "error"]) {
+    const { detail } = conflictText(kind, ZH);
+    assert.ok(detail.includes(kind), kind + " must be named: " + detail);
+    assert.ok(!detail.includes("JOBWS_ALLOW_REUSE"),
+      kind + " must not suggest attaching to a port with an unknown identity");
+    assert.ok(!detail.includes("{"), "placeholders must be substituted: " + detail);
+  }
+});
+
+test("startup messages: plain text only — native dialogs do not render markdown", () => {
+  // 2026-10-28 评审 MAJOR：这四条文案会进 dialog.showMessageBox（原生弹窗，不解析
+  // Markdown），写成 `**不是**` 用户会看到字面星号。这条是它的回归网。
+  for (const t of [ZH, EN]) {
+    for (const text of [t("portConflictReuseDetail"), t("portConflictOtherDetail"),
+      t("backendTimeoutHintIdentity")]) {
+      assert.ok(!text.includes("**"), "no markdown bold allowed: " + text);
+      assert.ok(!/\]\(/.test(text), "no markdown link allowed: " + text);
+    }
+  }
 });
 
 test("conflictText: English stays English for both branches", () => {

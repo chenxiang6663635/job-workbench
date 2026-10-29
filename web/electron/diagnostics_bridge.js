@@ -12,6 +12,24 @@
 
 const { buildDiagnostics } = require("./diagnostics");
 
+// 弹窗停留上限（2026-10-29 独立审查）。三处「等弹窗再退出」现在要等**两个**弹窗
+// （主弹窗 + 「已复制」）；改前第一个关闭即落定，那是天然兜底，现在没了。
+// 若第二个不可见 / 用户离开座位，退出会无限期挂起——超时那条路径尤其难受：
+// 后端可能还活着但不可用，进程却因一个弹窗长驻。
+// 5 分钟：读完并做决定足够宽裕。timer.unref() 保证兜底计时器自己不撑住进程。
+const DIALOG_MAX_WAIT_MS = 5 * 60 * 1000;
+
+/** 兜底 promise：到点 resolve（永不 reject）。 */
+function dialogTimeout(log) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      log(`notifyUser: dialog wait exceeded ${DIALOG_MAX_WAIT_MS}ms, forcing settle`);
+      resolve();
+    }, DIALOG_MAX_WAIT_MS);
+    if (typeof timer.unref === "function") timer.unref();
+  });
+}
+
 function createDiagnosticsBridge({
   app, log, tFor, resolvedLang, logFilePath, BrowserWindow, dialog, clipboard, shell, os,
   fs = require("fs"),
@@ -42,7 +60,7 @@ function createDiagnosticsBridge({
     try {
       const win = BrowserWindow.getAllWindows()[0];
       const shown = win ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts);
-      return shown
+      const chain = shown
         .then(({ response }) => {
           // **return**（2026-10-29 审计 3.1）：不返回的话，用户点「复制诊断」后
           // 立刻点「确定」，外层 promise 已在第一个弹窗关闭时落定——调用方的
@@ -53,6 +71,13 @@ function createDiagnosticsBridge({
           return undefined;
         })
         .catch((e) => log(`notifyUser failed: ${e.message}`));
+
+      // 兜底（2026-10-29 独立审查）：三处「等弹窗再退出」现在要等**两个**弹窗。
+      // 改前第一个弹窗关闭即落定，那是天然兜底；现在若第二个弹窗不可见 / 用户
+      // 离开座位，退出会无限期挂起（超时那条路径尤其难受：后端可能还活着但不可用，
+      // 进程却因一个弹窗长驻）。到点强制落定，日志留一句。
+      // timer.unref()：兜底计时器自己不该让进程活着。
+      return Promise.race([chain, dialogTimeout(log)]);
     } catch (e) {
       // 通知失败不该变成第二次崩溃：日志里留一句即可
       log(`notifyUser failed: ${e.message}`);
@@ -94,9 +119,14 @@ function createDiagnosticsBridge({
       // 需要等「复制成功」这第二个弹窗关闭，才让外层落定。此前不返回，外层 promise
       // 在第一个弹窗关闭时就落定了——紧接着的 `app.quit()` 会把这第二个弹窗一起收走，
       // 用户看不到「已复制」。
-      return dialog.showMessageBox({
+      // 挂到主窗口上（2026-10-29 独立审查）：第一个弹窗在有关窗时会带 win，
+      // 这第二个此前**永远不带**——它可能落到主窗后面；而按本次改动，`app.quit()`
+      // 现在要等它关闭。用户看不到 → 点不到 → 进程不退出。父窗口一致行为才一致。
+      const win = BrowserWindow.getAllWindows()[0];
+      const opts = {
         type: "info", title: t("copyDiag"), message: t("diagCopied"), buttons: ["OK"],
-      });
+      };
+      return win ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts);
     } catch (e) {
       log(`copyDiagnostics failed: ${e.message}`);
       // 失败也要返回已落定的 promise：调用方 `return copyDiagnostics()` 拿到

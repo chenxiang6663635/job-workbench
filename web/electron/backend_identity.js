@@ -68,7 +68,10 @@ function decideStartupAction({ ok, reason, allowReuse }) {
     return { action: "conflict", kind: "reuse-disallowed" };
   }
   if (reason === "refused") {
-    // 连不上 = 端口空闲 → 启动。（唯一会走到"启动"的分支）
+    // **明确的**连接被拒（ECONNREFUSED）= 端口空闲 → 启动。这是唯一会走到"启动"的分支。
+    //
+    // 2026-10-28 审计：`refused` 此前被所有 error 事件共用，于是 ECONNRESET / ETIMEDOUT
+    // （端口上有东西但状态异常）也会走到这里。现在它们归 "error"，落到下面的冲突分支。
     return { action: "start" };
   }
   return { action: "conflict", kind: reason || "unknown" };

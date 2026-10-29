@@ -36,6 +36,7 @@
       "preload.js",
       "logger.js",
       "backend_process.js",
+      "python_detect.js",
       "backend_identity.js",
       "prefs.js",
       "diagnostics_bridge.js",

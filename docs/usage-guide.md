@@ -109,7 +109,7 @@ npm.cmd run dev
 The build output lives in `web/backend/dist/job-workbench-backend/` — double-click `job-workbench-backend.exe` inside it:
 
 - **Nothing is running yet** → it starts the backend and opens a browser (the black console window is the service log; closing it stops the service)
-- **Already running** → it just opens the browser, without starting a second service
+- **Already running** → by default it **reports the conflict and exits** (so it will not attach to another instance's data root); set `JOBWS_ALLOW_REUSE=1` to reuse it and open the browser
 - **The port is taken by another program** → you get a plain-language message and the window stays open (it does not flash and vanish)
 
 > ⚠️ **The exe is a "clean distribution" and does not read your personal data.** The portable workspace sits next to the exe (`personal/`, empty by default) — that is deliberate, so your job-search data never travels with an installer. **Use option 1 or 2 for your own day-to-day work** (data lives at the repo root); use the exe to validate a build or to hand to someone else. If you insist on pointing the exe at your own data, set `JOBWS_DATA_DIR` to the repo root (not recommended — it forks your data).

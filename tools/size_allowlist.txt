@@ -88,7 +88,6 @@ packages/jobws-core/src/jobws_core/jd_gap.py = 315  # 差距分析本体 + resol
 # 这两项因「后端身份 + 启动决策」改动而越线。身份判定本身已抽到 backend_identity.js
 # 与其测试文件，剩下的是装配入口与全路径测试，拆分会扩大本轮的改动面。
 web/backend/main.py = 318  # FastAPI 应用装配入口（路由注册 / 中间件 / 静态托管 / 浏览器自开）。2026-10-28 加 /api/health 身份字段与 _is_our_service 同源判据；已压缩注释至 318。再长按「中间件 / 静态托管 / 启动开关」三段拆，属独立重构。
-web/electron/backend_process.test.js = 315  # 进程管理全路径测试（Python 探测与回退 / 健康 done 门 / start-stop 空守卫 / win32 taskkill / exit 三分支）。身份判定自身的用例已拆到 backend_identity.test.js，本文件只剩「进程生命周期」相关断言。
 
 # --- 2026-10-28 令牌目录可覆盖 ---------------------------------------------------
 # approval.py 原本正好 300 行（贴线）。加 JOBWS_APPROVAL_DIR 覆盖后 303 行。
@@ -96,11 +95,3 @@ web/electron/backend_process.test.js = 315  # 进程管理全路径测试（Pyth
 # 详细理由在 tests/conftest.py 的 _isolate_approval_store。再长优先拆 out 令牌存储层。
 packages/jobws-core/src/jobws_core/approval.py = 303
 
-# --- 2026-10-28 实例身份 ---------------------------------------------------------
-# backend_process.js 310 行（超 10）。本轮加的是「实例身份」相关的必要逻辑：
-# INSTANCE_ID 生成、checkHealth 的 reason 分支、waitBackendReady 的 identity 提示。
-# 没拆的理由：健康检查与进程生命周期强内聚（checkHealth 要 http 注入，
-# waitBackendReady 要 log/notifyUser/tFor/app 四个注入），拆出去会让注入面翻倍，
-# 而这段代码的正确性正是本轮审查的重点——拆分的回归风险高于 10 行带来的可读性收益。
-# 再长优先拆「健康检查 + 就绪等待」成独立模块（届时同步改 backend_identity.test.js 的注入）。
-web/electron/backend_process.js = 310

@@ -80,13 +80,15 @@ def _snapshots_in_tmp(tmp_path, monkeypatch):
     `client` 夹具的 `setenv` 本身有效——漏的是**不需要 `client` 的用例**：
     `test_retention_keeps_one_per_window_and_removes_the_rest` 只取 `tmp_path`，
     `_snap_dir` 于是读到进程级真实 `APPDATA`，往真实的
-    `%APPDATA%\\job-workbench\\snapshots\\ws-ok` 写三个空 zip，再调 `_apply_retention`
-    **删掉**其中两个（修前实测：该目录下只剩一个 22 字节的 `a.zip`）。真实工作区
-    只要叫 `ws-ok`，用户的快照就会被测试清掉。
+    `%APPDATA%\\job-workbench\\snapshots\\ws-ok` 写三个空 zip，再调 `_apply_retention`。
+    那个函数会列出该目录**全部** `.zip` 并按保留策略删掉不入选的（不止那三个；修前
+    实测：该目录下只剩一个 22 字节的 `a.zip`）。真实工作区只要叫 `ws-ok`，用户的
+    快照就会被测试清掉。
 
     与其继续靠「这条用例记得带 `client`」的约定，不如把根钉死：全文件共用一个临时
-    快照根，将来再加一条不需要 `client` 的用例也不会漏。代价是快照根落在数据根内，
-    与生产的「快照在工作区之外」不同——本文件测的是还原/淘汰语义，不是路径策略。
+    快照根，将来再加一条不需要 `client` 的用例也不会漏。代价：测试把快照根放在测试
+    数据根**内部**（生产的默认布局是放在 canonical 数据根之外）；「快照在工作区之外」
+    这条与生产一致——本文件测的是还原/淘汰语义，不是路径策略。
 
     做法与 `test_bank_delete` / `test_record_deletes` 一致：patch 模块属性
     （`routers.system` 是 `from jobws_core import pathres`，走属性查找，改得到）。

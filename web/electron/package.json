@@ -1,6 +1,6 @@
 {
   "name": "job-workbench",
-  "version": "26.10.1",
+  "version": "26.10.2",
   "description": "Job Workbench desktop app — local-first job application tracker",
   "main": "main.js",
   "author": "job-workbench contributors",
@@ -14,7 +14,7 @@
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
-    "electron": "^44.4.5",
+    "electron": "^44.9.1",
     "electron-builder": "^26.15.3"
   },
   "build": {

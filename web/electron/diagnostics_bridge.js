@@ -16,23 +16,18 @@ const { buildDiagnostics } = require("./diagnostics");
 // （主弹窗 + 「已复制」）；改前第一个关闭即落定，那是天然兜底，现在没了。
 // 若第二个不可见 / 用户离开座位，退出会无限期挂起——超时那条路径尤其难受：
 // 后端可能还活着但不可用，进程却因一个弹窗长驻。
-// 5 分钟：读完并做决定足够宽裕。timer.unref() 保证兜底计时器自己不撑住进程。
+//
+// 5 分钟：读完并做决定足够宽裕。
+//
+// 用可注入常量：测试要用几十毫秒验「正常完成时计时器被取消」，
+// 否则这条只能靠读代码相信（2026-10-29 二次复核）。
 const DIALOG_MAX_WAIT_MS = 5 * 60 * 1000;
-
-/** 兜底 promise：到点 resolve（永不 reject）。 */
-function dialogTimeout(log) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      log(`notifyUser: dialog wait exceeded ${DIALOG_MAX_WAIT_MS}ms, forcing settle`);
-      resolve();
-    }, DIALOG_MAX_WAIT_MS);
-    if (typeof timer.unref === "function") timer.unref();
-  });
-}
 
 function createDiagnosticsBridge({
   app, log, tFor, resolvedLang, logFilePath, BrowserWindow, dialog, clipboard, shell, os,
   fs = require("fs"),
+  // 可注入：测试用几十毫秒验「正常完成时计时器被取消」，生产用默认 5 分钟
+  dialogMaxWaitMs = DIALOG_MAX_WAIT_MS,
 }) {
   /**
    * 给用户一条**看得见**的说明。
@@ -72,12 +67,25 @@ function createDiagnosticsBridge({
         })
         .catch((e) => log(`notifyUser failed: ${e.message}`));
 
-      // 兜底（2026-10-29 独立审查）：三处「等弹窗再退出」现在要等**两个**弹窗。
-      // 改前第一个弹窗关闭即落定，那是天然兜底；现在若第二个弹窗不可见 / 用户
-      // 离开座位，退出会无限期挂起（超时那条路径尤其难受：后端可能还活着但不可用，
-      // 进程却因一个弹窗长驻）。到点强制落定，日志留一句。
-      // timer.unref()：兜底计时器自己不该让进程活着。
-      return Promise.race([chain, dialogTimeout(log)]);
+      // 兜底（2026-10-29）：三处「等弹窗再退出」现在要等**两个**弹窗，若第二个
+      // 不可见 / 用户离开座位，退出会无限期挂起。到点强制落定。
+      //
+      // **必须 clearTimeout**（2026-10-29 二次复核）：`Promise.race` 只决定谁先完成，
+      // 不会取消另一个的计时器；`timer.unref()` 也只影响「是否撑住进程」，不是取消。
+      // 不 cancel 的后果是 5 分钟后打出一条假的 `forcing settle` 日志——污染
+      // 「更新失败」「运行中崩溃」这些应用**继续存活**的场景，让人误以为有弹窗被强收。
+      // 所以这里手写 race 而不是用 `Promise.race([chain, dialogTimeout()])`。
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          log(`notifyUser: dialog wait exceeded ${dialogMaxWaitMs}ms, forcing settle`);
+          resolve();
+        }, dialogMaxWaitMs);
+        if (typeof timer.unref === "function") timer.unref();
+        chain.then(() => {
+          clearTimeout(timer);   // 正常/失败完成：计时器不再需要
+          resolve();
+        });
+      });
     } catch (e) {
       // 通知失败不该变成第二次崩溃：日志里留一句即可
       log(`notifyUser failed: ${e.message}`);

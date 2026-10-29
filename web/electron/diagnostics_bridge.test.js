@@ -67,12 +67,13 @@ test("notifyUser: without withDiagnostics there is only OK and nothing is copied
  * 为什么不用 makeBridge：那个版本的 showMessageBox 立刻 resolve，测不出
  * 「外层等没等第二个弹窗」——这正是 3.1 的缺口所在。
  */
-function makeDeferredBridge() {
+function makeDeferredBridge({ dialogMaxWaitMs, log = () => {} } = {}) {
   const dialogs = [];
   const pending = [];
   const bridge = createDiagnosticsBridge({
     app: { getVersion: () => "26.11.0", getPath: () => path.join("C:", "tmp") },
-    log: () => {},
+    log,
+    dialogMaxWaitMs,
     tFor: () => (key) => (key === "copyDiag" ? "Copy diagnostics" : key),
     resolvedLang: () => "en",
     logFilePath: () => path.join("C:", "tmp", "app.log"),
@@ -142,4 +143,40 @@ test("notifyUser: OK (no copy) settles on the first dialog alone", async () => {
   await outer;
   assert.equal(settled, true);
   assert.equal(pending.length, 1, "no second dialog when the user does not copy");
+});
+
+test("notifyUser: a completed chain cancels the fallback timer (no false timeout log)", async () => {
+  // 2026-10-29 二次复核：Promise.race 不取消另一个计时器，timer.unref() 也不是取消。
+  // 不 clearTimeout 的后果：5 分钟后打出一条假的 "forcing settle"，
+  // 污染「更新失败」「运行中崩溃」这些应用继续存活的场景。
+  const logs = [];
+  const { bridge, pending } = makeDeferredBridge({ dialogMaxWaitMs: 20, log: (m) => logs.push(m) });
+
+  const outer = bridge.notifyUser("title", "message");
+  await tick();
+  pending[0].resolve({ response: 1 });   // 用户点 OK，链正常完成
+  await outer;
+
+  // 等到明显超过兜底时限：若计时器没被取消，这里就会看到 forcing settle
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  assert.equal(
+    logs.some((l) => l.includes("forcing settle")),
+    false,
+    "a completed chain must clearTimeout, otherwise a false 'forcing settle' lands later",
+  );
+});
+
+test("notifyUser: the fallback still fires when a dialog never closes", async () => {
+  // 反向：弹窗真的不关时，兜底必须生效（否则退出会无限期挂起）
+  const logs = [];
+  const { bridge } = makeDeferredBridge({ dialogMaxWaitMs: 20, log: (m) => logs.push(m) });
+
+  // 不 resolve 任何弹窗——只等兜底
+  await bridge.notifyUser("title", "message");
+
+  assert.ok(
+    logs.some((l) => l.includes("forcing settle")),
+    "an unresolved dialog must hit the fallback so quit() is not blocked forever",
+  );
 });

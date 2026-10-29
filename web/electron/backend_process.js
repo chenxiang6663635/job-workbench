@@ -119,6 +119,14 @@ function createBackendProcess({
           cb();
           return;
         }
+        // 进程已退出（exit 回调把它置 null）：继续轮询没有意义，而且会在 30 秒后
+        // 弹第二个框——exit 刚就「后端启动失败」说过话了（2026-10-29 复核）。
+        // 这是**既有未覆盖路径**，不是 startBackend 返回布尔那条能覆盖的：
+        // 那条管「根本没 spawn」，这条管「spawn 了但在就绪前退出」。
+        if (!backendProcess) {
+          log("Backend exited before ready — stop polling (exit already reported)");
+          return;
+        }
         if (Date.now() - start > HEARTBEAT_TIMEOUT) {
           log("Backend startup timed out. Packaged builds: see the [backend-err] exit reason above in this log; source runs: check your Python/FastAPI environment");
           // 同 P2：超时后静默自退，用户看到的是"双击了没反应"
@@ -152,14 +160,10 @@ function createBackendProcess({
   }
 
   /**
-   * 启动后端。返回**布尔**（2026-10-29 审计 3.2）：
-   *   true  → 进程已 spawn（exe 或 python），调用方可以开始 waitBackendReady
-   *   false → 起不来（已弹窗告知），调用方**不要**进入就绪轮询
-   *
-   * 为什么必须返回：此前失败分支只是 `return;`（undefined），而 main.js 无条件
-   * `startBackend(); waitBackendReady(...)`——于是「找不到 Python」已经弹了窗、
-   * 排了退出，主流程还在轮询 30 秒，到点又弹第二个「启动超时」框。两个弹窗
-   * 叠在一起，且 app.quit() 可能把前一个收走。
+   * 启动后端，返回布尔（2026-10-29 审计 3.2）：true = 已 spawn，调用方可开始
+   * waitBackendReady；false = 起不来（已弹窗），调用方**不要**进入轮询。此前
+   * 失败分支返回 undefined，而 main.js 无条件轮询——于是「找不到 Python」的弹窗
+   * 已排队、30 秒后又弹一个「启动超时」，两个弹窗叠着。
    */
   function startBackend() {
     // 已有进程：视为成功（幂等调用，不该触发第二次 spawn，也不该让调用方去轮询）

@@ -71,15 +71,50 @@ def _write(tmp_path, rel, text):
     return path
 
 
-def _snap_dir(_tmp_path=None):
+@pytest.fixture(autouse=True)
+def _snapshots_in_tmp(tmp_path, monkeypatch):
+    """把 `pathres.snapshot_root()` 钉在 `tmp_path` 下（2026-10-28 审计修复）。
+
+    `snapshot_root()` = `user_data_dir()/snapshots`，而 `user_data_dir()` 是**调用时**
+    读 env 的（Windows 看 `APPDATA`、POSIX 看 `XDG_DATA_HOME`，无缓存）。所以上面
+    `client` 夹具的 `setenv` 本身有效——漏的是**不需要 `client` 的用例**：
+    `test_retention_keeps_one_per_window_and_removes_the_rest` 只取 `tmp_path`，
+    `_snap_dir` 于是读到进程级真实 `APPDATA`，往真实的
+    `%APPDATA%\\job-workbench\\snapshots\\ws-ok` 写三个空 zip，再调 `_apply_retention`
+    **删掉**其中两个（修前实测：该目录下只剩一个 22 字节的 `a.zip`）。真实工作区
+    只要叫 `ws-ok`，用户的快照就会被测试清掉。
+
+    与其继续靠「这条用例记得带 `client`」的约定，不如把根钉死：全文件共用一个临时
+    快照根，将来再加一条不需要 `client` 的用例也不会漏。代价是快照根落在数据根内，
+    与生产的「快照在工作区之外」不同——本文件测的是还原/淘汰语义，不是路径策略。
+
+    做法与 `test_bank_delete` / `test_record_deletes` 一致：patch 模块属性
+    （`routers.system` 是 `from jobws_core import pathres`，走属性查找，改得到）。
+    """
+    from jobws_core import pathres
+
+    snapshot_root = tmp_path / "snapshots"
+    monkeypatch.setattr(pathres, "snapshot_root", lambda: str(snapshot_root))
+
+
+def _snap_dir(tmp_path):
     """快照目录：**问应用要**（`pathres.snapshot_root()`），不按平台猜。
 
     Windows 落在 `%APPDATA%\\job-workbench\\snapshots`、POSIX 落在 `$XDG_DATA_HOME/job-workbench/snapshots`；
     按平台猜路径会让用例在 CI（Ubuntu）上去临时目录里找一份写在别处的快照。
+
+    但「问应用要」不等于「可以要真实的用户目录」——隔离靠上面的 `_snapshots_in_tmp`
+    夹具，下面这条断言是它的守卫：夹具一旦被删或失效，用例应当**立刻红**，而不是
+    安静地写（并删）用户真实目录里的快照。两侧都 `resolve()`，避免临时目录本身是
+    符号链接时误判。
     """
     from jobws_core import pathres
 
-    return Path(pathres.snapshot_root()) / WS
+    root = Path(pathres.snapshot_root()).resolve()
+    base = Path(tmp_path).resolve()
+    assert root.is_relative_to(base) and root != base, (
+        "快照根没被隔离到 tmp_path 下：%s（真实用户目录，会写/删它）" % root)
+    return root / WS
 
 
 def _make_snapshot(tmp_path, files, name="ws-ok-20260923-220000-000000.zip"):

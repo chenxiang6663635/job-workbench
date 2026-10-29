@@ -210,6 +210,8 @@ jobs:
           node web/electron/backend_process.test.js || status=1
           node web/electron/python_detect.test.js || status=1
           node web/electron/backend_identity.test.js || status=1
+          node web/electron/startup_messages.test.js || status=1
+          node web/electron/diagnostics_bridge.test.js || status=1
           node web/electron/prefs.test.js || status=1
           node web/electron/notifications.test.js || status=1
           node web/electron/navigation.test.js || status=1

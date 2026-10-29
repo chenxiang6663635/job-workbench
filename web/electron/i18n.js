@@ -52,6 +52,26 @@ const TABLES = {
     reminderSoon: "{company} {position} · {days}d left · {date}",
     reminderTalk: "{company} · talk at {time}",
     reminderMore: "{count} more",
+    // 启动阶段的两个阻断提示（2026-10-28 审计 §七 第 2 条：此前散落在 main.js /
+    // backend_process.js 里的字面量，中文用户看到的是英文）
+    portConflictTitle: "Cannot start: backend port is in use",
+    portConflictReuseDetail:
+      "Another Job Workbench backend is already listening on 127.0.0.1:8765.\n\n"
+      + "It may point to a different data root. Attaching would show or write the "
+      + "wrong workspace, so this window will not open.\n\n"
+      + "• To use that instance: open it directly (do not start a second one).\n"
+      + "• To reuse it from this shell anyway: set JOBWS_ALLOW_REUSE=1.\n"
+      + "• To start fresh: quit that instance first.",
+    portConflictOtherDetail:
+      "The port 127.0.0.1:8765 is held by something that is not a healthy "
+      + "Job Workbench backend ({kind}).\n\n"
+      + "This app will not attach to it, and will not kill it.\n\n"
+      + "• Find and close whatever holds the port, then start again.",
+    backendTimeoutHintIdentity:
+      "The port is answering, but not as the backend this window started "
+      + "— most likely another Job Workbench instance owns it.\n"
+      + "Waiting longer will not help: quit that instance (or set "
+      + "JOBWS_ALLOW_REUSE=1 to attach to it deliberately).",
   },
   "zh-CN": {
     windowTitle: "求职工作台",
@@ -89,6 +109,21 @@ const TABLES = {
     reminderSoon: "{company} {position}：还剩 {days} 天 · {date}",
     reminderTalk: "{company} · 宣讲会 {time}",
     reminderMore: "等 {count} 项",
+    // 启动阶段的两个阻断提示（2026-10-28 审计 §七 第 2 条：此前是硬编码英文）
+    portConflictTitle: "无法启动：后端端口被占用",
+    portConflictReuseDetail:
+      "127.0.0.1:8765 上已经有一个求职工作台后端在监听。\n\n"
+      + "它可能指向另一个数据根。附着上去会看到或写进错误的工作区，所以这个窗口不会打开。\n\n"
+      + "• 想用那个实例：直接打开它（不要再起第二个）。\n"
+      + "• 确实要从这里复用它：设 JOBWS_ALLOW_REUSE=1。\n"
+      + "• 想从头启动：先退出那个实例。",
+    portConflictOtherDetail:
+      "127.0.0.1:8765 被一个**不是**健康求职工作台后端的东西占着（{kind}）。\n\n"
+      + "本程序不会附着到它，也不会结束它。\n\n"
+      + "• 找到并关掉占着端口的那个程序，然后重新启动。",
+    backendTimeoutHintIdentity:
+      "端口在应答，但**不是**本窗口启动的那个后端——很可能是另一个求职工作台实例占着它。\n"
+      + "继续等待不会好转：先退出那个实例（或设 JOBWS_ALLOW_REUSE=1 明确附着到它）。",
   },
 };
 

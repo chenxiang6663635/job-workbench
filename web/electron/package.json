@@ -51,6 +51,7 @@
       "reminders.js",
       "zoom.js",
       "i18n.js",
+      "startup_messages.js",
       "package.json",
       "node_modules/**"
     ],

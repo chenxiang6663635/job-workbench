@@ -20,6 +20,7 @@ const HEARTBEAT_TIMEOUT = 30000; // ms
 // 那边是纯函数（可单测、无副作用），这里只负责「拉起/停止进程 + 用判据决策」。
 const { SERVICE_ID, INSTANCE_ID, isHealthy, decideStartupAction } = require("./backend_identity");
 const { createPythonDetector } = require("./python_detect");
+const { timeoutHint } = require("./startup_messages");
 
 function createBackendProcess({
   app, log, notifyUser, tFor, resolvedLang, backendDir,
@@ -124,15 +125,12 @@ function createBackendProcess({
           const t = tFor(resolvedLang());
           // identity：端口在应答，但**不是这个窗口拉起的那个后端**（很可能是另一个
           // jobws 实例）。继续等是徒劳的，必须说清楚，否则用户只会反复重启。
-          const hint = lastReason === "identity"
-            ? "\n\nThe port is answering, but not as the backend this window started "
-              + "— most likely another Job Workbench instance owns it.\n"
-              + "Waiting longer will not help: quit that instance (or set "
-              + "JOBWS_ALLOW_REUSE=1 to attach to it deliberately)."
-            : "";
+          // 文案走语言表（2026-10-28 审计 §七 第 2 条：此前是硬编码英文）。
+          const hint = timeoutHint(lastReason, t);
           notifyUser(
             t("backendTimeoutTitle"),
-            `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}${hint}\n\n${HEALTH_URL}`,
+            `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}`
+              + `${hint ? `\n\n${hint}` : ""}\n\n${HEALTH_URL}`,
             { withDiagnostics: true });
           app.quit();
           return;

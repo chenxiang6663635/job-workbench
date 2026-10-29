@@ -172,11 +172,20 @@ test("notifyUser: the fallback still fires when a dialog never closes", async ()
   const logs = [];
   const { bridge } = makeDeferredBridge({ dialogMaxWaitMs: 20, log: (m) => logs.push(m) });
 
-  // 不 resolve 任何弹窗——只等兜底
-  await bridge.notifyUser("title", "message");
-
-  assert.ok(
-    logs.some((l) => l.includes("forcing settle")),
-    "an unresolved dialog must hit the fallback so quit() is not blocked forever",
-  );
+  // 兜底 timer 是 unref() 的——那是**生产语义**（不该因为一个兜底计时器就撑住进程），
+  // 代价是：event loop 里没有别的活时，node 会在它触发前就判定「永远不会落定」
+  // （CI 实测：`Promise resolution is still pending but the event loop has already
+  // resolved`）。本地当时恰有其它 timer 撑着，所以没暴露。
+  // 测试自己撑住 loop，才能观察到它真的会触发。
+  const keepAlive = setTimeout(() => {}, 200);
+  try {
+    // 不 resolve 任何弹窗——只等兜底
+    await bridge.notifyUser("title", "message");
+    assert.ok(
+      logs.some((l) => l.includes("forcing settle")),
+      "an unresolved dialog must hit the fallback so quit() is not blocked forever",
+    );
+  } finally {
+    clearTimeout(keepAlive);
+  }
 });

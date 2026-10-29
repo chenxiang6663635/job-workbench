@@ -44,7 +44,13 @@ function createDiagnosticsBridge({
       const shown = win ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts);
       return shown
         .then(({ response }) => {
-          if (withDiagnostics && response === 0) copyDiagnostics();
+          // **return**（2026-10-29 审计 3.1）：不返回的话，用户点「复制诊断」后
+          // 立刻点「确定」，外层 promise 已在第一个弹窗关闭时落定——调用方的
+          // `.then(app.quit)`（以及 backend_process 的超时分支）会在这第二个
+          // 弹窗还开着的时候退出进程，用户看不到「已复制」。
+          // 把它接进等待链，语义变成「读完并关掉两个弹窗，才算通知结束」。
+          if (withDiagnostics && response === 0) return copyDiagnostics();
+          return undefined;
         })
         .catch((e) => log(`notifyUser failed: ${e.message}`));
     } catch (e) {
@@ -84,11 +90,18 @@ function createDiagnosticsBridge({
       });
       clipboard.writeText(text);
       const t = tFor(resolvedLang());
-      dialog.showMessageBox({
+      // **返回**这个 promise（2026-10-29 审计 3.1）：调用方（notifyUser 的 then 回调）
+      // 需要等「复制成功」这第二个弹窗关闭，才让外层落定。此前不返回，外层 promise
+      // 在第一个弹窗关闭时就落定了——紧接着的 `app.quit()` 会把这第二个弹窗一起收走，
+      // 用户看不到「已复制」。
+      return dialog.showMessageBox({
         type: "info", title: t("copyDiag"), message: t("diagCopied"), buttons: ["OK"],
       });
     } catch (e) {
       log(`copyDiagnostics failed: ${e.message}`);
+      // 失败也要返回已落定的 promise：调用方 `return copyDiagnostics()` 拿到
+      // undefined 会让整条等待链在这里断掉（且错误被吞）。契约统一，调用方不必区分。
+      return Promise.resolve();
     }
   }
 

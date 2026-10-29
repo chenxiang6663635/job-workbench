@@ -151,8 +151,19 @@ function createBackendProcess({
     return fs.existsSync(candidate) ? candidate : null;
   }
 
+  /**
+   * 启动后端。返回**布尔**（2026-10-29 审计 3.2）：
+   *   true  → 进程已 spawn（exe 或 python），调用方可以开始 waitBackendReady
+   *   false → 起不来（已弹窗告知），调用方**不要**进入就绪轮询
+   *
+   * 为什么必须返回：此前失败分支只是 `return;`（undefined），而 main.js 无条件
+   * `startBackend(); waitBackendReady(...)`——于是「找不到 Python」已经弹了窗、
+   * 排了退出，主流程还在轮询 30 秒，到点又弹第二个「启动超时」框。两个弹窗
+   * 叠在一起，且 app.quit() 可能把前一个收走。
+   */
   function startBackend() {
-    if (backendProcess) return;
+    // 已有进程：视为成功（幂等调用，不该触发第二次 spawn，也不该让调用方去轮询）
+    if (backendProcess) return true;
     backendStopping = false;   // 新一次启动：清掉上一轮「主动停止」标志
 
     const exe = findBackendExe();
@@ -173,7 +184,9 @@ function createBackendProcess({
         const t = tFor(resolvedLang());
         notifyUser(t("backendMissingPythonTitle"), t("backendMissingPythonMessage"),
                    { withDiagnostics: true }).then(() => app.quit());
-        return;
+        // false：调用方不得进入就绪轮询。否则 30 秒后还会在同一个弹窗后面再弹
+        // 一个「启动超时」，而用户刚读完的正是「你缺 Python」。
+        return false;
       }
       log(`Using python backend: ${python}`);
       backendProcess = childProcess.spawn(python, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", String(BACKEND_PORT)], {
@@ -216,6 +229,9 @@ function createBackendProcess({
       }
       backendProcess = null;
     });
+
+    // 走到这里 = 进程已 spawn（exe 或 python），交给 waitBackendReady 等它就绪
+    return true;
   }
 
   function stopBackend() {

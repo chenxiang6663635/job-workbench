@@ -39,7 +39,11 @@ const TABLES = {
     backendDiedMessage: "The backend exited while running (code {code}); the UI no longer works.",
     backendDiedDetail: "Please restart the app. If it keeps happening, click Copy diagnostics below and send what it gives you; step-by-step checks: docs/usage-guide (FAQ).",
     copyDiag: "Copy diagnostics",
-    diagCopied: "Diagnostics copied to the clipboard — paste it into your bug report.",
+    // 2026-10-29 审计 3.3：原文是「paste it into your bug report」——那是**承诺**诊断
+    // 可安全公开，但 redactHome 只脱敏主目录；日志尾部仍可能含邮箱、公司名、JD 路径。
+    // 文案改成「先检查再贴」，注释可以慢点改，这句是用户实际照着做的指令。
+    diagCopied: "Diagnostics copied to the clipboard. Review it and remove anything sensitive "
+      + "(email addresses, file paths, company names) before pasting into a public bug report.",
     backendTimeoutTitle: "Backend startup timed out",
     backendTimeoutMessage: "The backend was not ready after {seconds} seconds:",
     backendMissingPythonTitle: "Backend not found",
@@ -96,7 +100,9 @@ const TABLES = {
     backendDiedMessage: "后端在运行中退出（退出码 {code}），界面上的操作将不再生效。",
     backendDiedDetail: "请重启应用；若反复出现，点下方「复制诊断信息」把日志尾部复制出来一起反馈。重启仍失败时看 docs/usage-guide 的「常见问题」章。",
     copyDiag: "复制诊断信息",
-    diagCopied: "诊断信息已复制到剪贴板——直接粘贴到反馈里即可。",
+    // 同英文侧（2026-10-29 审计 3.3）：只脱敏主目录，别承诺「可直接贴」
+    diagCopied: "诊断信息已复制到剪贴板。提交公开反馈前请先检查并删除敏感内容"
+      + "（邮箱、文件路径、公司名）。",
     backendTimeoutTitle: "后端启动超时",
     backendTimeoutMessage: "等了 {seconds} 秒后端仍未就绪：",
     backendMissingPythonTitle: "找不到后端",

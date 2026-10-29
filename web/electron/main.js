@@ -143,7 +143,12 @@ app.whenReady().then(() => {
       return;
     }
 
-    backend.startBackend();
+    // startBackend 返回 false = 起不来（找不到 Python / 没有可用的 exe），它已经弹窗
+    // 并排好了退出。此时**不得**进入就绪轮询（2026-10-29 审计 3.2）：
+    // 轮询会跑满 30 秒，然后弹出第二个「启动超时」框——而用户刚关掉的正是
+    // 「你缺 Python」。两个弹窗叠着，且随后的 app.quit() 可能把前一个收走。
+    if (!backend.startBackend()) return;
+
     backend.waitBackendReady(() => windows.createWindow());
   });
 

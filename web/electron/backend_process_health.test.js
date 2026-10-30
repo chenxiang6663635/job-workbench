@@ -122,6 +122,10 @@ test("waitBackendReady: an identity mismatch turns the timeout prompt into the i
       "the identity reason must reach the prompt: " + notifications[0].message);
     assert.ok(notifications[0].message.includes("127.0.0.1:8765"),
       "the probe URL must be in the prompt: " + notifications[0].message);
+    // 恰好一处 hint：`includes` 单独用的话，「任何提示都算过」——reason 传错、多拼一段
+    // 也能绿。这里钉住次数，把「identity 正确的提示」与「随便一段提示」分开。
+    assert.equal((notifications[0].message.match(/backendTimeoutHint/g) || []).length, 1,
+      "exactly one hint key: " + notifications[0].message);
     await tick();
     assert.equal(quits.length, 1, "quit only after the dialog is dismissed");
   });
@@ -134,7 +138,7 @@ test("waitBackendReady: a plain connection refusal must not claim an identity mi
       http: h.http, heartbeatTimeout: 50, heartbeatInterval: 1, now: () => (clock += 100),
     });
     deps.bp.startBackend();
-    const { notifications } = deps;
+    const { notifications, quits } = deps;
     deps.bp.waitBackendReady(() => {});
     h.fire("error", Object.assign(new Error("x"), { code: "ECONNREFUSED" }));
     await tick();
@@ -142,6 +146,9 @@ test("waitBackendReady: a plain connection refusal must not claim an identity mi
     assert.equal(notifications.length, 1);
     assert.ok(!notifications[0].message.includes("backendTimeoutHintIdentity"),
       "a free port is not an identity mismatch: " + notifications[0].message);
+    // 与 identity 用例对称：这条路径也要等弹窗关掉再退出
+    await tick();
+    assert.equal(quits.length, 1, "quit only after the dialog is dismissed");
   });
 
 test("waitBackendReady: a healthy backend flips ready and calls back", () => {

@@ -17,8 +17,6 @@ English | [简体中文](README.zh-CN.md)
 
 </div>
 
-<img src="docs/assets/workflow.svg" alt="Job Workbench loop: JD analysis, eligibility and evidence check, resume versions, application tracking, interviews and offers. AI suggests, scripts verify, you confirm." width="100%">
-
 **The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The image above is the same flow; this line is the readable version on narrow screens.
 
 ## Why job-workbench
@@ -56,6 +54,8 @@ The workbench turns all of that into queryable, traceable files.
 - **Four-layer one-way dependency**: skills (domain knowledge) → scripts (IO & validation) → data (Markdown + CSV) → git (versions). The `tools/` tree is a layered package — one CLI entry point (`jobws`) plus domain modules and gate scripts; module dependencies stay acyclic (domain code never imports the web/protocol layer), so each module stays independently testable.
 - **Three-layer separation**: tooling (`tools/` + `skills/`, domain-agnostic) · domain profiles (`template/profiles/`, pluggable) · user workspace (`personal/`, your real data). A three-tier lexicon judges skills by *"can you survive follow-up questions"*, not *"have you heard of it"* — see [`template/AGENTS.example.en-US.md`](template/AGENTS.example.en-US.md).
 
+<img src="docs/assets/workflow.svg" alt="Job Workbench loop: JD analysis, eligibility and evidence check, resume versions, application tracking, interviews and offers. AI suggests, scripts verify, you confirm." width="100%">
+
 ## Features at a glance
 
 - **Four AI-assisted workflows**: `jwb-jd` (JD parsing & scoring), `jwb-apply` (application package), `jwb-track` (tracker & funnel), `jwb-resume` (PDF rebuild & validation) — driven by the in-repo `jobws` CLI; full command reference in the [usage guide](docs/usage-guide.md)
@@ -74,16 +74,41 @@ The workbench turns all of that into queryable, traceable files.
 
 Four of the eight pages. The [screenshot gallery](docs/screenshots.md) has all of them, one per page, each with a line on what it is for — and the same set in 简体中文.
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/02-applications.png" alt="Tracker"></td>
-    <td width="50%"><img src="docs/screenshots/04-resume.png" alt="Resume workshop"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/03-jobs.png" alt="Jobs"></td>
-    <td width="50%"><img src="docs/screenshots/06-progress.png" alt="Progress"></td>
-  </tr>
-</table>
+### 1. Application tracker
+
+Track applications, deadlines and next steps.
+
+![Application tracker](docs/screenshots/02-applications.png)
+
+*Close-up — stage, deadline and score readable without zooming:*
+
+![Tracker detail: company, stage and score](docs/screenshots/02-applications-detail.png)
+
+[View full size](docs/screenshots/02-applications.png)
+
+### 2. Job pool and eligibility
+
+Check eligibility **before** a job is scored.
+
+![Job pool and eligibility](docs/screenshots/03-jobs.png)
+
+[View full size](docs/screenshots/03-jobs.png)
+
+### 3. Resume workshop
+
+Import, verify, and prepare resume versions.
+
+![Resume workshop](docs/screenshots/04-resume.png)
+
+[View full size](docs/screenshots/04-resume.png)
+
+### 4. Interviews and offers
+
+Follow up after applying, and compare offers side by side.
+
+![Interviews and offers](docs/screenshots/06-progress.png)
+
+[View full size](docs/screenshots/06-progress.png)
 
 > **Note**: the interface is **bilingual** — every page ships in 简体中文 and English, with a `中文 / English` switch in the header (first run follows your system language, and the choice is remembered). The code, this README and the [usage guide](docs/usage-guide.md) are in English — with one deliberate exception: **code comments are Chinese by convention** (see [contributing.en-US.md](docs/contributing.en-US.md) §Copy & i18n). What stays Chinese **by design**: the values stored in your CSV / Markdown files (stage names, column headers) — they are the shared data contract with the CLI and with your own history, so translating them would desync the UI from your data — plus the CLI's built-in help.
 

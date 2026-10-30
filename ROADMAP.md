@@ -7,6 +7,9 @@ when one exists. Historical implementation records stay in
 
 ## Shipped — recent batches (details in the changelog)
 
+- [x] **v26.10.1 security hotfix (2026-10-23)** — two dependency security updates, no functional change: `certifi` 2026.7.22 → 2026.10.19 (drops the affected **emSign ECC Root CA - G3**, PYSEC-2026-4320, CVSS 9.1) and `pypdf` 6.19.0 → 6.21.2 (five availability CVEs: unvalidated JPEG load, outline infinite loop, incomplete xref, multi-filter stream resource exhaustion). No data migration needed; sites chaining to the emSign root may report an incomplete chain after upgrading — expected. Both bumps land in `web/backend/requirements.txt` and `requirements.lock` together. Verification: [`docs/releases/26.10.1-verification.md`](docs/releases/26.10.1-verification.md); the post-release residual risk (auto-update never verified end-to-end in a public setting) was **accepted explicitly** in [`docs/releases/26.10.1-post-release-risk-acceptance.md`](docs/releases/26.10.1-post-release-risk-acceptance.md) — and then **closed on 2026-10-30**: the public auto-update chain (P-2 ~ P-5) passed on a real machine against the published release, so the risk no longer stands ([`docs/release-checklist.md`](docs/release-checklist.md) §〇).
+- [x] **v26.10.0 "data root" batch (2026-10-06)** — the workspace no longer has to live inside the install: `jobws data-root set` persists the choice (atomic write, absolute paths only, `.jobws-root.json` identity file), migrating became a **resumable transaction** (copy → byte-for-byte verify → switch, delete-never, `--apply` / `--resume` / `--rollback`), a fresh install now defaults to `<user data>/job-workbench/data`, and the settings page can walk you through moving it. `jobws doctor` + a new `jobws.info` MCP tool report the real data root and one of four health states (`ok` / `ambiguous` / `uninitialized` / `unavailable`, failing closed as `sys.dataRootUnavailable`). All 15 MCP tools carry standard annotations (`readOnlyHint`; `apply_approval` is the only non-read-only one; `openWorldHint=false`). Also: `integrations/dsh/` ships the MCP hookup (`profile.patch.yml`), an optional `jobws` preset and the nine `jwb-*` skills as one bundle; credentials moved to Windows Credential Manager ([#203](https://github.com/chenxiang6663635/job-workbench/issues/203)); due-date reminder bar; the usage guide moved behind a Gitee mirror; external-change refresh fix; note cross-linking; the font-size slider now applies everywhere; an independent top bar (VS Code titleBar style, 10 themes, two contrast checks); direction options generated from the workspace's `config/directions/`. **Released 2026-10-06**; verification: [`docs/releases/26.10.0-verification.md`](docs/releases/26.10.0-verification.md).
+- [x] **v26.9.0 batch (2026-09-25)** — hard eligibility became **four states** (pass / fail / *profile missing* / *needs confirmation* — a `[待填]` fact no longer kills a job, it is reported as "fill the profile first"), city requirements split into hard (terminates) and preference (only −3/−5 on culture & stability, capped at 5), direction anchors grew 2 → 6, and eligibility finally has tests. `jwb-domain-setup` arrived: an AI-guided, human-confirmed generator for domain plugins, gated by `jobws lint domains` before anything is written. Plus the "open original email" deep link now keys off *your* provider (only Gmail gets `rfc822msgid`; the others get a reason and a way forward), due-date reminders (report overdue first, 3/5/7 days ahead, deduped once per item per day, clicking lands on the tracker row), mail deadlines rendered as countdowns, email settings with provider presets (163/126/yeah.net declare IMAP ID; Outlook personal accounts are marked unsupported *with the reason*), a six-item pre-release closeout (one graded-confirmation primitive, one-click snapshot restore with a drill, a diagnostics bundle, window-position memory, a searchable settings page including `@modified`, due-date system notifications), two full-repo audits fixed the same day (11 findings, from lock-free read-modify-write on the secondary table silently rolling back, through `127.0.0.1:8765.evil.com` passing an Electron navigation prefix check, to unbounded whole-message email reads), governance written down (candidate pool, ADRs, support & compatibility page), and one `--link` distribution path for skills / commands / subagents. **Released 2026-09-25**; verification: [`docs/releases/26.9.0-verification.md`](docs/releases/26.9.0-verification.md).
 - [x] **v0.3.0 "agent-ready workbench" batch (2026-09-14)** — the CLI is one entry point now (`jobws`, PR #95 — **breaking**: the old script names no longer run features, they print a migration hint and exit 2, full mapping table in the changelog); an MCP server (`jobws-mcp`, three read-only tools at v0.3.0, PR #94; the three two-phase write tools landed after) puts the tracker / job pool / dashboard in front of an agent host; **writes became two-phase everywhere** (preview → one-shot token → apply, for `track add` / `import` / `update` / `init`, PR #98 / #99) and the MCP side ships the same flow as three tools sharing one implementation; **outbound TLS got a third, safe option** (fall back to a bundled CA list when the system trust store cannot be loaded — verification stays on by default, PR #96); first-run guidance for an empty workspace (PR #100) and a data-location card in settings (PR #101); skill bodies now use command names and a check keeps repo paths out of them (PR #97); the CodeBuddy plugin shell and cross-host review assets landed (PR #102); the domain contract is written down with `jobws lint domains` + `jobws release check` (PR #103, closing B13/B14); all 14 screenshots were re-shot in both languages (PR #104). **Released 2026-09-14 as `v0.3.0`** (tag → workflow built the installer and attached it) — read the changelog before upgrading, the CLI rename is breaking. Post-release: the IMAP edge case from [#50](https://github.com/chenxiang6663635/job-workbench/issues/50) was verified against a real mailbox and closed — the extra probe connection stays, its removal is tied to the Python 3.12 baseline registered below.
 - [x] [#2](https://github.com/chenxiang6663635/job-workbench/issues/2) — Shared UI primitive migration (batch B + batch C), empty / loading / error states on every page. Shipped in PR #15 / #16; the legacy palette still left in `Applications` / `Dashboard` / shell / `ErrorBoundary` is tracked separately as [#17](https://github.com/chenxiang6663635/job-workbench/issues/17) (2026-09-11: scheduled into the v0.2.0 batch)
 - [x] Collect early external-user feedback on the install / run experience — **done, and it immediately found something worth acting on**: [#19](https://github.com/chenxiang6663635/job-workbench/issues/19) (an English-speaking user installed it and could not use the interface). See the *English readiness* item below, which exists because of this report
@@ -24,16 +27,36 @@ when one exists. Historical implementation records stay in
 - [x] [#4](https://github.com/chenxiang6663635/job-workbench/issues/4) — Expand privacy & anti-fabrication regression coverage as the Web surface grows — **shipped in PR #32**: portability resolution, CSV-import privacy & atomicity, and doc relative-link reachability (three previously untested surfaces)
 - [x] **Release automation** — shipped in PR #23: tag (`v*`) triggers the Windows build and attaches the installer to the Release, so the v0.1.1 asset drift is now structurally impossible; the v0.2.0 release will be its first real run
 
-## Now — 不发布积累期：三桶推进（2026-10-09 登记）
+## Now — 积累期收口：桶三待触发，两个发布物待落章（2026-10-09 登记，2026-10-30 更新）
 
-> 上一段「DSH 接入件第二阶段：自包含发行物」已全部完结（P2-1…P2-5 + 文档收口，
-> PR #281–#286；逐项见 [CHANGELOG](CHANGELOG.md)），`v26.10.0` 已于 2026-10-06 发布。
-> 用户拍板**暂不发布**：发布节点维持 `26.11.0`（十一月换月）。候选清单来自
-> 2026-10-08 积累期审计（四路并行侦察 + 外部对照），报告归档
-> [`docs/research/2026-10-08-accumulate-backlog-audit.md`](docs/research/2026-10-08-accumulate-backlog-audit.md)。
->
-> **2026-10-12**：桶一 / 桶二已收口（各站见 CHANGELOG 的 `[Unreleased]`）。余下只有
-> 桶三（触发条件驱动，不主动开工）；发布节点不变（`26.11.0`，十一月换月）。
+**当前状态（2026-10-30）**
+
+- **积累期三桶已收口两桶，当前没有在做的功能**：桶一（取号前小修批，2026-10-09）与
+  桶二（积累期主线，2026-10-12）都已完成，逐项见 [CHANGELOG](CHANGELOG.md) 的 `[Unreleased]`。
+  余下只有桶三——触发条件驱动，不主动开工。
+- **两个发布物已就绪、待落章**（都是「技术侧完成、缺落章动作」，不是「还在做」）：
+  - **`26.10.2` 安全 hotfix**（分支 `release/26.10.2`）：Electron `44.4.5` → `44.10.0`，
+    只动依赖与版本号，不带 main 上的任何修复。属「四类阻断」里的**安全**一类，
+    不占 `26.11.0` 的功能预算。tag 前的核对清单见
+    [`docs/handover/2026-10-28-p0-closure.md`](docs/handover/2026-10-28-p0-closure.md)。
+  - **DSH 双包随 `26.11.0` 一并首发**：`integrations/dsh/` 的主包与平台子包
+    （`dsh-job-workbench` / `dsh-job-workbench-win32-x64`）技术侧**已完整**——
+    自包含 runtime + `prebuilds.json` 哈希清单 + `prepack` 校验 + 17 工具冒烟 +
+    227/227 逐字节可复现。**缺的不是技术，是落章六处**。执行单见
+    [`docs/handover/2026-10-28-dsh-first-release-runbook.md`](docs/handover/2026-10-28-dsh-first-release-runbook.md)：
+    落章 → `-FromLock` 重建 → 双包预检 + 冒烟 → 子包先主包后发布 →
+    公共 npm 全新安装核验 → marketplace 收录（必须在主包发布之后）。
+- **一件机械待办：16 张截图待重拍**（`npm.cmd run capture`，中英各 8 张）。`docs/screenshots/` 与
+  `docs/screenshots/zh-CN/` 最后一次执行是 2026-09-30（`69f53e6`），此后 `web/frontend/src` 仍有
+  5 次提交——顶栏成独立一档、素材库加笔记互链返回栈，图与界面已不一致。两个图库文档
+  （[`docs/screenshots.md`](docs/screenshots.md) 与 [`docs/screenshots.zh-CN.md`](docs/screenshots.zh-CN.md)）
+  都加了时间戳说明。缺的不是判断，是执行脚本与提交。
+
+**怎么走到这里的**：上一段「DSH 接入件第二阶段：自包含发行物」已全部完结（P2-1…P2-5 +
+文档收口，PR #281–#286；逐项见 [CHANGELOG](CHANGELOG.md)），`v26.10.0` 已于 2026-10-06 发布。
+用户拍板**暂不发布**：发布节点维持 `26.11.0`（十一月换月）。候选清单来自 2026-10-08 积累期
+审计（四路并行侦察 + 外部对照），报告归档
+[`docs/research/2026-10-08-accumulate-backlog-audit.md`](docs/research/2026-10-08-accumulate-backlog-audit.md)。
 
 **三桶推进**（桶一 → 桶二 → 桶三；桶三只登记、不主动开工）：
 
@@ -53,22 +76,9 @@ when one exists. Historical implementation records stay in
   OAuth2、Electron 主版本升级、代码签名、winget、国内直链、macOS、marketplace 收录
   （**必须在 npm 首发之后**）。凡涉发布物形态与元数据者：取号前落定或顺延。
 
-**发布节点**：`26.11.0`（十一月发车，单一发布节点）；`26.10.1` 只留给四类阻断
-hotfix（安全 / 数据损坏 / 安装·启动阻断 / 更新链失效）。
-
-**2026-10-29 补记**（两个发布物，都是「已就绪、待落章」）：
-
-- **`26.10.2` 安全 hotfix**（分支 `release/26.10.2`）：Electron `44.4.5` → `44.10.0`，
-  只动依赖与版本号，不带 main 上的任何修复。属上面「四类阻断」里的**安全**一类，
-  不占 `26.11.0` 的功能预算。tag 前的核对清单见
-  [`docs/handover/2026-10-28-p0-closure.md`](docs/handover/2026-10-28-p0-closure.md)。
-- **DSH 双包随 `26.11.0` 一并首发**：`integrations/dsh/` 的主包与平台子包
-  （`dsh-job-workbench` / `dsh-job-workbench-win32-x64`）技术侧**已完整**——
-  自包含 runtime + `prebuilds.json` 哈希清单 + `prepack` 校验 + 17 工具冒烟 +
-  227/227 逐字节可复现。**缺的不是技术，是落章六处**。执行单见
-  [`docs/handover/2026-10-28-dsh-first-release-runbook.md`](docs/handover/2026-10-28-dsh-first-release-runbook.md)：
-  落章 → `-FromLock` 重建 → 双包预检 + 冒烟 → 子包先主包后发布 →
-  公共 npm 全新安装核验 → marketplace 收录（必须在主包发布之后）。
+**发布节点**：`26.11.0`（十一月发车，单一发布节点）。两次 hotfix 只留给四类阻断
+（安全 / 数据损坏 / 安装·启动阻断 / 更新链失效）：`26.10.1` 已按这条线于 2026-10-23
+作为安全 hotfix 发出，`26.10.2` 同样按这条线待落章。
 
 
 **Graduation (the first timestamped release is the 1.0-equivalent)**: it ships when the workbench

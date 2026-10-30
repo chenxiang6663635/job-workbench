@@ -1,6 +1,6 @@
 # job-workbench
 
-A **local-first, auditable AI-assisted job-search workbench**: run the whole pipeline — from JD analysis to offer decision — in plain Markdown & CSV on your own disk. Drive it from the desktop app, the browser, or your own AI CLI.
+A **local-first career-action workbench built around auditable AI output**, currently focused on the job-search pipeline: from JD analysis to offer review. Data lives in plain Markdown & CSV on your own disk; four entry points drive the same data — the **desktop app (with its browser UI), the CLI, your own AI host (MCP), and editor plugins**.
 
 Current version: {{VERSION}}
 

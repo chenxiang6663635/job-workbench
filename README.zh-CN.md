@@ -19,6 +19,57 @@
 
 **一个闭环** —— 岗位 JD 解析 → 资格门槛 → 简历版本 → 投递追踪 → 面试与 Offer。门槛先于评分，且可以就此结束判定（不通过、或「待补档案」——都不打分）；只有过了门槛的岗位才评分。上图是同一流程；窄屏下读这一行即可。
 
+## 五种用法
+
+一个本地数据底座，多个原生入口。它们读写同一份磁盘上的 Markdown/CSV 工作区。
+工作台自身没有服务器、没有遥测：AI 宿主只能看到工具调用返回的内容，或你直接粘贴进
+对话的内容——没有后台在往外传。
+
+| 入口 | 是什么 | 从这里开始 |
+|---|---|---|
+| **桌面 / Web** | 完整界面——看板、岗位、简历、投递、面试、Offer | [下载 Windows 版](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [界面预览](docs/screenshots.zh-CN.md) |
+| **CLI** | 所有确定性步骤都可脚本化：资格、评分、PDF、追踪、诊断 | [使用手册](docs/usage-guide.zh-CN.md) |
+| **MCP 宿主** | `jobws-mcp` 暴露 **17 个工具**——9 只读、7 个两段式预览、1 个确认写入（`apply_approval`） | [MCP 接入](docs/mcp-integration.md) |
+| **DeepSeek Harness** | 插件包：同一套 17 工具 + **9 个 `jwb-*` 技能** + 可选 agent preset | [`integrations/dsh`](integrations/dsh/README.md) |
+| **编辑器插件** | 同一套技能，在 CodeBuddy / Claude Code 里作为斜杠命令 | [`skills/`](skills/) |
+
+> **写操作一律两段式，每个入口都一样。** 界面、CLI、AI 宿主都改不了你的数据——
+> 必须先拿到「差异 + 审批令牌」的预览，再显式确认，才会真正写入。
+
+### CLI 实际输出
+
+```text
+$ jobws doctor
+数据根诊断（三态）：有歧义（ambiguous）——读可用，破坏性操作会被拒绝
+- 数据根：D:\work\job-workbench
+- 来源：legacy_portable；形态：source_form；可写：是
+- 当前工作区：D:\work\job-workbench\personal（已建）
+- 持久化选择：未设置
+- 候选根：
+    C:\Users\<you>\AppData\Roaming\job-workbench（含工作区）
+    C:\Users\<you>\AppData\Roaming\job-workbench\data（无工作区）
+    D:\work\job-workbench（含工作区）
+提示：本机有多个候选根含工作区——破坏性操作会在确认目标根之前被拒绝。
+```
+
+这是本机真实运行 `<code>jobws doctor</code>` 的输出，本地路径已替换为占位符。
+说不准某条命令会碰哪个数据根时，就跑它。
+
+`ambiguous` 只是它能报的**一种**状态：全新机器通常先是 `uninitialized`（「还没有工作区，
+正常首启」），稳定之后是 `ok`；`ambiguous` 表示已经有好几个候选根里都有工作区，所以
+破坏性命令会先拒绝、等你指定。跑你自己机器上的那条命令才知道自己在哪一态。
+
+### DeepSeek Harness
+
+DSH 插件是**第一等入口**，不是桌面端的壳：它跑同一套领域逻辑、读写同一个工作区。
+**不要求先装 Windows 桌面版**；但随包运行时目前只提供 `win32-x64`，其他平台的现状见
+[`integrations/dsh`](integrations/dsh/README.md)。
+
+> **尚未发到 npm。** `dsh-job-workbench` 随 `v26.11.0` 首发。在那之前用
+> `dsh plugin add link:<仓库路径>\integrations\dsh` 本地安装。
+>
+> 真实 DSH 会话的截图仍在制作中——本节**刻意不放任何示意图**，而不是拿 mockup 顶上。
+
 ## 为什么做这个项目
 
 求职意味着敏感的个人数据（简历、电话、投递历史）——以及可能悄悄编造事实的 AI 输出。这个项目围绕四个回答构建：

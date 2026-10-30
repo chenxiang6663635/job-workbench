@@ -19,6 +19,53 @@ English | [简体中文](README.zh-CN.md)
 
 **The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The image above is the same flow; this line is the readable version on narrow screens.
 
+## Five ways to use it
+
+One local data base, several native entry points. All of them read and write the same
+Markdown/CSV workspace on your disk — nothing is uploaded anywhere.
+
+| Entry point | What it is | Start here |
+|---|---|---|
+| **Desktop / Web** | The full UI — dashboard, jobs, resumes, applications, interviews, offers | [Download for Windows](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [Screenshots](docs/screenshots.md) |
+| **CLI** | Scriptable commands for every deterministic step: eligibility, scoring, PDF, tracking, diagnostics | [Usage guide](docs/usage-guide.md) |
+| **MCP hosts** | `jobws-mcp` exposes **17 tools** — 9 read-only, 7 two-phase previews, 1 confirmed write | [MCP integration](docs/mcp-integration.md) |
+| **DeepSeek Harness** | Plugin bundle: the same 17 tools + **9 `jwb-*` skills** + an optional agent preset | [`integrations/dsh`](integrations/dsh/README.md) |
+| **Editor plugins** | The same skills as slash commands inside CodeBuddy / Claude Code | [`skills/`](skills/) |
+
+> **Every write is two-phase, on every entry point.** Nothing — not the UI, not the CLI,
+> not an AI host — can change your data without a preview that returns the diff plus an
+> approval token, followed by an explicit confirmation that applies it.
+
+### CLI in practice
+
+```powershell
+$ jobws doctor
+数据根诊断（三态）：有歧义（ambiguous）——读可用，破坏性操作会被拒绝
+- 数据根：D:\work\job-workbench
+- 来源：legacy_portable；形态：source_form；可写：是
+- 当前工作区：D:\work\job-workbench\personal（已建）
+- 持久化选择：未设置
+- 候选根：
+    C:\Users\<you>\AppData\Roaming\job-workbench（含工作区）
+    C:\Users\<you>\AppData\Roaming\job-workbench\data（无工作区）
+    D:\work\job-workbench（含工作区）
+提示：本机有多个候选根含工作区——破坏性操作会在确认目标根之前被拒绝。
+```
+
+This is a real `<code>jobws doctor</code>` run, with local paths replaced by placeholders.
+It is the command to reach for when you are unsure **which** data root a command would touch.
+
+### DeepSeek Harness
+
+The DSH plugin is a first-class entry point, not a shim over the desktop app: it runs the
+same domain logic against the same workspace, and **does not require the Windows app**.
+
+> **Not on npm yet.** `dsh-job-workbench` publishes together with `v26.11.0`. Until then,
+> install locally with `dsh plugin add link:<repo>\integrations\dsh`.
+>
+> Screenshots of a real DSH session are still being captured — this section deliberately
+> carries none rather than showing a mock-up.
+
 ## Why job-workbench
 
 Job hunting means sensitive personal data (resumes, phone numbers, employer history) — and AI outputs that can quietly fabricate facts. This project is built around four answers:

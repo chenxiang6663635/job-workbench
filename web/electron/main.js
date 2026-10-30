@@ -68,6 +68,7 @@ const windows = createWindowModule({
 const updater = createUpdater({
   app, log, tFor, resolvedLang: prefs.resolvedLang, dialog,
   stopBackend: backend.stopBackend, notifyUser: diagnostics.notifyUser,
+  BrowserWindow,   // 下载进度走任务栏进度条（2026-10-30）
 });
 
 // AUMID 与单实例锁必须**在模块加载期同步完成**（窗口/通知都依赖这个时机，

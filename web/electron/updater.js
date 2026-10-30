@@ -7,25 +7,56 @@
 //
 // 不 require("electron")：app / dialog 全部注入；electron-updater 保持**函数内动态
 // require**（依赖没打进包时，本模块也要能安全加载）。
-function createUpdater({ app, log, tFor, resolvedLang, dialog, stopBackend, notifyUser, timers = { setTimeout } }) {
+function createUpdater({
+  app, log, tFor, resolvedLang, dialog, stopBackend, notifyUser,
+  BrowserWindow = null,   // 用于任务栏进度条（2026-10-30）；测试可传 null
+  autoUpdater: injectedUpdater = null,   // 测试注入假件；生产走下面的动态 require
+  timers = { setTimeout },
+}) {
   function setup() {
     if (!app.isPackaged) {
       log("Source run — skipping auto-update check");
       return;
     }
 
-    let autoUpdater;
-    try {
-      ({ autoUpdater } = require("electron-updater"));
-    } catch (e) {
-      // 依赖没打进包时不该让整个应用起不来——更新只是增强，不是启动必需
-      log(`Auto-update unavailable (electron-updater not bundled): ${e.message}`);
-      return;
+    let autoUpdater = injectedUpdater;
+    if (!autoUpdater) {
+      try {
+        ({ autoUpdater } = require("electron-updater"));
+      } catch (e) {
+        // 依赖没打进包时不该让整个应用起不来——更新只是增强，不是启动必需
+        log(`Auto-update unavailable (electron-updater not bundled): ${e.message}`);
+        return;
+      }
     }
 
     autoUpdater.autoDownload = false;
     // 用主进程日志接手 updater 的输出：GUI 下看不到控制台，出问题只能靠这个文件
     autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
+
+    /**
+     * 任务栏进度条（`-1` 清除）。窗口可能还没建（后端起不来时），静默跳过。
+     *
+     * 为什么选任务栏而不是弹窗（2026-10-30 实测）：差分已经生效（131 MB → 6.4 MB），
+     * 但 GitHub 资产在国内只有 ~84 KB/s——那次下载用了 76 秒，而**全程没有任何反馈**，
+     * 用户点完「下载」看到的是一个不动的窗口，自然觉得「卡住了」。
+     * `setProgressBar` 是 Electron 原生能力，零 UI 组件、一眼可见。
+     */
+    function setTaskbarProgress(value) {
+      try {
+        const win = BrowserWindow && BrowserWindow.getAllWindows()[0];
+        if (win && typeof win.setProgressBar === "function") win.setProgressBar(value);
+      } catch (e) {
+        log(`setProgressBar failed: ${e.message}`);   // 进度显示失败不该拖累更新本身
+      }
+    }
+
+    autoUpdater.on("download-progress", (p) => {
+      const pct = Math.max(0, Math.min(100, Math.round(p.percent || 0)));
+      log(`Update download ${pct}% (${(p.transferred / 1048576).toFixed(1)}`
+        + ` / ${(p.total / 1048576).toFixed(1)} MB)`);
+      setTaskbarProgress(pct / 100);
+    });
     // 错误分级（发布前审计 发现 3）：检查阶段的失败（离线 / GitHub API 限流——
     // 未认证请求 60 次/小时/IP）只进日志；此时用户还没介入，弹模态既吓人又可能
     // 每次启动都弹一次。用户点了「下载更新」之后才切换到弹窗——他正在等结果，
@@ -35,6 +66,7 @@ function createUpdater({ app, log, tFor, resolvedLang, dialog, stopBackend, noti
     autoUpdater.on("error", (err) => {
       const reason = (err && err.message) || String(err);
       log(`Auto-update error: ${reason}`);
+      setTaskbarProgress(-1);   // 失败也要清掉，否则任务栏会永远停在中间
       if (!updateDownloadRequested) return;
       const t = tFor(resolvedLang());
       notifyUser(t("updateFailedTitle"), `${t("updateFailedMessage")}\n\n${reason}`);
@@ -64,6 +96,7 @@ function createUpdater({ app, log, tFor, resolvedLang, dialog, stopBackend, noti
 
     autoUpdater.on("update-downloaded", (info) => {
       log(`Update downloaded: ${info.version}`);
+      setTaskbarProgress(-1);   // 下载完成即清进度条，剩下的交给「重启」那个弹窗
       const t = tFor(resolvedLang());
       dialog
         .showMessageBox({
@@ -87,10 +120,20 @@ function createUpdater({ app, log, tFor, resolvedLang, dialog, stopBackend, noti
         });
     });
 
-    // 延迟检查：让窗口先渲染出来，别和启动链路抢时间
-    timers.setTimeout(() => {
-      autoUpdater.checkForUpdates().catch((e) => log(`Update check failed: ${e.message}`));
-    }, 5000);
+    // 延迟检查：让窗口先渲染出来，别和启动链路抢时间。
+    //
+    // **失败重试一次**（2026-10-30 实测）：首次检查遇到 `net::ERR_TIMED_OUT`，
+    // 关掉重开才成功——国内访问 GitHub API 抖动是常态，一次重试能覆盖大部分情况。
+    // 只重试**失败**（reject）；`update-not-available` 是正常结果，不重试。
+    let checkAttempts = 0;
+    const checkOnce = () => {
+      checkAttempts += 1;
+      autoUpdater.checkForUpdates().catch((e) => {
+        log(`Update check failed (attempt ${checkAttempts}): ${e.message}`);
+        if (checkAttempts < 2) timers.setTimeout(checkOnce, 30000);
+      });
+    };
+    timers.setTimeout(checkOnce, 5000);
   }
 
   return { setup };

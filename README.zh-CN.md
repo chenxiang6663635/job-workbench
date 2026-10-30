@@ -17,8 +17,6 @@
 
 </div>
 
-<img src="docs/assets/workflow.svg" alt="求职工作台的一个闭环：岗位分析、资格与证据核对、简历版本、投递追踪、面试与 Offer。AI 建议，脚本校验，你确认。" width="100%">
-
 **一个闭环** —— 岗位 JD 解析 → 资格门槛 → 简历版本 → 投递追踪 → 面试与 Offer。门槛先于评分，且可以就此结束判定（不通过、或「待补档案」——都不打分）；只有过了门槛的岗位才评分。上图是同一流程；窄屏下读这一行即可。
 
 ## 为什么做这个项目
@@ -56,6 +54,8 @@
 - **四层单向依赖**：skills（领域知识）→ 脚本（IO 与校验）→ 数据（Markdown + CSV）→ git（版本）。`tools/` 是分层包——统一入口（`jobws`）+ 领域模块 + 门禁脚本；模块间依赖须无环（领域层不 import Web 层），各自独立可测。
 - **三层分离**：工具层（`tools/` + `skills/`，领域无关）· 领域层（`template/profiles/`，可插拔）· 用户层（`personal/`，你的真实数据）。三级词典的判据是「能不能经得起追问」而非「会不会」，见 [`template/AGENTS.example.md`](template/AGENTS.example.md)。
 
+<img src="docs/assets/workflow.svg" alt="求职工作台的一个闭环：岗位分析、资格与证据核对、简历版本、投递追踪、面试与 Offer。AI 建议，脚本校验，你确认。" width="100%">
+
 ## 功能一览
 
 - **四个 AI 工作流**：`jwb-jd`（JD 解析评分）、`jwb-apply`（投递包）、`jwb-track`（追踪看板）、`jwb-resume`（PDF 重建校验）——由仓库内 `jobws` CLI 驱动，全部命令见[使用手册 CLI 命令速查](docs/usage-guide.zh-CN.md)
@@ -74,16 +74,41 @@
 
 界面**中英双语**：每一页都有中文与英文，顶栏的 `中文 / English` 可随时切换（首次按系统语言，选择会被记住）。下面四张取自中文界面——完整八页见[界面截图图库](docs/screenshots.zh-CN.md)（英文版同一套在 [screenshots.md](docs/screenshots.md)），两套取自同一个 demo 工作区。
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/zh-CN/02-applications.png" alt="追踪表"></td>
-    <td width="50%"><img src="docs/screenshots/zh-CN/04-resume.png" alt="简历工坊"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/zh-CN/03-jobs.png" alt="岗位池"></td>
-    <td width="50%"><img src="docs/screenshots/zh-CN/06-progress.png" alt="面试与 Offer 跟进"></td>
-  </tr>
-</table>
+### 1. 投递追踪
+
+管理投递、截止时间与下一步。
+
+![投递追踪](docs/screenshots/zh-CN/02-applications.png)
+
+*局部特写——阶段、截止与评分不用放大就能读清：*
+
+![追踪表局部：公司、阶段与评分](docs/screenshots/zh-CN/02-applications-detail.png)
+
+[查看原图](docs/screenshots/zh-CN/02-applications.png)
+
+### 2. 岗位池与资格核验
+
+**先判资格，分数在之后。**
+
+![岗位池与资格核验](docs/screenshots/zh-CN/03-jobs.png)
+
+[查看原图](docs/screenshots/zh-CN/03-jobs.png)
+
+### 3. 简历工坊
+
+导入、核对、准备简历版本。
+
+![简历工坊](docs/screenshots/zh-CN/04-resume.png)
+
+[查看原图](docs/screenshots/zh-CN/04-resume.png)
+
+### 4. 面试与 Offer
+
+投递之后的跟进，Offer 并排对比。
+
+![面试与 Offer](docs/screenshots/zh-CN/06-progress.png)
+
+[查看原图](docs/screenshots/zh-CN/06-progress.png)
 
 > **说明**：本 README 与[使用手册](docs/usage-guide.zh-CN.md)是中文（英文版见 [README.md](README.md) 与 [usage-guide.md](docs/usage-guide.md)）。**代码注释按本项目惯例用中文**（见 [contributing.zh-CN.md](docs/contributing.zh-CN.md)）。有意保留中文的还有：CSV / Markdown 里存的取值（阶段名、列头）——它们是和 CLI 共享的数据契约，翻译会让界面与你的数据脱钩——以及 CLI 自带帮助。
 

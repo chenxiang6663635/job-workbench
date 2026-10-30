@@ -27,6 +27,11 @@ function createBackendProcess({
   fs = require("fs"), path = require("path"), http = require("http"),
   childProcess = require("child_process"), env = process.env,
   platform = process.platform, resourcesPath = process.resourcesPath,
+  // 心跳计时器可注入（2026-10-30）：默认模块常量；测试用毫秒级假时钟钉住
+  // 「探测 reason → 超时弹窗文案」这条消费链（真等 30 秒的话，链断了也没人发现）。
+  heartbeatTimeout = HEARTBEAT_TIMEOUT,
+  heartbeatInterval = HEARTBEAT_INTERVAL,
+  now = () => Date.now(),
 }) {
   let backendProcess = null;
   let backendReady = false;
@@ -105,7 +110,7 @@ function createBackendProcess({
   }
 
   function waitBackendReady(cb) {
-    const start = Date.now();
+    const start = now();
     // 记最后一次探测原因：超时的**成因不同，处置也不同**（2026-10-28 独立审查）。
     // 之前这里把 reason 直接丢掉，于是「端口上有个身份不符的服务」和「后端真的没起来」
     // 在用户眼里都是同一个 30 秒「启动超时」——而前者再等也不会好。
@@ -127,24 +132,20 @@ function createBackendProcess({
           log("Backend exited before ready — stop polling (exit already reported)");
           return;
         }
-        if (Date.now() - start > HEARTBEAT_TIMEOUT) {
+        if (now() - start > heartbeatTimeout) {
           log("Backend startup timed out. Packaged builds: see the [backend-err] exit reason above in this log; source runs: check your Python/FastAPI environment");
-          // 同 P2：超时后静默自退，用户看到的是"双击了没反应"
           const t = tFor(resolvedLang());
-          // identity：端口在应答，但**不是这个窗口拉起的那个后端**（很可能是另一个
-          // jobws 实例）。继续等是徒劳的，必须说清楚，否则用户只会反复重启。
-          // 文案走语言表（2026-10-28 审计 §七 第 2 条：此前是硬编码英文）。
+          // identity 的成因与处置不同：端口在应答、但不是本窗口拉起的后端（文案走语言表）。
           const hint = timeoutHint(lastReason, t);
-          // 退出放在弹窗关掉之后：紧跟着 quit 会把还没读的弹窗收走（端口冲突那条已改，
-          // 这里是同一类启动阻断提示，2026-10-28 评审指出漏改）。
+          // 退出放在弹窗关掉之后：紧跟 quit 会把还没读的弹窗收走。
           notifyUser(
             t("backendTimeoutTitle"),
-            `${t("backendTimeoutMessage", { seconds: HEARTBEAT_TIMEOUT / 1000 })}`
+            `${t("backendTimeoutMessage", { seconds: heartbeatTimeout / 1000 })}`
               + `${hint ? `\n\n${hint}` : ""}\n\n${HEALTH_URL}`,
             { withDiagnostics: true }).then(() => app.quit());
           return;
         }
-        setTimeout(poll, HEARTBEAT_INTERVAL);
+        setTimeout(poll, heartbeatInterval);
       }, INSTANCE_ID);   // 只认自己拉起的那个进程：别的 jobws 实例应答不算就绪
     };
     poll();

@@ -18,10 +18,11 @@ roles and names are placeholders (`示例科技`, `示例同学`, …) — no re
 Both language sets are produced by `npm.cmd run capture` in `web/frontend` — rerun it after
 any page change instead of retaking shots by hand.
 
-> **These shots are from 2026-09-30** (`69f53e6`), the last time the capture ran. The UI has
-> moved since — the top bar became its own zone, and the Library page gained note back-stack
-> navigation (`2325835`). A re-capture is registered in the [roadmap](../ROADMAP.md) §Now;
-> until it lands, treat the layout details here as slightly older than the app you install.
+> **These shots are from 2026-10-30**, captured on the **Nord** theme. The capture script
+> runs against `dist` and refuses to shoot a stale build (it exits with "dist 比 src 旧"),
+> so these reflect the interface as of today — including the data-root batch: the location
+> card, the migration flow and the fix panel in Settings. Re-run with
+> `npm run capture -- --theme nord`.
 
 The same pages in 简体中文: [`screenshots.zh-CN.md`](screenshots.zh-CN.md).
 

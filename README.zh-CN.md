@@ -1,3 +1,5 @@
+[下载 Windows 版](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [界面预览](docs/screenshots.zh-CN.md) · [使用手册](docs/usage-guide.zh-CN.md)
+
 [English](README.md) | 简体中文
 
 <div align="center">
@@ -16,6 +18,8 @@
 </div>
 
 <img src="docs/assets/workflow.svg" alt="求职工作台的一个闭环：岗位分析、资格与证据核对、简历版本、投递追踪、面试与 Offer。AI 建议，脚本校验，你确认。" width="100%">
+
+**一个闭环** —— 岗位 JD 解析 → 资格门槛（先于评分）→ 简历版本 → 投递追踪 → 面试与 Offer。上图是同一流程；窄屏下读这一行即可。
 
 ## 为什么做这个项目
 
@@ -46,7 +50,6 @@
 | 通用 AI 聊天工具 | 分析 JD、润色文本、回答问题 | 能给分析，但不会把它结构化地留在你自己的本地求职数据上 |
 | **求职工作台** | 在一个地方组织岗位、简历、投递、面试与 Offer | 本地纯文本文件、证据可复核、AI 只给建议、关键变更由你确认 |
 
-> 求职的困难不是缺少答案，而是信息分散、决策依据丢失、跟进悄悄漏掉。
 
 ## 核心设计
 

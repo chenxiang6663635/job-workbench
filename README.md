@@ -11,11 +11,15 @@
 
 A **local-first career-action workbench built around auditable AI output**, currently focused on the job-search pipeline: from JD analysis to offer review. Data lives in plain Markdown & CSV on your own disk; four entry points drive the same data — **desktop app (with its browser UI), CLI, your own AI host (MCP), and editor plugins** — with matching wording and confirmation semantics (per-entry matrix: [`docs/four-ends.md`](docs/four-ends.md)).
 
+[Download for Windows](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [Screenshots](docs/screenshots.md) · [Documentation](docs/usage-guide.md)
+
 English | [简体中文](README.zh-CN.md)
 
 </div>
 
 <img src="docs/assets/workflow.svg" alt="Job Workbench loop: JD analysis, eligibility and evidence check, resume versions, application tracking, interviews and offers. AI suggests, scripts verify, you confirm." width="100%">
+
+**The loop** — JD parsing → eligibility gate (before any score) → resume versions → application tracking → interviews and offers. The image above is the same flow; this line is the readable version on narrow screens.
 
 ## Why job-workbench
 
@@ -46,7 +50,6 @@ The workbench turns all of that into queryable, traceable files.
 | General AI chat | Analyse a JD, polish text, answer questions | Gives analysis, but does not keep it structured against your own local job data |
 | **Job Workbench** | Organise jobs, resumes, applications, interviews and offers in one place | Plain files on your disk, evidence you can re-check, AI that suggests, and every key change confirmed by you |
 
-> The hard part of job hunting is not a missing answer — it is scattered information, lost reasoning, and follow-ups that quietly slip.
 
 ## Core design
 

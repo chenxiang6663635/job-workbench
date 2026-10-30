@@ -14,6 +14,7 @@
 | [`../README.md`](../README.md) | 项目主入口：定位、三层架构、快速开始、目录说明 |
 | [`README.en-US.md`](README.en-US.md) | 本索引的**英文对照版**（结构同构、链接目标相同） |
 | [`data-flow-matrix.md`](data-flow-matrix.md) | **数据流矩阵**：什么数据、什么时候、去哪里——隐私承诺的权威底稿（界面文案与它冲突时以它为准） |
+| [`screenshots.zh-CN.md`](screenshots.zh-CN.md) | **界面截图图库（中文）**：八个页面逐页一张 + 各自用途一句话，取自自动生成的 demo 工作区；英文版见 [`screenshots.md`](screenshots.md) |
 
 ## 设计文档
 

@@ -1,25 +1,31 @@
-[English](README.md) | 简体中文
+<div align="center">
 
 # 求职工作台
 
-[![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)
-![Electron](https://img.shields.io/badge/Electron-44-blue.svg)
-![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)
-![平台](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
-![无遥测](https://img.shields.io/badge/telemetry-none-brightgreen)
-![最后提交](https://img.shields.io/github/last-commit/chenxiang6663635/job-workbench)
+<img src="docs/assets/banner.svg" alt="求职工作台 — 本地优先、AI 辅助的求职工作台" width="100%">
 
-> 版本号是月粒度 CalVer `YY.MM.N`（`26.9.0` = 当月第一次发布，hotfix 只递增第三位）。安装包**未经代码签名**——首次运行 Windows 可能显示「Windows 已保护你的电脑」，见「下载」一节的处理方式。
+[![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)](https://github.com/chenxiang6663635/job-workbench/releases/latest)
+![平台](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 一个**本地优先、注重 AI 输出可审计性**的职业行动工作台，**目前聚焦从岗位分析到 Offer 复盘的求职流程**：数据以纯 Markdown 与 CSV 存在你自己的磁盘上——**桌面端（含浏览器界面）、命令行、AI 宿主（MCP）、编辑器插件** 四个入口驱动同一套数据，说法与确认方式对齐，逐项见 [`docs/four-ends.md`](docs/four-ends.md)。
+
+[下载 Windows 版](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [界面预览](docs/screenshots.zh-CN.md) · [使用手册](docs/usage-guide.zh-CN.md)
+
+[English](README.md) | 简体中文
+
+</div>
+
+<img src="docs/assets/workflow.svg" alt="求职工作台的一个闭环：岗位分析、资格与证据核对、简历版本、投递追踪、面试与 Offer。AI 建议，脚本校验，你确认。" width="100%">
+
+**一个闭环** —— 岗位 JD 解析 → 资格门槛 → 简历版本 → 投递追踪 → 面试与 Offer。门槛先于评分，且可以就此结束判定（不通过、或「待补档案」——都不打分）；只有过了门槛的岗位才评分。上图是同一流程；窄屏下读这一行即可。
 
 ## 为什么做这个项目
 
 求职意味着敏感的个人数据（简历、电话、投递历史）——以及可能悄悄编造事实的 AI 输出。这个项目围绕四个回答构建：
 
-- **本地优先的隐私**。一切以纯文本存在你自己的磁盘上——git 能 diff、Excel 能打开、无遥测、**没有云端服务器**（桌面端启动的本地后端只监听 127.0.0.1）。真实个人数据留在 `personal/`（整体 gitignore）：克隆本仓库得到空工作区，你可以放心公开 fork 而不泄露任何东西。
+- **本地优先的隐私**。一切以纯文本存在你自己的磁盘上——git 能 diff、Excel 能打开、无遥测、**没有云端服务器**（桌面端启动的本地后端只监听 127.0.0.1）。数据落在哪取决于你怎么用：**桌面版**新装默认在 `%APPDATA%\job-workbench\data\`（也可以用 `jobws data-root set` 指到别处），**仓库克隆**则用被 gitignore 的 `personal/` 工作区。两种形态下，仓库本身都不含任何真实数据。
 - **可审计的 AI，而非黑箱自动化**。你自己的 AI CLI（BYOK 模型）做语义判断——读 JD、评匹配度；Python 脚本做一切确定性的事：资格门槛、评分校验、PDF 生成、追踪表读写——且每个自动判定（投递健康度、CSV 导入差异、失败聚类）都附带明确的、可人工核对的**理由**，绝不是一个裸分数。
 - **反编造护栏**。简历导入是**抽取而非生成**：每个落盘的值都必须能在原文找到，未抽到的字段标黄。AI 改写建议必须通过五项本地反编造校验才能被采用。
 - **一套引擎，任何专业**。评分规则与专业无关——领域知识装在**纯数据插件**里（内置两个示例：暖通制冷、软件后端），换专业只要照 [`docs/domain-contract.md`](docs/domain-contract.md) 写一份即可。
@@ -35,6 +41,15 @@
 
 工作台把这些变成可查询、可回溯的文件结构。
 
+### 与常见做法有什么不同
+
+| 做法 | 典型使用方式 | 与本项目的差别 |
+|---|---|---|
+| Excel / Notion 模板 | 自己搭岗位与投递台账 | 灵活，但简历版本、JD 证据与进度的关联需要你自己维护 |
+| 招聘平台 | 在各平台内搜索、投递、看进度 | 进度按平台分散；跨渠道的完整个人记录不是它的目标 |
+| 通用 AI 聊天工具 | 分析 JD、润色文本、回答问题 | 能给分析，但不会把它结构化地留在你自己的本地求职数据上 |
+| **求职工作台** | 在一个地方组织岗位、简历、投递、面试与 Offer | 本地纯文本文件、证据可复核、AI 只给建议、关键变更由你确认 |
+
 ## 核心设计
 
 - **AI 判断，脚本校验**。评分由 AI 读 JD 与你的档案后填进解析卡；Python 只校验加总自洽、套阈值出结论、生成 PDF、读写追踪表，并做可解释的确定性判定（健康度四态、CSV 导入差异、失败聚类——全部给理由）。改评分标准只改 Markdown 配置，不改代码。
@@ -49,40 +64,40 @@
 - **只读邮箱拉取（可选）**：用你自己的 IMAP 授权码拉取最近的招聘邮件，转成逐条状态建议；只读连接、只在点击时连接、凭证只存本地、确认前不改数据——详见[使用手册](docs/usage-guide.zh-CN.md)
 - **邮件台账与诚实深链**（`mails.csv` + `jobws track mail`）：面试邀约、笔试通知、拒信都是一等记录，可指回投递记录；拉取的邮件带 Message-ID 且**一键记入台账**。「打开原邮件」分级诚实：自己粘的链接优先；Gmail 由 Message-ID 生成真实可用的 `rfc822msgid` 搜索深链；Outlook / QQ / 163 等没有可用深链——给「复制主题去邮箱搜索」，**不造假链接**。**邮件永不自动改阶段**，一律由你确认。
 - **简历版式与强调色**：内置经典 / 紧凑 / 强调三套版式共享同一套占位符骨架，全部单栏、全部过 ATS 校验；强调色四档与版式自由组合，生成的 PDF 与预览同源；把自己的合规 HTML 放进模板目录即出现在选择器里。
-- **界面字体与字号**：字号为连续滑块（80%–150%，步进 5%，即根字号缩放），与桌面端全局缩放解耦、浏览器里同样生效；界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible Next 与系统栈 / 衬线），等宽字体**独立**可选 **6 款**（Maple Mono 默认、JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro），**数字字体**另设一槽（Geist Mono 默认、JetBrains Mono、IBM Plex Mono 或跟随界面字体）——全部本地打包（OFL-1.1、离线可用）、只发拉丁子集（中文走系统栈）。
-- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市；档案没填的岗位判「待补档案」——不打分也不终止，补齐即可评；城市偏好类只在「培养与稳定性」轻度扣分，硬性不可行才拦下），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **界面字体与字号**：字号为连续滑块（80%–150%，步进 5%，即根字号缩放），与桌面端全局缩放解耦、浏览器里同样生效；界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible Next），再加两个完全不加载 webfont 的选项——系统栈与衬线。
+- **等宽字体独立一槽**：代码、记录 id、时间戳单独选 **6 款**（Maple Mono 默认，另有 JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro）。
+- **数字字体再单独一槽**：KPI 数字、计数、天数、百分比有自己的字体（Geist Mono 默认，或 JetBrains Mono、IBM Plex Mono、跟随界面字体），刻意配成能坐进任何界面字体旁边。所有字体本地打包（OFL-1.1、离线可用）、只发拉丁子集，中文走系统栈。
+- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市；档案没填的岗位判「待补档案」——不打分也不终止，补齐即可评；城市偏好类只在「培养与稳定性」轻度扣分，硬性不可行才拦下）。**门槛不通过就不评分**，过了才进四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 - **领域插件是数据不是代码**：内置两个示例插件（暖通制冷——6 个方向；软件后端——最小参考实现）。你自己的专业按 [`docs/domain-contract.md`](docs/domain-contract.md) 写一份插件即可——纯数据、零代码改动，有两个完整范例可抄，`jobws lint domains` 自动校验结构。
 
 ## 界面预览
 
-界面**中英双语**：每一页都有中文与英文，顶栏的 `中文 / English` 可随时切换（首次按系统语言，选择会被记住）。下面截图是中文界面（英文的那套在 [README.md](README.md) 同一节，两套取自同一个 demo 工作区）；英文界面是同样页面换了界面文字。仍然保留中文的只有四处：你自己录进工作区的内容、CSV / Markdown 里存的枚举取值（与 CLI 共享的数据契约）、**代码注释（本项目惯例，见 CONTRIBUTING）**、CLI 自带帮助——都有意为之。
-
-以下页面全部由 demo 数据生成（`jobws init --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含任何真实信息。两套图由 `web/frontend` 下的 `npm.cmd run capture` 产出——页面改了就重跑它，不要手工重拍。
+界面**中英双语**：每一页都有中文与英文，顶栏的 `中文 / English` 可随时切换（首次按系统语言，选择会被记住）。下面四张取自中文界面——完整八页见[界面截图图库](docs/screenshots.zh-CN.md)（英文版同一套在 [screenshots.md](docs/screenshots.md)），两套取自同一个 demo 工作区。
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/zh-CN/01-dashboard.png" alt="看板"></td>
     <td width="50%"><img src="docs/screenshots/zh-CN/02-applications.png" alt="追踪表"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/zh-CN/03-jobs.png" alt="岗位池"></td>
     <td width="50%"><img src="docs/screenshots/zh-CN/04-resume.png" alt="简历工坊"></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/zh-CN/05-prepare.png" alt="准备"></td>
-    <td width="50%"><img src="docs/screenshots/zh-CN/06-progress.png" alt="进展"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/zh-CN/07-library.png" alt="素材库"></td>
-    <td width="50%"><img src="docs/screenshots/zh-CN/08-settings.png" alt="设置"></td>
+    <td width="50%"><img src="docs/screenshots/zh-CN/03-jobs.png" alt="岗位池"></td>
+    <td width="50%"><img src="docs/screenshots/zh-CN/06-progress.png" alt="面试与 Offer 跟进"></td>
   </tr>
 </table>
 
+> **说明**：本 README 与[使用手册](docs/usage-guide.zh-CN.md)是中文（英文版见 [README.md](README.md) 与 [usage-guide.md](docs/usage-guide.md)）。**代码注释按本项目惯例用中文**（见 [contributing.zh-CN.md](docs/contributing.zh-CN.md)）。有意保留中文的还有：CSV / Markdown 里存的取值（阶段名、列头）——它们是和 CLI 共享的数据契约，翻译会让界面与你的数据脱钩——以及 CLI 自带帮助。
+
+所有截图跑在生成的 demo 数据上（`jobws init --target demo --demo`），公司、岗位、人名均为占位（`示例科技`、`示例同学` 等），不含真实个人信息。两套图都由 `web/frontend` 下的 `npm.cmd run capture` 产出——页面改了就重跑它，不要手工重拍。
+
+## 下载
+
+不想配环境的话，[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里有桌面版 `job-workbench-setup-*.exe`（免 Python / Node）：安装包是**向导式**——可自选安装位置，并选择「为所有用户 / 仅为我」（升级旧版时沿默认选项即可）。数据在 `%APPDATA%\job-workbench\data\`（新装默认；已有工作区原位保留，不会被搬迁），本地保存——无遥测、无项目方云端；联网只发生在你启用的功能与启动后一次更新检查（明细见[数据流矩阵](docs/data-flow-matrix.md)）。想从源码跑？直接跳到[快速开始](#快速开始)。
+
+版本号是月粒度 CalVer `YY.MM.N`（`26.9.0` = 当月第一次发布，hotfix 只递增第三位）。
+
+**安装包尚未做代码签名。** 首次运行 Windows 可能显示「Windows 已保护你的电脑」——未签名软件的正常提示：点「**更多信息**」→「**仍要运行**」。SmartScreen 信誉按版本重新积累，后续版本可能再次提示。自 v26.9.0 起，每个 Release 同时附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的哈希），可自行核对下载完整性。签名的缺位**不影响自动更新的完整性校验**（以 `latest.yml` 里的哈希为准），且整条链已在**真机上对公开版本端到端验证通过（2026-10-30）**：26.10.0 发现 26.10.1、下载差分包（131 MB → 6.4 MB）、安装、自动重启，工作区数据完好。更新仍需要你两次确认（`autoDownload` 默认关闭）。证据见[发布检查清单](docs/release-checklist.md) §〇。
+
 ## 快速开始
-
-不想配环境的话，[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里有桌面版 `job-workbench-setup-*.exe`（免 Python / Node）：安装包是**向导式**——可自选安装位置，并选择「为所有用户 / 仅为我」（升级旧版时沿默认选项即可）。数据在 `%APPDATA%\job-workbench\`，本地保存——无遥测、无项目方云端；联网只发生在你启用的功能与启动后一次更新检查（明细见[数据流矩阵](docs/data-flow-matrix.md)）。
-
-**安装包尚未做代码签名。** 首次运行 Windows 可能显示「Windows 已保护你的电脑」——未签名软件的正常提示：点「**更多信息**」→「**仍要运行**」。SmartScreen 信誉按版本重新积累，后续版本可能再次提示。自 v26.9.0 起，每个 Release 同时附 `SHA256SUMS.txt`（安装包与 `latest.yml` 的哈希），可自行核对下载完整性；签名的缺位**不影响自动更新**（完整性以 `latest.yml` 里的哈希为准）。
 
 ```bash
 # 0. 只想先看看界面？一条命令得到一份填满数据的 demo 工作区
@@ -115,7 +130,7 @@ python tools/jobws.py skills install --target user
 
 - **只装技能**：`npx skills add chenxiang6663635/job-workbench`（默认装到当前目录，`-g` 装用户级；`.agents/skills/` 是跨宿主约定，Claude Code 读 `.claude/skills/`）。
 
-- **DeepSeek Harness（DSH）**：同一套工作台装成一个插件包——MCP 工具面、九个技能与可选 `jobws` preset 一次到位（`dsh plugin --profile <p> add dsh-job-workbench`；开发态 `link:` 形态与已知边界见 [`integrations/dsh/README.md`](integrations/dsh/README.md)）。
+- **DeepSeek Harness（DSH）**：同一套工作台装成一个插件包——MCP 工具面、九个技能与可选 `jobws` preset 一次到位**尚未发到 npm**——随 v26.11.0 一起首发，在那之前从仓库 checkout 直挂：`dsh plugin --profile <p> add link:<仓库路径>\integrations\dsh`；发布后的形态是 `dsh plugin --profile <p> add dsh-job-workbench`。已知边界见 [`integrations/dsh/README.md`](integrations/dsh/README.md)。
 
 本地脚本是兜底与自定义落点用：`python tools/jobws.py skills install` 按宿主目录约定分发三类资产（技能 → skills 目录；命令与子代理 → `.codebuddy/`、`.claude/`），默认拷贝；`--link` 是实验选项，改用符号链接指向真源（不再有副本过期问题，Windows 需开发者模式或管理员权限）。**仓库内项目级副本**的一致性由 `python tools/jobws.py lint four-ends` 兜住：副本过期、内容不一致都会被指名，技能目录还额外报「多出」（`.claude/` 等目录里你自己的文件不算）——**用户级 `~/.agents/skills/` 与插件市场装的缓存在检查器视野之外**（它们不随仓库走）。
 
@@ -129,7 +144,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 
 ## 隐私
 
-本仓库**不含任何真实个人数据**。`personal/` 是用你自己的真实数据（姓名、照片、联系方式、投递记录、事实卡）填充的工作区，已整体排除在版本管理之外——克隆本仓库后它是空的，用上面的初始化命令生成你自己的。也就是说：**可以放心公开 fork，但不要把 `personal/` 里的内容贴进 issue、PR 或讨论区。**
+本仓库**不含任何真实个人数据**。`personal/` 是用你自己的真实数据（姓名、照片、联系方式、投递记录、事实卡）填充的工作区，已整体排除在版本管理之外——克隆本仓库后它是空的，用上面的初始化命令生成你自己的。这只保证**仓库**干净——也正因如此公开 fork 才是安全的；它不覆盖仓库之外的东西：导出的诊断包、你贴出去的日志、你自己工作区的截图，都需要你自己检查。**不要把 `personal/` 里的内容贴进 issue、PR 或讨论区。**
 
 ## 目录
 
@@ -146,7 +161,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 | `docs/` | 使用手册、文档索引、设计文档（`docs/specs/`） |
 | `.github/` | CI 工作流、issue / PR 模板、行为准则、Copilot 指引 |
 | `.codebuddy-plugin/` | CodeBuddy 插件清单——把同一份 `skills/` 交给插件系统，不另存副本 |
-| `integrations/dsh/` | **DSH 交付面**——npm 包 `dsh-job-workbench`：MCP 接线、九个技能与可选 preset 一条命令装齐；安装 / 升级 / 回滚以该目录 README 为准 |
+| `integrations/dsh/` | **DSH 交付面**——npm 包 `dsh-job-workbench`：MCP 接线、九个技能与可选 preset 打成同一个安装包（**尚未发到 npm**，随 v26.11.0 首发；在那之前从 checkout 用 `link:` 直挂）。安装 / 升级 / 回滚以该目录 README 为准 |
 
 ## 文档
 
@@ -155,6 +170,7 @@ AI 功能是 BYOK：自带任意 OpenAI 兼容服务商的 key 即可。还没�
 - [文档索引](docs/README.md)——每份文档的状态（现行 / 已废弃）
 - [使用手册](docs/usage-guide.zh-CN.md)——启动、八页面详解、AI 工作流、CLI 命令速查、常见问题（英文主版：[usage-guide.md](docs/usage-guide.md)）
 - [毕业条件与兼容承诺](docs/support-and-compatibility.md)——什么时候算正式版（四条判据）、支持哪些环境、升级为什么不需要转换数据
+- [界面截图图库](docs/screenshots.zh-CN.md)——八个页面逐页一张，各配一句用途（英文版：[screenshots.md](docs/screenshots.md)）
 - [设计文档](docs/specs/)——架构、Web 契约、产品化路线、开源发布
 - [变更记录](CHANGELOG.md)
 - [术语表](docs/glossary.md)——文档与 CHANGELOG 里的内部术语集中定义一次

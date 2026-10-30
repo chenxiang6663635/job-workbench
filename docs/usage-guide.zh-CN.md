@@ -125,7 +125,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_backend_exe.ps1
 
 ### 桌面安装包（Electron 壳，v0.1.1 起）
 
-不想配环境可以用 [Release](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里的 `job-workbench-setup-*.exe`（Electron 窗口 + 打包好的后端，双击装完即用）。数据目录：安装版在 `%APPDATA%\job-workbench\personal\`，绿色版（backend exe 旁有 `portable.txt`）在 exe 旁 `personal\`——**卸载安装版不影响 %APPDATA% 里的数据**。
+不想配环境可以用 [Release](https://github.com/chenxiang6663635/job-workbench/releases/latest) 里的 `job-workbench-setup-*.exe`（Electron 窗口 + 打包好的后端，双击装完即用）。数据目录：新装默认在 `<系统用户数据目录>/job-workbench/data/personal/`（Windows 即 `%APPDATA%\job-workbench\data\personal\`）；已在旧默认位置的真实工作区原位继续使用，不会被静默搬迁（见[毕业条件、支持策略与数据兼容承诺](support-and-compatibility.md)的「数据位置」节）。绿色版（backend exe 旁有 `portable.txt`）在 exe 旁 `personal\`——**卸载安装版不影响 %APPDATA% 里的数据**。
 
 安装包现在是**向导式**：可以自选安装位置，并选择「为所有用户 / 仅为我」。**升级旧版时请沿默认选项**（「仅为我」+ 原目录）——选「所有用户」会装到 `Program Files` 并与旧安装分叉。静默安装仍可用：`/S`（`/D=<目录>` 可指定位置）。
 

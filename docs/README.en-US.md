@@ -13,6 +13,7 @@ This is the English companion of the index; the 简体中文版 with the same st
 | [`README.md`](README.md) | This index, 简体中文版 |
 | [`../README.md`](../README.md) | Project entry point: positioning, three-layer architecture, quick start, directory map |
 | [`data-flow-matrix.md`](data-flow-matrix.md) | **Data-flow matrix**: what data goes where, and when — the authoritative source for the privacy promise (when UI copy conflicts with it, the matrix wins) |
+| [`screenshots.md`](screenshots.md) | **Screenshot gallery**: every page of the UI, one per section with a line on what it is for, captured from the generated demo workspace; 简体中文版 in [`screenshots.zh-CN.md`](screenshots.zh-CN.md) |
 
 ## Design documents
 

@@ -1,27 +1,31 @@
+<div align="center">
+
 # job-workbench
 
-[![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)
-![Electron](https://img.shields.io/badge/Electron-44-blue.svg)
-![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)
-![Platform](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
-![No telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)
-![Last commit](https://img.shields.io/github/last-commit/chenxiang6663635/job-workbench)
+<img src="docs/assets/banner.svg" alt="job-workbench — local-first, AI-assisted job search" width="100%">
 
-> Version numbers are month-granularity CalVer `YY.MM.N` (`26.9.0` = first release of the month; a hotfix bumps `N`). The installer is **not code-signed** — see [Download](#download) for what Windows may show on first run.
+[![CI](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/chenxiang6663635/job-workbench/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/chenxiang6663635/job-workbench?label=release)](https://github.com/chenxiang6663635/job-workbench/releases/latest)
+![Platform](https://img.shields.io/badge/Platform-Windows%2064--bit-informational)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A **local-first career-action workbench built around auditable AI output**, currently focused on the job-search pipeline: from JD analysis to offer review. Data lives in plain Markdown & CSV on your own disk; four entry points drive the same data — **desktop app (with its browser UI), CLI, your own AI host (MCP), and editor plugins** — with matching wording and confirmation semantics (per-entry matrix: [`docs/four-ends.md`](docs/four-ends.md)).
 
+[Download for Windows](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [Screenshots](docs/screenshots.md) · [Documentation](docs/usage-guide.md)
+
 English | [简体中文](README.zh-CN.md)
 
-![Dashboard](docs/screenshots/01-dashboard.png)
+</div>
+
+<img src="docs/assets/workflow.svg" alt="Job Workbench loop: JD analysis, eligibility and evidence check, resume versions, application tracking, interviews and offers. AI suggests, scripts verify, you confirm." width="100%">
+
+**The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The image above is the same flow; this line is the readable version on narrow screens.
 
 ## Why job-workbench
 
 Job hunting means sensitive personal data (resumes, phone numbers, employer history) — and AI outputs that can quietly fabricate facts. This project is built around four answers:
 
-- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, and **no cloud server** (the desktop app starts a local backend that listens on 127.0.0.1 only). Real personal data stays in `personal/`, which is fully git-ignored: a fresh clone gives you an empty workspace, and you can fork this repo without leaking a thing.
+- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, and **no cloud server** (the desktop app starts a local backend that listens on 127.0.0.1 only). Where the data sits depends on how you run it: the **desktop app** keeps a fresh install under `%APPDATA%\job-workbench\data\` (or wherever `jobws data-root set` points it), while a **repo clone** uses the git-ignored `personal/` workspace. Either way the repository itself ships zero real data.
 - **Auditable AI, not black-box automation.** Your own AI CLI (BYOK models) does the semantic judgment — reading the JD, scoring fit. Python scripts do everything deterministic: eligibility gates, score validation, PDF generation, tracker I/O — and every automated verdict (application health, CSV import diffs, failure clustering) comes with explicit, human-checkable **reasons**, never a bare score.
 - **Anti-fabrication safeguards.** Resume import is *extraction, not generation*: every persisted value must trace back to source text, and unextracted fields are flagged. AI rewrite suggestions must pass five local anti-fabrication checks before they can be accepted.
 - **One engine, any field.** The scoring rules are field-agnostic — the domain knowledge lives in **data-only profiles** (two ship in the box: HVAC & cooling, software backend), so any specialty works by authoring one per [`docs/domain-contract.md`](docs/domain-contract.md).
@@ -37,6 +41,15 @@ The real difficulty of job hunting is not "not knowing what to do" — it is **s
 
 The workbench turns all of that into queryable, traceable files.
 
+### How it differs from the usual tools
+
+| Approach | Typical use | Where Job Workbench differs |
+|---|---|---|
+| Excel / Notion templates | You build the job and application ledger yourself | Flexible, but keeping resume versions, JD evidence and progress linked is work you maintain |
+| Job platforms | Search, apply, and watch status inside each platform | Progress lives per platform; one personal record across channels is not the point of the product |
+| General AI chat | Analyse a JD, polish text, answer questions | Gives analysis, but does not keep it structured against your own local job data |
+| **Job Workbench** | Organise jobs, resumes, applications, interviews and offers in one place | Plain files on your disk, evidence you can re-check, AI that suggests, and every key change confirmed by you |
+
 ## Core design
 
 - **AI judges, scripts verify.** Scores come from your AI CLI reading the JD against your profile; Python only validates totals, applies thresholds, generates PDFs, reads/writes the tracker — and makes explainable deterministic calls (application health in four states, CSV import diffs, failure clustering — all with reasons). Changing scoring rules means editing Markdown profiles, not code.
@@ -51,34 +64,61 @@ The workbench turns all of that into queryable, traceable files.
 - **Read-only email fetch (optional)**: with your own IMAP authorization code, pull recent recruiting emails and turn them into per-record status suggestions; read-only, connected only when you click, credentials kept local, dry-run until you confirm — details in the [usage guide](docs/usage-guide.md)
 - **Email ledger & honest deep links** (`mails.csv` + `jobws track mail`): interview invites, test notices and rejections become first-class records that link back to an application — pulled emails carry their Message-ID and can be filed with one click. "Open original" is graded honestly: your own pasted link wins; Gmail gets a real `rfc822msgid` search deep link; other providers (Outlook / QQ / 163 / …) get a "copy the subject and search" fallback instead of a fake link. **Emails never change stages by themselves** — you always confirm.
 - **Resume layouts & accent colors**: three built-in layouts (Classic / Compact / Accent) share a single placeholder skeleton, all single-column and ATS-checked; four accent colors combine freely with any layout, and the generated PDF matches the preview. Drop your own compliant HTML into the templates directory and it appears in the picker.
-- **Interface typography**: a continuous size slider (80%–150%, 5% steps — root-font scaling, decoupled from desktop zoom and available in a plain browser); **12 UI typefaces** (Inter by default, plus Geist, IBM Plex Sans, Manrope, Plus Jakarta Sans, DM Sans, Figtree, Outfit, Public Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible Next, and system/serif) and an independent **6-family monospace slot** (Maple Mono by default; JetBrains Mono, Fira Code, Geist Mono, IBM Plex Mono, Source Code Pro) plus a dedicated **numerals slot** (Geist Mono by default, or JetBrains Mono / IBM Plex Mono / follow the UI typeface) — all bundled locally under OFL-1.1, Latin subsets only (CJK falls back to the system stack).
-- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; unfilled profile facts yield "awaiting profile facts" instead of a fail — fill them and re-run; city *preferences* only deduct from growth, hard infeasibility still vetoes), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **Interface typography**: a continuous size slider (80%–150%, 5% steps — root-font scaling, decoupled from desktop zoom and available in a plain browser) and **12 bundled UI typefaces** (Inter by default, plus Geist, IBM Plex Sans, Manrope, Plus Jakarta Sans, DM Sans, Figtree, Outfit, Public Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible Next), with two more that load no webfont at all — System UI and serif.
+- **A separate monospace slot**: **6 families** for code, record IDs and timestamps (Maple Mono by default; JetBrains Mono, Fira Code, Geist Mono, IBM Plex Mono, Source Code Pro).
+- **A third slot for numerals alone**: KPI figures, counts, days and percentages take their own font (Geist Mono by default, or JetBrains Mono / IBM Plex Mono / follow the UI typeface) — deliberately paired to sit beside any UI typeface. Every face is bundled locally under OFL-1.1, Latin subsets only; CJK falls back to the system stack.
+- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; unfilled profile facts yield "awaiting profile facts" instead of a fail — fill them and re-run; city *preferences* only deduct from growth, hard infeasibility still vetoes). **A job that fails the gate is not scored at all** — only an eligible one goes on to four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 - **Domain profiles are data, not code**: two ship in the box (HVAC & cooling — 6 directions; software backend — the minimal reference example). Your own field works by authoring a profile per [`docs/domain-contract.md`](docs/domain-contract.md) — pure data, two full examples to copy, validated by `jobws lint domains`.
 
 ## UI Preview
 
-> **Note**: the interface is bilingual (简体中文 / English) — switch it with the `中文 / English` control in the header; the first run follows your system language and your choice is remembered. Read the note under [Download](#download) for what stays Chinese by design. The screenshots below are the real interface **in English**, taken with generated demo data — the [Chinese README](README.zh-CN.md) carries the same pages in 简体中文 (both sets come from the same demo workspace).
-
-All pages below run on generated demo data (`jobws init --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information. The two sets are produced by `npm.cmd run capture` in `web/frontend` — rerun it after any page change instead of retaking shots by hand.
+Four of the eight pages. The [screenshot gallery](docs/screenshots.md) has all of them, one per page, each with a line on what it is for — and the same set in 简体中文.
 
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/02-applications.png" alt="Tracker"></td>
-    <td width="50%"><img src="docs/screenshots/03-jobs.png" alt="Jobs"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="docs/screenshots/04-resume.png" alt="Resume workshop"></td>
-    <td width="50%"><img src="docs/screenshots/05-prepare.png" alt="Prepare"></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/03-jobs.png" alt="Jobs"></td>
     <td width="50%"><img src="docs/screenshots/06-progress.png" alt="Progress"></td>
-    <td width="50%"><img src="docs/screenshots/07-library.png" alt="Library"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/08-settings.png" alt="Settings"></td>
-    <td width="50%"></td>
   </tr>
 </table>
+
+> **Note**: the interface is **bilingual** — every page ships in 简体中文 and English, with a `中文 / English` switch in the header (first run follows your system language, and the choice is remembered). The code, this README and the [usage guide](docs/usage-guide.md) are in English — with one deliberate exception: **code comments are Chinese by convention** (see [contributing.en-US.md](docs/contributing.en-US.md) §Copy & i18n). What stays Chinese **by design**: the values stored in your CSV / Markdown files (stage names, column headers) — they are the shared data contract with the CLI and with your own history, so translating them would desync the UI from your data — plus the CLI's built-in help.
+
+All screenshots run on generated demo data (`jobws init --target demo --demo`); companies, roles and names are placeholders (`示例科技`, `示例同学`, …) — no real personal information. Both language sets are produced by `npm.cmd run capture` in `web/frontend` — rerun it after any page change instead of retaking shots by hand.
+
+## Download
+
+A packaged Windows desktop app (no Python/Node needed) is attached to the
+latest release — grab `job-workbench-setup-*.exe` from
+[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest),
+install, launch, done. The installer is a wizard: pick the install folder and
+whether to install for all users or just you (when upgrading, keep the
+defaults). Data lives in `%APPDATA%\job-workbench\data\` (the default for a
+fresh install — an existing workspace stays exactly where it is) and stays local — no
+project-run server, no telemetry. Networking happens only through the features
+you enable, plus one startup update check — details in the
+[data-flow matrix](docs/data-flow-matrix.md). Prefer source? Skip to
+[Quick start](#quick-start).
+
+Version numbers are month-granularity CalVer `YY.MM.N` (`26.9.0` = first
+release of the month; a hotfix bumps `N`).
+
+**The installer is not code-signed yet.** On first run Windows may show
+"Windows protected your PC" (SmartScreen) — that is expected for unsigned
+software: click **More info** → **Run anyway**. SmartScreen reputation builds
+per release, so the notice may reappear on later versions. Starting with
+v26.9.0, each release attaches `SHA256SUMS.txt` (hashes for the installer and
+`latest.yml`) — you can
+verify your download against it. Auto-update is unaffected by the missing
+signature — integrity is checked against the hash in `latest.yml` — and the
+whole chain was **verified end-to-end on a real machine (2026-10-30)** against
+the public release: 26.10.0 found 26.10.1, downloaded the delta (131 MB → 6.4 MB),
+installed, restarted, and the workspace data was intact. The update still asks
+for your two confirmations (`autoDownload` is off). Evidence:
+[release checklist](docs/release-checklist.md) §〇.
 
 ## Quick start
 
@@ -118,7 +158,7 @@ python tools/jobws.py skills install --target user
 
 - **Skills only**: `npx skills add chenxiang6663635/job-workbench` (installs into the current directory; `-g` for the user level — `.agents/skills/` is the cross-host convention, Claude Code reads `.claude/skills/`).
 
-- **DeepSeek Harness (DSH)**: the same workbench as one installable plugin bundle — MCP tools, the nine skills and an optional `jobws` preset in a single package (`dsh plugin --profile <p> add dsh-job-workbench`; dev-mode `link:` flow and the known boundaries live in [`integrations/dsh/README.md`](integrations/dsh/README.md)).
+- **DeepSeek Harness (DSH)**: the same workbench as one installable plugin bundle — MCP tools, the nine skills and an optional `jobws` preset in a single package **not on npm yet** — it ships together with v26.11.0, so until then install it from a checkout with `dsh plugin --profile <p> add link:<repo>\integrations\dsh`; the published form is `dsh plugin --profile <p> add dsh-job-workbench`, and the known boundaries live in [`integrations/dsh/README.md`](integrations/dsh/README.md).
 
 The local script covers custom layouts and acts as the fallback: `python tools/jobws.py skills install` distributes all three asset types by each host's directory convention (skills → skills dirs; commands and subagents → `.codebuddy/`, `.claude/`), copying by default. `--link` is experimental and symlinks the host copies to the single source instead (no stale copies; on Windows it needs developer mode or admin). **In-repo project-level copies** are kept honest by `python tools/jobws.py lint four-ends` — stale or diverged copies are named, and skills additionally report extra directories (your own files under `.claude/` are not counted). User-level `~/.agents/skills/` and plugin-marketplace caches are outside the checker's view: they do not travel with the repo.
 
@@ -132,7 +172,7 @@ The optional AI features (resume import, AI rewrite) are BYOK — bring a key fr
 
 ## Privacy
 
-This repository contains **no real personal data**. `personal/` is a workspace you fill with your own data (name, photo, contacts, applications, fact cards); it is entirely excluded from version control — after cloning, it is empty; generate your own with the init command above. In short: **fork it publicly with confidence, but never paste `personal/` content into issues, PRs or discussions.**
+This repository contains **no real personal data**. `personal/` is a workspace you fill with your own data (name, photo, contacts, applications, fact cards); it is entirely excluded from version control — after cloning, it is empty; generate your own with the init command above. That keeps the **repository** clean, and it is what makes a public fork safe. It does not cover everything outside the repo: exported diagnostics bundles, logs you paste, and screenshots of your own workspace are yours to check. **Never paste `personal/` content into issues, PRs or discussions.**
 
 ## Repository layout
 
@@ -148,32 +188,8 @@ This repository contains **no real personal data**. `personal/` is a workspace y
 | `docs/` | Usage guide, doc index, design documents (`docs/specs/`) |
 | `.github/` | CI workflow, issue / PR templates, code of conduct, Copilot instructions |
 | `.codebuddy-plugin/` | CodeBuddy plugin manifest — delivers the same `skills/` plus the commands and subagents; no second copy |
-| `integrations/dsh/` | **DeepSeek Harness surface** — npm package `dsh-job-workbench`: the MCP hookup, the nine skills and an optional preset, installed with one command; that folder's README is the source of truth for install / upgrade / rollback |
+| `integrations/dsh/` | **DeepSeek Harness surface** — the npm package `dsh-job-workbench`: the MCP hookup, the nine skills and an optional preset, bundled into one installable package (**not on npm yet** — first publish rides with v26.11.0; until then install it from a checkout with `link:`). That folder's README is the source of truth for install / upgrade / rollback |
 | `docs/four-ends.md` | **Four-entry capability matrix** (CLI / AI host / editor plugin / desktop UI), generated from `tools/four_ends_matrix.json` and checked by `jobws lint four-ends`. See `docs/mcp-integration.md` to plug the workbench into an AI host — the config key differs per host |
-
-## Download
-
-> **Note**: the interface is **bilingual** — every page ships in 简体中文 and English, with a `中文 / English` switch in the header (first run follows your system language, and the choice is remembered). The code, this README and the [usage guide](docs/usage-guide.md) are in English — with one deliberate exception: **code comments are Chinese by convention** (see [contributing.en-US.md](docs/contributing.en-US.md) §Copy & i18n). What stays Chinese **by design**: the values stored in your CSV / Markdown files (stage names, column headers) — they are the shared data contract with the CLI and with your own history, so translating them would desync the UI from your data — plus the CLI's built-in help. The screenshots above show the English UI; the same pages in 简体中文 are in the [Chinese README](README.zh-CN.md).
-
-A packaged Windows desktop app (no Python/Node needed) is attached to the
-latest release — grab `job-workbench-setup-*.exe` from
-[Releases](https://github.com/chenxiang6663635/job-workbench/releases/latest),
-install, launch, done. The installer is a wizard: pick the install folder and
-whether to install for all users or just you (when upgrading, keep the
-defaults). Data lives in `%APPDATA%\job-workbench\` and stays local — no
-project-run server, no telemetry. Networking happens only through the features
-you enable, plus one startup update check — details in the
-[data-flow matrix](docs/data-flow-matrix.md). Prefer source? Skip to
-[Quick start](#quick-start).
-
-**The installer is not code-signed yet.** On first run Windows may show
-"Windows protected your PC" (SmartScreen) — that is expected for unsigned
-software: click **More info** → **Run anyway**. SmartScreen reputation builds
-per release, so the notice may reappear on later versions. Starting with
-v26.9.0, each release attaches `SHA256SUMS.txt` (hashes for the installer and
-`latest.yml`) — you can
-verify your download against it. Auto-update works normally despite the missing
-signature (integrity is checked against the hash in `latest.yml`).
 
 ## Docs
 
@@ -182,6 +198,7 @@ signature (integrity is checked against the hash in `latest.yml`).
 - [Doc index](docs/README.en-US.md) — status of every document (current / deprecated)
 - [Usage guide](docs/usage-guide.md) — startup, the eight pages, AI workflows, CLI reference, FAQ
 - [Support & compatibility](docs/support-and-compatibility.md) — when this counts as a stable release, what is supported, and why upgrades never require converting your data
+- [Screenshot gallery](docs/screenshots.md) — every page of the UI, one per section (简体中文: [screenshots.zh-CN.md](docs/screenshots.zh-CN.md))
 - [Design documents](docs/specs/) — architecture, Web contract, productization, open-source release
 - [Changelog](CHANGELOG.md)
 - [Glossary](docs/glossary.en-US.md) — the internal terms used across these docs and the changelog, defined once (terms stay Chinese; the English companion explains them)

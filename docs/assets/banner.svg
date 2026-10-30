@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="Job Workbench — local-first, AI-assisted job search workspace">
+  <!--
+    品牌横幅（2026-10-30，第 2 版）。
+    配色取自 web/frontend/src/themes/light.css 的 HSL 变量，换算成 HEX：
+      background 220 23% 97% = #f6f7f9
+      foreground 222 47% 11% = #0f1729
+      primary    201 96% 32% = #0369a0
+      warning     26 90% 37% = #b35309
+      success   163 94% 24% = #047756
+      border     214 32% 91% = #e1e7ef
+
+    第 1 版的两个错误（2026-10-30 视觉复核指出，已修）：
+      1. 卡片按 2×2 网格画（x=590 / 810），箭头却按 1×4 横向流水线算，
+         于是 M700→760 与卡片 810 之间空 50px、M920→980 指向空白、
+         M1140 附近根本没有卡片 —— 三条连线全部悬空。
+         现在按真实网格画成闭环：A→B 横向、B→D 纵向、D→C 横向、C→A 纵向。
+      2. 左上角大标题写 `job-workbench`，与 README 的 `# job-workbench` 重复。
+         现在 banner 承担副标题职责，产品名由 H1 承担。
+
+    第 2 版遗留的一处（2026-10-30 第二轮复核指出，已修）：
+      3. 箭头接成 A→B→D→C→A，而卡片语义是 C=投递追踪、D=面试与 Offer，
+         读出来是「资格核对 → 面试与 Offer → 投递追踪」——把投递排到了面试之后。
+         卡片本身不带文字（全图 6 个 <text> 都在左侧副标题区），所以渲染图里读不出错，
+         但注释与图形语义互相矛盾。现在交换下排两张卡片的内容：C=面试与 Offer、
+         D=投递追踪，箭头不动，闭环变成 岗位 → 资格 → 投递 → 面试与 Offer。
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6f7f9"/>
+      <stop offset="1" stop-color="#eff2f6"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0369a0"/>
+      <stop offset="1" stop-color="#b35309"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5a70"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="360" rx="20" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1278" height="358" rx="19" fill="none" stroke="#e1e7ef" stroke-width="2"/>
+
+  <!-- 左侧：副标题（产品名由 README 的 H1 承担） -->
+  <text x="80" y="132" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
+        font-size="40" font-weight="700" fill="#0f1729" letter-spacing="-0.5">local-first</text>
+  <text x="80" y="180" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
+        font-size="40" font-weight="700" fill="#0369a0" letter-spacing="-0.5">AI-assisted</text>
+  <text x="80" y="220" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
+        font-size="40" font-weight="700" fill="#0f1729" letter-spacing="-0.5">job search</text>
+
+  <rect x="80" y="240" width="120" height="4" rx="2" fill="url(#accent)"/>
+
+  <g font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif" font-size="15" fill="#4a5a70">
+    <text x="80" y="284">Windows desktop</text>
+    <text x="238" y="284">bilingual</text>
+    <text x="348" y="284">plain text on your disk</text>
+  </g>
+
+  <!--
+    右侧：2×2 卡片闭环。
+    卡片实际位置：上排 (590,80)-(700,160) 与 (810,80)-(920,160)
+                  下排 (590,200)-(700,280) 与 (810,200)-(920,280)
+    连线只走网格的四条边，不越界、不指向空白。
+    语义顺序（沿箭头）：A 岗位 → B 资格核对 → D 投递追踪 → C 面试与 Offer → A。
+  -->
+  <g>
+    <!-- A(上左) → B(上右)：水平 -->
+    <path d="M703,120 L806,120" stroke="#4a5a70" stroke-width="2" marker-end="url(#arrow)" opacity="0.55"/>
+    <!-- B(上右) → D(下右)：垂直 -->
+    <path d="M865,163 L865,196" stroke="#4a5a70" stroke-width="2" marker-end="url(#arrow)" opacity="0.55"/>
+    <!-- D(下右) → C(下左)：水平（向左） -->
+    <path d="M806,240 L703,240" stroke="#4a5a70" stroke-width="2" marker-end="url(#arrow)" opacity="0.55"/>
+    <!-- C(下左) → A(上左)：垂直（向上） -->
+    <path d="M645,196 L645,163" stroke="#4a5a70" stroke-width="2" marker-end="url(#arrow)" opacity="0.55"/>
+
+    <!-- 卡片 A：岗位 -->
+    <g>
+      <rect x="590" y="80" width="113" height="80" rx="12" fill="#ffffff" stroke="#e1e7ef" stroke-width="2"/>
+      <rect x="606" y="100" width="46" height="7" rx="3.5" fill="#0369a0"/>
+      <rect x="606" y="116" width="70" height="6" rx="3" fill="#e1e7ef"/>
+      <rect x="606" y="130" width="58" height="6" rx="3" fill="#e1e7ef"/>
+    </g>
+
+    <!-- 卡片 B：资格核对 + 评分 -->
+    <g>
+      <rect x="810" y="80" width="113" height="80" rx="12" fill="#ffffff" stroke="#e1e7ef" stroke-width="2"/>
+      <circle cx="832" cy="106" r="12" fill="#047756" opacity="0.14"/>
+      <path d="M826,106 L830,110 L838,100" stroke="#047756" stroke-width="2.5" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="854" y="100" width="50" height="7" rx="3.5" fill="#0f1729"/>
+      <rect x="826" y="130" width="76" height="6" rx="3" fill="#e1e7ef"/>
+    </g>
+
+    <!-- 卡片 C：面试与 Offer（下排左） -->
+    <g>
+      <rect x="590" y="200" width="113" height="80" rx="12" fill="#ffffff" stroke="#e1e7ef" stroke-width="2"/>
+      <circle cx="618" cy="232" r="15" fill="#b35309" opacity="0.14"/>
+      <path d="M610,232 L616,238 L627,225" stroke="#b35309" stroke-width="2.5" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="644" y="222" width="40" height="7" rx="3.5" fill="#0f1729"/>
+      <rect x="606" y="256" width="66" height="6" rx="3" fill="#e1e7ef"/>
+    </g>
+
+    <!-- 卡片 D：投递追踪（下排右） -->
+    <g>
+      <rect x="810" y="200" width="113" height="80" rx="12" fill="#ffffff" stroke="#e1e7ef" stroke-width="2"/>
+      <rect x="826" y="220" width="16" height="16" rx="4" fill="#0369a0" opacity="0.28"/>
+      <rect x="850" y="222" width="52" height="7" rx="3.5" fill="#0f1729"/>
+      <rect x="826" y="248" width="70" height="6" rx="3" fill="#e1e7ef"/>
+    </g>
+  </g>
+
+  <!-- 右上角装饰点 -->
+  <g fill="#0369a0" opacity="0.16">
+    <circle cx="1204" cy="52" r="5"/>
+    <circle cx="1224" cy="52" r="5"/>
+    <circle cx="1204" cy="72" r="5"/>
+    <circle cx="1224" cy="72" r="5"/>
+  </g>
+</svg>

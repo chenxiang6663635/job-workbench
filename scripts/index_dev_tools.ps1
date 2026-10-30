@@ -19,7 +19,7 @@ if (-not (Get-Command gitnexus -ErrorAction SilentlyContinue)) {
 } else {
     # --index-only 只建索引，不注入 AGENTS.md/CLAUDE.md/skills，避免污染本仓库约定
     gitnexus analyze . --index-only
-    Write-Host "已索引。MCP 侧 gitnexus list 应出现 autumn-recruit-workbench。"
+    Write-Host "已索引。MCP 侧 gitnexus list 应出现 job-workbench。"
 }
 
 Write-Host "`n== CodeGraph 索引（init）=="

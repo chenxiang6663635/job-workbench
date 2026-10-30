@@ -22,13 +22,15 @@ English | [简体中文](README.zh-CN.md)
 ## Five ways to use it
 
 One local data base, several native entry points. All of them read and write the same
-Markdown/CSV workspace on your disk — nothing is uploaded anywhere.
+Markdown/CSV workspace on your disk. The workbench itself has no server and no telemetry:
+an AI host only sees what a tool call returns or what you paste into the conversation —
+there is no background upload.
 
 | Entry point | What it is | Start here |
 |---|---|---|
 | **Desktop / Web** | The full UI — dashboard, jobs, resumes, applications, interviews, offers | [Download for Windows](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [Screenshots](docs/screenshots.md) |
 | **CLI** | Scriptable commands for every deterministic step: eligibility, scoring, PDF, tracking, diagnostics | [Usage guide](docs/usage-guide.md) |
-| **MCP hosts** | `jobws-mcp` exposes **17 tools** — 9 read-only, 7 two-phase previews, 1 confirmed write | [MCP integration](docs/mcp-integration.md) |
+| **MCP hosts** | `jobws-mcp` exposes **17 tools** — 9 read-only, 7 two-phase previews, 1 confirmed write (`apply_approval`) | [MCP integration](docs/mcp-integration.md) |
 | **DeepSeek Harness** | Plugin bundle: the same 17 tools + **9 `jwb-*` skills** + an optional agent preset | [`integrations/dsh`](integrations/dsh/README.md) |
 | **Editor plugins** | The same skills as slash commands inside CodeBuddy / Claude Code | [`skills/`](skills/) |
 
@@ -38,7 +40,7 @@ Markdown/CSV workspace on your disk — nothing is uploaded anywhere.
 
 ### CLI in practice
 
-```powershell
+```text
 $ jobws doctor
 数据根诊断（三态）：有歧义（ambiguous）——读可用，破坏性操作会被拒绝
 - 数据根：D:\work\job-workbench
@@ -52,13 +54,21 @@ $ jobws doctor
 提示：本机有多个候选根含工作区——破坏性操作会在确认目标根之前被拒绝。
 ```
 
-This is a real `<code>jobws doctor</code>` run, with local paths replaced by placeholders.
-It is the command to reach for when you are unsure **which** data root a command would touch.
+This is a real `<code>jobws doctor</code>` run, with local paths replaced by placeholders
+(the CLI speaks Chinese today, so the sample is verbatim). It is the command to reach for
+when you are unsure **which** data root a command would touch.
+
+`ambiguous` is only **one** of the states it can report: a fresh install usually starts at
+`uninitialized` ("no workspace yet — normal first run") and a settled machine reports `ok`;
+`ambiguous` means several candidate roots already hold a workspace, so destructive commands
+refuse until you pick one. Run it on your own machine to see which one you are in.
 
 ### DeepSeek Harness
 
 The DSH plugin is a first-class entry point, not a shim over the desktop app: it runs the
-same domain logic against the same workspace, and **does not require the Windows app**.
+same domain logic against the same workspace. It **does not need the Windows desktop app**
+installed — but the bundled runtime currently ships for `win32-x64` only; see
+[`integrations/dsh`](integrations/dsh/README.md) for what that means on other platforms.
 
 > **Not on npm yet.** `dsh-job-workbench` publishes together with `v26.11.0`. Until then,
 > install locally with `dsh plugin add link:<repo>\integrations\dsh`.

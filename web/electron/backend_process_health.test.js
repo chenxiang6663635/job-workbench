@@ -10,7 +10,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { INSTANCE_ID } = require("./backend_process");
-const { makeDeps, fakeHealthHttp, collect } = require("./backend_process_test_support");
+const { makeDeps, exeHarness, fakeHealthHttp, collect } = require("./backend_process_test_support");
+
+/** 让已排队的 microtask / then 链推进一轮。 */
+const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 test("checkHealth: (ok, reason) — reason distinguishes six outcomes", () => {
   const probe = (status, body, expectInstance) => {
@@ -89,6 +92,64 @@ test("checkHealth: the done gate collapses racing events into one callback", () 
   assert.deepEqual(second, [false]);
   assert.equal(h2.state.destroyed, 1, "the timeout still destroys the request");
 });
+
+test("waitBackendReady: an identity mismatch turns the timeout prompt into the identity hint",
+  { timeout: 5000 }, async () => {
+    // 2026-10-30：盯住「探测 reason → 用户看到的提示」这条消费链。此前只钉了
+    // 「reason 被正确产生」，没人验证它真的走到了弹窗文案里——即整条链可以断在中间
+    // 而测试全绿。用注入的心跳（timeout/interval/now）让它在一个 tick 内到点。
+    const h = fakeHealthHttp();
+    let clock = 0;
+    // 必须先真的 spawn（`waitBackendReady` 在「进程引用已空」时会早退，不弹超时框）
+    const deps = exeHarness({
+      http: h.http,
+      heartbeatTimeout: 50,
+      heartbeatInterval: 1,
+      now: () => (clock += 100),
+    });
+    deps.bp.startBackend();
+    const { notifications, quits } = deps;
+    const called = [];
+    deps.bp.waitBackendReady(() => called.push(true));
+    // 端口在应答，但不是本窗口拉起的那个后端
+    h.respond(200, JSON.stringify({ status: "ok", service: "unrelated" }));
+    await tick();
+
+    assert.deepEqual(called, [], "not ready => the window must not open");
+    assert.equal(notifications.length, 1, "exactly one timeout prompt");
+    assert.equal(notifications[0].title, "backendTimeoutTitle");
+    assert.ok(notifications[0].message.includes("backendTimeoutHintIdentity"),
+      "the identity reason must reach the prompt: " + notifications[0].message);
+    assert.ok(notifications[0].message.includes("127.0.0.1:8765"),
+      "the probe URL must be in the prompt: " + notifications[0].message);
+    // 恰好一处 hint：`includes` 单独用的话，「任何提示都算过」——reason 传错、多拼一段
+    // 也能绿。这里钉住次数，把「identity 正确的提示」与「随便一段提示」分开。
+    assert.equal((notifications[0].message.match(/backendTimeoutHint/g) || []).length, 1,
+      "exactly one hint key: " + notifications[0].message);
+    await tick();
+    assert.equal(quits.length, 1, "quit only after the dialog is dismissed");
+  });
+
+test("waitBackendReady: a plain connection refusal must not claim an identity mismatch",
+  { timeout: 5000 }, async () => {
+    const h = fakeHealthHttp();
+    let clock = 0;
+    const deps = exeHarness({
+      http: h.http, heartbeatTimeout: 50, heartbeatInterval: 1, now: () => (clock += 100),
+    });
+    deps.bp.startBackend();
+    const { notifications, quits } = deps;
+    deps.bp.waitBackendReady(() => {});
+    h.fire("error", Object.assign(new Error("x"), { code: "ECONNREFUSED" }));
+    await tick();
+
+    assert.equal(notifications.length, 1);
+    assert.ok(!notifications[0].message.includes("backendTimeoutHintIdentity"),
+      "a free port is not an identity mismatch: " + notifications[0].message);
+    // 与 identity 用例对称：这条路径也要等弹窗关掉再退出
+    await tick();
+    assert.equal(quits.length, 1, "quit only after the dialog is dismissed");
+  });
 
 test("waitBackendReady: a healthy backend flips ready and calls back", () => {
   const h = fakeHealthHttp();

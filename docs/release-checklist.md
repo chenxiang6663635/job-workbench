@@ -25,7 +25,7 @@
 > 逐条验收（含「已自动化 / 需真机 / 无法构造」的三分标注）见
 > [handover/2026-10-28-release-acceptance-matrix.md](handover/2026-10-28-release-acceptance-matrix.md)。
 
-- [ ] **26.10.1 的公开自动升级链端到端验证**（P-2 ~ P-5）：26.10.1 已按政策例外公开，
+- [x] **26.10.1 的公开自动升级链端到端验证**（P-2 ~ P-5）**——2026-10-30 真机全通**：26.10.1 已按政策例外公开，
       但那份风险文件 §二.6 明确写着**「26.11.0 发行门禁必须重新审查完整更新路径，
       不得继承本次例外」**，所以不能再用「接受风险」绕过。
 
@@ -33,18 +33,22 @@
 
       | 段 | 状态 | 证据 |
       |---|---|---|
-      | **P-2 发现** | ✅ **PASS** | 日志 `Checking for update` → **`Update available: 26.10.1`**（25s 内，真客户端、真 GitHub） |
-      | **P-3 下载** | 🔶 **部分** | 差分下载**确实生效**：`Full: 134,694.05 KB, To download: 6,459.54 KB (5%)`；但测试环境无交互桌面，下载未完成就退出（见下） |
-      | **P-4 安装重启** | ❌ `NOT_EXECUTED` | `quitAndInstall(true,true)` 与 `elevate.exe` 分支仍未执行 |
-      | **P-5 数据保持** | ❌ `NOT_EXECUTED` | — |
+      | **P-2 发现** | ✅ **PASS** | 日志 `Checking for update` → **`Update available: 26.10.1`**（20s 内，真客户端、真 GitHub） |
+      | **P-3 下载** | ✅ **PASS** | `Update downloaded: 26.10.1`。差分**生效**（`Full: 134,694.05 KB, To download: 6,459.54 KB`），但 84 KB/s 用了 **76 秒** |
+      | **P-4 安装重启** | ✅ **PASS** | `Install: isSilent: true, isForceRunAfter: true` → `Executing: ...\job-workbench-updater\pending\...` → 版本变 **26.10.1** → **自动重启并加载 `ws=personal`** |
+      | **P-5 数据保持** | ✅ **PASS** | 重启后投递记录读出 **1 条**；安装目录 `FileVersion=26.10.1`、卸载登记 `DisplayVersion=26.10.1` |
 
-      **P-3 为什么会中断**：`dialog.showMessageBox` 在**不带父窗口**且应用无焦点时
-      （本机是无交互桌面会话）会立即返回 `defaultId`，于是「用户点下载」这一步被跳过成
-      `response === 0`；随后应用在下载完成前退出（原因未定位，日志止于
-      `Backend stopped by app`）。**这不代表真实用户会遇到**——真机有桌面会话时会正常等待点击。
+      **结论：这条阻断关闭。** `quitAndInstall(true, true)` 与 `elevate.exe` 分支
+      **第一次被执行**，且有完整日志——这是此前唯一的「代码里有、从没跑过」的路径。
 
-      → **下一步**：在一台**有交互桌面**的机器上重跑 P-3 ~ P-5（约 10 分钟）；
-      或者把它作为明确的、有授权期限的残余风险登记（但不能再继承 26.10.1 那次例外）。
+      **顺带修的两个体验问题（#457）**：
+
+      - **下载 76 秒零反馈** → 接 `download-progress` 到任务栏进度条
+        （Electron 原生，零 UI 组件）
+      - **首次检查 `net::ERR_TIMED_OUT`**（关掉重开才成功）→ 失败重试一次
+
+      复验方法（下次大版本可照做）：装上一版官方包 → 启动 → 点「下载」→ 点「重启安装」
+      → 核对 `FileVersion` 与工作区数据。**约 10 分钟，其中两步必须由人在 GUI 上点。**
 - [ ] **风险接受文件的签字状态未闭合**：`docs/releases/26.10.1-post-release-risk-acceptance.md`
       §五 仍为「☐ 待签」，签字人 / 日期 / 复核责任人三格空白。首次复核日 **2026-11-02**
       前须统一口径（补签凭据，或把 `26.10.1-verification.md` 的「处置已作出」改成

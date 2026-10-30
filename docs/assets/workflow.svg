@@ -1,113 +1,104 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="Job Workbench loop: JD parsing, eligibility gate that decides whether anything is scored at all, resume versions, application tracking, interviews and offers — AI suggests, scripts verify, you confirm">
   <!--
-    工作流示意图（2026-10-30，第 2 版）。
-    配色同 banner.svg（取自 web/frontend/src/themes/light.css）。
+    工作流示意图（2026-10-30，Nord 版）。
+    配色同 banner.svg：标准 Nord 色板（nord0-nord15）。
 
-    第 1 版的两处错误（2026-10-30 视觉复核指出，已修）：
-      1. 语义反了：节点 1 写 `score · dimensions`、节点 2 才写 `hard gate first`，
-         读起来像「先评分再资格审查」。而 jd_score 的实际顺序是
-         **eligibility gate 先跑（degree → major → cohort → language → city），
-         过了才计分**。现在节点 1 只做 JD 解析，节点 2 明写 gate 在 score 之前。
-      2. `&#8800;`（≠）在缺字形的环境里会渲染成方框，改成纯文字。
+    nord0  #2E3440  底色      nord3  #4C566A  边框
+    nord1  #3B4252  卡片      nord4  #D8DEE9  次要文字
+    nord6  #ECEFF4  主文字    nord8  #88C0D0  主色
+    nord13 #EBCB8B  辅助      nord14 #A3BE8C  成功
 
-    第 2 版遗留的一处（2026-10-30 第二轮复核指出，已修）：
-      3. 节点 2 写 `gate runs first, then the score`，读起来像「资格核对之后一律评分」。
-         而 skills/jwb-recruit-coach/SKILL.md:39 规定：门槛不通过不评分，
-         硬门槛事实为 [待填] 时也不评分（结论写「待补档案」）。现在改成条件句。
+    语义：门槛先于评分，且可以单方面结束判定（不通过 / 待补档案都不打分）。
   -->
   <defs>
-    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#fbfcfd"/>
-    </linearGradient>
     <marker id="flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#4a5a70"/>
+      <path d="M0,0 L10,5 L0,10 z" fill="#88c0d0"/>
     </marker>
   </defs>
 
-  <rect width="1200" height="340" rx="20" fill="#f6f7f9"/>
-  <rect x="1" y="1" width="1198" height="338" rx="19" fill="none" stroke="#e1e7ef" stroke-width="2"/>
+  <rect width="1200" height="340" rx="20" fill="#2e3440"/>
+  <rect x="1" y="1" width="1198" height="338" rx="19" fill="none" stroke="#434c5e" stroke-width="2"/>
 
   <text x="600" y="50" text-anchor="middle"
         font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
-        font-size="14" fill="#4a5a70" letter-spacing="2">ONE LOOP, ONE PLACE</text>
+        font-size="14" fill="#88c0d0" letter-spacing="2" opacity="0.9">ONE LOOP, ONE PLACE</text>
 
   <g font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif">
 
     <!-- ── 节点 1：JD 解析（不做评分）── -->
     <g>
-      <rect x="21" y="82" width="190" height="152" rx="14" fill="url(#card)" stroke="#e1e7ef" stroke-width="2"/>
-      <rect x="41" y="102" width="34" height="34" rx="9" fill="#eff2f6"/>
-      <rect x="50" y="110" width="16" height="3" rx="1.5" fill="#0369a0"/>
-      <rect x="50" y="117" width="12" height="3" rx="1.5" fill="#0369a0"/>
-      <rect x="50" y="124" width="14" height="3" rx="1.5" fill="#0369a0"/>
-      <text x="41" y="166" font-size="17" font-weight="600" fill="#0f1729">JD parsing</text>
-      <text x="41" y="190" font-size="12.5" fill="#4a5a70">text and dimensions</text>
-      <text x="41" y="209" font-size="12.5" fill="#4a5a70">by your AI CLI</text>
+      <rect x="21" y="82" width="190" height="152" rx="14" fill="#3b4252" stroke="#4c566a" stroke-width="2"/>
+      <rect x="41" y="102" width="34" height="34" rx="9" fill="#434c5e"/>
+      <rect x="50" y="110" width="16" height="3" rx="1.5" fill="#88c0d0"/>
+      <rect x="50" y="117" width="12" height="3" rx="1.5" fill="#88c0d0"/>
+      <rect x="50" y="124" width="14" height="3" rx="1.5" fill="#88c0d0"/>
+      <text x="41" y="166" font-size="17" font-weight="600" fill="#eceff4">JD parsing</text>
+      <text x="41" y="190" font-size="12.5" fill="#d8dee9">text and dimensions</text>
+      <text x="41" y="209" font-size="12.5" fill="#d8dee9">by your AI CLI</text>
     </g>
 
-    <path d="M215,158 L257,158" stroke="#4a5a70" stroke-width="2" marker-end="url(#flow)" opacity="0.5"/>
+    <path d="M215,158 L257,158" stroke="#88c0d0" stroke-width="2" marker-end="url(#flow)" opacity="0.6"/>
 
-    <!-- ── 节点 2：资格门槛（先）→ 评分（后）── -->
+    <!-- ── 节点 2：资格门槛（先）→ 评分（条件）── -->
     <g>
-      <rect x="263" y="82" width="190" height="152" rx="14" fill="url(#card)" stroke="#e1e7ef" stroke-width="2"/>
-      <circle cx="298" cy="119" r="17" fill="#047756" opacity="0.13"/>
-      <path d="M290,119 L296,125 L307,113" stroke="#047756" stroke-width="3" fill="none"
+      <rect x="263" y="82" width="190" height="152" rx="14" fill="#3b4252" stroke="#4c566a" stroke-width="2"/>
+      <circle cx="298" cy="119" r="17" fill="#a3be8c" opacity="0.18"/>
+      <path d="M290,119 L296,125 L307,113" stroke="#a3be8c" stroke-width="3" fill="none"
             stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="283" y="166" font-size="17" font-weight="600" fill="#0f1729">Eligibility</text>
-      <text x="283" y="190" font-size="12.5" fill="#4a5a70">gate first;</text>
-      <text x="283" y="209" font-size="12.5" fill="#4a5a70">score if eligible</text>
+      <text x="283" y="166" font-size="17" font-weight="600" fill="#eceff4">Eligibility</text>
+      <text x="283" y="190" font-size="12.5" fill="#d8dee9">gate first;</text>
+      <text x="283" y="209" font-size="12.5" fill="#d8dee9">score if eligible</text>
     </g>
 
-    <path d="M457,158 L499,158" stroke="#4a5a70" stroke-width="2" marker-end="url(#flow)" opacity="0.5"/>
+    <path d="M457,158 L499,158" stroke="#88c0d0" stroke-width="2" marker-end="url(#flow)" opacity="0.6"/>
 
     <!-- ── 节点 3：简历版本 ── -->
     <g>
-      <rect x="505" y="82" width="190" height="152" rx="14" fill="url(#card)" stroke="#e1e7ef" stroke-width="2"/>
-      <rect x="525" y="102" width="26" height="34" rx="4" fill="#eff2f6" stroke="#0369a0" stroke-width="2"/>
-      <rect x="531" y="110" width="14" height="2.5" rx="1.25" fill="#0369a0"/>
-      <rect x="531" y="117" width="10" height="2.5" rx="1.25" fill="#0369a0"/>
-      <rect x="531" y="124" width="12" height="2.5" rx="1.25" fill="#0369a0"/>
-      <text x="525" y="166" font-size="17" font-weight="600" fill="#0f1729">Resume</text>
-      <text x="525" y="190" font-size="12.5" fill="#4a5a70">versions, not one file</text>
-      <text x="525" y="209" font-size="12.5" fill="#4a5a70">facts must trace back</text>
+      <rect x="505" y="82" width="190" height="152" rx="14" fill="#3b4252" stroke="#4c566a" stroke-width="2"/>
+      <rect x="525" y="102" width="26" height="34" rx="4" fill="#434c5e" stroke="#88c0d0" stroke-width="2"/>
+      <rect x="531" y="110" width="14" height="2.5" rx="1.25" fill="#88c0d0"/>
+      <rect x="531" y="117" width="10" height="2.5" rx="1.25" fill="#88c0d0"/>
+      <rect x="531" y="124" width="12" height="2.5" rx="1.25" fill="#88c0d0"/>
+      <text x="525" y="166" font-size="17" font-weight="600" fill="#eceff4">Resume</text>
+      <text x="525" y="190" font-size="12.5" fill="#d8dee9">versions, not one file</text>
+      <text x="525" y="209" font-size="12.5" fill="#d8dee9">facts must trace back</text>
     </g>
 
-    <path d="M699,158 L741,158" stroke="#4a5a70" stroke-width="2" marker-end="url(#flow)" opacity="0.5"/>
+    <path d="M699,158 L741,158" stroke="#88c0d0" stroke-width="2" marker-end="url(#flow)" opacity="0.6"/>
 
     <!-- ── 节点 4：投递追踪 ── -->
     <g>
-      <rect x="747" y="82" width="190" height="152" rx="14" fill="url(#card)" stroke="#e1e7ef" stroke-width="2"/>
-      <rect x="767" y="102" width="16" height="16" rx="4" fill="#0369a0" opacity="0.28"/>
-      <rect x="789" y="104" width="40" height="6" rx="3" fill="#e1e7ef"/>
-      <rect x="767" y="126" width="16" height="16" rx="4" fill="#047756" opacity="0.75"/>
-      <rect x="789" y="128" width="52" height="6" rx="3" fill="#e1e7ef"/>
-      <text x="767" y="166" font-size="17" font-weight="600" fill="#0f1729">Applications</text>
-      <text x="767" y="190" font-size="12.5" fill="#4a5a70">status and deadlines</text>
-      <text x="767" y="209" font-size="12.5" fill="#4a5a70">mail and contacts</text>
+      <rect x="747" y="82" width="190" height="152" rx="14" fill="#3b4252" stroke="#4c566a" stroke-width="2"/>
+      <rect x="767" y="102" width="16" height="16" rx="4" fill="#88c0d0" opacity="0.4"/>
+      <rect x="789" y="104" width="40" height="6" rx="3" fill="#4c566a"/>
+      <rect x="767" y="126" width="16" height="16" rx="4" fill="#a3be8c" opacity="0.85"/>
+      <rect x="789" y="128" width="52" height="6" rx="3" fill="#4c566a"/>
+      <text x="767" y="166" font-size="17" font-weight="600" fill="#eceff4">Applications</text>
+      <text x="767" y="190" font-size="12.5" fill="#d8dee9">status and deadlines</text>
+      <text x="767" y="209" font-size="12.5" fill="#d8dee9">mail and contacts</text>
     </g>
 
-    <path d="M941,158 L983,158" stroke="#4a5a70" stroke-width="2" marker-end="url(#flow)" opacity="0.5"/>
+    <path d="M941,158 L983,158" stroke="#88c0d0" stroke-width="2" marker-end="url(#flow)" opacity="0.6"/>
 
     <!-- ── 节点 5：面试与 Offer ── -->
     <g>
-      <rect x="989" y="82" width="190" height="152" rx="14" fill="url(#card)" stroke="#e1e7ef" stroke-width="2"/>
-      <circle cx="1024" cy="119" r="17" fill="#b35309" opacity="0.13"/>
-      <path d="M1016,119 L1022,125 L1033,113" stroke="#b35309" stroke-width="3" fill="none"
+      <rect x="989" y="82" width="190" height="152" rx="14" fill="#3b4252" stroke="#4c566a" stroke-width="2"/>
+      <circle cx="1024" cy="119" r="17" fill="#ebcb8b" opacity="0.18"/>
+      <path d="M1016,119 L1022,125 L1033,113" stroke="#ebcb8b" stroke-width="3" fill="none"
             stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="1009" y="166" font-size="17" font-weight="600" fill="#0f1729">Interviews</text>
-      <text x="1009" y="190" font-size="12.5" fill="#4a5a70">and offers</text>
-      <text x="1009" y="209" font-size="12.5" fill="#4a5a70">compare and review</text>
+      <text x="1009" y="166" font-size="17" font-weight="600" fill="#eceff4">Interviews</text>
+      <text x="1009" y="190" font-size="12.5" fill="#d8dee9">and offers</text>
+      <text x="1009" y="209" font-size="12.5" fill="#d8dee9">compare and review</text>
     </g>
 
   </g>
 
   <!-- 回环箭头：从节点 5 底部回到节点 1 底部 -->
-  <path d="M1084,236 C1084,288 116,288 116,236" stroke="#0369a0" stroke-width="2"
-        fill="none" stroke-dasharray="6 5" opacity="0.5" marker-end="url(#flow)"/>
+  <path d="M1084,236 C1084,288 116,288 116,236" stroke="#8fbcbb" stroke-width="2"
+        fill="none" stroke-dasharray="6 5" opacity="0.6" marker-end="url(#flow)"/>
   <text x="600" y="300" text-anchor="middle" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
-        font-size="12.5" fill="#0369a0" opacity="0.9">next round starts from what you learned</text>
+        font-size="12.5" fill="#8fbcbb">next round starts from what you learned</text>
 
   <text x="600" y="324" text-anchor="middle" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
-        font-size="12" fill="#4a5a70">AI suggests, scripts verify, you confirm</text>
+        font-size="12" fill="#d8dee9">AI suggests, scripts verify, you confirm</text>
 </svg>

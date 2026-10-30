@@ -1,8 +1,12 @@
 # Screenshot gallery
 
 Every page of the desktop UI (and its browser UI — same build, same data), captured
-from the generated demo workspace. The [README](../README.md) shows three of them;
+from the generated demo workspace. The [README](../README.md) shows four of them;
 this page carries the full set.
+
+> **These previews track `main`, not the published installer.** The latest public release
+> is `v26.10.1`, cut from an earlier branch; the interface here may include changes that
+> have not shipped yet. Read this gallery as "what the next release will look like".
 
 > **Note**: the interface is **bilingual** — every page ships in 简体中文 and English,
 > with a `中文 / English` switch in the header (first run follows your system language,

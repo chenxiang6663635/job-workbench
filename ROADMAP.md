@@ -52,11 +52,11 @@ when one exists. Historical implementation records stay in
     [`docs/handover/2026-10-28-dsh-first-release-runbook.md`](docs/handover/2026-10-28-dsh-first-release-runbook.md)：
     落章 → `-FromLock` 重建 → 双包预检 + 冒烟 → 子包先主包后发布 →
     公共 npm 全新安装核验 → marketplace 收录（必须在主包发布之后）。
-- **一件机械待办：16 张截图待重拍**（`npm.cmd run capture`，中英各 8 张）。`docs/screenshots/` 与
-  `docs/screenshots/zh-CN/` 最后一次执行是 2026-09-30（`69f53e6`），此后 `web/frontend/src` 仍有
-  5 次提交——顶栏成独立一档、素材库加笔记互链返回栈，图与界面已不一致。两个图库文档
-  （[`docs/screenshots.md`](docs/screenshots.md) 与 [`docs/screenshots.zh-CN.md`](docs/screenshots.zh-CN.md)）
-  都加了时间戳说明。缺的不是判断，是执行脚本与提交。
+- [x] **16 张截图已重拍（2026-10-30，Nord 主题）**——`npm run capture -- --theme nord`，
+  中英各 8 张。截图脚本跑在 `dist` 上，并且会拒绝拍旧构建（`dist 比 src 旧` 时直接 exit 2），
+  所以这批图反映的是当天的界面。README 首屏四张与两个图库文档
+  （[`docs/screenshots.md`](docs/screenshots.md) / [`docs/screenshots.zh-CN.md`](docs/screenshots.zh-CN.md)）
+  都已指向新图。`ROADMAP` 这一条不再有待办。
 
 **怎么走到这里的**：上一段「DSH 接入件第二阶段：自包含发行物」已全部完结（P2-1…P2-5 +
 文档收口，PR #281–#286；逐项见 [CHANGELOG](CHANGELOG.md)），`v26.10.0` 已于 2026-10-06 发布。

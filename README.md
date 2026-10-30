@@ -25,7 +25,7 @@ English | [简体中文](README.zh-CN.md)
 
 Job hunting means sensitive personal data (resumes, phone numbers, employer history) — and AI outputs that can quietly fabricate facts. This project is built around four answers:
 
-- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, and **no cloud server** (the desktop app starts a local backend that listens on 127.0.0.1 only). Real personal data stays in `personal/`, which is fully git-ignored: a fresh clone gives you an empty workspace, and you can fork this repo without leaking a thing.
+- **Local-first privacy.** Everything lives on your disk as plain text — git-diffable, Excel-friendly, no telemetry, and **no cloud server** (the desktop app starts a local backend that listens on 127.0.0.1 only). Where the data sits depends on how you run it: the **desktop app** keeps a fresh install under `%APPDATA%\job-workbench\data\` (or wherever `jobws data-root set` points it), while a **repo clone** uses the git-ignored `personal/` workspace. Either way the repository itself ships zero real data.
 - **Auditable AI, not black-box automation.** Your own AI CLI (BYOK models) does the semantic judgment — reading the JD, scoring fit. Python scripts do everything deterministic: eligibility gates, score validation, PDF generation, tracker I/O — and every automated verdict (application health, CSV import diffs, failure clustering) comes with explicit, human-checkable **reasons**, never a bare score.
 - **Anti-fabrication safeguards.** Resume import is *extraction, not generation*: every persisted value must trace back to source text, and unextracted fields are flagged. AI rewrite suggestions must pass five local anti-fabrication checks before they can be accepted.
 - **One engine, any field.** The scoring rules are field-agnostic — the domain knowledge lives in **data-only profiles** (two ship in the box: HVAC & cooling, software backend), so any specialty works by authoring one per [`docs/domain-contract.md`](docs/domain-contract.md).
@@ -72,7 +72,7 @@ The workbench turns all of that into queryable, traceable files.
 
 ## UI Preview
 
-Three of the eight pages. The [screenshot gallery](docs/screenshots.md) has all of them, one per page, each with a line on what it is for — and the same set in 简体中文.
+Four of the eight pages. The [screenshot gallery](docs/screenshots.md) has all of them, one per page, each with a line on what it is for — and the same set in 简体中文.
 
 <table>
   <tr>
@@ -81,7 +81,7 @@ Three of the eight pages. The [screenshot gallery](docs/screenshots.md) has all 
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/03-jobs.png" alt="Jobs"></td>
-    <td width="50%"></td>
+    <td width="50%"><img src="docs/screenshots/06-progress.png" alt="Progress"></td>
   </tr>
 </table>
 
@@ -172,7 +172,7 @@ The optional AI features (resume import, AI rewrite) are BYOK — bring a key fr
 
 ## Privacy
 
-This repository contains **no real personal data**. `personal/` is a workspace you fill with your own data (name, photo, contacts, applications, fact cards); it is entirely excluded from version control — after cloning, it is empty; generate your own with the init command above. In short: **fork it publicly with confidence, but never paste `personal/` content into issues, PRs or discussions.**
+This repository contains **no real personal data**. `personal/` is a workspace you fill with your own data (name, photo, contacts, applications, fact cards); it is entirely excluded from version control — after cloning, it is empty; generate your own with the init command above. That keeps the **repository** clean, and it is what makes a public fork safe. It does not cover everything outside the repo: exported diagnostics bundles, logs you paste, and screenshots of your own workspace are yours to check. **Never paste `personal/` content into issues, PRs or discussions.**
 
 ## Repository layout
 

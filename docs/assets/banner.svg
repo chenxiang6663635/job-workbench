@@ -16,6 +16,13 @@
          现在按真实网格画成闭环：A→B 横向、B→D 纵向、D→C 横向、C→A 纵向。
       2. 左上角大标题写 `job-workbench`，与 README 的 `# job-workbench` 重复。
          现在 banner 承担副标题职责，产品名由 H1 承担。
+
+    第 2 版遗留的一处（2026-10-30 第二轮复核指出，已修）：
+      3. 箭头接成 A→B→D→C→A，而卡片语义是 C=投递追踪、D=面试与 Offer，
+         读出来是「资格核对 → 面试与 Offer → 投递追踪」——把投递排到了面试之后。
+         卡片本身不带文字（全图 6 个 <text> 都在左侧副标题区），所以渲染图里读不出错，
+         但注释与图形语义互相矛盾。现在交换下排两张卡片的内容：C=面试与 Offer、
+         D=投递追踪，箭头不动，闭环变成 岗位 → 资格 → 投递 → 面试与 Offer。
   -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -55,6 +62,7 @@
     卡片实际位置：上排 (590,80)-(700,160) 与 (810,80)-(920,160)
                   下排 (590,200)-(700,280) 与 (810,200)-(920,280)
     连线只走网格的四条边，不越界、不指向空白。
+    语义顺序（沿箭头）：A 岗位 → B 资格核对 → D 投递追踪 → C 面试与 Offer → A。
   -->
   <g>
     <!-- A(上左) → B(上右)：水平 -->
@@ -84,22 +92,22 @@
       <rect x="826" y="130" width="76" height="6" rx="3" fill="#e1e7ef"/>
     </g>
 
-    <!-- 卡片 C：投递追踪 -->
+    <!-- 卡片 C：面试与 Offer（下排左） -->
     <g>
       <rect x="590" y="200" width="113" height="80" rx="12" fill="#ffffff" stroke="#e1e7ef" stroke-width="2"/>
-      <rect x="606" y="220" width="16" height="16" rx="4" fill="#0369a0" opacity="0.28"/>
-      <rect x="630" y="222" width="52" height="7" rx="3.5" fill="#0f1729"/>
-      <rect x="606" y="248" width="70" height="6" rx="3" fill="#e1e7ef"/>
+      <circle cx="618" cy="232" r="15" fill="#b35309" opacity="0.14"/>
+      <path d="M610,232 L616,238 L627,225" stroke="#b35309" stroke-width="2.5" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="644" y="222" width="40" height="7" rx="3.5" fill="#0f1729"/>
+      <rect x="606" y="256" width="66" height="6" rx="3" fill="#e1e7ef"/>
     </g>
 
-    <!-- 卡片 D：面试与 Offer -->
+    <!-- 卡片 D：投递追踪（下排右） -->
     <g>
       <rect x="810" y="200" width="113" height="80" rx="12" fill="#ffffff" stroke="#e1e7ef" stroke-width="2"/>
-      <circle cx="838" cy="232" r="15" fill="#b35309" opacity="0.14"/>
-      <path d="M830,232 L836,238 L847,225" stroke="#b35309" stroke-width="2.5" fill="none"
-            stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="864" y="222" width="40" height="7" rx="3.5" fill="#0f1729"/>
-      <rect x="826" y="256" width="66" height="6" rx="3" fill="#e1e7ef"/>
+      <rect x="826" y="220" width="16" height="16" rx="4" fill="#0369a0" opacity="0.28"/>
+      <rect x="850" y="222" width="52" height="7" rx="3.5" fill="#0f1729"/>
+      <rect x="826" y="248" width="70" height="6" rx="3" fill="#e1e7ef"/>
     </g>
   </g>
 

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="Job Workbench loop: JD parsing, eligibility gate before scoring, resume versions, application tracking, interviews and offers — AI suggests, scripts verify, you confirm">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="Job Workbench loop: JD parsing, eligibility gate that decides whether anything is scored at all, resume versions, application tracking, interviews and offers — AI suggests, scripts verify, you confirm">
   <!--
     工作流示意图（2026-10-30，第 2 版）。
     配色同 banner.svg（取自 web/frontend/src/themes/light.css）。
@@ -9,6 +9,11 @@
          **eligibility gate 先跑（degree → major → cohort → language → city），
          过了才计分**。现在节点 1 只做 JD 解析，节点 2 明写 gate 在 score 之前。
       2. `&#8800;`（≠）在缺字形的环境里会渲染成方框，改成纯文字。
+
+    第 2 版遗留的一处（2026-10-30 第二轮复核指出，已修）：
+      3. 节点 2 写 `gate runs first, then the score`，读起来像「资格核对之后一律评分」。
+         而 skills/jwb-recruit-coach/SKILL.md:39 规定：门槛不通过不评分，
+         硬门槛事实为 [待填] 时也不评分（结论写「待补档案」）。现在改成条件句。
   -->
   <defs>
     <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
@@ -50,8 +55,8 @@
       <path d="M290,119 L296,125 L307,113" stroke="#047756" stroke-width="3" fill="none"
             stroke-linecap="round" stroke-linejoin="round"/>
       <text x="283" y="166" font-size="17" font-weight="600" fill="#0f1729">Eligibility</text>
-      <text x="283" y="190" font-size="12.5" fill="#4a5a70">gate runs first,</text>
-      <text x="283" y="209" font-size="12.5" fill="#4a5a70">then the score</text>
+      <text x="283" y="190" font-size="12.5" fill="#4a5a70">gate first;</text>
+      <text x="283" y="209" font-size="12.5" fill="#4a5a70">score if eligible</text>
     </g>
 
     <path d="M457,158 L499,158" stroke="#4a5a70" stroke-width="2" marker-end="url(#flow)" opacity="0.5"/>

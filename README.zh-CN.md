@@ -1,7 +1,3 @@
-[下载 Windows 版](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [界面预览](docs/screenshots.zh-CN.md) · [使用手册](docs/usage-guide.zh-CN.md)
-
-[English](README.md) | 简体中文
-
 <div align="center">
 
 # 求职工作台
@@ -15,11 +11,15 @@
 
 一个**本地优先、注重 AI 输出可审计性**的职业行动工作台，**目前聚焦从岗位分析到 Offer 复盘的求职流程**：数据以纯 Markdown 与 CSV 存在你自己的磁盘上——**桌面端（含浏览器界面）、命令行、AI 宿主（MCP）、编辑器插件** 四个入口驱动同一套数据，说法与确认方式对齐，逐项见 [`docs/four-ends.md`](docs/four-ends.md)。
 
+[下载 Windows 版](https://github.com/chenxiang6663635/job-workbench/releases/latest) · [界面预览](docs/screenshots.zh-CN.md) · [使用手册](docs/usage-guide.zh-CN.md)
+
+[English](README.md) | 简体中文
+
 </div>
 
 <img src="docs/assets/workflow.svg" alt="求职工作台的一个闭环：岗位分析、资格与证据核对、简历版本、投递追踪、面试与 Offer。AI 建议，脚本校验，你确认。" width="100%">
 
-**一个闭环** —— 岗位 JD 解析 → 资格门槛（先于评分）→ 简历版本 → 投递追踪 → 面试与 Offer。上图是同一流程；窄屏下读这一行即可。
+**一个闭环** —— 岗位 JD 解析 → 资格门槛 → 简历版本 → 投递追踪 → 面试与 Offer。门槛先于评分，且可以就此结束判定（不通过、或「待补档案」——都不打分）；只有过了门槛的岗位才评分。上图是同一流程；窄屏下读这一行即可。
 
 ## 为什么做这个项目
 
@@ -50,7 +50,6 @@
 | 通用 AI 聊天工具 | 分析 JD、润色文本、回答问题 | 能给分析，但不会把它结构化地留在你自己的本地求职数据上 |
 | **求职工作台** | 在一个地方组织岗位、简历、投递、面试与 Offer | 本地纯文本文件、证据可复核、AI 只给建议、关键变更由你确认 |
 
-
 ## 核心设计
 
 - **AI 判断，脚本校验**。评分由 AI 读 JD 与你的档案后填进解析卡；Python 只校验加总自洽、套阈值出结论、生成 PDF、读写追踪表，并做可解释的确定性判定（健康度四态、CSV 导入差异、失败聚类——全部给理由）。改评分标准只改 Markdown 配置，不改代码。
@@ -68,7 +67,7 @@
 - **界面字体与字号**：字号为连续滑块（80%–150%，步进 5%，即根字号缩放），与桌面端全局缩放解耦、浏览器里同样生效；界面字体 **12 款**可选（Inter 默认，另有 Geist、IBM Plex Sans、Manrope、Plus Jakarta Sans、DM Sans、Figtree、Outfit、Public Sans、Source Sans 3、Work Sans、Atkinson Hyperlegible Next），再加两个完全不加载 webfont 的选项——系统栈与衬线。
 - **等宽字体独立一槽**：代码、记录 id、时间戳单独选 **6 款**（Maple Mono 默认，另有 JetBrains Mono、Fira Code、Geist Mono、IBM Plex Mono、Source Code Pro）。
 - **数字字体再单独一槽**：KPI 数字、计数、天数、百分比有自己的字体（Geist Mono 默认，或 JetBrains Mono、IBM Plex Mono、跟随界面字体），刻意配成能坐进任何界面字体旁边。所有字体本地打包（OFL-1.1、离线可用）、只发拉丁子集，中文走系统栈。
-- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市；档案没填的岗位判「待补档案」——不打分也不终止，补齐即可评；城市偏好类只在「培养与稳定性」轻度扣分，硬性不可行才拦下），四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **评分框架**：资格门槛前置（学历 → 专业 → 届数 → 外语 → 城市；档案没填的岗位判「待补档案」——不打分也不终止，补齐即可评；城市偏好类只在「培养与稳定性」轻度扣分，硬性不可行才拦下）。**门槛不通过就不评分**，过了才进四维度加权五档位，完整标准见 [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 - **领域插件是数据不是代码**：内置两个示例插件（暖通制冷——6 个方向；软件后端——最小参考实现）。你自己的专业按 [`docs/domain-contract.md`](docs/domain-contract.md) 写一份插件即可——纯数据、零代码改动，有两个完整范例可抄，`jobws lint domains` 自动校验结构。
 
 ## 界面预览

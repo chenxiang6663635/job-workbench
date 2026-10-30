@@ -19,7 +19,7 @@ English | [简体中文](README.zh-CN.md)
 
 <img src="docs/assets/workflow.svg" alt="Job Workbench loop: JD analysis, eligibility and evidence check, resume versions, application tracking, interviews and offers. AI suggests, scripts verify, you confirm." width="100%">
 
-**The loop** — JD parsing → eligibility gate (before any score) → resume versions → application tracking → interviews and offers. The image above is the same flow; this line is the readable version on narrow screens.
+**The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The image above is the same flow; this line is the readable version on narrow screens.
 
 ## Why job-workbench
 
@@ -50,7 +50,6 @@ The workbench turns all of that into queryable, traceable files.
 | General AI chat | Analyse a JD, polish text, answer questions | Gives analysis, but does not keep it structured against your own local job data |
 | **Job Workbench** | Organise jobs, resumes, applications, interviews and offers in one place | Plain files on your disk, evidence you can re-check, AI that suggests, and every key change confirmed by you |
 
-
 ## Core design
 
 - **AI judges, scripts verify.** Scores come from your AI CLI reading the JD against your profile; Python only validates totals, applies thresholds, generates PDFs, reads/writes the tracker — and makes explainable deterministic calls (application health in four states, CSV import diffs, failure clustering — all with reasons). Changing scoring rules means editing Markdown profiles, not code.
@@ -68,7 +67,7 @@ The workbench turns all of that into queryable, traceable files.
 - **Interface typography**: a continuous size slider (80%–150%, 5% steps — root-font scaling, decoupled from desktop zoom and available in a plain browser) and **12 bundled UI typefaces** (Inter by default, plus Geist, IBM Plex Sans, Manrope, Plus Jakarta Sans, DM Sans, Figtree, Outfit, Public Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible Next), with two more that load no webfont at all — System UI and serif.
 - **A separate monospace slot**: **6 families** for code, record IDs and timestamps (Maple Mono by default; JetBrains Mono, Fira Code, Geist Mono, IBM Plex Mono, Source Code Pro).
 - **A third slot for numerals alone**: KPI figures, counts, days and percentages take their own font (Geist Mono by default, or JetBrains Mono / IBM Plex Mono / follow the UI typeface) — deliberately paired to sit beside any UI typeface. Every face is bundled locally under OFL-1.1, Latin subsets only; CJK falls back to the system stack.
-- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; unfilled profile facts yield "awaiting profile facts" instead of a fail — fill them and re-run; city *preferences* only deduct from growth, hard infeasibility still vetoes), then four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
+- **Scoring framework**: an eligibility gate first (degree → major → cohort → language → city; unfilled profile facts yield "awaiting profile facts" instead of a fail — fill them and re-run; city *preferences* only deduct from growth, hard infeasibility still vetoes). **A job that fails the gate is not scored at all** — only an eligible one goes on to four weighted dimensions → five-tier verdict; the full standard lives in [`skills/jwb-recruit-coach/SKILL.md`](skills/jwb-recruit-coach/SKILL.md)
 - **Domain profiles are data, not code**: two ship in the box (HVAC & cooling — 6 directions; software backend — the minimal reference example). Your own field works by authoring a profile per [`docs/domain-contract.md`](docs/domain-contract.md) — pure data, two full examples to copy, validated by `jobws lint domains`.
 
 ## UI Preview

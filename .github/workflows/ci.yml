@@ -511,9 +511,11 @@ jobs:
       - name: 运行时最低安全版本（electron）
         run: python tools/check_runtime_advisories.py
 
-      # 发布物五处版本必须同号（2026-10-30 审计 §四）：历史 tag 上真漂过
-      # （v26.9.0 的 lock 顶层是 26.9.15；v26.10.0/1 停在 26.9.0）。按 EOL 前先挡住。
-      - name: 版本一致性（五处同号）
+      # 发布物版本必须同号（2026-10-30 审计 §四；10-31 改成结构扫描）：真源是
+      # `web/electron/package.json`，另含 lock 两行、DSH 主包/平台子包、以及主包指向
+      # 子包的 `optionalDependencies` 声明。历史 tag 上真漂过（v26.9.0 的 lock 顶层是
+      # 26.9.15；v26.10.0/1 停在 26.9.0；10-31 又发现漏查 optionalDependencies）。
+      - name: 版本一致性（结构扫描：版本字段 + 内部依赖声明）
         run: python tools/check_release_versions.py
 
       # Python 侧是运行时依赖：-r 直接吃锁文件（requirements.lock 的 --hash 行

@@ -20,7 +20,7 @@
 **尚未完成的（这些是工作，不是授权）**：
 
 ```
-□ 落章六处（三个 package.json 现在仍是 26.10.0）
+□ 落章（三个 package.json + 主包 `optionalDependencies`；现在仍是 26.10.0）
 □ 用 -FromLock 重建（prebuilds.json 的 version 要跟着落章后的号）
 □ 对落章后的产物重跑双包预检 + 17 工具冒烟
 □ npm 双包发布（子包先、主包后）
@@ -97,16 +97,19 @@ const engines = Object.hasOwn(fields, "engines") ? objectOf(fields.engines, ...)
 
 ## 四、执行步骤
 
-### 4.1 落章：六处同号（只有第 5 处是生成的）
+### 4.1 落章：与执行单同源（**细节只在执行单里维护**）
+
+落章的完整字段清单与命令见
+[`2026-10-30-2611-release-steps.md`](2026-10-30-2611-release-steps.md) 的 §二；
+本节只保留**与 DSH 双包强相关**的三条，避免两处计数再次漂移：
 
 | # | 位置 | 怎么改 |
 |---|---|---|
-| 1 | `web/electron/package.json` | 手改（**唯一真值源**） |
-| 2 | `integrations/dsh/package.json` | 手改 |
-| 3 | `integrations/dsh/platform/win32-x64/package.json` | 手改 |
-| 4 | `skills/*/SKILL.md` × 9 的 `metadata.version` | **手改 9 处**（`assets_registry --write` 不碰技能） |
-| 5 | `.codebuddy-plugin/{plugin,marketplace}.json` | `python tools\assets_registry.py --write` |
-| 6 | `CHANGELOG.md` | `## [Unreleased]` → `## [26.11.0] - 2026-11-XX` |
+| 1 | `integrations/dsh/package.json` → `version` | 手改 |
+| 2 | `integrations/dsh/package.json` → **`optionalDependencies["dsh-job-workbench-win32-x64"]`** | 手改，**精确版本**（`^`/`~` 会被门禁判错）。2026-10-31 审计发现 1：漏了它，主包会去取旧子包而门禁全绿 |
+| 3 | `integrations/dsh/platform/win32-x64/package.json` → `version` | 手改（`build_mcp_exe.ps1` 校验 == 主包） |
+
+应用版本、lock 两行、9 个技能、插件壳、CHANGELOG 都在执行单 §2.1–§2.4，不在这里重复。
 
 ### 4.2 四道闸（顺序不能反）
 

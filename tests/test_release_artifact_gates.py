@@ -7,6 +7,7 @@
 两者都只测**判据**；「真实仓库当前是否通过」各有一条集成断言，避免判据写完却没人接上。
 """
 
+import json
 import os
 import sys
 
@@ -129,3 +130,23 @@ def test_release_workflow_runs_both_gates():
         text = f.read()
     assert "tools/check_runtime_advisories.py" in text
     assert "tools/check_release_versions.py" in text
+
+def test_package_files_covers_every_publishable_package():
+    """`PACKAGE_FILES` 是显式清单——用一次仓库扫描保证它没漏（新增发布物包会红）。"""
+    import glob
+    found = set()
+    for path in glob.glob(os.path.join(ROOT, "**", "package.json"), recursive=True):
+        rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+        if rel.startswith("node_modules/") or "/node_modules/" in rel or rel.startswith(".codebuddy/"):
+            continue
+        with open(path, "r", encoding="utf-8") as f:
+            name = json.load(f).get("name") or ""
+        if name == "job-workbench" or name.startswith("dsh-job-workbench"):
+            found.add(rel)
+    assert found == set(crv.PACKAGE_FILES), "发布物包集合变了：%r vs %r" % (found, set(crv.PACKAGE_FILES))
+
+
+def test_non_string_dependency_spec_is_reported():
+    versions = {crv.APP: "26.11.0"}
+    problems = crv.check(versions, {"dsh → optionalDependencies.x": "<非字符串>"})
+    assert problems and "<非字符串>" in problems[0]

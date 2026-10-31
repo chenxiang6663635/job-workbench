@@ -75,10 +75,14 @@ jobs:
       # `安全扫描` 只保护合并，不传递到发布——把 tag 钉在另一条未过关的提交上时，
       # 发布工作流成功并不能证明「运行时够新、版本同号」。`publish` 依赖本 job，
       # 所以这里失败 → Draft 不会被创建。
+      # 显式 `shell: pwsh`：默认 shell 随 runner 而变，门禁不该依赖那个隐式约定。
+      # 这两步**不得**加 `continue-on-error`——它们是发布阻断项。
       - name: 运行时最低安全版本（electron）
+        shell: pwsh
         run: python tools/check_runtime_advisories.py
 
       - name: 版本一致性（含内部依赖声明）
+        shell: pwsh
         run: python tools/check_release_versions.py
 
       # 版本号唯一来源是 web/electron/package.json（CONTRIBUTING 的规定）。

@@ -39,8 +39,16 @@ function main() {
   const target = path.resolve(process.argv[2] || ".");
   const root = findRepoRoot();
   if (!root) {
-    console.error("sync_notices: 从脚本位置往上找不到含 .git 的仓库根");
-    process.exit(1);
+    // 从发布包内部运行（tarball 里没有 .git）：此时包目录里应当已经有副本，
+    // 没有才是真的坏了。不能用「找不到仓库根」一票否决——否则 `npm rebuild`
+    // 或用户侧二次打包会直接失败。
+    const missing = FILES.filter((name) => !fs.existsSync(path.join(target, name)));
+    if (missing.length) {
+      console.error("sync_notices: 无仓库根，且目标目录缺 " + missing.join(" / ") + "（" + target + "）");
+      process.exit(1);
+    }
+    console.log("sync_notices: 无仓库根（在发布包内运行），许可副本已存在，跳过同步");
+    return;
   }
 
   for (const name of FILES) {

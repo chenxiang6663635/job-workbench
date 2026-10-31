@@ -13,10 +13,16 @@ package.json` 的 `optionalDependencies["dsh-job-workbench-win32-x64"]` 被漏�
 
 1. 以 `web/electron/package.json` 的 version 为唯一真源；
 2. `web/electron/package-lock.json` 的顶层与 `packages[""].version` 必须相等；
-3. 仓库内**每一个** `package.json` 的 `version` 必须相等；
+3. **每一个发布物包**（`PACKAGE_FILES`：应用 / DSH 主包 / DSH 平台子包）的 version
+   必须相等；lock 里若出现 `node_modules/<本仓包名>` 的条目，其 version 也要相等；
 4. 这些包互相之间的依赖声明（`dependencies` / `devDependencies` /
    `optionalDependencies` / `peerDependencies` 里指向本仓包名的）必须是**精确版本**
    且与真源相等——范围符（`^`/`~`/`>=`）一律报错，因为发行合同要求「主包与子包同版」。
+
+**不在同号集合里的**：`web/frontend/package.json`（前端是私有包，version 是它自己的
+0.1.0，不随发车变），以及 `.codebuddy/tmp/**` 下的探针包。`PACKAGE_FILES` 仍是显式
+清单，但 `tests/test_release_artifact_gates.py` 会扫仓库、断言「没有漏掉任何发布物包」
+——新增第 4 个发布物包时测试会红（这比让脚本 rglob 一堆无关 package.json 更稳）。
 
 用法：`python tools/check_release_versions.py`（exit 0 通过 / 1 不一致 / 2 文件缺失）
 """
@@ -71,7 +77,19 @@ def collect() -> Tuple[Dict[str, str], Dict[str, str]]:
             for dep, spec in (pkg.get(section) or {}).items():
                 if dep not in local_names or dep == pkg.get("name"):
                     continue
-                specs["%s → %s.%s" % (rel, section, dep)] = str(spec)
+                if not isinstance(spec, str):
+                    # 结构异常（例如 `{"version": "..."}`）：不能 str() 一把糊过去，
+                    # 否则它会变成一个永远不相等的字符串，门禁报错但原因看不懂。
+                    specs["%s → %s.%s" % (rel, section, dep)] = "<非字符串>"
+                    continue
+                specs["%s → %s.%s" % (rel, section, dep)] = spec
+
+    # lock 里若把本仓包当依赖锁过（旧 npm install 的残留），版本也必须同号：
+    # 否则 tarball/lock 会指向旧子包，而上面几项全绿。
+    for name in sorted(local_names):
+        entry = (lock.get("packages") or {}).get("node_modules/" + name) or {}
+        if entry.get("version"):
+            versions['%s (node_modules/%s)' % (LOCK, name)] = str(entry["version"])
 
     return versions, specs
 

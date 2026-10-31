@@ -6,9 +6,14 @@
 // 许可声明，平台包还会分发 PyInstaller 打进去的第三方依赖（它们各自的 LICENSE 在
 // `bin/_internal/*.dist-info/licenses/` 里，这一层由 PyInstaller 保证，不由本脚本管）。
 //
-// 用法：node scripts/sync_notices.js [目标目录，默认 .]
+// 用法：node scripts/sync_notices.cjs [目标目录，默认 .]
+// 后缀是 .cjs 而不是 .js：主包声明了 `"type": "module"`，`.js` 会被当 ESM 解析，
+// 里面的 `require` 直接炸（实测过）。
 // 由各包 package.json 的 `prepack` 调用，所以 `npm pack` / `npm publish` 一定带上它们。
 // 产出是**生成物**，已在 .gitignore 里，别提交。
+//
+// 注意：主包的 tarball 里会出现**两份**许可（根级一份 + `platform/win32-x64/` 一份，
+// 后者给平台子包自己用）。内容相同，这是有意的，不是重复打包 bug。
 
 const fs = require("fs");
 const path = require("path");
@@ -19,6 +24,9 @@ function findRepoRoot(start) {
   let dir = path.resolve(start);
   for (;;) {
     if (FILES.every((name) => fs.existsSync(path.join(dir, name)))) return dir;
+    // 到仓库根（有 .git）还没找到就停：否则会一路向上穿越到仓库外的某个祖先目录，
+    // 从那儿复制一份**别的项目**的许可进来（评审 2026-10-31 指出的边界缺口）。
+    if (fs.existsSync(path.join(dir, ".git"))) return null;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;

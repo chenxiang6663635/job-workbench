@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 // 把仓库根的 LICENSE 与 THIRD-PARTY-NOTICES.md 复制进 npm 包目录（2026-10-30 审计 §六）。
 //
-// 为什么必须复制：npm 只打包包目录内的文件，`files` 里写 `../../LICENSE` 无效。
+// 为什么必须复制：npm 只打包包目录内的文件，`files: ["../../LICENSE"]` 无效。
 // 而 `package.json` 声明了 `"license": "MIT"`——MIT 要求副本或实质部分随附版权与
 // 许可声明，平台包还会分发 PyInstaller 打进去的第三方依赖（它们各自的 LICENSE 在
 // `bin/_internal/*.dist-info/licenses/` 里，这一层由 PyInstaller 保证，不由本脚本管）。
+//
+// **源目录固定为仓库根**（2026-10-31 审计发现 3 修）：第一版是「从目标目录往上找
+// 同时含两份材料的目录」，而第一次运行后**包目录自己**就满足该条件——第二次起
+// `root === target`，`from === to` 直接跳过，根许可更新了也永远刷不过去。现在以脚本
+// 自身位置为锚，向上找含 `.git` 的仓库根，然后**无条件覆盖**目标。
 //
 // 用法：node scripts/sync_notices.cjs [目标目录，默认 .]
 // 后缀是 .cjs 而不是 .js：主包声明了 `"type": "module"`，`.js` 会被当 ESM 解析，
@@ -20,13 +25,10 @@ const path = require("path");
 
 const FILES = ["LICENSE", "THIRD-PARTY-NOTICES.md"];
 
-function findRepoRoot(start) {
-  let dir = path.resolve(start);
+function findRepoRoot() {
+  let dir = path.resolve(__dirname);
   for (;;) {
-    if (FILES.every((name) => fs.existsSync(path.join(dir, name)))) return dir;
-    // 到仓库根（有 .git）还没找到就停：否则会一路向上穿越到仓库外的某个祖先目录，
-    // 从那儿复制一份**别的项目**的许可进来（评审 2026-10-31 指出的边界缺口）。
-    if (fs.existsSync(path.join(dir, ".git"))) return null;
+    if (fs.existsSync(path.join(dir, ".git"))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -35,17 +37,31 @@ function findRepoRoot(start) {
 
 function main() {
   const target = path.resolve(process.argv[2] || ".");
-  const root = findRepoRoot(target);
+  const root = findRepoRoot();
   if (!root) {
-    console.error(
-      "sync_notices: 从 " + target + " 往上找不到同时含 " + FILES.join(" / ") + " 的目录"
-    );
-    process.exit(1);
+    // 从发布包内部运行（tarball 里没有 .git）：此时包目录里应当已经有副本，
+    // 没有才是真的坏了。不能用「找不到仓库根」一票否决——否则 `npm rebuild`
+    // 或用户侧二次打包会直接失败。
+    const missing = FILES.filter((name) => !fs.existsSync(path.join(target, name)));
+    if (missing.length) {
+      console.error("sync_notices: 无仓库根，且目标目录缺 " + missing.join(" / ") + "（" + target + "）");
+      process.exit(1);
+    }
+    console.log("sync_notices: 无仓库根（在发布包内运行），许可副本已存在，跳过同步");
+    return;
   }
+
   for (const name of FILES) {
     const from = path.join(root, name);
+    if (!fs.existsSync(from)) {
+      console.error("sync_notices: 仓库根缺 " + name + "（" + root + "）");
+      process.exit(1);
+    }
     const to = path.join(target, name);
-    if (path.resolve(from) === path.resolve(to)) continue;
+    if (path.resolve(from) === path.resolve(to)) {
+      console.error("sync_notices: 目标目录就是仓库根，不该在这里打包（" + target + "）");
+      process.exit(1);
+    }
     fs.copyFileSync(from, to);
     const bytes = fs.statSync(to).size;
     if (bytes === 0) {

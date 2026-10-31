@@ -7,6 +7,7 @@
 两者都只测**判据**；「真实仓库当前是否通过」各有一条集成断言，避免判据写完却没人接上。
 """
 
+import json
 import os
 import sys
 
@@ -57,9 +58,29 @@ def test_app_version_missing_is_fatal():
     assert len(problems) == 1 and "没有 version 字段" in problems[0]
 
 
+def test_internal_dependency_declaration_must_match():
+    """`optionalDependencies` 里的子包版本（审计 2026-10-31 发现 1）。"""
+    versions = {crv.APP: "26.11.0"}
+    specs = {"integrations/dsh/package.json → optionalDependencies.dsh-job-workbench-win32-x64":
+             "26.10.0"}
+    problems = crv.check(versions, specs)
+    assert len(problems) == 1 and "26.10.0" in problems[0] and "26.11.0" in problems[0]
+
+
+def test_range_spec_for_internal_dependency_is_rejected():
+    """内部依赖必须是精确版本——`^26.11.0` 等于允许主包配旧子包。"""
+    versions = {crv.APP: "26.11.0"}
+    for spec in ("^26.11.0", "~26.11.0", ">=26.11.0"):
+        problems = crv.check(versions, {"dsh → optionalDependencies.x": spec})
+        assert problems and "不是精确版本" in problems[0], spec
+
+
 def test_real_repo_is_consistent():
     """集成断言：仓库当前必须通过（落章后跑一次就知道有没有漏改）。"""
-    assert crv.check(crv.collect()) == []
+    versions, specs = crv.collect()
+    assert crv.check(versions, specs) == []
+    # 至少要覆盖到 DSH 主包指向平台子包的那条声明，否则等于没查。
+    assert any("optionalDependencies.dsh-job-workbench-win32-x64" in k for k in specs)
 
 
 # ---------- 运行时安全基线 ----------
@@ -92,3 +113,40 @@ def test_real_lock_clears_the_baseline():
     actual = cra.locked_version("electron")
     assert actual, "web/electron/package-lock.json 里应当能读到 electron 版本"
     assert cra.check({"electron": actual}) == []
+
+
+# ---------- 预发布与发布链接线（2026-10-31 审计） ----------
+
+def test_prerelease_is_rejected_not_truncated():
+    """`44.9.1-beta.1` 语义上低于 `44.9.1`，不能截断成同号放行（第一版是乐观截断）。"""
+    problems = cra.check({"electron": "44.9.1-beta.1"}, {"electron": ("44.9.1", "GHSA-x")})
+    assert problems and "无法解析" in problems[0]
+
+
+def test_release_workflow_runs_both_gates():
+    """tag 链必须自己跑一次（main 的保护不传递到发布）；`publish` 依赖 package，故失败即无 Draft。"""
+    path = os.path.join(ROOT, ".github", "workflows", "release.yml")
+    with open(path, "r", encoding="utf-8") as f:
+        text = f.read()
+    assert "tools/check_runtime_advisories.py" in text
+    assert "tools/check_release_versions.py" in text
+
+def test_package_files_covers_every_publishable_package():
+    """`PACKAGE_FILES` 是显式清单——用一次仓库扫描保证它没漏（新增发布物包会红）。"""
+    import glob
+    found = set()
+    for path in glob.glob(os.path.join(ROOT, "**", "package.json"), recursive=True):
+        rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+        if rel.startswith("node_modules/") or "/node_modules/" in rel or rel.startswith(".codebuddy/"):
+            continue
+        with open(path, "r", encoding="utf-8") as f:
+            name = json.load(f).get("name") or ""
+        if name == "job-workbench" or name.startswith("dsh-job-workbench"):
+            found.add(rel)
+    assert found == set(crv.PACKAGE_FILES), "发布物包集合变了：%r vs %r" % (found, set(crv.PACKAGE_FILES))
+
+
+def test_non_string_dependency_spec_is_reported():
+    versions = {crv.APP: "26.11.0"}
+    problems = crv.check(versions, {"dsh → optionalDependencies.x": "<非字符串>"})
+    assert problems and "<非字符串>" in problems[0]

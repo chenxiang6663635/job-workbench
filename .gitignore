@@ -195,3 +195,9 @@ personal/
 #     按 2026-10-27 裁决**刻意不入库**——留在本机才是活证据。
 /contest-1024-live/
 /contest-shots/
+
+# DSH npm 包的许可材料是 prepack 生成物（sync_notices.cjs 从仓库根复制）
+integrations/dsh/LICENSE
+integrations/dsh/THIRD-PARTY-NOTICES.md
+integrations/dsh/platform/win32-x64/LICENSE
+integrations/dsh/platform/win32-x64/THIRD-PARTY-NOTICES.md

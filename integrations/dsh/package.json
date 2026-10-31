@@ -58,9 +58,11 @@
     "scripts/install.ps1",
     "locale/*.json",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "scripts": {
-    "prepack": "node ../../scripts/verify_mcp_prebuilds.js ./platform/win32-x64"
+    "prepack": "node ./scripts/sync_notices.cjs . && node ../../scripts/verify_mcp_prebuilds.js ./platform/win32-x64"
   }
 }

@@ -134,7 +134,12 @@ python tools\jobws.py release version
 ```powershell
 python tools\jobws.py skills check          # 技能 metadata 与插件壳/应用版本三向对齐（9 个）
 python tools\assets_registry.py --check     # plugin.json / marketplace.json 与真源一致
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1 `
+    -FromLock -BasePython <构建用 python>
+                                            # **正式发行必须带这两个参数**（2026-10-30 审计 §九）：
+                                            # -FromLock 从 build-requirements.lock 重建 venv，
+                                            # -BasePython 指定 3.12 基座；裸调用只用于本地开发试跑，
+                                            # 它会在当前 venv 里装依赖，产物不可复现。
                                             # 子包版本 == 主包（不等 exit 1）；产出 bin/ 与 prebuilds.json
                                             # 需**非 editable 的构建 venv**（脚本默认探测
                                             # D:\tools\venvs\jobws-mcp-build；别用开发用的 jobws-mcp venv）

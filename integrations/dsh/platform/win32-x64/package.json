@@ -16,9 +16,11 @@
   },
   "files": [
     "bin",
-    "prebuilds.json"
+    "prebuilds.json",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "scripts": {
-    "prepack": "node ../../../../scripts/verify_mcp_prebuilds.js ."
+    "prepack": "node ../../scripts/sync_notices.cjs . && node ../../../../scripts/verify_mcp_prebuilds.js ."
   }
 }

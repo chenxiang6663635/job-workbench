@@ -17,14 +17,16 @@ English | [简体中文](README.zh-CN.md)
 
 </div>
 
-**The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The image above is the same flow; this line is the readable version on narrow screens.
+**The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The workflow diagram sits under **Core design**
+below; this line is the readable version on narrow screens.
 
 ## Five ways to use it
 
 One local data base, several native entry points. All of them read and write the same
-Markdown/CSV workspace on your disk. The workbench itself has no server and no telemetry:
-an AI host only sees what a tool call returns or what you paste into the conversation —
-there is no background upload.
+Markdown/CSV workspace on your disk. There is no vendor-hosted cloud service and no
+telemetry: the desktop app starts a local backend bound to `127.0.0.1`, and an AI host only
+sees what a tool call returns or what you paste into the conversation — nothing is uploaded
+in the background.
 
 | Entry point | What it is | Start here |
 |---|---|---|
@@ -34,9 +36,12 @@ there is no background upload.
 | **DeepSeek Harness** | Plugin bundle: the same 17 tools + **9 `jwb-*` skills** + an optional agent preset | [`integrations/dsh`](integrations/dsh/README.md) |
 | **Editor plugins** | The same skills as slash commands inside CodeBuddy / Claude Code | [`skills/`](skills/) |
 
-> **Every write is two-phase, on every entry point.** Nothing — not the UI, not the CLI,
-> not an AI host — can change your data without a preview that returns the diff plus an
-> approval token, followed by an explicit confirmation that applies it.
+> **Writes are always confirmed — how depends on the entry point.** The MCP tools force a
+> two-phase token handshake (`preview_*` returns the diff plus an approval token; only
+> `apply_approval` writes). The CLI previews by default for the question bank and on
+> `--preview` for `track`, while a few low-risk records are written directly. The UI confirms
+> through a dialog rather than a token. Per-operation detail lives in the
+> [four-ends matrix](docs/four-ends.md).
 
 ### CLI in practice
 

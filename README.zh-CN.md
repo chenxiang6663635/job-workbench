@@ -33,10 +33,10 @@ AI 宿主只能看到工具调用返回的内容，或你直接粘贴进对话�
 | **DeepSeek Harness** | 插件包：同一套 17 工具 + **9 个 `jwb-*` 技能** + 可选 agent preset | [`integrations/dsh`](integrations/dsh/README.md) |
 | **编辑器插件** | 同一套技能，在 CodeBuddy / Claude Code 里作为斜杠命令 | [`skills/`](skills/) |
 
-> **写操作都要确认，但确认方式因入口而异。** MCP 工具强制两段式令牌协议（`preview_*`
-> 返回差异 + 审批令牌，只有 `apply_approval` 落盘）；命令行题库类默认出预览、`track` 类
-> 需显式 `--preview`，少数低风险记录直接落盘；界面靠弹窗确认，不发令牌。逐项见
-> [四端能力矩阵](docs/four-ends.md)。
+> **写操作在每个入口都要确认——机制不同，语义相同。** 没有后台改动能碰你的数据：MCP 工具
+> 强制 `preview_*` → `apply_approval`；命令行题库类默认出预览，`track` 的新增/修改类加
+> `--preview` 才预览、删除类**永远**两段式，联系人 / Offer 直接落盘——你敲下的命令就是确认；
+> 界面靠弹窗确认。逐项见[四端能力矩阵](docs/four-ends.md)。
 
 ### CLI 实际输出
 

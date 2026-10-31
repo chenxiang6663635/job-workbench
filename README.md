@@ -17,8 +17,8 @@ English | [简体中文](README.zh-CN.md)
 
 </div>
 
-**The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The workflow diagram sits under **Core design**
-below; this line is the readable version on narrow screens.
+**The loop** — JD parsing → eligibility gate → resume versions → application tracking → interviews and offers. The gate runs before any scoring and can end the evaluation right there (fail, or "awaiting profile facts" — neither is scored); only an eligible job goes on to be scored. The readable version of that flow is this line;
+the diagram itself lives under **Core design** further down.
 
 ## Five ways to use it
 
@@ -36,12 +36,12 @@ in the background.
 | **DeepSeek Harness** | Plugin bundle: the same 17 tools + **9 `jwb-*` skills** + an optional agent preset | [`integrations/dsh`](integrations/dsh/README.md) |
 | **Editor plugins** | The same skills as slash commands inside CodeBuddy / Claude Code | [`skills/`](skills/) |
 
-> **Writes are always confirmed — how depends on the entry point.** The MCP tools force a
-> two-phase token handshake (`preview_*` returns the diff plus an approval token; only
-> `apply_approval` writes). The CLI previews by default for the question bank and on
-> `--preview` for `track`, while a few low-risk records are written directly. The UI confirms
-> through a dialog rather than a token. Per-operation detail lives in the
-> [four-ends matrix](docs/four-ends.md).
+> **Every write is confirmed, on every entry point — the mechanism differs, the semantics
+> don't.** No background edit can touch your data: the MCP tools force `preview_*` →
+> `apply_approval`; the CLI previews the question bank by default, previews `track`
+> add/update only when you pass `--preview`, is **always** two-phase for deletes, and writes
+> contacts/offers directly — a command you typed is the confirmation; the UI asks in a
+> dialog. Per-operation detail: [four-ends matrix](docs/four-ends.md).
 
 ### CLI in practice
 

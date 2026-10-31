@@ -80,6 +80,8 @@
 - [x] **Release notes 自动附加**未签名 / SmartScreen 说明（微软官方口径：未签名拦截页更严重、每版本信誉归零） — v26.10.0：说明尾部含中英安装说明 + 校验和块；**2026-10-06 起说明模板重构**（直链下载置顶 / 不重复版本号大标题 / English Highlights 折叠，`release_notes_format.py`）
 - [x] **发布证明链（全量 E2E）**：`publish` 依赖 `[package, e2e]`——E2E 红则 Release 不会创建（2026-09-25 起的并行结构） — v26.10.0：run `37452235789` 内通过
 - [x] 发布后核验资产：exe + blockmap + latest.yml + SHA256SUMS.txt（**v26.10.0 起五样**，含 sbom.spdx.json）全在（**打 tag 后**才做） — v26.10.0：五样齐（见 `releases/26.10.0-verification.md`）
+- [ ] **运行时最低安全版本**（`python tools/check_runtime_advisories.py`，2026-10-30 审计 §五新增）：检查 `electron` 是否 ≥ 已知安全基线。它落在 `devDependencies` 里，`npm audit --omit=dev` 扫不到、全量那条又只报告——这条是唯一会挡住「运行时落后」的闸
+- [ ] **五处版本同号**（`python tools/check_release_versions.py`，2026-10-30 审计 §四新增）：`web/electron/package.json` / `package-lock.json` 顶层与 `packages[""]` / DSH 主包 / DSH 平台子包。历史 tag 上真漂过（`v26.9.0` 的 lock 顶层是 `26.9.15`；`v26.10.0`、`v26.10.1` 停在 `26.9.0`）
 
 **SBOM 怎么用**（issue #206）：软件物料清单——两条链（`requirements.lock` /
 `package-lock.json`）全部包名与版本的机器可读清单，SPDX 2.3 JSON 随 Release 挂出
@@ -112,6 +114,11 @@ python tools\jobws.py release version
 ```
 
 **2. 六处同号**（改完才算落章；**只有第 5 处是生成的，其余都手改**）
+
+> 自动门禁 `python tools/check_release_versions.py` 覆盖第 1/2/3/5 行（lock 的
+> `version` 与 `packages[""].version` 都查）；**不覆盖第 4 行那 9 个技能**——那由
+> `python tools/jobws.py skills check` 把关，而该检查目前不在 CI 的 `安全扫描` job 内。
+> 所以落章时必须**五处一起改**（含 lock），否则 CI 立刻红：这是设计意图，不是故障。
 
 | # | 位置 | 怎么改 |
 |---|---|---|

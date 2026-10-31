@@ -34,13 +34,13 @@ BASELINE: Dict[str, Tuple[str, str]] = {
 
 
 def _semver(text: str) -> Optional[Tuple[int, int, int]]:
-    """只处理 `x.y.z`；`-beta.1` 这类后缀**乐观截断**（`44.9.1-beta.1` 当作 `44.9.1`）。
+    """只接受**稳定版** `x.y.z`；预发布（`44.9.1-beta.1`）一律判为无法解析。
 
-    这是刻意的宽松：本仓 lock 不会出现预发布（`devDependencies.electron` 是 `^44.9.1`
-    这样的正式版范围），而「截断」只在极端情况下偏松（把 RC 当正式版放行），不会把
-    正式版误判成 RC。若将来真锁了预发布，宁可手动确认，也不要让门禁随机红。
+    预发布语义上低于同号正式版，`44.9.1-beta.1` 并不满足「>= 44.9.1」；第一版用
+    正则前缀截断（乐观放行），2026-10-31 审计指出应当拒绝——现在拒绝，代价是锁里若
+    真出现预发布，门禁会红并要求人确认（那是对的）。
     """
-    match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", str(text or "").strip())
+    match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)$", str(text or "").strip())
     if not match:
         return None
     return int(match.group(1)), int(match.group(2)), int(match.group(3))

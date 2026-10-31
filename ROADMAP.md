@@ -33,7 +33,7 @@ when one exists. Historical implementation records stay in
 - [x] [#4](https://github.com/chenxiang6663635/job-workbench/issues/4) — Expand privacy & anti-fabrication regression coverage as the Web surface grows — **shipped in PR #32**: portability resolution, CSV-import privacy & atomicity, and doc relative-link reachability (three previously untested surfaces)
 - [x] **Release automation** — shipped in PR #23: tag (`v*`) triggers the Windows build and attaches the installer to the Release, so the v0.1.1 asset drift is now structurally impossible; the v0.2.0 release will be its first real run
 
-## Now — 积累期收口：桶三待触发，两个发布物待落章（2026-10-09 登记，2026-10-30 更新）
+## Now — 积累期收口：桶三待触发，一个发布物待落章（2026-10-09 登记，2026-10-30 更新）
 
 **当前状态（2026-10-30）**
 
@@ -42,11 +42,14 @@ when one exists. Historical implementation records stay in
   余下只有桶三——触发条件驱动，不主动开工。
 - **一个发布物待落章，另一个已决定不发**（都是「技术侧完成」，不是「还在做」）：
   - **`26.10.2` 安全 hotfix —— 已决定不发（2026-10-30）**：内容（Electron `44.4.5` → `44.10.0`，
-    只动依赖与版本号）由 `26.11.0` 覆盖，用户暴露窗口缩短到 1–2 天。**draft release 与
-    `release/26.10.2` 分支保留**作滑期开关——若 26.11.0 因冷启动 / 升级验收未过而滑期，
-    它就是唯一能立刻把安全面关掉的东西。**26.11.0 发布成功后再清理**：先删 draft、
-    再删远端 tag `v26.10.2`、最后删分支。代价（放弃一个可回退点）见
-    [`docs/handover/2026-10-28-p0-closure.md`](docs/handover/2026-10-28-p0-closure.md)。
+    只动依赖与版本号）由 `26.11.0` 覆盖——用户暴露窗口延长到 **26.11.0 发布为止**
+    （决策日 2026-10-30，计划落章日 11-01；实际发布时刻取决于当天验收，本文不预设）。
+    **draft release 与 `release/26.10.2` 分支保留**作滑期开关——若 26.11.0 因冷启动 /
+    升级验收未过而滑期，它就是唯一能立刻把安全面关掉的东西。**26.11.0 发布成功后再清理**：
+    删 draft → 删远端 tag `v26.10.2` → 删分支（顺序是**惯例**不是技术约束：先删 release
+    再删 tag，避免出现「release 还在、tag 没了」的中间态；分支与两者无关）。
+    代价是失去一个可回退点（26.11.0 出问题时只能退回 26.10.1），已记在
+    [`docs/handover/2026-10-28-p0-closure.md`](docs/handover/2026-10-28-p0-closure.md) §四。
   - **`26.11.0` 落章日 = 2026-11-01**：月粒度 CalVer 要求段名与发布月份一致；
     且 `jobws release version` 按**本机时区**算月份，早于该点运行会给出 `26.10.3`。
   - **DSH 双包随 `26.11.0` 一并首发**：`integrations/dsh/` 的主包与平台子包

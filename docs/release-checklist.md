@@ -81,7 +81,7 @@
 - [x] **发布证明链（全量 E2E）**：`publish` 依赖 `[package, e2e]`——E2E 红则 Release 不会创建（2026-09-25 起的并行结构） — v26.10.0：run `37452235789` 内通过
 - [x] 发布后核验资产：exe + blockmap + latest.yml + SHA256SUMS.txt（**v26.10.0 起五样**，含 sbom.spdx.json）全在（**打 tag 后**才做） — v26.10.0：五样齐（见 `releases/26.10.0-verification.md`）
 - [ ] **运行时最低安全版本**（`python tools/check_runtime_advisories.py`，2026-10-30 审计 §五新增）：检查 `electron` 是否 ≥ 已知安全基线。它落在 `devDependencies` 里，`npm audit --omit=dev` 扫不到、全量那条又只报告——这条是唯一会挡住「运行时落后」的闸
-- [ ] **五处版本同号**（`python tools/check_release_versions.py`，2026-10-30 审计 §四新增）：`web/electron/package.json` / `package-lock.json` 顶层与 `packages[""]` / DSH 主包 / DSH 平台子包。历史 tag 上真漂过（`v26.9.0` 的 lock 顶层是 `26.9.15`；`v26.10.0`、`v26.10.1` 停在 `26.9.0`）
+- [ ] **版本一致性（结构扫描）**（`python tools/check_release_versions.py`，2026-10-30 审计 §四新增、10-31 改为结构扫描）：真源是 `web/electron/package.json` 的 `version`；lock 顶层与 `packages[""]`、DSH 主包、平台子包、以及**主包指向子包的 `optionalDependencies` 声明**都必须同号（精确版本，不许 `^`/`~`）。当前基线 6 个检查点，以脚本输出为准。历史 tag 上真漂过（`v26.9.0` 的 lock 顶层是 `26.9.15`；`v26.10.0`、`v26.10.1` 停在 `26.9.0`）
 
 **SBOM 怎么用**（issue #206）：软件物料清单——两条链（`requirements.lock` /
 `package-lock.json`）全部包名与版本的机器可读清单，SPDX 2.3 JSON 随 Release 挂出
@@ -99,72 +99,23 @@
 - [x] CHANGELOG `[Unreleased]` 改为 `[版本号] - ISO 日期` → `release check --tag v<号>` 绿 — v26.10.0：`## [26.10.0] - 2026-10-06`；`release check` exit 0
 - [x] dry_run 演练：`gh workflow run release.yml -f dry_run=true -f tag=v<号>` → 下载 artifact 里的安装包 — v26.10.0：`37434793050` success（产物已下载并**四重核验**：artifact digest / 解压六件 / exe sha256 / exe sha512 对照 `latest.yml`）
 
-### 落章执行单（逐条命令 + 校验点，2026-10-19 补）
+### 落章执行单 → 见 [`handover/2026-10-30-2611-release-steps.md`](handover/2026-10-30-2611-release-steps.md)
 
-> **时机硬约束**：号是**日期的函数**（同月 N 递增、换月重置）。2026-10-19 实测
-> `release version` 输出 `26.10.1`——**要到 11 月才输出 `26.11.0`**。提前落章 =
-> 发的是十月 hotfix 号，不是本版目标。
+落章的逐条命令、字段清单与判据**只在那份执行单里维护**（2026-10-31 审计：此前本文件、
+执行单、DSH runbook 各写一套，三处计数已经互相矛盾）。本文件只保留与发布日强绑定的
+检查项。三条最容易踩的，仍在这里点名：
 
-**0. 前置**：G1 已批准；`main` 干净；`gh pr list --state open` 为空。
+- **号是日期 + 当月 tag 的函数**（`release_assist.py` 用执行机本地日期；10 月已有
+  `v26.10.0/1/2`，所以 10-31 跑会给 `26.10.3`）——**执行机本地日期进 11-01 之后**才给 `26.11.0`；
+- **版本门禁现在按结构扫描**（`tools/check_release_versions.py`，当前基线 6 个检查点：
+  5 个 `version` + 1 条 `optionalDependencies` 声明），不是「五处」也不是「六处文件」；
+  lock 的两行由 `npm install --package-lock-only` 生成，别手改；
+- **`build_mcp_exe.ps1` 必须带 `-FromLock -BasePython`**（裸调用不可复现），且必须 pwsh 7。
 
-**1. 取号**（确认输出就是目标号再往下）
-
-```powershell
-python tools\jobws.py release version
-```
-
-**2. 六处同号**（改完才算落章；**只有第 5 处是生成的，其余都手改**）
-
-> 自动门禁 `python tools/check_release_versions.py` 覆盖第 1/2/3/5 行（lock 的
-> `version` 与 `packages[""].version` 都查）；**不覆盖第 4 行那 9 个技能**——那由
-> `python tools/jobws.py skills check` 把关，而该检查目前不在 CI 的 `安全扫描` job 内。
-> 所以落章时必须**五处一起改**（含 lock），否则 CI 立刻红：这是设计意图，不是故障。
-
-| # | 位置 | 怎么改 |
-|---|---|---|
-| 1 | `web/electron/package.json` | 手改 `version`（**唯一真值源**） |
-| 2 | `integrations/dsh/package.json` | 手改（`assets_registry --check` 校验它 == 应用版本） |
-| 3 | `integrations/dsh/platform/win32-x64/package.json` | 手改（`build_mcp_exe.ps1` 校验它 == 主包） |
-| 4 | `skills/*/SKILL.md` ×9 的 `metadata.version` | **手改 9 处**——`assets_registry --write` **不碰技能**；`jobws skills check` 校验 == 应用版本 |
-| 5 | `.codebuddy-plugin/plugin.json` + `marketplace.json` | `python tools\assets_registry.py --write` 生成（手改会被覆盖） |
-| 6 | `CHANGELOG.md`：`## [Unreleased]` → `## [26.11.0] - 2026-11-XX` | 手改段名（内容不动） |
-
-**3. 校验（三道闸，顺序不能反）**
-
-```powershell
-python tools\jobws.py skills check          # 技能 metadata 与插件壳/应用版本三向对齐（9 个）
-python tools\assets_registry.py --check     # plugin.json / marketplace.json 与真源一致
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\build_mcp_exe.ps1 `
-    -FromLock -BasePython <构建用 python>
-                                            # **正式发行必须带这两个参数**（2026-10-30 审计 §九）：
-                                            # -FromLock 从 build-requirements.lock 重建 venv，
-                                            # -BasePython 指定 3.12 基座；裸调用只用于本地开发试跑，
-                                            # 它会在当前 venv 里装依赖，产物不可复现。
-                                            # 子包版本 == 主包（不等 exit 1）；产出 bin/ 与 prebuilds.json
-                                            # 需**非 editable 的构建 venv**（脚本默认探测
-                                            # D:\tools\venvs\jobws-mcp-build；别用开发用的 jobws-mcp venv）
-                                            # **必须用 pwsh 7**：脚本是 UTF-8 无 BOM，Windows PowerShell
-                                            # 5.1 会按 ANSI 解码，中文注释被拆坏 → ParserError（2026-10-19 实测）
-python scripts\smoke_mcp_exe.py             # 17 工具 + 数量/末位/真调两个后补工具
-python tools\jobws.py release check --tag v26.11.0
-                                            # 段名 + tag 与版本一致；不通过会给具体原因
-```
-
-**4. 产物预检（npm 两包）**
-
-```powershell
-cd integrations\dsh\platform\win32-x64; npm pack --dry-run    # 期望含 bin/jobws-mcp.exe + prebuilds.json
-cd ..\..; npm pack --dry-run                                   # 期望含 cordis.patch.yml / skills / platform
-```
-
-**5. 之后**：dry_run 演练（`gh workflow run release.yml -f dry_run=true -f tag=v26.11.0`）
-→ 下载产物核验 → tag（`git tag -a v26.11.0 -m "..."` 并推送，**有外部副作用**）
-→ npm 首发（**子包先、主包后**）→ 收录 PR。
-
-**中途的"预期红"（不要误判成坏）**：只改了第 1 处时，`jobws skills check` 会报
+**中途的"预期红"（不要误判成坏）**：只改了应用版本时，`jobws skills check` 会报
 「skills/*/SKILL.md 的 metadata.version 与应用版本不一致」、`assets_registry --check`
-会报 plugin.json/marketplace.json 漂移——都是正常中间态。**`--write` 只治后两者**，
-技能那 9 处仍要手改，改完两道闸才一起绿。
+会报 plugin.json/marketplace.json 漂移、`check_release_versions.py` 会报其余检查点不一致
+——都是正常中间态。`assets_registry --write` 只治插件壳，技能那 9 处仍要手改。
 
 **真机冒烟**（自己的 Windows 真机，CI 没有桌面会话）：
 

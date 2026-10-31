@@ -6,16 +6,18 @@
 `26.9.0`。installer 的实际版本由打包配置决定，所以那次没把包装坏；但只要漂移继续
 存在，「6 处同号」就只能靠维护者记性。
 
-这里把「应用版本」当唯一真源，其它四处必须逐字相等：
+这里把「应用版本」当唯一真源，**四处声明 + lock 的两行**必须逐字相等（共 5 个读取点）：
 
-    web/electron/package.json          version
+    web/electron/package.json          version                 ← 真源
     web/electron/package-lock.json     version（顶层）
     web/electron/package-lock.json     packages[""].version
     integrations/dsh/package.json      version（npm 主包）
     integrations/dsh/platform/win32-x64/package.json  version（平台子包）
 
-另有两条已在别处把关、本脚本不重复：`tools/assets_registry.py --check`（插件壳 /
-marketplace 清单 vs 真源）与 `python tools/jobws.py skills check`（9 个技能 metadata）。
+**本脚本不覆盖 `skills/*/SKILL.md` ×9 的 `metadata.version`**（落章清单第 4 行）：
+那 9 处由 `python tools/jobws.py skills check` 把关，而该检查目前**不在** CI 的
+`安全扫描` job 里——所以这里不宣称「发布物全链已锁」，只说这 5 个读取点已锁。
+同理，`tools/assets_registry.py --check`（插件壳 / marketplace 清单）也不在本 job 内。
 
 用法：`python tools/check_release_versions.py`（exit 0 通过 / 1 不一致 / 2 文件缺失）
 """

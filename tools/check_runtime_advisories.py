@@ -28,14 +28,18 @@ LOCK = os.path.join(ROOT, "web", "electron", "package-lock.json")
 BASELINE: Dict[str, Tuple[str, str]] = {
     "electron": (
         "44.9.1",
-        "GHSA-jr5w-w6x2-84p9（2026-10-22，证书信任）：44 系列需 >= 44.9.1；"
-        "项目实际锁 44.10.0",
+        "GHSA-jr5w-w6x2-84p9（2026-10-22，证书信任）：44 系列需 >= 44.9.1",
     ),
 }
 
 
 def _semver(text: str) -> Optional[Tuple[int, int, int]]:
-    """只处理 `x.y.z`（Electron 用的是标准三段；预发布后缀归一化掉）。"""
+    """只处理 `x.y.z`；`-beta.1` 这类后缀**乐观截断**（`44.9.1-beta.1` 当作 `44.9.1`）。
+
+    这是刻意的宽松：本仓 lock 不会出现预发布（`devDependencies.electron` 是 `^44.9.1`
+    这样的正式版范围），而「截断」只在极端情况下偏松（把 RC 当正式版放行），不会把
+    正式版误判成 RC。若将来真锁了预发布，宁可手动确认，也不要让门禁随机红。
+    """
     match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", str(text or "").strip())
     if not match:
         return None

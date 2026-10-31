@@ -115,6 +115,11 @@ python tools\jobws.py release version
 
 **2. 六处同号**（改完才算落章；**只有第 5 处是生成的，其余都手改**）
 
+> 自动门禁 `python tools/check_release_versions.py` 覆盖第 1/2/3/5 行（lock 的
+> `version` 与 `packages[""].version` 都查）；**不覆盖第 4 行那 9 个技能**——那由
+> `python tools/jobws.py skills check` 把关，而该检查目前不在 CI 的 `安全扫描` job 内。
+> 所以落章时必须**五处一起改**（含 lock），否则 CI 立刻红：这是设计意图，不是故障。
+
 | # | 位置 | 怎么改 |
 |---|---|---|
 | 1 | `web/electron/package.json` | 手改 `version`（**唯一真值源**） |
